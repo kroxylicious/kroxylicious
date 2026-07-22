@@ -197,6 +197,8 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
+    // identity check: Thread has no value semantics
+    @SuppressWarnings("ReferenceEquality")
     void deferredRequestMethodsDispatchedOnEventloop() {
         var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
         var req2 = new ApiVersionsRequestData().setClientSoftwareName("req2");

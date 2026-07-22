@@ -31,7 +31,7 @@ public class DecodeAll implements FilterFactory<Void, Void> {
 
     @Override
     public Void initialize(FilterFactoryContext context, Void config) throws PluginConfigurationException {
-        return config;
+        return null;
     }
 
     @NonNull

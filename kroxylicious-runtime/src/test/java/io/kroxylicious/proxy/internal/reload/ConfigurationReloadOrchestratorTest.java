@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.reload;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,7 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.reload.ConcurrentReconfigureException;
+import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.proxy.reload.StaticConfigurationChangedException;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -264,10 +267,15 @@ class ConfigurationReloadOrchestratorTest {
         var future = orchestrator.reconfigure(newConfig);
 
         // then — completes successfully with one error for cluster-add.
-        assertThat(future).isCompletedWithValueMatching(r -> r.hasErrors()
-                && r.errors().size() == 1
-                && r.errors().iterator().next().humanReadableIdentifier().equals("cluster-add")
-                && r.errors().iterator().next().cause() == bindFailure);
+        assertThat(future).succeedsWithin(Duration.ofSeconds(1),
+                InstanceOfAssertFactories.type(ReconfigureResult.class))
+                .satisfies(result -> {
+                    assertThat(result.hasErrors()).isTrue();
+                    assertThat(result.errors()).singleElement().satisfies(error -> {
+                        assertThat(error.humanReadableIdentifier()).isEqualTo("cluster-add");
+                        assertThat(error.cause()).isSameAs(bindFailure);
+                    });
+                });
 
         // Verify the orchestrator drove the full rollback sequence.
         verify(registry).addVirtualCluster(argThat(m -> m != null && "cluster-add".equals(m.getClusterName())));
@@ -301,10 +309,15 @@ class ConfigurationReloadOrchestratorTest {
 
         // The reconfigure future is still non-exceptional; the ReconfigureError carries the
         // BIND cause, not the deregister cause.
-        assertThat(future).isCompletedWithValueMatching(r -> r.hasErrors()
-                && r.errors().size() == 1
-                && r.errors().iterator().next().humanReadableIdentifier().equals("cluster-add")
-                && r.errors().iterator().next().cause() == bindFailure);
+        assertThat(future).succeedsWithin(Duration.ofSeconds(1),
+                InstanceOfAssertFactories.type(ReconfigureResult.class))
+                .satisfies(result -> {
+                    assertThat(result.hasErrors()).isTrue();
+                    assertThat(result.errors()).singleElement().satisfies(error -> {
+                        assertThat(error.humanReadableIdentifier()).isEqualTo("cluster-add");
+                        assertThat(error.cause()).isSameAs(bindFailure);
+                    });
+                });
 
         // Deregister was attempted.
         verify(endpointRegistry).deregisterVirtualCluster(any(EndpointGateway.class));
@@ -350,10 +363,15 @@ class ConfigurationReloadOrchestratorTest {
 
         var future = orchestrator.reconfigure(newConfig);
 
-        assertThat(future).isCompletedWithValueMatching(r -> r.hasErrors()
-                && r.errors().size() == 1
-                && r.errors().iterator().next().humanReadableIdentifier().equals("cluster-remove")
-                && r.errors().iterator().next().cause() == deregisterFailure);
+        assertThat(future).succeedsWithin(Duration.ofSeconds(1),
+                InstanceOfAssertFactories.type(ReconfigureResult.class))
+                .satisfies(result -> {
+                    assertThat(result.hasErrors()).isTrue();
+                    assertThat(result.errors()).singleElement().satisfies(error -> {
+                        assertThat(error.humanReadableIdentifier()).isEqualTo("cluster-remove");
+                        assertThat(error.cause()).isSameAs(deregisterFailure);
+                    });
+                });
 
         // Both steps were still attempted.
         verify(registry).removeVirtualCluster("cluster-remove");
@@ -647,10 +665,15 @@ class ConfigurationReloadOrchestratorTest {
         verify(registry).addVirtualCluster(argThat(m -> m != null && "cluster-add-succeeds".equals(m.getClusterName())));
 
         // Future succeeds (with errors inside the result), not exceptional.
-        assertThat(future).isCompletedWithValueMatching(r -> r.hasErrors()
-                && r.errors().size() == 1
-                && r.errors().iterator().next().humanReadableIdentifier().equals("cluster-add-fails")
-                && r.errors().iterator().next().cause() == failsSpecificFailure);
+        assertThat(future).succeedsWithin(Duration.ofSeconds(1),
+                InstanceOfAssertFactories.type(ReconfigureResult.class))
+                .satisfies(result -> {
+                    assertThat(result.hasErrors()).isTrue();
+                    assertThat(result.errors()).singleElement().satisfies(error -> {
+                        assertThat(error.humanReadableIdentifier()).isEqualTo("cluster-add-fails");
+                        assertThat(error.cause()).isSameAs(failsSpecificFailure);
+                    });
+                });
     }
 
     @Test
@@ -691,10 +714,15 @@ class ConfigurationReloadOrchestratorTest {
         verify(registry).removeVirtualCluster("cluster-remove-succeeds");
 
         // Future succeeds (with errors inside the result), not exceptional.
-        assertThat(future).isCompletedWithValueMatching(r -> r.hasErrors()
-                && r.errors().size() == 1
-                && r.errors().iterator().next().humanReadableIdentifier().equals("cluster-remove-fails")
-                && r.errors().iterator().next().cause() == failsSpecificFailure);
+        assertThat(future).succeedsWithin(Duration.ofSeconds(1),
+                InstanceOfAssertFactories.type(ReconfigureResult.class))
+                .satisfies(result -> {
+                    assertThat(result.hasErrors()).isTrue();
+                    assertThat(result.errors()).singleElement().satisfies(error -> {
+                        assertThat(error.humanReadableIdentifier()).isEqualTo("cluster-remove-fails");
+                        assertThat(error.cause()).isSameAs(failsSpecificFailure);
+                    });
+                });
     }
 
     @Test

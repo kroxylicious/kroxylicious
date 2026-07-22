@@ -67,6 +67,8 @@ class ResponseSequencer {
         }
     }
 
+    // identity check: SKIP_SENTINEL identity marker
+    @SuppressWarnings("ReferenceEquality")
     private void drainAndFlush() {
         while (buffered.containsKey(nextSequenceToWrite)) {
             Object value = buffered.remove(nextSequenceToWrite);

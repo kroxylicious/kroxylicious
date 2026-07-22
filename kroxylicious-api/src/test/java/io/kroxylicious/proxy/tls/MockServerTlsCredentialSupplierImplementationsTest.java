@@ -199,10 +199,9 @@ class MockServerTlsCredentialSupplierImplementationsTest {
         NoConfigMockFactory factory = new NoConfigMockFactory();
         MockFactoryContext context = new MockFactoryContext();
 
-        Void initData = factory.initialize(context, null);
-        assertThat(initData).isNull();
+        factory.initialize(context, null);
 
-        ServerTlsCredentialSupplier supplier = factory.create(context, initData);
+        ServerTlsCredentialSupplier supplier = factory.create(context, null);
         assertThat(supplier).isNotNull().isInstanceOf(MockSupplier.class);
     }
 
