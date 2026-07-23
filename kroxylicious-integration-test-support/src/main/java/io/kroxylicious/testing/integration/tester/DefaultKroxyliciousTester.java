@@ -305,21 +305,18 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @Override
     public void restartProxy() {
+        boolean hasOsAssignedPort = kroxyliciousConfig.get().virtualClusters().stream()
+                .flatMap(vc -> vc.gateways().stream().map(g -> g.buildNodeIdentificationStrategy(vc.name())))
+                .anyMatch(s -> s.getClusterBootstrapAddress().port() == 0);
+        if (hasOsAssignedPort) {
+            throw new IllegalStateException(
+                    "Cannot restart a proxy that uses OS-assigned (port 0) bootstrap ports: the restarted " +
+                            "proxy will bind to a different ephemeral port and existing clients will be unable to " +
+                            "reconnect. Use fixed ports in the gateway configuration when restartProxy() is needed.");
+        }
         try {
-            boolean hasOsAssignedPort = kroxyliciousConfig.get().virtualClusters().stream()
-                    .flatMap(vc -> vc.gateways().stream().map(g -> g.buildNodeIdentificationStrategy(vc.name())))
-                    .anyMatch(s -> s.getClusterBootstrapAddress().port() == 0);
-            if (hasOsAssignedPort) {
-                throw new IllegalStateException(
-                        "Cannot restart a proxy that uses OS-assigned (port 0) bootstrap ports: the restarted " +
-                                "proxy will bind to a different ephemeral port and existing clients will be unable to " +
-                                "reconnect. Use fixed ports in the gateway configuration when restartProxy() is needed.");
-            }
             proxy.close();
             proxy = spawnProxy(kroxyliciousConfig.get(), Features.defaultFeatures());
-        }
-        catch (IllegalStateException e) {
-            throw e;
         }
         catch (Exception e) {
             throw new IllegalStateException(e);
