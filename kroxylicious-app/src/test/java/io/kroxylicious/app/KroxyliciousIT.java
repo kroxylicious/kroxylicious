@@ -29,7 +29,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
@@ -53,7 +53,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * This test exists to check that the main method works as expected
  */
-@Isolated("Sub process execution requires a dedicated port")
+@ResourceLock("port:9192")
 @ExtendWith(KafkaClusterExtension.class)
 class KroxyliciousIT {
 
