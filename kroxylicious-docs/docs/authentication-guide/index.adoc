@@ -1,0 +1,30 @@
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: authentication
+:guide: authentication
+
+[id="using-book-{context}"]
+= Authentication Guide
+
+include::_modules/authentication/con-about-{guide}-guide.adoc[leveloffset=+1]
+
+[role="_abstract"]
+This guide covers authentication in Kroxylicious using SASL Inspection and SASL Termination filters.
+Kroxylicious provides two approaches to authentication: observing broker authentication (inspection) and performing authentication at the proxy (termination).
+Choose the approach that best fits your security and operational requirements.
+
+//authentication overview
+include::_assemblies/authentication/assembly-authentication-overview.adoc[leveloffset=+1]
+
+//SASL Inspection filter
+include::_assemblies/authentication/assembly-sasl-inspection.adoc[leveloffset=+1]
+
+//SASL Termination filter
+include::_assemblies/authentication/assembly-sasl-termination.adoc[leveloffset=+1]
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]
+
+//glossary
+include::_modules/authentication/ref-glossary.adoc[leveloffset=+1]
