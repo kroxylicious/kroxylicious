@@ -874,11 +874,8 @@ class EndpointRegistryTest {
         endpointRegistry.registerVirtualCluster(virtualClusterModel1);
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false));
 
-        // When
-        var port = endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel1));
-
-        // Then
-        assertThat(port).isEqualTo(DOWNSTREAM_BOOTSTRAP.port());
+        // When / Then
+        assertThatBootstrapPortResolves(endpointRegistry, virtualClusterModel1).isEqualTo(DOWNSTREAM_BOOTSTRAP.port());
     }
 
     @Test
@@ -892,11 +889,8 @@ class EndpointRegistryTest {
         endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, UPSTREAM_BROKER_0));
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
 
-        // When
-        var port = endpointRegistry.resolvePort(new ProxyNodeId.Broker(virtualClusterModel1, 0));
-
-        // Then
-        assertThat(port).isEqualTo(DOWNSTREAM_BROKER_0.port());
+        // When / Then
+        assertThatBrokerPortResolves(endpointRegistry, virtualClusterModel1, 0).isEqualTo(DOWNSTREAM_BROKER_0.port());
     }
 
     @Test
@@ -911,11 +905,8 @@ class EndpointRegistryTest {
         verifyAndProcessNetworkEventQueue(
                 createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(channelWithActualPort)));
 
-        // When
-        var port = endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel1));
-
-        // Then
-        assertThat(port).isEqualTo(osAssignedPort);
+        // When / Then
+        assertThatBootstrapPortResolves(endpointRegistry, virtualClusterModel1).isEqualTo(osAssignedPort);
     }
 
     @Test
@@ -937,9 +928,9 @@ class EndpointRegistryTest {
                 createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker1OsPort))));
 
         // When / Then
-        assertThat(endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel1))).isEqualTo(bootstrapOsPort);
-        assertThat(endpointRegistry.resolvePort(new ProxyNodeId.Broker(virtualClusterModel1, 0))).isEqualTo(broker0OsPort);
-        assertThat(endpointRegistry.resolvePort(new ProxyNodeId.Broker(virtualClusterModel1, 1))).isEqualTo(broker1OsPort);
+        assertThatBootstrapPortResolves(endpointRegistry, virtualClusterModel1).isEqualTo(bootstrapOsPort);
+        assertThatBrokerPortResolves(endpointRegistry, virtualClusterModel1, 0).isEqualTo(broker0OsPort);
+        assertThatBrokerPortResolves(endpointRegistry, virtualClusterModel1, 1).isEqualTo(broker1OsPort);
     }
 
     @Test
@@ -961,8 +952,8 @@ class EndpointRegistryTest {
 
         // Then
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
-        assertThat(endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel1))).isEqualTo(osAssignedPort);
-        assertThat(endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel2))).isEqualTo(osAssignedPort);
+        assertThatBootstrapPortResolves(endpointRegistry, virtualClusterModel1).isEqualTo(osAssignedPort);
+        assertThatBootstrapPortResolves(endpointRegistry, virtualClusterModel2).isEqualTo(osAssignedPort);
     }
 
     @Test
@@ -1234,5 +1225,13 @@ class EndpointRegistryTest {
         public void close() {
             // nothing to do
         }
+    }
+
+    private static org.assertj.core.api.AbstractIntegerAssert<?> assertThatBootstrapPortResolves(EndpointRegistry registry, EndpointGateway gateway) {
+        return assertThat(registry.resolvePort(new ProxyNodeId.Bootstrap(gateway)).toCompletableFuture().join());
+    }
+
+    private static org.assertj.core.api.AbstractIntegerAssert<?> assertThatBrokerPortResolves(EndpointRegistry registry, EndpointGateway gateway, int nodeId) {
+        return assertThat(registry.resolvePort(new ProxyNodeId.Broker(gateway, nodeId)).toCompletableFuture().join());
     }
 }

@@ -347,7 +347,7 @@ public final class KafkaProxy implements AutoCloseable {
                             virtualClusterModels.stream()
                                     .flatMap(vc -> vc.gateways().values().stream())
                                     .map(vcl -> endpointRegistry.registerVirtualCluster(vcl)
-                                            .thenRun(() -> vcl.bindPortResolver(endpointRegistry::resolvePort))
+                                            .thenRun(() -> vcl.bindPortResolver(vn -> endpointRegistry.resolvePort(vn).toCompletableFuture().join()))
                                             .toCompletableFuture()))
                             .toArray(CompletableFuture[]::new))
                     .join();
@@ -670,7 +670,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
         var address = gateway.getClusterBootstrapAddress();
         if (address.port() == 0) {
-            int resolvedPort = endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(gateway));
+            int resolvedPort = endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(gateway)).toCompletableFuture().join();
             return new HostPort(address.host(), resolvedPort);
         }
         return address;

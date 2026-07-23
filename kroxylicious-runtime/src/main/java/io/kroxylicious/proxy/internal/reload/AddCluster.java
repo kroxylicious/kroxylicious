@@ -109,7 +109,7 @@ final class AddCluster implements ClusterOperation {
         List<EndpointGateway> gateways = List.copyOf(model.gateways().values());
         var bindFutures = gateways.stream()
                 .map(g -> endpointRegistry.registerVirtualCluster(g)
-                        .thenRun(() -> g.bindPortResolver(endpointRegistry::resolvePort))
+                        .thenRun(() -> g.bindPortResolver(vn -> endpointRegistry.resolvePort(vn).toCompletableFuture().join()))
                         .toCompletableFuture())
                 .toArray(CompletableFuture[]::new);
         try {

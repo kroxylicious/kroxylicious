@@ -452,15 +452,15 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      * the OS selected at bind time.
      *
      * @param vn the virtual node whose bound port is needed
-     * @return the actual bound port
+     * @return a stage that completes with the actual bound port once the binding is established
      * @throws IllegalStateException if the virtual node has no recorded binding (not yet registered)
      */
-    public int resolvePort(ProxyNodeId vn) {
+    public CompletionStage<Integer> resolvePort(ProxyNodeId vn) {
         var record = virtualNodeIndex.get(vn);
         if (record == null) {
             throw new IllegalStateException("No binding found for virtual node " + vn);
         }
-        return requireInetSocketAddress(record.bindingStage().toCompletableFuture().join()).getPort();
+        return record.bindingStage().thenApply(ch -> requireInetSocketAddress(ch).getPort());
     }
 
     private void removeVirtualNodeEntries(EndpointGateway gateway) {
