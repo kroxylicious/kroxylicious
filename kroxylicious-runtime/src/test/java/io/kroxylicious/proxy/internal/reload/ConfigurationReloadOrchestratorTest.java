@@ -813,6 +813,8 @@ class ConfigurationReloadOrchestratorTest {
                 .thenReturn(CompletableFuture.completedStage(null));
         when(registry.deregisterVirtualCluster(any(EndpointGateway.class)))
                 .thenReturn(CompletableFuture.completedStage(null));
+        when(registry.resolvePort(any()))
+                .thenReturn(CompletableFuture.completedStage(9192));
         return registry;
     }
 
