@@ -12,7 +12,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 @SuppressWarnings("java:S6218") // we don't need DecryptRequest equality
 public record DecryptRequest(@JsonProperty(value = "KeyId") String keyId,
-                             @JsonProperty(value = "CiphertextBlob") byte[] ciphertextBlob) {
+                             @SuppressWarnings("ArrayRecordComponent") @JsonProperty(value = "CiphertextBlob") byte[] ciphertextBlob) { // byte[] retained: transient Jackson DTO, equality unused
     public DecryptRequest {
         Objects.requireNonNull(keyId);
         Objects.requireNonNull(ciphertextBlob);

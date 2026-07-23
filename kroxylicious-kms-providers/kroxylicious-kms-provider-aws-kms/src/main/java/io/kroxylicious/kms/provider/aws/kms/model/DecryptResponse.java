@@ -14,7 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
 public record DecryptResponse(@JsonProperty(value = "KeyId") String keyId,
-                              @JsonProperty(value = "Plaintext") byte[] plaintext) {
+                              @SuppressWarnings("ArrayRecordComponent") @JsonProperty(value = "Plaintext") byte[] plaintext) { // byte[] retained: transient Jackson DTO; plaintext key material must
+                                                                                                                               // stay zeroable
 
     public DecryptResponse {
         Objects.requireNonNull(keyId);

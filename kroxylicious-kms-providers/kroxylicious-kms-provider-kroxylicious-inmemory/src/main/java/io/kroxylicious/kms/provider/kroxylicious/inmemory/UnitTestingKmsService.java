@@ -53,7 +53,7 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
     @SuppressWarnings("java:S6218") // we currently don't need equals/hash to consider key contents
     public record Kek(
                       @JsonProperty(required = true) String uuid,
-                      @JsonProperty(required = true) byte[] key,
+                      @SuppressWarnings("ArrayRecordComponent") @JsonProperty(required = true) byte[] key, // byte[] retained: test-support record; key-content equality deliberately unused
                       @JsonProperty(required = true) String algorithm,
                       @JsonProperty(required = true) String alias) {}
 

@@ -8,7 +8,7 @@ package io.kroxylicious.filter.encryption;
 
 import java.util.Arrays;
 
-public record TestingDek(byte[] serializedEdek) {
+public record TestingDek(@SuppressWarnings("ArrayRecordComponent") byte[] serializedEdek) { // byte[] retained: test-only record; deep equality via explicit equals/hashCode below
 
     @Override
     public boolean equals(Object o) {

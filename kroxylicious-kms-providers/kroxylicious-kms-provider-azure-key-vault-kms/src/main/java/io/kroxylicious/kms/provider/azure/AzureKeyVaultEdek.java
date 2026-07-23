@@ -16,7 +16,7 @@ import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 
 public record AzureKeyVaultEdek(String keyName,
                                 String keyVersion,
-                                byte[] edek,
+                                @SuppressWarnings("ArrayRecordComponent") byte[] edek, // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
                                 String vaultName,
                                 SupportedKeyType supportedKeyType) {
 
