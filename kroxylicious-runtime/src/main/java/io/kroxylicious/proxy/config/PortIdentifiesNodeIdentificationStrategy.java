@@ -126,16 +126,13 @@ public class PortIdentifiesNodeIdentificationStrategy
             verifyNoRangeContainsBootstrapPort(bootstrapAddress, namedRanges, this.computedNodeStartPort, nodeIdToPort);
         }
         this.computedNodeIdRanges = namedRanges;
-        this.exclusivePorts = Collections.unmodifiableSet(computeExclusivePorts(bootstrapAddress));
+        this.exclusivePorts = Collections.unmodifiableSet(configuredExclusivePorts(bootstrapAddress));
     }
 
-    private Set<Integer> computeExclusivePorts(HostPort bootstrapAddress) {
-        var ports = nodeIdToPort.values().stream()
-                .filter(p -> !isOsAssigned(p))
-                .collect(Collectors.toCollection(HashSet::new));
-        if (!isOsAssigned(bootstrapAddress.port())) {
-            ports.add(bootstrapAddress.port());
-        }
+    private Set<Integer> configuredExclusivePorts(HostPort bootstrapAddress) {
+        var ports = new HashSet<>(nodeIdToPort.values());
+        ports.add(bootstrapAddress.port());
+        ports.removeIf(PortIdentifiesNodeIdentificationStrategy::isOsAssigned);
         return ports;
     }
 
