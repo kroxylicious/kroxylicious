@@ -19,7 +19,7 @@ public class EncryptionException extends RuntimeException {
     private final ApiException apiException;
 
     /**
-     * Constructs an exception using an {@see InvalidRecordException} so that it is considered fatal by Kafka clients
+     * Constructs an exception using an {@link InvalidRecordException} so that it is considered fatal by Kafka clients
      * @param message to be included in both the logs and the client response (where messages are included by the protocol)
      */
     public EncryptionException(String message) {
