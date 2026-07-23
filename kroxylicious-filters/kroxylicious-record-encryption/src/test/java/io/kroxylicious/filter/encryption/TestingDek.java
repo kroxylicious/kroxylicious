@@ -8,17 +8,16 @@ package io.kroxylicious.filter.encryption;
 
 import java.util.Arrays;
 
-public record TestingDek(byte[] serializedEdek) {
+public record TestingDek(@SuppressWarnings("ArrayRecordComponent") byte[] serializedEdek) { // byte[] retained: test-only record; deep equality via explicit equals/hashCode below
 
     @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof TestingDek that)) {
             return false;
         }
-        TestingDek that = (TestingDek) o;
         return Arrays.equals(serializedEdek, that.serializedEdek);
     }
 

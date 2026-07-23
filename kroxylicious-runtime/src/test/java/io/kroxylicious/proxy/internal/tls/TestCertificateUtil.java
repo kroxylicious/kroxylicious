@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal.tls;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
@@ -120,7 +121,7 @@ public final class TestCertificateUtil {
     static String toPem(X509Certificate cert) throws Exception {
         var sb = new StringBuilder();
         sb.append("-----BEGIN CERTIFICATE-----\n");
-        sb.append(Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(cert.getEncoded()));
+        sb.append(Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(cert.getEncoded()));
         sb.append("\n-----END CERTIFICATE-----\n");
         return sb.toString();
     }
@@ -131,7 +132,7 @@ public final class TestCertificateUtil {
     static String toPkcs8Pem(PrivateKey key) {
         var sb = new StringBuilder();
         sb.append("-----BEGIN PRIVATE KEY-----\n");
-        sb.append(Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(key.getEncoded()));
+        sb.append(Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(key.getEncoded()));
         sb.append("\n-----END PRIVATE KEY-----\n");
         return sb.toString();
     }
@@ -168,7 +169,7 @@ public final class TestCertificateUtil {
 
         var sb = new StringBuilder();
         sb.append("-----BEGIN RSA PRIVATE KEY-----\n");
-        sb.append(Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(pkcs1));
+        sb.append(Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(pkcs1));
         sb.append("\n-----END RSA PRIVATE KEY-----\n");
         return sb.toString();
     }

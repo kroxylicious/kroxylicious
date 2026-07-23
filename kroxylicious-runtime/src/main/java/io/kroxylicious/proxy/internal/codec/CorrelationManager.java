@@ -91,7 +91,7 @@ public class CorrelationManager {
      * API key and version.
      */
     // TODO a perfect value type
-    public static class Correlation {
+    public static final class Correlation {
         private final short apiKey;
         private final short apiVersion;
 
@@ -135,10 +135,9 @@ public class CorrelationManager {
             if (this == o) {
                 return true;
             }
-            if (o == null || getClass() != o.getClass()) {
+            if (!(o instanceof Correlation that)) {
                 return false;
             }
-            Correlation that = (Correlation) o;
             return apiKey == that.apiKey && apiVersion == that.apiVersion && downstreamCorrelationId == that.downstreamCorrelationId
                     && decodeResponse == that.decodeResponse;
         }

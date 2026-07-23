@@ -10,8 +10,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class InMemoryEdekTest {
 
@@ -21,33 +20,42 @@ class InMemoryEdekTest {
     void testEqualsAndHashCode() {
         var edek1 = new InMemoryEdek(96, new byte[]{ (byte) 1, (byte) 2, (byte) 3 },
                 KEK_REF, new byte[]{ (byte) 4, (byte) 5, (byte) 6 });
-
         var edek2 = new InMemoryEdek(96, new byte[]{ (byte) 1, (byte) 2, (byte) 3 },
                 KEK_REF, new byte[]{ (byte) 4, (byte) 5, (byte) 6 });
+        var numAuthBitsDiffer = new InMemoryEdek(128, new byte[]{ (byte) 1, (byte) 2, (byte) 3 },
+                KEK_REF, new byte[]{ (byte) 4, (byte) 5, (byte) 6 });
+        var ivDiffer = new InMemoryEdek(96, new byte[]{ (byte) 7, (byte) 8, (byte) 9 },
+                KEK_REF, new byte[]{ (byte) 4, (byte) 5, (byte) 6 });
+        var edekBytesDiffer = new InMemoryEdek(96, new byte[]{ (byte) 1, (byte) 2, (byte) 3 },
+                KEK_REF, new byte[]{ (byte) 7, (byte) 8, (byte) 9 });
 
-        var edek3 = new InMemoryEdek(96, new byte[]{ (byte) 4, (byte) 5, (byte) 6 },
-                KEK_REF, new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        assertThat(edek1)
+                .isNotEqualTo(new Object())
+                .isNotEqualTo(null);
 
-        assertEquals(edek1, edek1);
-        assertEquals(edek1, edek2);
-        assertEquals(edek2, edek2);
-        assertEquals(edek2, edek1);
-        assertNotEquals(edek1, edek3);
-        assertNotEquals(edek3, edek1);
-        assertNotEquals(edek2, edek3);
-        assertNotEquals(edek3, edek2);
-        assertNotEquals("bob", edek1);
+        assertThat(edek1)
+                .isEqualTo(edek2)
+                .hasSameHashCodeAs(edek2);
+        assertThat(edek2).isEqualTo(edek1);
 
-        assertEquals(edek1.hashCode(), edek2.hashCode());
-        assertNotEquals(edek1.hashCode(), edek3.hashCode());
-        assertNotEquals(edek2.hashCode(), edek3.hashCode());
+        assertThat(edek1)
+                .isNotEqualTo(numAuthBitsDiffer)
+                .doesNotHaveSameHashCodeAs(numAuthBitsDiffer);
+
+        assertThat(edek1)
+                .isNotEqualTo(ivDiffer)
+                .doesNotHaveSameHashCodeAs(ivDiffer);
+
+        assertThat(edek1)
+                .isNotEqualTo(edekBytesDiffer)
+                .doesNotHaveSameHashCodeAs(edekBytesDiffer);
     }
 
     @Test
     void testToString() {
         var edek1 = new InMemoryEdek(96, new byte[]{ (byte) 1, (byte) 2, (byte) 3 },
                 KEK_REF, new byte[]{ (byte) 4, (byte) 5, (byte) 6 });
-        assertEquals("InMemoryEdek{numAuthBits=96, iv=[1, 2, 3], edek=[4, 5, 6]}", edek1.toString());
+        assertThat(edek1).hasToString("InMemoryEdek{numAuthBits=96, iv=[1, 2, 3], edek=[4, 5, 6]}");
 
     }
 

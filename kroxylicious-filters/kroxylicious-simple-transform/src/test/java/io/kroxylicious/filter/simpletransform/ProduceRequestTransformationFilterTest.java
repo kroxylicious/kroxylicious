@@ -247,7 +247,7 @@ class ProduceRequestTransformationFilterTest {
     private static MemoryRecords buildOneRecord(String key, String value) {
         try (MemoryRecordsBuilder builder = MemoryRecords.builder(ByteBuffer.allocate(1024), RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE, TimestampType.CREATE_TIME, 0L, System.currentTimeMillis())) {
-            builder.append(0L, key.getBytes(), value.getBytes());
+            builder.append(0L, key.getBytes(StandardCharsets.UTF_8), value.getBytes(StandardCharsets.UTF_8));
             return builder.build();
         }
     }

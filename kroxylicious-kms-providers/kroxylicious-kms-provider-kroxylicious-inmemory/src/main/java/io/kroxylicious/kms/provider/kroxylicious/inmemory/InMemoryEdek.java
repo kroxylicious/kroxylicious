@@ -12,9 +12,9 @@ import java.util.UUID;
 
 public record InMemoryEdek(
                            int numAuthBits,
-                           byte[] iv,
+                           @SuppressWarnings("ArrayRecordComponent") byte[] iv, // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
                            UUID kekRef,
-                           byte[] edek) {
+                           @SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
 
     public InMemoryEdek {
         if (numAuthBits != 128
@@ -37,10 +37,9 @@ public record InMemoryEdek(
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof InMemoryEdek that)) {
             return false;
         }
-        InMemoryEdek that = (InMemoryEdek) o;
         return numAuthBits == that.numAuthBits && Arrays.equals(iv, that.iv) && Arrays.equals(edek, that.edek);
     }
 

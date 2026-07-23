@@ -16,7 +16,7 @@ import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 
 public record AzureKeyVaultEdek(String keyName,
                                 String keyVersion,
-                                byte[] edek,
+                                @SuppressWarnings("ArrayRecordComponent") byte[] edek, // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
                                 String vaultName,
                                 SupportedKeyType supportedKeyType) {
 
@@ -90,10 +90,9 @@ public record AzureKeyVaultEdek(String keyName,
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof AzureKeyVaultEdek that)) {
             return false;
         }
-        AzureKeyVaultEdek that = (AzureKeyVaultEdek) o;
         return Objects.equals(keyName, that.keyName) && Objects.equals(vaultName, that.vaultName) && Objects.equals(supportedKeyType, that.supportedKeyType)
                 && Objects.equals(keyVersion, that.keyVersion) && Arrays.equals(edek, that.edek);
     }

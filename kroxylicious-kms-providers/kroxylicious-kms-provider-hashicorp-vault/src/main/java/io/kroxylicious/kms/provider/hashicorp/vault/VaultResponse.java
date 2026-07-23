@@ -27,7 +27,7 @@ public record VaultResponse<D>(D data) {
 
     @SuppressWarnings("java:S6218") // no need for toString, equals, hashCode to go deep on the byte[]
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record DecryptData(byte[] plaintext) {
+    record DecryptData(@SuppressWarnings("ArrayRecordComponent") byte[] plaintext) { // byte[] retained: transient Jackson DTO; plaintext key material must stay zeroable
         DecryptData {
             Objects.requireNonNull(plaintext);
         }
@@ -35,7 +35,7 @@ public record VaultResponse<D>(D data) {
 
     @SuppressWarnings("java:S6218") // no need for toString, equals, hashCode to go deep on the byte[]
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record DataKeyData(byte[] plaintext, String ciphertext) {
+    record DataKeyData(@SuppressWarnings("ArrayRecordComponent") byte[] plaintext, String ciphertext) { // byte[] retained: transient Jackson DTO; plaintext key material must stay zeroable
         DataKeyData {
             Objects.requireNonNull(plaintext);
             Objects.requireNonNull(ciphertext);

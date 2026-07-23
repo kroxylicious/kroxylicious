@@ -6,9 +6,7 @@
 
 package io.kroxylicious.benchmarks.helm;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -148,7 +146,7 @@ public class HelmUtils {
             Process process = pb.start();
             String output;
 
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            try (var reader = process.inputReader()) {
                 output = reader.lines().collect(Collectors.joining("\n"));
             }
 

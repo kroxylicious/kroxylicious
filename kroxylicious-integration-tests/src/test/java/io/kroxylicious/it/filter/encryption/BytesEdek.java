@@ -15,17 +15,16 @@ import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public record BytesEdek(byte[] edek) {
+public record BytesEdek(@SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: test-only record; deep equality via explicit equals/hashCode below
 
     @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof BytesEdek bytesEdek)) {
             return false;
         }
-        BytesEdek bytesEdek = (BytesEdek) o;
         return Objects.deepEquals(edek, bytesEdek.edek);
     }
 
