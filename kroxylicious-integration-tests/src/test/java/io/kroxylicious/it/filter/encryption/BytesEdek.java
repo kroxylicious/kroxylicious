@@ -15,7 +15,7 @@ import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public record BytesEdek(byte[] edek) {
+public record BytesEdek(@SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: test-only record; deep equality via explicit equals/hashCode below
 
     @Override
     public boolean equals(Object o) {

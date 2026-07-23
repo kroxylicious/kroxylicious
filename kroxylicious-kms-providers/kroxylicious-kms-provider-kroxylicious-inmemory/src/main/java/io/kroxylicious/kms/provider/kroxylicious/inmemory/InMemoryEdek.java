@@ -12,9 +12,9 @@ import java.util.UUID;
 
 public record InMemoryEdek(
                            int numAuthBits,
-                           byte[] iv,
+                           @SuppressWarnings("ArrayRecordComponent") byte[] iv, // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
                            UUID kekRef,
-                           byte[] edek) {
+                           @SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
 
     public InMemoryEdek {
         if (numAuthBits != 128

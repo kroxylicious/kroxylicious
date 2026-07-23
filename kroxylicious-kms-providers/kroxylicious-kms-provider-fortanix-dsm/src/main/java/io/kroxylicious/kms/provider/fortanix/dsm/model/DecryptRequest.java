@@ -26,8 +26,8 @@ import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.BATCH_EN
 public record DecryptRequest(@JsonProperty(value = "key", required = true) SecurityObjectDescriptor key,
                              @JsonProperty(value = "alg", required = true) String alg,
                              @JsonProperty(value = "mode", required = true) String mode,
-                             @JsonProperty(value = "iv", required = true) byte[] iv,
-                             @JsonProperty(value = "cipher") byte[] cipher) {
+                             @SuppressWarnings("ArrayRecordComponent") @JsonProperty(value = "iv", required = true) byte[] iv, // byte[] retained: transient Jackson DTO, equality unused
+                             @SuppressWarnings("ArrayRecordComponent") @JsonProperty(value = "cipher") byte[] cipher) { // byte[] retained: transient Jackson DTO, equality unused
     /**
      * Decrypt request to Fortanix DSM REST API, {@code /crypto/v1/decrypt}.
      *

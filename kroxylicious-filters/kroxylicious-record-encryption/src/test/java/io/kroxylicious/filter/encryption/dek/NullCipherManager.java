@@ -21,7 +21,7 @@ public class NullCipherManager implements CipherManager {
     private final NullParameters nullParameters;
     private final boolean constantParamsSize;
 
-    record NullParameters(byte[] bytes) implements AlgorithmParameterSpec {
+    record NullParameters(@SuppressWarnings("ArrayRecordComponent") byte[] bytes) implements AlgorithmParameterSpec { // byte[] retained: test-only holder, equality unused
 
     }
 

@@ -25,7 +25,8 @@ import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.BATCH_EN
 public record EncryptRequest(@JsonProperty(value = "key", required = true) SecurityObjectDescriptor key,
                              @JsonProperty(value = "alg", required = true) String alg,
                              @JsonProperty(value = "mode", required = true) String mode,
-                             @JsonProperty(value = "plain", required = true) byte[] plain) {
+                             @SuppressWarnings("ArrayRecordComponent") @JsonProperty(value = "plain", required = true) byte[] plain) { // byte[] retained: transient Jackson DTO; plaintext key material
+                                                                                                                                       // must stay zeroable
 
     /**
      * Encrypt request to the Fortanix DSM REST API, {@code /crypto/v1/encrypt}.

@@ -901,7 +901,9 @@ class SaslInspectionFilterTest {
         byte[] response();
     }
 
-    private record InitialResponse(byte[] response) implements SaslInteraction {}
+    private record InitialResponse(@SuppressWarnings("ArrayRecordComponent") byte[] response) implements SaslInteraction {} // byte[] retained: test-only record modelling SASL wire bytes, equality
+                                                                                                                            // unused
 
-    private record ChallengeResponse(byte[] challenge, @Nullable byte[] response) implements SaslInteraction {}
+    private record ChallengeResponse(@SuppressWarnings("ArrayRecordComponent") byte[] challenge, @SuppressWarnings("ArrayRecordComponent") @Nullable byte[] response)
+            implements SaslInteraction {} // byte[] retained: test-only record modelling SASL wire bytes, equality unused
 }

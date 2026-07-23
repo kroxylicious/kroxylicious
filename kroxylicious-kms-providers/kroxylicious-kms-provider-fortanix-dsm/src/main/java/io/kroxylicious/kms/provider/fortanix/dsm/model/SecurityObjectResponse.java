@@ -22,7 +22,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @SuppressWarnings("java:S6218") // we don't need SecurityObjectResponse equality
 public record SecurityObjectResponse(@JsonProperty(value = "kid", required = false) @Nullable String kid,
                                      @JsonProperty(value = "transient_key", required = false) @Nullable String transientKey,
-                                     @JsonProperty(value = "value", required = false) @Nullable byte[] value) {
+                                     @SuppressWarnings("ArrayRecordComponent") @JsonProperty(value = "value", required = false) @Nullable byte[] value) { // byte[] retained: transient Jackson DTO;
+                                                                                                                                                          // exported key material must stay zeroable
     /**
      * Security object response from the Fortanix DSM REST API.
      *

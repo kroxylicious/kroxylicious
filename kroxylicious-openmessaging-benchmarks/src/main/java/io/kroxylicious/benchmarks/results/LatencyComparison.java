@@ -16,7 +16,9 @@ import java.util.Optional;
  * then pass it to a render method. Significance is computed on demand via {@link #assess}.
  */
 public record LatencyComparison(String label, double baseline, double candidate,
-                                double[] baselineWindows, double[] candidateWindows) {
+                                @SuppressWarnings("ArrayRecordComponent") double[] baselineWindows, @SuppressWarnings("ArrayRecordComponent") double[] candidateWindows) { // double[] retained: deep
+                                                                                                                                                                           // equality via explicit
+                                                                                                                                                                           // equals/hashCode below
 
     @Override
     public boolean equals(Object o) {

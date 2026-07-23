@@ -23,7 +23,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
 public record DecryptResponse(
                               @JsonProperty(value = "kid", required = false) @Nullable String kid,
-                              @JsonProperty(value = "plain", required = true) byte[] plain) {
+                              @SuppressWarnings("ArrayRecordComponent") @JsonProperty(value = "plain", required = true) byte[] plain) { // byte[] retained: transient Jackson DTO; plaintext key
+                                                                                                                                        // material must stay zeroable
 
     /**
      * Decrypt response from Fortanix DSM REST API, @code /crypto/v1/decrypt}.

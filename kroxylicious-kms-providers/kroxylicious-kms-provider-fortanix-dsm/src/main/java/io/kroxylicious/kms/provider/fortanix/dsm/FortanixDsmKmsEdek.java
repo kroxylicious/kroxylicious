@@ -17,8 +17,8 @@ import java.util.Objects;
  * @param edek - edek bytes
  */
 public record FortanixDsmKmsEdek(String kekRef,
-                                 byte[] iv,
-                                 byte[] edek) {
+                                 @SuppressWarnings("ArrayRecordComponent") byte[] iv, // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
+                                 @SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
 
     public static final int IV_LENGTH = 16;
 
