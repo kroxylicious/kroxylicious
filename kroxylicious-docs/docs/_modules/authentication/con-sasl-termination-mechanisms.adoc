@@ -4,30 +4,37 @@
 = Supported SASL mechanisms
 
 [role="_abstract"]
-The SASL Termination filter supports SCRAM (Salted Challenge Response Authentication Mechanism) authentication mechanisms that provide secure password-based authentication without transmitting passwords in plaintext.
-
-== SCRAM mechanisms
+The SASL Termination filter supports SCRAM and OAUTHBEARER authentication mechanisms.
+SCRAM provides secure password-based authentication, whilst OAUTHBEARER enables token-based authentication using JWT bearer tokens validated against a JWKS endpoint.
 
 [id='supported-mechanisms-termination-{context}']
 .Table of supported SASL mechanisms for termination
 |===
-|SASL mechanism|Hash algorithm|Minimum iterations
+|SASL mechanism|Authentication model|Specification
 
 |https://datatracker.ietf.org/doc/html/rfc7677[SCRAM-SHA-256]
-|SHA-256
-|4096 (10000 recommended)
+|Password-based (challenge-response)
+|https://datatracker.ietf.org/doc/html/rfc5802[RFC 5802]
 
 |https://datatracker.ietf.org/doc/html/draft-melnikov-scram-sha-512-00[SCRAM-SHA-512]
-|SHA-512
-|4096 (10000 recommended)
+|Password-based (challenge-response)
+|https://datatracker.ietf.org/doc/html/rfc5802[RFC 5802]
+
+|https://datatracker.ietf.org/doc/html/rfc7628[OAUTHBEARER]
+|Token-based (JWT bearer token)
+|https://datatracker.ietf.org/doc/html/rfc7628[RFC 7628]
 |===
 
-Both mechanisms use salted password hashing with PBKDF2 (Password-Based Key Derivation Function 2) to derive cryptographic keys from passwords.
+== SCRAM mechanisms
+
+SCRAM (Salted Challenge Response Authentication Mechanism) provides secure password-based authentication without transmitting passwords in plaintext.
+
+Both SCRAM-SHA-256 and SCRAM-SHA-512 use salted password hashing with PBKDF2 (Password-Based Key Derivation Function 2) to derive cryptographic keys from passwords.
 This provides strong protection against password cracking attempts.
 
-== How SCRAM authentication works
+=== How SCRAM authentication works
 
-SCRAM provides challenge-response authentication without exposing passwords:
+SCRAM is a multi-round challenge-response protocol:
 
 1. The client sends a username and random nonce
 2. The proxy retrieves the stored credential (salt, iterations, server key, stored key) from the credential store
@@ -38,7 +45,7 @@ SCRAM provides challenge-response authentication without exposing passwords:
 SCRAM-SHA-256 and SCRAM-SHA-512 differ only in the hash algorithm used.
 SCRAM-SHA-512 provides stronger cryptographic properties but requires slightly more computational resources.
 
-== Security properties
+=== SCRAM security properties
 
 *No plaintext passwords*:: Passwords are never transmitted over the network or stored in plaintext.
 
@@ -49,3 +56,31 @@ SCRAM-SHA-512 provides stronger cryptographic properties but requires slightly m
 *Replay protection*:: Random nonces in each authentication attempt prevent replay attacks.
 
 For production deployments, use at least 10000 iterations for stronger security, balancing protection with authentication latency requirements.
+
+== OAUTHBEARER mechanism
+
+OAUTHBEARER enables token-based authentication using JWT (JSON Web Token) bearer tokens.
+Instead of managing passwords in a credential store, the proxy validates tokens against a JWKS (JSON Web Key Set) endpoint provided by your identity provider.
+
+=== How OAUTHBEARER authentication works
+
+OAUTHBEARER authentication is typically a single-round exchange:
+
+1. The client obtains a JWT bearer token from an identity provider (e.g. Keycloak, Auth0, Azure AD)
+2. The client sends the token to the proxy as part of the SASL authentication exchange
+3. The proxy fetches signing keys from the configured JWKS endpoint
+4. The proxy validates the token: signature, expiry, expected audience, and expected issuer
+5. On success, the proxy authenticates the connection using the token's subject claim as the identity
+
+No credential store is required for OAUTHBEARER.
+Token validation is performed entirely using the JWKS endpoint and the configured validation parameters.
+
+=== OAUTHBEARER security properties
+
+*Audience validation*:: Tokens must contain the expected audience (`aud`) claim. This prevents tokens issued for a different service from being accepted.
+
+*Issuer validation*:: Tokens must be issued by the expected issuer (`iss`). This prevents tokens from unauthorised identity providers from being accepted.
+
+*Signature verification*:: Token signatures are verified against keys from the JWKS endpoint, ensuring tokens have not been tampered with.
+
+*Token expiry*:: Tokens have an inherent expiry time. Expired tokens are rejected. The token's remaining lifetime is used to drive reauthentication (see xref:con-sasl-termination-overview-{context}[]).

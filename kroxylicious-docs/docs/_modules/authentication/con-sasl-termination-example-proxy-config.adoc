@@ -17,7 +17,7 @@ filterDefinitions:
     config:
       mechanisms:  <3>
         SCRAM-SHA-256:  <4>
-          credentialStore: KeystoreScramCredentialStore  <5>
+          credentialStore: KeystoreScramCredentialStoreService  <5>
           credentialStoreConfig:  <6>
             file: /etc/kroxylicious/credentials.p12  <7>
             storePassword:  <8>
@@ -27,8 +27,8 @@ filterDefinitions:
 <1> Unique name for this filter instance
 <2> Filter type: must be `SaslTermination`
 <3> Map of SASL mechanisms to their configuration
-<4> SASL mechanism name (`SCRAM-SHA-256` or `SCRAM-SHA-512` are supported)
-<5> Credential store implementation (`KeystoreScramCredentialStore` for SCRAM credentials in Java KeyStore)
+<4> SASL mechanism name (`SCRAM-SHA-256`, `SCRAM-SHA-512`, or `OAUTHBEARER`)
+<5> Credential store implementation (`KeystoreScramCredentialStoreService` for SCRAM credentials in Java KeyStore)
 <6> Configuration for the credential store
 <7> Path to the credential keystore file (must be readable by proxy process)
 <8> Password for the keystore, provided via PasswordProvider (here using `passwordFile`)
@@ -37,7 +37,7 @@ filterDefinitions:
 where:
 
 * `mechanisms` defines the SASL mechanisms supported by this filter. Each mechanism maps to credential store configuration.
-* `credentialStore` names the credential store plugin to use. `KeystoreScramCredentialStore` loads SCRAM credentials from a Java KeyStore.
+* `credentialStore` names the credential store plugin to use. `KeystoreScramCredentialStoreService` loads SCRAM credentials from a Java KeyStore.
 * `credentialStoreConfig` provides configuration specific to the credential store implementation.
 * `file` specifies the path to the keystore file. Use absolute paths or paths relative to the proxy working directory.
 * `storePassword` provides the keystore password via a PasswordProvider. Options include:
@@ -54,7 +54,7 @@ filterDefinitions:
     config:
       mechanisms:
         SCRAM-SHA-512:  <1>
-          credentialStore: KeystoreScramCredentialStore
+          credentialStore: KeystoreScramCredentialStoreService
           credentialStoreConfig:
             file: /etc/kroxylicious/credentials-sha512.p12
             storePassword:
@@ -72,7 +72,7 @@ filterDefinitions:
     config:
       mechanisms:
         SCRAM-SHA-256:
-          credentialStore: KeystoreScramCredentialStore
+          credentialStore: KeystoreScramCredentialStoreService
           credentialStoreConfig:
             file: /etc/kroxylicious/credentials.p12
             storePassword:
@@ -82,6 +82,47 @@ filterDefinitions:
             storeType: PKCS12
 ----
 <1> Optional key password (defaults to storePassword if omitted)
+
+.Example with OAUTHBEARER
+[source,yaml,subs="+quotes"]
+----
+filterDefinitions:
+  - name: my-sasl-termination-filter
+    type: SaslTermination
+    config:
+      mechanisms:
+        OAUTHBEARER:  <1>
+          jwksEndpointUrl: https://idp.example.com/.well-known/jwks.json  <2>
+          expectedAudience: kafka  <3>
+          expectedIssuer: https://idp.example.com  <4>
+----
+<1> OAUTHBEARER mechanism for JWT-based authentication
+<2> JWKS endpoint URL for fetching token signing keys
+<3> Expected audience claim value (required)
+<4> Expected issuer claim value (required)
+
+.Example with mixed mechanisms and reauthentication
+[source,yaml,subs="+quotes"]
+----
+filterDefinitions:
+  - name: my-sasl-termination-filter
+    type: SaslTermination
+    config:
+      maxTimeBeforeReauth: 1h  <1>
+      mechanisms:
+        SCRAM-SHA-256:
+          credentialStore: KeystoreScramCredentialStoreService
+          credentialStoreConfig:
+            file: /etc/kroxylicious/credentials.p12
+            storePassword:
+              passwordFile: /etc/kroxylicious/keystore-password.txt
+            storeType: PKCS12
+        OAUTHBEARER:
+          jwksEndpointUrl: https://idp.example.com/.well-known/jwks.json
+          expectedAudience: kafka
+          expectedIssuer: https://idp.example.com
+----
+<1> Maximum session lifetime before reauthentication is required (KIP-368)
 
 == Security requirements
 

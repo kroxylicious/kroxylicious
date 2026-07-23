@@ -4,7 +4,7 @@
 = SASL Termination approach
 
 [role="_abstract"]
-The SASL Termination filter performs SASL authentication at the proxy layer, authenticating clients against pluggable credential stores without forwarding credentials to brokers.
+The SASL Termination filter performs SASL authentication at the proxy layer, authenticating clients against a pluggable credential store, without forwarding credentials to brokers.
 
 == How it works
 

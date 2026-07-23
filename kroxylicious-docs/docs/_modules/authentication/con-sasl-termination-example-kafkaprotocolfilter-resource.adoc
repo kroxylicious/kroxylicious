@@ -21,7 +21,7 @@ spec:
   configTemplate:  <2>
     mechanisms:
       SCRAM-SHA-256:  <3>
-        credentialStore: KeystoreScramCredentialStore  <4>
+        credentialStore: KeystoreScramCredentialStoreService  <4>
         credentialStoreConfig:
           file: /mnt/credentials/credentials.p12  <5>
           storePassword:
@@ -30,10 +30,31 @@ spec:
 ----
 <1> Filter type: `SaslTermination`
 <2> Filter configuration template
-<3> SASL mechanism (`SCRAM-SHA-256` or `SCRAM-SHA-512`)
+<3> SASL mechanism (`SCRAM-SHA-256`, `SCRAM-SHA-512`, or `OAUTHBEARER`)
 <4> Credential store implementation
 <5> Path to credential keystore (mounted from volume)
 <6> Path to keystore password file (mounted from Secret)
+
+.Example OAUTHBEARER KafkaProtocolFilter
+[source,yaml,subs="+quotes"]
+----
+apiVersion: kroxylicious.io/v1alpha1
+kind: KafkaProtocolFilter
+metadata:
+  name: sasl-termination-oauth
+  namespace: kroxylicious
+spec:
+  type: SaslTermination
+  configTemplate:
+    mechanisms:
+      OAUTHBEARER:
+        jwksEndpointUrl: https://idp.example.com/.well-known/jwks.json  <1>
+        expectedAudience: kafka  <2>
+        expectedIssuer: https://idp.example.com  <3>
+----
+<1> JWKS endpoint URL for fetching token signing keys
+<2> Expected audience claim value
+<3> Expected issuer claim value
 
 == Mounting credential keystore
 

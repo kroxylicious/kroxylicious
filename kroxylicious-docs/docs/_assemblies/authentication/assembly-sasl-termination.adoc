@@ -30,7 +30,8 @@ ifndef::OpenShiftOnly[]
 For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
 endif::OpenShiftOnly[]
 * TLS configured for client connections to the proxy (required for security)
-* Credential keystore prepared (see <<proc-managing-credentials-keystore-tool-{context}>>)
+* For SCRAM mechanisms: credential keystore prepared (see <<proc-managing-credentials-keystore-tool-{context}>>)
+* For OAUTHBEARER: a JWKS endpoint URL, and the expected audience and issuer values for your identity provider
 
 .Procedure
 
@@ -65,5 +66,3 @@ include::../../_modules/authentication/proc-generating-secure-passwords.adoc[lev
 include::../../_modules/authentication/ref-sasl-termination-config.adoc[leveloffset=+1]
 
 include::../../_modules/authentication/ref-keystore-credential-store-config.adoc[leveloffset=+1]
-
-include::../../_modules/authentication/con-configuring-sasl-subject-builder.adoc[leveloffset=+1]

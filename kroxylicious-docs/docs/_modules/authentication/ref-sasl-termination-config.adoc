@@ -12,13 +12,13 @@ Configuration parameters for the SASL Termination filter.
 ----
 type: SaslTermination
 config:
+  maxTimeBeforeReauth: <duration>  # Optional
   mechanisms:
     <mechanism-name>:
-      credentialStore: <credential-store-class>
-      credentialStoreConfig: <credential-store-configuration>
+      # Mechanism-specific configuration (see below)
 ----
 
-== Configuration parameters
+== Top-level configuration parameters
 
 [cols="2,1,3,2",options="header"]
 |===
@@ -29,11 +29,23 @@ config:
 
 |`mechanisms`
 |Map<String, MechanismConfig>
-|Map of SASL mechanism names to their configuration
+|Map of SASL mechanism names to their configuration. At least one entry is required.
 |Required (no default)
+
+|`maxTimeBeforeReauth`
+|Duration
+|Maximum session lifetime before reauthentication is required (KIP-368). Uses duration syntax (e.g. `1h`, `30m`, `1h30m`, `3600s`). Omit to disable.
+|Disabled (no reauthentication)
 |===
 
-== Mechanism configuration (MechanismConfig)
+== Mechanism configuration
+
+The `mechanisms` map values are polymorphic.
+The configuration type is determined automatically from the fields present: SCRAM configuration contains `credentialStore` and `credentialStoreConfig`, whilst OAUTHBEARER configuration contains `jwksEndpointUrl`, `expectedAudience`, and `expectedIssuer`.
+
+=== SCRAM mechanism configuration
+
+Used for `SCRAM-SHA-256` and `SCRAM-SHA-512` mechanisms.
 
 [cols="2,1,3,2",options="header"]
 |===
@@ -44,14 +56,68 @@ config:
 
 |`credentialStore`
 |String
-|Fully qualified or simple class name of the credential store service implementation
+|Plugin name of the credential store service implementation (e.g. `KeystoreScramCredentialStoreService`)
 |Required (no default)
 
 |`credentialStoreConfig`
 |Object
-|Configuration object for the credential store, structure depends on the credential store implementation
+|Configuration object for the credential store. The structure depends on the credential store implementation.
 |Required (no default)
 |===
+
+=== OAUTHBEARER mechanism configuration
+
+Used for the `OAUTHBEARER` mechanism.
+
+[cols="2,1,3,2",options="header"]
+|===
+|Parameter
+|Type
+|Description
+|Default
+
+|`jwksEndpointUrl`
+|URI
+|URL of the JWKS endpoint for fetching token signing keys
+|Required (no default)
+
+|`expectedAudience`
+|String
+|Expected `aud` claim value. Comma-separated for multiple audiences. Tokens without a matching audience are rejected.
+|Required (no default)
+
+|`expectedIssuer`
+|String
+|Expected `iss` claim value. Tokens from a different issuer are rejected.
+|Required (no default)
+
+|`scopeClaimName`
+|String
+|JWT claim name containing the scope
+|`scope`
+
+|`subClaimName`
+|String
+|JWT claim name containing the subject
+|`sub`
+
+|`jwksEndpointRefreshMs`
+|Long
+|Interval in milliseconds between JWKS endpoint refreshes
+|Kafka default
+
+|`jwksEndpointRetryBackoffMs`
+|Long
+|Initial retry backoff in milliseconds when the JWKS endpoint is unreachable
+|Kafka default
+
+|`jwksEndpointRetryBackoffMaxMs`
+|Long
+|Maximum retry backoff in milliseconds
+|Kafka default
+|===
+
+IMPORTANT: Both `expectedAudience` and `expectedIssuer` are required. Without audience validation, a token issued for a different service would be accepted. Without issuer validation, tokens from any identity provider whose keys happen to be in the JWKS could be accepted.
 
 == Supported mechanisms
 
@@ -61,33 +127,39 @@ config:
 |Description
 
 |`SCRAM-SHA-256`
-|SCRAM with SHA-256 hash algorithm (RFC 7677)
+|SCRAM with SHA-256 hash algorithm (https://datatracker.ietf.org/doc/html/rfc5802[RFC 5802])
 
 |`SCRAM-SHA-512`
-|SCRAM with SHA-512 hash algorithm (draft-melnikov-scram-sha-512)
+|SCRAM with SHA-512 hash algorithm (https://datatracker.ietf.org/doc/html/rfc5802[RFC 5802])
+
+|`OAUTHBEARER`
+|OAuth 2.0 bearer token authentication (https://datatracker.ietf.org/doc/html/rfc7628[RFC 7628])
 |===
 
 == Credential store implementations
+
+Credential stores are used by SCRAM mechanisms only.
+OAUTHBEARER validates tokens against a JWKS endpoint and does not use a credential store.
 
 [cols="2,3",options="header"]
 |===
 |Class name
 |Description
 
-|`KeystoreScramCredentialStore`
+|`KeystoreScramCredentialStoreService`
 |Loads SCRAM credentials from Java keystore files. See xref:ref-keystore-credential-store-config-{context}[] for configuration.
 |===
 
 == Configuration examples
 
-.Single mechanism
+.SCRAM-SHA-256 with keystore credential store
 [source,yaml]
 ----
 type: SaslTermination
 config:
   mechanisms:
     SCRAM-SHA-256:
-      credentialStore: KeystoreScramCredentialStore
+      credentialStore: KeystoreScramCredentialStoreService
       credentialStoreConfig:
         file: /path/to/credentials.p12
         storePassword:
@@ -95,26 +167,36 @@ config:
         storeType: PKCS12
 ----
 
-.Multiple mechanisms (separate keystores)
+.OAUTHBEARER with JWKS endpoint
 [source,yaml]
 ----
 type: SaslTermination
 config:
   mechanisms:
-    SCRAM-SHA-256:
-      credentialStore: KeystoreScramCredentialStore
-      credentialStoreConfig:
-        file: /path/to/credentials-sha256.p12
-        storePassword:
-          passwordFile: /path/to/password-sha256.txt
-        storeType: PKCS12
-    SCRAM-SHA-512:
-      credentialStore: KeystoreScramCredentialStore
-      credentialStoreConfig:
-        file: /path/to/credentials-sha512.p12
-        storePassword:
-          passwordFile: /path/to/password-sha512.txt
-        storeType: PKCS12
+    OAUTHBEARER:
+      jwksEndpointUrl: https://idp.example.com/.well-known/jwks.json
+      expectedAudience: kafka
+      expectedIssuer: https://idp.example.com
 ----
 
-NOTE: When configuring multiple mechanisms, clients can choose which mechanism to use during SASL negotiation. The proxy must have credentials available for the client's chosen mechanism.
+.Multiple mechanisms with reauthentication
+[source,yaml]
+----
+type: SaslTermination
+config:
+  maxTimeBeforeReauth: 1h
+  mechanisms:
+    SCRAM-SHA-256:
+      credentialStore: KeystoreScramCredentialStoreService
+      credentialStoreConfig:
+        file: /path/to/credentials.p12
+        storePassword:
+          passwordFile: /path/to/password.txt
+        storeType: PKCS12
+    OAUTHBEARER:
+      jwksEndpointUrl: https://idp.example.com/.well-known/jwks.json
+      expectedAudience: kafka
+      expectedIssuer: https://idp.example.com
+----
+
+NOTE: When configuring multiple mechanisms, clients can choose which mechanism to use during SASL negotiation. The proxy must have the appropriate configuration for the client's chosen mechanism.

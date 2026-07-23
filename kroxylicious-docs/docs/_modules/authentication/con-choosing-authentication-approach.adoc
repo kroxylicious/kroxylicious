@@ -57,7 +57,7 @@ Choose the approach that best fits your security, operational, and compliance re
 
 |*Supported mechanisms*
 |PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER
-|SCRAM-SHA-256, SCRAM-SHA-512
+|SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER
 |===
 
 == When to use SASL Inspection
@@ -69,7 +69,7 @@ Use SASL Inspection when:
 * You want minimal proxy involvement in authentication
 * You don't need to isolate client credentials from broker access
 * Performance is critical (lower latency)
-* You need OAUTHBEARER or PLAIN mechanism support
+* You need PLAIN mechanism support
 
 *Example scenarios:*
 
@@ -151,7 +151,7 @@ Use this matrix to help choose the appropriate approach:
 
 |OAUTHBEARER mechanism required
 |✓
-|
+|✓
 
 |Simplified broker configuration desired
 |

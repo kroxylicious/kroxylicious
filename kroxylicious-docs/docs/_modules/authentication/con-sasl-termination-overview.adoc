@@ -12,10 +12,11 @@ This provides centralized credential management and an additional security layer
 When a client connects to the proxy with SASL Termination configured:
 
 1. The client initiates SASL authentication with the proxy
-2. The proxy looks up the user's credentials from a pluggable credential store
-3. The proxy validates the client's authentication challenge using the SASL mechanism
-4. On success, the proxy establishes an authenticated connection to the broker on behalf of the client
-5. The proxy makes the authenticated subject available to other filters in the chain
+2. The proxy authenticates the client using the configured mechanism:
+** *SCRAM:* The proxy looks up the user's stored credentials from a pluggable credential store and performs a multi-round challenge-response exchange
+** *OAUTHBEARER:* The proxy validates the client's JWT bearer token against a JWKS endpoint
+3. On success, the proxy establishes an authenticated connection to the broker on behalf of the client
+4. The proxy makes the authenticated subject available to other filters in the chain
 
 Unlike SASL Inspection, which extracts identity from broker authentication, SASL Termination performs authentication at the proxy layer.
 
@@ -43,3 +44,34 @@ Use SASL Termination when:
 * You need to simplify broker configuration by removing client credential management
 
 For comparison with SASL Inspection, see xref:con-choosing-authentication-approach-{context}[].
+
+== Reauthentication (KIP-368)
+
+The SASL Termination filter supports https://cwiki.apache.org/confluence/spaces/KAFKA/pages/89068981/KIP-368+Allow+SASL+Connections+to+Periodically+Re-Authenticate[KIP-368] reauthentication.
+Reauthentication allows the proxy to require clients to re-authenticate periodically over existing connections, ensuring that sessions do not outlive their intended credential lifetime.
+
+=== Session lifetime
+
+The effective session lifetime is the minimum of:
+
+1. The configured `maxTimeBeforeReauth` value (if set).
+2. The mechanism-reported credential lifetime (if any).
+
+If either value is zero or absent, the other is used.
+If both are zero or absent, no reauthentication is required.
+
+The session lifetime differs by mechanism:
+
+* *SCRAM:* Credentials do not expire, so `maxTimeBeforeReauth` is the sole source of session lifetime. Without it, SCRAM sessions never require reauthentication.
+* *OAUTHBEARER:* Tokens have an inherent expiry. The effective session lifetime is `min(maxTimeBeforeReauth, tokenExpiry)`. Even without `maxTimeBeforeReauth`, sessions expire when the token does.
+
+=== Client behaviour
+
+Standard Apache Kafka clients (4.0+) handle reauthentication transparently.
+When the session nears expiry, the client re-authenticates over the existing connection.
+This is invisible to application code.
+
+=== Server-side enforcement
+
+If a session expires and a non-SASL request arrives, the proxy rejects it with `SASL_AUTHENTICATION_FAILED` and closes the connection.
+SASL handshake and authenticate requests are always accepted regardless of session expiry, allowing clients to reauthenticate.

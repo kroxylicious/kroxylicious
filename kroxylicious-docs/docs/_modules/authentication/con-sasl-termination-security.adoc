@@ -81,6 +81,20 @@ keystore-credential-tool add-user -k credentials.p12 -u alice
 keystore-credential-tool create -k credentials.p12 -t PKCS12
 ----
 
+== JWKS endpoint security (OAUTHBEARER)
+
+When using the OAUTHBEARER mechanism, the proxy fetches token signing keys from a JWKS endpoint.
+
+*JWKS endpoint trust*:: The JWKS endpoint URL is set by the proxy administrator, not by clients. Ensure the endpoint is served over HTTPS to protect signing keys in transit. The proxy uses the JVM's default trust store for TLS verification.
+
+*Audience and issuer validation*:: Both `expectedAudience` and `expectedIssuer` are required configuration parameters. Without audience validation, a token issued for a different service could be accepted by the proxy. Without issuer validation, tokens from any identity provider whose keys are in the JWKS could be accepted.
+
+*Token expiry*:: JWT tokens have an inherent expiry time. The proxy rejects expired tokens. For long-lived connections, the token's remaining lifetime drives reauthentication (see xref:con-sasl-termination-overview-{context}[]).
+
+*JWKS endpoint availability*:: If the JWKS endpoint becomes unavailable, the proxy cannot validate new tokens. Configure `jwksEndpointRetryBackoffMs` and `jwksEndpointRetryBackoffMaxMs` to control retry behaviour. The proxy caches previously fetched keys and continues to use them during transient endpoint failures.
+
+NOTE: There is no way to configure custom TLS trust stores or client certificates for HTTPS communication with the JWKS endpoint. The JVM's default trust store is used. This is a limitation inherited from the underlying Kafka callback handler.
+
 == Operational security
 
 *Credential rotation*:: Rotate credentials periodically according to your security policy. Update passwords using keystore-credential-tool:
