@@ -42,6 +42,11 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           fetch-depth: 0
+      - name: 'Test release documentation scripts'
+        run: |
+          bash -n scripts/stage-docs.sh scripts/update-latest-docs-release.sh scripts/update-latest-docs-release-test.sh
+          shellcheck scripts/stage-docs.sh scripts/update-latest-docs-release.sh scripts/update-latest-docs-release-test.sh
+          ./scripts/update-latest-docs-release-test.sh
       - name: Setup Java
         uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
@@ -75,3 +80,4 @@ jobs:
         with:
           name: PR_NUMBER
           path: PR_NUMBER.txt
+
