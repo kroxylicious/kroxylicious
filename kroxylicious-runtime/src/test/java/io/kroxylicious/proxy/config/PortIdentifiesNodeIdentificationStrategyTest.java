@@ -165,6 +165,19 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
+    void shouldNotConsiderTheOsAssignedSentinelAsExclusive() {
+        // Given
+        var bootstrap = HostPort.parse(BOOTSTRAP_HOST + ":0");
+
+        // When
+        NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(bootstrap,
+                null, null, null).buildStrategy("cluster");
+
+        // Then
+        assertThat(strategy.getExclusivePorts()).isEmpty();
+    }
+
+    @Test
     void exclusivePortsSingleRange() {
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
