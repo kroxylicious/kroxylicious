@@ -11,7 +11,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -39,13 +38,10 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.micrometer.core.instrument.Metrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -63,8 +59,6 @@ import io.kroxylicious.testing.integration.tester.SimpleMetric;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.api.TerminationStyle;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
-import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import io.kroxylicious.testing.kafka.junit5ext.TopicPartitions;
@@ -83,12 +77,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
-@ExtendWith(KafkaClusterExtension.class)
-@ExtendWith(NettyLeakDetectorExtension.class)
-class MetricsIT {
-
-    @TempDir
-    private static Path certsDirectory;
+class MetricsIT extends BaseIT {
 
     private static final HostPort PORT_IDENTIFIES_BROKER_BOOTSTRAP = new HostPort("localhost", 9092);
     private static final String SNI_IDENTIFIES_BROKER_BASE_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("sni");
@@ -610,12 +599,7 @@ class MetricsIT {
 
     static Stream<Arguments> createDownstreamConnectionError() throws Exception {
         var failQuickDescribeCluster = new DescribeClusterOptions().timeoutMs(2_000);
-        // Note that the KeytoolCertificateGenerator generates key stores that are PKCS12 format.
-        var downstreamCertificateGenerator = new KeytoolCertificateGenerator();
-        downstreamCertificateGenerator.generateSelfSignedCertificateEntry("test@gmail.com", "localhost", "foo", "bar", null, null, "US");
-        var clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
-        downstreamCertificateGenerator.generateTrustStore(downstreamCertificateGenerator.getCertFilePath(), "client",
-                clientTrustStore.toAbsolutePath().toString());
+        var downstreamCertificateGenerator = buildKeystoreTrustStorePair("localhost");
 
         return Stream.of(
                 argumentSet("gateway is tcp, client sends malformed kafka",
@@ -639,8 +623,8 @@ class MetricsIT {
                                 .withName("default")
                                 .withNewTls()
                                 .withNewKeyStoreKey()
-                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .withStoreFile(downstreamCertificateGenerator.brokerKeyStore())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.password())
                                 .endKeyStoreKey()
                                 .endTls()
                                 .build(),
@@ -661,8 +645,8 @@ class MetricsIT {
                                 .withName("default")
                                 .withNewTls()
                                 .withNewKeyStoreKey()
-                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .withStoreFile(downstreamCertificateGenerator.brokerKeyStore())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.password())
                                 .endKeyStoreKey()
                                 .endTls()
                                 .build(),
@@ -673,8 +657,8 @@ class MetricsIT {
 
                             try (var admin = kroxyliciousTester.admin(
                                     Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, unrecognisedHostPort,
-                                            SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                                            SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+                                            SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, downstreamCertificateGenerator.clientTrustStore(),
+                                            SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.password()))) {
                                 assertThat(admin.describeCluster(failQuickDescribeCluster).clusterId())
                                         .failsWithin(Duration.ofSeconds(5))
                                         .withThrowableThat()

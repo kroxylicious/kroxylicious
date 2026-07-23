@@ -116,6 +116,10 @@
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-pkitesting</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

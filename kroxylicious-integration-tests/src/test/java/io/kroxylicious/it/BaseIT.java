@@ -6,6 +6,7 @@
 
 package io.kroxylicious.it;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +40,7 @@ import io.kroxylicious.proxy.internal.subject.DefaultSaslSubjectBuilderService;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.KeystoreManager;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
@@ -50,6 +52,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
 public abstract class BaseIT {
+
+    protected record KeystoreTrustStorePair(String brokerKeyStore, String clientTrustStore, String password) {}
+
+    protected static KeystoreTrustStorePair buildKeystoreTrustStorePair(String domain) throws Exception {
+        var keystoreManager = new KeystoreManager();
+        String dn = keystoreManager.buildDistinguishedName("test@kroxylicious.io", domain, "KI", "kroxylicious.io", null, null, "US");
+        var bundle = keystoreManager.createSelfSignedCertificate(keystoreManager.newCertificateBuilder(dn));
+        Path keystorePath = keystoreManager.generateCertificateFile(bundle);
+        String password = keystoreManager.getPassword(keystorePath);
+        // The generated JKS contains both the private key entry and the CA cert,
+        // so the same file serves as both the proxy keystore and the client truststore.
+        String keystore = keystorePath.toAbsolutePath().toString();
+        return new KeystoreTrustStorePair(keystore, keystore, password);
+    }
 
     static ConfigurationBuilder buildProxyConfigWithSaslInspection(KafkaCluster cluster, @Nullable Set<String> enableMechanisms,
                                                                    @Nullable DefaultSaslSubjectBuilderService.Config subjectBuilderConfig) {
