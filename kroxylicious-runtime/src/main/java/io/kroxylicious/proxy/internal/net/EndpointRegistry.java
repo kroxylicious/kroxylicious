@@ -88,7 +88,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      * don't require SNI. Each such binding needs its own acceptor channel, since the OS hasn't
      * assigned a real port yet and port 0 can't itself serve as a distinguishing map key.
      */
-    private static final AtomicInteger SYNTHETIC_PORT_COUNTER = new AtomicInteger(Integer.MIN_VALUE);
+    private static final AtomicInteger SYNTHETIC_PORT_COUNTER = new AtomicInteger(-1);
 
     protected static final AttributeKey<Map<ProxyNodeId, EndpointBinding>> CHANNEL_BINDINGS = AttributeKey.newInstance("channelBindings");
 
