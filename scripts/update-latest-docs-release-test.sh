@@ -32,6 +32,7 @@ run_case() {
 
 run_case older-patch 0.22.0 0.20.1 0.22.0
 run_case same-release 0.22.0 0.22.0 0.22.0
+run_case numeric-minor 0.9.0 0.10.0 0.10.0
 run_case newer-release 0.22.0 0.23.0 0.23.0
 
 echo "update-latest-docs-release tests passed"
