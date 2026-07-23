@@ -122,22 +122,22 @@ public class PortIdentifiesNodeIdentificationStrategy
         if (this.computedNodeStartPort + numberOfNodePorts - 1 > 65535) {
             throw new IllegalArgumentException("The maximum port mapped exceeded 65535");
         }
-        if (!isOsAssigned(bootstrapAddress.port())) {
+        if (!HostPort.isOsAssigned(bootstrapAddress.port())) {
             verifyNoRangeContainsBootstrapPort(bootstrapAddress, namedRanges, this.computedNodeStartPort, nodeIdToPort);
         }
         this.computedNodeIdRanges = namedRanges;
-        this.exclusivePorts = Collections.unmodifiableSet(configuredExclusivePorts(bootstrapAddress));
+        this.exclusivePorts = Collections.unmodifiableSet(computeExclusivePorts(bootstrapAddress));
     }
 
-    private Set<Integer> configuredExclusivePorts(HostPort bootstrapAddress) {
+    private Set<Integer> computeExclusivePorts(HostPort bootstrapAddress) {
         var ports = new HashSet<>(nodeIdToPort.values());
         ports.add(bootstrapAddress.port());
-        ports.removeIf(PortIdentifiesNodeIdentificationStrategy::isOsAssigned);
+        ports.removeIf(HostPort::isOsAssigned);
         return ports;
     }
 
     private static int computeNodeStartPort(HostPort bootstrapAddress, @Nullable Integer nodeStartPort) {
-        return Objects.requireNonNullElseGet(nodeStartPort, () -> isOsAssigned(bootstrapAddress.port()) ? 0 : bootstrapAddress.port() + 1);
+        return Objects.requireNonNullElseGet(nodeStartPort, () -> HostPort.isOsAssigned(bootstrapAddress.port()) ? 0 : bootstrapAddress.port() + 1);
     }
 
     private static void verifyNodeAddressPattern(String advertisedBrokerAddressPattern) {
@@ -208,17 +208,9 @@ public class PortIdentifiesNodeIdentificationStrategy
         List<Integer> ascendingNodeIds = unsortedNodeIds.distinct().sorted().boxed().toList();
         Map<Integer, Integer> nodeIdToPort = new HashMap<>();
         for (int offset = 0; offset < ascendingNodeIds.size(); offset++) {
-            nodeIdToPort.put(ascendingNodeIds.get(offset), isOsAssigned(nodeStartPort) ? 0 : nodeStartPort + offset);
+            nodeIdToPort.put(ascendingNodeIds.get(offset), HostPort.isOsAssigned(nodeStartPort) ? 0 : nodeStartPort + offset);
         }
         return nodeIdToPort;
-    }
-
-    /**
-     * A port of 0 is the sentinel meaning "let the OS assign an ephemeral port at bind time"
-     * rather than a fixed port number.
-     */
-    private static boolean isOsAssigned(int port) {
-        return port == 0;
     }
 
     @Nullable
