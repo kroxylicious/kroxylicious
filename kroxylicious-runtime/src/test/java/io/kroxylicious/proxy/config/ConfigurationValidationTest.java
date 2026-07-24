@@ -14,6 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
@@ -50,6 +53,35 @@ class ConfigurationValidationTest {
         return new PluginFactoryRegistry() {
             @Override
             public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
+                if (pluginClass == FilterFactory.class) {
+                    return (PluginFactory<P>) new PluginFactory<FilterFactory<?, ?>>() {
+                        @Override
+                        public FilterFactory<?, ?> pluginInstance(String instanceName) {
+                            return new io.kroxylicious.proxy.filter.FilterFactory<>() {
+                                @Override
+                                public Object initialize(FilterFactoryContext context, Object config) {
+                                    return null;
+                                }
+
+                                @Override
+                                public Filter createFilter(FilterFactoryContext context, Object init) {
+                                    return new Filter() {
+                                    };
+                                }
+                            };
+                        }
+
+                        @Override
+                        public Class<?> configType(String instanceName) {
+                            return Void.class;
+                        }
+
+                        @Override
+                        public Set<String> registeredInstanceNames() {
+                            return Set.of();
+                        }
+                    };
+                }
                 return (PluginFactory<P>) new PluginFactory<RouterFactory<?, ?>>() {
                     @Override
                     public RouterFactory<?, ?> pluginInstance(String instanceName) {

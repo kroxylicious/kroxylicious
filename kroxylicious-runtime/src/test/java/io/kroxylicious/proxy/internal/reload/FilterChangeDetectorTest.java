@@ -12,9 +12,13 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.RouteDefinition;
+import io.kroxylicious.proxy.config.RouteTarget;
+import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
@@ -173,7 +177,15 @@ class FilterChangeDetectorTest {
     private static Configuration configWith(@Nullable List<NamedFilterDefinition> filterDefs,
                                             @Nullable List<String> defaultFilters,
                                             VirtualCluster... clusters) {
-        return new Configuration(null, null, filterDefs, defaultFilters, null, List.of(clusters), null, false,
+        return configWith(filterDefs, defaultFilters, null, null, clusters);
+    }
+
+    private static Configuration configWith(@Nullable List<NamedFilterDefinition> filterDefs,
+                                            @Nullable List<String> defaultFilters,
+                                            @Nullable List<ClusterDefinition> clusterDefs,
+                                            @Nullable List<RouterDefinition> routerDefs,
+                                            VirtualCluster... clusters) {
+        return new Configuration(null, clusterDefs, filterDefs, defaultFilters, routerDefs, List.of(clusters), null, false,
                 Optional.empty(), null, null);
     }
 
@@ -206,6 +218,23 @@ class FilterChangeDetectorTest {
                 false,
                 false,
                 filters);
+    }
+
+    private static VirtualCluster routedVc(String name, String routerName) {
+        var gateway = new VirtualClusterGateway("default",
+                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
+                null,
+                Optional.empty());
+        return new VirtualCluster(name,
+                null,
+                new RouteTarget(null, routerName),
+                List.of(gateway),
+                false,
+                false,
+                List.of(),
+                null,
+                null,
+                null);
     }
 
     @Test
@@ -268,6 +297,45 @@ class FilterChangeDetectorTest {
         // "uses-a" is flagged because filter-a's content changed; "isolated" is not — it
         // has no filter chain so a filter-definition change can't affect it.
         assertThat(result.clustersToModify()).containsExactly("uses-a");
+    }
+
+    @Test
+    void detectsRouteFilterDefinitionChange() {
+        // Given
+        var oldFilter = filterDef("route-filter", "config-v1");
+        var newFilter = filterDef("route-filter", "config-v2");
+        var clusterDef = new ClusterDefinition("c1", "broker:9092", null);
+        var route = new RouteDefinition("r1", 0, List.of("route-filter"), new RouteTarget("c1", null));
+        var routerDef = new RouterDefinition("myrouter", "FakeRouter", null, List.of(route));
+        var routedVc = routedVc("routed-vc", "myrouter");
+
+        var oldConfig = configWith(List.of(oldFilter), null, List.of(clusterDef), List.of(routerDef), routedVc);
+        var newConfig = configWith(List.of(newFilter), null, List.of(clusterDef), List.of(routerDef), routedVc);
+
+        // When
+        var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
+
+        // Then
+        assertThat(result.clustersToModify()).containsExactly("routed-vc");
+    }
+
+    @Test
+    void doesNotFlagRoutedVcWhenRouteFilterDefinitionUnchanged() {
+        // Given
+        var filter = filterDef("route-filter", "same-config");
+        var clusterDef = new ClusterDefinition("c1", "broker:9092", null);
+        var route = new RouteDefinition("r1", 0, List.of("route-filter"), new RouteTarget("c1", null));
+        var routerDef = new RouterDefinition("myrouter", "FakeRouter", null, List.of(route));
+        var routedVc = routedVc("routed-vc", "myrouter");
+
+        var oldConfig = configWith(List.of(filter), null, List.of(clusterDef), List.of(routerDef), routedVc);
+        var newConfig = configWith(List.of(filter), null, List.of(clusterDef), List.of(routerDef), routedVc);
+
+        // When
+        var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
+
+        // Then
+        assertThat(result.isEmpty()).isTrue();
     }
 
     @Test

@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.frame;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A frame in the Kafka protocol, which may or may not be fully decoded.
  */
@@ -14,6 +16,9 @@ public interface Frame {
      * Number of bytes required for storing the frame length.
      */
     int FRAME_SIZE_LENGTH = Integer.BYTES;
+
+    /** Sentinel indicating no specific target virtual node; the frame should be forwarded to the route's default node. */
+    int NO_TARGET_VIRTUAL_NODE_ID = -1;
 
     /**
      * Estimate the expected encoded size in bytes of this {@code Frame}.<br>
@@ -41,4 +46,13 @@ public interface Frame {
 
     /** true if this frame is decoded, false otherwise */
     boolean isDecoded();
+
+    /** The route this frame is associated with, or {@code null} if not yet routed. */
+    default @Nullable String routeName() {
+        return null;
+    }
+
+    /** Sets the route this frame is associated with. */
+    default void setRouteName(@Nullable String routeName) {
+    }
 }

@@ -27,10 +27,10 @@ import org.slf4j.spi.LoggingEventBuilder;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import io.netty.util.concurrent.EventExecutor;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
@@ -94,7 +94,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     private ResponseSequencer responseSequencer;
 
     @Nullable
-    private EventExecutor eventExecutor;
+    private ChannelHandlerContext ctx;
 
     @Nullable
     private final Integer nodeId;
@@ -119,11 +119,29 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
-        this.eventExecutor = ctx.executor();
+        this.ctx = ctx;
     }
 
+    /**
+     * Completes all pending router response futures exceptionally before closing the
+     * router. This handles any case where the connection closes with outstanding
+     * requests (forwarding failure, backend crash, drain timeout, etc.).
+     */
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
+        int abandoned = pendingResponses.size();
+        if (abandoned > 0) {
+            var cause = new IllegalStateException("Connection closed with " + abandoned + " pending router response(s)");
+            for (var entry : pendingResponses.values()) {
+                entry.future().completeExceptionally(cause);
+            }
+            pendingResponses.clear();
+            LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", virtualClusterName)
+                    .addKeyValue("sessionId", ccsm.sessionId())
+                    .addKeyValue("abandonedResponses", abandoned)
+                    .log("Connection closed with pending router responses");
+        }
         router.close();
     }
 
@@ -144,7 +162,8 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 if (NODE_ID_TRANSLATION_APIS.contains(apiKey)) {
                     pendingRoutes.put(frame.correlationId(), staticRoute);
                 }
-                ccsm.forwardToRoute(staticRoute, msg);
+                ((Frame) msg).setRouteName(staticRoute);
+                ctx.fireChannelRead(msg);
                 LOGGER.atTrace()
                         .addKeyValue("virtualCluster", virtualClusterName)
                         .addKeyValue("sessionId", ccsm.sessionId())
@@ -162,11 +181,15 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                     .addKeyValue("virtualCluster", virtualClusterName)
                     .addKeyValue("sessionId", ccsm.sessionId())
                     .addKeyValue("apiKey", apiKey)
-                    .log("Dynamically-routed API key arrived as opaque frame, forwarding to CCSM");
-            ccsm.onClientFilterChainComplete(msg);
+                    .log("Dynamically-routed API key arrived as opaque frame, forwarding via pipeline");
+            ctx.fireChannelRead(msg);
             return;
         }
-        ccsm.onClientFilterChainComplete(msg);
+        ctx.fireChannelRead(msg);
+    }
+
+    private void fireChannelRead(Object msg) {
+        Objects.requireNonNull(ctx, "fireChannelRead called before handlerAdded").fireChannelRead(msg);
     }
 
     private void dispatchDynamically(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) {
@@ -305,7 +328,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     }
 
     private <T> CompletionStage<T> executeOnEventLoop(Supplier<CompletableFuture<T>> work) {
-        var executor = Objects.requireNonNull(eventExecutor, "sendRequest called before handlerAdded");
+        var executor = Objects.requireNonNull(ctx, "sendRequest called before handlerAdded").executor();
         if (executor.inEventLoop()) {
             return work.get();
         }
@@ -340,8 +363,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         int routingCorrelationId = correlationIdAllocator.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
 
+        frame.setRouteName(route);
+
         if (!frame.hasResponse()) {
-            ccsm.forwardToRoute(route, frame);
+            fireChannelRead(frame);
             withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                     .addKeyValue("routingCorrelationId", routingCorrelationId)
                     .log("Fire-and-forget request sent to route (no response expected)");
@@ -350,20 +375,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
-
-        try {
-            ccsm.forwardToRoute(route, frame);
-        }
-        catch (Exception e) {
-            pendingResponses.remove(routingCorrelationId);
-            withSendContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, clientCorrelationId)
-                    .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addKeyValue("error", e.getMessage())
-                    .log(LOGGER.isDebugEnabled()
-                            ? "Failed to forward request to route"
-                            : "Failed to forward request to route, increase log level to DEBUG for stacktrace");
-            return CompletableFuture.failedFuture(e);
-        }
+        fireChannelRead(frame);
 
         withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
@@ -398,9 +410,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         short requestApiVersion = header.requestApiVersion();
         int routingCorrelationId = correlationIdAllocator.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
+        frame.setRouteName(route);
+        frame.setTargetVirtualNodeId(targetNodeId);
 
         if (!frame.hasResponse()) {
-            ccsm.forwardToNode(targetNodeId, route, frame);
+            fireChannelRead(frame);
             withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                     .addKeyValue("targetNodeId", targetNodeId)
                     .addKeyValue("routingCorrelationId", routingCorrelationId)
@@ -410,20 +424,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
-
-        try {
-            ccsm.forwardToNode(targetNodeId, route, frame);
-        }
-        catch (Exception e) {
-            pendingResponses.remove(routingCorrelationId);
-            withNodeContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, targetNodeId)
-                    .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addKeyValue("error", e.getMessage())
-                    .log(LOGGER.isDebugEnabled()
-                            ? "Failed to forward request to node"
-                            : "Failed to forward request to node, increase log level to DEBUG for stacktrace");
-            return CompletableFuture.failedFuture(e);
-        }
+        fireChannelRead(frame);
 
         withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                 .addKeyValue("targetNodeId", targetNodeId)

@@ -8,6 +8,10 @@ Format `<github issue/pr number>: <short description>`.
 ## SNAPSHOT
 
 * [#3783](https://github.com/kroxylicious/kroxylicious/issues/3783): fix(config): remove deprecated `shutdownQuietPeriodSeconds` field from `NettySettings`.
+* [#4156](https://github.com/kroxylicious/kroxylicious/issues/4156): feat(runtime): **Preview** — per-route filter chains. 
+  Routes in `routerDefinitions` can now declare their own `filters` list; 
+  these filters apply only to traffic on that route, executing after virtual-cluster-level filters. 
+  Route filter definition changes are detected during hot reload.
 
 ### Changes, deprecations and removals
 

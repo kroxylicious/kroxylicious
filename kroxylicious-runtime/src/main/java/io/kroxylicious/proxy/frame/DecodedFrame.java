@@ -42,6 +42,8 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
     private @Nullable ObjectSerializationCache serializationCache;
+    private @Nullable String routeName;
+    private int targetVirtualNodeId = NO_TARGET_VIRTUAL_NODE_ID;
 
     DecodedFrame(short apiVersion, int correlationId, H header, B body) {
         this.apiVersion = apiVersion;
@@ -146,6 +148,31 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     @Override
     protected void deallocate() {
         buffers.forEach(ByteBuf::release);
+    }
+
+    @Override
+    public @Nullable String routeName() {
+        return routeName;
+    }
+
+    @Override
+    public void setRouteName(@Nullable String routeName) {
+        this.routeName = routeName;
+    }
+
+    /**
+     * The virtual node ID of the specific broker this frame should be forwarded to,
+     * or {@link Frame#NO_TARGET_VIRTUAL_NODE_ID} (the default) if the frame should
+     * be sent to any broker on the route. Set by the router dispatch handler when
+     * forwarding to a specific node via {@code sendToSpecificNode}.
+     */
+    public int targetVirtualNodeId() {
+        return targetVirtualNodeId;
+    }
+
+    /** Sets the target virtual node ID for this frame. See {@link #targetVirtualNodeId()}. */
+    public void setTargetVirtualNodeId(int targetVirtualNodeId) {
+        this.targetVirtualNodeId = targetVirtualNodeId;
     }
 
     public void transferBuffersTo(DecodedFrame<?, ?> frame) {
