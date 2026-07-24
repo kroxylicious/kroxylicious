@@ -159,6 +159,26 @@ class RouteFilterHandlerTest {
     }
 
     @Test
+    void onInternalRequestSetsRouteNameOnFrame() {
+        // Given
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            context.sendRequest(header, request);
+            return context.forwardRequest(header, request);
+        };
+        buildChannel(filter, ROUTE_A);
+        var frame = decodedRequest(new ApiVersionsRequestData());
+        frame.setRouteName(ROUTE_A);
+
+        // When
+        channel.writeInbound(frame);
+
+        // Then
+        InternalRequestFrame<?> internalFrame = channel.readInbound();
+        assertThat(internalFrame).isNotNull();
+        assertThat(internalFrame.routeName()).isEqualTo(ROUTE_A);
+    }
+
+    @Test
     void internalResponseFrameAlwaysDelegatedRegardlessOfRoute() {
         // Given
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);

@@ -22,6 +22,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
+import io.kroxylicious.proxy.internal.CorrelationIdSpace;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
@@ -169,6 +170,34 @@ class RoutingTerminalHandlerTest {
         DecodedResponseFrame<?> out = channel.readOutbound();
         assertThat(out).isNotNull();
         assertThat(out.routeName()).isNull();
+    }
+
+    @Test
+    void shouldNotRecordCorrelationIdForRouterInternalRequest() {
+        // Given
+        when(ccsm.sessionId()).thenReturn("test-session");
+        var handler = new RoutingTerminalHandler(ccsm);
+        channel = new EmbeddedChannel(handler);
+
+        int routingCorrelationId = CorrelationIdSpace.RESERVED_ROUTING_ID_RANGE_START_INC;
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion((short) 12)
+                .setCorrelationId(routingCorrelationId);
+        var frame = new DecodedRequestFrame<>((short) 12, routingCorrelationId, true, header, new FetchRequestData());
+        frame.setRouteName(ROUTE_A);
+        channel.writeInbound(frame);
+
+        var response = new DecodedResponseFrame<>((short) 12, routingCorrelationId,
+                new ResponseHeaderData(), new FetchResponseData());
+
+        // When
+        channel.writeOutbound(response);
+
+        // Then
+        DecodedResponseFrame<?> out = channel.readOutbound();
+        assertThat(out).isNotNull();
+        assertThat(out.routeName()).as("router-internal correlation IDs must not be recorded, so no route name is set on the response").isNull();
     }
 
     private DecodedRequestFrame<FetchRequestData> fetchRequest() {
