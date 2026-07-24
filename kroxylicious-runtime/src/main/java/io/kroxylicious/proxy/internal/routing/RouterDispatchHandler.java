@@ -122,6 +122,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         this.ctx = ctx;
     }
 
+    /**
+     * Completes all pending router response futures exceptionally before closing the
+     * router. This handles any case where the connection closes with outstanding
+     * requests (forwarding failure, backend crash, drain timeout, etc.).
+     */
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
         int abandoned = pendingResponses.size();
