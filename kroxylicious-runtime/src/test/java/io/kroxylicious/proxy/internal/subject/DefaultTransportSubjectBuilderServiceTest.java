@@ -30,6 +30,8 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DefaultTransportSubjectBuilderServiceTest {
 
@@ -347,8 +349,8 @@ class DefaultTransportSubjectBuilderServiceTest {
     @ParameterizedTest
     @MethodSource
     void rulesShouldWorkWithX500Subjects(String x500Principal, String rule, Subject expectedSubject, Exception expectedException) throws JsonProcessingException {
-        var cert = Mockito.mock(X509Certificate.class);
-        Mockito.when(cert.getSubjectX500Principal()).thenReturn(new X500Principal(x500Principal));
+        var cert = mock(X509Certificate.class);
+        when(cert.getSubjectX500Principal()).thenReturn(new X500Principal(x500Principal));
 
         DefaultTransportSubjectBuilderService.Config builderConfig = mapper.readValue(rule, DefaultTransportSubjectBuilderService.Config.class);
 
@@ -454,8 +456,8 @@ class DefaultTransportSubjectBuilderServiceTest {
     @MethodSource
     void rulesShouldWorkWithSanRfc822Names(String rfc822, String rule, Subject expectedName, Exception expectedException)
             throws CertificateParsingException, JsonProcessingException {
-        var cert = Mockito.mock(X509Certificate.class);
-        Mockito.when(cert.getSubjectAlternativeNames()).thenReturn(List.of(List.of(TlsCertificateExtractor.Asn1SanNameType.RFC822.asn1Value, rfc822)));
+        var cert = mock(X509Certificate.class);
+        when(cert.getSubjectAlternativeNames()).thenReturn(List.of(List.of(TlsCertificateExtractor.Asn1SanNameType.RFC822.asn1Value, rfc822)));
 
         DefaultTransportSubjectBuilderService.Config builderConfig = mapper.readValue(rule, DefaultTransportSubjectBuilderService.Config.class);
         tls(builderConfig,
@@ -562,8 +564,8 @@ class DefaultTransportSubjectBuilderServiceTest {
     @MethodSource
     void rulesShouldWorkWithSanDnsNames(String rfc822, String rule, Subject expectedName, Exception expectedException)
             throws CertificateParsingException, JsonProcessingException {
-        var cert = Mockito.mock(X509Certificate.class);
-        Mockito.when(cert.getSubjectAlternativeNames()).thenReturn(List.of(List.of(TlsCertificateExtractor.Asn1SanNameType.DNS.asn1Value, rfc822)));
+        var cert = mock(X509Certificate.class);
+        when(cert.getSubjectAlternativeNames()).thenReturn(List.of(List.of(TlsCertificateExtractor.Asn1SanNameType.DNS.asn1Value, rfc822)));
 
         DefaultTransportSubjectBuilderService.Config builderConfig = mapper.readValue(rule, DefaultTransportSubjectBuilderService.Config.class);
         tls(builderConfig,
@@ -670,8 +672,8 @@ class DefaultTransportSubjectBuilderServiceTest {
     @MethodSource
     void rulesShouldWorkWithSanDirNames(String rfc822, String rule, Subject expectedName, Exception expectedException)
             throws CertificateParsingException, JsonProcessingException {
-        var cert = Mockito.mock(X509Certificate.class);
-        Mockito.when(cert.getSubjectAlternativeNames()).thenReturn(List.of(List.of(TlsCertificateExtractor.Asn1SanNameType.DIR_NAME.asn1Value, rfc822)));
+        var cert = mock(X509Certificate.class);
+        when(cert.getSubjectAlternativeNames()).thenReturn(List.of(List.of(TlsCertificateExtractor.Asn1SanNameType.DIR_NAME.asn1Value, rfc822)));
 
         DefaultTransportSubjectBuilderService.Config builderConfig = mapper.readValue(rule, DefaultTransportSubjectBuilderService.Config.class);
         tls(builderConfig,
@@ -778,8 +780,8 @@ class DefaultTransportSubjectBuilderServiceTest {
     @MethodSource
     void rulesShouldWorkWithSanUri(String rfc822, String rule, Subject expectedName, Exception expectedException)
             throws CertificateParsingException, JsonProcessingException {
-        var cert = Mockito.mock(X509Certificate.class);
-        Mockito.when(cert.getSubjectAlternativeNames()).thenReturn(List.of(List.of(TlsCertificateExtractor.Asn1SanNameType.URI.asn1Value, rfc822)));
+        var cert = mock(X509Certificate.class);
+        when(cert.getSubjectAlternativeNames()).thenReturn(List.of(List.of(TlsCertificateExtractor.Asn1SanNameType.URI.asn1Value, rfc822)));
 
         DefaultTransportSubjectBuilderService.Config builderConfig = mapper.readValue(rule, DefaultTransportSubjectBuilderService.Config.class);
         tls(builderConfig,
@@ -818,8 +820,8 @@ class DefaultTransportSubjectBuilderServiceTest {
     @MethodSource
     void rulesShouldWorkWithSanIpAddress(String rfc822, String rule, Subject expectedName, Exception expectedException)
             throws CertificateParsingException, JsonProcessingException {
-        var cert = Mockito.mock(X509Certificate.class);
-        Mockito.when(cert.getSubjectAlternativeNames()).thenReturn(List.of(List.of(TlsCertificateExtractor.Asn1SanNameType.IP_ADDRESS.asn1Value, rfc822)));
+        var cert = mock(X509Certificate.class);
+        when(cert.getSubjectAlternativeNames()).thenReturn(List.of(List.of(TlsCertificateExtractor.Asn1SanNameType.IP_ADDRESS.asn1Value, rfc822)));
 
         DefaultTransportSubjectBuilderService.Config builderConfig = mapper.readValue(rule, DefaultTransportSubjectBuilderService.Config.class);
         tls(builderConfig,
