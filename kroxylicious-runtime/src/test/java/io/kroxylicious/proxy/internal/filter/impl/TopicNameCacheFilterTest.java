@@ -45,6 +45,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.config.CacheConfiguration.DEFAULT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -89,7 +90,7 @@ class TopicNameCacheFilterTest {
         MetadataRequestData request = new MetadataRequestData();
         CompletableFuture<RequestFilterResult> result = CompletableFuture.completedFuture(null);
         when(filterContext.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
-        when(requestFilterResultBuilder.errorResponse(Mockito.eq(header), Mockito.eq(request), Mockito.any())).thenReturn(closeOrTerminalStage);
+        when(requestFilterResultBuilder.errorResponse(eq(header), eq(request), any())).thenReturn(closeOrTerminalStage);
         when(closeOrTerminalStage.completed()).thenReturn(result);
         // when
         CompletionStage<RequestFilterResult> resultStage = topicNameCacheFilter.onMetadataRequest(ApiKeys.METADATA.latestVersion(), header,
@@ -98,7 +99,7 @@ class TopicNameCacheFilterTest {
         // we respond with an error as it's an illegal state for an internal topic name retrieval request to have an empty topics list
         assertThat(resultStage).isSameAs(result);
         ArgumentCaptor<ApiException> captor = ArgumentCaptor.forClass(ApiException.class);
-        Mockito.verify(requestFilterResultBuilder).errorResponse(Mockito.eq(header), Mockito.eq(request), captor.capture());
+        verify(requestFilterResultBuilder).errorResponse(eq(header), eq(request), captor.capture());
         assertThat(captor.getValue()).isInstanceOf(UnknownServerException.class).hasMessage("received an internal topic name request with no topics");
     }
 
@@ -112,7 +113,7 @@ class TopicNameCacheFilterTest {
         request.setTopics(null);
         CompletableFuture<RequestFilterResult> result = CompletableFuture.completedFuture(null);
         when(filterContext.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
-        when(requestFilterResultBuilder.errorResponse(Mockito.eq(header), Mockito.eq(request), Mockito.any())).thenReturn(closeOrTerminalStage);
+        when(requestFilterResultBuilder.errorResponse(eq(header), eq(request), any())).thenReturn(closeOrTerminalStage);
         when(closeOrTerminalStage.completed()).thenReturn(result);
         // when
         CompletionStage<RequestFilterResult> resultStage = topicNameCacheFilter.onMetadataRequest(ApiKeys.METADATA.latestVersion(), header,
@@ -121,7 +122,7 @@ class TopicNameCacheFilterTest {
         // we respond with an error as it's an illegal state for an internal topic name retrieval request to have an empty topics list
         assertThat(resultStage).isSameAs(result);
         ArgumentCaptor<ApiException> captor = ArgumentCaptor.forClass(ApiException.class);
-        Mockito.verify(requestFilterResultBuilder).errorResponse(Mockito.eq(header), Mockito.eq(request), captor.capture());
+        verify(requestFilterResultBuilder).errorResponse(eq(header), eq(request), captor.capture());
         assertThat(captor.getValue()).isInstanceOf(UnknownServerException.class).hasMessage("received an internal topic name request with no topics");
     }
 
@@ -137,7 +138,7 @@ class TopicNameCacheFilterTest {
         request.topics().add(topic);
         CompletableFuture<RequestFilterResult> result = CompletableFuture.completedFuture(null);
         when(filterContext.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
-        when(requestFilterResultBuilder.shortCircuitResponse(Mockito.any())).thenReturn(closeOrTerminalStage);
+        when(requestFilterResultBuilder.shortCircuitResponse(any())).thenReturn(closeOrTerminalStage);
         when(closeOrTerminalStage.completed()).thenReturn(result);
         // when
         CompletionStage<RequestFilterResult> resultStage = topicNameCacheFilter.onMetadataRequest(ApiKeys.METADATA.latestVersion(), header,
@@ -145,7 +146,7 @@ class TopicNameCacheFilterTest {
         // then
         assertThat(resultStage).isSameAs(result);
         ArgumentCaptor<ApiMessage> captor = ArgumentCaptor.forClass(ApiMessage.class);
-        Mockito.verify(requestFilterResultBuilder).shortCircuitResponse(captor.capture());
+        verify(requestFilterResultBuilder).shortCircuitResponse(captor.capture());
         ApiMessage value = captor.getValue();
         assertThat(value).isInstanceOfSatisfying(MetadataResponseData.class, metadataResponseData -> {
             assertThat(metadataResponseData.topics()).isNotNull().singleElement().satisfies(metadataResponseTopic -> {
@@ -166,7 +167,7 @@ class TopicNameCacheFilterTest {
         topic.setTopicId(TOPIC_ID);
         request.topics().add(topic);
         CompletableFuture<RequestFilterResult> result = CompletableFuture.completedFuture(null);
-        when(filterContext.forwardRequest(Mockito.any(), Mockito.any())).thenReturn(result);
+        when(filterContext.forwardRequest(any(), any())).thenReturn(result);
         // when
         CompletionStage<RequestFilterResult> resultStage = topicNameCacheFilter.onMetadataRequest(ApiKeys.METADATA.latestVersion(), header,
                 request, filterContext);
@@ -174,7 +175,7 @@ class TopicNameCacheFilterTest {
         assertThat(resultStage).isSameAs(result);
         ArgumentCaptor<RequestHeaderData> headerCaptor = ArgumentCaptor.forClass(RequestHeaderData.class);
         ArgumentCaptor<ApiMessage> captor = ArgumentCaptor.forClass(ApiMessage.class);
-        Mockito.verify(filterContext).forwardRequest(headerCaptor.capture(), captor.capture());
+        verify(filterContext).forwardRequest(headerCaptor.capture(), captor.capture());
         ApiMessage value = captor.getValue();
         assertThat(value).isInstanceOfSatisfying(MetadataRequestData.class, requestData -> {
             assertThat(requestData).isSameAs(request);

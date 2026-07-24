@@ -303,7 +303,7 @@ class ResilientKmsTest {
 
         // then
         assertThat(kekId).failsWithin(5, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("resolveAlias failed after " + retries + " attempts");
-        Mockito.verify(kms, times(retries)).resolveAlias("abc");
+        verify(kms, times(retries)).resolveAlias("abc");
         verify(mockExecutor, times(retries)).schedule(any(Runnable.class), eq(DELAY), eq(TimeUnit.MILLISECONDS));
     }
 
@@ -323,7 +323,7 @@ class ResilientKmsTest {
 
         // then
         assertThat(dekPair).failsWithin(5, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("generateDekPair failed after " + retries + " attempts");
-        Mockito.verify(kms, times(retries)).generateDekPair(1L);
+        verify(kms, times(retries)).generateDekPair(1L);
         verify(mockExecutor, times(3)).schedule(any(Runnable.class), eq(DELAY), eq(TimeUnit.MILLISECONDS));
     }
 
