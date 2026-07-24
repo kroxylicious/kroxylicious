@@ -608,6 +608,7 @@ public class FilterHandler extends ChannelDuplexHandler {
      * Subclasses can override to tag the frame (e.g. with a route name).
      */
     void onInternalRequest(InternalRequestFrame<?> frame) {
+        // intentionally empty — subclasses override to tag frames
     }
 
     private static <F extends FilterResult> F validateFilterResultNonNull(F f) {
