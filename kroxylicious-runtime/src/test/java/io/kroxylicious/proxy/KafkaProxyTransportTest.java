@@ -34,6 +34,7 @@ import io.kroxylicious.proxy.config.NetworkDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -65,7 +66,7 @@ class KafkaProxyTransportTest {
     void build_whenIoUringIsConfiguredToBeUsedAndAvailable_shouldUseIoUring() {
         // Given
         // the constructor is mocked since native classes used in actual constructors can be unavailable based on the test infra
-        try (var mockTransport = Mockito.mockStatic(IoUring.class); var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+        try (var mockTransport = mockStatic(IoUring.class); var mockGroupConstructor = mockConstruction(MultiThreadIoEventLoopGroup.class)) {
             mockTransport.when(IoUring::isAvailable).thenReturn(true);
 
             // When
@@ -80,7 +81,7 @@ class KafkaProxyTransportTest {
     @Test
     void build_whenIoUringIsConfiguredToBeUsedAndNotAvailable_shouldThrowException() {
         // Given
-        try (var mockIOUring = Mockito.mockStatic(IoUring.class)) {
+        try (var mockIOUring = mockStatic(IoUring.class)) {
             mockIOUring.when(IoUring::isAvailable).thenReturn(false);
             // noinspection ResultOfMethodCallIgnored
             mockIOUring.when(IoUring::unavailabilityCause).thenReturn(new Throwable());
@@ -93,7 +94,7 @@ class KafkaProxyTransportTest {
     void build_whenEpollIsAvailable_shouldUseEpoll() {
         // Given
         // the constructor is mocked since native classes used in actual constructors can be unavailable based on the test infra
-        try (var mockTransport = Mockito.mockStatic(Epoll.class); var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+        try (var mockTransport = mockStatic(Epoll.class); var mockGroupConstructor = mockConstruction(MultiThreadIoEventLoopGroup.class)) {
             mockTransport.when(Epoll::isAvailable).thenReturn(true);
 
             // When
@@ -109,9 +110,9 @@ class KafkaProxyTransportTest {
     void build_whenEpollIsUnavailableAndKQueueIsAvailable_shouldUseKQueue() {
         // Given
         // the constructor is mocked since native classes used in actual constructors can be unavailable based on the test infra
-        try (var kQueueTransport = Mockito.mockStatic(KQueue.class);
-                var epollTransport = Mockito.mockStatic(Epoll.class);
-                var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+        try (var kQueueTransport = mockStatic(KQueue.class);
+                var epollTransport = mockStatic(Epoll.class);
+                var mockGroupConstructor = mockConstruction(MultiThreadIoEventLoopGroup.class)) {
             epollTransport.when(Epoll::isAvailable).thenReturn(false);
             kQueueTransport.when(KQueue::isAvailable).thenReturn(true);
 
@@ -126,9 +127,9 @@ class KafkaProxyTransportTest {
 
     @Test
     void build_shouldFallbackToNio() {
-        try (var mockEpoll = Mockito.mockStatic(Epoll.class);
-                var mockKQueue = Mockito.mockStatic(KQueue.class);
-                var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+        try (var mockEpoll = mockStatic(Epoll.class);
+                var mockKQueue = mockStatic(KQueue.class);
+                var mockGroupConstructor = mockConstruction(MultiThreadIoEventLoopGroup.class)) {
             mockEpoll.when(Epoll::isAvailable).thenReturn(false);
             mockKQueue.when(KQueue::isAvailable).thenReturn(false);
 
@@ -140,7 +141,7 @@ class KafkaProxyTransportTest {
 
     @Test
     void build_shouldResolveDefaultShutdownDurations_whenNoNetworkConfig() {
-        try (var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+        try (var mockGroupConstructor = mockConstruction(MultiThreadIoEventLoopGroup.class)) {
             var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, false);
             assertThat(config.shutdownQuietPeriod()).isEqualTo(Duration.ofSeconds(2));
             assertThat(config.shutdownTimeout()).isEqualTo(Duration.ofSeconds(15));
@@ -155,7 +156,7 @@ class KafkaProxyTransportTest {
                   proxy:
                     shutdownQuietPeriod: 500ms
                 """);
-        try (var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+        try (var mockGroupConstructor = mockConstruction(MultiThreadIoEventLoopGroup.class)) {
             var eventGroupConfig = KafkaProxy.EventGroupConfig.build("test", config, NetworkDefinition::proxy, false);
             assertThat(eventGroupConfig.shutdownQuietPeriod()).isEqualTo(Duration.ofMillis(500));
         }
@@ -168,7 +169,7 @@ class KafkaProxyTransportTest {
                   proxy:
                     shutdownTimeout: 45s
                 """);
-        try (var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+        try (var mockGroupConstructor = mockConstruction(MultiThreadIoEventLoopGroup.class)) {
             var eventGroupConfig = KafkaProxy.EventGroupConfig.build("test", config, NetworkDefinition::proxy, false);
             assertThat(eventGroupConfig.shutdownTimeout()).isEqualTo(Duration.ofSeconds(45));
         }
@@ -180,8 +181,8 @@ class KafkaProxyTransportTest {
         var future = mock(io.netty.util.concurrent.Future.class);
         var bossGroup = mock(EventLoopGroup.class);
         var workerGroup = mock(EventLoopGroup.class);
-        when(bossGroup.shutdownGracefully(Mockito.anyLong(), Mockito.anyLong(), Mockito.any())).thenReturn(future);
-        when(workerGroup.shutdownGracefully(Mockito.anyLong(), Mockito.anyLong(), Mockito.any())).thenReturn(future);
+        when(bossGroup.shutdownGracefully(anyLong(), anyLong(), any())).thenReturn(future);
+        when(workerGroup.shutdownGracefully(anyLong(), anyLong(), any())).thenReturn(future);
 
         var quietPeriod = Duration.ofMillis(500);
         var timeout = Duration.ofSeconds(30);
@@ -189,7 +190,7 @@ class KafkaProxyTransportTest {
 
         eventGroupConfig.shutdownGracefully();
 
-        Mockito.verify(bossGroup).shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS);
-        Mockito.verify(workerGroup).shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS);
+        verify(bossGroup).shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS);
+        verify(workerGroup).shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS);
     }
 }
