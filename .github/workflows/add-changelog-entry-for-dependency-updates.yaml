@@ -18,7 +18,7 @@ name: Add changelog entry for user-facing dependency updates
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, labeled]
 
 jobs:
   add-changelog-entry:
@@ -84,6 +84,23 @@ jobs:
           else
             echo "SKIP_ENTRY=true" >> $GITHUB_ENV
           fi
+
+      - name: 'Remove logchange entry if changelog/skip label was added'
+        if: env.CHANGELOG_TOKEN_SET == 'true' && env.SKIP_ENTRY == 'true'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          PADDED_PR=$(printf '%05d' "${PR_NUMBER}")
+          ENTRY="changelog/unreleased/${PADDED_PR}-dependency-update.yaml"
+          if [[ ! -f "${ENTRY}" ]]; then
+            echo "No changelog entry to remove."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git rm "${ENTRY}"
+          git commit --message "build: remove changelog entry for #${PR_NUMBER}" --signoff
+          git push
 
       - name: 'Create logchange entry'
         if: env.CHANGELOG_TOKEN_SET == 'true' && env.SKIP_ENTRY != 'true'
