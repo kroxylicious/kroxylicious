@@ -16,7 +16,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
