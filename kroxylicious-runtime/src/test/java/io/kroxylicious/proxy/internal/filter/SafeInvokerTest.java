@@ -16,7 +16,6 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
