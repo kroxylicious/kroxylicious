@@ -286,20 +286,20 @@ class InBandDecryptionManagerTest {
 
     @NonNull
     private static CompletionStage<Void> doDecrypt(
-            InBandDecryptionManager<UUID, InMemoryEdek> decryptionManager, String topic, int partition, List<Record> encrypted,
-            List<Record> decrypted) {
+                                                   InBandDecryptionManager<UUID, InMemoryEdek> decryptionManager, String topic, int partition, List<Record> encrypted,
+                                                   List<Record> decrypted) {
         return decryptionManager.decrypt(topic, partition, RecordTestUtils.memoryRecords(encrypted), ByteBufferOutputStream::new)
                 .thenAccept(records -> records.records().forEach(decrypted::add));
     }
 
     @NonNull
     private static CompletionStage<Void> doEncrypt(
-            InBandEncryptionManager<UUID, InMemoryEdek> encryptionManager,
-            String topic,
-            int partition,
-            EncryptionScheme<UUID> scheme,
-            List<Record> initial,
-            List<Record> encrypted) {
+                                                   InBandEncryptionManager<UUID, InMemoryEdek> encryptionManager,
+                                                   String topic,
+                                                   int partition,
+                                                   EncryptionScheme<UUID> scheme,
+                                                   List<Record> initial,
+                                                   List<Record> encrypted) {
         MemoryRecords records = RecordTestUtils.memoryRecords(initial);
         return encryptionManager.encrypt(topic, partition, scheme, records, ByteBufferOutputStream::new)
                 .thenApply(memoryRecords -> {
