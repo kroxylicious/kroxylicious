@@ -31,6 +31,7 @@ import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
@@ -54,7 +55,6 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
@@ -186,7 +186,7 @@ class KafkaProxyInitializerTest {
     void shouldResolveWhenPlainChannelActivated() throws Exception {
         // Given
         final EndpointBindingResolver bindingResolver = mock(EndpointBindingResolver.class);
-        when(bindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
+        when(bindingResolver.resolve(any(Channel.class), isNull())).thenReturn(bindingStage);
         kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
         when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
@@ -197,14 +197,14 @@ class KafkaProxyInitializerTest {
         plainChannelResolverCaptor.getValue().channelActive(channelHandlerContext);
 
         // Then
-        verify(bindingResolver).resolve(any(Endpoint.class), isNull());
+        verify(bindingResolver).resolve(any(Channel.class), isNull());
     }
 
     @Test
     void shouldRemovePlainChannelInitializerOnceComplete() throws Exception {
         // Given
         final EndpointBindingResolver bindingResolver = mock(EndpointBindingResolver.class);
-        when(bindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
+        when(bindingResolver.resolve(any(Channel.class), isNull())).thenReturn(bindingStage);
         kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
         when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 

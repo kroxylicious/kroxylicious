@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.model;
 
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -24,8 +25,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.buffer.ByteBufAllocator;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
@@ -34,6 +37,9 @@ import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.internal.net.ProxyNodeId;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -77,11 +83,100 @@ class VirtualClusterListenerModelTest {
 
     @Test
     void delegatesToStrategyForAdvertisedPort() {
+        // Given - strategy is a plain NIS mock (does not implement AdvertisingSpec), no port resolver bound
         var mock = mock(NodeIdentificationStrategy.class);
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         var advertisedHostPort = new HostPort("broker", 55);
         when(mock.getAdvertisedBrokerAddress(0)).thenReturn(advertisedHostPort);
+
+        // When / Then - falls back to legacy delegation
         assertThat(listener.getAdvertisedBrokerAddress(0)).isEqualTo(advertisedHostPort);
+    }
+
+    @Test
+    void shouldUseResolvedPortWhenResolverBound() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("mybroker.example.com:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        int resolvedPort = 45678;
+        listener.bindPortResolver(vn -> resolvedPort);
+
+        // When
+        var result = listener.getAdvertisedBrokerAddress(0);
+
+        // Then
+        assertThat(result.host()).isEqualTo("mybroker.example.com");
+        assertThat(result.port()).isEqualTo(resolvedPort);
+    }
+
+    @Test
+    void shouldPassCorrectProxyNodeIdToPortResolver() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        var capturedVn = new ProxyNodeId[1];
+        listener.bindPortResolver(vn -> {
+            capturedVn[0] = vn;
+            return 9999;
+        });
+
+        // When
+        listener.getAdvertisedBrokerAddress(0);
+
+        // Then
+        assertThat(capturedVn[0]).isInstanceOf(ProxyNodeId.Broker.class);
+        assertThat(((ProxyNodeId.Broker) capturedVn[0]).nodeId()).isEqualTo(0);
+        assertThat(((ProxyNodeId.Broker) capturedVn[0]).gateway()).isSameAs(listener);
+    }
+
+    @Test
+    void shouldUseConfiguredPortWhenResolverNotBound() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        // When
+        var result = listener.getAdvertisedBrokerAddress(0);
+
+        // Then — pre-binding, strategy returns configured port
+        assertThat(result).isEqualTo(new HostPort("broker", 9093));
+    }
+
+    @Test
+    void shouldUseResolvedPortForBootstrapWhenResolverBound() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("mybroker.example.com:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        int resolvedPort = 54321;
+        listener.bindPortResolver(vn -> resolvedPort);
+
+        // When
+        var result = listener.getClusterBootstrapAddress();
+
+        // Then
+        assertThat(result.host()).isEqualTo("mybroker.example.com");
+        assertThat(result.port()).isEqualTo(resolvedPort);
+    }
+
+    @Test
+    void shouldUseConfiguredPortForBootstrapWhenResolverNotBound() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        // When
+        var result = listener.getClusterBootstrapAddress();
+
+        // Then
+        assertThat(result).isEqualTo(new HostPort("broker", 9092));
     }
 
     @Test
@@ -91,15 +186,6 @@ class VirtualClusterListenerModelTest {
         var brokerAddress = new HostPort("broker", 55);
         when(mock.getBrokerAddress(0)).thenReturn(brokerAddress);
         assertThat(listener.getBrokerAddress(0)).isEqualTo(brokerAddress);
-    }
-
-    @Test
-    void delegatesToStrategyForBrokerIdFromBrokerAddress() {
-        var mock = mock(NodeIdentificationStrategy.class);
-        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
-        var brokerAddress = new HostPort("broker", 55);
-        when(mock.getBrokerIdFromBrokerAddress(brokerAddress)).thenReturn(1);
-        assertThat(listener.getBrokerIdFromBrokerAddress(brokerAddress)).isEqualTo(1);
     }
 
     @Test
@@ -259,6 +345,51 @@ class VirtualClusterListenerModelTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(
                         "Node Identification Strategy requires ServerNameIndication, but virtual cluster gateway 'mygateway' does not configure TLS and provide a certificate for the server");
+    }
+
+    @Test
+    void resolvePortForBrokerReturnsConfiguredPortWhenResolverNotBound() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        // When
+        var port = listener.resolvePort(new ProxyNodeId.Broker(listener, 0));
+
+        // Then
+        assertThat(port).isEqualTo(9093);
+    }
+
+    @Test
+    void resolvePortThrowsWhenPortIsZeroAndResolverNotBound() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:0"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+        ProxyNodeId.Bootstrap bootstrapNode = new ProxyNodeId.Bootstrap(listener);
+
+        // When / Then
+        assertThatThrownBy(() -> listener.resolvePort(bootstrapNode))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Port resolver not bound yet and configured port is 0");
+    }
+
+    @Test
+    void targetClusterThrowsWhenNotDirectRouting() {
+        // Given
+        var model = mock(VirtualClusterModel.class);
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
+        var route = new RouteDescriptor("r1", 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of());
+        when(model.routing()).thenReturn(new DynamicRouting("router", Map.of("r1", route), mock(RouterChainFactory.class)));
+        when(model.getClusterName()).thenReturn("my-vc");
+        var listener = new VirtualClusterGatewayModel(model, strategy, Optional.empty(), "default");
+
+        // When / Then
+        assertThatThrownBy(listener::targetCluster)
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("my-vc");
     }
 
     @Test

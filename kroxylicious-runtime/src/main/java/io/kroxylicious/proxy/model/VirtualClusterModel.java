@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -45,7 +46,11 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
+import io.kroxylicious.proxy.internal.net.AddressingSpec;
+import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
+import io.kroxylicious.proxy.internal.net.BindingSpec;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.ProxyNodeId;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RoutingModel;
@@ -415,6 +420,18 @@ public class VirtualClusterModel implements AutoCloseable {
         private final Optional<SslContext> downstreamSslContext;
         private final String name;
 
+        /**
+         * Resolves the actual bound port for a given virtual node. Set by
+         * {@link #bindPortResolver(Function)} during {@code KafkaProxy.startup()},
+         * which also pushes the resolver into the strategy's {@link AdvertisingSpec}.
+         */
+        @Nullable
+        // Write-once from startup thread, read from Netty event-loop threads. Volatile is
+        // needed because connections can arrive between bind completing and this being set.
+        // TODO: replace with constructor injection when EndpointGateway is decomposed.
+        @SuppressWarnings("java:S3077") // volatile reference: write-once/read-many, no compound operations
+        private volatile Function<ProxyNodeId, Integer> portResolver = null;
+
         @VisibleForTesting
         VirtualClusterGatewayModel(VirtualClusterModel virtualCluster, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls, String name) {
             this.virtualCluster = virtualCluster;
@@ -450,12 +467,24 @@ public class VirtualClusterModel implements AutoCloseable {
             return virtualCluster;
         }
 
+        @Override
+        public TargetCluster targetCluster() {
+            if (virtualCluster.routing() instanceof DirectRouting dr) {
+                return dr.upstreamCluster().targetCluster();
+            }
+            throw new UnsupportedOperationException(
+                    "targetCluster() is not defined for dynamically-routed virtual cluster '" + virtualCluster.getClusterName() + "'");
+        }
+
         private NodeIdentificationStrategy getNodeIdentificationStrategy() {
             return nodeIdentificationStrategy;
         }
 
         @Override
         public HostPort getClusterBootstrapAddress() {
+            if (nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
+                return advertisingSpec.advertisedBootstrapAddress(new ProxyNodeId.Bootstrap(this));
+            }
             return getNodeIdentificationStrategy().getClusterBootstrapAddress();
         }
 
@@ -490,17 +519,51 @@ public class VirtualClusterModel implements AutoCloseable {
         }
 
         @Override
-        public @Nullable Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
-            return getNodeIdentificationStrategy().getBrokerIdFromBrokerAddress(brokerAddress);
-        }
-
-        @Override
         public String name() {
             return name;
         }
 
         @Override
+        public BindingSpec bindingSpec() {
+            return (BindingSpec) nodeIdentificationStrategy;
+        }
+
+        @Override
+        public AddressingSpec addressingSpec() {
+            return (AddressingSpec) nodeIdentificationStrategy;
+        }
+
+        @Override
+        public int resolvePort(ProxyNodeId virtualNodeId) {
+            var resolver = portResolver;
+            if (resolver != null) {
+                return resolver.apply(virtualNodeId);
+            }
+            int configuredPort = switch (virtualNodeId) {
+                case ProxyNodeId.Bootstrap ignored -> getNodeIdentificationStrategy().getClusterBootstrapAddress().port();
+                case ProxyNodeId.Broker broker -> getNodeIdentificationStrategy().getBrokerAddress(broker.nodeId()).port();
+            };
+            if (configuredPort == 0) {
+                throw new IllegalStateException("Port resolver not bound yet and configured port is 0 (OS-assigned)");
+            }
+            return configuredPort;
+        }
+
+        @Override
+        public void bindPortResolver(Function<ProxyNodeId, Integer> resolver) {
+            this.portResolver = Objects.requireNonNull(resolver);
+        }
+
+        @VisibleForTesting
+        public boolean isPortResolverBound() {
+            return portResolver != null;
+        }
+
+        @Override
         public HostPort getAdvertisedBrokerAddress(int nodeId) {
+            if (nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
+                return advertisingSpec.advertisedBrokerAddress(new ProxyNodeId.Broker(this, nodeId));
+            }
             return getNodeIdentificationStrategy().getAdvertisedBrokerAddress(nodeId);
         }
 
