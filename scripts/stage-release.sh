@@ -36,13 +36,13 @@ while getopts ":i:l:v:b:k:r:n:w:c:sh" opt; do
     ;;
     w) WORK_BRANCH_NAME="${OPTARG}"
     ;;
-    c) CHANGELOG_REPO_URL="${OPTARG}"
+    c) CHANGELOG_LINK_PREFIX="${OPTARG}"
     ;;
     s) SKIP_VALIDATION="true"
     ;;
     h)
       1>&2 cat << EOF
-usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-i proxy-image-repo] [-c changelog-repo-url] [-s] [-d] [-h]
+usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-i proxy-image-repo] [-c changelog-link-prefix] [-s] [-d] [-h]
  -k short key id used to sign the release
  -v version number e.g. 0.3.0
  -b branch to release from (defaults to 'main')
@@ -51,7 +51,7 @@ usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-i p
  -r the remote name of the kroxylicious repository (defaults to 'origin')
  -i proxy image repo override for arm64 verification (default: quay.io/kroxylicious/proxy)
  -w release work branch
- -c repository URL for changelog links (defaults to https://github.com/kroxylicious/kroxylicious)
+ -c URL prefix for issue/PR links in the changelog (defaults to https://github.com/kroxylicious/kroxylicious)
  -s skips validation
  -h this help message
 EOF
@@ -151,8 +151,8 @@ fi
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
-# Need generate-resources to substitute changelog.repository.url into changelog template
-mvn -N -q generate-resources logchange:release -DinputDir="${project.build.directory}/changelog" -Dchangelog.repository.url="${CHANGELOG_REPO_URL}"
+# Need generate-resources to substitute changelog.link.prefix into changelog template
+mvn -N -q generate-resources logchange:release -DinputDir="${project.build.directory}/changelog" -Dchangelog.link.prefix="${CHANGELOG_LINK_PREFIX}"
 git add changelog/ CHANGELOG.md
 
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc

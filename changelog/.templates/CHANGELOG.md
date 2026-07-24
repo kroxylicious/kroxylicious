@@ -5,9 +5,9 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
-{# repo_raw is injected by Maven resource filtering via the changelog.repository.url pom.xml property.
+{# repo_raw is injected by Maven resource filtering via the changelog.link.prefix pom.xml property.
    Falls back to the upstream URL if filtering has not been run (placeholder left unresolved). #}
-{% set repo_raw = "${changelog.repository.url}" %}
+{% set repo_raw = "${changelog.link.prefix}" %}
 {% set repo = "https://github.com/kroxylicious/kroxylicious" if repo_raw.startsWith("${") else repo_raw %}
 {% for v in changelog.versions %}
 ## {{ "SNAPSHOT" if v.version.unreleased else v.version.value }}
