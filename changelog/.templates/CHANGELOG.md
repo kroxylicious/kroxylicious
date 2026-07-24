@@ -10,6 +10,9 @@ Format `<github issue/pr number>: <short description>`.
 {% set repo_raw = "${changelog.link.prefix}" %}
 {% set repo = "https://github.com/kroxylicious/kroxylicious" if repo_raw.startsWith("${") else repo_raw %}
 {% for v in changelog.versions %}
+{% set ns_has_entries = namespace(value=false) %}
+{% for group in v.entriesGroups %}{% if group.notEmpty %}{% set ns_has_entries.value = true %}{% endif %}{% endfor %}
+{% if ns_has_entries.value %}
 ## {{ "SNAPSHOT" if v.version.unreleased else v.version.value }}
 
 {% for group in v.entriesGroups %}
@@ -49,5 +52,6 @@ Format `<github issue/pr number>: <short description>`.
 {% endfor %}
 {% endif %}
 
+{% endif %}
 {% endfor %}
 {% for archive in changelog.archives.archives %}{{ archive.lines | join("\n") }}{% endfor %}
