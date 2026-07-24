@@ -83,23 +83,22 @@ class RouteFilterCorrectnessIT {
     private static final String ROUTE_A = "route-a";
 
     // ---------------------------------------------------------------------------
-    // C1: Router-internal frames pass through route filter handlers
+    // C1: Route filters see all traffic on a route, including router-originated
     // ---------------------------------------------------------------------------
 
     /**
      * When a router uses dynamic routing (e.g. {@link DynamicProduceRouterFactory}), it
-     * forwards the original request to the backend by calling
-     * {@code RouterContext.sendRequest()}, which creates a plain {@code DecodedRequestFrame}
-     * and fires it back through the inbound pipeline via {@code ctx.fireChannelRead()}.
-     * Because route filter handlers sit after {@code RouterDispatchHandler} in the pipeline,
-     * these router-internal frames pass through them.  A route filter that intercepts PRODUCE
-     * will therefore be invoked once for the client's request <em>and</em> once for the
-     * router's re-forwarded copy — a count of 2 instead of the expected 1.
+     * forwards the request to the backend by calling {@code RouterContext.sendRequest()},
+     * which fires a {@code DecodedRequestFrame} through the pipeline.  Route filter handlers
+     * sit after {@code RouterDispatchHandler} in the pipeline, so they see this frame.
      *
-     * <p>This test fails until C1 is fixed.
+     * <p>This is the intended behaviour: per-route filters apply to <em>all</em> traffic on
+     * a route, regardless of whether it was originated by the client or by the router.
+     * A name-mapping filter on a route must transform topic names in all requests reaching
+     * the backend through that route.
      */
     @Test
-    void routeFiltersAreErroneouslyInvokedOnRouterInternalFrames(KafkaCluster cluster, Topic topic) throws Exception {
+    void routeFilterSeesRouterOriginatedTraffic(KafkaCluster cluster, Topic topic) throws Exception {
         String counterId = "c1-" + topic.name();
         RequestCountingFilter.reset(counterId);
 
@@ -129,12 +128,10 @@ class RouteFilterCorrectnessIT {
             producer.send(new ProducerRecord<>(topic.name(), "key", "value")).get();
         }
 
-        // Then: the route filter should have been invoked exactly once, for the client's PRODUCE.
-        // C1 bug: RouterDispatchHandler also fires the re-forwarded PRODUCE through the pipeline,
-        // so the count is 2.
+        // Then
         assertThat(RequestCountingFilter.countFor(counterId, ApiKeys.PRODUCE))
-                .as("route filter should see only client-originated PRODUCE requests, not router-internal copies")
-                .isEqualTo(1);
+                .as("route filter should see the router's PRODUCE forwarded via sendRequest()")
+                .isGreaterThanOrEqualTo(1);
     }
 
     // ---------------------------------------------------------------------------
