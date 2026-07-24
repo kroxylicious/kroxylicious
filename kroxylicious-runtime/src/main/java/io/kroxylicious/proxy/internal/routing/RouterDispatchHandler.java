@@ -127,6 +127,15 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         router.close();
     }
 
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        for (var entry : pendingResponses.values()) {
+            entry.future().completeExceptionally(cause);
+        }
+        pendingResponses.clear();
+        ctx.fireExceptionCaught(cause);
+    }
+
     /**
      * Returns the upstream address for the given virtual node ID, as learned from the most
      * recent internal METADATA response. Returns empty if the address has not been cached yet.
@@ -357,20 +366,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
-
-        try {
-            fireChannelRead(frame);
-        }
-        catch (Exception e) {
-            pendingResponses.remove(routingCorrelationId);
-            withSendContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, clientCorrelationId)
-                    .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addKeyValue("error", e.getMessage())
-                    .log(LOGGER.isDebugEnabled()
-                            ? "Failed to forward request to route"
-                            : "Failed to forward request to route, increase log level to DEBUG for stacktrace");
-            return CompletableFuture.failedFuture(e);
-        }
+        fireChannelRead(frame);
 
         withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
@@ -419,20 +415,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
-
-        try {
-            fireChannelRead(frame);
-        }
-        catch (Exception e) {
-            pendingResponses.remove(routingCorrelationId);
-            withNodeContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, targetNodeId)
-                    .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addKeyValue("error", e.getMessage())
-                    .log(LOGGER.isDebugEnabled()
-                            ? "Failed to forward request to node"
-                            : "Failed to forward request to node, increase log level to DEBUG for stacktrace");
-            return CompletableFuture.failedFuture(e);
-        }
+        fireChannelRead(frame);
 
         withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                 .addKeyValue("targetNodeId", targetNodeId)

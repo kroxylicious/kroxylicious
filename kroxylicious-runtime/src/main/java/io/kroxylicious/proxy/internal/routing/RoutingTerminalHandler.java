@@ -62,20 +62,25 @@ public class RoutingTerminalHandler extends ChannelDuplexHandler {
                 correlationIdToRoute.put(frame.correlationId(), routeName);
             }
             int targetNodeId = (frame instanceof DecodedFrame<?, ?> df) ? df.targetVirtualNodeId() : Frame.NO_TARGET_VIRTUAL_NODE_ID;
-            if (targetNodeId >= 0) {
-                ccsm.forwardToNode(targetNodeId, routeName, msg);
-                LOGGER.atTrace()
-                        .addKeyValue("sessionId", ccsm.sessionId())
-                        .addKeyValue("route", routeName)
-                        .addKeyValue("virtualNodeId", targetNodeId)
-                        .log("Terminal forwarded to target node");
+            try {
+                if (targetNodeId >= 0) {
+                    ccsm.forwardToNode(targetNodeId, routeName, msg);
+                    LOGGER.atTrace()
+                            .addKeyValue("sessionId", ccsm.sessionId())
+                            .addKeyValue("route", routeName)
+                            .addKeyValue("virtualNodeId", targetNodeId)
+                            .log("Terminal forwarded to target node");
+                }
+                else {
+                    ccsm.forwardToRoute(routeName, msg);
+                    LOGGER.atTrace()
+                            .addKeyValue("sessionId", ccsm.sessionId())
+                            .addKeyValue("route", routeName)
+                            .log("Terminal forwarded to route bootstrap");
+                }
             }
-            else {
-                ccsm.forwardToRoute(routeName, msg);
-                LOGGER.atTrace()
-                        .addKeyValue("sessionId", ccsm.sessionId())
-                        .addKeyValue("route", routeName)
-                        .log("Terminal forwarded to route bootstrap");
+            catch (Exception e) {
+                ctx.channel().pipeline().fireExceptionCaught(e);
             }
         }
         else {

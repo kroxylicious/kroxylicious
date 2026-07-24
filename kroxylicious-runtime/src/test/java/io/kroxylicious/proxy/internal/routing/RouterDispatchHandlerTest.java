@@ -631,8 +631,8 @@ class RouterDispatchHandlerTest {
         var future = handler.sendToAnyNode(DEFAULT_ROUTE, header, new FetchRequestData(), "test-session", 100);
 
         // Then
-        assertThat(future.toCompletableFuture()).isNotDone();
-        assertThat(handler.pendingResponses).hasSize(1);
+        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
+        assertThat(handler.pendingResponses).isEmpty();
     }
 
     @Test
@@ -649,7 +649,7 @@ class RouterDispatchHandlerTest {
         var future = handler.sendToSpecificNode(3, DEFAULT_ROUTE, header, new FetchRequestData(), "test-session", 100);
 
         // Then
-        assertThat(future.toCompletableFuture()).isNotDone();
-        assertThat(handler.pendingResponses).hasSize(1);
+        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
+        assertThat(handler.pendingResponses).isEmpty();
     }
 }
