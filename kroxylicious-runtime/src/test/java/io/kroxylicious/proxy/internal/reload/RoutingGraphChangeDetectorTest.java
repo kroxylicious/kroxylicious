@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
@@ -489,6 +490,42 @@ class RoutingGraphChangeDetectorTest {
         return new ConfigurationChangeContext(oldConfig, newConfig);
     }
 
+    @Test
+    void detectsFilterAddedToRoute() {
+        // Given
+        var filterDef = new NamedFilterDefinition("my-filter", "FakeFilter", "cfg");
+        var routeWithoutFilter = new RouteDefinition("route", 0, List.of(), new RouteTarget("upstream", null));
+        var routeWithFilter = new RouteDefinition("route", 0, List.of("my-filter"), new RouteTarget("upstream", null));
+        var oldRouter = new RouterDefinition("r1", "SomeRouterType", "cfg", List.of(routeWithoutFilter));
+        var newRouter = new RouterDefinition("r1", "SomeRouterType", "cfg", List.of(routeWithFilter));
+        var oldConfig = configWithFilters(List.of(UPSTREAM), List.of(oldRouter), null, vcWithRouter("cluster-a", "r1"));
+        var newConfig = configWithFilters(List.of(UPSTREAM), List.of(newRouter), List.of(filterDef), vcWithRouter("cluster-a", "r1"));
+
+        // When
+        var result = detector.detect(ctx(oldConfig, newConfig));
+
+        // Then
+        assertThat(result.clustersToModify()).containsExactly("cluster-a");
+    }
+
+    @Test
+    void detectsFilterRemovedFromRoute() {
+        // Given
+        var filterDef = new NamedFilterDefinition("my-filter", "FakeFilter", "cfg");
+        var routeWithFilter = new RouteDefinition("route", 0, List.of("my-filter"), new RouteTarget("upstream", null));
+        var routeWithoutFilter = new RouteDefinition("route", 0, List.of(), new RouteTarget("upstream", null));
+        var oldRouter = new RouterDefinition("r1", "SomeRouterType", "cfg", List.of(routeWithFilter));
+        var newRouter = new RouterDefinition("r1", "SomeRouterType", "cfg", List.of(routeWithoutFilter));
+        var oldConfig = configWithFilters(List.of(UPSTREAM), List.of(oldRouter), List.of(filterDef), vcWithRouter("cluster-a", "r1"));
+        var newConfig = configWithFilters(List.of(UPSTREAM), List.of(newRouter), null, vcWithRouter("cluster-a", "r1"));
+
+        // When
+        var result = detector.detect(ctx(oldConfig, newConfig));
+
+        // Then
+        assertThat(result.clustersToModify()).containsExactly("cluster-a");
+    }
+
     private static ClusterDefinition clusterDef(String name, String bootstrapServers) {
         return new ClusterDefinition(name, bootstrapServers, null);
     }
@@ -526,6 +563,14 @@ class RoutingGraphChangeDetectorTest {
                                         @Nullable List<RouterDefinition> routerDefs,
                                         VirtualCluster... clusters) {
         return new Configuration(null, clusterDefs, null, null, routerDefs, List.of(clusters), null, false,
+                Optional.empty(), null, null);
+    }
+
+    private static Configuration configWithFilters(@Nullable List<ClusterDefinition> clusterDefs,
+                                                   @Nullable List<RouterDefinition> routerDefs,
+                                                   @Nullable List<NamedFilterDefinition> filterDefs,
+                                                   VirtualCluster... clusters) {
+        return new Configuration(null, clusterDefs, filterDefs, null, routerDefs, List.of(clusters), null, false,
                 Optional.empty(), null, null);
     }
 
