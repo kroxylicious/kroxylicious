@@ -630,7 +630,7 @@ To help simplify local testing we also have a simple composefile in `compose/kaf
 User-facing changes must be documented by adding a YAML entry file to `changelog/unreleased/`.
 Not every commit needs a changelog entry e.g. documentation fixes, internal build tooling changes, etc.
 
-**File naming:** `<issue-or-pr-number>-<short-slug>.yaml` (e.g. `1234-add-record-encryption.yaml`)
+**File naming:** `<zero-padded-5-digit-issue-number>-<short-slug>.yaml` (e.g. `01234-add-record-encryption.yaml`). The zero-padding ensures entries sort in numeric order. CI enforces this format.
 
 **Entry format:**
 ```yaml
@@ -668,7 +668,7 @@ The `title` always appears in the main version section. If the change also requi
 Simple example (no migration notes):
 
 ```yaml
-# changelog/unreleased/1234-add-cool-feature.yaml
+# changelog/unreleased/01234-add-cool-feature.yaml
 title: "feat(runtime): add cool new feature"
 type: feat
 merge_requests:
@@ -678,7 +678,7 @@ merge_requests:
 Example with migration notes:
 
 ```yaml
-# changelog/unreleased/1234-add-cool-feature.yaml
+# changelog/unreleased/01234-add-cool-feature.yaml
 title: "feat(runtime): add cool new feature"
 type: feat
 merge_requests:

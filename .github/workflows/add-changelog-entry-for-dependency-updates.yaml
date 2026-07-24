@@ -91,7 +91,8 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          ENTRY="changelog/unreleased/${PR_NUMBER}-dependency-update.yaml"
+          PADDED_PR=$(printf '%05d' "${PR_NUMBER}")
+          ENTRY="changelog/unreleased/${PADDED_PR}-dependency-update.yaml"
           if [[ -f "${ENTRY}" ]]; then
             echo "Changelog entry already exists, skipping."
             exit 0
