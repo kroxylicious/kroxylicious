@@ -34,6 +34,7 @@ import io.kroxylicious.proxy.config.NetworkDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -176,9 +177,9 @@ class KafkaProxyTransportTest {
     @Test
     @SuppressWarnings("unchecked")
     void shutdownGracefully_shouldCallNettyWithStoredDurationsAsNanos() {
-        var future = Mockito.mock(io.netty.util.concurrent.Future.class);
-        var bossGroup = Mockito.mock(EventLoopGroup.class);
-        var workerGroup = Mockito.mock(EventLoopGroup.class);
+        var future = mock(io.netty.util.concurrent.Future.class);
+        var bossGroup = mock(EventLoopGroup.class);
+        var workerGroup = mock(EventLoopGroup.class);
         when(bossGroup.shutdownGracefully(Mockito.anyLong(), Mockito.anyLong(), Mockito.any())).thenReturn(future);
         when(workerGroup.shutdownGracefully(Mockito.anyLong(), Mockito.anyLong(), Mockito.any())).thenReturn(future);
 

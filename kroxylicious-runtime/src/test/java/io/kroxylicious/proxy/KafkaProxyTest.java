@@ -38,6 +38,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 class KafkaProxyTest {
 
@@ -71,9 +72,9 @@ class KafkaProxyTest {
     }
 
     public static Stream<Arguments> parametersNonNullable() {
-        return Stream.of(Arguments.argumentSet("Null registry", null, Mockito.mock(Configuration.class), Features.defaultFeatures()),
-                Arguments.argumentSet("null config", Mockito.mock(PluginFactoryRegistry.class), null, Features.defaultFeatures()),
-                Arguments.argumentSet("null features", Mockito.mock(PluginFactoryRegistry.class), Mockito.mock(Configuration.class), null));
+        return Stream.of(Arguments.argumentSet("Null registry", null, mock(Configuration.class), Features.defaultFeatures()),
+                Arguments.argumentSet("null config", mock(PluginFactoryRegistry.class), null, Features.defaultFeatures()),
+                Arguments.argumentSet("null features", mock(PluginFactoryRegistry.class), mock(Configuration.class), null));
     }
 
     @ParameterizedTest
