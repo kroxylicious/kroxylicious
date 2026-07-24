@@ -75,8 +75,7 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                                                              ApiMessage request,
                                                              RouterContext ctx) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
-                    var node = ctx.anyNode(routeA);
-                    return ctx.sendRequest(node, header, request)
+                    return ctx.sendToRoute(routeA, header, request)
                             .thenCompose(body -> {
                                 capProduceVersion(body);
                                 LOGGER.atDebug()
@@ -95,8 +94,7 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                         .addKeyValue("batchIndex", index)
                         .addKeyValue("batchSize", batchSize)
                         .log("Alternating router chose route based on batch index");
-                var node = ctx.anyNode(route);
-                return ctx.sendRequest(node, header, request)
+                return ctx.sendToRoute(route, header, request)
                         .thenCompose(body -> ctx.respondWith(body).completed());
             }
 

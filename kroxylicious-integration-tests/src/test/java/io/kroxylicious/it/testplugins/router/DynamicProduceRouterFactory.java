@@ -53,12 +53,11 @@ public class DynamicProduceRouterFactory
                                                              RequestHeaderData header,
                                                              ApiMessage request,
                                                              RouterContext ctx) {
-                var node = ctx.anyNode(route);
                 if (request instanceof ProduceRequestData pd && pd.acks() == 0) {
-                    return ctx.sendRequest(node, header, request)
+                    return ctx.sendToRoute(route, header, request)
                             .thenCompose(ignored -> ctx.respondWithoutReply().completed());
                 }
-                return ctx.sendRequest(node, header, request)
+                return ctx.sendToRoute(route, header, request)
                         .thenCompose(body -> ctx.respondWith(body).completed());
             }
 

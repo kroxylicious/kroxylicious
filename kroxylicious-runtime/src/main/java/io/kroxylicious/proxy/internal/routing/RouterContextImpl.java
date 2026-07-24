@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -18,9 +17,8 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.router.CloseOrTerminalStage;
 import io.kroxylicious.proxy.router.RouterContext;
+import io.kroxylicious.proxy.topology.EndpointType;
 import io.kroxylicious.proxy.topology.VirtualNode;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Per-request implementation of {@link RouterContext}. Created by
@@ -32,28 +30,23 @@ class RouterContextImpl implements RouterContext {
     private final String sessionId;
     private final Subject subject;
     private final RouterDispatchHandler handler;
-    @Nullable
-    private final Integer endpointVirtualNodeId;
+    private final EndpointType endpoint;
 
     RouterContextImpl(DecodedRequestFrame<?> clientFrame,
                       RouterDispatchHandler handler,
                       String sessionId,
                       Subject subject,
-                      @Nullable Integer endpointVirtualNodeId) {
+                      EndpointType endpoint) {
         this.clientCorrelationId = clientFrame.correlationId();
         this.handler = Objects.requireNonNull(handler);
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
-        this.endpointVirtualNodeId = endpointVirtualNodeId;
+        this.endpoint = Objects.requireNonNull(endpoint);
     }
 
     @Override
-    public Optional<VirtualNode> virtualNode() {
-        if (endpointVirtualNodeId == null) {
-            return Optional.empty();
-        }
-        NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(endpointVirtualNodeId);
-        return Optional.of(new VirtualNodeImpl(ran.route(), ran.targetNodeId()));
+    public EndpointType endpoint() {
+        return endpoint;
     }
 
     /**
@@ -64,32 +57,26 @@ class RouterContextImpl implements RouterContext {
      * selection per call.</p>
      */
     @Override
-    public VirtualNode anyNode(String route) {
-        if (!handler.routes.containsKey(route)) {
-            throw new IllegalArgumentException("Unknown route: " + route);
-        }
-        return new VirtualNodeImpl(route, null);
-    }
-
-    @Override
     public VirtualNode nodeForId(int virtualNodeId) {
-        NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(virtualNodeId);
-        return new VirtualNodeImpl(ran.route(), ran.targetNodeId());
+        return new VirtualNode(virtualNodeId);
     }
 
     @Override
     public CompletionStage<ApiMessage> sendRequest(VirtualNode node,
                                                    RequestHeaderData header,
                                                    ApiMessage request) {
-        if (!(node instanceof VirtualNodeImpl(String route, Integer virtualNodeId))) {
-            throw new IllegalArgumentException("Unrecognised VirtualNode type: " + node.getClass().getName());
+        NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(node.downstreamNodeId());
+        return handler.sendToSpecificNode(node.downstreamNodeId(), ran.route(), header, request, sessionId, clientCorrelationId);
+    }
+
+    @Override
+    public CompletionStage<ApiMessage> sendToRoute(String route,
+                                                   RequestHeaderData header,
+                                                   ApiMessage request) {
+        if (!handler.routes.containsKey(route)) {
+            throw new IllegalArgumentException("Unknown route: " + route);
         }
-        if (virtualNodeId == null) {
-            return handler.sendToAnyNode(route, header, request, sessionId, clientCorrelationId);
-        }
-        else {
-            return handler.sendToSpecificNode(virtualNodeId, route, header, request, sessionId, clientCorrelationId);
-        }
+        return handler.sendToAnyNode(route, header, request, sessionId, clientCorrelationId);
     }
 
     @Override

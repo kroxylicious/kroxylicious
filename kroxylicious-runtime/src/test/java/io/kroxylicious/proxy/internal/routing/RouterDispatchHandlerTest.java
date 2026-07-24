@@ -508,7 +508,7 @@ class RouterDispatchHandlerTest {
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion((short) 12);
 
-        // When: bypass anyNode() validation by constructing VirtualNodeImpl with an unknown route
+        // When: call sendToAnyNode directly with an unknown route
         var future = handler.sendToAnyNode("no-such-route", header, new FetchRequestData(), "test-session", 100);
 
         // Then

@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.it.testplugins.router;
 
-import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -20,6 +19,7 @@ import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.topology.EndpointType;
 import io.kroxylicious.proxy.topology.VirtualNode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -42,14 +42,12 @@ public class ContextCapturingRouterFactory
     /**
      * Snapshot of {@link RouterContext} fields captured during the most recent {@code onRequest} call.
      *
-     * @param virtualNode result of {@link RouterContext#virtualNode()} — empty for bootstrap connections,
-     *                    present for broker-specific connections
-     * @param nodeForIdZero result of {@link RouterContext#nodeForId(int) nodeForId(0)} — the VirtualNode
-     *                      for virtual node ID 0
+     * @param endpoint result of {@link RouterContext#endpoint()}
+     * @param nodeForIdZero result of {@link RouterContext#nodeForId(int) nodeForId(0)}
      * @param sessionId result of {@link RouterContext#sessionId()}
      * @param authenticatedSubject result of {@link RouterContext#authenticatedSubject()}
      */
-    public record ContextCapture(Optional<VirtualNode> virtualNode,
+    public record ContextCapture(EndpointType endpoint,
                                  @Nullable VirtualNode nodeForIdZero,
                                  String sessionId,
                                  Subject authenticatedSubject) {}
@@ -95,7 +93,7 @@ public class ContextCapturingRouterFactory
                                                              ApiMessage request,
                                                              RouterContext ctx) {
                 lastCapture.set(new ContextCapture(
-                        ctx.virtualNode(),
+                        ctx.endpoint(),
                         safeNodeForId(ctx, 0),
                         ctx.sessionId(),
                         ctx.authenticatedSubject()));
@@ -104,7 +102,7 @@ public class ContextCapturingRouterFactory
                 if (action != null) {
                     return action.act(apiKey, apiVersion, header, request, ctx);
                 }
-                return ctx.sendRequest(ctx.anyNode(route), header, request)
+                return ctx.sendToRoute(route, header, request)
                         .thenCompose(body -> ctx.respondWith(body).completed());
             }
 
