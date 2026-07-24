@@ -16,7 +16,6 @@ import org.apache.kafka.common.message.ListGroupsResponseData;
 import org.apache.kafka.common.message.ListTransactionsRequestData;
 import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -29,7 +28,6 @@ import io.kroxylicious.it.testplugins.RequestResponseMarkingFilter;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.it.testplugins.router.DynamicProduceRouterFactory;
 import io.kroxylicious.it.testplugins.router.PassThroughRouterFactory;
-import io.kroxylicious.it.testplugins.router.SplitStaticRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -40,7 +38,6 @@ import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.testing.integration.Request;
-import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
@@ -228,7 +225,7 @@ class RouteFilterCorrectnessIT {
             tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
 
             // When
-            Response response = client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+            client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
 
             // Then: sendRequest() reached the correct (only) backend and the filter marked the request
             var requestAtBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
@@ -236,65 +233,6 @@ class RouteFilterCorrectnessIT {
                     .as("filter must have marked the request, proving sendRequest() reached the mock backend")
                     .containsExactly(RequestResponseMarkingFilter.class.getSimpleName() + "-" + filterName + "-request");
         }
-    }
-
-    /**
-     * Two-cluster companion to {@link #routeFilterSendRequestWorksWithSingleRoute}.
-     * With two routes pointing to two distinct clusters, the non-deterministic
-     * {@code iterator().next()} in {@code ClientConnectionStateMachine.onClientFilterChainComplete()}
-     * will sometimes send the {@code sendRequest()} to the wrong cluster, producing a response
-     * the filter did not expect (e.g. a topic absent on the wrong cluster, or a different cluster ID).
-     *
-     * <p>This test is disabled pending investigation of multi-cluster
-     * {@code KafkaClusterExtension} support.  Once two distinct {@code KafkaCluster} instances
-     * can be injected, the setup should use {@link SplitStaticRouterFactory} to route PRODUCE
-     * to route-A (cluster1) and LIST_TRANSACTIONS to route-B (cluster2).  A route-A filter that
-     * uses {@code sendRequest()} and expects cluster1-specific data will fail when the request
-     * accidentally reaches cluster2.
-     */
-    @Test
-    @Disabled("C3: requires two distinct Kafka clusters injected by KafkaClusterExtension")
-    void routeFilterSendRequestGoesToCorrectBackendWithMultipleRoutes(KafkaCluster cluster1, KafkaCluster cluster2, Topic topicOnCluster1) {
-        // Setup outline:
-        // 1. SplitStaticRouterFactory: PRODUCE → route-A (cluster1), LIST_TRANSACTIONS → route-B (cluster2)
-        // 2. Route-A has a filter that uses sendRequest() to fetch METADATA for topicOnCluster1
-        // 3. Client sends PRODUCE (establishes route-A connection) then LIST_TRANSACTIONS (establishes route-B connection)
-        // 4. Filter's sendRequest() should always reach cluster1 (topic found)
-        // 5. C3 bug: sendRequest() sometimes reaches cluster2 (topic absent → assertion fails)
-        throw new UnsupportedOperationException("not yet implemented");
-    }
-
-    // ---------------------------------------------------------------------------
-    // C4: RouterDispatchHandlerTest name mismatch masks a regression
-    // ---------------------------------------------------------------------------
-
-    /**
-     * {@code RouterDispatchHandlerTest.sendToAnyNodeShouldReturnFailedFutureWhenForwardThrows}
-     * asserts {@code isNotDone()} — the future is indefinitely stuck — but its name claims the
-     * future is failed.  Before this branch, the exception propagated through
-     * {@code doSendToAny}'s catch block and returned {@code CompletableFuture.failedFuture(e)}.
-     * After the branch, the exception travels through Netty's {@code exceptionCaught} pipeline
-     * path, leaving the pending response entry and the future permanently pending.
-     *
-     * <p>The observable IT-level symptom is a client request that never receives a response.
-     * The test below exercises the forwarding path with a route that will fail to connect,
-     * and verifies that the client receives a timely error rather than hanging.
-     *
-     * <p>Reproducing the exact regression reliably requires injecting a fault into
-     * {@code forwardToRoute}.  The unit test in {@code RouterDispatchHandlerTest} is the
-     * appropriate vehicle for pinning the correct behaviour; the name of that test should be
-     * updated to reflect the actual observed semantics before fixing the bug.
-     */
-    @Test
-    @Disabled("C4: requires RouterDispatchHandlerTest to be fixed first to document expected behaviour")
-    void routingFailureCompletesClientFutureExceptionallyRatherThanHanging(KafkaCluster cluster, Topic topic) throws Exception {
-        // Setup outline:
-        // 1. Configure a route that initially connects successfully
-        // 2. After connection, sever the link to the backend (e.g. by stopping the cluster)
-        // 3. Client sends a request whose forwarding via forwardToRoute throws
-        // 4. Expected: client receives an error within a reasonable timeout (not a hung future)
-        // 5. C4 bug: the future is never completed, the client hangs indefinitely
-        throw new UnsupportedOperationException("not yet implemented");
     }
 
     // ---------------------------------------------------------------------------
