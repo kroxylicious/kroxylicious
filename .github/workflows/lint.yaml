@@ -68,6 +68,19 @@ jobs:
           expected=$(( $(grep -h -r --include="pom.xml" "<module>" . | grep -v target | sort | uniq | wc -l) + 1 ))
           python3 scripts/validate_pom_metadata.py target/effective-pom.xml "$expected"
           python3 scripts/validate_pom_metadata.py kroxylicious-bom/target/effective-pom.xml
+      - name: 'Lint changelog entries'
+        run: mvn --batch-mode logchange:lint
+      - name: 'Validate changelog entry filenames'
+        run: |
+          ERRORS=0
+          for f in changelog/unreleased/*.yaml; do
+            [ -f "$f" ] || continue
+            if ! basename "$f" | grep -qP '^\d{5}-'; then
+              echo "ERROR: $f must use a zero-padded 5-digit issue/PR number prefix (e.g. 01234-short-slug.yaml)"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          exit $ERRORS
       - name: Save PR number to file
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number

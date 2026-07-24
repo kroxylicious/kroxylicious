@@ -625,6 +625,74 @@ environments.
 
 To help simplify local testing we also have a simple composefile in `compose/kafka-compose.yaml`. See the [compose/README.md](./compose/README.md) for details about how to use the proxy deployed.
 
+## Changelog Entries
+
+User-facing changes must be documented by adding a YAML entry file to `changelog/unreleased/`.
+Not every commit needs a changelog entry e.g. documentation fixes, internal build tooling changes, etc.
+
+**File naming:** `<zero-padded-5-digit-issue-number>-<short-slug>.yaml` (e.g. `01234-add-record-encryption.yaml`). The zero-padding ensures entries sort in numeric order. CI enforces this format.
+
+**Entry format:**
+```yaml
+title: "feat(runtime): add graceful shutdown with configurable drain timeout"
+type: feat
+authors:
+  - name: Your Name
+    nick: yourhandle
+    url: https://github.com/yourhandle
+merge_requests:    # use for PRs (only the first is rendered as a link prefix)
+  - 1234
+# or:
+issues:            # use for issues (only the first is rendered as a link prefix)
+  - 5678
+links:             # optional: link to external resources
+  - name: Design doc
+    url: https://example.com
+important_notes:   # optional: appear under "Changes, deprecations and removals"
+  - "Migration required: replace `oldConfig` with `newConfig`."
+  - "`OldClass` is deprecated; use `NewClass` instead."
+```
+
+The `title` always appears in the main version section. If the change also requires a migration note or deprecation callout, add one or more `important_notes` - these appear as sub-bullets under the same entry in the "Changes, deprecations and removals" section.
+
+**`type`** - pick the one that best describes the change, ideally following [Conventional Commits](https://www.conventionalcommits.org/):
+
+| Type               | Use for                                                            |
+|--------------------|--------------------------------------------------------------------|
+| `feat`             | New features, capabilities, or configuration options               |
+| `fix`              | Bug fixes                                                          |
+| `security`         | Security fixes                                                     |
+| `dependency_update`| Runtime dependency upgrades visible to users                       |
+| `other`            | Performance improvements or user-visible refactoring               |
+
+Simple example (no migration notes):
+
+```yaml
+# changelog/unreleased/01234-add-cool-feature.yaml
+title: "feat(runtime): add cool new feature"
+type: feat
+merge_requests:
+  - 1234
+```
+
+Example with migration notes:
+
+```yaml
+# changelog/unreleased/01234-add-cool-feature.yaml
+title: "feat(runtime): add cool new feature"
+type: feat
+merge_requests:
+  - 1234
+important_notes:
+  - |
+    The new feature changes how X behaves. Users relying on the old behaviour should migrate by doing Y.
+    * Option A: does this
+    * Option B: does that
+  - "**Behaviour change**: `OldClass.method()` now throws `SomeException` if Z."
+```
+
+`CHANGELOG.md` is regenerated automatically during the release process - contributors do not need to update it. The CI lint step runs `mvn logchange:lint` on every PR to catch malformed YAML.
+
 # Deprecation Policy
 
 We want to let users know about upcoming changes to APIs and give them sufficient time to adapt. The following policy

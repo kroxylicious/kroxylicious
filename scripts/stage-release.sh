@@ -18,7 +18,8 @@ WORK_BRANCH_NAME="release-work-$(openssl rand -hex 12)"
 SKIP_VALIDATION="false"
 RELEASE_NOTES_DIR=${RELEASE_NOTES_DIR:-.releaseNotes}
 PROXY_IMAGE_REPO="quay.io/kroxylicious/proxy"
-while getopts ":i:l:v:b:k:r:n:w:sh" opt; do
+CHANGELOG_LINK_PREFIX="https://github.com/kroxylicious/kroxylicious"
+while getopts ":i:l:v:b:k:r:n:w:c:sh" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
     ;;
@@ -36,11 +37,13 @@ while getopts ":i:l:v:b:k:r:n:w:sh" opt; do
     ;;
     w) WORK_BRANCH_NAME="${OPTARG}"
     ;;
+    c) CHANGELOG_LINK_PREFIX="${OPTARG}"
+    ;;
     s) SKIP_VALIDATION="true"
     ;;
     h)
       1>&2 cat << EOF
-usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-i proxy-image-repo] [-s] [-d] [-h]
+usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-i proxy-image-repo] [-c changelog-link-prefix] [-s] [-d] [-h]
  -k short key id used to sign the release
  -v version number e.g. 0.3.0
  -b branch to release from (defaults to 'main')
@@ -49,6 +52,7 @@ usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-i p
  -r the remote name of the kroxylicious repository (defaults to 'origin')
  -i proxy image repo override for arm64 verification (default: quay.io/kroxylicious/proxy)
  -w release work branch
+ -c URL prefix for issue/PR links in the changelog (defaults to https://github.com/kroxylicious/kroxylicious)
  -s skips validation
  -h this help message
 EOF
@@ -148,8 +152,12 @@ fi
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
-#Set the release version in the Changelog
-replaceInFile "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+# release moves changelog/unreleased/ to changelog/v<version>/ so versioned entries are committed.
+# generate reads from target/changelog/ where the template has been filtered by Maven.
+# They can't share the same inputDir because release moves files.
+mvn -q logchange:release
+mvn -N -q generate-resources logchange:generate -DinputDir=target/changelog -Dchangelog.link.prefix="${CHANGELOG_LINK_PREFIX}"
+git add changelog/ CHANGELOG.md
 
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
 replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: v${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
@@ -194,8 +202,6 @@ PREPARE_DEVELOPMENT_BRANCH="${WORK_BRANCH_NAME}"
 git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
 updateVersions "${RELEASE_VERSION}" "${NEXT_VERSION}"
-# bump the Changelog to the next SNAPSHOT version. We do it this way so the changelog has the new release as the first entry
-replaceInFile "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
 # bump the docs for the development version
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${NEXT_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc

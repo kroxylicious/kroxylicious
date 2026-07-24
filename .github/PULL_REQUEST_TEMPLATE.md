@@ -26,4 +26,4 @@ Contributors: please check off items you consider done.
 - [ ] Any Sonarcloud warnings are addressed (or suppressed with `@SuppressWarnings` and a justifying comment).
 - [ ] PR references related GitHub issue(s) so they are closed on merging.
 - [ ] If AI tools assisted with code changes, ensure commit messages include `Assisted-by:` trailer (see [DEV_GUIDE.md](../blob/main/DEV_GUIDE.md#ai-disclosure-requirement)).
-- [ ] For user facing changes, update CHANGELOG.md (remember to include changes affecting the API of the test artefacts too).
+- [ ] For user facing changes, add a [logchange](https://logchange.dev/tools/logchange/usage/#basic-structure) entry YAML file to `changelog/unreleased/` (remember to include changes affecting the API of the test artefacts too). See [DEV_GUIDE.md](../blob/main/DEV_GUIDE.md#changelog-entries) for the entry format.

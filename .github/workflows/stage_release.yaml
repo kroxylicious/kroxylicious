@@ -133,6 +133,9 @@ jobs:
                           --description "Used by release workflow to identify the PR for release candidate (${{ github.event.inputs.release-version }}). Do not modify." \
                           --force
 
+      - name: 'Lint changelog entries'
+        run: mvn --batch-mode logchange:lint
+
       - name: 'Stage Release'
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
@@ -147,6 +150,7 @@ jobs:
                                      -b ${{ github.event.inputs.branch }} \
                                      -w ${{ env.WORK_BRANCH }} \
                                      -l ${{ env.RELCAND_ID_LABEL }} \
+                                     -c "${{ github.server_url }}/${{ github.repository }}" \
                                      ${{ github.event.inputs.skip-tests == 'true' && '-s' || '' }}
           # Deployment id is the id known to Central Publishing Portal
           echo "DEPLOYMENT_ID=$(cat DEPLOYMENT.ID)" >> $GITHUB_ENV
