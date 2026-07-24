@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.multitenant;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import io.kroxylicious.filter.multitenant.config.MultiTenantConfig;
 import io.kroxylicious.proxy.filter.Filter;
