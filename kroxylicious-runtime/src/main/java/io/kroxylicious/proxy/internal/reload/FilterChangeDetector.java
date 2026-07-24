@@ -147,26 +147,6 @@ final class FilterChangeDetector implements ChangeDetector {
      * share one chain via {@code defaultFilters}, so the "use defaults" case needs its own
      * path. {@code List.of()} is distinct from {@code null}: a cluster opting out of the
      * default chain is not the same as a cluster opting in to it.
-     */
-    /**
-     * Decides whether the given cluster's filter chain is affected by the change.
-     * <p>
-     * {@link VirtualCluster#filters()} has three-valued semantics that this method treats
-     * distinctly:
-     * <ul>
-     *   <li>{@code null} &mdash; "use the top-level {@code defaultFilters}". The cluster is
-     *       affected if {@code defaultFilters} itself changed, or if any filter definition
-     *       referenced by {@code defaultFilters} changed.</li>
-     *   <li>{@code List.of()} &mdash; "explicitly no filter chain". A cluster with an empty
-     *       filter list cannot reference any changed filter, so this method always returns
-     *       {@code false} for it (the loop below iterates zero entries).</li>
-     *   <li>non-empty list &mdash; "explicit filter chain". The cluster is affected if any
-     *       of the named filters' definitions changed.</li>
-     * </ul>
-     * The {@code null} path exists because operators often manage a fleet of clusters that
-     * share one chain via {@code defaultFilters}, so the "use defaults" case needs its own
-     * path. {@code List.of()} is distinct from {@code null}: a cluster opting out of the
-     * default chain is not the same as a cluster opting in to it.
      * <p>
      * In addition to the VC-level filter chain, this method walks the routing graph to check
      * filters configured on individual routes. A route filter whose definition changed also
