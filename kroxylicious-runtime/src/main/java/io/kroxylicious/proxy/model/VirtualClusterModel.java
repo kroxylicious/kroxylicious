@@ -327,7 +327,8 @@ public class VirtualClusterModel implements AutoCloseable {
         }
     }
 
-    private RuntimeException handleException(FilterChainFactory filterChainFactory, RuntimeException firstFailure) {
+    private @Nullable RuntimeException handleException(FilterChainFactory filterChainFactory,
+                                                       @Nullable RuntimeException firstFailure) {
         try {
             filterChainFactory.close();
         }
