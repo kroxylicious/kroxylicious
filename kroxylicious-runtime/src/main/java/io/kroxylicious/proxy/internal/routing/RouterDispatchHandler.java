@@ -124,13 +124,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
-        router.close();
-    }
-
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         int abandoned = pendingResponses.size();
         if (abandoned > 0) {
+            var cause = new IllegalStateException("Connection closed with " + abandoned + " pending router response(s)");
             for (var entry : pendingResponses.values()) {
                 entry.future().completeExceptionally(cause);
             }
@@ -139,13 +135,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                     .addKeyValue("virtualCluster", virtualClusterName)
                     .addKeyValue("sessionId", ccsm.sessionId())
                     .addKeyValue("abandonedResponses", abandoned)
-                    .addKeyValue("error", cause.getMessage())
-                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                    .log(LOGGER.isDebugEnabled()
-                            ? "Pipeline exception, abandoned pending router responses"
-                            : "Pipeline exception, abandoned pending router responses, increase log level to DEBUG for stacktrace");
+                    .log("Connection closed with pending router responses");
         }
-        ctx.fireExceptionCaught(cause);
+        router.close();
     }
 
     /**

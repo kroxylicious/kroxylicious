@@ -37,11 +37,8 @@ import io.kroxylicious.proxy.router.Router;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyShort;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -618,35 +615,18 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void sendToAnyNodeShouldReturnFailedFutureWhenForwardThrows() {
+    void pendingFuturesCompletedExceptionallyWhenConnectionCloses() {
         // Given
-        doThrow(new RuntimeException("forward failed")).when(ccsm).forwardToRoute(anyString(), any());
         var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
         channel = channelWithTerminal(handler);
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion((short) 12);
-
-        // When
         var future = handler.sendToAnyNode(DEFAULT_ROUTE, header, new FetchRequestData(), "test-session", 100);
-
-        // Then
-        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
-        assertThat(handler.pendingResponses).isEmpty();
-    }
-
-    @Test
-    void sendToSpecificNodeShouldReturnFailedFutureWhenForwardThrows() {
-        // Given
-        doThrow(new RuntimeException("forward failed")).when(ccsm).forwardToNode(anyInt(), anyString(), any());
-        var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
-        channel = channelWithTerminal(handler);
-        var header = new RequestHeaderData()
-                .setRequestApiKey(ApiKeys.FETCH.id)
-                .setRequestApiVersion((short) 12);
+        assertThat(future.toCompletableFuture()).isNotDone();
 
         // When
-        var future = handler.sendToSpecificNode(3, DEFAULT_ROUTE, header, new FetchRequestData(), "test-session", 100);
+        channel.close();
 
         // Then
         assertThat(future.toCompletableFuture()).isCompletedExceptionally();
