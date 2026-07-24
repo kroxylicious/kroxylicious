@@ -50,6 +50,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class KeyVaultClientTest {
@@ -487,7 +488,7 @@ class KeyVaultClientTest {
     }
 
     private void givenMockEntraBearerFuture(CompletableFuture<BearerToken> future) {
-        Mockito.when(service.getBearerToken()).thenReturn(future);
+        when(service.getBearerToken()).thenReturn(future);
     }
 
     @NonNull
