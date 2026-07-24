@@ -40,7 +40,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.filter.encryption.EncryptorCreationException;
@@ -73,6 +72,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 class InBandDecryptionManagerTest {
@@ -286,20 +286,20 @@ class InBandDecryptionManagerTest {
 
     @NonNull
     private static CompletionStage<Void> doDecrypt(
-                                                   InBandDecryptionManager<UUID, InMemoryEdek> decryptionManager, String topic, int partition, List<Record> encrypted,
-                                                   List<Record> decrypted) {
+            InBandDecryptionManager<UUID, InMemoryEdek> decryptionManager, String topic, int partition, List<Record> encrypted,
+            List<Record> decrypted) {
         return decryptionManager.decrypt(topic, partition, RecordTestUtils.memoryRecords(encrypted), ByteBufferOutputStream::new)
                 .thenAccept(records -> records.records().forEach(decrypted::add));
     }
 
     @NonNull
     private static CompletionStage<Void> doEncrypt(
-                                                   InBandEncryptionManager<UUID, InMemoryEdek> encryptionManager,
-                                                   String topic,
-                                                   int partition,
-                                                   EncryptionScheme<UUID> scheme,
-                                                   List<Record> initial,
-                                                   List<Record> encrypted) {
+            InBandEncryptionManager<UUID, InMemoryEdek> encryptionManager,
+            String topic,
+            int partition,
+            EncryptionScheme<UUID> scheme,
+            List<Record> initial,
+            List<Record> encrypted) {
         MemoryRecords records = RecordTestUtils.memoryRecords(initial);
         return encryptionManager.encrypt(topic, partition, scheme, records, ByteBufferOutputStream::new)
                 .thenApply(memoryRecords -> {
@@ -451,7 +451,7 @@ class InBandDecryptionManagerTest {
     void dekCreationRetryFailurePropagatedToEncryptCompletionStage() {
         InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
-        InMemoryKms spyKms = Mockito.spy(kms);
+        InMemoryKms spyKms = spy(kms);
         when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new EncryptorCreationException("failed to create that DEK")));
         var encryptionManager = createEncryptionManager(spyKms, 500_000);
 
@@ -472,7 +472,7 @@ class InBandDecryptionManagerTest {
     void edekDecryptionRetryFailurePropagatedToDecryptCompletionStage() {
         InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
-        InMemoryKms spyKms = Mockito.spy(kms);
+        InMemoryKms spyKms = spy(kms);
         doReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK"))).when(spyKms).decryptEdek(any());
 
         var encryptionManager = createEncryptionManager(spyKms, 500_000);
@@ -499,7 +499,7 @@ class InBandDecryptionManagerTest {
     void afterWeFailToLoadADekTheNextEncryptionAttemptCanSucceed() {
         InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
-        InMemoryKms spyKms = Mockito.spy(kms);
+        InMemoryKms spyKms = spy(kms);
         when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK")));
 
         var encryptionManager = createEncryptionManager(spyKms, 50_000);
@@ -793,7 +793,7 @@ class InBandDecryptionManagerTest {
         var kekId1 = kms.generateKey();
         var kekId2 = kms.generateKey();
 
-        var spyKms = Mockito.spy(kms);
+        var spyKms = spy(kms);
 
         var encryptionManager = createEncryptionManager(kms, 500_000);
         var decryptionManager = createDecryptionManager(kms);

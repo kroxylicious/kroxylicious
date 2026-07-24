@@ -26,7 +26,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -72,10 +71,12 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -237,7 +238,7 @@ class KafkaProxyInitializerTest {
         verifyFrontendHandlerAdded(orderedVerifyer);
         verifyForwardingHandlerAdded(orderedVerifyer);
         verifyErrorHandlerAdded(orderedVerifyer);
-        Mockito.verifyNoMoreInteractions(channelPipeline);
+        verifyNoMoreInteractions(channelPipeline);
     }
 
     @ParameterizedTest
@@ -260,7 +261,7 @@ class KafkaProxyInitializerTest {
         verifyFrontendHandlerAdded(orderedVerifyer);
         verifyForwardingHandlerAdded(orderedVerifyer);
         verifyErrorHandlerAdded(orderedVerifyer);
-        Mockito.verifyNoMoreInteractions(channelPipeline);
+        verifyNoMoreInteractions(channelPipeline);
     }
 
     @ParameterizedTest
@@ -283,7 +284,7 @@ class KafkaProxyInitializerTest {
         verifyFrontendHandlerAdded(orderedVerifyer);
         verifyForwardingHandlerAdded(orderedVerifyer);
         verifyErrorHandlerAdded(orderedVerifyer);
-        Mockito.verifyNoMoreInteractions(channelPipeline);
+        verifyNoMoreInteractions(channelPipeline);
     }
 
     @ParameterizedTest
@@ -412,7 +413,7 @@ class KafkaProxyInitializerTest {
                                                               ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver) {
         var vcc = mock(VirtualClusterRegistry.class);
-        Mockito.lenient().when(vcc.registerConnection(any(), any())).thenReturn(true);
+        lenient().when(vcc.registerConnection(any(), any())).thenReturn(true);
         return createKafkaProxyInitializer(tls, proxyProtocolMode, bindingResolver, vcc);
     }
 

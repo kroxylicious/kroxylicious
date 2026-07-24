@@ -19,6 +19,7 @@ import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClu
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -194,8 +195,8 @@ class SidecarConfigResolverTest {
         resolver.simulateAdd(config);
 
         verify(statusUpdater).setNotReady(
-                org.mockito.ArgumentMatchers.eq(config),
-                org.mockito.ArgumentMatchers.contains("targetBootstrapServers"));
+                eq(config),
+                contains("targetBootstrapServers"));
         assertThat(resolver.resolve("ns1", "my-config").outcome())
                 .isEqualTo(SidecarConfigResolver.Resolution.Outcome.INVALID_CONFIG);
     }
@@ -222,8 +223,8 @@ class SidecarConfigResolverTest {
         resolver.simulateUpdate(oldConfig, newConfig);
 
         verify(statusUpdater).setNotReady(
-                org.mockito.ArgumentMatchers.eq(newConfig),
-                org.mockito.ArgumentMatchers.contains("targetBootstrapServers"));
+                eq(newConfig),
+                contains("targetBootstrapServers"));
     }
 
     @Test

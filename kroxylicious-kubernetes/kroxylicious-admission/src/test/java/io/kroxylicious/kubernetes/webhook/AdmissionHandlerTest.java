@@ -43,6 +43,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -380,13 +382,13 @@ class AdmissionHandlerTest {
     private static HttpExchange createMockExchange(
                                                    String method,
                                                    byte[] body) {
-        HttpExchange exchange = org.mockito.Mockito.mock(HttpExchange.class);
-        org.mockito.Mockito.lenient().when(exchange.getRequestMethod()).thenReturn(method);
-        org.mockito.Mockito.lenient().when(exchange.getRequestBody()).thenReturn(new ByteArrayInputStream(body));
+        HttpExchange exchange = mock(HttpExchange.class);
+        lenient().when(exchange.getRequestMethod()).thenReturn(method);
+        lenient().when(exchange.getRequestBody()).thenReturn(new ByteArrayInputStream(body));
         ByteArrayOutputStream responseBody = new ByteArrayOutputStream();
-        org.mockito.Mockito.lenient().when(exchange.getResponseBody()).thenReturn(responseBody);
+        lenient().when(exchange.getResponseBody()).thenReturn(responseBody);
         Headers headers = new Headers();
-        org.mockito.Mockito.lenient().when(exchange.getResponseHeaders()).thenReturn(headers);
+        lenient().when(exchange.getResponseHeaders()).thenReturn(headers);
         return exchange;
     }
 

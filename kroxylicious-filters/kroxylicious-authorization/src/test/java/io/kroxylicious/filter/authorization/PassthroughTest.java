@@ -26,6 +26,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class PassthroughTest {
 
@@ -69,7 +70,7 @@ class PassthroughTest {
         FilterContext context = mock(FilterContext.class);
         AuthorizationFilter filter = mock(AuthorizationFilter.class);
         CompletionStage<RequestFilterResult> expectedStage = new CompletableFuture<>();
-        Mockito.when(context.forwardRequest(requestHeaderData, message)).thenReturn(expectedStage);
+        when(context.forwardRequest(requestHeaderData, message)).thenReturn(expectedStage);
         CompletionStage<RequestFilterResult> actualStage = passthrough.onRequest(requestHeaderData, message, context, filter);
         assertThat(actualStage).isSameAs(expectedStage);
     }
@@ -82,7 +83,7 @@ class PassthroughTest {
         FilterContext context = mock(FilterContext.class);
         AuthorizationFilter filter = mock(AuthorizationFilter.class);
         CompletionStage<ResponseFilterResult> expectedStage = new CompletableFuture<>();
-        Mockito.when(context.forwardResponse(responseHeaderData, message)).thenReturn(expectedStage);
+        when(context.forwardResponse(responseHeaderData, message)).thenReturn(expectedStage);
         CompletionStage<ResponseFilterResult> actualStage = passthrough.onResponse(responseHeaderData, message, context, filter);
         assertThat(actualStage).isSameAs(expectedStage);
     }

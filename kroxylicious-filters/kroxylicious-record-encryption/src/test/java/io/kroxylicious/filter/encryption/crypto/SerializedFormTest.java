@@ -40,6 +40,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests that the serialization done by wrapper and parcel are what we'd expect,
@@ -176,11 +177,11 @@ class SerializedFormTest {
         NullCipherManager cm = new NullCipherManager(cipherId, constantParamsSize, cipherParamsBytes);
         Aad aad = new MyAad(aadId);
 
-        Kms<byte[], byte[]> kms = Mockito.mock(Kms.class);
+        Kms<byte[], byte[]> kms = mock(Kms.class);
         DekPair dekPair = new DekPair(HexFormat.of().parseHex(edekHex), DestroyableRawSecretKey.takeOwnershipOf(HexFormat.of().parseHex("0dec"), "foo"));
         doReturn(CompletableFuture.completedFuture(dekPair)).when(kms).generateDekPair(kekId);
         doReturn(new ByteArraySerde()).when(kms).edekSerde();
-        KmsService<Object, byte[], byte[]> kmsService = Mockito.mock(KmsService.class);
+        KmsService<Object, byte[], byte[]> kmsService = mock(KmsService.class);
         doReturn(kms).when(kmsService).buildKms();
         var dm = new DekManager<>(kms, 1);
 

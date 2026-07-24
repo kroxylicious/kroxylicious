@@ -65,6 +65,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -775,7 +776,7 @@ class SaslInspectionFilterTest {
         verify(context, never()).clientSaslAuthenticationSuccess(any(), any(Subject.class));
 
         verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
-        var inOrder = Mockito.inOrder(context);
+        var inOrder = inOrder(context);
         inOrder.verify(context).forwardRequest(any(), ArgumentMatchers.argThat(r -> ApiKeys.forId(r.apiKey()).equals(ApiKeys.SASL_HANDSHAKE)));
         inOrder.verify(context).forwardRequest(any(), ArgumentMatchers.argThat(r -> ApiKeys.forId(r.apiKey()).equals(ApiKeys.METADATA)));
         assertThat(filterResult)

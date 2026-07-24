@@ -23,7 +23,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -50,6 +49,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class KeyVaultClientTest {
@@ -487,7 +487,7 @@ class KeyVaultClientTest {
     }
 
     private void givenMockEntraBearerFuture(CompletableFuture<BearerToken> future) {
-        Mockito.when(service.getBearerToken()).thenReturn(future);
+        when(service.getBearerToken()).thenReturn(future);
     }
 
     @NonNull

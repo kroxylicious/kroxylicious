@@ -10,10 +10,10 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class DecodedRequestFrameTest {
@@ -24,7 +24,7 @@ class DecodedRequestFrameTest {
     void frameEncodeFailsIfUnexpectedAmountOfBytesWrittenToAccessor() {
         DecodedRequestFrame<ApiVersionsRequestData> frame = new DecodedRequestFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 5,
                 new RequestHeaderData(), new ApiVersionsRequestData(), ApiKeys.API_VERSIONS.latestVersion());
-        ByteBufAccessor mockAccessor = Mockito.mock(ByteBufAccessor.class);
+        ByteBufAccessor mockAccessor = mock(ByteBufAccessor.class);
         int encodedSize = frame.estimateEncodedSize();
         assertThat(encodedSize).isGreaterThan(0);
         int mockWrittenBytes = encodedSize - 1;
