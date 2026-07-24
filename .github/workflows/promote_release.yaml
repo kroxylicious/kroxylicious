@@ -273,6 +273,8 @@ jobs:
             local ref="$1"
             skopeo inspect "docker://${ref}" > /dev/null 2>&1
             local exit_code=$?
+            # skopeo inspect exits 2 when the image is not found (distinct from other errors);
+            # exit 1 indicates a real failure worth surfacing rather than silently swallowing.
             if [[ $exit_code -eq 2 ]]; then
               echo "Image not found, skipping: docker://${ref}"
               return 0
