@@ -14,9 +14,15 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.RouteDefinition;
+import io.kroxylicious.proxy.config.RouterDefinition;
+import io.kroxylicious.proxy.config.RoutingGraphVisitor;
+import io.kroxylicious.proxy.config.RoutingGraphWalker;
 import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.config.WalkContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -52,6 +58,8 @@ final class FilterChangeDetector implements ChangeDetector {
 
         Map<String, VirtualCluster> newByName = newConfig.virtualClusters().stream()
                 .collect(Collectors.toMap(VirtualCluster::name, Function.identity()));
+        Map<String, RouterDefinition> newRoutersByName = indexByName(newConfig.routerDefinitions(), RouterDefinition::name);
+        Map<String, ClusterDefinition> newClustersByName = indexByName(newConfig.clusterDefinitions(), ClusterDefinition::name);
 
         // We iterate OLD clusters (not new) and look up by name in the new map because:
         // - Pure additions are VirtualClusterChangeDetector's concern, not ours.
@@ -64,7 +72,8 @@ final class FilterChangeDetector implements ChangeDetector {
                 // Removed — VirtualClusterChangeDetector will flag this as clustersToRemove.
                 continue;
             }
-            if (referencesChangedFilter(newCluster, newConfig, changedFilterNames, defaultFiltersChanged)) {
+            if (referencesChangedFilter(newCluster, newConfig, changedFilterNames, defaultFiltersChanged,
+                    newRoutersByName, newClustersByName)) {
                 toModify.add(newCluster.name());
             }
         }
@@ -108,8 +117,7 @@ final class FilterChangeDetector implements ChangeDetector {
     }
 
     private static Map<String, NamedFilterDefinition> indexFilterDefinitionsByName(@Nullable List<NamedFilterDefinition> defs) {
-        return defs == null ? Map.of()
-                : defs.stream().collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
+        return indexByName(defs, NamedFilterDefinition::name);
     }
 
     private static boolean defaultFiltersChanged(Configuration oldConfig, Configuration newConfig) {
@@ -140,10 +148,36 @@ final class FilterChangeDetector implements ChangeDetector {
      * path. {@code List.of()} is distinct from {@code null}: a cluster opting out of the
      * default chain is not the same as a cluster opting in to it.
      */
+    /**
+     * Decides whether the given cluster's filter chain is affected by the change.
+     * <p>
+     * {@link VirtualCluster#filters()} has three-valued semantics that this method treats
+     * distinctly:
+     * <ul>
+     *   <li>{@code null} &mdash; "use the top-level {@code defaultFilters}". The cluster is
+     *       affected if {@code defaultFilters} itself changed, or if any filter definition
+     *       referenced by {@code defaultFilters} changed.</li>
+     *   <li>{@code List.of()} &mdash; "explicitly no filter chain". A cluster with an empty
+     *       filter list cannot reference any changed filter, so this method always returns
+     *       {@code false} for it (the loop below iterates zero entries).</li>
+     *   <li>non-empty list &mdash; "explicit filter chain". The cluster is affected if any
+     *       of the named filters' definitions changed.</li>
+     * </ul>
+     * The {@code null} path exists because operators often manage a fleet of clusters that
+     * share one chain via {@code defaultFilters}, so the "use defaults" case needs its own
+     * path. {@code List.of()} is distinct from {@code null}: a cluster opting out of the
+     * default chain is not the same as a cluster opting in to it.
+     * <p>
+     * In addition to the VC-level filter chain, this method walks the routing graph to check
+     * filters configured on individual routes. A route filter whose definition changed also
+     * triggers a VC restart.
+     */
     private static boolean referencesChangedFilter(VirtualCluster cluster,
                                                    Configuration newConfig,
                                                    Set<String> changedFilterNames,
-                                                   boolean defaultFiltersChanged) {
+                                                   boolean defaultFiltersChanged,
+                                                   Map<String, RouterDefinition> routersByName,
+                                                   Map<String, ClusterDefinition> clustersByName) {
         List<String> filters = cluster.filters();
         if (filters == null) {
             // Cluster relies on defaultFilters. Any reorder, addition, or removal there — even
@@ -161,6 +195,51 @@ final class FilterChangeDetector implements ChangeDetector {
                 return true;
             }
         }
+        if (cluster.router() != null) {
+            Boolean routeHit = RoutingGraphWalker.walkClusterGraph(cluster, routersByName, clustersByName,
+                    () -> new RouteFilterVisitor(changedFilterNames));
+            if (Boolean.TRUE.equals(routeHit)) {
+                return true;
+            }
+        }
         return false;
+    }
+
+    private static final class RouteFilterVisitor implements RoutingGraphVisitor<Boolean> {
+
+        private final Set<String> changedFilterNames;
+        private boolean found;
+
+        RouteFilterVisitor(Set<String> changedFilterNames) {
+            this.changedFilterNames = changedFilterNames;
+        }
+
+        @Override
+        public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
+            if (!ctx.isFirstVisit()) {
+                return false;
+            }
+            for (RouteDefinition route : rd.routes()) {
+                if (route.filters() != null) {
+                    for (String filterName : route.filters()) {
+                        if (changedFilterNames.contains(filterName)) {
+                            found = true;
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public Boolean result() {
+            return found;
+        }
+    }
+
+    private static <T> Map<String, T> indexByName(@Nullable List<T> items, Function<T, String> nameExtractor) {
+        return items == null ? Map.of()
+                : items.stream().collect(Collectors.toMap(nameExtractor, Function.identity()));
     }
 }
