@@ -6,9 +6,9 @@
 
 package io.kroxylicious.testing.certificate;
 
-import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Key;
@@ -81,7 +81,7 @@ class CertificateGeneratorTest {
         KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
         X509Certificate x509Certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
         Path path = CertificateGenerator.generateCertPem(x509Certificate);
-        Object pair = new PEMParser(new FileReader(path.toFile())).readObject();
+        Object pair = readPemObject(path);
         assertThat(pair).isInstanceOfSatisfying(X509CertificateHolder.class, x509CertificateHolder -> {
             X509Certificate certificate = convertToJcaX509Cert(x509CertificateHolder);
             assertThat(certificate).isEqualTo(x509Certificate);
@@ -142,7 +142,7 @@ class CertificateGeneratorTest {
 
         // Then: should create self-signed certificate PEM for the key pair
         assertThat(keys.selfSignedCertificatePem()).isNotNull();
-        Object cert = new PEMParser(new FileReader(keys.selfSignedCertificatePem().toFile())).readObject();
+        Object cert = readPemObject(keys.selfSignedCertificatePem());
         assertThat(cert).isInstanceOf(X509CertificateHolder.class);
         X509Certificate certificate = convertToJcaX509Cert((X509CertificateHolder) cert);
         assertSelfSignedCertGeneratedForKeyPair(certificate, keys.serverKey());
@@ -189,7 +189,7 @@ class CertificateGeneratorTest {
     }
 
     private X509Certificate loadCertificateFromPem(Path pemPath) throws Exception {
-        Object cert = new PEMParser(new FileReader(pemPath.toFile())).readObject();
+        Object cert = readPemObject(pemPath);
         assertThat(cert).isInstanceOf(X509CertificateHolder.class);
         return convertToJcaX509Cert((X509CertificateHolder) cert);
     }
@@ -222,7 +222,7 @@ class CertificateGeneratorTest {
 
     private static void assertPemAtPathContainsPrivateKey(Path path, KeyPair keyPair) throws IOException {
         assertThat(path).isNotNull();
-        Object pair = new PEMParser(new FileReader(path.toFile())).readObject();
+        Object pair = readPemObject(path);
         assertThat(pair).isInstanceOfSatisfying(PEMKeyPair.class, pemKeyPair -> {
             KeyPair jcaKeyPair = convertToJcaKeyPair(pemKeyPair);
             assertThat(jcaKeyPair.getPublic()).isEqualTo(keyPair.getPublic());
@@ -280,6 +280,12 @@ class CertificateGeneratorTest {
         assertThat(key).isEqualTo(keyPair.getPrivate());
         Certificate certificate = store.getCertificate(CertificateGenerator.ALIAS);
         assertThat(certificate).isEqualTo(x509Certificate);
+    }
+
+    private static Object readPemObject(Path path) throws IOException {
+        try (var parser = new PEMParser(Files.newBufferedReader(path, StandardCharsets.UTF_8))) {
+            return parser.readObject();
+        }
     }
 
     private static @NonNull KeyStore loadKeyStore(Path path, @Nullable String password, String type) {

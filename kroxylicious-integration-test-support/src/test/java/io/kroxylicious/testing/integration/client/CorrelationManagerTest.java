@@ -48,6 +48,30 @@ class CorrelationManagerTest {
     }
 
     @Test
+    void correlationEqualityRespectsApiFieldsAndIgnoresResponseFuture() {
+        // Given
+        var future1 = new CompletableFuture<SequencedResponse>();
+        var future2 = new CompletableFuture<SequencedResponse>();
+        var baseline = new CorrelationManager.Correlation((short) 1, (short) 2, future1, (short) 3);
+        var sameFieldsDifferentFuture = new CorrelationManager.Correlation((short) 1, (short) 2, future2, (short) 3);
+
+        // Then
+        assertThat(baseline)
+                .isNotEqualTo(new Object())
+                .isNotEqualTo(null);
+
+        assertThat(baseline)
+                .isEqualTo(sameFieldsDifferentFuture)
+                .hasSameHashCodeAs(sameFieldsDifferentFuture);
+        assertThat(sameFieldsDifferentFuture).isEqualTo(baseline);
+
+        assertThat(baseline)
+                .isNotEqualTo(new CorrelationManager.Correlation((short) 9, (short) 2, future1, (short) 3))
+                .isNotEqualTo(new CorrelationManager.Correlation((short) 1, (short) 9, future1, (short) 3))
+                .isNotEqualTo(new CorrelationManager.Correlation((short) 1, (short) 2, future1, (short) 9));
+    }
+
+    @Test
     void testCorrelationRetrievableOnceOnly() {
         // given
         int correlationId = 1;

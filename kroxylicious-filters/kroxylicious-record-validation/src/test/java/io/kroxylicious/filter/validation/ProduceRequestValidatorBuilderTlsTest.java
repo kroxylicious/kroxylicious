@@ -9,6 +9,7 @@ package io.kroxylicious.filter.validation;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
@@ -87,7 +88,7 @@ class ProduceRequestValidatorBuilderTlsTest {
         // Create PEM cert file
         pemCertPath = tempDir.resolve("certs.pem").toString();
         var pemContent = "-----BEGIN CERTIFICATE-----\n"
-                + Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(cert.getEncoded())
+                + Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(cert.getEncoded())
                 + "\n-----END CERTIFICATE-----\n";
         Files.writeString(Path.of(pemCertPath), pemContent);
     }

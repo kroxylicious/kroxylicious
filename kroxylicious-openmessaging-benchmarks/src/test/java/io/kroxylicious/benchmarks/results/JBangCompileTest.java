@@ -6,8 +6,6 @@
 
 package io.kroxylicious.benchmarks.results;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -71,7 +69,7 @@ class JBangCompileTest {
             Process process = pb.start();
             String output;
 
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            try (var reader = process.inputReader()) {
                 output = reader.lines().collect(Collectors.joining("\n"));
             }
 

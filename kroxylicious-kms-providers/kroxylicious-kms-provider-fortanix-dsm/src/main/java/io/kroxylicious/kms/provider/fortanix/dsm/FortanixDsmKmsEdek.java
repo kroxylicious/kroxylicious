@@ -17,8 +17,8 @@ import java.util.Objects;
  * @param edek - edek bytes
  */
 public record FortanixDsmKmsEdek(String kekRef,
-                                 byte[] iv,
-                                 byte[] edek) {
+                                 @SuppressWarnings("ArrayRecordComponent") byte[] iv, // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
+                                 @SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
 
     public static final int IV_LENGTH = 16;
 
@@ -47,10 +47,9 @@ public record FortanixDsmKmsEdek(String kekRef,
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof FortanixDsmKmsEdek that)) {
             return false;
         }
-        FortanixDsmKmsEdek that = (FortanixDsmKmsEdek) o;
         return Objects.equals(kekRef, that.kekRef) && Arrays.equals(iv, that.iv) && Arrays.equals(edek, that.edek);
     }
 

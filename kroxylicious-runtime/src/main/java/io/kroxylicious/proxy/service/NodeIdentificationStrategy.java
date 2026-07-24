@@ -9,8 +9,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 /**
  * This is the Strategy for how we expose a virtual kafka cluster on the network. The aim is
  * to manifest network endpoints such that we can identify which gateway and upstream node the
@@ -55,21 +53,6 @@ public interface NodeIdentificationStrategy {
      */
     default HostPort getAdvertisedBrokerAddress(int nodeId) throws IllegalArgumentException {
         return getBrokerAddress(nodeId);
-    }
-
-    /**
-     * Generates the node id implied by the given broker address (advertised hostname and bind port).
-     * This method make sense only for implementation that embed node id information into the broker
-     * address.  This information is used at startup time to allow a client that already in possession
-     * of a broker address to reconnect to the cluster via Kroxylicious using only that address.
-     * <br/>
-     * This is an optional method. An implementation can return null.
-     *
-     * @param brokerAddress broker address
-     * @return a broker id or null if the broker id cannot be
-     */
-    default @Nullable Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
-        return null;
     }
 
     /**

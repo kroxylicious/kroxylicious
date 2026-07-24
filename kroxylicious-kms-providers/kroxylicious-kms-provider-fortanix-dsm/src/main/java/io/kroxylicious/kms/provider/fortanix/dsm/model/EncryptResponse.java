@@ -24,8 +24,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @SuppressWarnings("java:S6218") // we don't need EncryptResponse equality
 public record EncryptResponse(
                               @JsonProperty(value = "kid", required = false) @Nullable String kid,
-                              @JsonProperty(value = "cipher", required = true) byte[] cipher,
-                              @JsonProperty(value = "iv", required = true) byte[] iv) {
+                              @SuppressWarnings("ArrayRecordComponent") @JsonProperty(value = "cipher", required = true) byte[] cipher, // byte[] retained: transient Jackson DTO, equality unused
+                              @SuppressWarnings("ArrayRecordComponent") @JsonProperty(value = "iv", required = true) byte[] iv) { // byte[] retained: transient Jackson DTO, equality unused
 
     /**
      * Encrypt response from Fortanix DSM REST API, {@code /crypto/v1/encrypt}.

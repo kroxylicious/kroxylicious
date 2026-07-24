@@ -84,6 +84,8 @@ public class JwsSignatureValidationConfig {
      * </ul>
      */
     @Override
+    @SuppressWarnings("EqualsGetClass") // Jackson-bound config type, and not final. equals() already normalises the algorithm lists before
+    // comparing; exact-type comparison is what keeps that meaningful.
     public boolean equals(Object o) {
         if (this == o) {
             return true;

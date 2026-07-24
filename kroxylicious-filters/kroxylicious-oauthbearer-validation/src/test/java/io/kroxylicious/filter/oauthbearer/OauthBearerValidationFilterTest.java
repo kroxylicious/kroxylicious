@@ -104,7 +104,7 @@ class OauthBearerValidationFilterTest {
     @Test
     void mustForwardNotOauthBearerSasl() {
         // given
-        byte[] givenBytes = "just_to_compare".getBytes();
+        byte[] givenBytes = "just_to_compare".getBytes(StandardCharsets.UTF_8);
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
 
@@ -121,7 +121,7 @@ class OauthBearerValidationFilterTest {
     @Test
     void mustHandleSaslOauthBearer() throws Exception {
         // given
-        byte[] givenBytes = "just_to_compare".getBytes();
+        byte[] givenBytes = "just_to_compare".getBytes(StandardCharsets.UTF_8);
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         expectValidSaslHandshake(givenBytes);
@@ -179,7 +179,7 @@ class OauthBearerValidationFilterTest {
     @Test
     void mustLetPassWhenAlreadyAuthenticated() throws NoSuchAlgorithmException {
         stubInitialAuthentication();
-        byte[] givenBytes = "just_to_compare".getBytes();
+        byte[] givenBytes = "just_to_compare".getBytes(StandardCharsets.UTF_8);
         SaslAuthenticateResponseData givenAuthenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(givenBytes);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
 
@@ -201,7 +201,7 @@ class OauthBearerValidationFilterTest {
 
     @Test
     void shouldNotifyContextOfSuccessfulAuthResponse() throws NoSuchAlgorithmException {
-        byte[] givenBytes = "just_to_compare".getBytes();
+        byte[] givenBytes = "just_to_compare".getBytes(StandardCharsets.UTF_8);
         SaslAuthenticateResponseData givenAuthenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(givenBytes);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         expectValidSaslHandshake(givenBytes);
@@ -219,7 +219,7 @@ class OauthBearerValidationFilterTest {
     @Test
     void willShortCircuitResponseOnTokenValidationFailed() throws Exception {
         // given
-        byte[] givenBytes = "just_to_compare".getBytes();
+        byte[] givenBytes = "just_to_compare".getBytes(StandardCharsets.UTF_8);
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         SaslAuthenticationException authenticationFailed = new SaslAuthenticationException("Authentication failed");
@@ -250,14 +250,14 @@ class OauthBearerValidationFilterTest {
     @Test
     void willShortCircuitResponseWhenSaslFailedWithoutException() throws Exception {
         // given
-        byte[] givenBytes = "just_to_compare".getBytes();
+        byte[] givenBytes = "just_to_compare".getBytes(StandardCharsets.UTF_8);
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         mockBuilder();
         String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
         when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
         when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
-        when(saslServer.evaluateResponse(givenBytes)).thenReturn("invalid_token".getBytes());
+        when(saslServer.evaluateResponse(givenBytes)).thenReturn("invalid_token".getBytes(StandardCharsets.UTF_8));
 
         // when
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
@@ -280,7 +280,7 @@ class OauthBearerValidationFilterTest {
     @Test
     void willShortCircuitAuthenticateIfNoHandshakeBefore() {
         // given
-        byte[] givenBytes = "just_to_compare".getBytes();
+        byte[] givenBytes = "just_to_compare".getBytes(StandardCharsets.UTF_8);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         mockBuilder();
 
@@ -302,7 +302,7 @@ class OauthBearerValidationFilterTest {
     @Test
     void mustDelayWhenSecondFailedAuthentication() throws Exception {
         // given
-        byte[] givenBytes = "just_to_compare".getBytes();
+        byte[] givenBytes = "just_to_compare".getBytes(StandardCharsets.UTF_8);
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         when(saslServer.evaluateResponse(givenBytes)).thenThrow(new SaslAuthenticationException("Authentication failed"));
@@ -337,7 +337,7 @@ class OauthBearerValidationFilterTest {
         SaslException saslException = new SaslException("SASL failed");
         doThrow(saslException).when(saslServer).dispose();
         mockBuilder();
-        byte[] givenBytes = "just_to_compare".getBytes();
+        byte[] givenBytes = "just_to_compare".getBytes(StandardCharsets.UTF_8);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         expectValidSaslHandshake(givenBytes);
 

@@ -20,7 +20,7 @@ import java.util.Objects;
  * @param edek - edek bytes
  */
 public record VaultEdek(String kekRef,
-                        byte[] edek) {
+                        @SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
     public VaultEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
@@ -42,11 +42,10 @@ public record VaultEdek(String kekRef,
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof VaultEdek(String otherKekRef, byte[] otherEdek))) {
             return false;
         }
-        VaultEdek that = (VaultEdek) o;
-        return Objects.equals(kekRef, that.kekRef) && Arrays.equals(edek, that.edek);
+        return Objects.equals(kekRef, otherKekRef) && Arrays.equals(edek, otherEdek);
     }
 
     /**

@@ -16,7 +16,7 @@ import java.util.Objects;
  * @param edek - edek bytes
  */
 public record AwsKmsEdek(String kekRef,
-                         byte[] edek) {
+                         @SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
     public AwsKmsEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
@@ -38,11 +38,10 @@ public record AwsKmsEdek(String kekRef,
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof AwsKmsEdek(String otherKekRef, byte[] otherEdek))) {
             return false;
         }
-        AwsKmsEdek that = (AwsKmsEdek) o;
-        return Objects.equals(kekRef, that.kekRef) && Arrays.equals(edek, that.edek);
+        return Objects.equals(kekRef, otherKekRef) && Arrays.equals(edek, otherEdek);
     }
 
     /**

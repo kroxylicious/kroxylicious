@@ -118,7 +118,7 @@ class AzureKeyVaultEdekTest {
      */
     @MethodSource
     @ParameterizedTest
-    void testEqualsHashCode(AzureKeyVaultEdek a, AzureKeyVaultEdek b, boolean shouldEqual) {
+    void testEqualsHashCode(Object a, Object b, boolean shouldEqual) {
         if (shouldEqual) {
             assertThat(a).isEqualTo(b);
             assertThat(b).isEqualTo(a);
@@ -146,6 +146,8 @@ class AzureKeyVaultEdekTest {
         arguments.add(argumentSet("not equal when edeks differ", baseline, differentEdek, false));
         arguments.add(argumentSet("not equal when vault names differ", baseline, differentVaultName, false));
         arguments.add(argumentSet("not equal when key types differ", baseline, differentKeyType, false));
+        arguments.add(argumentSet("not equal to null", baseline, null, false));
+        arguments.add(argumentSet("not equal to unrelated type", baseline, "a string", false));
         return arguments;
     }
 

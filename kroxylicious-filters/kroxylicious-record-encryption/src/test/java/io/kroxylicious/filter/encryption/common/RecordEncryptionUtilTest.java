@@ -57,7 +57,7 @@ class RecordEncryptionUtilTest {
 
     private static MemoryRecords makeRecord(int batchOffset) {
         return makeRecords(LongStream.range(0, RecordEncryptionUtilTest.RECORD_COUNT),
-                u -> RecordTestUtils.record(ByteBuffer.wrap(RecordEncryptionUtilTest.HELLO_PLAIN_WORLD), new RecordHeader("myKey", "myValue".getBytes())),
+                u -> RecordTestUtils.record(ByteBuffer.wrap(RecordEncryptionUtilTest.HELLO_PLAIN_WORLD), new RecordHeader("myKey", "myValue".getBytes(UTF_8))),
                 batchOffset);
     }
 

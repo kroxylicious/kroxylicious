@@ -93,10 +93,9 @@ public class CorrelationManager {
             if (this == o) {
                 return true;
             }
-            if (o == null || getClass() != o.getClass()) {
+            if (!(o instanceof Correlation that)) {
                 return false;
             }
-            Correlation that = (Correlation) o;
             return apiKey == that.apiKey && apiVersion == that.apiVersion && responseApiVersion == that.responseApiVersion;
         }
 
