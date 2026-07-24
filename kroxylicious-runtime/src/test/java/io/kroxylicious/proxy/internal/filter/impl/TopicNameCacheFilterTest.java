@@ -44,7 +44,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.config.CacheConfiguration.DEFAULT;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
