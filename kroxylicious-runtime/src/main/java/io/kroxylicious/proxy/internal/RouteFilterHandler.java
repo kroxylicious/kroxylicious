@@ -50,6 +50,11 @@ class RouteFilterHandler extends FilterHandler {
     }
 
     @Override
+    void onInternalRequest(InternalRequestFrame<?> frame) {
+        frame.setRouteName(routeName);
+    }
+
+    @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof InternalResponseFrame<?> || matchesRoute(msg)) {
             super.write(ctx, msg, promise);
