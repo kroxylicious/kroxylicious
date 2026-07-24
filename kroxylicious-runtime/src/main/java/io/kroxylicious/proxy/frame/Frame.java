@@ -17,6 +17,7 @@ public interface Frame {
      */
     int FRAME_SIZE_LENGTH = Integer.BYTES;
 
+    /** Sentinel indicating no specific target virtual node; the frame should be forwarded to the route's default node. */
     int NO_TARGET_VIRTUAL_NODE_ID = -1;
 
     /**

@@ -160,10 +160,17 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         this.routeName = routeName;
     }
 
+    /**
+     * The virtual node ID of the specific broker this frame should be forwarded to,
+     * or {@link Frame#NO_TARGET_VIRTUAL_NODE_ID} (the default) if the frame should
+     * be sent to any broker on the route. Set by the router dispatch handler when
+     * forwarding to a specific node via {@code sendToSpecificNode}.
+     */
     public int targetVirtualNodeId() {
         return targetVirtualNodeId;
     }
 
+    /** Sets the target virtual node ID for this frame. See {@link #targetVirtualNodeId()}. */
     public void setTargetVirtualNodeId(int targetVirtualNodeId) {
         this.targetVirtualNodeId = targetVirtualNodeId;
     }
