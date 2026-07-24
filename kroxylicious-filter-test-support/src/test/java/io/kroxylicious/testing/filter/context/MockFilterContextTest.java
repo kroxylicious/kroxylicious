@@ -40,6 +40,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 class MockFilterContextTest {
 
@@ -183,8 +184,8 @@ class MockFilterContextTest {
     @Test
     void shouldReturnOverriddenClientTlContextDetails() {
         // given
-        X509Certificate serverCert = Mockito.mock(X509Certificate.class);
-        X509Certificate clientCert = Mockito.mock(X509Certificate.class);
+        X509Certificate serverCert = mock(X509Certificate.class);
+        X509Certificate clientCert = mock(X509Certificate.class);
         MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).withClientTlsContext(serverCert, clientCert).build();
 
         // when / then
@@ -199,7 +200,7 @@ class MockFilterContextTest {
     @Test
     void shouldReturnOverriddenClientTlContext() {
         // given
-        ClientTlsContext tlsContext = Mockito.mock(ClientTlsContext.class);
+        ClientTlsContext tlsContext = mock(ClientTlsContext.class);
         MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).withClientTlsContext(tlsContext).build();
 
         // when / then
