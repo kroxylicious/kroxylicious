@@ -18,6 +18,7 @@ WORK_BRANCH_NAME="release-work-$(openssl rand -hex 12)"
 SKIP_VALIDATION="false"
 RELEASE_NOTES_DIR=${RELEASE_NOTES_DIR:-.releaseNotes}
 PROXY_IMAGE_REPO="quay.io/kroxylicious/proxy"
+CHANGELOG_LINK_PREFIX="https://github.com/kroxylicious/kroxylicious"
 while getopts ":i:l:v:b:k:r:n:w:c:sh" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
