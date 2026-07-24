@@ -174,7 +174,7 @@ public class VirtualClusterModel implements AutoCloseable {
         Map<String, FilterChainFactory> result = new HashMap<>();
         for (var entry : dr.routeDescriptors().entrySet()) {
             List<NamedFilterDefinition> routeFilters = entry.getValue().filters();
-            if (routeFilters != null && !routeFilters.isEmpty()) {
+            if (!routeFilters.isEmpty()) {
                 result.put(entry.getKey(), new FilterChainFactory(pfr, routeFilters));
             }
         }
@@ -318,6 +318,16 @@ public class VirtualClusterModel implements AutoCloseable {
         catch (RuntimeException e) {
             firstFailure = e;
         }
+        firstFailure = handleException(filterChainFactory, firstFailure);
+        for (var fcf : routeFilterChainFactories.values()) {
+            firstFailure = handleException(fcf, firstFailure);
+        }
+        if (firstFailure != null) {
+            throw firstFailure;
+        }
+    }
+
+    private RuntimeException handleException(FilterChainFactory filterChainFactory, RuntimeException firstFailure) {
         try {
             filterChainFactory.close();
         }
@@ -329,22 +339,7 @@ public class VirtualClusterModel implements AutoCloseable {
                 firstFailure.addSuppressed(e);
             }
         }
-        for (var fcf : routeFilterChainFactories.values()) {
-            try {
-                fcf.close();
-            }
-            catch (RuntimeException e) {
-                if (firstFailure == null) {
-                    firstFailure = e;
-                }
-                else {
-                    firstFailure.addSuppressed(e);
-                }
-            }
-        }
-        if (firstFailure != null) {
-            throw firstFailure;
-        }
+        return firstFailure;
     }
 
     /**
