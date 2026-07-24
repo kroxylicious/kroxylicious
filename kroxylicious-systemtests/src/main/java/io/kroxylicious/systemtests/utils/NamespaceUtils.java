@@ -178,8 +178,8 @@ public class NamespaceUtils {
     }
 
     /**
-     * Deletes Namespace with {@param namespaceName}, waits for its deletion, and in case that {@param collectorElement}
-     * is not {@code null}, removes the Namespace from the store.
+     * Deletes Namespace with {@code namespaceName}, waits for its deletion, and removes the
+     * Namespace from the store tracked under {@code testSuiteName}.
      *
      * @param namespaceName Name of the Namespace that should be deleted
      * @param testSuiteName the test suite name
@@ -190,8 +190,8 @@ public class NamespaceUtils {
     }
 
     /**
-     * Deletes Namespace with {@param namespaceName}, and in case that {@param collectorElement}
-     * is not {@code null}, removes the Namespace from the store.
+     * Deletes Namespace with {@code namespaceName} and removes the Namespace from the store
+     * tracked under {@code testSuiteName}.
      *
      * @param namespaceName Name of the Namespace that should be deleted
      * @param testSuiteName the test suite name
@@ -202,9 +202,8 @@ public class NamespaceUtils {
     }
 
     /**
-     * Method for creating Namespace with {@param namespaceName}, waiting for its creation, and adding it
-     * to the store.
-     * The last step is done only in case that {@param collectorElement} is not {@code null}
+     * Creates Namespace with {@code namespaceName}, waits for its creation, and adds it to the
+     * store tracked under {@code testSuiteName}.
      *
      * @param namespaceName name of Namespace that should be created and added to the Set
      * @param testSuiteName the test suite name
