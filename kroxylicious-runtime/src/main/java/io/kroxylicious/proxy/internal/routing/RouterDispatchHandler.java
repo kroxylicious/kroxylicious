@@ -129,10 +129,22 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        for (var entry : pendingResponses.values()) {
-            entry.future().completeExceptionally(cause);
+        int abandoned = pendingResponses.size();
+        if (abandoned > 0) {
+            for (var entry : pendingResponses.values()) {
+                entry.future().completeExceptionally(cause);
+            }
+            pendingResponses.clear();
+            LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", virtualClusterName)
+                    .addKeyValue("sessionId", ccsm.sessionId())
+                    .addKeyValue("abandonedResponses", abandoned)
+                    .addKeyValue("error", cause.getMessage())
+                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                    .log(LOGGER.isDebugEnabled()
+                            ? "Pipeline exception, abandoned pending router responses"
+                            : "Pipeline exception, abandoned pending router responses, increase log level to DEBUG for stacktrace");
         }
-        pendingResponses.clear();
         ctx.fireExceptionCaught(cause);
     }
 
