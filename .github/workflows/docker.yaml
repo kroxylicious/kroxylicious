@@ -77,7 +77,7 @@ jobs:
         run: |
           POMS_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "release_version=${POMS_VERSION}" >> $GITHUB_OUTPUT
-          SHA_TAG="commit-${GITHUB_SHA:0:7}"
+          SHA_TAG="commit-$(git rev-parse --short "${GITHUB_SHA}")"
 
           if [[ "${{ github.event_name }}" == "pull_request" || "${{ vars.REGISTRY_SERVER }}" == "" ]]; then
             # PR / no-registry builds: amd64 only for speed, no push, no manifest needed.
