@@ -53,6 +53,7 @@ import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.impl.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -266,7 +267,7 @@ public class KafkaProxyFrontendHandler
 
     private List<FilterAndInvoker> installRouteFilters(ChannelPipeline pipeline, Channel clientChannel) {
         var vc = clientConnectionStateMachine.virtualCluster();
-        if (!(vc.routing() instanceof io.kroxylicious.proxy.internal.routing.DynamicRouting dr)) {
+        if (!(vc.routing() instanceof DynamicRouting dr)) {
             return List.of();
         }
         var filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);

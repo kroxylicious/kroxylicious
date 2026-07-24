@@ -18,7 +18,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A route-scoped {@link FilterHandler} that only applies its filter when the
- * frame's {@link RoutingContext#route()} matches the configured route name.
+ * frame's {@link Frame#routeName()} matches the configured route name.
  * Frames on other routes (or with no routing context) pass through unchanged.
  * <p>
  * Internal filter frames ({@link InternalRequestFrame}, {@link InternalResponseFrame})
@@ -41,10 +41,7 @@ class RouteFilterHandler extends FilterHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof InternalRequestFrame<?>) {
-            super.channelRead(ctx, msg);
-        }
-        else if (matchesRoute(msg)) {
+        if (msg instanceof InternalRequestFrame<?> || matchesRoute(msg)) {
             super.channelRead(ctx, msg);
         }
         else {
@@ -54,10 +51,7 @@ class RouteFilterHandler extends FilterHandler {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof InternalResponseFrame<?>) {
-            super.write(ctx, msg, promise);
-        }
-        else if (matchesRoute(msg)) {
+        if (msg instanceof InternalResponseFrame<?> || matchesRoute(msg)) {
             super.write(ctx, msg, promise);
         }
         else {
