@@ -12,18 +12,16 @@ metadata:
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "METADATA"
-      expectedRequestVersion: 13
+      expectedRequestVersion: 4
       expectedRequestHeader:
         requestApiKey: 3
-        requestApiVersion: 13
+        requestApiVersion: 4
         correlationId: 0
         clientId: "clientId"
       expectedRequest:
         topics:
-          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
-            name: "my-topic"
+          - name: "my-topic"
         allowAutoTopicCreation: false
-        includeTopicAuthorizedOperations: false
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:

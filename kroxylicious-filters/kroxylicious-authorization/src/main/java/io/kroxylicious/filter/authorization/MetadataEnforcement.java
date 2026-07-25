@@ -130,7 +130,8 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
 
         var initialRequestHeader = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.METADATA.id)
-                .setRequestApiVersion(authorizationFilter.useMetadataVersion() != -1 ? authorizationFilter.useMetadataVersion() : ApiKeys.METADATA.latestVersion()) // Should support topic ids
+                .setRequestApiVersion(authorizationFilter.useMetadataVersion() != -1 ? authorizationFilter.useMetadataVersion()
+                        : (short) Math.max(4, header.requestApiVersion()))
                 .setClientId(header.clientId());
         var initialRequest = new MetadataRequestData()
                 .setTopics(request.topics())

@@ -12,17 +12,17 @@ metadata:
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "METADATA"
-      expectedRequestVersion: 13
+      expectedRequestVersion: 9
       expectedRequestHeader:
         requestApiKey: 3
-        requestApiVersion: 13
+        requestApiVersion: 9
         correlationId: 0
         clientId: "clientId"
       expectedRequest:
         topics:
-          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
-            name: "my-topic"
+          - name: "my-topic"
         allowAutoTopicCreation: false
+        includeClusterAuthorizedOperations: false
         includeTopicAuthorizedOperations: false
       upstreamResponseHeader:
         correlationId: 1
@@ -52,6 +52,7 @@ given:
                 offlineReplicas:
                   - 421
             topicAuthorizedOperations: 769
+        clusterAuthorizedOperations: 760
         errorCode: 0
     - expectedRequestKey: "METADATA"
       expectedRequestVersion: 9
