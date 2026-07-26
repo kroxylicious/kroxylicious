@@ -16,7 +16,6 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.Kms;

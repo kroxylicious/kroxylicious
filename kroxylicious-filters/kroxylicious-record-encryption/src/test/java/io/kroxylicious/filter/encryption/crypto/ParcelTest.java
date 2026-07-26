@@ -79,8 +79,7 @@ class ParcelTest {
         assertThat(buffer.remaining()).isZero();
     }
 
-    private record Header(@JsonProperty(required = true) ByteBuffer keyBase64, ByteBuffer valueBase64) {
-    }
+    private record Header(@JsonProperty(required = true) ByteBuffer keyBase64, ByteBuffer valueBase64) {}
 
     private record ParcelContents(ByteBuffer valueBase64, @JsonProperty(required = true) List<ParcelTest.Header> headers) {
         org.apache.kafka.common.header.Header[] kafkaHeaders() {
@@ -88,11 +87,9 @@ class ParcelTest {
         }
     }
 
-    private record Exemplar(ByteBuffer serializedBase64) {
-    }
+    private record Exemplar(ByteBuffer serializedBase64) {}
 
-    private record SerializationOptions(@JsonProperty(required = true) Set<RecordField> recordFields) {
-    }
+    private record SerializationOptions(@JsonProperty(required = true) Set<RecordField> recordFields) {}
 
     private record ParcelSerializationExemplar(@JsonProperty(required = true) ParcelContents originalRecordContents,
                                                @JsonProperty(required = true) ParcelContents deserializedParcelContents,
