@@ -16,7 +16,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
@@ -29,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatObject;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.BOOLEAN;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -233,10 +233,10 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void scheduleCallableDelegated() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Callable<String> callable = () -> "hi";
-        ScheduledFuture<String> future = Mockito.mock();
+        ScheduledFuture<String> future = mock();
         when(mock.schedule(callable, 1, TimeUnit.SECONDS)).thenReturn(future);
         Future<String> scheduled = dispatch.schedule(callable, 1, TimeUnit.SECONDS);
         assertThat(scheduled).isSameAs(future);
@@ -244,10 +244,10 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void submitCallableDelegated() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Callable<String> callable = () -> "hi";
-        ScheduledFuture<String> future = Mockito.mock();
+        ScheduledFuture<String> future = mock();
         when(mock.submit(callable)).thenReturn(future);
         Future<String> scheduled = dispatch.submit(callable);
         assertThat(scheduled).isSameAs(future);
@@ -255,11 +255,11 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void scheduleRunnableDelegated() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Runnable runnable = () -> {
         };
-        ScheduledFuture<Void> future = Mockito.mock();
+        ScheduledFuture<Void> future = mock();
         doReturn(future).when(mock).schedule(runnable, 1, TimeUnit.SECONDS);
         Future<?> scheduled = dispatch.schedule(runnable, 1, TimeUnit.SECONDS);
         assertThat(scheduled).isSameAs(future);
@@ -267,11 +267,11 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void submitRunnableDelegated() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Runnable runnable = () -> {
         };
-        ScheduledFuture<?> future = Mockito.mock();
+        ScheduledFuture<?> future = mock();
         doReturn(future).when(mock).submit(runnable);
         Future<?> scheduled = dispatch.submit(runnable);
         assertThat(scheduled).isSameAs(future);
@@ -279,11 +279,11 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void submitRunnableResultDelegated() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Runnable runnable = () -> {
         };
-        ScheduledFuture<String> future = Mockito.mock();
+        ScheduledFuture<String> future = mock();
         doReturn(future).when(mock).submit(runnable, "result");
         Future<String> scheduled = dispatch.submit(runnable, "result");
         assertThat(scheduled).isSameAs(future);
@@ -291,7 +291,7 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void executeDelegated() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Runnable runnable = () -> {
         };
@@ -301,11 +301,11 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void scheduleAtFixedRateDelegated() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Runnable runnable = () -> {
         };
-        ScheduledFuture<Void> future = Mockito.mock();
+        ScheduledFuture<Void> future = mock();
         doReturn(future).when(mock).scheduleAtFixedRate(runnable, 1L, 2L, TimeUnit.SECONDS);
         Future<?> scheduled = dispatch.scheduleAtFixedRate(runnable, 1L, 2L, TimeUnit.SECONDS);
         assertThat(scheduled).isSameAs(future);
@@ -313,11 +313,11 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void scheduleWithFixedDelayDelegated() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Runnable runnable = () -> {
         };
-        ScheduledFuture<Void> future = Mockito.mock();
+        ScheduledFuture<Void> future = mock();
         doReturn(future).when(mock).scheduleWithFixedDelay(runnable, 1L, 2L, TimeUnit.SECONDS);
         Future<?> scheduled = dispatch.scheduleWithFixedDelay(runnable, 1L, 2L, TimeUnit.SECONDS);
         assertThat(scheduled).isSameAs(future);
@@ -325,7 +325,7 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void isShutdownDelegated() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         when(mock.isShutdown()).thenReturn(true);
         assertThat(dispatch.isShutdown()).isTrue();
@@ -335,7 +335,7 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void isTerminatedDelegated() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         when(mock.isTerminated()).thenReturn(true);
         assertThat(dispatch.isTerminated()).isTrue();
@@ -345,7 +345,7 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void awaitTerminationDelegated() throws InterruptedException {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         when(mock.awaitTermination(1L, TimeUnit.MINUTES)).thenReturn(true);
         assertThat(dispatch.awaitTermination(1L, TimeUnit.MINUTES)).isTrue();
@@ -353,7 +353,7 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void shutdownIsNoOp() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         dispatch.shutdown();
         verifyNoInteractions(mock);
@@ -361,7 +361,7 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void shutdownNowIsNoOp() {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         dispatch.shutdownNow();
         verifyNoInteractions(mock);
@@ -369,10 +369,10 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void invokeAll() throws InterruptedException {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Callable<String> callable = () -> "hi";
-        ScheduledFuture<String> future = Mockito.mock();
+        ScheduledFuture<String> future = mock();
         List<Callable<String>> callables = List.of(callable);
         List<ScheduledFuture<String>> futures = List.of(future);
         doReturn(futures).when(mock).invokeAll(callables);
@@ -382,7 +382,7 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void invokeAny() throws InterruptedException, ExecutionException {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Callable<String> callable = () -> "hi";
         List<Callable<String>> callables = List.of(callable);
@@ -394,7 +394,7 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void invokeAnyWithTimeout() throws InterruptedException, ExecutionException, TimeoutException {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Callable<String> callable = () -> "hi";
         List<Callable<String>> callables = List.of(callable);
@@ -406,10 +406,10 @@ class NettyFilterDispatchExecutorTest {
 
     @Test
     void invokeAllWithTimeout() throws InterruptedException {
-        EventLoop mock = Mockito.mock();
+        EventLoop mock = mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
         Callable<String> callable = () -> "hi";
-        ScheduledFuture<String> future = Mockito.mock();
+        ScheduledFuture<String> future = mock();
         List<Callable<String>> callables = List.of(callable);
         List<ScheduledFuture<String>> futures = List.of(future);
         doReturn(futures).when(mock).invokeAll(callables, 1L, TimeUnit.SECONDS);
