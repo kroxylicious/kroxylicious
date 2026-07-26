@@ -156,15 +156,18 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           RELEASE_SHA=$(git rev-parse "v${{ github.event.inputs.release-version }}^{}")
+
+          # Capture time before dispatch so the poll can ignore runs from prior staging attempts
+          DISPATCH_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           gh workflow run docker.yaml --ref "v${{ github.event.inputs.release-version }}"
 
           # Poll until the triggered run appears (dispatch registration can take a few seconds)
           RUN_ID=""
           for i in $(seq 1 12); do
             sleep 10
-            RUN_ID=$(gh api \
-              "/repos/${{ github.repository }}/actions/workflows/docker.yaml/runs?head_sha=${RELEASE_SHA}" \
-              --jq '.workflow_runs[0].id // empty')
+            RUN_ID=$(DISPATCH_SINCE="${DISPATCH_TIME}" gh api \
+              "/repos/${{ github.repository }}/actions/workflows/docker.yaml/runs?head_sha=${RELEASE_SHA}&event=workflow_dispatch" \
+              --jq '[.workflow_runs[] | select(.created_at >= env.DISPATCH_SINCE)] | .[0].id // empty')
             [[ -n "${RUN_ID}" ]] && break
           done
           if [[ -z "${RUN_ID}" ]]; then
