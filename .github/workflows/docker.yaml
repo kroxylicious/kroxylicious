@@ -246,6 +246,25 @@ jobs:
           cache-from: type=gha,scope=proxy-arm64
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-arm64
 
+      - name: Verify arm64 proxy image native libraries
+        if: steps.build_configuration.outputs.multi_arch == 'true'
+        run: |
+          ARM64_TAG="${{ steps.build_configuration.outputs.proxy_arm64_tag }}"
+          echo "Verifying arm64 native libs in ${ARM64_TAG}..."
+          _CONTAINER_ID=$(docker create --platform linux/arm64 "${ARM64_TAG}")
+          _NATIVE_DIR=$(mktemp -d)
+          docker cp "${_CONTAINER_ID}:/opt/kroxylicious/libs/native/netty/." "${_NATIVE_DIR}/"
+          docker rm "${_CONTAINER_ID}" > /dev/null
+          _AARCH64_COUNT=$(find "${_NATIVE_DIR}" -name '*aarch_64*' | wc -l | tr -d ' ')
+          _X86_64_COUNT=$(find "${_NATIVE_DIR}" -name '*x86_64*' | wc -l | tr -d ' ')
+          rm -rf "${_NATIVE_DIR}"
+          if [[ "${_AARCH64_COUNT}" -gt 0 && "${_X86_64_COUNT}" -eq 0 ]]; then
+            echo "arm64 proxy image OK: ${_AARCH64_COUNT} aarch_64 native lib(s), no x86_64 libs."
+          else
+            echo "ERROR: arm64 native lib check failed (aarch_64=${_AARCH64_COUNT}, x86_64=${_X86_64_COUNT})." >&2
+            exit 1
+          fi
+
       # ── Phase 4: multi-arch manifest ─────────────────────────────────────────
       # Assemble the canonical proxy tag and the legacy Kroxylicious alias as
       # manifest lists pointing at the per-arch images pushed above.
