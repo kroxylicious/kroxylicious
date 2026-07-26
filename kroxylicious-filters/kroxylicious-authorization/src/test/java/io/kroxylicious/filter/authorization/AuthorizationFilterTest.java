@@ -32,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.Mockito;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,6 +52,7 @@ import nl.altindag.log.LogCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AuthorizationFilterTest {
@@ -86,14 +86,14 @@ class AuthorizationFilterTest {
     void authorizerDoesNotDeclareSupportedResourceTypes() {
         // given
         Subject subject = Subject.anonymous();
-        Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
+        Authorizer mockAuthorizer = mock(Authorizer.class);
         List<Action> actions = List.of(new Action(TopicResource.ALTER_CONFIGS, "resourceA"),
                 new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
         AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(actions), new ArrayList<>());
         when(mockAuthorizer.authorize(subject, actions)).thenReturn(CompletableFuture.completedFuture(result));
         when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.empty());
         AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
-        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        FilterContext filterContext = mock(FilterContext.class);
         when(filterContext.authenticatedSubject()).thenReturn(subject);
         // when
         CompletionStage<AuthorizeResult> authorization = filter.authorization(filterContext, actions);
@@ -108,12 +108,12 @@ class AuthorizationFilterTest {
     void actionsForUnsupportedResourceTypes() {
         // given
         Subject subject = Subject.anonymous();
-        Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
+        Authorizer mockAuthorizer = mock(Authorizer.class);
         AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(), new ArrayList<>());
         when(mockAuthorizer.authorize(subject, List.of())).thenReturn(CompletableFuture.completedFuture(result));
         when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.of(Set.of()));
         AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
-        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        FilterContext filterContext = mock(FilterContext.class);
         when(filterContext.authenticatedSubject()).thenReturn(subject);
         List<Action> actions = List.of(new Action(TopicResource.ALTER_CONFIGS, "resourceA"),
                 new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
@@ -130,7 +130,7 @@ class AuthorizationFilterTest {
     void actionsForUnsupportedAndSupportedResourceTypes() {
         // given
         Subject subject = Subject.anonymous();
-        Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
+        Authorizer mockAuthorizer = mock(Authorizer.class);
         Action topicAction = new Action(TopicResource.ALTER_CONFIGS, "resourceA");
         List<Action> actions = List.of(topicAction,
                 new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
@@ -138,7 +138,7 @@ class AuthorizationFilterTest {
         when(mockAuthorizer.authorize(subject, List.of(topicAction))).thenReturn(CompletableFuture.completedFuture(result));
         when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.of(Set.of(TopicResource.class)));
         AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
-        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        FilterContext filterContext = mock(FilterContext.class);
         when(filterContext.authenticatedSubject()).thenReturn(subject);
         // when
         CompletionStage<AuthorizeResult> authorization = filter.authorization(filterContext, actions);

@@ -40,7 +40,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.filter.encryption.EncryptorCreationException;
@@ -73,6 +72,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 class InBandDecryptionManagerTest {
@@ -451,7 +451,7 @@ class InBandDecryptionManagerTest {
     void dekCreationRetryFailurePropagatedToEncryptCompletionStage() {
         InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
-        InMemoryKms spyKms = Mockito.spy(kms);
+        InMemoryKms spyKms = spy(kms);
         when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new EncryptorCreationException("failed to create that DEK")));
         var encryptionManager = createEncryptionManager(spyKms, 500_000);
 
@@ -472,7 +472,7 @@ class InBandDecryptionManagerTest {
     void edekDecryptionRetryFailurePropagatedToDecryptCompletionStage() {
         InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
-        InMemoryKms spyKms = Mockito.spy(kms);
+        InMemoryKms spyKms = spy(kms);
         doReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK"))).when(spyKms).decryptEdek(any());
 
         var encryptionManager = createEncryptionManager(spyKms, 500_000);
@@ -499,7 +499,7 @@ class InBandDecryptionManagerTest {
     void afterWeFailToLoadADekTheNextEncryptionAttemptCanSucceed() {
         InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
-        InMemoryKms spyKms = Mockito.spy(kms);
+        InMemoryKms spyKms = spy(kms);
         when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK")));
 
         var encryptionManager = createEncryptionManager(spyKms, 50_000);
@@ -793,7 +793,7 @@ class InBandDecryptionManagerTest {
         var kekId1 = kms.generateKey();
         var kekId2 = kms.generateKey();
 
-        var spyKms = Mockito.spy(kms);
+        var spyKms = spy(kms);
 
         var encryptionManager = createEncryptionManager(kms, 500_000);
         var decryptionManager = createDecryptionManager(kms);
