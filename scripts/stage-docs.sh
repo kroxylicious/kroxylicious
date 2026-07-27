@@ -144,6 +144,8 @@ echo "Committing release documentation to git"
 # Commit and push changes to branch in `kroxylicious/kroxylicious.github.io`
 git add "${WEBSITE_DOCS_LOCATION}"
 git commit --message "Prepare ${RELEASE_TAG} release documentation" --signoff
+# GIT_DRYRUN intentionally expands to zero arguments when not in dry-run mode.
+# shellcheck disable=SC2086
 git push "${REPOSITORY}" "${RELEASE_DOCS_BRANCH}" ${GIT_DRYRUN:-}
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
