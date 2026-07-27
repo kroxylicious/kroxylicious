@@ -225,6 +225,11 @@
             <artifactId>hamcrest</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>nz.thebarkers</groupId>
+            <artifactId>log-on-fail</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
