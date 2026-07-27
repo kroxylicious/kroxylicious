@@ -69,6 +69,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  *         routes are active.
  * <p>C4: Test name / behaviour mismatch in RouterDispatchHandlerTest masks a regression where
  *         forwarding failures leave the pending future stuck rather than completing exceptionally.
+ * <p>C5: {@code InternalRequestFrame} objects created by a filter on route-a are processed by
+ *         route-b's filter handlers. {@code RouteFilterHandler.channelRead} passes all
+ *         {@code InternalRequestFrame} instances to {@code super.channelRead()} without checking
+ *         whether they belong to that handler's route, so a filter on route-b can mutate
+ *         internal requests it should never see.
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
@@ -78,6 +83,7 @@ class RouteFilterCorrectnessIT {
     private static final String ROUTER_NAME = "router";
     private static final String CLUSTER_NAME = "backing";
     private static final String ROUTE_A = "route-a";
+    private static final String ROUTE_B = "route-b";
 
     // ---------------------------------------------------------------------------
     // C1: Route filters see all traffic on a route, including router-originated
@@ -235,9 +241,79 @@ class RouteFilterCorrectnessIT {
         }
     }
 
+    /**
+     * {@code RouteFilterHandler.channelRead} passes every {@code InternalRequestFrame} to
+     * {@code super.channelRead()} without checking whether the frame originated from that
+     * handler's own filter.  As a result, a filter on route-b processes internal requests
+     * created by a filter on route-a.
+     *
+     * <p>{@code ASYNCHRONOUS_REQUEST_TO_BROKER} fires an {@code InternalRequestFrame} carrying
+     * a {@code ListGroupsRequestData} payload when it sees a matching client request.  With the
+     * bug, route-b's counting filter sees this LIST_GROUPS internal frame even though all client
+     * traffic is routed exclusively to route-a, incrementing the LIST_GROUPS counter.  After the
+     * fix the counter remains zero.
+     */
+    @Test
+    void routeFilterDoesNotSeeInternalRequestsOriginatedByOtherRouteFilter(KafkaCluster cluster, Topic topic) throws Exception {
+        String counterId = "c5-" + topic.name();
+        RequestCountingFilter.reset(counterId);
+        var markerName = "c5-marker";
+
+        // Given
+        var markingFilterDef = new NamedFilterDefinitionBuilder(markerName, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(ApiKeys.PRODUCE),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", markerName,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+        var countingFilterDef = new NamedFilterDefinitionBuilder("c5-counter", RequestCountingFilterFactory.class.getName())
+                .withConfig("counterId", counterId)
+                .build();
+        var config = twoRouteConfig(cluster.getBootstrapServers(),
+                List.of(markerName), List.of("c5-counter"),
+                List.of(markingFilterDef, countingFilterDef));
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer(Map.of(DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+
+            // When: client sends PRODUCE through route-a; route-a's marking filter fires an
+            // internal LIST_GROUPS via sendRequest()
+            producer.send(new ProducerRecord<>(topic.name(), "key", "value")).get();
+        }
+
+        // Then: route-b's counting filter must not have seen the internal LIST_GROUPS frame
+        assertThat(RequestCountingFilter.countFor(counterId, ApiKeys.LIST_GROUPS))
+                .as("route-b filter must not process InternalRequestFrame from route-a's filter")
+                .isZero();
+    }
+
     // ---------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------
+
+    private ConfigurationBuilder twoRouteConfig(String bootstrapServers,
+                                                List<String> routeAFilterNames,
+                                                List<String> routeBFilterNames,
+                                                List<NamedFilterDefinition> filterDefs) {
+        var clusterDef = new ClusterDefinition(CLUSTER_NAME, bootstrapServers, null);
+        var routeA = new RouteDefinition(ROUTE_A, 0, routeAFilterNames, new RouteTarget(CLUSTER_NAME, null));
+        var routeB = new RouteDefinition(ROUTE_B, 1, routeBFilterNames, new RouteTarget(CLUSTER_NAME, null));
+        var routerDef = new RouterDefinition(ROUTER_NAME, PassThroughRouterFactory.class.getName(),
+                new PassThroughRouterFactory.Config(ROUTE_A), List.of(routeA, routeB));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        var builder = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+        for (var fd : filterDefs) {
+            builder.addToFilterDefinitions(fd);
+        }
+        return builder;
+    }
 
     private ConfigurationBuilder singleRouteConfig(String bootstrapServers, NamedFilterDefinition filterDef) {
         var clusterDef = new ClusterDefinition(CLUSTER_NAME, bootstrapServers, null);
