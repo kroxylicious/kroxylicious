@@ -175,14 +175,57 @@ jobs:
             exit 1
           fi
           gh run watch "${RUN_ID}" --exit-status
+          echo "DOCKER_RUN_ID=${RUN_ID}" >> $GITHUB_ENV
 
       - name: 'Build release state'
         run: |
-          jq -n --arg deploymentId "${{ env.DEPLOYMENT_ID }}" \
-                --arg releaseVersion "${{ github.event.inputs.release-version }}" \
-                --arg developmentVersion "${{ github.event.inputs.development-version }}" \
-                --arg workBranch "${{ env.WORK_BRANCH }}" \
-              '$ARGS.named' > RELEASE_STATE.json
+          VERSION="${{ github.event.inputs.release-version }}"
+          SHA_TAG="commit-$(git rev-parse --short "v${VERSION}^{}")"
+          REGISTRY="${{ vars.REGISTRY_SERVER }}"
+          ORG="${{ vars.REGISTRY_ORGANISATION }}"
+          PROXY="${REGISTRY}/${ORG}/${{ vars.PROXY_IMAGE_NAME }}"
+          OPERATOR="${REGISTRY}/${ORG}/${{ vars.OPERATOR_IMAGE_NAME }}"
+          ADMISSION="${REGISTRY}/${ORG}/${{ vars.ADMISSION_IMAGE_NAME }}"
+
+          jq -n \
+            --arg deploymentId "${{ env.DEPLOYMENT_ID }}" \
+            --arg releaseVersion "${VERSION}" \
+            --arg developmentVersion "${{ github.event.inputs.development-version }}" \
+            --arg workBranch "${{ env.WORK_BRANCH }}" \
+            --arg imageWorkflowRunId "${{ env.DOCKER_RUN_ID }}" \
+            --arg proxyAmd64Ref "${PROXY}:${SHA_TAG}-amd64" \
+            --arg proxyArm64Ref "${PROXY}:${SHA_TAG}-arm64" \
+            --arg proxyManifest "${PROXY}:${SHA_TAG}" \
+            --arg legacyProxyManifest "${REGISTRY}/${ORG}/kroxylicious:${SHA_TAG}" \
+            --arg operatorManifest "${OPERATOR}:${SHA_TAG}" \
+            --arg admissionManifest "${ADMISSION}:${SHA_TAG}" \
+            '{
+              deploymentId: $deploymentId,
+              releaseVersion: $releaseVersion,
+              developmentVersion: $developmentVersion,
+              workBranch: $workBranch,
+              stagedArtifacts: {
+                imageWorkflowRunId: $imageWorkflowRunId,
+                proxy: {
+                  images: {
+                    amd64: { ref: $proxyAmd64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist"] } },
+                    arm64: { ref: $proxyArm64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist", "aarch64"] } }
+                  },
+                  manifest: $proxyManifest
+                },
+                legacyProxy: {
+                  manifest: $legacyProxyManifest
+                },
+                operator: {
+                  builtFrom: { pom: ("io.kroxylicious:kroxylicious-operator:" + $releaseVersion + ":pom"), profiles: ["dist"] },
+                  manifest: $operatorManifest
+                },
+                admission: {
+                  builtFrom: { pom: ("io.kroxylicious:kroxylicious-admission:" + $releaseVersion + ":pom"), profiles: ["dist"] },
+                  manifest: $admissionManifest
+                }
+              }
+            }' > RELEASE_STATE.json
 
       - name: 'Archive release state (used by the promote workflow)'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

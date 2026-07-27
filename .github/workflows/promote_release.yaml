@@ -234,29 +234,30 @@ jobs:
       - name: 'Tag release container images'
         if: ${{ inputs.command == 'promote-release' && vars.REGISTRY_SERVER != '' }}
         run: |
-          RELEASE_SHA=$(git rev-parse "v${{ env.RELEASE_VERSION }}^{}")
-          SHA_TAG="commit-${RELEASE_SHA:0:7}"
-
+          PROXY_MANIFEST=$(jq -r '.stagedArtifacts.proxy.manifest' RELEASE_STATE.json)
+          LEGACY_PROXY_MANIFEST=$(jq -r '.stagedArtifacts.legacyProxy.manifest' RELEASE_STATE.json)
+          OPERATOR_MANIFEST=$(jq -r '.stagedArtifacts.operator.manifest' RELEASE_STATE.json)
+          ADMISSION_MANIFEST=$(jq -r '.stagedArtifacts.admission.manifest' RELEASE_STATE.json)
           PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
           LEGACY_PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/kroxylicious"
           OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
           ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
 
-          # Re-tag the SHA-tagged staging images as the release version.
+          # Re-tag the staged manifest lists as the release version.
           # --all copies all platform manifests (preserves multi-arch).
           # Note: 'latest' is intentionally not published. If the project decides to
           # resume a 'latest' tag, add additional skopeo copy lines here.
           skopeo copy --all \
-            "docker://${PROXY_IMAGE}:${SHA_TAG}" \
+            "docker://${PROXY_MANIFEST}" \
             "docker://${PROXY_IMAGE}:${{ env.RELEASE_VERSION }}"
           skopeo copy --all \
-            "docker://${PROXY_IMAGE}:${SHA_TAG}" \
+            "docker://${PROXY_MANIFEST}" \
             "docker://${LEGACY_PROXY_IMAGE}:${{ env.RELEASE_VERSION }}"
           skopeo copy --all \
-            "docker://${OPERATOR_IMAGE}:${SHA_TAG}" \
+            "docker://${OPERATOR_MANIFEST}" \
             "docker://${OPERATOR_IMAGE}:${{ env.RELEASE_VERSION }}"
           skopeo copy --all \
-            "docker://${ADMISSION_IMAGE}:${SHA_TAG}" \
+            "docker://${ADMISSION_MANIFEST}" \
             "docker://${ADMISSION_IMAGE}:${{ env.RELEASE_VERSION }}"
 
       - name: 'Drop PR'
@@ -285,18 +286,19 @@ jobs:
             skopeo delete "docker://${ref}"
           }
 
-          RELEASE_SHA=$(git rev-parse "v${{ env.RELEASE_VERSION }}^{}")
-          SHA_TAG="commit-${RELEASE_SHA:0:7}"
-
-          PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
-          LEGACY_PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/kroxylicious"
-          OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
-          ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
-
-          skopeo_delete_if_exists "${PROXY_IMAGE}:${SHA_TAG}"
-          skopeo_delete_if_exists "${LEGACY_PROXY_IMAGE}:${SHA_TAG}"
-          skopeo_delete_if_exists "${OPERATOR_IMAGE}:${SHA_TAG}"
-          skopeo_delete_if_exists "${ADMISSION_IMAGE}:${SHA_TAG}"
+          while IFS= read -r ref; do
+            skopeo_delete_if_exists "${ref}"
+          done < <(jq -r '
+            .stagedArtifacts |
+            [
+              .proxy.manifest,
+              .proxy.images.amd64.ref,
+              .proxy.images.arm64.ref,
+              .legacyProxy.manifest,
+              .operator.manifest,
+              .admission.manifest
+            ] | .[]
+          ' RELEASE_STATE.json)
 
       - name: 'Drop run label used to tag release PR'
         env:
