@@ -204,25 +204,31 @@ jobs:
               releaseVersion: $releaseVersion,
               developmentVersion: $developmentVersion,
               workBranch: $workBranch,
+              imageWorkflowRunId: $imageWorkflowRunId,
               stagedArtifacts: {
-                imageWorkflowRunId: $imageWorkflowRunId,
                 proxy: {
                   images: {
+                    manifestImage: { ref: $proxyManifest },
                     amd64: { ref: $proxyAmd64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist"] } },
                     arm64: { ref: $proxyArm64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist", "aarch64"] } }
-                  },
-                  manifest: $proxyManifest
+                  }
                 },
                 legacyProxy: {
-                  manifest: $legacyProxyManifest
+                  images: {
+                    manifestImage: { ref: $legacyProxyManifest }
+                  }
                 },
                 operator: {
-                  builtFrom: { pom: ("io.kroxylicious:kroxylicious-operator:" + $releaseVersion + ":pom"), profiles: ["dist"] },
-                  manifest: $operatorManifest
+                  images: {
+                    manifestImage: { ref: $operatorManifest }
+                  },
+                  builtFrom: { pom: ("io.kroxylicious:kroxylicious-operator:" + $releaseVersion + ":pom"), profiles: ["dist"] }
                 },
                 admission: {
-                  builtFrom: { pom: ("io.kroxylicious:kroxylicious-admission:" + $releaseVersion + ":pom"), profiles: ["dist"] },
-                  manifest: $admissionManifest
+                  images: {
+                    manifestImage: { ref: $admissionManifest }
+                  },
+                  builtFrom: { pom: ("io.kroxylicious:kroxylicious-admission:" + $releaseVersion + ":pom"), profiles: ["dist"] }
                 }
               }
             }' > RELEASE_STATE.json

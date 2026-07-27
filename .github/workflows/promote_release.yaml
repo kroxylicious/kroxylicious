@@ -234,31 +234,22 @@ jobs:
       - name: 'Tag release container images'
         if: ${{ inputs.command == 'promote-release' && vars.REGISTRY_SERVER != '' }}
         run: |
-          PROXY_MANIFEST=$(jq -r '.stagedArtifacts.proxy.manifest' RELEASE_STATE.json)
-          LEGACY_PROXY_MANIFEST=$(jq -r '.stagedArtifacts.legacyProxy.manifest' RELEASE_STATE.json)
-          OPERATOR_MANIFEST=$(jq -r '.stagedArtifacts.operator.manifest' RELEASE_STATE.json)
-          ADMISSION_MANIFEST=$(jq -r '.stagedArtifacts.admission.manifest' RELEASE_STATE.json)
-          PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
-          LEGACY_PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/kroxylicious"
-          OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
-          ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
+          # Re-tag each staged manifest as the release version and latest.
+          # --all preserves the multi-arch manifest list.
+          # The staging tag is stripped from the manifest ref to derive the image name.
+          tag_release() {
+            local manifest="$1" image="$2"
+            skopeo copy --all "docker://${manifest}" "docker://${image}:${{ env.RELEASE_VERSION }}"
+            skopeo copy --all "docker://${manifest}" "docker://${image}:latest"
+          }
 
-          # Re-tag the staged manifest lists as the release version.
-          # --all copies all platform manifests (preserves multi-arch).
-          # Note: 'latest' is intentionally not published. If the project decides to
-          # resume a 'latest' tag, add additional skopeo copy lines here.
-          skopeo copy --all \
-            "docker://${PROXY_MANIFEST}" \
-            "docker://${PROXY_IMAGE}:${{ env.RELEASE_VERSION }}"
-          skopeo copy --all \
-            "docker://${PROXY_MANIFEST}" \
-            "docker://${LEGACY_PROXY_IMAGE}:${{ env.RELEASE_VERSION }}"
-          skopeo copy --all \
-            "docker://${OPERATOR_MANIFEST}" \
-            "docker://${OPERATOR_IMAGE}:${{ env.RELEASE_VERSION }}"
-          skopeo copy --all \
-            "docker://${ADMISSION_MANIFEST}" \
-            "docker://${ADMISSION_IMAGE}:${{ env.RELEASE_VERSION }}"
+          # .manifestImage.ref selects only the multi-arch manifest list for each entity.
+          # Per-arch intermediate images (proxy amd64/arm64) are staging artifacts only
+          # and are not published with a release tag.
+          MANIFEST_IMAGE_SELECTOR='.stagedArtifacts[].images.manifestImage.ref'
+          while IFS= read -r manifest; do
+            tag_release "${manifest}" "${manifest%:*}"
+          done < <(jq -r "${MANIFEST_IMAGE_SELECTOR}" RELEASE_STATE.json)
 
       - name: 'Drop PR'
         if: ${{ inputs.command == 'drop-release' }}
@@ -286,19 +277,12 @@ jobs:
             skopeo delete "docker://${ref}"
           }
 
+          # .[].ref iterates all image entries per entity (manifestImage + any per-arch
+          # intermediates), ensuring nothing is left behind on drop.
+          ALL_IMAGE_REFS_SELECTOR='.stagedArtifacts[].images[].ref'
           while IFS= read -r ref; do
             skopeo_delete_if_exists "${ref}"
-          done < <(jq -r '
-            .stagedArtifacts |
-            [
-              .proxy.manifest,
-              .proxy.images.amd64.ref,
-              .proxy.images.arm64.ref,
-              .legacyProxy.manifest,
-              .operator.manifest,
-              .admission.manifest
-            ] | .[]
-          ' RELEASE_STATE.json)
+          done < <(jq -r "${ALL_IMAGE_REFS_SELECTOR}" RELEASE_STATE.json)
 
       - name: 'Drop run label used to tag release PR'
         env:
