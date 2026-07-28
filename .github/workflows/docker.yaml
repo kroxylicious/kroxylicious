@@ -275,7 +275,7 @@ jobs:
 
       # ── Phase 4: multi-arch manifest ─────────────────────────────────────────
       # Assemble the canonical proxy tag and the legacy Kroxylicious alias as
-      # manifest lists pointing at the per-arch images pushed above.
+      # annotated manifest lists pointing at the per-arch images pushed above.
 
       - name: Create and push proxy multi-arch manifest
         if: steps.build_configuration.outputs.multi_arch == 'true'
