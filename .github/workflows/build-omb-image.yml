@@ -66,6 +66,7 @@ jobs:
           KROX_SHORT=$(git rev-parse --short=7 HEAD)
           IMAGE_TAG="omb-${{ steps.omb.outputs.short }}-krox-${KROX_SHORT}-${{ github.run_number }}"
           echo "image_tag=${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
           echo "Image tag: ${IMAGE_TAG}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Set up Docker Buildx
@@ -101,7 +102,10 @@ jobs:
           build-args: |
             OMB_COMMIT=${{ steps.omb.outputs.sha }}
           labels: |
+            org.opencontainers.image.created=${{ steps.tag.outputs.image_created }}
             org.opencontainers.image.revision=${{ steps.omb.outputs.sha }}
+            org.opencontainers.image.source=https://github.com/openmessaging/benchmark
+            org.opencontainers.image.version=${{ steps.tag.outputs.image_tag }}
           tags: ${{ steps.build_configuration.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max,compression=zstd
