@@ -1,0 +1,4 @@
+title: "fix(authorization): use client-negotiated version for internal metadata request"
+type: fixed
+issues:
+  - 3759
