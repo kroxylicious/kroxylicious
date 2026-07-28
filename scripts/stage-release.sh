@@ -148,11 +148,9 @@ fi
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
-# release moves changelog/unreleased/ to changelog/v<version>/ so versioned entries are committed.
-# generate reads from target/changelog/ where the template has been filtered by Maven.
-# They can't share the same inputDir because release moves files.
+${SED} -i "s|\\\${changelog.link.prefix}|${CHANGELOG_LINK_PREFIX}|g" changelog/.templates/CHANGELOG.md
 mvn -q logchange:release
-mvn -N -q generate-resources logchange:generate -DinputDir=target/changelog -Dchangelog.link.prefix="${CHANGELOG_LINK_PREFIX}"
+git checkout -- changelog/.templates/CHANGELOG.md
 git add changelog/ CHANGELOG.md
 
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
