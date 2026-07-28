@@ -17,7 +17,8 @@ BRANCH_FROM="main"
 WORK_BRANCH_NAME="release-work-$(openssl rand -hex 12)"
 SKIP_VALIDATION="false"
 RELEASE_NOTES_DIR=${RELEASE_NOTES_DIR:-.releaseNotes}
-while getopts ":l:v:b:k:r:n:w:sh" opt; do
+CHANGELOG_LINK_PREFIX="https://github.com/kroxylicious/kroxylicious"
+while getopts ":l:v:b:k:r:n:w:c:sh" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
     ;;
@@ -33,11 +34,13 @@ while getopts ":l:v:b:k:r:n:w:sh" opt; do
     ;;
     w) WORK_BRANCH_NAME="${OPTARG}"
     ;;
+    c) CHANGELOG_LINK_PREFIX="${OPTARG}"
+    ;;
     s) SKIP_VALIDATION="true"
     ;;
     h)
       1>&2 cat << EOF
-usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-s] [-d] [-h]
+usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-c changelog-link-prefix] [-s] [-d] [-h]
  -k short key id used to sign the release
  -v version number e.g. 0.3.0
  -b branch to release from (defaults to 'main')
@@ -45,6 +48,7 @@ usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-s] 
  -l Release candidate label to be applied to the PR.
  -r the remote name of the kroxylicious repository (defaults to 'origin')
  -w release work branch
+ -c URL prefix for issue/PR links in the changelog (defaults to https://github.com/kroxylicious/kroxylicious)
  -s skips validation
  -h this help message
 EOF
@@ -144,8 +148,10 @@ fi
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
-#Set the release version in the Changelog
-replaceInFile "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+${SED} -i "s|\\\${changelog.link.prefix}|${CHANGELOG_LINK_PREFIX}|g" changelog/.templates/CHANGELOG.md
+mvn -q logchange:release
+git checkout -- changelog/.templates/CHANGELOG.md
+git add changelog/ CHANGELOG.md
 
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
 replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: v${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
@@ -190,8 +196,6 @@ PREPARE_DEVELOPMENT_BRANCH="${WORK_BRANCH_NAME}"
 git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
 updateVersions "${RELEASE_VERSION}" "${NEXT_VERSION}"
-# bump the Changelog to the next SNAPSHOT version. We do it this way so the changelog has the new release as the first entry
-replaceInFile "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
 # bump the docs for the development version
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${NEXT_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
