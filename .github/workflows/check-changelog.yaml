@@ -31,6 +31,9 @@ jobs:
         with:
           egress-policy: audit
 
+      # The release-work- check allows the release process to be tested on forks,
+      # where the KROXYLICIOUS_RELEASE_TOKEN PAT may belong to a different user
+      # than kroxylicious-robot.
       - name: 'Fail if CHANGELOG.md was modified directly'
         if: >-
           github.event.pull_request.user.login != 'kroxylicious-robot'
