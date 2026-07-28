@@ -137,12 +137,12 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * Apicurio v3 has changed the default way schemas are identified. They are now referred to using `contentId` rather than `globalId`.
   The reason for this change was to allow interop with Confluent based kafka clients.
   Unfortunately, this causes breaking changes for users of `schemaValidation` rules of the record-validation feature.
-    * The config field `apicurioContentId` is removed. It is replaced with a new config field `apicurioId`.
-    * This field `apicurioId` refers to the `contentId` of the schema.
-    * You must also ensure that any Kafka client embedding schema identifiers into records (using headers or magic bytes) are updated to send the `contentId` rather than the `globalId`.
-      Refer to the [Apicurio upgrade documentation](https://www.apicur.io/registry/docs/apicurio-registry/3.1.x/getting-started/assembly-migrating-registry-v2-v3.html) for details.
-    * Alternatively, the old behaviour can be restored by  setting the config option `wireFormatVersion` to `V2`. In this mode, the `apicurioId` refers to the `globalId` and clients must send `globalId`.
-      `V2` mode is deprecated and will be removed in a future release.
+  * The config field `apicurioContentId` is removed. It is replaced with a new config field `apicurioId`.
+  * This field `apicurioId` refers to the `contentId` of the schema.
+  * You must also ensure that any Kafka client embedding schema identifiers into records (using headers or magic bytes) are updated to send the `contentId` rather than the `globalId`.
+    Refer to the [Apicurio upgrade documentation](https://www.apicur.io/registry/docs/apicurio-registry/3.1.x/getting-started/assembly-migrating-registry-v2-v3.html) for details.
+  * Alternatively, the old behaviour can be restored by  setting the config option `wireFormatVersion` to `V2`. In this mode, the `apicurioId` refers to the `globalId` and clients must send `globalId`.
+    `V2` mode is deprecated and will be removed in a future release.
 * The operator now has the ability to enable external access to a Virtual Cluster via OpenShift Routes using `KafkaProxyIngress.spec.openShiftRoute`.
   This enables off-cluster client access on OpenShift, with graceful rejection when the Route API is unavailable.
 * The preview Authorization Filter no longer supports ConsumerGroupHeartbeat version 1 RPCs, see [#3561](https://github.com/kroxylicious/kroxylicious/issues/3561).
@@ -181,13 +181,13 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * Curly-brace style topicName tokens are no longer supported in the Record Encryption TemplateKekSelector template. `template` should use `$(topicName)` instead of `${topicName}`.
   The was deprecated in version 0.11.0.
 * Idle connection timeout support added with two optional configuration properties under `network.proxy`:
-    * `unauthenticatedIdleTimeout` - Applies to connections where authentication cannot be detected
-    * `authenticatedIdleTimeout` - Applies to connections with established identities
-      Both properties use Go-style duration format (e.g., `30s`, `5m`, `1h30m`) with supported units: `d`, `h`, `m`, `s`, `ms`, `μs`/`us`, `ns`.
+  * `unauthenticatedIdleTimeout` - Applies to connections where authentication cannot be detected
+  * `authenticatedIdleTimeout` - Applies to connections with established identities
+  Both properties use Go-style duration format (e.g., `30s`, `5m`, `1h30m`) with supported units: `d`, `h`, `m`, `s`, `ms`, `μs`/`us`, `ns`.
 * A new metric `kroxylicious_client_to_proxy_disconnects_total` tracks client-to-proxy disconnections with a `cause` label to distinguish between:
-    * `idle_timeout` - Connection exceeded the configured idle timeout duration
-    * `client_closed` - Client initiated the connection close
-    * `server_closed` - Backend server closed the connection, causing the proxy to close the client connection
+  * `idle_timeout` - Connection exceeded the configured idle timeout duration
+  * `client_closed` - Client initiated the connection close
+  * `server_closed` - Backend server closed the connection, causing the proxy to close the client connection
 * The Authorization Filter can now enforce authorization of Transactional IDs.
   The `AclAuthorizerService` can import `io.kroxylicious.filter.authorization.TransactionalIdResource` to authorize `WRITE` and `DESCRIBE` with parity with Apache Kafka ACL authorization.
   Backwards compatibility is preserved, existing `AclAuthorizerService` Rules configurations that only import `TopicResource` will allow all Transactional ID operations.
@@ -198,7 +198,7 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 
 * [#2922](https://github.com/kroxylicious/kroxylicious/pull/2922): build(deps): bump kafka.version from 4.1.0 to 4.1.1
 * [#1318](https://github.com/kroxylicious/kroxylicious/issues/1318): Add FilterContext#topicNames to enable filters to retrieve names for topic ids
-* [#2821](https://github.com/kroxylicious/kroxylicious/pull/2821): Fix OauthBearerValidationFilter unnecessarily copying the authentication bytes from an incoming request to a failed response
+* [#2821](https://github.com/kroxylicious/kroxylicious/pull/2821): Fix OauthBearerValidationFilter unnecessarily copying the authentication bytes from an incoming request to a failed response 
 * [#2893](https://github.com/kroxylicious/kroxylicious/pull/2893): Add Subject, replace FilterContext#clientSaslAuthenticationSuccess
 * [#2899](https://github.com/kroxylicious/kroxylicious/pull/2898): Add SaslSubjectBuilder API
 * [#2913](https://github.com/kroxylicious/kroxylicious/pull/2913): Add TransportSubjectBuilder API, enable user to configure one per virtual cluster
@@ -216,8 +216,8 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
   Service interface that SASL-oriented Filters can choose to load.
 * `FilterContext#clientSaslAuthenticationSuccess(String mechanism, String authorizedId)` is deprecated. Use
   `FilterContext#clientSaslAuthenticationSuccess(String mechanism, Subject subject)` instead. Initially the framework
-  expects the Subject to contain a single `io.kroxylicious.proxy.authentication.User` principal which contains the
-  `authorizedId`, though this may change in the future.
+   expects the Subject to contain a single `io.kroxylicious.proxy.authentication.User` principal which contains the
+   `authorizedId`, though this may change in the future.
 * A Virtual Cluster now has a pluggable `io.kroxylicious.proxy.authentication.TransportSubjectBuilder` associated with it.
   This new Service is responsible for building a `Subject` from mTLS certificates presented by the client to the proxy.
   This is configurable on the virtual cluster using the `subjectBuilder`:
@@ -263,7 +263,7 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * [#143](https://github.com/kroxylicious/kroxylicious/issues/143): Add support for Netty metrics
 * [#2809](https://github.com/kroxylicious/kroxylicious/pull/2809): Add optional configuration parameter to control the number of worker threads used by Netty.
 * [#1467](https://github.com/kroxylicious/kroxylicious/pull/1467): Migrate to Netty 4.2
-* [#2693](https://github.com/kroxylicious/kroxylicious/pull/2693): Kroxylicious operator can now discover plain bootstrap address from Strimzi Kafka custom resource
+* [#2693](https://github.com/kroxylicious/kroxylicious/pull/2693): Kroxylicious operator can now discover plain bootstrap address from Strimzi Kafka custom resource 
 
 ## 0.16.0
 
@@ -300,7 +300,7 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * [#2472](https://github.com/kroxylicious/kroxylicious/pull/2472): Restrictions on which interfaces Filter implementations an implementation could implement have been relaxed.
 * [#2474](https://github.com/kroxylicious/kroxylicious/pull/2474): Add ClientTlsContext, allows Filters to use information from the TLS client certificate provided by Kafka client
 * [#2480](https://github.com/kroxylicious/kroxylicious/pull/2480): Add ClientSaslContext, allows Filters to access SASL details and report SASL auth success/failure
-* [#2440](https://github.com/kroxylicious/kroxylicious/issues/2440): Fail fast on unknown properties in proxy configuration file
+* [#2440](https://github.com/kroxylicious/kroxylicious/issues/2440): Fail fast on unknown properties in proxy configuration file 
 * [#2450](https://github.com/kroxylicious/kroxylicious/issues/2450): fix(proxy): Forward ApiVersions v0 response on UNSUPPORTED_VERSION v0 response from upstream
 * [#2455](https://github.com/kroxylicious/kroxylicious/pull/2455): refactor: make oauth bearer validation filter content into a standalone guide.
 * [#2378](https://github.com/kroxylicious/kroxylicious/issues/2378): refactor: Finish factoring out filter documentation into standalone guides.
@@ -311,7 +311,7 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * [#2286](https://github.com/kroxylicious/kroxylicious/pull/2286): Bump apicurio-registry.version from 2.6.8.Final to 2.6.11.Final
 * [#2414](https://github.com/kroxylicious/kroxylicious/pull/2414): Remove tcp and clusterNetworkAddressConfigProvider configuration options from virtual cluster
 * [#2385](https://github.com/kroxylicious/kroxylicious/issues/2385) fix: Prevent existing proxy pod(s) rolling if number of replicas is changed.
-* [#2464](https://github.com/kroxylicious/kroxylicious/pull/2464) Bump the log level for upstream fame and network loggers to match the downstream side.
+* [#2464](https://github.com/kroxylicious/kroxylicious/pull/2464) Bump the log level for upstream fame and network loggers to match the downstream side. 
 
 ### Changes, deprecations and removals
 
@@ -352,9 +352,9 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
   `advertisedBrokerAddressPattern` instead.
 * VirtualCluster names are now restricted to a maximum length of 63, and must match pattern `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` (case insensitive).
 * `virtualClusters[].gateways[].sniHostIdentifiesNode.bootstrapAddress` can now contain an optional replacement token `$(virtualClusterName)`.
-  When this is present, it will be replaced with the name of that gateway's VirtualCluster.
+When this is present, it will be replaced with the name of that gateway's VirtualCluster.
 * `virtualClusters[].gateways[].sniHostIdentifiesNode.advertisedBrokerAddressPattern` can now contain an optional replacement token `$(virtualClusterName)`.
-  When this is present, it will be replaced with the name of that gateway's VirtualCluster.
+When this is present, it will be replaced with the name of that gateway's VirtualCluster.
 * All the existing metrics emitted by the proxy have been deprecated. They have been replaced with connection and message metrics.
   See the documentation for the details of the new metrics.
 * Configuration the `AwsKms` directly with `accessKey` and `secretKey` config properties was deprecated at 0.9.0.  Support
@@ -366,7 +366,7 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * [#2135](https://github.com/kroxylicious/kroxylicious/pull/2135) Require client certificates by default if user supplies downstream trust
 * [#2140](https://github.com/kroxylicious/kroxylicious/pull/2140) Bump Jackson from 2.18.1 to 2.18.3
 * [#2115](https://github.com/kroxylicious/kroxylicious/pull/2115) Ensure request path chains deferred opaque requests correctly
-* [#2113](https://github.com/kroxylicious/kroxylicious/pull/2113) Ensure that filter handler does not leak deferred opaque requests/responses if the upstream or downstream side closes unexpectedly
+* [#2113](https://github.com/kroxylicious/kroxylicious/pull/2113) Ensure that filter handler does not leak deferred opaque requests/responses if the upstream or downstream side closes unexpectedly 
 * [#2098](https://github.com/kroxylicious/kroxylicious/pull/2098) Bump io.netty:netty-bom from 4.1.119.Final to 4.1.121.Final
 * [#1928](https://github.com/kroxylicious/kroxylicious/pull/2085) Bump info.picocli:picocli from 4.7.6 to 4.7.7
 * [#1437](https://github.com/kroxylicious/kroxylicious/issues/1437) Remove "zero-ack produce requests" warning
@@ -377,8 +377,8 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 ### Changes, deprecations and removals
 
 * The default behaviour for client authentication has changed, if a Gateway is configured with client trust certificates, then
-  by default we will require the client to supply certificates. Previously the user had to also configure the clientAuth mode to
-  `REQUIRED` to enable this behaviour, the default was to not check the client certificates.
+by default we will require the client to supply certificates. Previously the user had to also configure the clientAuth mode to
+`REQUIRED` to enable this behaviour, the default was to not check the client certificates.
 
 ## 0.11.0
 
@@ -423,7 +423,7 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * [#1747](https://github.com/kroxylicious/kroxylicious/pull/1747) Bump io.micrometer:micrometer-bom from 1.14.2 to 1.14.3
 * [#1745](https://github.com/kroxylicious/kroxylicious/pull/1745) Bump com.github.ben-manes.caffeine:caffeine from 3.1.8 to 3.2.0
 * [#1006](https://github.com/kroxylicious/kroxylicious/pull/1660) Allow CipherSuites and TLS Protocols to be passed via Configuration
-* [#1715](https://github.com/kroxylicious/kroxylicious/issues/1715) Deprecate `bootstrap_servers`, replacing it with `bootstrapServers`
+* [#1715](https://github.com/kroxylicious/kroxylicious/issues/1715) Deprecate `bootstrap_servers`, replacing it with `bootstrapServers` 
 * [#1698](https://github.com/kroxylicious/kroxylicious/pull/1698) Bump netty.io_uring.version from 0.0.25.Final to 0.0.26.Final #1698
 * [#1672](https://github.com/kroxylicious/kroxylicious/pull/1672) Limited Fortanix DSM backed KMS integration
 * [#1709](https://github.com/kroxylicious/kroxylicious/pull/1709) Deprecate the existing top level `filters` configuration property; add support for named `filterDefinitions`, which can be scoped to a cluster.
@@ -434,7 +434,7 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 
 * The factory for the Multitenancy filter is renamed from `MultiTenantTransformationFilterFactory` to `MultiTenant`. The
   old factory name is deprecated.
-* The factories for the Kroxylicious Sample filters are renamed from `SampleProduceRequestFilterFactory` to
+* The factories for the Kroxylicious Sample filters are renamed from `SampleProduceRequestFilterFactory` to 
   `SampleProduceRequest` and `SampleFetchResponseFilterFactory` to `SampleFetchResponse` respectively. The old factory
   names are now deprecated.
 * The factories for the Kroxylicious Transform filters (used by the performance tests) are renamed from
@@ -445,14 +445,14 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * As per deprecation notice made at 0.7.0, `ProduceValidationFilterFactory` filter is removed.  Use `RecordValidation` instead.
 * As per deprecation notice made at 0.7.0, `FilterFactoryContext#eventLoop()` is removed. Use `FilterFactoryContext#filterDispatchExecutor()` instead..
 * SniRoutingClusterNetworkAddressConfigProvider configuration property `brokerAddressPattern` is deprecated. It is replaced by a property called
-  `advertisedBrokerAddressPattern`. These properties now also support the user optionally specifying a port, which will be the port advertised to
-  Kafka clients. This is to enable use-cases where Kroxylicious is behind some other proxy technology using a different port scheme.
+`advertisedBrokerAddressPattern`. These properties now also support the user optionally specifying a port, which will be the port advertised to
+Kafka clients. This is to enable use-cases where Kroxylicious is behind some other proxy technology using a different port scheme.
 
 ## 0.9.0
 
 * [#1668](https://github.com/kroxylicious/kroxylicious/pull/1668) Bump apicurio-registry.version from 2.6.5.Final to 2.6.6.Final
 * [#1667](https://github.com/kroxylicious/kroxylicious/pull/1667) Bump io.micrometer:micrometer-bom from 1.14.1 to 1.14.2
-* [#1666](https://github.com/kroxylicious/kroxylicious/pull/1666) Bump org.apache.logging.log4j:log4j-bom from 2.24.2 to 2.24.3
+* [#1666](https://github.com/kroxylicious/kroxylicious/pull/1666) Bump org.apache.logging.log4j:log4j-bom from 2.24.2 to 2.24.3 
 * [#1294](https://github.com/kroxylicious/kroxylicious/issues/1294) AWS KMS - support authentication from instance metadata of EC2
 * [#1657](https://github.com/kroxylicious/kroxylicious/pull/1657) Remove forwardPartialRequests feature of record validation filter
 * [#1635](https://github.com/kroxylicious/kroxylicious/pull/1635) Handle ApiVersions unsupported version downgrade
@@ -473,14 +473,14 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * The deprecated EnvelopeEncryption filter is now removed.  Use RecordEncryption instead.
 * The deprecated forwardPartialRequests option has been removed from the Record Validation Filter.
 * This release upgrades Kroxylicious to Jackson 2.18 which "[improves](https://github.com/FasterXML/jackson-databind/issues/4785#issuecomment-2463105965)" how jackson handles constructor detection which may lead to issues with filter config.
-  If after the upgrade you observe issues similar to
-  `com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Invalid type definition for type `com.fasterxml.jackson.databind.tofix.CreatorResolutionTest$HostPort`: Argument #0 of Creator [method com.fasterxml.jackson.databind.tofix.CreatorResolutionTest$HostPort#parse(java.lang.String)] has no property name (and is not Injectable): can not use as property-based Creator`
-  then you need to add `@JsonCreator(mode = JsonCreator.Mode.DELEGATING)` to the constructor one expects Jackson to use.
+If after the upgrade you observe issues similar to
+`com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Invalid type definition for type `com.fasterxml.jackson.databind.tofix.CreatorResolutionTest$HostPort`: Argument #0 of Creator [method com.fasterxml.jackson.databind.tofix.CreatorResolutionTest$HostPort#parse(java.lang.String)] has no property name (and is not Injectable): can not use as property-based Creator`
+then you need to add `@JsonCreator(mode = JsonCreator.Mode.DELEGATING)` to the constructor one expects Jackson to use.
 
 
 ## 0.8.0
 
-* [#1414](https://github.com/kroxylicious/kroxylicious/issues/1474) Enable hostname verification when connecting to upstream clusters using TLS
+* [#1414](https://github.com/kroxylicious/kroxylicious/issues/1474) Enable hostname verification when connecting to upstream clusters using TLS 
 
 ## 0.7.0
 
@@ -503,32 +503,32 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 
 ### Changes, deprecations and removals
 
-* The Record Encryption Filter now uses `AES/GCM/NoPadding` as the transformation String and checks the KMS
-  returns a 256bit DEK. This enables users to configure an alternative JCE Provider in their JRE configuration
-  that offers this algorithm.
+* The Record Encryption Filter now uses `AES/GCM/NoPadding` as the transformation String and checks the KMS 
+returns a 256bit DEK. This enables users to configure an alternative JCE Provider in their JRE configuration
+that offers this algorithm.
 * FilterFactoryContext#eventLoop() is deprecated, replaced by FilterFactoryContext#filterDispatchExecutor().
-  This returns FilterDispatchExecutor, a new interface extending ScheduledExecutorService. FilterDispatchExecutor
-  has methods to enable Filters to check if the current thread is the Filter Dispatch Thread and it offers
-  specialized futures, where chained async methods will also run on the Filter Dispatch Thread when no executor
-  is supplied. This is intended to be a tool to make it convenient for Filters to hand off work to uncontrolled
-  threads, then switch back to an execution context where mutation of Filter members is safe.
+This returns FilterDispatchExecutor, a new interface extending ScheduledExecutorService. FilterDispatchExecutor
+has methods to enable Filters to check if the current thread is the Filter Dispatch Thread and it offers
+specialized futures, where chained async methods will also run on the Filter Dispatch Thread when no executor
+is supplied. This is intended to be a tool to make it convenient for Filters to hand off work to uncontrolled
+threads, then switch back to an execution context where mutation of Filter members is safe.
 * Record Encryption Filter: Data Encryption Keys will now be refreshed one hour after creation by default.
-  This is a bugfix for [#1139](https://github.com/kroxylicious/kroxylicious/issues/1339) to ensure we start
-  using new key material after key-encryption-keys are rotated in the KMS within some controlled duration.
+This is a bugfix for [#1139](https://github.com/kroxylicious/kroxylicious/issues/1339) to ensure we start
+using new key material after key-encryption-keys are rotated in the KMS within some controlled duration.
 * **Breaking changes to public kroxylicious-api module**, Filter Authors may be affected
-    - Deprecated `io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor` moved to internal module
-    - Deprecated `io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider` moved to internal module
-    - Deprecated `io.kroxylicious.proxy.service.HostPort` moved to internal module
-    - Deprecated `io.kroxylicious.proxy.filter.FilterInvoker` and implementations moved to internal module
-    - Deprecated `io.kroxylicious.proxy.filter.FilterAndInvoker` moved to internal module
-    - Deprecated `io.kroxylicious.proxy.filter.FilterInvokers` moved to internal module
-    - Deprecated `io.kroxylicious.proxy.service.Context` moved to internal module
-    - Deprecated `io.kroxylicious.proxy.service.Contributor` moved to internal module
-    - Deprecated `io.kroxylicious.proxy.ApiVersionsService` removed without replacement
+  - Deprecated `io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.service.HostPort` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.filter.FilterInvoker` and implementations moved to internal module
+  - Deprecated `io.kroxylicious.proxy.filter.FilterAndInvoker` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.filter.FilterInvokers` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.service.Context` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.service.Contributor` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.ApiVersionsService` removed without replacement
 
 ## 0.6.0
 
-* [#1195](https://github.com/kroxylicious/kroxylicious/pull/1195): SASL OAUTHBEARER validation filter
+* [#1195](https://github.com/kroxylicious/kroxylicious/pull/1195): SASL OAUTHBEARER validation filter 
 * [#1076](https://github.com/kroxylicious/kroxylicious/issues/1076): AWS KMS implementation for Record Encryption
 * [#1201](https://github.com/kroxylicious/kroxylicious/pull/1201): Bump com.fasterxml.jackson:jackson-bom from 2.17.0 to 2.17.1
 * [#1158](https://github.com/kroxylicious/kroxylicious/pull/1158): Bump io.netty:netty-bom from 4.1.108.Final to 4.1.109.Final
@@ -540,10 +540,10 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 ### Changes, deprecations and removals
 
 * RangeAwarePortPerNodeClusterNetworkAddressConfigProvider is a new ClusterNetworkAddressConfigProvider that is capable of modelling
-  more target topologies using a compact set of ports. Users can declare multiple ranges of node ids that exist in the target cluster
-  and the proxy will map those ranges on to a minimal set of proxy ports. See the [Virtual Cluster configuration docs](https://kroxylicious.io/kroxylicious/#_rangeawareportpernode_scheme)
-  for more information.
-
+more target topologies using a compact set of ports. Users can declare multiple ranges of node ids that exist in the target cluster
+and the proxy will map those ranges on to a minimal set of proxy ports. See the [Virtual Cluster configuration docs](https://kroxylicious.io/kroxylicious/#_rangeawareportpernode_scheme)
+for more information.
+ 
 ## 0.5.1
 
 * [#1129](https://github.com/kroxylicious/kroxylicious/pull/1129): Ensure timeouts are cancelled when sendRequest completes normally. Thanks to @luozhenyu for spotting the issue.
@@ -568,7 +568,7 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * [#1032](https://github.com/kroxylicious/kroxylicious/pull/1032): Cache unknown alias resolutions temporarily
 * [#1031](https://github.com/kroxylicious/kroxylicious/pull/1031): Fix inconsistently named configuration key in test filter class (FetchResponseTransformationFilter)
 * [#1020](https://github.com/kroxylicious/kroxylicious/pull/1020): KMS retry logic failing with Null Pointers
-* [#1019](https://github.com/kroxylicious/kroxylicious/pull/1019): Stop logging license header as part of the startup banner.
+* [#1019](https://github.com/kroxylicious/kroxylicious/pull/1019): Stop logging license header as part of the startup banner. 
 * [#1004](https://github.com/kroxylicious/kroxylicious/pull/1004): Publish images to Quay kroxylicious/kroxylicious rather than kroxylicious-developer
 * [#997](https://github.com/kroxylicious/kroxylicious/issues/997): Add hardcoded maximum frame size
 * [#782](https://github.com/kroxylicious/kroxylicious/issues/782): Securely handle the HashiCorp Vault Token in Kroxylicious configuration
@@ -589,21 +589,21 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 ### Changes, deprecations and removals
 
 * EncryptionVersion 1 is no longer supported, we found that it had diverged from our design document and have corrected it. From release 0.5.0 we guarantee backwards compatibility from EncryptionVersion 2 onwards.
-* **We have renamed the EnvelopeEncryption filter** it is now the **RecordEncryption** filter. As this is a more accurate description of its role. We have not changed the way we deliver the encryption-at-rest as we are still using Envelope Encryption. Note we have preserved an `EnvelopeEncryption` factory, albeit deprecated, to avoid runtime failures for users upgrading from `0.4.x`.
+* **We have renamed the EnvelopeEncryption filter** it is now the **RecordEncryption** filter. As this is a more accurate description of its role. We have not changed the way we deliver the encryption-at-rest as we are still using Envelope Encryption. Note we have preserved an `EnvelopeEncryption` factory, albeit deprecated, to avoid runtime failures for users upgrading from `0.4.x`. 
 * When configuring TLS, the property `filePath` for specifying the location of a file providing the password is now
   deprecated.  Use `passwordFile` instead.
 * When configuring TLS, it is no longer valid to pass a null inline password like `"storePassword": {"password": null}` instead use `"storePassword": null`
 * As a result of the work of #909, some superfluous transitive dependencies have been removed from some kroxylicious.  If you were relying on those, you will need to
   adjust your dependencies as your adopt this release.
-* `io.kroxylicious:kroxylicious-filter-test-support` now contains RecordTestUtils for creating example `Record`, `RecordBatch` and `MemoryRecords`. It also contains
+* `io.kroxylicious:kroxylicious-filter-test-support` now contains RecordTestUtils for creating example `Record`, `RecordBatch` and `MemoryRecords`. It also contains 
   assertj assertions for those same classes to enable us to write fluent assertions, accessible via `io.kroxylicious.test.assertj.KafkaAssertions`.
 * The configuration for VaultKMS service has changed.
-    * Instead of the `vaultUrl` config key, the provider now requires `vaultTransitEngineUrl`.  This must provide the
-      complete path to the Transit Engine on the HashiCorp Vault instance (e.g. https://myvault:8200/v1/transit or
-      https://myvault:8200/v1/mynamespace/transit).
-    * The `vaultToken` field now requires a `PasswordProvider` object rather than inline text value.   You may pass the
-      token from a file (filename specified by a `passwordFile` field) or inline (`password` field).  The latter is not
-      recommended in production environments.
+  * Instead of the `vaultUrl` config key, the provider now requires `vaultTransitEngineUrl`.  This must provide the
+    complete path to the Transit Engine on the HashiCorp Vault instance (e.g. https://myvault:8200/v1/transit or
+    https://myvault:8200/v1/mynamespace/transit).
+  * The `vaultToken` field now requires a `PasswordProvider` object rather than inline text value.   You may pass the
+    token from a file (filename specified by a `passwordFile` field) or inline (`password` field).  The latter is not
+    recommended in production environments.
 * The deprecated CompositeFilter interface has been removed.
 * Container images for releases will be published to quay.io/kroxylicious/kroxylicious (rather than kroxylicious-developer)
 * `FetchResponseTransformationFilter` now uses configuration key `transformationConfig` (rather than `config`). This matches
@@ -628,7 +628,7 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * [#798](https://github.com/kroxylicious/kroxylicious/pull/798): Encryption Filter: Refactor Serialization to new Parcel Scheme
 * [#809](https://github.com/kroxylicious/kroxylicious/pull/809): Bump Kroxylicious Junit Ext from 0.7.0 to 0.8.0
 * [#803](https://github.com/kroxylicious/kroxylicious/pull/803): Bump kafka.version from 3.6.0 to 3.6.1 #803
-* [#741](https://github.com/kroxylicious/kroxylicious/issues/741): Encryption Filter: Implement a HashiCorp Vault KMS
+* [#741](https://github.com/kroxylicious/kroxylicious/issues/741): Encryption Filter: Implement a HashiCorp Vault KMS 
 * [#764](https://github.com/kroxylicious/kroxylicious/pull/764): Encryption Filter: Rotate to a new DEK when the old one is exhausted
 * [#696](https://github.com/kroxylicious/kroxylicious/pull/696): Initial work on an Envelope Encryption Filter
 * [#752](https://github.com/kroxylicious/kroxylicious/issues/752): Remove redundant re-installation of time-zone data in Dockerfile used for Kroxylicious container image
@@ -672,7 +672,7 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * [#519](https://github.com/kroxylicious/kroxylicious/pull/519): Fix Kafka Client leaks in the SampleFilterIntegrationTest.
 * [#494](https://github.com/kroxylicious/kroxylicious/issues/494): [Breaking] Make the Filter API fully asynchronous (filter methods must return a CompletionStage)
 * [#498](https://github.com/kroxylicious/kroxylicious/issues/498): Include the cluster name from the configuration node in the config model.
-* [#488](https://github.com/kroxylicious/kroxylicious/pull/488): Kroxylicious Bill Of Materials
+* [#488](https://github.com/kroxylicious/kroxylicious/pull/488): Kroxylicious Bill Of Materials 
 * [#480](https://github.com/kroxylicious/kroxylicious/issues/480): Multi-tenant - add suport for the versions of OffsetFetch, FindCoordinator, and DeleteTopics used by Sarama client v1.38.1
 * [#472](https://github.com/kroxylicious/kroxylicious/issues/472): Respect logFrame/logNetwork options in virtualcluster config
 * [#470](https://github.com/kroxylicious/kroxylicious/issues/470): Ensure that the EagerMetadataLearner passes on a client's metadata request with fidelity (fix for kcat -C -E)
@@ -683,9 +683,9 @@ Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` 
 * [#414](https://github.com/kroxylicious/kroxylicious/pull/414): Add kubernetes sample illustrating SNI based routing, downstream/upstream TLS and the use of certificates from cert-manager.
 * [#392](https://github.com/kroxylicious/kroxylicious/pull/392): Introduce CompositeFilters
 * [#401](https://github.com/kroxylicious/kroxylicious/pull/401): Fix netty buffer leak when doing a short-circuit response
-* [#409](https://github.com/kroxylicious/kroxylicious/pull/409): Bump netty.version from 4.1.93.Final to 4.1.94.Final #409
+* [#409](https://github.com/kroxylicious/kroxylicious/pull/409): Bump netty.version from 4.1.93.Final to 4.1.94.Final #409 
 * [#374](https://github.com/kroxylicious/kroxylicious/issues/374) Upstream TLS support
-* [#375](https://github.com/kroxylicious/kroxylicious/issues/375) Support key material in PEM format (X.509 certificates and PKCS-8 private keys)
+* [#375](https://github.com/kroxylicious/kroxylicious/issues/375) Support key material in PEM format (X.509 certificates and PKCS-8 private keys) 
 * [#398](https://github.com/kroxylicious/kroxylicious/pull/398): Validate admin port does not collide with cluster ports
 * [#384](https://github.com/kroxylicious/kroxylicious/pull/384): Bump guava from 32.0.0-jre to 32.0.1-jre
 * [#372](https://github.com/kroxylicious/kroxylicious/issues/372): Eliminate the test config model from the code-base
@@ -712,12 +712,12 @@ present on the brokerAddressPattern parameter. Previously, it was accepted but w
 Kroxylicious configuration no longer requires a non empty `filters` list, users can leave it unset or configure in an empty
 list of filters and Kroxylicious will proxy to the cluster successfully.
 
-The Contributor API for creating filters has been significantly changed.
+The Contributor API for creating filters has been significantly changed. 
 
-- `FilterContributor` is renamed `FilterFactory`.
+- `FilterContributor` is renamed `FilterFactory`. 
 - Filter Authors will now implement one FilterFactory implementation for each Filter implementation. So the cardinality is now one-to-one.
 - We now identify which filter we want to load using it's class name or simple class name,
-  for example `io.kroxylicious.filter.SpecialFilter` or `SpecialFilter`.
+for example `io.kroxylicious.filter.SpecialFilter` or `SpecialFilter`.
 - `FilterConstructContext` is renamed `FilterCreateContext`
 - FilterExecutors is removed from FilterCreateContext and the `eventloop()` method is pulled up to FilterCreateContext.
 - BaseConfig is removed and any Jackson deserializable type can be used as config.
@@ -730,6 +730,6 @@ The names used to identify port-per-broker and sni-routing schemes in the Kroxyl
 The names used to identify micrometer configuration hooks in configuration have changed:
 - `CommonTagsContributor` -> `CommonTagsHook`
 - `StandardBindersContributor` -> `StandardBindersHook`
--
+- 
 #### CVE Fixes
 CVE-2023-44487 [#675](https://github.com/kroxylicious/kroxylicious/pull/675)
