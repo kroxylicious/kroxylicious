@@ -15,10 +15,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ExponentialJitterBackoffStrategyTest {
@@ -46,7 +46,7 @@ class ExponentialJitterBackoffStrategyTest {
     @ParameterizedTest
     @MethodSource
     void testBackoffWithNoRandomJitter(double multiplier, Duration initialDelay, int failures, Duration expected) {
-        Random mockRandom = Mockito.mock(Random.class);
+        Random mockRandom = mock(Random.class);
         when(mockRandom.nextLong()).thenReturn(0L);
         ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(initialDelay,
                 Duration.of(20, ChronoUnit.SECONDS), multiplier, mockRandom);
@@ -75,7 +75,7 @@ class ExponentialJitterBackoffStrategyTest {
     @ParameterizedTest
     @MethodSource
     void testCappedToMaximumDelay(Duration maximum, int failures, Duration expected) {
-        Random mockRandom = Mockito.mock(Random.class);
+        Random mockRandom = mock(Random.class);
         when(mockRandom.nextLong()).thenReturn(0L);
         ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(Duration.of(1, ChronoUnit.SECONDS),
                 maximum, 2, mockRandom);
@@ -97,7 +97,7 @@ class ExponentialJitterBackoffStrategyTest {
     @ParameterizedTest
     @MethodSource
     void testRandomJitter(Long randomLong, Duration expected) {
-        Random mockRandom = Mockito.mock(Random.class);
+        Random mockRandom = mock(Random.class);
         when(mockRandom.nextLong()).thenReturn(randomLong);
         ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(Duration.of(1, ChronoUnit.SECONDS),
                 Duration.of(20, ChronoUnit.SECONDS), 2, mockRandom);
@@ -106,7 +106,7 @@ class ExponentialJitterBackoffStrategyTest {
     }
 
     private static Stream<Arguments> invalidConfigurations() {
-        Random random = Mockito.mock(Random.class);
+        Random random = mock(Random.class);
         Duration negativeDuration = Duration.of(-3, ChronoUnit.SECONDS);
         Duration oneSecond = Duration.of(1, ChronoUnit.SECONDS);
         return Stream.of(

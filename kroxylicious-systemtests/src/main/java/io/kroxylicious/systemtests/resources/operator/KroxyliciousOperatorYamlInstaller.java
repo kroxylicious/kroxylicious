@@ -60,7 +60,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
  * KroxyliciousOperatorYamlInstaller encapsulates the whole installation process of Kroxylicious Operator (i.e., RoleBinding, ClusterRoleBinding,
- * ConfigMap, Deployment, CustomResourceDefinition, preparation of the Namespace). Based on the @code{Environment}
+ * ConfigMap, Deployment, CustomResourceDefinition, preparation of the Namespace). Based on the {@code Environment}
  * values, this class installs Kroxylicious Operator using bundle yamls.
  */
 public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {

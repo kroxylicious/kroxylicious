@@ -291,7 +291,6 @@ public record Configuration(
                 pfr);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
-        virtualClusterModel.logVirtualClusterSummary();
 
         return virtualClusterModel;
     }

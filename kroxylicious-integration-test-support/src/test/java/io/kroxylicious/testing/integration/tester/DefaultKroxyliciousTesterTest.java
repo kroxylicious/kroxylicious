@@ -46,8 +46,8 @@ import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -295,16 +295,11 @@ class DefaultKroxyliciousTesterTest {
             tester.admin(VIRTUAL_CLUSTER_B);
             tester.admin(VIRTUAL_CLUSTER_C);
             // The doNothing is required so the try-with-resources block completes successfully
-            doThrow(new IllegalStateException(EXCEPTION_MESSAGE)).doNothing().when(kroxyliciousClientsA).close();
+            IllegalStateException failureReason = new IllegalStateException(EXCEPTION_MESSAGE);
+            doThrow(failureReason).doNothing().when(kroxyliciousClientsA).close();
 
             // When
-            try {
-                tester.close();
-                fail("Expected tester to re-throw");
-            }
-            catch (RuntimeException re) {
-                // not my problem
-            }
+            assertThatThrownBy(tester::close).hasCause(failureReason);
 
             // Then
             verify(kroxyliciousClientsA).close();
@@ -330,7 +325,6 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    @SuppressWarnings("resource")
     @Test
     void closeClientsForEvictsOnlyTheNamedClustersClients() {
         // Given — touch every cluster so each has a cached KroxyliciousClients in the tester.
@@ -368,7 +362,6 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    @SuppressWarnings("resource")
     @Test
     void closeClientsForIsNoOpWhenClusterHasNoCachedClient() {
         try (var tester = buildTester()) {
@@ -384,7 +377,6 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    @SuppressWarnings("resource")
     @Test
     void closeClientsForSurfacesCloseFailureAsIllegalStateException() {
         // Given — cluster A's cached client throws on close. doNothing on the second
@@ -658,6 +650,18 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
+    @Test
+    void shouldReturnActualBoundPortFromGetBootstrapAddress() {
+        // Given - embedded proxy with OS-assigned port (port=0)
+        try (var tester = KroxyliciousTesters.mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
+            // When
+            var address = tester.getBootstrapAddress();
+
+            // Then - port is the actual OS-bound port, not the configured 0
+            assertThat(HostPort.parse(address).port()).isPositive();
+        }
+    }
+
     private void allowCreateTopic(KroxyliciousClients kroxyliciousClients, Admin admin) {
         when(kroxyliciousClients.admin()).thenReturn(admin);
         final CreateTopicsResult createTopicsResultA = mock(CreateTopicsResult.class);
@@ -690,11 +694,11 @@ class DefaultKroxyliciousTesterTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
-                .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(DEFAULT_PROXY_BOOTSTRAP).build())
+                .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
                 .addToGateways(new VirtualClusterGatewayBuilder()
                         .withName(CUSTOM_GATEWAY_NAME)
                         .withNewPortIdentifiesNode()
-                        .withBootstrapAddress(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + 10))
+                        .withBootstrapAddress(OS_ASSIGNED_BOOTSTRAP)
                         .endPortIdentifiesNode()
                         .build());
         configurationBuilder
@@ -714,7 +718,7 @@ class DefaultKroxyliciousTesterTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
-                .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(DEFAULT_PROXY_BOOTSTRAP)
+                .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP)
                         .withNewTls()
                         .withNewKeyStoreKey()
                         .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())

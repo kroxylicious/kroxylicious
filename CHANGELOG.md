@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3759](https://github.com/kroxylicious/kroxylicious/issues/3759): fix(authorization): use client-negotiated version for internal metadata request
 * [#3783](https://github.com/kroxylicious/kroxylicious/issues/3783): fix(config): remove deprecated `shutdownQuietPeriodSeconds` field from `NettySettings`.
 
 ### Changes, deprecations and removals

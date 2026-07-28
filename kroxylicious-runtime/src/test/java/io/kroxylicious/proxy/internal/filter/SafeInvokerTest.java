@@ -16,7 +16,6 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -26,12 +25,13 @@ import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyShort;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SafeInvokerTest {
 
-    private final FilterInvoker invoker = Mockito.mock(FilterInvoker.class);
+    private final FilterInvoker invoker = mock(FilterInvoker.class);
     private final SafeInvoker safeInvoker = new SafeInvoker(invoker);
 
     @Test
@@ -54,7 +54,7 @@ class SafeInvokerTest {
         when(invoker.shouldHandleRequest(API_VERSIONS, (short) 1)).thenThrow(exception);
         ApiVersionsRequestData message = new ApiVersionsRequestData();
         RequestHeaderData header = new RequestHeaderData();
-        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        FilterContext filterContext = mock(FilterContext.class);
         CompletableFuture<RequestFilterResult> forwardStage = new CompletableFuture<>();
         when(filterContext.forwardRequest(header, message)).thenReturn(forwardStage);
 
@@ -74,7 +74,7 @@ class SafeInvokerTest {
         when(invoker.shouldHandleRequest(API_VERSIONS, (short) 1)).thenReturn(true);
         ApiVersionsRequestData message = new ApiVersionsRequestData();
         RequestHeaderData header = new RequestHeaderData();
-        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        FilterContext filterContext = mock(FilterContext.class);
         CompletableFuture<RequestFilterResult> forwardStage = new CompletableFuture<>();
         when(filterContext.forwardRequest(header, message)).thenReturn(forwardStage);
         when(invoker.onRequest(API_VERSIONS, (short) 1, header, message, filterContext)).thenThrow(exception);
@@ -106,7 +106,7 @@ class SafeInvokerTest {
         when(invoker.shouldHandleRequest(API_VERSIONS, (short) 1)).thenReturn(false);
         ApiVersionsRequestData message = new ApiVersionsRequestData();
         RequestHeaderData header = new RequestHeaderData();
-        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        FilterContext filterContext = mock(FilterContext.class);
         CompletableFuture<RequestFilterResult> forwardStage = new CompletableFuture<>();
         when(filterContext.forwardRequest(header, message)).thenReturn(forwardStage);
 
@@ -124,7 +124,7 @@ class SafeInvokerTest {
         when(invoker.shouldHandleRequest(API_VERSIONS, (short) 1)).thenReturn(true);
         ApiVersionsRequestData message = new ApiVersionsRequestData();
         RequestHeaderData header = new RequestHeaderData();
-        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        FilterContext filterContext = mock(FilterContext.class);
         CompletableFuture<RequestFilterResult> delegateStage = new CompletableFuture<>();
         when(invoker.onRequest(any(), anyShort(), any(), any(), any())).thenReturn(delegateStage);
 
@@ -143,7 +143,7 @@ class SafeInvokerTest {
         when(invoker.shouldHandleResponse(API_VERSIONS, (short) 1)).thenReturn(true);
         ApiVersionsResponseData message = new ApiVersionsResponseData();
         ResponseHeaderData header = new ResponseHeaderData();
-        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        FilterContext filterContext = mock(FilterContext.class);
         CompletableFuture<ResponseFilterResult> delegateStage = new CompletableFuture<>();
         when(invoker.onResponse(any(), anyShort(), any(), any(), any())).thenReturn(delegateStage);
 
@@ -162,7 +162,7 @@ class SafeInvokerTest {
         when(invoker.shouldHandleResponse(API_VERSIONS, (short) 1)).thenReturn(false);
         ApiVersionsResponseData message = new ApiVersionsResponseData();
         ResponseHeaderData header = new ResponseHeaderData();
-        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        FilterContext filterContext = mock(FilterContext.class);
         CompletableFuture<ResponseFilterResult> forwardStage = new CompletableFuture<>();
         when(filterContext.forwardResponse(header, message)).thenReturn(forwardStage);
 
@@ -182,7 +182,7 @@ class SafeInvokerTest {
 
         // when
         CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(API_VERSIONS, (short) 1, new RequestHeaderData(), new ApiVersionsRequestData(),
-                Mockito.mock(FilterContext.class));
+                mock(FilterContext.class));
 
         // then
         assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)
@@ -198,7 +198,7 @@ class SafeInvokerTest {
 
         // when
         CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(API_VERSIONS, (short) 1, new ResponseHeaderData(), new ApiVersionsResponseData(),
-                Mockito.mock(FilterContext.class));
+                mock(FilterContext.class));
 
         // then
         assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)
@@ -214,7 +214,7 @@ class SafeInvokerTest {
 
         // when
         CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(API_VERSIONS, (short) 1, new ResponseHeaderData(), new ApiVersionsResponseData(),
-                Mockito.mock(FilterContext.class));
+                mock(FilterContext.class));
 
         // then
         assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)
@@ -230,7 +230,7 @@ class SafeInvokerTest {
 
         // when
         CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(API_VERSIONS, (short) 1, new ResponseHeaderData(), new ApiVersionsResponseData(),
-                Mockito.mock(FilterContext.class));
+                mock(FilterContext.class));
 
         // then
         assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)

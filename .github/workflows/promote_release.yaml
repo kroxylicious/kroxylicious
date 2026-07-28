@@ -50,6 +50,8 @@ on:
         required: true
       KROXYLICIOUS_RELEASE_TOKEN:
         required: true
+      REGISTRY_TOKEN:
+        required: true
 
 jobs:
   promote-release:
@@ -62,7 +64,7 @@ jobs:
           egress-policy: audit
 
       - name: 'Check out repository'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
           fetch-tags: true
@@ -221,12 +223,66 @@ jobs:
         run: |
           gh pr merge --delete-branch --rebase ${{ inputs.release-pr-issue-number }}
 
+      - name: Login to container registry
+        if: ${{ vars.REGISTRY_SERVER != '' }}
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: 'Tag release container images'
+        if: ${{ inputs.command == 'promote-release' && vars.REGISTRY_SERVER != '' }}
+        run: |
+          # Re-tag each staged manifest as the release version and latest.
+          # --all preserves the multi-arch manifest list.
+          # The staging tag is stripped from the manifest ref to derive the image name.
+          tag_release() {
+            local manifest="$1" image="$2"
+            skopeo copy --all "docker://${manifest}" "docker://${image}:${{ env.RELEASE_VERSION }}"
+            skopeo copy --all "docker://${manifest}" "docker://${image}:latest"
+          }
+
+          # .manifestImage.ref selects only the multi-arch manifest list for each entity.
+          # Per-arch intermediate images (proxy amd64/arm64) are staging artifacts only
+          # and are not published with a release tag.
+          MANIFEST_IMAGE_SELECTOR='.stagedArtifacts[].images.manifestImage.ref'
+          while IFS= read -r manifest; do
+            tag_release "${manifest}" "${manifest%:*}"
+          done < <(jq -r "${MANIFEST_IMAGE_SELECTOR}" RELEASE_STATE.json)
+
       - name: 'Drop PR'
         if: ${{ inputs.command == 'drop-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          gh pr close --comment "Release dropped" --delete-branch ${{ inputs.release-pr-issue-number }} 
+          gh pr close --comment "Release dropped" --delete-branch ${{ inputs.release-pr-issue-number }}
+
+      - name: 'Delete staging container images'
+        if: ${{ inputs.command == 'drop-release' && vars.REGISTRY_SERVER != '' }}
+        run: |
+          skopeo_delete_if_exists() {
+            local ref="$1"
+            skopeo inspect "docker://${ref}" > /dev/null 2>&1
+            local exit_code=$?
+            # skopeo inspect exits 2 when the image is not found (distinct from other errors);
+            # exit 1 indicates a real failure worth surfacing rather than silently swallowing.
+            if [[ $exit_code -eq 2 ]]; then
+              echo "Image not found, skipping: docker://${ref}"
+              return 0
+            elif [[ $exit_code -ne 0 ]]; then
+              echo "Error inspecting docker://${ref}" >&2
+              return 1
+            fi
+            skopeo delete "docker://${ref}"
+          }
+
+          # .[].ref iterates all image entries per entity (manifestImage + any per-arch
+          # intermediates), ensuring nothing is left behind on drop.
+          ALL_IMAGE_REFS_SELECTOR='.stagedArtifacts[].images[].ref'
+          while IFS= read -r ref; do
+            skopeo_delete_if_exists "${ref}"
+          done < <(jq -r "${ALL_IMAGE_REFS_SELECTOR}" RELEASE_STATE.json)
 
       - name: 'Drop run label used to tag release PR'
         env:

@@ -114,7 +114,7 @@ class BijectiveNodeIdMappingTest {
     }
 
     @Test
-    void shouldPassThroughNegativeVirtualNodeIdsInFromVirtual() {
+    void shouldPassThroughNegativeProxyNodeIdsInFromVirtual() {
         var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
         assertThat(mapping.fromVirtual(ROUTE_A, -1)).isEqualTo(-1);
         assertThat(mapping.fromVirtual(ROUTE_B, -2)).isEqualTo(-2);

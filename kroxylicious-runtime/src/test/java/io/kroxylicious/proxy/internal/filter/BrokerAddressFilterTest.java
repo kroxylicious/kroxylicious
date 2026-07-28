@@ -16,11 +16,16 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiMessageType;
+import org.apache.kafka.common.message.DescribeClusterResponseData;
+import org.apache.kafka.common.message.DescribeClusterResponseData.DescribeClusterBroker;
+import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -129,6 +134,72 @@ class BrokerAddressFilterTest {
 
         filterResponseAndVerify(apiMessageType, header, responseTestDef);
         verify(endpointReconciler, times(1)).reconcile(Mockito.eq(virtualClusterListenerModel), Mockito.anyMap());
+    }
+
+    @Test
+    void shouldNotRewriteMetadataResponseBrokerAddressesUntilReconciliationCompletes() {
+        // Given
+        var reconcileFuture = new CompletableFuture<Void>();
+        Mockito.when(endpointReconciler.reconcile(Mockito.eq(virtualClusterListenerModel),
+                Mockito.eq(Map.of(0, new HostPort("upstream", 9092)))))
+                .thenReturn(reconcileFuture);
+        configureContextResponseStubbing();
+
+        var data = new MetadataResponseData();
+        var broker = new MetadataResponseBroker();
+        broker.setNodeId(0);
+        broker.setHost("upstream");
+        broker.setPort(9092);
+        data.brokers().add(broker);
+
+        // When
+        var stage = filter.onMetadataResponse((short) 12, new ResponseHeaderData(), data, context);
+
+        // Then
+        assertThat(stage).isNotCompleted();
+        verify(virtualClusterListenerModel, Mockito.never()).getAdvertisedBrokerAddress(Mockito.anyInt());
+
+        // When
+        reconcileFuture.complete(null);
+
+        // Then
+        assertThat(stage).isCompleted();
+        verify(virtualClusterListenerModel).getAdvertisedBrokerAddress(0);
+        assertThat(broker.host()).isEqualTo("downstream");
+        assertThat(broker.port()).isEqualTo(19200);
+    }
+
+    @Test
+    void shouldNotRewriteDescribeClusterResponseBrokerAddressesUntilReconciliationCompletes() {
+        // Given
+        var reconcileFuture = new CompletableFuture<Void>();
+        Mockito.when(endpointReconciler.reconcile(Mockito.eq(virtualClusterListenerModel),
+                Mockito.eq(Map.of(0, new HostPort("upstream", 9092)))))
+                .thenReturn(reconcileFuture);
+        configureContextResponseStubbing();
+
+        var data = new DescribeClusterResponseData();
+        var broker = new DescribeClusterBroker();
+        broker.setBrokerId(0);
+        broker.setHost("upstream");
+        broker.setPort(9092);
+        data.brokers().add(broker);
+
+        // When
+        var stage = filter.onDescribeClusterResponse((short) 0, new ResponseHeaderData(), data, context);
+
+        // Then
+        assertThat(stage).isNotCompleted();
+        verify(virtualClusterListenerModel, Mockito.never()).getAdvertisedBrokerAddress(Mockito.anyInt());
+
+        // When
+        reconcileFuture.complete(null);
+
+        // Then
+        assertThat(stage).isCompleted();
+        verify(virtualClusterListenerModel).getAdvertisedBrokerAddress(0);
+        assertThat(broker.host()).isEqualTo("downstream");
+        assertThat(broker.port()).isEqualTo(19200);
     }
 
     private void filterResponseAndVerify(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) throws Exception {

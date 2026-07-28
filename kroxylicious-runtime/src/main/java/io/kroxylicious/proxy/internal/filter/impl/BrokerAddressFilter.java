@@ -63,10 +63,13 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         var nodeMap = new HashMap<Integer, HostPort>();
         for (MetadataResponseBroker broker : data.brokers()) {
             nodeMap.put(broker.nodeId(), new HostPort(broker.host(), broker.port()));
-            apply(context, broker, MetadataResponseBroker::nodeId, MetadataResponseBroker::host, MetadataResponseBroker::port, MetadataResponseBroker::setHost,
-                    MetadataResponseBroker::setPort);
         }
-        return doReconcileThenForwardResponse(header, data, context, nodeMap);
+        return doReconcileThenRewriteAndForward(header, data, context, nodeMap, () -> {
+            for (MetadataResponseBroker broker : data.brokers()) {
+                apply(context, broker, MetadataResponseBroker::nodeId, MetadataResponseBroker::host, MetadataResponseBroker::port, MetadataResponseBroker::setHost,
+                        MetadataResponseBroker::setPort);
+            }
+        });
     }
 
     @Override
@@ -75,10 +78,13 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         var nodeMap = new HashMap<Integer, HostPort>();
         for (DescribeClusterBroker broker : data.brokers()) {
             nodeMap.put(broker.brokerId(), new HostPort(broker.host(), broker.port()));
-            apply(context, broker, DescribeClusterBroker::brokerId, DescribeClusterBroker::host, DescribeClusterBroker::port, DescribeClusterBroker::setHost,
-                    DescribeClusterBroker::setPort);
         }
-        return doReconcileThenForwardResponse(header, data, context, nodeMap);
+        return doReconcileThenRewriteAndForward(header, data, context, nodeMap, () -> {
+            for (DescribeClusterBroker broker : data.brokers()) {
+                apply(context, broker, DescribeClusterBroker::brokerId, DescribeClusterBroker::host, DescribeClusterBroker::port, DescribeClusterBroker::setHost,
+                        DescribeClusterBroker::setPort);
+            }
+        });
     }
 
     @Override
@@ -178,13 +184,14 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         portSetter.accept(broker, advertisedAddress.port());
     }
 
-    private CompletionStage<ResponseFilterResult> doReconcileThenForwardResponse(ResponseHeaderData header, ApiMessage data, FilterContext context,
-                                                                                 Map<Integer, HostPort> nodeMap) {
+    private CompletionStage<ResponseFilterResult> doReconcileThenRewriteAndForward(ResponseHeaderData header, ApiMessage data, FilterContext context,
+                                                                                   Map<Integer, HostPort> nodeMap, Runnable rewrite) {
         return reconciler.reconcile(listenerModel, nodeMap).toCompletableFuture()
                 .thenCompose(u -> {
                     LOGGER.atDebug()
                             .addKeyValue("virtualCluster", listenerModel)
                             .log("Endpoint reconciliation complete");
+                    rewrite.run();
                     return context.responseFilterResultBuilder().forward(header, data).completed();
                 });
     }

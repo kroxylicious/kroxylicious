@@ -50,7 +50,7 @@ import io.kroxylicious.testing.integration.codec.KafkaRequestEncoder;
 import io.kroxylicious.testing.integration.codec.KafkaResponseDecoder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -373,7 +373,7 @@ class ProxyProtocolIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(mockBootstrap)
                         .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(DEFAULT_PROXY_BOOTSTRAP)
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP)
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(keystore.path().toString())

@@ -127,4 +127,15 @@ public final class HostPort {
     public static String asString(String host, int port) {
         return new HostPort(host, port).toString();
     }
+
+    /**
+     * Returns true if the port is the OS-assigned sentinel value (0), meaning the OS will
+     * assign an ephemeral port at bind time rather than using a fixed port number.
+     *
+     * @param port port number to test
+     * @return true if the port is OS-assigned
+     */
+    public static boolean isOsAssigned(int port) {
+        return port == 0;
+    }
 }

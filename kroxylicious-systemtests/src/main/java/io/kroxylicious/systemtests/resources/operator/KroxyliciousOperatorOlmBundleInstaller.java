@@ -43,7 +43,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
- * KroxyliciousOperatorOlmBundleInstaller encapsulates the whole OLM installation process of Kroxylicious Operator. Based on the @code{Environment}
+ * KroxyliciousOperatorOlmBundleInstaller encapsulates the whole OLM installation process of Kroxylicious Operator. Based on the {@code Environment}
  * values, this class installs Kroxylicious Operator using bundle olm.
  */
 public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMethod {
