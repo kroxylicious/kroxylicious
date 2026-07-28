@@ -100,6 +100,8 @@ jobs:
           push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
             OMB_COMMIT=${{ steps.omb.outputs.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.omb.outputs.sha }}
           tags: ${{ steps.build_configuration.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max,compression=zstd

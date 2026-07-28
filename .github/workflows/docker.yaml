@@ -183,6 +183,8 @@ jobs:
           push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
             KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
           tags: ${{ steps.build_configuration.outputs.proxy_amd64_tag }}
           cache-from: type=gha,scope=proxy-amd64
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-amd64
@@ -196,6 +198,8 @@ jobs:
           push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
             KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
           tags: ${{ steps.build_configuration.outputs.operator_tags }}
           cache-from: type=gha,scope=operator
           cache-to: type=gha,mode=max,compression=zstd,scope=operator
@@ -209,6 +213,8 @@ jobs:
           push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
             KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
           tags: ${{ steps.build_configuration.outputs.admission_tags }}
           cache-from: type=gha,scope=admission
           cache-to: type=gha,mode=max,compression=zstd,scope=admission
@@ -242,6 +248,8 @@ jobs:
           push: true
           build-args: |
             KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
           tags: ${{ steps.build_configuration.outputs.proxy_arm64_tag }}
           cache-from: type=gha,scope=proxy-arm64
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-arm64
@@ -273,7 +281,9 @@ jobs:
         if: steps.build_configuration.outputs.multi_arch == 'true'
         run: |
           for TAG in $(echo "${{ steps.build_configuration.outputs.proxy_final_tags }}" | tr ',' ' '); do
-            docker buildx imagetools create -t "${TAG}" \
+            docker buildx imagetools create \
+              --annotation "index:org.opencontainers.image.revision=${{ github.sha }}" \
+              -t "${TAG}" \
               "${{ steps.build_configuration.outputs.proxy_amd64_tag }}" \
               "${{ steps.build_configuration.outputs.proxy_arm64_tag }}"
           done
