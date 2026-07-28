@@ -134,7 +134,6 @@ jobs:
             echo "admission_tags=${ADMISSION_TAGS}" >> $GITHUB_OUTPUT
           fi
 
-      # ── Phase 1: compile and install ─────────────────────────────────────────
       # Install (not just package) so the per-arch dist steps can resolve local
       # module JARs from ~/.m2 without needing --also-make.
 
@@ -159,8 +158,6 @@ jobs:
           registry: ${{ vars.REGISTRY_SERVER }}
           username: ${{ vars.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_TOKEN }}
-
-      # ── Phase 2: amd64 dist + images ─────────────────────────────────────────
 
       - name: Build amd64 distribution artifacts
         run: |
@@ -229,7 +226,6 @@ jobs:
           cache-from: type=gha,scope=admission
           cache-to: type=gha,mode=max,compression=zstd,scope=admission
 
-      # ── Phase 3: arm64 dist + image ──────────────────────────────────────────
       # `clean package` on kroxylicious-app alone wipes its target/ directory so
       # the aarch64 assembly contains only linux-aarch_64 Netty native binaries
       # (no leftovers from the amd64 run above).
@@ -285,10 +281,6 @@ jobs:
             echo "ERROR: arm64 native lib check failed (aarch_64=${_AARCH64_COUNT}, x86_64=${_X86_64_COUNT})." >&2
             exit 1
           fi
-
-      # ── Phase 4: multi-arch manifest ─────────────────────────────────────────
-      # Assemble the canonical proxy tag and the legacy Kroxylicious alias as
-      # annotated manifest lists pointing at the per-arch images pushed above.
 
       - name: Create and push proxy multi-arch manifest
         if: steps.build_configuration.outputs.multi_arch == 'true'
