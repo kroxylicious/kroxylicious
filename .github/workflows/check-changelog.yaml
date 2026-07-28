@@ -32,7 +32,9 @@ jobs:
           egress-policy: audit
 
       - name: 'Fail if CHANGELOG.md was modified directly'
-        if: github.event.pull_request.user.login != 'kroxylicious-robot'
+        if: >-
+          github.event.pull_request.user.login != 'kroxylicious-robot'
+          && !startsWith(github.head_ref, 'release-work-')
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
