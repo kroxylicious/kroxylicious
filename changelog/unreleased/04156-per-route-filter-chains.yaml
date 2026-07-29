@@ -1,5 +1,5 @@
 title: "feat(runtime): **Preview** — per-route filter chains"
-type: feat
+type: added
 issues:
   - 4156
 important_notes:
