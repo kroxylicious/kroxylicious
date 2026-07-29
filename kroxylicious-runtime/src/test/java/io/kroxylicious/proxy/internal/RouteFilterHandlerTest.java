@@ -142,7 +142,7 @@ class RouteFilterHandlerTest {
     }
 
     @Test
-    void internalRequestFrameAlwaysDelegatedRegardlessOfRoute() {
+    void internalRequestFrameWithMatchingRouteIsProcessed() {
         // Given
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.forwardRequest(header, request);
         buildChannel(filter, ROUTE_A);
@@ -150,6 +150,27 @@ class RouteFilterHandlerTest {
         var internalFrame = new InternalRequestFrame<>(
                 header.requestApiVersion(), header.correlationId(), false,
                 filter, new CompletableFuture<>(), header, new ApiVersionsRequestData());
+        internalFrame.setRouteName(ROUTE_A);
+
+        // When
+        channel.writeInbound(internalFrame);
+
+        // Then
+        assertThat((Object) channel.readInbound()).isSameAs(internalFrame);
+    }
+
+    @Test
+    void internalRequestFrameWithNonMatchingRoutePassesThrough() {
+        // Given
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            throw new AssertionError("Filter should not be invoked for non-matching route");
+        };
+        buildChannel(filter, ROUTE_A);
+        var header = requestHeader(new ApiVersionsRequestData());
+        var internalFrame = new InternalRequestFrame<>(
+                header.requestApiVersion(), header.correlationId(), false,
+                filter, new CompletableFuture<>(), header, new ApiVersionsRequestData());
+        internalFrame.setRouteName(ROUTE_B);
 
         // When
         channel.writeInbound(internalFrame);
@@ -179,7 +200,7 @@ class RouteFilterHandlerTest {
     }
 
     @Test
-    void internalResponseFrameAlwaysDelegatedRegardlessOfRoute() {
+    void internalResponseFrameWithMatchingRouteIsProcessed() {
         // Given
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
         buildChannel(filter, ROUTE_A);
@@ -187,12 +208,34 @@ class RouteFilterHandlerTest {
         var future = new CompletableFuture<>();
         var internalFrame = new InternalResponseFrame<>(
                 filter, ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData(), future);
+        internalFrame.setRouteName(ROUTE_A);
 
         // When
         channel.writeOutbound(internalFrame);
 
         // Then
         assertThat(future).isCompleted();
+    }
+
+    @Test
+    void internalResponseFrameWithNonMatchingRoutePassesThrough() {
+        // Given
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
+            throw new AssertionError("Filter should not be invoked for non-matching route");
+        };
+        buildChannel(filter, ROUTE_A);
+        var header = new ResponseHeaderData().setCorrelationId(42);
+        var future = new CompletableFuture<>();
+        var internalFrame = new InternalResponseFrame<>(
+                filter, ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData(), future);
+        internalFrame.setRouteName(ROUTE_B);
+
+        // When
+        channel.writeOutbound(internalFrame);
+
+        // Then
+        assertThat(future).isNotCompleted();
+        assertThat((Object) channel.readOutbound()).isSameAs(internalFrame);
     }
 
     @Test

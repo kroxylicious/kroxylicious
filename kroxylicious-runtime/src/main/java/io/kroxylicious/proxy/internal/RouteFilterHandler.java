@@ -20,10 +20,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A route-scoped {@link FilterHandler} that only applies its filter when the
  * frame's {@link Frame#routeName()} matches the configured route name.
  * Frames on other routes (or with no routing context) pass through unchanged.
- * <p>
- * Internal filter frames ({@link InternalRequestFrame}, {@link InternalResponseFrame})
- * always delegate to the filter regardless of route — they are part of the
- * filter's own async request mechanism.
  */
 class RouteFilterHandler extends FilterHandler {
 
@@ -41,7 +37,7 @@ class RouteFilterHandler extends FilterHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof InternalRequestFrame<?> || matchesRoute(msg)) {
+        if (matchesRoute(msg)) {
             super.channelRead(ctx, msg);
         }
         else {
@@ -56,7 +52,7 @@ class RouteFilterHandler extends FilterHandler {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof InternalResponseFrame<?> || matchesRoute(msg)) {
+        if (matchesRoute(msg)) {
             super.write(ctx, msg, promise);
         }
         else {

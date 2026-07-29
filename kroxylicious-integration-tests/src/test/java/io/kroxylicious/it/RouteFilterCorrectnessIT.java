@@ -74,6 +74,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *         {@code InternalRequestFrame} instances to {@code super.channelRead()} without checking
  *         whether they belong to that handler's route, so a filter on route-b can mutate
  *         internal requests it should never see.
+ * <p>C6: Same filter factory type on both routes — internal requests must stay within the
+ *         originating route even when both routes have filters created from the same factory.
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
@@ -284,6 +286,62 @@ class RouteFilterCorrectnessIT {
         // Then: route-b's counting filter must not have seen the internal LIST_GROUPS frame
         assertThat(RequestCountingFilter.countFor(counterId, ApiKeys.LIST_GROUPS))
                 .as("route-b filter must not process InternalRequestFrame from route-a's filter")
+                .isZero();
+    }
+
+    // ---------------------------------------------------------------------------
+    // C6: Same filter definition on both routes — internal request must stay
+    // within the originating route even when both routes share the same
+    // filter factory type.
+    // ---------------------------------------------------------------------------
+
+    /**
+     * When the same filter factory type (here {@code RequestCountingFilterFactory}) appears
+     * on multiple routes, each route gets its own filter instance.  An {@code InternalRequestFrame}
+     * created by a filter on route-a must only be processed by route-a's filter chain, not
+     * route-b's — even though route-b has a filter of the same type.
+     *
+     * <p>This is the critical scenario for nested routers where a filter definition may appear
+     * on routes belonging to different routers.
+     */
+    @Test
+    void sameFilterDefinitionOnBothRoutesDoesNotCrossContaminate(KafkaCluster cluster, Topic topic) throws Exception {
+        String counterIdA = "c6-route-a-" + topic.name();
+        String counterIdB = "c6-route-b-" + topic.name();
+        RequestCountingFilter.reset(counterIdA);
+        RequestCountingFilter.reset(counterIdB);
+        var markerName = "c6-marker";
+
+        // Given
+        var markingFilterDef = new NamedFilterDefinitionBuilder(markerName, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(ApiKeys.PRODUCE),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", markerName,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+        var counterADef = new NamedFilterDefinitionBuilder("c6-counter-a", RequestCountingFilterFactory.class.getName())
+                .withConfig("counterId", counterIdA)
+                .build();
+        var counterBDef = new NamedFilterDefinitionBuilder("c6-counter-b", RequestCountingFilterFactory.class.getName())
+                .withConfig("counterId", counterIdB)
+                .build();
+        var config = twoRouteConfig(cluster.getBootstrapServers(),
+                List.of(markerName, "c6-counter-a"), List.of("c6-counter-b"),
+                List.of(markingFilterDef, counterADef, counterBDef));
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer(Map.of(DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+
+            // When
+            producer.send(new ProducerRecord<>(topic.name(), "key", "value")).get();
+        }
+
+        // Then
+        assertThat(RequestCountingFilter.countFor(counterIdA, ApiKeys.LIST_GROUPS))
+                .as("route-a's counting filter should see the internal LIST_GROUPS from the marking filter on the same route")
+                .isPositive();
+        assertThat(RequestCountingFilter.countFor(counterIdB, ApiKeys.LIST_GROUPS))
+                .as("route-b's counting filter must not see internal LIST_GROUPS from route-a's filter, even though it uses the same factory type")
                 .isZero();
     }
 
