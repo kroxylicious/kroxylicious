@@ -207,7 +207,7 @@ class RouteFilterCorrectnessIT {
      * <p>This test uses a single cluster and a single route, so {@code sendRequest()} works
      * correctly by accident.  Demonstrating the actual bug requires two distinct Kafka clusters
      * (one per route) so that sending to the wrong connection produces a different — observable
-     * — response.  See the disabled companion test below.
+     * — response. 
      */
     @Test
     void routeFilterSendRequestWorksWithSingleRoute() {
