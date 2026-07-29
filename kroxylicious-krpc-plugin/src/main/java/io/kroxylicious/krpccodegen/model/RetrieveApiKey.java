@@ -6,8 +6,7 @@
 package io.kroxylicious.krpccodegen.model;
 
 import java.util.List;
-
-import org.apache.kafka.common.protocol.ApiKeys;
+import java.util.Locale;
 
 import freemarker.template.TemplateMethodModelEx;
 
@@ -24,8 +23,12 @@ public class RetrieveApiKey implements TemplateMethodModelEx {
     }
 
     private static String retrieveApiKey(MessageSpecModel messageSpecModel) {
-        Short apiKey = messageSpecModel.spec.apiKey().orElseThrow();
-        return ApiKeys.forId(apiKey).name();
+        return toEnumConstantName(messageSpecModel.spec.name());
+    }
+
+    static String toEnumConstantName(String specName) {
+        String baseName = specName.replaceFirst("(Request|Response)$", "");
+        return baseName.replaceAll("([a-z])([A-Z])", "$1_$2").toUpperCase(Locale.ROOT);
     }
 
     @Override

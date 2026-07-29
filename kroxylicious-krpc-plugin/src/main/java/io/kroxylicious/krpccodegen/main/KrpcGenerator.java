@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.TypeLiteral;
 
@@ -638,7 +638,7 @@ public class KrpcGenerator {
                     var response = allResponses.get(key);
                     var name = request.name().replaceFirst("Request$", "");
                     var listeners = Set.copyOf(new HashSet<>(request.listeners()));
-                    return new ApiSpec(name, ApiKeys.forId(key), listeners, request, response);
+                    return new ApiSpec(name, key, listeners, request, response);
                 })
                 .sorted(Comparator.comparing(Named::name))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
