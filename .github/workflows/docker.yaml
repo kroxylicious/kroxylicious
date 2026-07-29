@@ -77,6 +77,7 @@ jobs:
         run: |
           POMS_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "release_version=${POMS_VERSION}" >> $GITHUB_OUTPUT
+          echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
           SHA_TAG="commit-$(git rev-parse --short "${GITHUB_SHA}")"
 
           if [[ "${{ github.event_name }}" == "pull_request" || "${{ vars.REGISTRY_SERVER }}" == "" ]]; then
@@ -133,7 +134,6 @@ jobs:
             echo "admission_tags=${ADMISSION_TAGS}" >> $GITHUB_OUTPUT
           fi
 
-      # ── Phase 1: compile and install ─────────────────────────────────────────
       # Install (not just package) so the per-arch dist steps can resolve local
       # module JARs from ~/.m2 without needing --also-make.
 
@@ -159,8 +159,6 @@ jobs:
           username: ${{ vars.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_TOKEN }}
 
-      # ── Phase 2: amd64 dist + images ─────────────────────────────────────────
-
       - name: Build amd64 distribution artifacts
         run: |
           mvn --quiet \
@@ -183,6 +181,11 @@ jobs:
           push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
             KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
           tags: ${{ steps.build_configuration.outputs.proxy_amd64_tag }}
           cache-from: type=gha,scope=proxy-amd64
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-amd64
@@ -196,6 +199,11 @@ jobs:
           push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
             KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
           tags: ${{ steps.build_configuration.outputs.operator_tags }}
           cache-from: type=gha,scope=operator
           cache-to: type=gha,mode=max,compression=zstd,scope=operator
@@ -209,11 +217,15 @@ jobs:
           push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
             KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
           tags: ${{ steps.build_configuration.outputs.admission_tags }}
           cache-from: type=gha,scope=admission
           cache-to: type=gha,mode=max,compression=zstd,scope=admission
 
-      # ── Phase 3: arm64 dist + image ──────────────────────────────────────────
       # `clean package` on kroxylicious-app alone wipes its target/ directory so
       # the aarch64 assembly contains only linux-aarch_64 Netty native binaries
       # (no leftovers from the amd64 run above).
@@ -242,6 +254,11 @@ jobs:
           push: true
           build-args: |
             KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
           tags: ${{ steps.build_configuration.outputs.proxy_arm64_tag }}
           cache-from: type=gha,scope=proxy-arm64
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-arm64
@@ -265,15 +282,16 @@ jobs:
             exit 1
           fi
 
-      # ── Phase 4: multi-arch manifest ─────────────────────────────────────────
-      # Assemble the canonical proxy tag and the legacy Kroxylicious alias as
-      # manifest lists pointing at the per-arch images pushed above.
-
       - name: Create and push proxy multi-arch manifest
         if: steps.build_configuration.outputs.multi_arch == 'true'
         run: |
           for TAG in $(echo "${{ steps.build_configuration.outputs.proxy_final_tags }}" | tr ',' ' '); do
-            docker buildx imagetools create -t "${TAG}" \
+            docker buildx imagetools create \
+              --annotation "index:org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}" \
+              --annotation "index:org.opencontainers.image.revision=${{ github.sha }}" \
+              --annotation "index:org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious" \
+              --annotation "index:org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}" \
+              -t "${TAG}" \
               "${{ steps.build_configuration.outputs.proxy_amd64_tag }}" \
               "${{ steps.build_configuration.outputs.proxy_arm64_tag }}"
           done
