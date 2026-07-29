@@ -55,6 +55,10 @@ Assisted-by: Claude Sonnet 4.5 <noreply@anthropic.com>
 Signed-off-by: Developer Name <dev@example.com>
 ```
 
+## Squash Policy
+
+PRs must land as a single commit. **Do not squash during development** — multiple commits help reviewers follow the change. Squash only when the user says the PR is ready to merge, and only if they ask you to.
+
 ## Important Notes
 
 - **Do NOT use** `Co-Authored-By:` for AI disclosure - use `Assisted-by:`

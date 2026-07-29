@@ -532,6 +532,27 @@ Signed-off-by: Jane Developer <jane@example.com>
 
 This practice maintains transparency about AI assistance in our development process while preserving the human developer's accountability for the final code.
 
+## Commit History Requirements
+
+PRs must land as a single commit with a message following [Conventional Commits](https://www.conventionalcommits.org/) format. CI enforces both rules and will block the merge if either fails.
+
+During development and review, keep as many commits as you like — granular history helps reviewers follow the change. Squash only when the PR is ready to merge.
+
+**Commit message format:**
+```
+<type>[(<scope>)]: <description>
+```
+
+Valid types: `feat`, `fix`, `docs`, `build`, `chore`, `refactor`, `perf`, `test`, `ci`
+
+**To squash before merging:**
+```shell
+git rebase -i origin/main
+# mark all but the first commit as 'squash' or 'fixup'
+git commit --amend  # set the final conventional commit message
+git push --force-with-lease
+```
+
 # Development Guide for Kroxylicious Operator
 
 This is the development guide for Kroxylicious operator for Kubernetes.
