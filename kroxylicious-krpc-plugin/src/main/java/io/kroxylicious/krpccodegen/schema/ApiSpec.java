@@ -21,7 +21,6 @@ import java.util.Set;
 public record ApiSpec(String name, short apiKey, Set<RequestListenerType> listeners, MessageSpec request, MessageSpec response) implements Named {
     public ApiSpec {
         Objects.requireNonNull(name);
-        Objects.requireNonNull(apiKey);
         Objects.requireNonNull(listeners);
         Objects.requireNonNull(request);
         Objects.requireNonNull(response);
