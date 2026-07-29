@@ -637,7 +637,7 @@ public class KrpcGenerator {
                     var response = allResponses.get(key);
                     var name = request.name().replaceFirst("Request$", "");
                     var listeners = Set.copyOf(new HashSet<>(request.listeners()));
-                    return new ApiSpec(name, key, listeners, request, response);
+                    return new ApiSpec(name, RetrieveApiKey.toEnumConstantName(request.name()), listeners, request, response);
                 })
                 .sorted(Comparator.comparing(Named::name))
                 .collect(Collectors.toCollection(LinkedHashSet::new));

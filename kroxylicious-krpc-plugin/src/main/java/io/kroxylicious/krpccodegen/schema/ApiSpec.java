@@ -13,14 +13,15 @@ import java.util.Set;
  * Represents a Kafka API: the paired request and response message specifications for a single Kafka RPC.
  *
  * @param name name of the API (request spec name with "Request" suffix removed)
- * @param apiKey numeric api key
+ * @param apiKey the API key enum constant name (e.g. "FETCH", "CREATE_TOPICS")
  * @param listeners the kafka entity(s) that listen for the request (and generate the response)
  * @param request request spec
  * @param response response spec
  */
-public record ApiSpec(String name, short apiKey, Set<RequestListenerType> listeners, MessageSpec request, MessageSpec response) implements Named {
+public record ApiSpec(String name, String apiKey, Set<RequestListenerType> listeners, MessageSpec request, MessageSpec response) implements Named {
     public ApiSpec {
         Objects.requireNonNull(name);
+        Objects.requireNonNull(apiKey);
         Objects.requireNonNull(listeners);
         Objects.requireNonNull(request);
         Objects.requireNonNull(response);

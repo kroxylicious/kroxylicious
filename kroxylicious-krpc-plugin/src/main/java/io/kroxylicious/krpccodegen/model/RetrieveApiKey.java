@@ -26,7 +26,7 @@ public class RetrieveApiKey implements TemplateMethodModelEx {
         return toEnumConstantName(messageSpecModel.spec.name());
     }
 
-    static String toEnumConstantName(String specName) {
+    public static String toEnumConstantName(String specName) {
         String baseName = specName.replaceFirst("(Request|Response)$", "");
         return baseName.replaceAll("([a-z])([A-Z])", "$1_$2").toUpperCase(Locale.ROOT);
     }
