@@ -902,6 +902,9 @@
                                 junit.jupiter.extensions.autodetection.enabled=true
                             </configurationParameters>
                         </properties>
+                        <systemPropertyVariables>
+                            <slf4j.provider>nz.thebarkers.logonfail.LogOnFailSLF4JProvider</slf4j.provider>
+                        </systemPropertyVariables>
                         <statelessTestsetReporter
                                 implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
                             <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
