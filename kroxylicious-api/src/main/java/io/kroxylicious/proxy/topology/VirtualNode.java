@@ -6,17 +6,17 @@
 package io.kroxylicious.proxy.topology;
 
 /**
- * Opaque reference to a node in the virtual cluster topology.
+ * A broker in the virtual cluster topology, identified by its
+ * downstream (virtual) node ID.
  *
- * <p>Routers obtain {@code VirtualNode} instances from
- * {@link io.kroxylicious.proxy.router.RouterContext RouterContext} methods and pass them back to
- * {@link io.kroxylicious.proxy.router.RouterContext#sendRequest RouterContext.sendRequest}. Implementations provide
- * {@code equals}/{@code hashCode} so that {@code VirtualNode}
- * instances can be used as map keys.</p>
+ * <p>{@code VirtualNode} instances are obtained from
+ * {@link io.kroxylicious.proxy.router.RouterContext#endpoint() RouterContext.endpoint()}
+ * (for broker-specific connections) or
+ * {@link io.kroxylicious.proxy.router.RouterContext#nodeForId(int) RouterContext.nodeForId()}
+ * (from protocol response node IDs), and passed to
+ * {@link io.kroxylicious.proxy.router.RouterContext#sendRequest RouterContext.sendRequest()}
+ * as request targets.</p>
  *
- * <p>This type is intentionally opaque — routers should not
- * inspect or construct instances directly. The runtime provides
- * the implementation.</p>
+ * @param downstreamNodeId the node ID as seen by the client
  */
-public interface VirtualNode {
-}
+public record VirtualNode(int downstreamNodeId) implements EndpointType {}

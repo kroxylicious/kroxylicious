@@ -184,6 +184,18 @@
                                     <exclude>io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
                                     <!-- The following method was deprecated since 0.18 and removed at 0.21.0, see https://github.com/kroxylicious/kroxylicious/issues/3620 -->
                                     <exclude>io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String, java.lang.String)</exclude>
+                                    <!-- VirtualNode changed from an extendable marker interface to a sealed record in 0.23.0.
+                                         Routers consume VirtualNode instances (they don't implement or extend the type),
+                                         so the practical impact is limited to code that directly implemented the empty interface.
+                                         The EndpointType sealed interface proposal documents the full migration path. -->
+                                    <exclude>io.kroxylicious.proxy.topology.VirtualNode</exclude>
+                                    <!-- anyNode() and virtualNode() on RouterContext are deprecated in 0.23.0 and given
+                                         default implementations: anyNode() throws UnsupportedOperationException and
+                                         virtualNode() delegates to endpoint(). RouterContext is consumed by routers
+                                         (not implemented by them), so METHOD_ABSTRACT_NOW_DEFAULT has no practical impact.
+                                         Both methods will be removed in a future release. -->
+                                    <exclude>io.kroxylicious.proxy.router.RouterContext#anyNode(java.lang.String)</exclude>
+                                    <exclude>io.kroxylicious.proxy.router.RouterContext#virtualNode()</exclude>
                                 </excludes>
                                 <!-- see documentation -->
                             </parameter>

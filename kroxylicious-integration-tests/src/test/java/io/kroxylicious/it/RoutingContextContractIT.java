@@ -42,6 +42,7 @@ import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.topology.Bootstrap;
 import io.kroxylicious.proxy.topology.VirtualNode;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
@@ -109,7 +110,7 @@ class RoutingContextContractIT {
     }
 
     @Test
-    void virtualNodeIsEmptyForBootstrapConnection(KafkaCluster cluster) {
+    void endpointIsBootstrapForBootstrapConnection(KafkaCluster cluster) {
         // Given: router factory with no static routes (everything dynamic)
         try (var tester = KroxyliciousTesters.newBuilder(config(cluster))
                 .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
@@ -118,13 +119,13 @@ class RoutingContextContractIT {
             // When: request arrives via the bootstrap port
             client.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
 
-            // Then: bootstrap connections have no associated virtual node
-            assertThat(ContextCapturingRouterFactory.lastCapture.get().virtualNode()).isEmpty();
+            // Then
+            assertThat(ContextCapturingRouterFactory.lastCapture.get().endpoint()).isInstanceOf(Bootstrap.class);
         }
     }
 
     @Test
-    void virtualNodeIsPresentForBrokerSpecificConnection() {
+    void endpointIsVirtualNodeForBrokerSpecificConnection() {
         // Given: a single mock upstream with METADATA that advertises two brokers so the
         // proxy allocates ports 9193 (virtual node 0) and 9194 (virtual node 1).
         try (var mockBroker0 = MockServer.startOnRandomPort();
@@ -148,16 +149,16 @@ class RoutingContextContractIT {
                     nodeZero.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
                 }
 
-                // Then: a broker-specific connection has a non-empty virtualNode
-                assertThat(ContextCapturingRouterFactory.lastCapture.get().virtualNode()).isPresent();
+                // Then
+                assertThat(ContextCapturingRouterFactory.lastCapture.get().endpoint()).isInstanceOf(VirtualNode.class);
             }
         }
     }
 
     @Test
-    void sendingToVirtualNodeRoutesToTheConnectedBroker() {
+    void sendingToEndpointVirtualNodeRoutesToTheConnectedBroker() {
         // Given: two mock brokers; connect to the broker-specific port for virtual node 0
-        // and have the router use ctx.virtualNode() to route the request.
+        // and have the router use ctx.endpoint() to route the request.
         try (var mockBroker0 = MockServer.startOnRandomPort();
                 var mockBroker1 = MockServer.startOnRandomPort()) {
 
@@ -170,14 +171,13 @@ class RoutingContextContractIT {
             md.brokers().add(new MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(mockBroker1.port()));
             mockBroker0.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, md));
 
-            // Router: for any non-METADATA request, use virtualNode() to route to the connected broker
+            // Router: for any non-METADATA request, use endpoint() to route to the connected broker
             ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
-                var vn = ctx.virtualNode();
-                if (vn.isPresent()) {
-                    return ctx.sendRequest(vn.get(), header, request)
+                if (ctx.endpoint() instanceof VirtualNode vn) {
+                    return ctx.sendRequest(vn, header, request)
                             .thenCompose(body -> ctx.respondWith(body).completed());
                 }
-                return ctx.sendRequest(ctx.anyNode(ROUTE), header, request)
+                return ctx.sendToRoute(ROUTE, header, request)
                         .thenCompose(body -> ctx.respondWith(body).completed());
             });
 
@@ -221,7 +221,7 @@ class RoutingContextContractIT {
             // When
             client.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
 
-            // Then: nodeForId(0) returns a VirtualNode (identity mapping: virtual 0 → route broker 0)
+            // Then
             assertThat(ContextCapturingRouterFactory.lastCapture.get().nodeForIdZero())
                     .as("nodeForId(0) must return a non-null VirtualNode for a single-route setup")
                     .isNotNull()
@@ -242,14 +242,14 @@ class RoutingContextContractIT {
             md.brokers().add(new MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(mockBroker1.port()));
             mockBroker0.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, md));
 
-            // Router: send via the VirtualNode returned by nodeForId(0), always to broker 0
+            // Router: send via nodeForId(0), always to broker 0
             ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
                 if (apiKey == ApiKeys.API_VERSIONS) {
                     var node0 = ctx.nodeForId(0);
                     return ctx.sendRequest(node0, header, request)
                             .thenCompose(body -> ctx.respondWith(body).completed());
                 }
-                return ctx.sendRequest(ctx.anyNode(ROUTE), header, request)
+                return ctx.sendToRoute(ROUTE, header, request)
                         .thenCompose(body -> ctx.respondWith(body).completed());
             });
             mockBroker1.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, new ApiVersionsResponseData()));
@@ -391,7 +391,7 @@ class RoutingContextContractIT {
                 produceHandled.complete(null);
                 return ctx.respondWithoutReply().completed();
             }
-            return ctx.sendRequest(ctx.anyNode(ROUTE), header, request)
+            return ctx.sendToRoute(ROUTE, header, request)
                     .thenCompose(body -> ctx.respondWith(body).completed());
         });
 

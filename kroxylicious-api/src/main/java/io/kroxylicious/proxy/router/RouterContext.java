@@ -15,6 +15,8 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.topology.Bootstrap;
+import io.kroxylicious.proxy.topology.EndpointType;
 import io.kroxylicious.proxy.topology.VirtualNode;
 
 /**
@@ -46,40 +48,47 @@ import io.kroxylicious.proxy.topology.VirtualNode;
 public interface RouterContext {
 
     /**
-     * Returns the virtual node of the broker that the client connected to.
+     * Returns the endpoint type for this client connection.
      *
      * <p>When the client connected to a broker-specific endpoint (i.e. an
      * address that corresponds to a particular broker in the cluster topology),
-     * this returns that broker's virtual node. The router can use this to
-     * send requests — such as {@code API_VERSIONS} — to the specific broker
-     * the client believes it is talking to, rather than an arbitrary broker.</p>
+     * this returns a {@link VirtualNode} identifying that broker.
+     * When the client connected to a bootstrap address, this returns a
+     * {@link Bootstrap}.</p>
      *
-     * <p>When the client connected to a bootstrap address, this returns empty,
-     * because the proxy does not know which broker the client intended.
-     * In that case the router should use {@link #anyNode(String)} to obtain
-     * a node for sending requests.</p>
-     *
-     * @return the virtual node if the client connected to a broker-specific
-     *         endpoint, or empty if the client connected to a bootstrap address
+     * @return the endpoint type for this connection
      */
-    Optional<VirtualNode> virtualNode();
+    EndpointType endpoint();
 
     /**
-     * Returns a virtual node that, when passed to {@link #sendRequest},
-     * causes the runtime to send the request to an arbitrary broker on the
-     * named route's cluster.
+     * Returns the virtual node for this connection, if the client connected to a
+     * broker-specific endpoint.
      *
-     * <p>This is used for initial discovery requests (e.g. {@code METADATA},
-     * {@code FIND_COORDINATOR}) before the router has learned the cluster
-     * topology, and for requests that are not broker-specific. The runtime
-     * selects which broker to use. Repeated calls with the same route
-     * may return different nodes.</p>
-     *
-     * @param route the name of the route
-     * @return a virtual node representing any broker on the route's cluster
-     * @throws IllegalArgumentException if the route name is not known
+     * @return the virtual node, or empty if the client connected to a bootstrap address
+     * @deprecated since 0.23, use {@link #endpoint()} and pattern-match on
+     *     {@link io.kroxylicious.proxy.topology.VirtualNode VirtualNode} instead.
+     *     This method will be removed in a future release.
      */
-    VirtualNode anyNode(String route);
+    @Deprecated(since = "0.23", forRemoval = true)
+    default Optional<VirtualNode> virtualNode() {
+        EndpointType ep = endpoint();
+        return ep instanceof VirtualNode vn ? Optional.of(vn) : Optional.empty();
+    }
+
+    /**
+     * Returns a virtual node for dispatch to any broker on the named route.
+     *
+     * @param route the route name
+     * @return a virtual node (always throws — this method is removed)
+     * @deprecated since 0.23, use {@link #sendToRoute(String, RequestHeaderData, ApiMessage)}
+     *     instead. This method will be removed in a future release.
+     * @throws UnsupportedOperationException always
+     */
+    @Deprecated(since = "0.23", forRemoval = true)
+    default VirtualNode anyNode(String route) {
+        throw new UnsupportedOperationException(
+                "anyNode() is removed; use sendToRoute(route, header, request) instead");
+    }
 
     /**
      * Converts an integer node ID from a protocol response body into a
@@ -100,17 +109,15 @@ public interface RouterContext {
     /**
      * Sends a request to a specific broker identified by virtual node.
      *
-     * <p>The runtime derives the route from the virtual node and resolves
-     * it to a specific upstream broker address, opening a new connection if
-     * necessary. The returned stage completes when the broker produces a
-     * response.</p>
+     * <p>The runtime resolves the virtual node to a specific upstream broker
+     * address, opening a new connection if necessary. The returned stage
+     * completes when the broker produces a response.</p>
      *
      * <p>The {@code node} can be:</p>
      * <ul>
-     *   <li>A value obtained from {@link #virtualNode()} — sends to the
-     *       broker the client connected to</li>
-     *   <li>A value obtained from {@link #anyNode(String)} — sends to an
-     *       arbitrary broker on a route</li>
+     *   <li>A {@link VirtualNode} obtained from
+     *       {@link #endpoint()} — sends to the broker the client
+     *       connected to</li>
      *   <li>A value obtained from {@link #nodeForId(int)} — sends to a
      *       broker whose ID was learned from a protocol response</li>
      *   <li>A value obtained from
@@ -129,6 +136,25 @@ public interface RouterContext {
      */
     CompletionStage<ApiMessage> sendRequest(
                                             VirtualNode node,
+                                            RequestHeaderData header,
+                                            ApiMessage request);
+
+    /**
+     * Sends a request to any broker on the named route's cluster.
+     *
+     * <p>This is used for initial discovery requests (e.g. {@code METADATA},
+     * {@code FIND_COORDINATOR}) before the router has learned the cluster
+     * topology, and for requests that are not broker-specific. The runtime
+     * selects which broker to use.</p>
+     *
+     * @param route the name of the route
+     * @param header the request header
+     * @param request the request body
+     * @return a stage that completes with the response body from the broker
+     * @throws IllegalArgumentException if the route name is not known
+     */
+    CompletionStage<ApiMessage> sendToRoute(
+                                            String route,
                                             RequestHeaderData header,
                                             ApiMessage request);
 
