@@ -895,6 +895,11 @@
                         <skipTests>${skipUTs}</skipTests>
                         <failIfNoTests>false</failIfNoTests>
                         <runOrder>random</runOrder>
+                        <properties>
+                            <configurationParameters>
+                                junit.jupiter.extensions.autodetection.enabled=true
+                            </configurationParameters>
+                        </properties>
                         <statelessTestsetReporter
                                 implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
                             <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
@@ -1202,6 +1207,9 @@
                                         <!-- dependency analyzer seems not to grok that a dependency on a
                                         @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
                                         <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
+                                        </ignoredUnusedDeclaredDependency>
+                                        <!-- registered via ServiceLoader for JUnit 5 auto-detection, no direct import -->
+                                        <ignoredUnusedDeclaredDependency>nz.thebarkers:log-on-fail
                                         </ignoredUnusedDeclaredDependency>
                                     </ignoredUnusedDeclaredDependencies>
                                     <ignoredDependencies>
