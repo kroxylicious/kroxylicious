@@ -567,8 +567,8 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void sendToAnyNodeShouldReturnFailedFutureForNestedRouterRoute() {
-        // Given: routes include a route targeting a nested router (no targetCluster)
+    void sendToAnyNodeShouldFireFrameThroughPipelineForNestedRouterRoute() {
+        // Given
         var rd = new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of());
         var routerRd = new RouteDescriptor("router-route", 1, null, "some-router-name", List.of());
         var handler = new RouterDispatchHandler(
@@ -583,9 +583,8 @@ class RouterDispatchHandlerTest {
         var future = handler.sendToAnyNode("router-route", header, new FetchRequestData(), "test-session", 100);
 
         // Then
-        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
-        assertThatThrownBy(() -> future.toCompletableFuture().get())
-                .hasCauseInstanceOf(UnsupportedOperationException.class);
+        assertThat(future.toCompletableFuture()).isNotDone();
+        assertThat(handler.pendingResponses).hasSize(1);
     }
 
     @Test
@@ -638,7 +637,7 @@ class RouterDispatchHandlerTest {
         assertThat(future.toCompletableFuture()).isCompletedExceptionally();
         assertThatThrownBy(() -> future.toCompletableFuture().get())
                 .hasCauseInstanceOf(IllegalStateException.class)
-                .cause().hasMessageContaining("resolved to invalid route");
+                .cause().hasMessageContaining("resolved to unknown route");
     }
 
     @Test
