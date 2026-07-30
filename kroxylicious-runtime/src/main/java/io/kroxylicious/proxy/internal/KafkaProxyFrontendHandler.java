@@ -55,6 +55,11 @@ import io.kroxylicious.proxy.internal.filter.impl.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
+import io.kroxylicious.proxy.internal.routing.NestedRoutingHandler;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -273,19 +278,70 @@ public class KafkaProxyFrontendHandler
         }
         var filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
         var allRouteFilters = new ArrayList<FilterAndInvoker>();
-        for (var entry : dr.allRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+
+        // Install route filters for top-level routes first, inserting NestedRoutingHandlers
+        // after each router-targeting route's filters, then install nested route filters.
+        for (var entry : dr.routeDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             String routeName = entry.getKey();
-            List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routeName, filterContext);
-            allRouteFilters.addAll(routeFilters);
-            for (int i = 0; i < routeFilters.size(); i++) {
-                FilterAndInvoker fi = routeFilters.get(i);
-                String handlerName = "routeFilter-" + routeName + "-" + i + "-" + fi.filterName();
-                pipeline.addBefore("routingTerminalHandler", handlerName,
-                        new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
-                                clientConnectionStateMachine, routeName));
+            RouteDescriptor rd = entry.getValue();
+            allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, routeName));
+            if (rd.targetsRouter()) {
+                installNestedRoutingHandler(pipeline, dr, rd.routerName(), routeName);
+            }
+        }
+        // Install filters for nested routes (qualified names)
+        for (var entry : dr.allRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+            String qualifiedName = entry.getKey();
+            if (qualifiedName.contains("/")) {
+                allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, qualifiedName));
             }
         }
         return allRouteFilters;
+    }
+
+    private List<FilterAndInvoker> installFiltersForRoute(ChannelPipeline pipeline, Channel clientChannel,
+                                                          NettyFilterContext filterContext,
+                                                          VirtualClusterModel vc, String routeName) {
+        List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routeName, filterContext);
+        for (int i = 0; i < routeFilters.size(); i++) {
+            FilterAndInvoker fi = routeFilters.get(i);
+            String handlerName = "routeFilter-" + routeName + "-" + i + "-" + fi.filterName();
+            pipeline.addBefore("routingTerminalHandler", handlerName,
+                    new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
+                            clientConnectionStateMachine, routeName));
+        }
+        return routeFilters;
+    }
+
+    private void installNestedRoutingHandler(ChannelPipeline pipeline, DynamicRouting dr,
+                                             String nestedRouterName, String activationRoute) {
+        var routerChainFactory = dr.routerChainFactory();
+        // Build the nested router's routes and NodeIdMapping from allRouteDescriptors
+        var nestedRoutes = new java.util.LinkedHashMap<String, RouteDescriptor>();
+        String prefix = nestedRouterName + "/";
+        for (var entry : dr.allRouteDescriptors().entrySet()) {
+            if (entry.getKey().startsWith(prefix)) {
+                String localName = entry.getKey().substring(prefix.length());
+                if (!localName.contains("/")) {
+                    nestedRoutes.put(localName, entry.getValue());
+                }
+            }
+        }
+        NodeIdMapping nestedNodeIdMapping = NodeIdMapping.build(nestedRoutes);
+        var rdh = (RouterDispatchHandler) pipeline.get("routerDispatchHandler");
+        String handlerName = "nestedRoutingHandler-" + activationRoute;
+        pipeline.addBefore("routingTerminalHandler", handlerName,
+                new NestedRoutingHandler(
+                        activationRoute,
+                        nestedRouterName,
+                        clientConnectionStateMachine.clusterName(),
+                        routerChainFactory,
+                        nestedRoutes,
+                        nestedNodeIdMapping,
+                        rdh.correlationIdAllocator(),
+                        clientConnectionStateMachine.sessionId(),
+                        clientConnectionStateMachine.authenticatedSubject(),
+                        clientConnectionStateMachine.endpointBinding() instanceof io.kroxylicious.proxy.internal.net.BrokerEndpointBinding beb ? beb.nodeId() : null));
     }
 
     private List<FilterAndInvoker> buildFilters() {
