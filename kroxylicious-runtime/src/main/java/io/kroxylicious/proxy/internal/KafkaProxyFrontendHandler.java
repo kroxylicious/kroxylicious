@@ -10,6 +10,7 @@ import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -272,7 +273,7 @@ public class KafkaProxyFrontendHandler
         }
         var filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
         var allRouteFilters = new ArrayList<FilterAndInvoker>();
-        for (var entry : dr.routeDescriptors().entrySet()) {
+        for (var entry : dr.routeDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             String routeName = entry.getKey();
             List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routeName, filterContext);
             allRouteFilters.addAll(routeFilters);
