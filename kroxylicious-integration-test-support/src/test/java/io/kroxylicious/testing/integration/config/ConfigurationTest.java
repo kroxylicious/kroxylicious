@@ -26,6 +26,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.flipkart.zjsonpatch.JsonDiff;
 
 import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
@@ -755,7 +756,9 @@ class ConfigurationTest {
     }
 
     @Test
-    void shouldRejectNestedRouters() {
+    void shouldAcceptNestedRouters() {
+        // Given
+        var cluster = new ClusterDefinition("some-cluster", "broker:9092", null);
         var innerRoute = new RouteDefinition("inner-route", 0, List.of(), new RouteTarget("some-cluster", null));
         var innerRouter = new RouterDefinition("inner-router", "SomeFactory", null, List.of(innerRoute));
         var outerRoute = new RouteDefinition("outer-route", 0, List.of(), new RouteTarget(null, "inner-router"));
@@ -766,9 +769,10 @@ class ConfigurationTest {
         var vc = new VirtualCluster("vc1", null, new RouteTarget(null, "outer-router"),
                 List.of(gateway), false, false, null, null, null, null);
 
-        assertThatThrownBy(() -> new Configuration(
+        // When
+        assertThatCode(() -> new Configuration(
                 null,
-                null,
+                List.of(cluster),
                 null,
                 null,
                 List.of(outerRouter, innerRouter),
@@ -778,8 +782,7 @@ class ConfigurationTest {
                 Optional.empty(),
                 null,
                 null))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("nested routers are not yet supported");
+                .doesNotThrowAnyException();
     }
 
     @NonNull
