@@ -273,7 +273,7 @@ public class KafkaProxyFrontendHandler
         }
         var filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
         var allRouteFilters = new ArrayList<FilterAndInvoker>();
-        for (var entry : dr.routeDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+        for (var entry : dr.allRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             String routeName = entry.getKey();
             List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routeName, filterContext);
             allRouteFilters.addAll(routeFilters);

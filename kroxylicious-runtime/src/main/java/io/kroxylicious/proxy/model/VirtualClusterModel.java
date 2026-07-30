@@ -172,7 +172,7 @@ public class VirtualClusterModel implements AutoCloseable {
             return Map.of();
         }
         Map<String, FilterChainFactory> result = new HashMap<>();
-        for (var entry : dr.routeDescriptors().entrySet()) {
+        for (var entry : dr.allRouteDescriptors().entrySet()) {
             List<NamedFilterDefinition> routeFilters = entry.getValue().filters();
             if (!routeFilters.isEmpty()) {
                 result.put(entry.getKey(), new FilterChainFactory(pfr, routeFilters));
