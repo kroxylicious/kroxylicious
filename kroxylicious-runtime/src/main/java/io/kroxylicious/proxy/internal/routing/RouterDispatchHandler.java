@@ -195,6 +195,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Route
         return nodeIdMapping;
     }
 
+    public CorrelationIdAllocator correlationIdAllocator() {
+        return correlationIdAllocator;
+    }
+
     /**
      * Returns the upstream address for the given virtual node ID, as learned from the most
      * recent internal METADATA response. Returns empty if the address has not been cached yet.
@@ -493,13 +497,6 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Route
                     .log("Router attempted to send to unknown route");
             return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown route: " + route));
         }
-        if (!rd.targetsCluster()) {
-            withSendContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, clientCorrelationId)
-                    .log("Router attempted unsupported nested router route");
-            return CompletableFuture.failedFuture(
-                    new UnsupportedOperationException("Routing to nested routers is not yet supported (route: " + route + ")"));
-        }
-
         short requestApiVersion = header.requestApiVersion();
         int routingCorrelationId = correlationIdAllocator.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
@@ -542,18 +539,20 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Route
                                                                String sessionId,
                                                                int clientCorrelationId) {
         RouteDescriptor rd = routes.get(route);
-        if (rd == null || !rd.targetsCluster()) {
+        if (rd == null) {
             withNodeContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, targetNodeId)
-                    .log("Target node resolved to invalid route");
+                    .log("Target node resolved to unknown route");
             return CompletableFuture.failedFuture(
-                    new IllegalStateException("Node " + targetNodeId + " resolved to invalid route: " + route));
+                    new IllegalStateException("Node " + targetNodeId + " resolved to unknown route: " + route));
         }
 
         short requestApiVersion = header.requestApiVersion();
         int routingCorrelationId = correlationIdAllocator.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
         frame.setRouteName(route);
-        frame.setTargetVirtualNodeId(targetNodeId);
+        if (rd.targetsCluster()) {
+            frame.setTargetVirtualNodeId(targetNodeId);
+        }
 
         if (!frame.hasResponse()) {
             fireChannelRead(frame);
