@@ -4,8 +4,8 @@
 = SASL Termination filter
 
 [role="_abstract"]
-The SASL Termination filter terminates SASL authentication at the proxy, authenticating clients against pluggable credential stores.
-This enables centralised credential management without requiring broker-side credential configuration.
+The SASL Termination filter terminates SASL authentication at the proxy, authenticating clients against a pluggable credential store.
+This enables centralized credential management without requiring broker-side credential configuration.
 
 include::../../_modules/authentication/con-sasl-termination-overview.adoc[leveloffset=+1]
 

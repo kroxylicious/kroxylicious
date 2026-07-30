@@ -20,13 +20,13 @@ The proxy controls authentication; the broker sees the proxy's identity, not the
 
 == Key characteristics
 
-*Centralized authentication*:: The proxy performs authentication using centrally managed credential stores.
+*Authentication on the proxy*:: The proxy performs authentication using its credential store.
 
 *Credential isolation*:: Client credentials are managed at the proxy layer and isolated from broker access.
 
 *Identity creation*:: The proxy performs authentication and creates the authenticated subject for downstream filters.
 
-*Broker perspective*:: The broker sees the proxy's identity; client identity is available to proxy filters but not to the broker.
+*Distinct client and proxy identities*:: The broker sees the proxy's identity; client identity is available to proxy filters but not to the broker.
 
 == Use cases
 

@@ -21,39 +21,15 @@ Choose the approach that best fits your security, operational, and compliance re
 
 |*Credential management*
 |Credentials managed on broker
-|Credentials managed at proxy (credential store)
-
-|*Identity extraction*
-|Observes and extracts from broker authentication
-|Performs authentication and creates identity
+|Credentials managed at proxy
 
 |*Broker visibility*
 |Broker sees client identity
-|Broker sees proxy identity (client identity available to filters)
-
-|*TLS requirement*
-|Optional (but recommended)
-|Required for client-to-proxy connections
-
-|*Use case*
-|Extract identity from existing broker authentication
-|Centralise authentication, isolate credentials
-
-|*Credential rotation*
-|Update credentials on broker
-|Update credentials in credential store
+|Broker sees proxy identity (client identity available to proxy)
 
 |*Security isolation*
 |Client credentials known to broker
 |Client credentials isolated from broker
-
-|*Latency*
-|Low (passthrough)
-|Slightly higher (credential lookup + crypto)
-
-|*Complexity*
-|Lower (leverages broker auth)
-|Higher (manages credentials)
 
 |*Supported mechanisms*
 |PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER
@@ -65,10 +41,9 @@ Choose the approach that best fits your security, operational, and compliance re
 Use SASL Inspection when:
 
 * Your Kafka brokers already handle client authentication
-* You want to extract authenticated identity for use by other filters (like Authorization)
+* You want to extract authenticated identity for use by other Proxy plugins (like Authorization)
 * You want minimal proxy involvement in authentication
 * You don't need to isolate client credentials from broker access
-* Performance is critical (lower latency)
 * You need PLAIN mechanism support
 
 *Example scenarios:*
@@ -82,16 +57,16 @@ Use SASL Inspection when:
 
 Use SASL Termination when:
 
-* You need centralised credential management across multiple clusters
+* You need centralized credential management across multiple clusters
 * You want to isolate client credentials from broker access
 * Your security or compliance requirements mandate authentication at a security boundary
-* You want to simplify broker configuration by centralising credential management
+* You want to simplify broker configuration by centralizing credential management
 * You need credential rotation without broker reconfiguration
-* You want to support different authentication mechanisms between clients and brokers
+* You want to support different authentication mechanisms between clients and brokers.
 
 *Example scenarios:*
 
-* Multi-tenant environments with centralised credential management
+* Multi-tenant environments with centralized credential management
 * Security architectures requiring authentication termination at the perimeter
 * Compliance scenarios requiring audit of authentication at proxy layer
 * Simplifying broker deployment by removing client credential management
@@ -149,6 +124,14 @@ Use this matrix to help choose the appropriate approach:
 |✓
 |
 
+|PLAIN mechanism required
+|✓
+|
+
+|SCRAM-SHA-256 or SCRAM-SHA-512 mechanisms required
+|✓
+|✓
+
 |OAUTHBEARER mechanism required
 |✓
 |✓
@@ -161,32 +144,25 @@ Use this matrix to help choose the appropriate approach:
 |
 |✓
 
-|Frequent credential rotation required
-|
-|✓
-
-|Multi-cluster credential consistency needed
-|
-|✓
 |===
 
-== Migration considerations
-
-*From broker authentication to SASL Termination:*
-
-1. Create credential keystore with user credentials
-2. Configure SASL Termination filter
-3. Configure TLS for client-to-proxy connections
-4. Test authentication with a subset of clients
-5. Gradually migrate clients to proxy authentication
-6. Optionally remove client credentials from brokers
-
-*From SASL Termination to SASL Inspection:*
-
-1. Configure broker with client credentials
-2. Replace SASL Termination filter with SASL Inspection filter
-3. Test authentication with a subset of clients
-4. Gradually migrate clients
-5. Optionally remove credential keystore and SASL Termination configuration
-
-NOTE: Changing authentication approaches requires coordination with client applications and may require credential provisioning on the target system (broker or proxy).
+// == Migration considerations
+//
+// *From broker authentication to SASL Termination:*
+//
+// 1. Create credential keystore with user credentials
+// 2. Configure SASL Termination filter
+// 3. Configure TLS for client-to-proxy connections
+// 4. Test authentication with a subset of clients
+// 5. Gradually migrate clients to proxy authentication
+// 6. Optionally remove client credentials from brokers
+//
+// *From SASL Termination to SASL Inspection:*
+//
+// 1. Configure broker with client credentials
+// 2. Replace SASL Termination filter with SASL Inspection filter
+// 3. Test authentication with a subset of clients
+// 4. Gradually migrate clients
+// 5. Optionally remove credential keystore and SASL Termination configuration
+//
+// NOTE: Changing authentication approaches requires coordination with client applications and may require credential provisioning on the target system (broker or proxy).

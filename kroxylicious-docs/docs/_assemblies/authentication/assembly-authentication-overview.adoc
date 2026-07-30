@@ -13,7 +13,7 @@ Kroxylicious supports two fundamentally different approaches to handling client 
 
 * *SASL Inspection* - The proxy observes the SASL authentication exchange between clients and brokers, extracting the authenticated identity after successful authentication of the client by the broker.
 
-* *SASL Termination* - The proxy performs SASL authentication directly, validating client credentials against credential stores before establishing broker connections.
+* *SASL Termination* - The proxy performs SASL authentication directly, validating client credentials against a credential store before establishing broker connections.
 
 include::../../_modules/authentication/con-sasl-inspection-approach.adoc[leveloffset=+2]
 
