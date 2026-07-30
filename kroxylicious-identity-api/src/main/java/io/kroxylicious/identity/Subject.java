@@ -4,14 +4,11 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.authentication;
+package io.kroxylicious.identity;
 
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import io.kroxylicious.identity.Identity;
-import io.kroxylicious.identity.SingularPrincipal;
 
 /**
  * <p>Represents an actor in the system.
@@ -24,13 +21,11 @@ import io.kroxylicious.identity.SingularPrincipal;
  * <ul>
  * <li>information proven by a client, such as a SASL authorized id,</li>
  * <li>information known about the client, such as the remote peer's IP address,</li>
- * <li>information obtained about the client from a trusted source, such as lookup up role or group information from a directory.</li>
+ * <li>information obtained about the client from a trusted source, such as looking up role or group information from a directory.</li>
  * </ul>
  *
  * @param principals the set of identifiers associated with this subject.
- * @deprecated Use {@link io.kroxylicious.identity.Subject} instead.
  */
-@Deprecated(since = "0.23.0")
 @SuppressWarnings("deprecation")
 public record Subject(Set<Principal> principals) implements Identity {
 
@@ -53,24 +48,20 @@ public record Subject(Set<Principal> principals) implements Identity {
     }
 
     /**
-     * Creates a subject from the given principal set. Validates that non-empty subjects have exactly one {@link User} principal.
+     * Creates a subject from the given principal set.
+     * Validates that principal types annotated with {@link SingularPrincipal} have at most one instance.
      * @param principals the principals
      */
     public Subject(Set<Principal> principals) {
         principals.stream()
                 .collect(Collectors.groupingBy(Object::getClass))
                 .forEach((principalClass, instances) -> {
-                    if (isSingularPrincipal(principalClass) && instances.size() > 1) {
+                    if (principalClass.isAnnotationPresent(SingularPrincipal.class) && instances.size() > 1) {
                         throw new IllegalArgumentException(
                                 instances.size() + " principals of " + principalClass + " were found, but " + principalClass + " is annotated with "
                                         + SingularPrincipal.class);
                     }
-
                 });
-        Optional<User> user = uniquePrincipalOfType(principals, User.class);
-        if (!principals.isEmpty() && user.isEmpty()) {
-            throw new IllegalArgumentException("A subject with non-empty principals must have exactly one " + User.class.getName() + " principal.");
-        }
         this.principals = Set.copyOf(principals);
     }
 
@@ -79,10 +70,11 @@ public record Subject(Set<Principal> principals) implements Identity {
      * @param uniquePrincipalType the principal type, which must be annotated with {@link SingularPrincipal}
      * @param <P> the principal type
      * @return the principal, or empty
+     * @throws IllegalArgumentException if the type is not annotated with {@link SingularPrincipal}
      */
     @Override
-    public <P extends io.kroxylicious.identity.Principal> Optional<P> uniquePrincipalOfType(Class<P> uniquePrincipalType) {
-        if (!isSingularPrincipal(uniquePrincipalType)) {
+    public <P extends Principal> Optional<P> uniquePrincipalOfType(Class<P> uniquePrincipalType) {
+        if (!uniquePrincipalType.isAnnotationPresent(SingularPrincipal.class)) {
             throw new IllegalArgumentException(uniquePrincipalType + " is not annotated with " + SingularPrincipal.class);
         }
         return principals.stream()
@@ -97,23 +89,7 @@ public record Subject(Set<Principal> principals) implements Identity {
      */
     @Override
     public boolean isAnonymous() {
-        return this.principals.isEmpty();
-    }
-
-    private static <P extends Principal> Optional<P> uniquePrincipalOfType(Set<Principal> principals, Class<P> uniquePrincipalType) {
-        if (isSingularPrincipal(uniquePrincipalType)) {
-            return principals.stream()
-                    .filter(uniquePrincipalType::isInstance)
-                    .map(uniquePrincipalType::cast)
-                    .findFirst();
-        }
-        else {
-            throw new IllegalArgumentException(uniquePrincipalType + " is not annotated with " + SingularPrincipal.class);
-        }
-    }
-
-    private static boolean isSingularPrincipal(Class<?> principalClass) {
-        return principalClass.isAnnotationPresent(SingularPrincipal.class) || principalClass.isAnnotationPresent(Unique.class);
+        return principals.isEmpty();
     }
 
     /**
@@ -123,11 +99,10 @@ public record Subject(Set<Principal> principals) implements Identity {
      * @return the matching principals
      */
     @Override
-    public <P extends io.kroxylicious.identity.Principal> Set<P> allPrincipalsOfType(Class<P> principalType) {
-        return this.principals.stream()
+    public <P extends Principal> Set<P> allPrincipalsOfType(Class<P> principalType) {
+        return principals.stream()
                 .filter(principalType::isInstance)
                 .map(principalType::cast)
                 .collect(Collectors.toSet());
     }
-
 }

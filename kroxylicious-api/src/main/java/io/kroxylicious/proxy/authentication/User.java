@@ -6,11 +6,13 @@
 
 package io.kroxylicious.proxy.authentication;
 
+import io.kroxylicious.identity.SingularPrincipal;
+
 /**
  * A principal identifying an authenticated client.
  * It is currently required to use this principal to represent clients that have authenticated via
  * TLS or SASL.
  * @param name The name of the user.
  */
-@Unique
+@SingularPrincipal
 public record User(String name) implements Principal {}

@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.authentication;
 
-import io.kroxylicious.identity.SingularPrincipal;
-
-@SingularPrincipal
-public record FakeUniquePrincipal(String name) implements Principal {}
+@SuppressWarnings("deprecation")
+@Unique
+public record FakeOldUniquePrincipal(String name) implements Principal {}

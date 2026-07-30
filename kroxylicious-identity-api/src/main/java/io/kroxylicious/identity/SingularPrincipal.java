@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.authentication;
+package io.kroxylicious.identity;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -12,15 +12,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * <p>Annotates implementations {@link Principal} which are only intended to
+ * <p>Annotates implementations of {@link Principal} which are only intended to
  * have a single instance present in a {@link Subject}'s {@code principals}.</p>
  *
- * <p>Annotated classes may then be used with {@link Subject#uniquePrincipalOfType(Class)}.</p>
- *
- * @deprecated Use {@link io.kroxylicious.identity.SingularPrincipal} instead.
+ * <p>Annotated classes may then be used with {@link Identity#uniquePrincipalOfType(Class)}.</p>
  */
-@Deprecated(since = "0.23.0")
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface Unique {
+public @interface SingularPrincipal {
 }
