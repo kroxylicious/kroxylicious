@@ -452,7 +452,7 @@ class ConfigurationValidationTest {
     }
 
     @Test
-    void shouldRejectRouteTargetingNestedRouter() {
+    void shouldAcceptRouteTargetingNestedRouter() {
         var cluster = new ClusterDefinition("c1", "broker:9092", null);
         var innerRoute = new RouteDefinition("inner-r", 0, null, new RouteTarget("c1", null));
         var innerRouter = new RouterDefinition("inner", "Type", null, List.of(innerRoute));
@@ -462,14 +462,14 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "outer"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
-        assertThatThrownBy(() -> new Configuration(null, List.of(cluster), null, null, List.of(outerRouter, innerRouter),
+        // When
+        assertThatCode(() -> new Configuration(null, List.of(cluster), null, null, List.of(outerRouter, innerRouter),
                 List.of(vc), null, false, Optional.empty(), null, null))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("nested routers are not yet supported");
+                .doesNotThrowAnyException();
     }
 
     @Test
-    void shouldRejectMixedRouteWithNestedRouterTarget() {
+    void shouldAcceptMixedRouteWithNestedRouterTarget() {
         var c1 = new ClusterDefinition("c1", "broker1:9092", null);
         var c2 = new ClusterDefinition("c2", "broker2:9092", null);
         var innerRoute = new RouteDefinition("ir", 0, null, new RouteTarget("c2", null));
@@ -481,9 +481,9 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "myrouter"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
-        assertThatThrownBy(() -> new Configuration(null, List.of(c1, c2), null, null, List.of(router, innerRouter),
+        // When
+        assertThatCode(() -> new Configuration(null, List.of(c1, c2), null, null, List.of(router, innerRouter),
                 List.of(vc), null, false, Optional.empty(), null, null))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("nested routers are not yet supported");
+                .doesNotThrowAnyException();
     }
 }

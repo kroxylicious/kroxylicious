@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.config;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -129,12 +130,6 @@ public record Configuration(
 
         for (var router : routerDefinitions) {
             for (var route : router.routes()) {
-                if (route.router() != null) {
-                    throw new IllegalConfigurationException(
-                            "Router '" + router.name() + "' route '" + route.name()
-                                    + "' targets router '" + route.router()
-                                    + "': nested routers are not yet supported");
-                }
                 if (route.filters() != null) {
                     checkNamedFiltersAreDefined(filterDefsByName, route.filters(),
                             "routerDefinitions." + router.name() + ".routes." + route.name() + ".filters");
@@ -266,14 +261,15 @@ public record Configuration(
         RoutingModel routing;
         if (virtualCluster.router() != null) {
             var routeDescriptors = resolveRouteDescriptors(virtualCluster, filterDefinitionsByName, routersByName, clustersByName);
+            var allRouteDescriptors = resolveAllRouteDescriptors(virtualCluster, filterDefinitionsByName, routersByName, clustersByName);
             var routerChainFactory = RouterChainFactory.forVirtualCluster(pfr, virtualCluster, routersByName);
             var clusterModels = new HashMap<String, UpstreamClusterModel>();
-            for (var entry : routeDescriptors.entrySet()) {
+            for (var entry : allRouteDescriptors.entrySet()) {
                 if (entry.getValue().targetsCluster()) {
                     clusterModels.put(entry.getKey(), UpstreamClusterModel.build(entry.getValue().targetCluster(), pfr));
                 }
             }
-            routing = new DynamicRouting(virtualCluster.router(), routeDescriptors, routerChainFactory, clusterModels);
+            routing = new DynamicRouting(virtualCluster.router(), routeDescriptors, allRouteDescriptors, routerChainFactory, clusterModels);
         }
         else {
             var targetCluster = resolveDirectTargetCluster(virtualCluster, clustersByName);
@@ -328,6 +324,13 @@ public record Configuration(
                     "Virtual cluster '" + virtualCluster.name() + "' references unknown router '"
                             + virtualCluster.router() + "'");
         }
+        return resolveRouterRoutes(rd, filterDefinitionsByName, clustersByName);
+    }
+
+    private Map<String, RouteDescriptor> resolveRouterRoutes(
+                                                             RouterDefinition rd,
+                                                             Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                                             Map<String, ClusterDefinition> clustersByName) {
         return rd.routes().stream()
                 .collect(Collectors.toMap(
                         RouteDefinition::name,
@@ -340,6 +343,55 @@ public record Configuration(
                                     : List.of();
                             return new RouteDescriptor(route.name(), route.id(), tc, route.router(), routeFilters);
                         }));
+    }
+
+    /**
+     * Resolves route descriptors for all routers reachable from the virtual cluster's
+     * router graph. Top-level routes use their local (unqualified) names to match existing
+     * frame routing behaviour. Nested routes use qualified names ({@code routerName/routeName})
+     * to avoid collisions since route names are only unique within a single router.
+     */
+    private Map<String, RouteDescriptor> resolveAllRouteDescriptors(
+                                                                    VirtualCluster virtualCluster,
+                                                                    Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                                                    Map<String, RouterDefinition> routersByName,
+                                                                    Map<String, ClusterDefinition> clustersByName) {
+        RouterDefinition topRouter = routersByName.get(virtualCluster.router());
+        if (topRouter == null) {
+            return Map.of();
+        }
+        Map<String, RouteDescriptor> all = new LinkedHashMap<>();
+        Map<String, RouteDescriptor> topLevel = resolveRouterRoutes(topRouter, filterDefinitionsByName, clustersByName);
+        all.putAll(topLevel);
+        for (var entry : topLevel.entrySet()) {
+            if (entry.getValue().targetsRouter()) {
+                collectNestedRouteDescriptors(entry.getValue().routerName(), routersByName,
+                        filterDefinitionsByName, clustersByName, all);
+            }
+        }
+        return all;
+    }
+
+    private void collectNestedRouteDescriptors(
+                                               String routerName,
+                                               Map<String, RouterDefinition> routersByName,
+                                               Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                               Map<String, ClusterDefinition> clustersByName,
+                                               Map<String, RouteDescriptor> collector) {
+        RouterDefinition rd = routersByName.get(routerName);
+        if (rd == null) {
+            return;
+        }
+        Map<String, RouteDescriptor> routerRoutes = resolveRouterRoutes(rd, filterDefinitionsByName, clustersByName);
+        for (var entry : routerRoutes.entrySet()) {
+            String qualifiedName = routerName + "/" + entry.getKey();
+            collector.put(qualifiedName, entry.getValue());
+            RouteDescriptor desc = entry.getValue();
+            if (desc.targetsRouter()) {
+                collectNestedRouteDescriptors(desc.routerName(), routersByName,
+                        filterDefinitionsByName, clustersByName, collector);
+            }
+        }
     }
 
     private static void addGateways(List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {

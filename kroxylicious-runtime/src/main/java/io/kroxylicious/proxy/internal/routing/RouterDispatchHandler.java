@@ -58,7 +58,7 @@ import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
  * <p>The {@link #write} override applies node ID translation for statically-routed
  * API keys whose responses carry broker node IDs.
  */
-public class RouterDispatchHandler extends ChannelDuplexHandler {
+public class RouterDispatchHandler extends ChannelDuplexHandler implements RouterDispatch {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterDispatchHandler.class);
 
@@ -104,7 +104,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     @Nullable
     private final Integer nodeId;
 
-    record PendingResponse(CompletableFuture<ApiMessage> future, String route) {}
+    record PendingResponse(CompletableFuture<ApiMessage> future, String route, NodeIdMapping nodeIdMapping) {}
 
     /**
      * Creates a dispatch handler with a private (non-shared) upstream node address cache.
@@ -183,6 +183,16 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                     .log("Connection closed with pending router responses");
         }
         router.close();
+    }
+
+    @Override
+    public Map<String, RouteDescriptor> routes() {
+        return routes;
+    }
+
+    @Override
+    public NodeIdMapping nodeIdMapping() {
+        return nodeIdMapping;
     }
 
     /**
@@ -410,7 +420,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
             if (correlationIdAllocator.inRange(correlationId)) {
                 PendingResponse pendingResponse = pendingResponses.remove(correlationId);
                 if (pendingResponse != null) {
-                    NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), nodeIdMapping, pendingResponse.route());
+                    NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), pendingResponse.nodeIdMapping(), pendingResponse.route());
                     cacheNodeAddressesIfMetadata(frame.body());
                     pendingResponse.future().complete(frame.body());
                     LOGGER.atTrace()
@@ -438,11 +448,12 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         ctx.write(msg, promise);
     }
 
-    CompletionStage<ApiMessage> sendToAnyNode(String route,
-                                              RequestHeaderData header,
-                                              ApiMessage request,
-                                              String sessionId,
-                                              int clientCorrelationId) {
+    @Override
+    public CompletionStage<ApiMessage> sendToAnyNode(String route,
+                                                     RequestHeaderData header,
+                                                     ApiMessage request,
+                                                     String sessionId,
+                                                     int clientCorrelationId) {
         return executeOnEventLoop(() -> doSendToAny(route, header, request, sessionId, clientCorrelationId));
     }
 
@@ -504,7 +515,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         }
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
+        pendingResponses.put(routingCorrelationId, new PendingResponse(future, route, nodeIdMapping));
         fireChannelRead(frame);
 
         withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
@@ -514,12 +525,13 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         return future;
     }
 
-    CompletionStage<ApiMessage> sendToSpecificNode(int targetNodeId,
-                                                   String route,
-                                                   RequestHeaderData header,
-                                                   ApiMessage request,
-                                                   String sessionId,
-                                                   int clientCorrelationId) {
+    @Override
+    public CompletionStage<ApiMessage> sendToSpecificNode(int targetNodeId,
+                                                          String route,
+                                                          RequestHeaderData header,
+                                                          ApiMessage request,
+                                                          String sessionId,
+                                                          int clientCorrelationId) {
         return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId));
     }
 
@@ -553,7 +565,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         }
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
+        pendingResponses.put(routingCorrelationId, new PendingResponse(future, route, nodeIdMapping));
         fireChannelRead(frame);
 
         withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)

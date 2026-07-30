@@ -959,9 +959,9 @@ public class ClientConnectionStateMachine {
             throw new IllegalStateException(
                     "toForwardingWithRoutes called but virtualCluster has no router — this is a bug");
         }
-        var descriptors = dr.routeDescriptors();
+        var allDescriptors = dr.allRouteDescriptors();
         routeTargets = new HashMap<>();
-        for (var entry : descriptors.entrySet()) {
+        for (var entry : allDescriptors.entrySet()) {
             RouteDescriptor rd = entry.getValue();
             if (rd.targetsCluster()) {
                 routeTargets.put(entry.getKey(), Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
@@ -973,7 +973,7 @@ public class ClientConnectionStateMachine {
         // Server connections are opened lazily in forwardToRoute().
         if (endpointBinding instanceof BrokerEndpointBinding beb) {
             var routeAndNode = dr.nodeIdMapping().fromVirtual(beb.nodeId());
-            RouteDescriptor owningDesc = descriptors.get(routeAndNode.route());
+            RouteDescriptor owningDesc = dr.routeDescriptors().get(routeAndNode.route());
             if (owningDesc != null && owningDesc.targetsCluster()) {
                 routeTargets.put(routeAndNode.route(), beb.upstreamTarget());
             }
