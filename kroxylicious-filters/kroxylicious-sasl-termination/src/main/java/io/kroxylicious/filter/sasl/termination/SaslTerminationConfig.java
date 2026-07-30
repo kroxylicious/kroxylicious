@@ -20,10 +20,23 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * @param mechanisms list of mechanism configurations
  * @param maxTimeBeforeReauth maximum session lifetime before reauthentication is required (KIP-368), null = disabled
+ * @param fixedAuthDelay fixed delay applied to all authentication rounds to prevent timing side-channels, null = 200ms default
  */
 public record SaslTerminationConfig(
                                     @JsonProperty(required = true) List<MechanismConfig> mechanisms,
-                                    @Nullable Duration maxTimeBeforeReauth) {
+                                    @Nullable Duration maxTimeBeforeReauth,
+                                    @Nullable Duration fixedAuthDelay) {
+
+    private static final Duration DEFAULT_FIXED_AUTH_DELAY = Duration.ofMillis(200);
+
+    /**
+     * Returns the effective fixed auth delay, defaulting to 200ms if not configured.
+     *
+     * @return the fixed auth delay duration, never null
+     */
+    public Duration effectiveFixedAuthDelay() {
+        return fixedAuthDelay != null ? fixedAuthDelay : DEFAULT_FIXED_AUTH_DELAY;
+    }
 
     public SaslTerminationConfig {
         if (mechanisms == null || mechanisms.isEmpty()) {

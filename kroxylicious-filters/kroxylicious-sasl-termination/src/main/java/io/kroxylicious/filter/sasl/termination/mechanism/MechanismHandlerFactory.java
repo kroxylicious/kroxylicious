@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
 import java.time.Clock;
+import java.time.Duration;
 
 import io.kroxylicious.filter.sasl.termination.MechanismConfig;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
@@ -43,9 +44,12 @@ public interface MechanismHandlerFactory extends AutoCloseable {
      * @param config the mechanism-specific configuration
      * @param context the filter factory context for plugin resolution
      * @param clock clock for time-dependent operations (e.g. token lifetime computation)
+     * @param fixedAuthDelay fixed delay applied to all authentication rounds for timing side-channel mitigation
      * @throws PluginConfigurationException if the configuration is invalid
      */
-    void initialize(MechanismConfig config, FilterFactoryContext context, Clock clock) throws PluginConfigurationException;
+    void initialize(MechanismConfig config, FilterFactoryContext context, Clock clock,
+                    Duration fixedAuthDelay)
+            throws PluginConfigurationException;
 
     /**
      * Create a new mechanism handler instance.

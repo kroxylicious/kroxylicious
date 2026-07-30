@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -178,7 +179,8 @@ class ScramTimingTest {
     }
 
     private double timeFirstRound(ScramCredentialStore credentialStore, String username, String password) {
-        ScramHandler handler = new ScramHandler(ScramMechanism.SCRAM_SHA_256, credentialStore, Clock.systemUTC());
+        ScramHandler handler = new ScramHandler(ScramMechanism.SCRAM_SHA_256, credentialStore, Clock.systemUTC(),
+                Duration.ofMillis(200));
         try {
             SaslClient client = Sasl.createSaslClient(
                     new String[]{ "SCRAM-SHA-256" },

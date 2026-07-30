@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -38,7 +39,7 @@ class ScramHandlerTest {
     @BeforeEach
     void setUp() {
         credentialStore = mock(ScramCredentialStore.class);
-        handler = new ScramHandler(ScramMechanism.SCRAM_SHA_256, credentialStore, java.time.Clock.systemUTC());
+        handler = new ScramHandler(ScramMechanism.SCRAM_SHA_256, credentialStore, java.time.Clock.systemUTC(), Duration.ZERO);
     }
 
     @AfterEach
@@ -55,7 +56,7 @@ class ScramHandlerTest {
 
     @Test
     void shouldReturnCorrectMechanismNameForSha512() {
-        handler = new ScramHandler(ScramMechanism.SCRAM_SHA_512, credentialStore, java.time.Clock.systemUTC());
+        handler = new ScramHandler(ScramMechanism.SCRAM_SHA_512, credentialStore, java.time.Clock.systemUTC(), Duration.ZERO);
         assertThat(handler.mechanismName()).isEqualTo("SCRAM-SHA-512");
     }
 

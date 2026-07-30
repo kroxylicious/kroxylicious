@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
 import java.time.Clock;
+import java.time.Duration;
 
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 
@@ -34,6 +35,7 @@ public class ScramSha256HandlerFactory implements MechanismHandlerFactory {
     @Nullable
     private ScramCredentialStoreService<?> credentialStoreService;
     private Clock clock = Clock.systemUTC();
+    private Duration fixedAuthDelay = Duration.ZERO;
 
     @Override
     public String mechanismName() {
@@ -42,8 +44,11 @@ public class ScramSha256HandlerFactory implements MechanismHandlerFactory {
 
     @Override
     @SuppressWarnings("unchecked")
-    public void initialize(MechanismConfig config, FilterFactoryContext context, Clock clock) throws PluginConfigurationException {
+    public void initialize(MechanismConfig config, FilterFactoryContext context, Clock clock,
+                           Duration fixedAuthDelay)
+            throws PluginConfigurationException {
         this.clock = clock;
+        this.fixedAuthDelay = fixedAuthDelay;
         if (!(config instanceof ScramMechanismConfig scramConfig)) {
             throw new PluginConfigurationException(
                     "SCRAM-SHA-256 requires SCRAM mechanism configuration with credentialStore");
@@ -59,7 +64,7 @@ public class ScramSha256HandlerFactory implements MechanismHandlerFactory {
 
     @Override
     public MechanismHandler createHandler() {
-        return new ScramHandler(ScramMechanism.SCRAM_SHA_256, credentialStore, clock);
+        return new ScramHandler(ScramMechanism.SCRAM_SHA_256, credentialStore, clock, fixedAuthDelay);
     }
 
     @Override

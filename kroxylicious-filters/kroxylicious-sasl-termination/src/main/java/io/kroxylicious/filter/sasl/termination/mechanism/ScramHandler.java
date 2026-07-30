@@ -52,11 +52,11 @@ public class ScramHandler implements MechanismHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ScramHandler.class);
     private static final Map<String, String> SASL_PROPS = Map.of();
-    static final Duration AUTHENTICATION_DELAY = Duration.ofMillis(200);
 
     private final String mechanismName;
     private final ScramCredentialStore credentialStore;
     private final Clock clock;
+    private final Duration fixedAuthDelay;
 
     @Nullable
     private SaslServer saslServer;
@@ -70,11 +70,14 @@ public class ScramHandler implements MechanismHandler {
      * @param mechanism the SCRAM mechanism (SHA-256 or SHA-512)
      * @param credentialStore the credential store for looking up user credentials
      * @param clock clock for timing delay computation
+     * @param fixedAuthDelay fixed delay applied to all rounds for timing side-channel mitigation
      */
-    public ScramHandler(ScramMechanism mechanism, ScramCredentialStore credentialStore, Clock clock) {
+    public ScramHandler(ScramMechanism mechanism, ScramCredentialStore credentialStore, Clock clock,
+                        Duration fixedAuthDelay) {
         this.mechanismName = mechanism.mechanismName();
         this.credentialStore = Objects.requireNonNull(credentialStore);
         this.clock = Objects.requireNonNull(clock);
+        this.fixedAuthDelay = Objects.requireNonNull(fixedAuthDelay);
     }
 
     @Override
@@ -84,7 +87,7 @@ public class ScramHandler implements MechanismHandler {
 
     @Override
     public CompletionStage<AuthenticationResult> handleAuthenticate(byte[] authBytes) {
-        Instant deadline = clock.instant().plus(AUTHENTICATION_DELAY);
+        Instant start = clock.instant();
         CompletionStage<AuthenticationResult> result;
         if (saslServer == null) {
             result = handleFirstRound(authBytes);
@@ -92,7 +95,21 @@ public class ScramHandler implements MechanismHandler {
         else {
             result = handleSubsequentRound(authBytes);
         }
-        return result.thenCompose(r -> delayUntil(deadline, r));
+        if (fixedAuthDelay.isZero()) {
+            return result;
+        }
+        Instant deadline = start.plus(fixedAuthDelay);
+        return result.thenCompose(r -> {
+            Duration elapsed = Duration.between(start, clock.instant());
+            if (elapsed.compareTo(fixedAuthDelay) > 0) {
+                LOGGER.atWarn()
+                        .addKeyValue("mechanism", mechanismName)
+                        .addKeyValue("elapsed", elapsed)
+                        .addKeyValue("fixedAuthDelay", fixedAuthDelay)
+                        .log("Authentication took longer than fixedAuthDelay, consider increasing fixedAuthDelay");
+            }
+            return delayUntil(deadline, r);
+        });
     }
 
     @Override

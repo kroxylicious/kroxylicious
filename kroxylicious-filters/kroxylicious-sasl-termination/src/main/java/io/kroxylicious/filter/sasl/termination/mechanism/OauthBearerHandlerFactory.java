@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -54,6 +55,7 @@ public class OauthBearerHandlerFactory implements MechanismHandlerFactory {
     @Nullable
     private Runnable urlCleanupTask;
     private Clock clock = Clock.systemUTC();
+    private Duration fixedAuthDelay = Duration.ZERO;
 
     @Override
     public String mechanismName() {
@@ -61,8 +63,11 @@ public class OauthBearerHandlerFactory implements MechanismHandlerFactory {
     }
 
     @Override
-    public void initialize(MechanismConfig config, FilterFactoryContext context, Clock clock) throws PluginConfigurationException {
+    public void initialize(MechanismConfig config, FilterFactoryContext context, Clock clock,
+                           Duration fixedAuthDelay)
+            throws PluginConfigurationException {
         this.clock = clock;
+        this.fixedAuthDelay = fixedAuthDelay;
         if (!(config instanceof OauthBearerMechanismConfig oauthConfig)) {
             throw new PluginConfigurationException(
                     "OAUTHBEARER requires OAuth bearer mechanism configuration with jwksEndpointUrl");
@@ -84,7 +89,7 @@ public class OauthBearerHandlerFactory implements MechanismHandlerFactory {
 
     @Override
     public MechanismHandler createHandler() {
-        return new OauthBearerHandler(callbackHandler, clock);
+        return new OauthBearerHandler(callbackHandler, clock, fixedAuthDelay);
     }
 
     @Override

@@ -7,9 +7,13 @@
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslException;
@@ -52,6 +56,7 @@ public class OauthBearerHandler implements MechanismHandler {
 
     private final OAuthBearerValidatorCallbackHandler callbackHandler;
     private final Clock clock;
+    private final Duration fixedAuthDelay;
 
     @Nullable
     private SaslServer saslServer;
@@ -61,10 +66,13 @@ public class OauthBearerHandler implements MechanismHandler {
      *
      * @param callbackHandler the configured callback handler for JWT validation
      * @param clock clock for computing token remaining lifetime
+     * @param fixedAuthDelay fixed delay applied to all rounds for timing side-channel mitigation
      */
-    public OauthBearerHandler(OAuthBearerValidatorCallbackHandler callbackHandler, Clock clock) {
+    public OauthBearerHandler(OAuthBearerValidatorCallbackHandler callbackHandler, Clock clock,
+                              Duration fixedAuthDelay) {
         this.callbackHandler = Objects.requireNonNull(callbackHandler);
         this.clock = Objects.requireNonNull(clock);
+        this.fixedAuthDelay = Objects.requireNonNull(fixedAuthDelay);
     }
 
     @Override
@@ -74,6 +82,26 @@ public class OauthBearerHandler implements MechanismHandler {
 
     @Override
     public CompletionStage<AuthenticationResult> handleAuthenticate(byte[] authBytes) {
+        Instant start = clock.instant();
+        CompletionStage<AuthenticationResult> result = doHandleAuthenticate(authBytes);
+        if (fixedAuthDelay.isZero()) {
+            return result;
+        }
+        Instant deadline = start.plus(fixedAuthDelay);
+        return result.thenCompose(r -> {
+            Duration elapsed = Duration.between(start, clock.instant());
+            if (elapsed.compareTo(fixedAuthDelay) > 0) {
+                LOGGER.atWarn()
+                        .addKeyValue("mechanism", OAUTHBEARER_MECHANISM)
+                        .addKeyValue("elapsed", elapsed)
+                        .addKeyValue("fixedAuthDelay", fixedAuthDelay)
+                        .log("Authentication took longer than fixedAuthDelay, consider increasing fixedAuthDelay");
+            }
+            return delayUntil(deadline, r);
+        });
+    }
+
+    private CompletionStage<AuthenticationResult> doHandleAuthenticate(byte[] authBytes) {
         try {
             if (saslServer == null) {
                 saslServer = Sasl.createSaslServer(
@@ -115,6 +143,15 @@ public class OauthBearerHandler implements MechanismHandler {
                     AuthenticationResult.failure(new byte[0],
                             "Authentication failed: " + e.getMessage()));
         }
+    }
+
+    private CompletionStage<AuthenticationResult> delayUntil(Instant deadline, AuthenticationResult result) {
+        long remainingMs = Duration.between(clock.instant(), deadline).toMillis();
+        if (remainingMs <= 0) {
+            return CompletableFuture.completedFuture(result);
+        }
+        Executor delayed = CompletableFuture.delayedExecutor(remainingMs, TimeUnit.MILLISECONDS);
+        return CompletableFuture.supplyAsync(() -> result, delayed);
     }
 
     private long extractTokenLifetimeMs() {

@@ -29,7 +29,7 @@ class OauthBearerHandlerTest {
     @BeforeEach
     void setUp() {
         callbackHandler = new OAuthBearerValidatorCallbackHandler();
-        handler = new OauthBearerHandler(callbackHandler, java.time.Clock.systemUTC());
+        handler = new OauthBearerHandler(callbackHandler, java.time.Clock.systemUTC(), java.time.Duration.ZERO);
     }
 
     @AfterEach

@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.sasl.termination;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -99,7 +100,7 @@ class SaslTerminationTest {
     @Test
     void shouldRejectEmptyMechanismsList() {
         // When/Then
-        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(), null))
+        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(), null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("At least one mechanism must be configured");
     }
@@ -111,7 +112,7 @@ class SaslTerminationTest {
         var config2 = new ScramSha256MechanismConfig("store2", new Object());
 
         // When/Then
-        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(config1, config2), null))
+        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(config1, config2), null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Duplicate mechanism: SCRAM-SHA-256");
     }
@@ -125,7 +126,7 @@ class SaslTerminationTest {
                 null, null, null, null, null);
 
         // When
-        var config = new SaslTerminationConfig(List.of(scram, oauth), null);
+        var config = new SaslTerminationConfig(List.of(scram, oauth), null, null);
 
         // Then
         assertThat(config.mechanisms()).hasSize(2);
@@ -232,5 +233,35 @@ class SaslTerminationTest {
         assertThat(config.mechanisms()).hasSize(2);
         assertThat(config.mechanisms().get(0)).isInstanceOf(ScramSha256MechanismConfig.class);
         assertThat(config.mechanisms().get(1)).isInstanceOf(OauthBearerMechanismConfig.class);
+    }
+
+    @Test
+    void effectiveFixedAuthDelayShouldDefaultTo200ms() {
+        // Given
+        var scram = new ScramSha256MechanismConfig("store", new Object());
+        var config = new SaslTerminationConfig(List.of(scram), null, null);
+
+        // When/Then
+        assertThat(config.effectiveFixedAuthDelay()).isEqualTo(Duration.ofMillis(200));
+    }
+
+    @Test
+    void effectiveFixedAuthDelayShouldUseConfiguredValue() {
+        // Given
+        var scram = new ScramSha256MechanismConfig("store", new Object());
+        var config = new SaslTerminationConfig(List.of(scram), null, Duration.ofMillis(500));
+
+        // When/Then
+        assertThat(config.effectiveFixedAuthDelay()).isEqualTo(Duration.ofMillis(500));
+    }
+
+    @Test
+    void effectiveFixedAuthDelayShouldSupportZeroToDisable() {
+        // Given
+        var scram = new ScramSha256MechanismConfig("store", new Object());
+        var config = new SaslTerminationConfig(List.of(scram), null, Duration.ZERO);
+
+        // When/Then
+        assertThat(config.effectiveFixedAuthDelay()).isEqualTo(Duration.ZERO);
     }
 }

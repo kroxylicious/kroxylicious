@@ -68,11 +68,12 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
             throws PluginConfigurationException {
 
         Map<String, MechanismHandlerFactory> initializedFactories = new HashMap<>();
+        Duration fixedAuthDelay = config.effectiveFixedAuthDelay();
 
         for (MechanismConfig mechanismConfig : config.mechanisms()) {
             String mechanismName = mechanismConfig.mechanismName();
             MechanismHandlerFactory factory = createFactory(mechanismConfig);
-            factory.initialize(mechanismConfig, context, clock);
+            factory.initialize(mechanismConfig, context, clock, fixedAuthDelay);
             initializedFactories.put(mechanismName, factory);
         }
 
