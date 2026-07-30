@@ -13,32 +13,12 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 /**
- * Factory for creating mechanism handlers.
+ * Internal factory for creating per-connection mechanism handlers.
  * <p>
- * Discovered via {@link java.util.ServiceLoader}. Each factory provides handlers
- * for a single SASL mechanism and manages the lifecycle of mechanism-specific
- * resources (credential stores, callback handlers, etc.).
+ * Each factory manages the lifecycle of mechanism-specific resources
+ * (credential stores, callback handlers, etc.) and creates per-connection
+ * handler instances.
  * </p>
- * <p>
- * <strong>Note:</strong> These are NOT user-facing plugins (no {@code @Plugin} annotation).
- * They provide internal extensibility for adding new mechanism support.
- * </p>
- *
- * <h2>Lifecycle</h2>
- * <ol>
- *     <li>Discovered via ServiceLoader</li>
- *     <li>{@link #initialize} called with mechanism-specific configuration</li>
- *     <li>{@link #createHandler} called once per connection</li>
- *     <li>{@link #close} called on shutdown</li>
- * </ol>
- *
- * <h2>Discovery</h2>
- * <p>
- * Register implementations in:
- * </p>
- * <pre>
- * META-INF/services/io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandlerFactory
- * </pre>
  */
 public interface MechanismHandlerFactory extends AutoCloseable {
 

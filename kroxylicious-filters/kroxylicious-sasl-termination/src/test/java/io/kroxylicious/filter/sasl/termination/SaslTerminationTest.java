@@ -6,12 +6,14 @@
 
 package io.kroxylicious.filter.sasl.termination;
 
+import java.net.URI;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandlerFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -90,5 +92,23 @@ class SaslTerminationTest {
 
         // Then
         assertThat(filter).isNotNull();
+    }
+
+    @Test
+    void shouldRejectUnknownMechanismName() {
+        // Given
+        var config = new SaslTerminationConfig(
+                Map.of("UNKNOWN-MECHANISM", new OauthBearerMechanismConfig(
+                        URI.create("https://example.com/jwks"), "aud", "iss",
+                        null, null, null, null, null)),
+                null);
+        var filterFactoryContext = mock(FilterFactoryContext.class);
+        var factory = new SaslTermination();
+
+        // When/Then
+        assertThatThrownBy(() -> factory.initialize(filterFactoryContext, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("No handler available for mechanism: UNKNOWN-MECHANISM")
+                .hasMessageContaining("Supported mechanisms:");
     }
 }
