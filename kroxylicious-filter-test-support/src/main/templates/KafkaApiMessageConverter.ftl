@@ -39,12 +39,12 @@ public class KafkaApiMessageConverter {
 
 <#list inputSpecs as inputSpec>
     <#if inputSpec.type?lower_case == 'request'>
-        reqc.put(ApiMessageType.${retrieveApiKey(inputSpec)}, new Converter(
+        reqc.put(ApiMessageType.${inputSpec.apiKeyEnumName}, new Converter(
                     ${inputSpec.name}DataJsonConverter::read,
                 (o, ver) -> ${inputSpec.name}DataJsonConverter.write(((${inputSpec.name}Data) o), ver)));
     </#if>
     <#if inputSpec.type?lower_case == 'response'>
-        resc.put(ApiMessageType.${retrieveApiKey(inputSpec)}, new Converter(
+        resc.put(ApiMessageType.${inputSpec.apiKeyEnumName}, new Converter(
                     ${inputSpec.name}DataJsonConverter::read,
                 (o, ver) -> ${inputSpec.name}DataJsonConverter.write(((${inputSpec.name}Data) o), ver)));
     </#if>

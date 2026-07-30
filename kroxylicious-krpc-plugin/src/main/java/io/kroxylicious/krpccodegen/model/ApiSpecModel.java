@@ -30,6 +30,7 @@ class ApiSpecModel implements TemplateHashModel, AdapterTemplateModel {
         return switch (key) {
             case "name" -> wrapper.wrap(spec.name());
             case "apiKey" -> wrapper.wrap(spec.apiKey());
+            case "apiKeyEnumName" -> wrapper.wrap(spec.apiKeyEnumName());
             case "request" -> wrapper.wrap(spec.request());
             case "response" -> wrapper.wrap(spec.response());
             case "hasResourceList" -> wrapper.wrap(spec.hasResourceList());

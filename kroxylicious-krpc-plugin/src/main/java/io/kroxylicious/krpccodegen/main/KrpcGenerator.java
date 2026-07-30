@@ -42,7 +42,6 @@ import org.graalvm.polyglot.TypeLiteral;
 import io.kroxylicious.krpccodegen.KrpcCodeGenerationException;
 import io.kroxylicious.krpccodegen.model.EntityTypeSetFactory;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
-import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
 import io.kroxylicious.krpccodegen.schema.ApiSpec;
 import io.kroxylicious.krpccodegen.schema.EntityType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
@@ -348,7 +347,6 @@ public class KrpcGenerator {
         else {
             Map<String, Object> dm = new HashMap<>(dataModel);
             dm.put("outputPackage", outputPackage);
-            dm.put("retrieveApiKey", new RetrieveApiKey());
             dm.put("createEntityTypeSet", new EntityTypeSetFactory());
             dm.put("inputSpecs", inputSpecs);
             generatedFiles = renderMulti(cfg, dm);
@@ -628,16 +626,16 @@ public class KrpcGenerator {
         }
 
         return allRequests.keySet().stream()
-                .map(key -> {
-                    var request = Objects.requireNonNull(allRequests.get(key));
-                    if (!allResponses.containsKey(key)) {
-                        throw new NoSuchElementException("No response found for request with API key: " + key);
+                .map(apiKey -> {
+                    var request = Objects.requireNonNull(allRequests.get(apiKey));
+                    if (!allResponses.containsKey(apiKey)) {
+                        throw new NoSuchElementException("No response found for request with API key: " + apiKey);
                     }
 
-                    var response = allResponses.get(key);
+                    var response = allResponses.get(apiKey);
                     var name = request.name().replaceFirst("Request$", "");
                     var listeners = Set.copyOf(new HashSet<>(request.listeners()));
-                    return new ApiSpec(name, RetrieveApiKey.toEnumConstantName(request.name()), listeners, request, response);
+                    return new ApiSpec(name, apiKey, request.apiKeyEnumName(), listeners, request, response);
                 })
                 .sorted(Comparator.comparing(Named::name))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
