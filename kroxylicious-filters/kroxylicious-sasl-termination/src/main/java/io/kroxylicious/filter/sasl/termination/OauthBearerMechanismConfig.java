@@ -47,6 +47,8 @@ public record OauthBearerMechanismConfig(
                                          @Nullable Long jwksEndpointRetryBackoffMaxMs)
         implements MechanismConfig {
 
+    private static final String MECHANISM_NAME = "OAUTHBEARER";
+
     public OauthBearerMechanismConfig {
         if (jwksEndpointUrl == null) {
             throw new IllegalArgumentException("jwksEndpointUrl must not be null");
@@ -57,5 +59,10 @@ public record OauthBearerMechanismConfig(
         if (expectedIssuer == null || expectedIssuer.isBlank()) {
             throw new IllegalArgumentException("expectedIssuer must not be null or blank");
         }
+    }
+
+    @Override
+    public String mechanismName() {
+        return MECHANISM_NAME;
     }
 }

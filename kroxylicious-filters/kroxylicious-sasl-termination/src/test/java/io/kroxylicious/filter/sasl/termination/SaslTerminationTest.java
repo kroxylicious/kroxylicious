@@ -7,13 +7,15 @@
 package io.kroxylicious.filter.sasl.termination;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandlerFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -95,20 +97,140 @@ class SaslTerminationTest {
     }
 
     @Test
-    void shouldRejectUnknownMechanismName() {
+    void shouldRejectEmptyMechanismsList() {
+        // When/Then
+        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("At least one mechanism must be configured");
+    }
+
+    @Test
+    void shouldRejectDuplicateMechanisms() {
         // Given
-        var config = new SaslTerminationConfig(
-                Map.of("UNKNOWN-MECHANISM", new OauthBearerMechanismConfig(
-                        URI.create("https://example.com/jwks"), "aud", "iss",
-                        null, null, null, null, null)),
-                null);
-        var filterFactoryContext = mock(FilterFactoryContext.class);
-        var factory = new SaslTermination();
+        var config1 = new ScramSha256MechanismConfig("store1", new Object());
+        var config2 = new ScramSha256MechanismConfig("store2", new Object());
 
         // When/Then
-        assertThatThrownBy(() -> factory.initialize(filterFactoryContext, config))
-                .isInstanceOf(PluginConfigurationException.class)
-                .hasMessageContaining("No handler available for mechanism: UNKNOWN-MECHANISM")
-                .hasMessageContaining("Supported mechanisms:");
+        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(config1, config2), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Duplicate mechanism: SCRAM-SHA-256");
+    }
+
+    @Test
+    void shouldAcceptMultipleDistinctMechanisms() {
+        // Given
+        var scram = new ScramSha256MechanismConfig("store", new Object());
+        var oauth = new OauthBearerMechanismConfig(
+                URI.create("https://example.com/jwks"), "aud", "iss",
+                null, null, null, null, null);
+
+        // When
+        var config = new SaslTerminationConfig(List.of(scram, oauth), null);
+
+        // Then
+        assertThat(config.mechanisms()).hasSize(2);
+    }
+
+    @Test
+    void shouldDeserializeScramSha256ConfigFromJson() throws Exception {
+        // Given
+        String json = """
+                {
+                  "mechanisms": [
+                    {
+                      "mechanism": "SCRAM-SHA-256",
+                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStoreConfig": {"file": "/path/to/creds.p12"}
+                    }
+                  ]
+                }
+                """;
+
+        // When
+        var config = new ObjectMapper().readValue(json, SaslTerminationConfig.class);
+
+        // Then
+        assertThat(config.mechanisms()).hasSize(1);
+        assertThat(config.mechanisms().get(0)).isInstanceOf(ScramSha256MechanismConfig.class);
+        assertThat(config.mechanisms().get(0).mechanismName()).isEqualTo("SCRAM-SHA-256");
+    }
+
+    @Test
+    void shouldDeserializeScramSha512ConfigFromJson() throws Exception {
+        // Given
+        String json = """
+                {
+                  "mechanisms": [
+                    {
+                      "mechanism": "SCRAM-SHA-512",
+                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStoreConfig": {"file": "/path/to/creds.p12"}
+                    }
+                  ]
+                }
+                """;
+
+        // When
+        var config = new ObjectMapper().readValue(json, SaslTerminationConfig.class);
+
+        // Then
+        assertThat(config.mechanisms()).hasSize(1);
+        assertThat(config.mechanisms().get(0)).isInstanceOf(ScramSha512MechanismConfig.class);
+        assertThat(config.mechanisms().get(0).mechanismName()).isEqualTo("SCRAM-SHA-512");
+    }
+
+    @Test
+    void shouldDeserializeOauthBearerConfigFromJson() throws Exception {
+        // Given
+        String json = """
+                {
+                  "mechanisms": [
+                    {
+                      "mechanism": "OAUTHBEARER",
+                      "jwksEndpointUrl": "https://idp.example.com/.well-known/jwks.json",
+                      "expectedAudience": "kafka",
+                      "expectedIssuer": "https://idp.example.com"
+                    }
+                  ]
+                }
+                """;
+
+        // When
+        var config = new ObjectMapper().readValue(json, SaslTerminationConfig.class);
+
+        // Then
+        assertThat(config.mechanisms()).hasSize(1);
+        assertThat(config.mechanisms().get(0)).isInstanceOf(OauthBearerMechanismConfig.class);
+        assertThat(config.mechanisms().get(0).mechanismName()).isEqualTo("OAUTHBEARER");
+    }
+
+    @Test
+    void shouldDeserializeMultipleMechanismsFromJson() throws Exception {
+        // Given
+        String json = """
+                {
+                  "mechanisms": [
+                    {
+                      "mechanism": "SCRAM-SHA-256",
+                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStoreConfig": {"file": "/path/to/creds.p12"}
+                    },
+                    {
+                      "mechanism": "OAUTHBEARER",
+                      "jwksEndpointUrl": "https://idp.example.com/.well-known/jwks.json",
+                      "expectedAudience": "kafka",
+                      "expectedIssuer": "https://idp.example.com"
+                    }
+                  ]
+                }
+                """;
+
+        // When
+        var config = new ObjectMapper().readValue(json, SaslTerminationConfig.class);
+
+        // Then
+        assertThat(config.mechanisms()).hasSize(2);
+        assertThat(config.mechanisms().get(0)).isInstanceOf(ScramSha256MechanismConfig.class);
+        assertThat(config.mechanisms().get(1)).isInstanceOf(OauthBearerMechanismConfig.class);
     }
 }

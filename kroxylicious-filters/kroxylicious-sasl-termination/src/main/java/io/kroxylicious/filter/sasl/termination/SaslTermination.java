@@ -69,11 +69,9 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
 
         Map<String, MechanismHandlerFactory> initializedFactories = new HashMap<>();
 
-        for (Map.Entry<String, MechanismConfig> entry : config.mechanisms().entrySet()) {
-            String mechanismName = entry.getKey();
-            MechanismConfig mechanismConfig = entry.getValue();
-
-            MechanismHandlerFactory factory = createFactory(mechanismName);
+        for (MechanismConfig mechanismConfig : config.mechanisms()) {
+            String mechanismName = mechanismConfig.mechanismName();
+            MechanismHandlerFactory factory = createFactory(mechanismConfig);
             factory.initialize(mechanismConfig, context, clock);
             initializedFactories.put(mechanismName, factory);
         }
@@ -89,14 +87,11 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         return new SaslTerminationFilter(filterContext);
     }
 
-    private static MechanismHandlerFactory createFactory(String mechanismName) throws PluginConfigurationException {
-        return switch (mechanismName) {
-            case "SCRAM-SHA-256" -> new ScramSha256HandlerFactory();
-            case "SCRAM-SHA-512" -> new ScramSha512HandlerFactory();
-            case "OAUTHBEARER" -> new OauthBearerHandlerFactory();
-            default -> throw new PluginConfigurationException(
-                    "No handler available for mechanism: " + mechanismName +
-                            ". Supported mechanisms: SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER");
+    private static MechanismHandlerFactory createFactory(MechanismConfig config) {
+        return switch (config) {
+            case ScramSha256MechanismConfig c -> new ScramSha256HandlerFactory();
+            case ScramSha512MechanismConfig c -> new ScramSha512HandlerFactory();
+            case OauthBearerMechanismConfig c -> new OauthBearerHandlerFactory();
         };
     }
 
