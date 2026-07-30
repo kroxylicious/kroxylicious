@@ -16,3 +16,4 @@ io.kroxylicious.it.testplugins.ConstantSasl
 io.kroxylicious.it.testplugins.ProtocolCounter
 io.kroxylicious.it.testplugins.ShortCircuitErrorResponse
 io.kroxylicious.it.testplugins.FailingInitFilterFactory
+io.kroxylicious.it.testplugins.RequestCountingFilterFactory

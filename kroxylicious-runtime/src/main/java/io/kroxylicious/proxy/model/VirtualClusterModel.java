@@ -45,6 +45,8 @@ import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.AddressingSpec;
 import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
@@ -123,6 +125,12 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     private final FilterChainFactory filterChainFactory;
 
+    /**
+     * Per-route filter chain factories, keyed by route name. Only populated for
+     * routes that declare filters. Empty for non-routed VCs.
+     */
+    private final Map<String, FilterChainFactory> routeFilterChainFactories;
+
     @VisibleForTesting
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
@@ -154,6 +162,23 @@ public class VirtualClusterModel implements AutoCloseable {
         this.filterChainFactory = pluginFactoryRegistry != null
                 ? new FilterChainFactory(pluginFactoryRegistry, filters)
                 : FilterChainFactory.empty();
+        this.routeFilterChainFactories = pluginFactoryRegistry != null
+                ? initRouteFilterChainFactories(pluginFactoryRegistry)
+                : Map.of();
+    }
+
+    private Map<String, FilterChainFactory> initRouteFilterChainFactories(PluginFactoryRegistry pfr) {
+        if (!(routing instanceof DynamicRouting dr)) {
+            return Map.of();
+        }
+        Map<String, FilterChainFactory> result = new HashMap<>();
+        for (var entry : dr.routeDescriptors().entrySet()) {
+            List<NamedFilterDefinition> routeFilters = entry.getValue().filters();
+            if (!routeFilters.isEmpty()) {
+                result.put(entry.getKey(), new FilterChainFactory(pfr, routeFilters));
+            }
+        }
+        return result;
     }
 
     /**
@@ -164,6 +189,19 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     public FilterChainFactory filterChainFactory() {
         return filterChainFactory;
+    }
+
+    /**
+     * Creates per-connection filter instances for the given route. Returns an empty
+     * list if the route has no filter definitions.
+     */
+    public List<FilterAndInvoker> createRouteFilters(String routeName,
+                                                     FilterFactoryContext context) {
+        var fcf = routeFilterChainFactories.get(routeName);
+        if (fcf == null) {
+            return List.of();
+        }
+        return fcf.createFilters(context);
     }
 
     public Router createRouter() {
@@ -280,6 +318,17 @@ public class VirtualClusterModel implements AutoCloseable {
         catch (RuntimeException e) {
             firstFailure = e;
         }
+        firstFailure = handleException(filterChainFactory, firstFailure);
+        for (var fcf : routeFilterChainFactories.values()) {
+            firstFailure = handleException(fcf, firstFailure);
+        }
+        if (firstFailure != null) {
+            throw firstFailure;
+        }
+    }
+
+    private @Nullable RuntimeException handleException(FilterChainFactory filterChainFactory,
+                                                       @Nullable RuntimeException firstFailure) {
         try {
             filterChainFactory.close();
         }
@@ -291,9 +340,7 @@ public class VirtualClusterModel implements AutoCloseable {
                 firstFailure.addSuppressed(e);
             }
         }
-        if (firstFailure != null) {
-            throw firstFailure;
-        }
+        return firstFailure;
     }
 
     /**

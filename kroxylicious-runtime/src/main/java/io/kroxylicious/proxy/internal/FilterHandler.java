@@ -602,6 +602,15 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
+    /**
+     * Hook called before an {@link InternalRequestFrame} created by
+     * {@link FilterContext#sendRequest} is fired into the pipeline.
+     * Subclasses can override to tag the frame (e.g. with a route name).
+     */
+    void onInternalRequest(InternalRequestFrame<?> frame) {
+        // intentionally empty — subclasses override to tag frames
+    }
+
     private static <F extends FilterResult> F validateFilterResultNonNull(F f) {
         return Objects.requireNonNullElseGet(f, () -> {
             throw new IllegalStateException("Filter completion must not yield a null result");
@@ -729,6 +738,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             var frame = new InternalRequestFrame<>(
                     header.requestApiVersion(), header.correlationId(), hasResponse,
                     filterAndInvoker.filter(), filterPromise, header, request);
+            onInternalRequest(frame);
 
             log(DEBUG)
                     .addKeyValue("message", () -> msgDescriptor(frame))

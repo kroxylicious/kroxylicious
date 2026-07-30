@@ -43,6 +43,8 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
 
     @Override
     protected DecodedResponseFrame<? extends ApiMessage> createResponseFrame(ResponseHeaderData header, ApiMessage message) {
-        return new InternalResponseFrame<>(recipient, apiVersion, correlationId, header, message, promise);
+        var response = new InternalResponseFrame<>(recipient, apiVersion, correlationId, header, message, promise);
+        response.setRouteName(this.routeName());
+        return response;
     }
 }

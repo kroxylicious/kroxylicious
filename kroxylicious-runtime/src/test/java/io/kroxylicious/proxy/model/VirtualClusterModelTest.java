@@ -229,6 +229,49 @@ class VirtualClusterModelTest {
     }
 
     @Test
+    void createRouteFiltersShouldReturnDistinctInstancesWhenTwoRoutesShareSameFilterName() {
+        // Given
+        var sharedFilterName = "flaky";
+        var flakyConfig = new FlakyConfig(null, null, null, c -> {
+        }, c -> {
+        });
+        var filterDef = new NamedFilterDefinition(sharedFilterName, FlakyFactory.class.getName(), flakyConfig);
+        var routeA = new RouteDescriptor("route-a", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of(filterDef));
+        var routeB = new RouteDescriptor("route-b", 1, new TargetCluster("broker:9093", Optional.empty()), null, List.of(filterDef));
+        var model = new VirtualClusterModel("vc",
+                new DynamicRouting("myrouter", Map.of("route-a", routeA, "route-b", routeB), mock(RouterChainFactory.class)),
+                false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry());
+        var filterContext = mock(io.kroxylicious.proxy.filter.FilterFactoryContext.class);
+
+        // When
+        var filtersA = model.createRouteFilters("route-a", filterContext);
+        var filtersB = model.createRouteFilters("route-b", filterContext);
+
+        // Then
+        assertThat(filtersA).hasSize(1);
+        assertThat(filtersB).hasSize(1);
+        assertThat(filtersA.get(0).filter()).isNotSameAs(filtersB.get(0).filter());
+    }
+
+    @Test
+    void createRouteFiltersShouldReturnEmptyListForRouteWithNoFilters() {
+        // Given
+        var route = new RouteDescriptor("route-a", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of());
+        var model = new VirtualClusterModel("vc",
+                new DynamicRouting("myrouter", Map.of("route-a", route), mock(RouterChainFactory.class)),
+                false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry());
+        var filterContext = mock(io.kroxylicious.proxy.filter.FilterFactoryContext.class);
+
+        // When
+        var filters = model.createRouteFilters("route-a", filterContext);
+
+        // Then
+        assertThat(filters).isEmpty();
+    }
+
+    @Test
     void closeStillClosesFilterChainFactoryWhenRouterChainFactoryCloseThrows() {
         // Given: a RouterChainFactory that throws on close
         var rcf = mock(RouterChainFactory.class);
