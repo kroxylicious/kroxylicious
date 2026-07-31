@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -26,11 +27,12 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.filter.sasl.termination.mechanism.AuthenticationResult;
 import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandler;
 import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandlerFactory;
-import io.kroxylicious.proxy.authentication.Subject;
-import io.kroxylicious.proxy.authentication.User;
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
+import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -49,6 +51,7 @@ public class SaslTerminationFilter implements RequestFilter {
     private final SaslTermination.SaslTerminationContext context;
     private final Clock clock;
     private final long maxTimeBeforeReauthMs;
+    private final SaslSubjectBuilder subjectBuilder;
     private State state;
 
     public SaslTerminationFilter(SaslTermination.SaslTerminationContext context) {
@@ -56,6 +59,7 @@ public class SaslTerminationFilter implements RequestFilter {
         this.clock = context.clock();
         Duration maxReauth = context.maxTimeBeforeReauth();
         this.maxTimeBeforeReauthMs = maxReauth != null ? maxReauth.toMillis() : 0;
+        this.subjectBuilder = context.subjectBuilder();
         this.state = State.start();
     }
 
@@ -182,6 +186,7 @@ public class SaslTerminationFilter implements RequestFilter {
 
             case SUCCESS -> {
                 String authorizationId = result.authorizationId();
+                String mechanism = handler.mechanismName();
                 LOGGER.atDebug()
                         .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
                         .addKeyValue("authorizationId", authorizationId)
@@ -197,15 +202,38 @@ public class SaslTerminationFilter implements RequestFilter {
 
                 handler.dispose();
 
-                Subject subject = new Subject(new User(authorizationId));
-                filterContext.clientSaslAuthenticationSuccess(handler.mechanismName(), subject);
+                SaslSubjectBuilder.Context subjectContext = new SaslSubjectBuilder.Context() {
+                    @Override
+                    public Optional<ClientTlsContext> clientTlsContext() {
+                        return filterContext.clientTlsContext();
+                    }
 
-                yield filterContext.requestFilterResultBuilder()
-                        .shortCircuitResponse(new SaslAuthenticateResponseData()
-                                .setErrorCode(Errors.NONE.code())
-                                .setAuthBytes(result.responseBytes())
-                                .setSessionLifetimeMs(sessionLifetimeMs))
-                        .completed();
+                    @Override
+                    public ClientSaslContext clientSaslContext() {
+                        return new ClientSaslContext() {
+                            @Override
+                            public String mechanismName() {
+                                return mechanism;
+                            }
+
+                            @Override
+                            public String authorizationId() {
+                                return authorizationId;
+                            }
+                        };
+                    }
+                };
+
+                yield subjectBuilder.buildSaslSubject(subjectContext)
+                        .thenCompose(subject -> {
+                            filterContext.clientSaslAuthenticationSuccess(mechanism, subject);
+                            return filterContext.requestFilterResultBuilder()
+                                    .shortCircuitResponse(new SaslAuthenticateResponseData()
+                                            .setErrorCode(Errors.NONE.code())
+                                            .setAuthBytes(result.responseBytes())
+                                            .setSessionLifetimeMs(sessionLifetimeMs))
+                                    .completed();
+                        });
             }
 
             case FAILURE -> handleAuthenticationFailure(result.errorMessage(), handler, filterContext);

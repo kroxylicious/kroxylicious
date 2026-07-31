@@ -10,11 +10,20 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandlerFactory;
 import io.kroxylicious.filter.sasl.termination.mechanism.OauthBearerHandlerFactory;
 import io.kroxylicious.filter.sasl.termination.mechanism.ScramSha256HandlerFactory;
 import io.kroxylicious.filter.sasl.termination.mechanism.ScramSha512HandlerFactory;
+import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
+import io.kroxylicious.proxy.authentication.SaslSubjectBuilderService;
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
@@ -36,6 +45,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 @Plugin(configType = SaslTerminationConfig.class)
 public class SaslTermination implements FilterFactory<SaslTerminationConfig, SaslTermination.SaslTerminationContext> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(SaslTermination.class);
+
+    static final SaslSubjectBuilder DEFAULT_SUBJECT_BUILDER = context -> CompletableFuture
+            .completedStage(new Subject(Set.of(new User(context.clientSaslContext().authorizationId()))));
+
     private final Clock clock;
 
     @SuppressWarnings("unused")
@@ -54,11 +68,13 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      * @param handlerFactories map of mechanism name to initialized handler factory
      * @param maxTimeBeforeReauth maximum session lifetime, null if disabled
      * @param clock clock for session expiry computation
+     * @param subjectBuilder builder for constructing the Subject after authentication
      */
     public record SaslTerminationContext(
                                          Map<String, MechanismHandlerFactory> handlerFactories,
                                          @Nullable Duration maxTimeBeforeReauth,
-                                         Clock clock) {}
+                                         Clock clock,
+                                         SaslSubjectBuilder subjectBuilder) {}
 
     @Override
     @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "Framework guarantees non-null parameters")
@@ -77,7 +93,20 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
             initializedFactories.put(mechanismName, factory);
         }
 
-        return new SaslTerminationContext(initializedFactories, config.maxTimeBeforeReauth(), clock);
+        SaslSubjectBuilder subjectBuilder = buildSubjectBuilder(context, config);
+        return new SaslTerminationContext(initializedFactories, config.maxTimeBeforeReauth(), clock, subjectBuilder);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static SaslSubjectBuilder buildSubjectBuilder(FilterFactoryContext context, SaslTerminationConfig config) {
+        if (config.subjectBuilder() == null) {
+            LOGGER.atDebug().log("No subjectBuilder configured, using default");
+            return DEFAULT_SUBJECT_BUILDER;
+        }
+        SaslSubjectBuilderService<Object> service = (SaslSubjectBuilderService<Object>) context.pluginInstance(
+                SaslSubjectBuilderService.class, config.subjectBuilder());
+        service.initialize(config.subjectBuilderConfig());
+        return service.build();
     }
 
     @Override

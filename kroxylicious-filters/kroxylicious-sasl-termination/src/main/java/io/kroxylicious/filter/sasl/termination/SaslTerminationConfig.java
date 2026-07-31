@@ -13,6 +13,10 @@ import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.authentication.SaslSubjectBuilderService;
+import io.kroxylicious.proxy.plugin.PluginImplConfig;
+import io.kroxylicious.proxy.plugin.PluginImplName;
+
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -21,11 +25,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param mechanisms list of mechanism configurations
  * @param maxTimeBeforeReauth maximum session lifetime before reauthentication is required (KIP-368), null = disabled
  * @param fixedAuthDelay fixed delay applied to all authentication rounds to prevent timing side-channels, null = 200ms default
+ * @param subjectBuilder plugin name for the SaslSubjectBuilderService, null = default builder
+ * @param subjectBuilderConfig configuration for the subject builder plugin
  */
 public record SaslTerminationConfig(
                                     @JsonProperty(required = true) List<MechanismConfig> mechanisms,
                                     @Nullable Duration maxTimeBeforeReauth,
-                                    @Nullable Duration fixedAuthDelay) {
+                                    @Nullable Duration fixedAuthDelay,
+                                    @Nullable @PluginImplName(SaslSubjectBuilderService.class) String subjectBuilder,
+                                    @Nullable @PluginImplConfig(implNameProperty = "subjectBuilder") Object subjectBuilderConfig) {
 
     private static final Duration DEFAULT_FIXED_AUTH_DELAY = Duration.ofMillis(200);
 

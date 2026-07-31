@@ -34,7 +34,8 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC());
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
 
         var factory = new SaslTermination();
 
@@ -51,7 +52,8 @@ class SaslTerminationTest {
         var factory1 = mock(MechanismHandlerFactory.class);
         var factory2 = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", factory1, "SCRAM-SHA-512", factory2), null, java.time.Clock.systemUTC());
+                Map.of("SCRAM-SHA-256", factory1, "SCRAM-SHA-512", factory2), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
 
         var saslTermination = new SaslTermination();
 
@@ -71,7 +73,8 @@ class SaslTerminationTest {
         doThrow(exception).when(handlerFactory).close();
 
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC());
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
 
         var factory = new SaslTermination();
 
@@ -85,7 +88,8 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC());
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filterFactoryContext = mock(FilterFactoryContext.class);
 
         var factory = new SaslTermination();
@@ -100,7 +104,7 @@ class SaslTerminationTest {
     @Test
     void shouldRejectEmptyMechanismsList() {
         // When/Then
-        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(), null, null))
+        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(), null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("At least one mechanism must be configured");
     }
@@ -112,7 +116,7 @@ class SaslTerminationTest {
         var config2 = new ScramSha256MechanismConfig("store2", new Object());
 
         // When/Then
-        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(config1, config2), null, null))
+        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(config1, config2), null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Duplicate mechanism: SCRAM-SHA-256");
     }
@@ -126,7 +130,7 @@ class SaslTerminationTest {
                 null, null, null, null, null);
 
         // When
-        var config = new SaslTerminationConfig(List.of(scram, oauth), null, null);
+        var config = new SaslTerminationConfig(List.of(scram, oauth), null, null, null, null);
 
         // Then
         assertThat(config.mechanisms()).hasSize(2);
@@ -239,7 +243,7 @@ class SaslTerminationTest {
     void effectiveFixedAuthDelayShouldDefaultTo200ms() {
         // Given
         var scram = new ScramSha256MechanismConfig("store", new Object());
-        var config = new SaslTerminationConfig(List.of(scram), null, null);
+        var config = new SaslTerminationConfig(List.of(scram), null, null, null, null);
 
         // When/Then
         assertThat(config.effectiveFixedAuthDelay()).isEqualTo(Duration.ofMillis(200));
@@ -249,7 +253,7 @@ class SaslTerminationTest {
     void effectiveFixedAuthDelayShouldUseConfiguredValue() {
         // Given
         var scram = new ScramSha256MechanismConfig("store", new Object());
-        var config = new SaslTerminationConfig(List.of(scram), null, Duration.ofMillis(500));
+        var config = new SaslTerminationConfig(List.of(scram), null, Duration.ofMillis(500), null, null);
 
         // When/Then
         assertThat(config.effectiveFixedAuthDelay()).isEqualTo(Duration.ofMillis(500));
@@ -259,7 +263,7 @@ class SaslTerminationTest {
     void effectiveFixedAuthDelayShouldSupportZeroToDisable() {
         // Given
         var scram = new ScramSha256MechanismConfig("store", new Object());
-        var config = new SaslTerminationConfig(List.of(scram), null, Duration.ZERO);
+        var config = new SaslTerminationConfig(List.of(scram), null, Duration.ZERO, null, null);
 
         // When/Then
         assertThat(config.effectiveFixedAuthDelay()).isEqualTo(Duration.ZERO);
