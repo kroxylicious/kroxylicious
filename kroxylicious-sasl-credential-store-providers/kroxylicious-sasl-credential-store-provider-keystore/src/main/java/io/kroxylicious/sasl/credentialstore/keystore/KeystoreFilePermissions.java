@@ -16,6 +16,9 @@ import java.security.KeyStoreException;
 import java.util.EnumSet;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.sasl.credentialstore.CredentialServiceUnavailableException;
 
 /**
@@ -23,8 +26,15 @@ import io.kroxylicious.sasl.credentialstore.CredentialServiceUnavailableExceptio
  */
 final class KeystoreFilePermissions {
 
-    private static final Set<PosixFilePermission> INSECURE_PERMISSIONS = EnumSet.of(
+    private static final Logger LOGGER = LoggerFactory.getLogger(KeystoreFilePermissions.class);
+    static final String PERMISSION_CHECK_ENV_VAR = "KROXYLICIOUS_DANGEROUSLY_CHANGE_PERMISSION_CHECK";
+
+    private static final Set<PosixFilePermission> STRICT_INSECURE_PERMISSIONS = EnumSet.of(
             PosixFilePermission.GROUP_READ, PosixFilePermission.GROUP_WRITE,
+            PosixFilePermission.OTHERS_READ, PosixFilePermission.OTHERS_WRITE);
+
+    private static final Set<PosixFilePermission> RELAXED_INSECURE_PERMISSIONS = EnumSet.of(
+            PosixFilePermission.GROUP_WRITE,
             PosixFilePermission.OTHERS_READ, PosixFilePermission.OTHERS_WRITE);
 
     private KeystoreFilePermissions() {
@@ -40,7 +50,8 @@ final class KeystoreFilePermissions {
         }
         try {
             Set<PosixFilePermission> perms = posixView.readAttributes().permissions();
-            Set<PosixFilePermission> found = EnumSet.copyOf(INSECURE_PERMISSIONS);
+            Set<PosixFilePermission> insecure = getInsecurePermissions();
+            Set<PosixFilePermission> found = EnumSet.copyOf(insecure);
             found.retainAll(perms);
             if (!found.isEmpty()) {
                 throw new CredentialServiceUnavailableException(
@@ -64,7 +75,8 @@ final class KeystoreFilePermissions {
         }
         try {
             Set<PosixFilePermission> perms = posixView.readAttributes().permissions();
-            Set<PosixFilePermission> found = EnumSet.copyOf(INSECURE_PERMISSIONS);
+            Set<PosixFilePermission> insecure = getInsecurePermissions();
+            Set<PosixFilePermission> found = EnumSet.copyOf(insecure);
             found.retainAll(perms);
             if (!found.isEmpty()) {
                 throw new KeyStoreException(
@@ -83,5 +95,23 @@ final class KeystoreFilePermissions {
         if (posixView != null) {
             Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
         }
+    }
+
+    private static Set<PosixFilePermission> getInsecurePermissions() {
+        String envValue = System.getenv(PERMISSION_CHECK_ENV_VAR);
+        if ("0640".equals(envValue)) {
+            LOGGER.atWarn()
+                    .addKeyValue("envVar", PERMISSION_CHECK_ENV_VAR)
+                    .addKeyValue("value", envValue)
+                    .log("Relaxed file permission check is active: group-readable files are permitted");
+            return RELAXED_INSECURE_PERMISSIONS;
+        }
+        if (envValue != null && !envValue.isEmpty()) {
+            LOGGER.atWarn()
+                    .addKeyValue("envVar", PERMISSION_CHECK_ENV_VAR)
+                    .addKeyValue("value", envValue)
+                    .log("Unrecognized value for permission check env var, using strict default (0600)");
+        }
+        return STRICT_INSECURE_PERMISSIONS;
     }
 }
