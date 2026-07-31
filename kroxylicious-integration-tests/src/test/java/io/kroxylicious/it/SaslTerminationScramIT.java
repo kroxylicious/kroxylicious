@@ -9,16 +9,21 @@ package io.kroxylicious.it;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.ScramCredentialInfo;
+import org.apache.kafka.clients.admin.UserScramCredentialUpsertion;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
+import org.apache.kafka.common.errors.UnsupportedSaslMechanismException;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.Test;
@@ -30,6 +35,8 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.kroxylicious.filter.sasl.termination.SaslTermination;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
+import io.kroxylicious.it.testplugins.ProtocolCounter;
+import io.kroxylicious.it.testplugins.ProtocolCounterFilter;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.sasl.credentialstore.keystore.KeystoreScramCredentialStoreService;
 import io.kroxylicious.sasl.credentialstore.keystore.TestCredentialGenerator;
@@ -57,9 +64,10 @@ class SaslTerminationScramIT extends BaseIT {
     private static final String TEST_PASSWORD = "alice-secret-password-123";
     private static final String KEYSTORE_PASSWORD = "keystore-password-secret-456";
 
+    KafkaCluster cluster;
+
     @Test
     void shouldAuthenticateClientWithValidCredentials(
-                                                      KafkaCluster cluster,
                                                       Topic topic,
                                                       @TempDir Path tempDir)
             throws Exception {
@@ -115,7 +123,6 @@ class SaslTerminationScramIT extends BaseIT {
 
     @Test
     void shouldRejectClientWithWrongPassword(
-                                             KafkaCluster cluster,
                                              Topic topic,
                                              @TempDir Path tempDir)
             throws Exception {
@@ -148,7 +155,6 @@ class SaslTerminationScramIT extends BaseIT {
 
     @Test
     void shouldRejectClientWithUnknownUsername(
-                                               KafkaCluster cluster,
                                                Topic topic,
                                                @TempDir Path tempDir)
             throws Exception {
@@ -181,7 +187,6 @@ class SaslTerminationScramIT extends BaseIT {
 
     @Test
     void shouldEnforceSecurityBarrier(
-                                      KafkaCluster cluster,
                                       Topic topic,
                                       @TempDir Path tempDir)
             throws Exception {
@@ -215,7 +220,6 @@ class SaslTerminationScramIT extends BaseIT {
 
     @Test
     void shouldReauthenticateTransparently(
-                                           KafkaCluster cluster,
                                            Topic topic,
                                            @TempDir Path tempDir)
             throws Exception {
@@ -268,8 +272,9 @@ class SaslTerminationScramIT extends BaseIT {
         return new NamedFilterDefinitionBuilder(
                 SaslTermination.class.getSimpleName(),
                 SaslTermination.class.getName())
-                .withConfig("mechanisms", Map.of(
-                        "SCRAM-SHA-256", Map.of(
+                .withConfig("mechanisms", List.of(
+                                Map.of(
+                                "mechanism", "SCRAM-SHA-256",
                                 "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
@@ -280,17 +285,7 @@ class SaslTerminationScramIT extends BaseIT {
     }
 
     private NamedFilterDefinition createSaslTerminationFilter(Path keystorePath) {
-        return new NamedFilterDefinitionBuilder(
-                SaslTermination.class.getSimpleName(),
-                SaslTermination.class.getName())
-                .withConfig("mechanisms", Map.of(
-                        "SCRAM-SHA-256", Map.of(
-                                "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
-                                "credentialStoreConfig", Map.of(
-                                        "file", keystorePath.toString(),
-                                        "storePassword", Map.of("password", KEYSTORE_PASSWORD),
-                                        "storeType", "PKCS12"))))
-                .build();
+        return createSaslTerminationFilter(keystorePath, "SCRAM-SHA-256");
     }
 
     private NamedFilterDefinition createLawyerFilter() {
@@ -302,7 +297,6 @@ class SaslTerminationScramIT extends BaseIT {
 
     @Test
     void shouldAuthenticateClientWithScramSha512(
-                                                 KafkaCluster cluster,
                                                  Topic topic,
                                                  @TempDir Path tempDir)
             throws Exception {
@@ -349,7 +343,6 @@ class SaslTerminationScramIT extends BaseIT {
 
     @Test
     void shouldRejectClientUsingWrongScramMechanism(
-                                                    KafkaCluster cluster,
                                                     Topic topic,
                                                     @TempDir Path tempDir)
             throws Exception {
@@ -375,14 +368,13 @@ class SaslTerminationScramIT extends BaseIT {
                 assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
                         .failsWithin(5, TimeUnit.SECONDS)
                         .withThrowableOfType(ExecutionException.class)
-                        .withCauseExactlyInstanceOf(SaslAuthenticationException.class);
+                        .withCauseExactlyInstanceOf(UnsupportedSaslMechanismException.class);
             }
         }
     }
 
     @Test
     void shouldRejectClientRequestingUnsupportedMechanism(
-                                                          KafkaCluster cluster,
                                                           Topic topic,
                                                           @TempDir Path tempDir)
             throws Exception {
@@ -420,14 +412,212 @@ class SaslTerminationScramIT extends BaseIT {
         }
     }
 
+    @Test
+    void shouldDescribeExistingUserScramCredentials(
+                                                    Topic topic,
+                                                    @TempDir Path tempDir)
+            throws Exception {
+
+        // Given
+        Path keystorePath = tempDir.resolve("credentials.jks");
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
+                keystorePath,
+                KEYSTORE_PASSWORD,
+                TEST_USERNAME, TEST_PASSWORD);
+
+        var saslTermination = createSaslTerminationFilter(keystorePath);
+        var counter = new NamedFilterDefinitionBuilder(
+                ProtocolCounter.class.getName(),
+                ProtocolCounter.class.getName())
+                .withConfig(
+                        "countRequests", Set.of(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS),
+                        "countResponses", Set.of())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(saslTermination, counter)
+                .addToDefaultFilters(saslTermination.name(), counter.name());
+
+        var clientConfigs = createScramClientConfigs(TEST_USERNAME, TEST_PASSWORD);
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(clientConfigs)) {
+
+            // When
+            var result = admin.describeUserScramCredentials(List.of(TEST_USERNAME));
+
+            // Then — response from filter's own credential store
+            var description = result.description(TEST_USERNAME);
+            assertThat(description).succeedsWithin(10, TimeUnit.SECONDS)
+                    .satisfies(desc -> {
+                        assertThat(desc.credentialInfos()).singleElement()
+                                .satisfies(info -> {
+                                    assertThat(info.mechanism())
+                                            .isEqualTo(org.apache.kafka.clients.admin.ScramMechanism.SCRAM_SHA_256);
+                                    assertThat(info.iterations()).isEqualTo(10000);
+                                });
+                    });
+
+            // Then — request was short-circuited, never forwarded past SaslTermination
+            try (var producer = tester.producer(clientConfigs)) {
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
+            var consumerConfigs = new HashMap<>(clientConfigs);
+            consumerConfigs.put(GROUP_ID_CONFIG, "describe-test-group");
+            consumerConfigs.put(AUTO_OFFSET_RESET_CONFIG, "earliest");
+            try (var consumer = tester.consumer(consumerConfigs)) {
+                consumer.subscribe(Set.of(topic.name()));
+                var records = consumer.poll(Duration.ofSeconds(10));
+                assertThat(records).hasSize(1);
+                var record = records.records(topic.name()).iterator().next();
+                var countHeader = record.headers().lastHeader(
+                        ProtocolCounterFilter.requestCountHeaderKey(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS));
+                assertThat(countHeader).isNotNull();
+                assertThat(ProtocolCounterFilter.fromBytes(countHeader.value())).isZero();
+            }
+        }
+    }
+
+    @Test
+    void shouldDescribeNonExistentUserWithEmptyCredentials(
+                                                           @TempDir Path tempDir)
+            throws Exception {
+
+        // Given
+        Path keystorePath = tempDir.resolve("credentials.jks");
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
+                keystorePath,
+                KEYSTORE_PASSWORD,
+                TEST_USERNAME, TEST_PASSWORD);
+
+        var saslTermination = createSaslTerminationFilter(keystorePath);
+        var config = proxy(cluster)
+                .addToFilterDefinitions(saslTermination)
+                .addToDefaultFilters(saslTermination.name());
+
+        var clientConfigs = createScramClientConfigs(TEST_USERNAME, TEST_PASSWORD);
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(clientConfigs)) {
+
+            // When
+            var result = admin.describeUserScramCredentials(List.of("unknown-user"));
+
+            // Then
+            assertThat(result.description("unknown-user"))
+                    .failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(org.apache.kafka.common.errors.ResourceNotFoundException.class);
+        }
+    }
+
+    @Test
+    void shouldRejectAlterUserScramCredentials(
+                                               @TempDir Path tempDir)
+            throws Exception {
+
+        // Given
+        Path keystorePath = tempDir.resolve("credentials.jks");
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
+                keystorePath,
+                KEYSTORE_PASSWORD,
+                TEST_USERNAME, TEST_PASSWORD);
+
+        var saslTermination = createSaslTerminationFilter(keystorePath);
+        var config = proxy(cluster)
+                .addToFilterDefinitions(saslTermination)
+                .addToDefaultFilters(saslTermination.name());
+
+        var clientConfigs = createScramClientConfigs(TEST_USERNAME, TEST_PASSWORD);
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(clientConfigs)) {
+
+            // When
+            var upsertion = new UserScramCredentialUpsertion("bob",
+                    new ScramCredentialInfo(
+                            org.apache.kafka.clients.admin.ScramMechanism.SCRAM_SHA_256, 10000),
+                    "bobs-password-123");
+
+            // Then
+            assertThat(admin.alterUserScramCredentials(List.of(upsertion)).all())
+                    .failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class);
+        }
+    }
+
+    @Test
+    void shouldRejectCreateDelegationToken(
+                                           @TempDir Path tempDir)
+            throws Exception {
+
+        // Given
+        Path keystorePath = tempDir.resolve("credentials.jks");
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
+                keystorePath,
+                KEYSTORE_PASSWORD,
+                TEST_USERNAME, TEST_PASSWORD);
+
+        var saslTermination = createSaslTerminationFilter(keystorePath);
+        var config = proxy(cluster)
+                .addToFilterDefinitions(saslTermination)
+                .addToDefaultFilters(saslTermination.name());
+
+        var clientConfigs = createScramClientConfigs(TEST_USERNAME, TEST_PASSWORD);
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(clientConfigs)) {
+
+            // When/Then
+            assertThat(admin.createDelegationToken().delegationToken())
+                    .failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class);
+        }
+    }
+
+    @Test
+    void shouldRejectDescribeDelegationToken(
+                                             @TempDir Path tempDir)
+            throws Exception {
+
+        // Given
+        Path keystorePath = tempDir.resolve("credentials.jks");
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
+                keystorePath,
+                KEYSTORE_PASSWORD,
+                TEST_USERNAME, TEST_PASSWORD);
+
+        var saslTermination = createSaslTerminationFilter(keystorePath);
+        var config = proxy(cluster)
+                .addToFilterDefinitions(saslTermination)
+                .addToDefaultFilters(saslTermination.name());
+
+        var clientConfigs = createScramClientConfigs(TEST_USERNAME, TEST_PASSWORD);
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(clientConfigs)) {
+
+            // When/Then
+            assertThat(admin.describeDelegationToken().delegationTokens())
+                    .failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class);
+        }
+    }
+
     private NamedFilterDefinition createSaslTerminationFilter(
                                                               Path keystorePath,
                                                               String mechanism) {
         return new NamedFilterDefinitionBuilder(
                 SaslTermination.class.getSimpleName(),
                 SaslTermination.class.getName())
-                .withConfig("mechanisms", Map.of(
-                        mechanism, Map.of(
+                .withConfig("mechanisms", List.of(
+                        Map.of(
+                                "mechanism", mechanism,
                                 "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),

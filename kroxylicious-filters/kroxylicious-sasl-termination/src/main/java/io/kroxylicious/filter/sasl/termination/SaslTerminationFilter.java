@@ -216,7 +216,13 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
 
         return allDone
                 .thenApply(v -> {
-                    result.setErrorCode(Errors.NONE.code());
+                    if (result.credentialInfos().isEmpty()) {
+                        result.setErrorCode(Errors.RESOURCE_NOT_FOUND.code());
+                        result.setErrorMessage("Attempt to describe a user credential that does not exist: " + username);
+                    }
+                    else {
+                        result.setErrorCode(Errors.NONE.code());
+                    }
                     return result;
                 })
                 .exceptionally(throwable -> {
