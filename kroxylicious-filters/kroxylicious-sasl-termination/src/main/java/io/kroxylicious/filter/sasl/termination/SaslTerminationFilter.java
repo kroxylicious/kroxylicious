@@ -73,8 +73,18 @@ public class SaslTerminationFilter implements RequestFilter {
 
         return switch (apiKey) {
             case API_VERSIONS -> filterContext.forwardRequest(header, request);
-            case SASL_HANDSHAKE -> onSaslHandshakeRequest((SaslHandshakeRequestData) request, filterContext);
-            case SASL_AUTHENTICATE -> onSaslAuthenticateRequest((SaslAuthenticateRequestData) request, filterContext);
+            case SASL_HANDSHAKE -> {
+                if (isUnsupportedApiVersion(ApiKeys.SASL_HANDSHAKE, apiVersion, filterContext)) {
+                    yield rejectUnsupportedVersionAndClose(header, request, apiKey, apiVersion, filterContext);
+                }
+                yield onSaslHandshakeRequest((SaslHandshakeRequestData) request, filterContext);
+            }
+            case SASL_AUTHENTICATE -> {
+                if (isUnsupportedApiVersion(ApiKeys.SASL_AUTHENTICATE, apiVersion, filterContext)) {
+                    yield rejectUnsupportedVersionAndClose(header, request, apiKey, apiVersion, filterContext);
+                }
+                yield onSaslAuthenticateRequest((SaslAuthenticateRequestData) request, filterContext);
+            }
             default -> handleDefaultRequest(header, request, filterContext);
         };
     }
@@ -309,5 +319,26 @@ public class SaslTerminationFilter implements RequestFilter {
                     .withCloseConnection()
                     .completed();
         }
+    }
+
+    private static boolean isUnsupportedApiVersion(ApiKeys apiKey, short apiVersion, FilterContext filterContext) {
+        return apiVersion < apiKey.oldestVersion() || apiVersion > apiKey.latestVersion();
+    }
+
+    private CompletionStage<RequestFilterResult> rejectUnsupportedVersionAndClose(
+                                                                                  RequestHeaderData header,
+                                                                                  ApiMessage request,
+                                                                                  ApiKeys apiKey,
+                                                                                  short apiVersion,
+                                                                                  FilterContext filterContext) {
+        LOGGER.atWarn()
+                .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
+                .log("Rejecting SASL request with unsupported API version");
+        return filterContext.requestFilterResultBuilder()
+                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
+                .withCloseConnection()
+                .completed();
     }
 }

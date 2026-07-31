@@ -10,19 +10,29 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.SaslAuthenticateRequestData;
+import org.apache.kafka.common.message.SaslHandshakeRequestData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandlerFactory;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link SaslTermination} filter factory.
@@ -267,5 +277,61 @@ class SaslTerminationTest {
 
         // When/Then
         assertThat(config.effectiveFixedAuthDelay()).isEqualTo(Duration.ZERO);
+    }
+
+    @Test
+    void shouldRejectSaslHandshakeWithUnsupportedApiVersion() throws Exception {
+        // Given
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var filterContext = mockFilterContextForErrorResponse();
+        short unsupportedVersion = (short) (ApiKeys.SASL_HANDSHAKE.latestVersion() + 1);
+
+        // When
+        filter.onRequest(ApiKeys.SASL_HANDSHAKE, unsupportedVersion,
+                new RequestHeaderData(), new SaslHandshakeRequestData(), filterContext);
+
+        // Then
+        verify(filterContext).requestFilterResultBuilder();
+    }
+
+    @Test
+    void shouldRejectSaslAuthenticateWithUnsupportedApiVersion() throws Exception {
+        // Given
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var filterContext = mockFilterContextForErrorResponse();
+        short unsupportedVersion = (short) (ApiKeys.SASL_AUTHENTICATE.latestVersion() + 1);
+
+        // When
+        filter.onRequest(ApiKeys.SASL_AUTHENTICATE, unsupportedVersion,
+                new RequestHeaderData(), new SaslAuthenticateRequestData(), filterContext);
+
+        // Then
+        verify(filterContext).requestFilterResultBuilder();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static FilterContext mockFilterContextForErrorResponse() {
+        var filterContext = mock(FilterContext.class);
+        var builder = mock(RequestFilterResultBuilder.class);
+        var closeOrTerminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage.class);
+        var terminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage.class);
+        var result = mock(RequestFilterResult.class);
+
+        when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
+        when(builder.errorResponse(any(), any(), any())).thenReturn(closeOrTerminal);
+        when(closeOrTerminal.withCloseConnection()).thenReturn(terminal);
+        when(terminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
+
+        return filterContext;
     }
 }
