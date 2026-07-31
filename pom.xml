@@ -689,6 +689,8 @@
                                     <!-- Need to keep original copyright for Vert.x classes -->
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
                                     <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
+                                    <!-- Exclude third-party CRDs (carry their own license) -->
+                                    <exclude>src/test/resources/strimzi-crds/**</exclude>
                                     <!-- Exclude test key material -->
                                     <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.key</exclude>
                                     <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.pem</exclude>

@@ -26,10 +26,9 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Updatable;
-import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
-import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
 
@@ -42,6 +41,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.StrimziCrdUtils;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.testing.operator.ClusterUser;
 import io.kroxylicious.testing.operator.ExternalOperator;
@@ -79,12 +79,14 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
             .replaceClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
             .withSetupAction(() -> {
                 try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-                    client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
+                    StrimziCrdUtils.crds(crd -> (Kafka.RESOURCE_PLURAL + "." + Kafka.RESOURCE_GROUP).equals(crd.getMetadata().getName()))
+                            .forEach(crd -> client.apiextensions().v1().customResourceDefinitions().resource(crd).createOr(Updatable::update));
                 }
             })
             .withTeardownAction(() -> {
                 try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-                    client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
+                    StrimziCrdUtils.crds(crd -> (Kafka.RESOURCE_PLURAL + "." + Kafka.RESOURCE_GROUP).equals(crd.getMetadata().getName()))
+                            .forEach(crd -> client.apiextensions().v1().customResourceDefinitions().resource(crd).delete());
                 }
             })
             .withAdditionalCleanupTypes(Kafka.class)
@@ -387,10 +389,12 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                 .endMetadata()
                 .withNewSpec()
                     .withNewKafka()
-                        .withListeners(new GenericKafkaListenerBuilder()
-                                .withName("plain")
-                                .withTls(false)
-                                .build())
+                        .addNewListener()
+                            .withName("plain")
+                            .withPort(9092)
+                            .withType(KafkaListenerType.INTERNAL)
+                            .withTls(false)
+                        .endListener()
                     .endKafka()
                 .endSpec()
                 .build();
@@ -407,6 +411,8 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                     .withNewKafka()
                         .addNewListener()
                             .withName("tls")
+                            .withPort(9093)
+                            .withType(KafkaListenerType.INTERNAL)
                             .withTls(true)
                         .endListener()
                     .endKafka()
