@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.24.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>kroxylicious-runtime-plugins-parent</artifactId>
+
+    <name>Runtime plugin components</name>
+    <description>Modules that depend on kroxylicious-api and/or the runtime to provide functionality.
+        Rule: a module belongs here if it plugs into the runtime (filters, KMS providers, authorisers)
+        or provides test support for building such plugins.</description>
+    <packaging>pom</packaging>
+
+    <!--
+        Leaf modules live at the repository root. Paths use ../ because this aggregator
+        is one directory below root. No source files move — only this pom.xml is new.
+    -->
+    <modules>
+        <module>../kroxylicious-certificate-test-support</module>
+        <module>../kroxylicious-kms</module>
+        <module>../kroxylicious-kms-test-support</module>
+        <module>../kroxylicious-kms-tls-support</module>
+        <module>../kroxylicious-kms-providers</module>
+        <module>../kroxylicious-filter-test-support</module>
+        <module>../kroxylicious-filter-archetype</module>
+        <module>../kroxylicious-filters</module>
+        <module>../kroxylicious-authorizer-api</module>
+        <module>../kroxylicious-authorizer-providers</module>
+    </modules>
+</project>

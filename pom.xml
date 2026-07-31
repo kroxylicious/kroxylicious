@@ -606,29 +606,12 @@
         </dependencies>
     </dependencyManagement>
 
-    <modules>
-        <module>kroxylicious-annotations</module>
-        <module>kroxylicious-kafka-message-tools</module>
-        <module>kroxylicious-kms</module>
-        <module>kroxylicious-certificate-test-support</module>
-        <module>kroxylicious-kms-test-support</module>
-        <module>kroxylicious-kms-tls-support</module>
-        <module>kroxylicious-kms-providers</module>
-        <module>kroxylicious-bom</module>
-        <module>kroxylicious-api</module>
-        <module>kroxylicious-app</module>
-        <module>kroxylicious-krpc-plugin</module>
-        <module>kroxylicious-integration-test-support</module>
-        <module>kroxylicious-filter-test-support</module>
-        <module>kroxylicious-filter-archetype</module>
-        <module>kroxylicious-runtime</module>
-        <module>kroxylicious-filters</module>
-        <module>kroxylicious-kubernetes</module>
-        <module>kroxylicious-docs</module>
-        <module>kroxylicious-authorizer-api</module>
-        <module>kroxylicious-authorizer-providers</module>
-        <module>kroxylicious-openmessaging-benchmarks</module>
-    </modules>
+    <!-- All modules are declared in named profiles below. The build-the-world profile is
+         activated via .mvn/maven.config and builds everything by default. To add a module,
+         update the relevant intermediate parent pom.xml (proxy-runtime/, runtime-plugins/,
+         supplementary/, or kroxylicious-kubernetes/) — not this file.
+         Enforced by the module-profile lint check. -->
+    <modules/>
 
 
     <build>
@@ -1600,6 +1583,66 @@
                 </plugins>
             </build>
         </profile>
+        <!--
+            Module group profiles — control which set of modules enters the reactor.
+
+            build-the-world is activated by .mvn/maven.config and includes every group.
+            For subset builds, deactivate it explicitly alongside the target group:
+              mvn ... -P '!build-the-world,kubernetes-management'
+
+            Rules for which group a module belongs to:
+              proxy-runtime       — modules that ARE the API/runtime or make it testable
+              runtime-plugins     — modules that plug into the runtime (filters, KMS, authorisers)
+                                    or provide test support for building such plugins
+              supplementary       — modules that accompany a release but contain no proxy code
+              kubernetes-management — modules that manage proxy deployment in Kubernetes;
+                                    future deployment targets get their own <platform>-management
+
+            Intermediate parent POMs (proxy-runtime/, runtime-plugins/, supplementary/) list
+            their leaf modules via ../ relative paths because the leaves live at the repo root.
+        -->
+        <profile>
+            <!--
+                Full build profile — activated by default via .mvn/maven.config.
+                For a subset build, deactivate this explicitly: -P '!build-the-world,kubernetes-management'
+                Note: activeByDefault cannot be used here because Maven deactivates it
+                whenever any other profile in the same POM becomes active (including
+                property-activated profiles like qa and test-suites).
+            -->
+            <id>build-the-world</id>
+            <modules>
+                <module>proxy-runtime</module>
+                <module>runtime-plugins</module>
+                <module>supplementary</module>
+                <module>kroxylicious-kubernetes</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>proxy-runtime</id>
+            <modules>
+                <module>proxy-runtime</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>runtime-plugins</id>
+            <modules>
+                <module>runtime-plugins</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>supplementary</id>
+            <modules>
+                <module>supplementary</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>kubernetes-management</id>
+            <modules>
+                <module>kroxylicious-kubernetes</module>
+            </modules>
+        </profile>
+
+        <!-- Test suite profiles — orthogonal to module groups above. -->
         <profile>
             <id>test-suites</id>
             <activation>
