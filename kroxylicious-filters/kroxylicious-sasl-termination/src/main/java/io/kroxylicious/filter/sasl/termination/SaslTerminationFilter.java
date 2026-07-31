@@ -9,12 +9,17 @@ package io.kroxylicious.filter.sasl.termination;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
+import org.apache.kafka.common.message.DescribeUserScramCredentialsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
@@ -38,6 +43,7 @@ import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
+import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -79,7 +85,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
     public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
         if (state instanceof State.Authenticated authenticated && authenticated.sessionExpiry() == null) {
             return switch (apiKey) {
-                case API_VERSIONS, SASL_HANDSHAKE, SASL_AUTHENTICATE, CREATE_DELEGATION_TOKEN, RENEW_DELEGATION_TOKEN, EXPIRE_DELEGATION_TOKEN, DESCRIBE_DELEGATION_TOKEN, ALTER_USER_SCRAM_CREDENTIALS -> true;
+                case API_VERSIONS, SASL_HANDSHAKE, SASL_AUTHENTICATE, CREATE_DELEGATION_TOKEN, RENEW_DELEGATION_TOKEN, EXPIRE_DELEGATION_TOKEN, DESCRIBE_DELEGATION_TOKEN, ALTER_USER_SCRAM_CREDENTIALS, DESCRIBE_USER_SCRAM_CREDENTIALS -> true;
                 default -> false;
             };
         }
@@ -100,6 +106,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                     "Delegation tokens are not supported when SASL is terminated at the proxy", filterContext);
             case ALTER_USER_SCRAM_CREDENTIALS -> rejectUnsupportedApi(header, request, apiKey,
                     "SCRAM credentials cannot be modified via the Kafka protocol when SASL is terminated at the proxy", filterContext);
+            case DESCRIBE_USER_SCRAM_CREDENTIALS -> onDescribeUserScramCredentials((DescribeUserScramCredentialsRequestData) request, filterContext);
             case SASL_HANDSHAKE -> {
                 if (isUnsupportedApiVersion(ApiKeys.SASL_HANDSHAKE, apiVersion, filterContext)) {
                     yield rejectUnsupportedVersionAndClose(header, request, apiKey, apiVersion, filterContext);
@@ -121,6 +128,94 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                                                                        ApiVersionsResponseData response, FilterContext context) {
         response.apiKeys().removeIf(apiVersion1 -> FILTERED_API_KEYS.contains(apiVersion1.apiKey()));
         return context.forwardResponse(header, response);
+    }
+
+    private CompletionStage<RequestFilterResult> onDescribeUserScramCredentials(
+                                                                                DescribeUserScramCredentialsRequestData request,
+                                                                                FilterContext filterContext) {
+
+        Map<Byte, ScramCredentialStore> stores = context.scramCredentialStores();
+        if (stores.isEmpty()) {
+            var response = new DescribeUserScramCredentialsResponseData()
+                    .setErrorCode(Errors.NONE.code());
+            return filterContext.requestFilterResultBuilder()
+                    .shortCircuitResponse(response)
+                    .completed();
+        }
+
+        var userNames = request.users();
+        if (userNames == null || userNames.isEmpty()) {
+            var response = new DescribeUserScramCredentialsResponseData()
+                    .setErrorCode(Errors.UNSUPPORTED_VERSION.code())
+                    .setErrorMessage("Listing all users is not supported; specify user names");
+            return filterContext.requestFilterResultBuilder()
+                    .shortCircuitResponse(response)
+                    .completed();
+        }
+
+        List<CompletionStage<DescribeUserScramCredentialsResponseData.DescribeUserScramCredentialsResult>> resultFutures = new ArrayList<>();
+        for (var userName : userNames) {
+            resultFutures.add(describeUser(userName.name(), stores));
+        }
+
+        CompletionStage<List<DescribeUserScramCredentialsResponseData.DescribeUserScramCredentialsResult>> allResults = CompletableFuture
+                .completedFuture(new ArrayList<DescribeUserScramCredentialsResponseData.DescribeUserScramCredentialsResult>());
+        for (var resultFuture : resultFutures) {
+            allResults = allResults.thenCombine(resultFuture, (list, result) -> {
+                list.add(result);
+                return list;
+            });
+        }
+
+        return allResults.thenCompose(results -> {
+            var response = new DescribeUserScramCredentialsResponseData()
+                    .setErrorCode(Errors.NONE.code());
+            response.results().addAll(results);
+            return filterContext.requestFilterResultBuilder()
+                    .shortCircuitResponse(response)
+                    .completed();
+        });
+    }
+
+    private CompletionStage<DescribeUserScramCredentialsResponseData.DescribeUserScramCredentialsResult> describeUser(
+                                                                                                                      String username,
+                                                                                                                      Map<Byte, ScramCredentialStore> stores) {
+        var result = new DescribeUserScramCredentialsResponseData.DescribeUserScramCredentialsResult()
+                .setUser(username);
+
+        List<CompletionStage<Void>> lookups = new ArrayList<>();
+        for (var entry : stores.entrySet()) {
+            byte mechanismType = entry.getKey();
+            ScramCredentialStore store = entry.getValue();
+            lookups.add(store.lookupCredential(username).thenAccept(credential -> {
+                if (credential != null) {
+                    result.credentialInfos().add(
+                            new DescribeUserScramCredentialsResponseData.CredentialInfo()
+                                    .setMechanism(mechanismType)
+                                    .setIterations(credential.iterations()));
+                }
+            }));
+        }
+
+        CompletionStage<Void> allDone = CompletableFuture.completedFuture(null);
+        for (var lookup : lookups) {
+            allDone = allDone.thenCombine(lookup, (a, b) -> null);
+        }
+
+        return allDone
+                .thenApply(v -> {
+                    result.setErrorCode(Errors.NONE.code());
+                    return result;
+                })
+                .exceptionally(throwable -> {
+                    LOGGER.atWarn()
+                            .addKeyValue("username", username)
+                            .addKeyValue("error", throwable.getMessage())
+                            .log("Failed to describe SCRAM credentials for user");
+                    result.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
+                    result.setErrorMessage("Credential lookup failed");
+                    return result;
+                });
     }
 
     private CompletionStage<RequestFilterResult> onSaslHandshakeRequest(

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
@@ -31,6 +32,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,7 +52,7 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
 
         var factory = new SaslTermination();
@@ -68,7 +70,7 @@ class SaslTerminationTest {
         var factory1 = mock(MechanismHandlerFactory.class);
         var factory2 = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", factory1, "SCRAM-SHA-512", factory2), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", factory1, "SCRAM-SHA-512", factory2), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
 
         var saslTermination = new SaslTermination();
@@ -89,7 +91,7 @@ class SaslTerminationTest {
         doThrow(exception).when(handlerFactory).close();
 
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
 
         var factory = new SaslTermination();
@@ -104,7 +106,7 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filterFactoryContext = mock(FilterFactoryContext.class);
 
@@ -290,7 +292,7 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(context);
 
@@ -310,7 +312,7 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(context);
 
@@ -330,7 +332,7 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(context);
 
@@ -343,7 +345,7 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(context);
 
@@ -376,7 +378,7 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(context);
 
@@ -408,7 +410,7 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(context);
 
@@ -427,7 +429,7 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(context);
 
@@ -465,7 +467,7 @@ class SaslTerminationTest {
         // Given
         var handlerFactory = mock(MechanismHandlerFactory.class);
         var context = new SaslTermination.SaslTerminationContext(
-                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(context);
 
@@ -484,6 +486,80 @@ class SaslTerminationTest {
                 .map(ApiVersionsResponseData.ApiVersion::apiKey)
                 .toList();
         assertThat(remainingKeys).containsExactly(ApiKeys.PRODUCE.id);
+    }
+
+    @Test
+    void shouldDescribeExistingUser() throws Exception {
+        // Given
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var credentialStore = mock(ScramCredentialStore.class);
+        var credential = mock(io.kroxylicious.sasl.credentialstore.ScramCredential.class);
+        when(credential.iterations()).thenReturn(10000);
+        when(credentialStore.lookupCredential("alice"))
+                .thenReturn(CompletableFuture.completedFuture(credential));
+
+        byte mechanismType = 1;
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory),
+                Map.of(mechanismType, credentialStore),
+                null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var request = new DescribeUserScramCredentialsRequestData();
+        request.users().add(new DescribeUserScramCredentialsRequestData.UserName().setName("alice"));
+
+        var filterContext = mockFilterContextForShortCircuitResponse();
+
+        // When
+        filter.onRequest(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, (short) 0,
+                new RequestHeaderData(), request, filterContext);
+
+        // Then
+        verify(credentialStore).lookupCredential("alice");
+    }
+
+    @Test
+    void shouldDescribeNonExistentUser() throws Exception {
+        // Given
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var credentialStore = mock(ScramCredentialStore.class);
+        when(credentialStore.lookupCredential("unknown"))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        byte mechanismType = 1;
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory),
+                Map.of(mechanismType, credentialStore),
+                null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var request = new DescribeUserScramCredentialsRequestData();
+        request.users().add(new DescribeUserScramCredentialsRequestData.UserName().setName("unknown"));
+
+        var filterContext = mockFilterContextForShortCircuitResponse();
+
+        // When
+        filter.onRequest(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, (short) 0,
+                new RequestHeaderData(), request, filterContext);
+
+        // Then
+        verify(credentialStore).lookupCredential("unknown");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static FilterContext mockFilterContextForShortCircuitResponse() {
+        var filterContext = mock(FilterContext.class);
+        var builder = mock(RequestFilterResultBuilder.class);
+        var closeOrTerminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage.class);
+        var result = mock(RequestFilterResult.class);
+
+        when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
+        when(builder.shortCircuitResponse(any())).thenReturn(closeOrTerminal);
+        when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
+
+        return filterContext;
     }
 
     @SuppressWarnings("unchecked")

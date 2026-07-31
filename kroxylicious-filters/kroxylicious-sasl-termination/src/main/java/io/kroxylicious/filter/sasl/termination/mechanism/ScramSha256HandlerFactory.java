@@ -62,6 +62,10 @@ public class ScramSha256HandlerFactory implements MechanismHandlerFactory {
         this.credentialStoreService = service;
     }
 
+    public ScramCredentialStore credentialStore() {
+        return credentialStore;
+    }
+
     @Override
     public MechanismHandler createHandler() {
         return new ScramHandler(ScramMechanism.SCRAM_SHA_256, credentialStore, clock, fixedAuthDelay);

@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -66,12 +68,14 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      * Context for the SASL termination filter.
      *
      * @param handlerFactories map of mechanism name to initialized handler factory
+     * @param scramCredentialStores map of SCRAM mechanism type byte to credential store
      * @param maxTimeBeforeReauth maximum session lifetime, null if disabled
      * @param clock clock for session expiry computation
      * @param subjectBuilder builder for constructing the Subject after authentication
      */
     public record SaslTerminationContext(
                                          Map<String, MechanismHandlerFactory> handlerFactories,
+                                         Map<Byte, ScramCredentialStore> scramCredentialStores,
                                          @Nullable Duration maxTimeBeforeReauth,
                                          Clock clock,
                                          SaslSubjectBuilder subjectBuilder) {}
@@ -84,6 +88,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
             throws PluginConfigurationException {
 
         Map<String, MechanismHandlerFactory> initializedFactories = new HashMap<>();
+        Map<Byte, ScramCredentialStore> scramCredentialStores = new HashMap<>();
         Duration fixedAuthDelay = config.effectiveFixedAuthDelay();
 
         for (MechanismConfig mechanismConfig : config.mechanisms()) {
@@ -91,10 +96,17 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
             MechanismHandlerFactory factory = createFactory(mechanismConfig);
             factory.initialize(mechanismConfig, context, clock, fixedAuthDelay);
             initializedFactories.put(mechanismName, factory);
+
+            if (factory instanceof ScramSha256HandlerFactory scramFactory) {
+                scramCredentialStores.put(ScramMechanism.SCRAM_SHA_256.type(), scramFactory.credentialStore());
+            }
+            else if (factory instanceof ScramSha512HandlerFactory scramFactory) {
+                scramCredentialStores.put(ScramMechanism.SCRAM_SHA_512.type(), scramFactory.credentialStore());
+            }
         }
 
         SaslSubjectBuilder subjectBuilder = buildSubjectBuilder(context, config);
-        return new SaslTerminationContext(initializedFactories, config.maxTimeBeforeReauth(), clock, subjectBuilder);
+        return new SaslTerminationContext(initializedFactories, scramCredentialStores, config.maxTimeBeforeReauth(), clock, subjectBuilder);
     }
 
     @SuppressWarnings("unchecked")
