@@ -310,3 +310,24 @@ example, a cluster transitioning from `initializing` directly to `failed`.
  and `to` states.
 
 |===
+
+== Authentication metrics
+
+When a filter announces a client authentication outcome through the `FilterContext` API, the
+proxy records it in the `kroxylicious_client_auth_total` counter. This metric is independent of
+the specific filter or authentication approach used (SASL termination, SASL inspection, transport
+authentication, and so on).
+
+.Authentication metrics
+|===
+|Metric Name |Type |Labels|Description
+
+|`kroxylicious_client_auth_total`
+|Counter
+|`virtual_cluster`, `mechanism`, `outcome`
+|Incremented by one every time a filter announces an authentication outcome.
+ The `mechanism` label identifies the SASL mechanism (for example, `SCRAM-SHA-256` or `OAUTHBEARER`).
+ When the mechanism is not known, the label value is `unknown`.
+ The `outcome` label is `success` or `failure`.
+
+|===
