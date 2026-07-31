@@ -11,9 +11,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
@@ -29,9 +32,11 @@ import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandler;
 import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandlerFactory;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
+import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -44,9 +49,16 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * requests. Supports reauthentication (KIP-368).
  * </p>
  */
-public class SaslTerminationFilter implements RequestFilter {
+public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslTerminationFilter.class);
+
+    private static final Set<Short> FILTERED_API_KEYS = Set.of(
+            ApiKeys.CREATE_DELEGATION_TOKEN.id,
+            ApiKeys.RENEW_DELEGATION_TOKEN.id,
+            ApiKeys.EXPIRE_DELEGATION_TOKEN.id,
+            ApiKeys.DESCRIBE_DELEGATION_TOKEN.id,
+            ApiKeys.ALTER_USER_SCRAM_CREDENTIALS.id);
 
     private final SaslTermination.SaslTerminationContext context;
     private final Clock clock;
@@ -98,6 +110,13 @@ public class SaslTerminationFilter implements RequestFilter {
             }
             default -> handleDefaultRequest(header, request, filterContext);
         };
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header,
+                                                                       ApiVersionsResponseData response, FilterContext context) {
+        response.apiKeys().removeIf(apiVersion1 -> FILTERED_API_KEYS.contains(apiVersion1.apiKey()));
+        return context.forwardResponse(header, response);
     }
 
     private CompletionStage<RequestFilterResult> onSaslHandshakeRequest(

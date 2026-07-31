@@ -8,11 +8,14 @@ package io.kroxylicious.filter.sasl.termination;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -25,6 +28,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -390,6 +394,70 @@ class SaslTerminationTest {
 
         // When/Then — with expiry set, all requests should be handled (for expiry checking)
         assertThat(filter.shouldHandleRequest(ApiKeys.PRODUCE, (short) 0)).isTrue();
+    }
+
+    @Test
+    void shouldRemoveDelegationTokenApisFromApiVersionsResponse() throws Exception {
+        // Given
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var apiKeys = new ArrayList<>(List.of(
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.PRODUCE.id),
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.FETCH.id),
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.CREATE_DELEGATION_TOKEN.id),
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.RENEW_DELEGATION_TOKEN.id),
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.EXPIRE_DELEGATION_TOKEN.id),
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.DESCRIBE_DELEGATION_TOKEN.id),
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS.id),
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS.id)));
+        var response = new ApiVersionsResponseData();
+        response.apiKeys().addAll(apiKeys);
+
+        var filterContext = mock(FilterContext.class);
+        var responseResult = mock(ResponseFilterResult.class);
+        when(filterContext.forwardResponse(any(), any())).thenReturn(CompletableFuture.completedFuture(responseResult));
+
+        // When
+        filter.onApiVersionsResponse((short) 0, new ResponseHeaderData(), response, filterContext);
+
+        // Then
+        var remainingApiKeys = response.apiKeys().stream()
+                .map(ApiVersionsResponseData.ApiVersion::apiKey)
+                .toList();
+        assertThat(remainingApiKeys).containsExactly(
+                ApiKeys.PRODUCE.id,
+                ApiKeys.FETCH.id,
+                ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS.id);
+    }
+
+    @Test
+    void shouldHandleApiVersionsResponseWithNoTargetApis() throws Exception {
+        // Given
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var response = new ApiVersionsResponseData();
+        response.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.PRODUCE.id));
+
+        var filterContext = mock(FilterContext.class);
+        var responseResult = mock(ResponseFilterResult.class);
+        when(filterContext.forwardResponse(any(), any())).thenReturn(CompletableFuture.completedFuture(responseResult));
+
+        // When
+        filter.onApiVersionsResponse((short) 0, new ResponseHeaderData(), response, filterContext);
+
+        // Then
+        var remainingKeys = response.apiKeys().stream()
+                .map(ApiVersionsResponseData.ApiVersion::apiKey)
+                .toList();
+        assertThat(remainingKeys).containsExactly(ApiKeys.PRODUCE.id);
     }
 
     @SuppressWarnings("unchecked")
