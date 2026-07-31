@@ -33,7 +33,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
-import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerAddressBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
 
@@ -139,10 +139,12 @@ class KafkaServiceReconcilerTest {
             .endMetadata()
             .withNewSpec()
                 .withNewKafka()
-                    .withListeners(new GenericKafkaListenerBuilder()
+                    .addNewListener()
                             .withName("plain")
+                            .withPort(9092)
+                            .withType(KafkaListenerType.INTERNAL)
                             .withTls(false)
-                            .build())
+                        .endListener()
                 .endKafka()
             .endSpec()
             .withNewStatus()
@@ -164,10 +166,12 @@ class KafkaServiceReconcilerTest {
             .endMetadata()
             .withNewSpec()
                 .withNewKafka()
-                    .withListeners(new GenericKafkaListenerBuilder()
+                    .addNewListener()
                             .withName("tls")
+                            .withPort(9093)
+                            .withType(KafkaListenerType.INTERNAL)
                             .withTls(false)
-                        .build())
+                        .endListener()
                 .endKafka()
             .endSpec()
             .withNewStatus()
@@ -815,10 +819,12 @@ class KafkaServiceReconcilerTest {
         return new KafkaBuilder(KAFKA)
                 .editSpec()
                 .editKafka()
-                .withListeners(new GenericKafkaListenerBuilder()
-                        .withName(listenerName)
-                        .withTls(false)
-                        .build())
+                .addNewListener()
+                .withName(listenerName)
+                .withPort(9092)
+                .withType(KafkaListenerType.INTERNAL)
+                .withTls(false)
+                .endListener()
                 .endKafka()
                 .endSpec()
                 .editStatus()
