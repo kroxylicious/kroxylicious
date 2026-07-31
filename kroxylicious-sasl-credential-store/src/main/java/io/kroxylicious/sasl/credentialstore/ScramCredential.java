@@ -40,6 +40,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param storedKey SCRAM stored key bytes
  * @param hashAlgorithm the hash algorithm ("SHA-256" or "SHA-512")
  */
+@SuppressWarnings("ArrayRecordComponent") // arrays are cloned, and equals/hashCode is overridden => safe
 public record ScramCredential(
                               @JsonProperty(required = true) String username,
                               @JsonProperty(required = true) byte[] salt,
