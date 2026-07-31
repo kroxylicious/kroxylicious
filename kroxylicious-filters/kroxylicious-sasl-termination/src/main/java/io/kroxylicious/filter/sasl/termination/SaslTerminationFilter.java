@@ -64,6 +64,17 @@ public class SaslTerminationFilter implements RequestFilter {
     }
 
     @Override
+    public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
+        if (state instanceof State.Authenticated authenticated && authenticated.sessionExpiry() == null) {
+            return switch (apiKey) {
+                case API_VERSIONS, SASL_HANDSHAKE, SASL_AUTHENTICATE -> true;
+                default -> false;
+            };
+        }
+        return true;
+    }
+
+    @Override
     public CompletionStage<RequestFilterResult> onRequest(
                                                           ApiKeys apiKey,
                                                           short apiVersion,

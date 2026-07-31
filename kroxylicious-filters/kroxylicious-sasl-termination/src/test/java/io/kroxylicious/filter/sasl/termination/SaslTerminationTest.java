@@ -319,6 +319,79 @@ class SaslTerminationTest {
         verify(filterContext).requestFilterResultBuilder();
     }
 
+    @Test
+    void shouldHandleRequestReturnsTrueInRequiringHandshakeState() {
+        // Given
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        // When/Then
+        assertThat(filter.shouldHandleRequest(ApiKeys.PRODUCE, (short) 0)).isTrue();
+    }
+
+    @Test
+    void shouldHandleRequestReturnsFalseWhenAuthenticatedWithNoExpiry() {
+        // Given
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        // Manually transition to Authenticated state with no expiry
+        var start = State.start();
+        var handler = mock(io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandler.class);
+        var authenticating = start.nextState(handler);
+        var authenticated = authenticating.nextStateSuccess("alice", null);
+
+        // Use reflection to set state - this is acceptable in tests
+        try {
+            var field = SaslTerminationFilter.class.getDeclaredField("state");
+            field.setAccessible(true);
+            field.set(filter, authenticated);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        // When/Then
+        assertThat(filter.shouldHandleRequest(ApiKeys.PRODUCE, (short) 0)).isFalse();
+        assertThat(filter.shouldHandleRequest(ApiKeys.FETCH, (short) 0)).isFalse();
+        assertThat(filter.shouldHandleRequest(ApiKeys.API_VERSIONS, (short) 0)).isTrue();
+        assertThat(filter.shouldHandleRequest(ApiKeys.SASL_HANDSHAKE, (short) 0)).isTrue();
+        assertThat(filter.shouldHandleRequest(ApiKeys.SASL_AUTHENTICATE, (short) 0)).isTrue();
+    }
+
+    @Test
+    void shouldHandleRequestReturnsTrueWhenAuthenticatedWithExpiry() {
+        // Given
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var start = State.start();
+        var handler = mock(io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandler.class);
+        var authenticating = start.nextState(handler);
+        var authenticated = authenticating.nextStateSuccess("alice", java.time.Instant.now().plusSeconds(3600));
+
+        try {
+            var field = SaslTerminationFilter.class.getDeclaredField("state");
+            field.setAccessible(true);
+            field.set(filter, authenticated);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        // When/Then — with expiry set, all requests should be handled (for expiry checking)
+        assertThat(filter.shouldHandleRequest(ApiKeys.PRODUCE, (short) 0)).isTrue();
+    }
+
     @SuppressWarnings("unchecked")
     private static FilterContext mockFilterContextForErrorResponse() {
         var filterContext = mock(FilterContext.class);
