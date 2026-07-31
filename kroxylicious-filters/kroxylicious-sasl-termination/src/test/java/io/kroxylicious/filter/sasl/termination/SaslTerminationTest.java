@@ -20,6 +20,8 @@ import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -396,6 +398,30 @@ class SaslTerminationTest {
         assertThat(filter.shouldHandleRequest(ApiKeys.PRODUCE, (short) 0)).isTrue();
     }
 
+    @ParameterizedTest
+    @EnumSource(value = ApiKeys.class, names = {
+            "CREATE_DELEGATION_TOKEN", "RENEW_DELEGATION_TOKEN",
+            "EXPIRE_DELEGATION_TOKEN", "DESCRIBE_DELEGATION_TOKEN",
+            "ALTER_USER_SCRAM_CREDENTIALS"
+    })
+    void shouldRejectUnsupportedApiRequests(ApiKeys apiKey) throws Exception {
+        // Given
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var filterContext = mockFilterContextForErrorResponseWithoutClose();
+
+        // When
+        filter.onRequest(apiKey, apiKey.latestVersion(),
+                new RequestHeaderData(), apiKey.messageType.newRequest(), filterContext);
+
+        // Then
+        verify(filterContext).requestFilterResultBuilder();
+    }
+
     @Test
     void shouldRemoveDelegationTokenApisFromApiVersionsResponse() throws Exception {
         // Given
@@ -472,6 +498,20 @@ class SaslTerminationTest {
         when(builder.errorResponse(any(), any(), any())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.withCloseConnection()).thenReturn(terminal);
         when(terminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
+
+        return filterContext;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static FilterContext mockFilterContextForErrorResponseWithoutClose() {
+        var filterContext = mock(FilterContext.class);
+        var builder = mock(RequestFilterResultBuilder.class);
+        var closeOrTerminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage.class);
+        var result = mock(RequestFilterResult.class);
+
+        when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
+        when(builder.errorResponse(any(), any(), any())).thenReturn(closeOrTerminal);
+        when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
 
         return filterContext;
     }

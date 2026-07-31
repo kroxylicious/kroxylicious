@@ -79,7 +79,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
     public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
         if (state instanceof State.Authenticated authenticated && authenticated.sessionExpiry() == null) {
             return switch (apiKey) {
-                case API_VERSIONS, SASL_HANDSHAKE, SASL_AUTHENTICATE -> true;
+                case API_VERSIONS, SASL_HANDSHAKE, SASL_AUTHENTICATE, CREATE_DELEGATION_TOKEN, RENEW_DELEGATION_TOKEN, EXPIRE_DELEGATION_TOKEN, DESCRIBE_DELEGATION_TOKEN, ALTER_USER_SCRAM_CREDENTIALS -> true;
                 default -> false;
             };
         }
@@ -96,6 +96,10 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
 
         return switch (apiKey) {
             case API_VERSIONS -> filterContext.forwardRequest(header, request);
+            case CREATE_DELEGATION_TOKEN, RENEW_DELEGATION_TOKEN, EXPIRE_DELEGATION_TOKEN, DESCRIBE_DELEGATION_TOKEN -> rejectUnsupportedApi(header, request, apiKey,
+                    "Delegation tokens are not supported when SASL is terminated at the proxy", filterContext);
+            case ALTER_USER_SCRAM_CREDENTIALS -> rejectUnsupportedApi(header, request, apiKey,
+                    "SCRAM credentials cannot be modified via the Kafka protocol when SASL is terminated at the proxy", filterContext);
             case SASL_HANDSHAKE -> {
                 if (isUnsupportedApiVersion(ApiKeys.SASL_HANDSHAKE, apiVersion, filterContext)) {
                     yield rejectUnsupportedVersionAndClose(header, request, apiKey, apiVersion, filterContext);
@@ -349,6 +353,22 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                     .withCloseConnection()
                     .completed();
         }
+    }
+
+    private static CompletionStage<RequestFilterResult> rejectUnsupportedApi(
+                                                                             RequestHeaderData header,
+                                                                             ApiMessage request,
+                                                                             ApiKeys apiKey,
+                                                                             String reason,
+                                                                             FilterContext filterContext) {
+        LOGGER.atDebug()
+                .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("reason", reason)
+                .log("Rejecting unsupported API request");
+        return filterContext.requestFilterResultBuilder()
+                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception(reason))
+                .completed();
     }
 
     private static boolean isUnsupportedApiVersion(ApiKeys apiKey, short apiVersion, FilterContext filterContext) {
