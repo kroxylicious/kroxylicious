@@ -60,8 +60,8 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
     @Nullable
     private final Integer nodeId;
 
-    private final Map<Integer, RouterDispatchHandler.PendingResponse> pendingResponses = new HashMap<>();
-    private final Map<Integer, String> pendingStaticRoutes = new HashMap<>();
+    final Map<Integer, RouterDispatchHandler.PendingResponse> pendingResponses = new HashMap<>();
+    final Map<Integer, String> pendingStaticRoutes = new HashMap<>();
 
     @Nullable
     private Router nestedRouter;
