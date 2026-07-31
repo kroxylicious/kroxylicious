@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
@@ -31,6 +32,10 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Timer;
 
 import io.kroxylicious.filter.sasl.termination.mechanism.AuthenticationResult;
 import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandler;
@@ -59,6 +64,10 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslTerminationFilter.class);
 
+    static final String AUTH_DURATION_METRIC = "kroxylicious_filter_sasl_termination_auth_duration_seconds";
+    static final String SESSION_EXPIRED_METRIC = "kroxylicious_filter_sasl_termination_session_expired_total";
+    private static final String MECHANISM_TAG = "mechanism";
+
     private static final Set<Short> FILTERED_API_KEYS = Set.of(
             ApiKeys.CREATE_DELEGATION_TOKEN.id,
             ApiKeys.RENEW_DELEGATION_TOKEN.id,
@@ -71,6 +80,9 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
     private final long maxTimeBeforeReauthMs;
     private final SaslSubjectBuilder subjectBuilder;
     private State state;
+    private long authStartNanos;
+    @Nullable
+    private String lastAuthenticatedMechanism;
 
     public SaslTerminationFilter(SaslTermination.SaslTerminationContext context) {
         this.context = context;
@@ -242,6 +254,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
             MechanismHandlerFactory factory = context.handlerFactories().get(mechanism);
             MechanismHandler handler = factory.createHandler();
 
+            authStartNanos = System.nanoTime();
             if (state instanceof State.RequiringHandshake handshake) {
                 state = handshake.nextState(handler);
             }
@@ -326,6 +339,8 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
             case SUCCESS -> {
                 String authorizationId = result.authorizationId();
                 String mechanism = handler.mechanismName();
+                lastAuthenticatedMechanism = mechanism;
+                recordAuthDuration(mechanism);
                 LOGGER.atDebug()
                         .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
                         .addKeyValue("authorizationId", authorizationId)
@@ -394,7 +409,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                                                                              String errorMessage,
                                                                              MechanismHandler handler,
                                                                              FilterContext filterContext) {
-
+        recordAuthDuration(handler.mechanismName());
         LOGGER.atDebug()
                 .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
                 .addKeyValue("error", errorMessage)
@@ -426,6 +441,12 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         if (state instanceof State.Authenticated authenticated) {
             Instant expiry = authenticated.sessionExpiry();
             if (expiry != null && clock.instant().isAfter(expiry)) {
+                if (lastAuthenticatedMechanism != null) {
+                    Counter.builder(SESSION_EXPIRED_METRIC)
+                            .tag(MECHANISM_TAG, lastAuthenticatedMechanism)
+                            .register(Metrics.globalRegistry)
+                            .increment();
+                }
                 LOGGER.atDebug()
                         .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
                         .addKeyValue("sessionExpiry", expiry)
@@ -464,6 +485,14 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         return filterContext.requestFilterResultBuilder()
                 .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception(reason))
                 .completed();
+    }
+
+    private void recordAuthDuration(String mechanism) {
+        long durationNanos = System.nanoTime() - authStartNanos;
+        Timer.builder(AUTH_DURATION_METRIC)
+                .tag(MECHANISM_TAG, mechanism)
+                .register(Metrics.globalRegistry)
+                .record(durationNanos, TimeUnit.NANOSECONDS);
     }
 
     private static boolean isUnsupportedApiVersion(ApiKeys apiKey, short apiVersion, FilterContext filterContext) {
