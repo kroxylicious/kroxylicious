@@ -48,7 +48,6 @@ import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
@@ -112,7 +111,6 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
                 k -> clientFactory.build(key, buildDefaultClientConfiguration(virtualCluster, gateway)));
     }
 
-    @NonNull
     private Map<String, Object> buildDefaultClientConfiguration(String virtualCluster, String gateway) {
         Map<String, Object> defaultClientConfig = new HashMap<>();
         defaultClientConfig.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapAddress(virtualCluster, gateway));
@@ -121,13 +119,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
-    @NonNull
     public String getBootstrapAddress() {
         return getBootstrapAddress(onlyVirtualCluster(), DEFAULT_GATEWAY_NAME);
     }
 
     @Override
-    @NonNull
     public String getBootstrapAddress(String virtualCluster, String gateway) {
         if (proxy instanceof KafkaProxy kp) {
             return kp.getBootstrapAddress(virtualCluster, gateway).toString();
