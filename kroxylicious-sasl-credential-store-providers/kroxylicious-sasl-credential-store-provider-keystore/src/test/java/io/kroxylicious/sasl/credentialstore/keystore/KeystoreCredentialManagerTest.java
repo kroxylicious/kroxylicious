@@ -127,7 +127,7 @@ class KeystoreCredentialManagerTest {
         try (var fis = java.nio.file.Files.newInputStream(keystorePath)) {
             keyStore.load(fis, KEYSTORE_PASSWORD.toCharArray());
         }
-        assertThat(keyStore.containsAlias("alice")).isTrue();
+        assertThat(keyStore.containsAlias(KeystoreCredentialManager.hashUsername("alice"))).isTrue();
     }
 
     @Test

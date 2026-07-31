@@ -157,24 +157,26 @@ class TestCredentialGeneratorTest {
             keyStore.load(fis, KEYSTORE_PASSWORD.toCharArray());
         }
 
-        // Then - KeyStore should contain both users
-        assertThat(keyStore.containsAlias(username1)).isTrue();
-        assertThat(keyStore.containsAlias(username2)).isTrue();
+        // Then - KeyStore should contain both users (aliases are SHA-256 hashes)
+        String alias1 = KeystoreCredentialManager.hashUsername(username1);
+        String alias2 = KeystoreCredentialManager.hashUsername(username2);
+        assertThat(keyStore.containsAlias(alias1)).isTrue();
+        assertThat(keyStore.containsAlias(alias2)).isTrue();
 
         // And - extract and deserialize credentials
         ScramCredentialSerializer serializer = new ScramCredentialSerializer();
 
         KeyStore.SecretKeyEntry entry1 = (KeyStore.SecretKeyEntry) keyStore.getEntry(
-                username1,
+                alias1,
                 new KeyStore.PasswordProtection(KEYSTORE_PASSWORD.toCharArray()));
         SecretKey secretKey1 = entry1.getSecretKey();
-        ScramCredential credential1 = serializer.deserialize(secretKey1.getEncoded(), username1);
+        ScramCredential credential1 = serializer.deserialize(secretKey1.getEncoded(), alias1);
 
         KeyStore.SecretKeyEntry entry2 = (KeyStore.SecretKeyEntry) keyStore.getEntry(
-                username2,
+                alias2,
                 new KeyStore.PasswordProtection(KEYSTORE_PASSWORD.toCharArray()));
         SecretKey secretKey2 = entry2.getSecretKey();
-        ScramCredential credential2 = serializer.deserialize(secretKey2.getEncoded(), username2);
+        ScramCredential credential2 = serializer.deserialize(secretKey2.getEncoded(), alias2);
 
         // Then - credentials should have correct usernames
         assertThat(credential1.username()).isEqualTo(username1);

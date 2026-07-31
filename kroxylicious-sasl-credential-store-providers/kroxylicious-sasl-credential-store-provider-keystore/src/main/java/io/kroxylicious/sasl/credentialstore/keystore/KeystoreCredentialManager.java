@@ -9,16 +9,19 @@ package io.kroxylicious.sasl.credentialstore.keystore;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HexFormat;
 import java.util.List;
 
 import javax.crypto.SecretKey;
@@ -167,7 +170,7 @@ public class KeystoreCredentialManager {
             KeyStore.SecretKeyEntry entry = new KeyStore.SecretKeyEntry(secretKey);
             KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(storePassword.toCharArray());
 
-            keyStore.setEntry(username, entry, protection);
+            keyStore.setEntry(hashUsername(username), entry, protection);
 
             saveKeyStore(keyStore, keystorePath, storePassword);
         }
@@ -195,11 +198,12 @@ public class KeystoreCredentialManager {
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
 
-            if (!keyStore.containsAlias(username)) {
+            String alias = hashUsername(username);
+            if (!keyStore.containsAlias(alias)) {
                 throw new KeyStoreException("User '" + username + "' not found in KeyStore");
             }
 
-            keyStore.deleteEntry(username);
+            keyStore.deleteEntry(alias);
 
             saveKeyStore(keyStore, keystorePath, storePassword);
         }
@@ -234,7 +238,7 @@ public class KeystoreCredentialManager {
         // Verify user exists before attempting update
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
-            if (!keyStore.containsAlias(username)) {
+            if (!keyStore.containsAlias(hashUsername(username))) {
                 throw new KeyStoreException("User '" + username + "' not found in KeyStore");
             }
         }
@@ -263,21 +267,24 @@ public class KeystoreCredentialManager {
 
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
+            ScramCredentialSerializer serializer = new ScramCredentialSerializer();
+            KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(storePassword.toCharArray());
 
             List<String> users = new ArrayList<>();
             Enumeration<String> aliases = keyStore.aliases();
             while (aliases.hasMoreElements()) {
                 String alias = aliases.nextElement();
-                // Only include key entries (not certificate entries)
                 if (keyStore.isKeyEntry(alias)) {
-                    users.add(alias);
+                    KeyStore.SecretKeyEntry entry = (KeyStore.SecretKeyEntry) keyStore.getEntry(alias, protection);
+                    ScramCredential credential = serializer.deserialize(entry.getSecretKey().getEncoded(), alias);
+                    users.add(credential.username());
                 }
             }
 
             Collections.sort(users);
             return users;
         }
-        catch (IOException | NoSuchAlgorithmException | CertificateException e) {
+        catch (IOException | NoSuchAlgorithmException | CertificateException | java.security.UnrecoverableEntryException e) {
             throw new KeyStoreException("Failed to list users from KeyStore", e);
         }
     }
@@ -329,7 +336,7 @@ public class KeystoreCredentialManager {
             KeyStore.SecretKeyEntry entry = new KeyStore.SecretKeyEntry(secretKey);
             KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(storePassword.toCharArray());
 
-            keyStore.setEntry(username, entry, protection);
+            keyStore.setEntry(hashUsername(username), entry, protection);
         }
 
         try (FileOutputStream fos = new FileOutputStream(outputPath.toFile())) {
@@ -444,5 +451,22 @@ public class KeystoreCredentialManager {
         byte[] salt = new byte[SALT_LENGTH];
         secureRandom.nextBytes(salt);
         return salt;
+    }
+
+    /**
+     * Compute a lowercase hex-encoded SHA-256 hash of a username for use as a KeyStore alias.
+     *
+     * @param username the username to hash
+     * @return the hex-encoded SHA-256 hash
+     */
+    static String hashUsername(String username) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(username.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
     }
 }

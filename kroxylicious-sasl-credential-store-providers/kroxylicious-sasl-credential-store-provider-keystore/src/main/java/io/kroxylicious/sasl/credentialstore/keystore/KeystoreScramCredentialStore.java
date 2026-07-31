@@ -37,11 +37,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * KeyStore-based implementation of {@link ScramCredentialStore}.
  * <p>
  * Loads all SCRAM credentials from a Java KeyStore file into memory at construction time.
- * Credentials are stored as {@link SecretKey} entries with the username as the alias.
- * </p>
- * <p>
- * The entire KeyStore is loaded into memory for fast lookups. File watching for dynamic
- * updates is not supported in this version.
+ * Credentials are stored as {@link SecretKey} entries with a hex-encoded SHA-256 hash of the
+ * username as the alias. The original username is stored within the JSON payload.
  * </p>
  */
 public class KeystoreScramCredentialStore implements ScramCredentialStore {
