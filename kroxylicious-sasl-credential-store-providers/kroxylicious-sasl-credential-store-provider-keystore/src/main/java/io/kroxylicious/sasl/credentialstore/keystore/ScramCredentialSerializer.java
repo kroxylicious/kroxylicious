@@ -8,6 +8,7 @@ package io.kroxylicious.sasl.credentialstore.keystore;
 
 import java.io.IOException;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.sasl.credentialstore.ScramCredential;
@@ -15,12 +16,14 @@ import io.kroxylicious.sasl.credentialstore.ScramCredential;
 /**
  * Serializes and deserializes {@link ScramCredential} objects to/from JSON for storage in KeyStore.
  * <p>
- * Credentials are serialized as compact JSON and stored as the bytes of a SecretKey entry.
+ * The JSON payload includes a {@code version} field to allow the format to be evolved
+ * while maintaining backwards compatibility.
  * </p>
  */
 public class ScramCredentialSerializer {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    static final int CURRENT_VERSION = 1;
 
     /**
      * Serialize a SCRAM credential to JSON bytes.
@@ -31,7 +34,15 @@ public class ScramCredentialSerializer {
      */
     public byte[] serialize(ScramCredential credential) {
         try {
-            return OBJECT_MAPPER.writeValueAsBytes(credential);
+            var versioned = new VersionedCredential(
+                    CURRENT_VERSION,
+                    credential.username(),
+                    credential.salt(),
+                    credential.iterations(),
+                    credential.serverKey(),
+                    credential.storedKey(),
+                    credential.hashAlgorithm());
+            return OBJECT_MAPPER.writeValueAsBytes(versioned);
         }
         catch (IOException e) {
             throw new IllegalArgumentException("Failed to serialize credential for user: " + credential.username(), e);
@@ -47,17 +58,38 @@ public class ScramCredentialSerializer {
      * @throws IllegalArgumentException if deserialization or validation fails
      */
     public ScramCredential deserialize(byte[] bytes, String alias) {
+        VersionedCredential versioned;
         try {
-            ScramCredential credential = OBJECT_MAPPER.readValue(bytes, ScramCredential.class);
-            // Verify the credential is valid (canonical constructor will validate)
-            return credential;
+            versioned = OBJECT_MAPPER.readValue(bytes, VersionedCredential.class);
         }
         catch (IOException e) {
-            // Don't log credential content (may contain sensitive data even if corrupted)
             throw new IllegalArgumentException("Failed to deserialize credential for alias: " + alias, e);
+        }
+        if (versioned.version() != CURRENT_VERSION) {
+            throw new IllegalArgumentException(
+                    "Unsupported credential version " + versioned.version() + " for alias: " + alias
+                            + " (expected " + CURRENT_VERSION + ")");
+        }
+        try {
+            return new ScramCredential(
+                    versioned.username(),
+                    versioned.salt(),
+                    versioned.iterations(),
+                    versioned.serverKey(),
+                    versioned.storedKey(),
+                    versioned.hashAlgorithm());
         }
         catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid credential for alias: " + alias, e);
         }
     }
+
+    record VersionedCredential(
+                               @JsonProperty(required = true) int version,
+                               @JsonProperty(required = true) String username,
+                               @JsonProperty(required = true) byte[] salt,
+                               @JsonProperty(required = true) int iterations,
+                               @JsonProperty(required = true) byte[] serverKey,
+                               @JsonProperty(required = true) byte[] storedKey,
+                               @JsonProperty(required = true) String hashAlgorithm) {}
 }

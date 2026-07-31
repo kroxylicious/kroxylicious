@@ -23,7 +23,7 @@ class ScramCredentialSerializerTest {
     private final ScramCredentialSerializer serializer = new ScramCredentialSerializer();
 
     @Test
-    void shouldRoundTripCredentialViaJson() throws Exception {
+    void shouldIncludeVersionFieldInSerializedJson() throws Exception {
         // Given
         ScramCredential original = new ScramCredential(
                 "alice",
@@ -33,24 +33,15 @@ class ScramCredentialSerializerTest {
                 new byte[]{ 11, 21, 31, 41, 51 },
                 "SHA-256");
 
-        // When - serialize to JSON
-        String json = objectMapper.writeValueAsString(original);
+        // When
+        byte[] serialized = serializer.serialize(original);
+        String json = new String(serialized, java.nio.charset.StandardCharsets.UTF_8);
 
-        // Then - JSON should contain base64-encoded bytes
+        // Then
+        assertThat(json).contains("\"version\":" + ScramCredentialSerializer.CURRENT_VERSION);
         assertThat(json).contains("\"username\":\"alice\"");
         assertThat(json).contains("\"iterations\":4096");
         assertThat(json).contains("\"hashAlgorithm\":\"SHA-256\"");
-
-        // When - deserialize from JSON
-        ScramCredential deserialized = objectMapper.readValue(json, ScramCredential.class);
-
-        // Then - should match original
-        assertThat(deserialized.username()).isEqualTo(original.username());
-        assertThat(deserialized.salt()).isEqualTo(original.salt());
-        assertThat(deserialized.iterations()).isEqualTo(original.iterations());
-        assertThat(deserialized.serverKey()).isEqualTo(original.serverKey());
-        assertThat(deserialized.storedKey()).isEqualTo(original.storedKey());
-        assertThat(deserialized.hashAlgorithm()).isEqualTo(original.hashAlgorithm());
     }
 
     @Test
@@ -80,8 +71,8 @@ class ScramCredentialSerializerTest {
     }
 
     @Test
-    void shouldHandleEmptyByteArraysInJson() throws Exception {
-        // Given - credential with minimum length byte arrays (length 1, as empty is not allowed)
+    void shouldHandleMinimumByteArraysViaSerializer() {
+        // Given
         ScramCredential original = new ScramCredential(
                 "test",
                 new byte[]{ 1 },
@@ -90,14 +81,29 @@ class ScramCredentialSerializerTest {
                 new byte[]{ 3 },
                 "SHA-256");
 
-        // When - round-trip via JSON
-        String json = objectMapper.writeValueAsString(original);
-        ScramCredential deserialized = objectMapper.readValue(json, ScramCredential.class);
+        // When
+        byte[] serialized = serializer.serialize(original);
+        ScramCredential deserialized = serializer.deserialize(serialized, "test");
 
-        // Then - should preserve array contents
+        // Then
         assertThat(deserialized.salt()).isEqualTo(original.salt());
         assertThat(deserialized.serverKey()).isEqualTo(original.serverKey());
         assertThat(deserialized.storedKey()).isEqualTo(original.storedKey());
+    }
+
+    @Test
+    void shouldRejectUnsupportedVersion() {
+        // Given
+        String json = """
+                {"version":99,"username":"alice","salt":"AQIDBAU=","iterations":4096,
+                 "serverKey":"ChQeKDI=","storedKey":"CxUfKTM=","hashAlgorithm":"SHA-256"}
+                """;
+
+        // When/Then
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> serializer.deserialize(json.getBytes(java.nio.charset.StandardCharsets.UTF_8), "test"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported credential version 99");
     }
 
     @Test
