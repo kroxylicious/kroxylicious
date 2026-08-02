@@ -80,11 +80,6 @@ class NestedRouterDispatch implements RouterDispatch {
                     .log("Nested router attempted to send to unknown route");
             return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown route: " + route));
         }
-        if (!rd.targetsCluster()) {
-            return CompletableFuture.failedFuture(
-                    new UnsupportedOperationException("Deeply nested routers are not yet supported (route: " + route + ")"));
-        }
-
         String qualifiedRoute = routerName + "/" + route;
         short requestApiVersion = header.requestApiVersion();
         int routingCorrelationId = correlationIdAllocator.allocateId();
@@ -117,9 +112,9 @@ class NestedRouterDispatch implements RouterDispatch {
                                                           String sessionId,
                                                           int clientCorrelationId) {
         RouteDescriptor rd = nestedRoutes.get(route);
-        if (rd == null || !rd.targetsCluster()) {
+        if (rd == null) {
             return CompletableFuture.failedFuture(
-                    new IllegalStateException("Node " + targetNodeId + " resolved to invalid route: " + route));
+                    new IllegalStateException("Node " + targetNodeId + " resolved to unknown route: " + route));
         }
 
         String qualifiedRoute = routerName + "/" + route;
