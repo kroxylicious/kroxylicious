@@ -105,9 +105,12 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          source scripts/ci-build-functions.sh
           mvn --batch-mode \
-            -P '!build-the-world,!qa' \
-            -P 'proxy-runtime,runtime-plugins,supplementary,ci' \
+            -P "!build-the-world,!qa" \
+            -P "${PROXY_MODULES},ci" \
+            -Dsonar.projectName='Proxy Runtime' \
+            -Dsonar.projectKey='kroxylicious_kroxylicious' \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} \
