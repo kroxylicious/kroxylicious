@@ -98,20 +98,19 @@ class NestedRouterDispatchTest {
     }
 
     @Test
-    void shouldReturnFailedFutureForRouteTargetingRouter() {
+    void shouldFireQualifiedFrameForRouterTargetingRoute() {
         // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
         var routes = Map.of("nested", routerRoute("nested", 0, "deeply-nested"));
-        var capture = new ChannelInboundHandlerAdapter();
-        channel = new EmbeddedChannel(capture);
-        ChannelHandlerContext ctx = channel.pipeline().context(capture);
-        var dispatch = new NestedRouterDispatch(routes, new IdentityNodeIdMapping("nested"),
-                ROUTER_NAME, correlationIdAllocator, pendingResponses, ctx);
+        var dispatch = createDispatch(routes);
 
         // When
-        var future = dispatch.sendToAnyNode("nested", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        dispatch.sendToAnyNode("nested", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
 
         // Then
-        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        assertThat(fired).isNotNull();
+        assertThat(fired.routeName()).isEqualTo(ROUTER_NAME + "/nested");
     }
 
     @Test
@@ -172,20 +171,20 @@ class NestedRouterDispatchTest {
     }
 
     @Test
-    void shouldReturnFailedFutureForNonClusterRouteOnSpecificNode() {
+    void shouldFireFrameWithTargetNodeIdForRouterTargetingRoute() {
         // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
         var routes = Map.of("nested", routerRoute("nested", 0, "deeply-nested"));
-        var capture = new ChannelInboundHandlerAdapter();
-        channel = new EmbeddedChannel(capture);
-        ChannelHandlerContext ctx = channel.pipeline().context(capture);
-        var dispatch = new NestedRouterDispatch(routes, new IdentityNodeIdMapping("nested"),
-                ROUTER_NAME, correlationIdAllocator, pendingResponses, ctx);
+        var dispatch = createDispatch(routes);
 
         // When
-        var future = dispatch.sendToSpecificNode(5, "nested", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        dispatch.sendToSpecificNode(5, "nested", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
 
         // Then
-        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        assertThat(fired).isNotNull();
+        assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
+        assertThat(fired.routeName()).isEqualTo(ROUTER_NAME + "/nested");
     }
 
     @Test
