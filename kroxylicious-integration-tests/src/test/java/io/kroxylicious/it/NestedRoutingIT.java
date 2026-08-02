@@ -164,6 +164,111 @@ class NestedRoutingIT {
                 .containsExactly("key-0", "key-1", "key-2");
     }
 
+    // --- 3-level nesting: outer → middle → inner → clusters ---
+
+    private ConfigurationBuilder deeplyNestedRoutingConfig() {
+        var targetA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var targetB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+
+        // Inner router: routes by client ID to one of two clusters
+        var innerRouteA = new RouteDefinition("backend-a", 0, List.of(), new RouteTarget("cluster-a", null));
+        var innerRouteB = new RouteDefinition("backend-b", 1, List.of(), new RouteTarget("cluster-b", null));
+        var innerConfig = new ClientIdRouterFactory.Config(
+                Map.of("app-a", "backend-a", "app-b", "backend-b"),
+                "backend-a");
+        var innerRouter = new RouterDefinition("inner",
+                ClientIdRouterFactory.class.getName(), innerConfig, List.of(innerRouteA, innerRouteB));
+
+        // Middle router: forwards everything to the inner router
+        var middleRoute = new RouteDefinition("to-inner", 0, List.of(), new RouteTarget(null, "inner"));
+        var middleConfig = new DynamicProduceRouterFactory.Config("to-inner");
+        var middleRouter = new RouterDefinition("middle",
+                DynamicProduceRouterFactory.class.getName(), middleConfig, List.of(middleRoute));
+
+        // Outer router: forwards everything to the middle router
+        var outerRoute = new RouteDefinition("to-middle", 0, List.of(), new RouteTarget(null, "middle"));
+        var outerConfig = new DynamicProduceRouterFactory.Config("to-middle");
+        var outerRouter = new RouterDefinition("outer",
+                DynamicProduceRouterFactory.class.getName(), outerConfig, List.of(outerRoute));
+
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, "outer"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(targetA, targetB)
+                .addToRouterDefinitions(outerRouter, middleRouter, innerRouter)
+                .addToVirtualClusters(vc);
+    }
+
+    @Test
+    void shouldRouteProduceThroughDeeplyNestedRoutersToClusterA(
+                                                                @Name("clusterA") Topic topicOnA,
+                                                                @Name("clusterA") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-a") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyA,
+                                                                @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB)
+            throws ExecutionException, InterruptedException, TimeoutException {
+        // Given
+        String topic = topicOnA.name();
+        createTopicOnCluster(clusterB, topic);
+        var config = deeplyNestedRoutingConfig();
+
+        // When
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer(Map.of(
+                        "client.id", "app-a",
+                        "enable.idempotence", false,
+                        "retries", 0,
+                        "batch.size", 0,
+                        "linger.ms", 0))) {
+
+            for (int i = 0; i < 5; i++) {
+                assertThat(producer.send(new ProducerRecord<>(topic, "key-" + i, "value-" + i)))
+                        .succeedsWithin(Duration.ofSeconds(10));
+            }
+        }
+
+        // Then
+        assertThat(consumeFrom(verifyA, topic))
+                .extracting(ConsumerRecord::key)
+                .containsExactly("key-0", "key-1", "key-2", "key-3", "key-4");
+        assertThat(consumeFrom(verifyB, topic)).isEmpty();
+    }
+
+    @Test
+    void shouldRouteProduceThroughDeeplyNestedRoutersToClusterB(
+                                                                @Name("clusterB") Topic topicOnB,
+                                                                @Name("clusterA") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-a") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyA,
+                                                                @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB)
+            throws ExecutionException, InterruptedException, TimeoutException {
+        // Given
+        String topic = topicOnB.name();
+        createTopicOnCluster(clusterA, topic);
+        var config = deeplyNestedRoutingConfig();
+
+        // When
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer(Map.of(
+                        "client.id", "app-b",
+                        "enable.idempotence", false,
+                        "retries", 0,
+                        "batch.size", 0,
+                        "linger.ms", 0))) {
+
+            for (int i = 0; i < 3; i++) {
+                assertThat(producer.send(new ProducerRecord<>(topic, "key-" + i, "value-" + i)))
+                        .succeedsWithin(Duration.ofSeconds(10));
+            }
+        }
+
+        // Then
+        assertThat(consumeFrom(verifyA, topic)).isEmpty();
+        assertThat(consumeFrom(verifyB, topic))
+                .extracting(ConsumerRecord::key)
+                .containsExactly("key-0", "key-1", "key-2");
+    }
+
     private static void createTopicOnCluster(KafkaCluster cluster, String topicName) throws ExecutionException, InterruptedException, TimeoutException {
         try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
             admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);

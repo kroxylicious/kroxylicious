@@ -289,11 +289,16 @@ public class KafkaProxyFrontendHandler
                 installNestedRoutingHandler(pipeline, dr, rd.routerName(), routeName);
             }
         }
-        // Install filters for nested routes (qualified names)
+        // Install filters for nested routes (qualified names), inserting NestedRoutingHandlers
+        // after each router-targeting nested route's filters to support arbitrary nesting depth.
         for (var entry : dr.allRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             String qualifiedName = entry.getKey();
             if (qualifiedName.contains("/")) {
+                RouteDescriptor nestedRd = entry.getValue();
                 allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, qualifiedName));
+                if (nestedRd.targetsRouter()) {
+                    installNestedRoutingHandler(pipeline, dr, nestedRd.routerName(), qualifiedName);
+                }
             }
         }
         return allRouteFilters;
