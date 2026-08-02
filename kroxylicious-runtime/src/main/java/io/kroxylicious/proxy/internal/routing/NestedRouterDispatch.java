@@ -30,6 +30,9 @@ class NestedRouterDispatch implements RouterDispatch {
     private static final Logger LOGGER = LoggerFactory.getLogger(NestedRouterDispatch.class);
     private static final String LOG_KEY_SESSION_ID = "sessionId";
     private static final String LOG_KEY_ROUTE = "route";
+    private static final String LOG_KEY_ROUTING_CORRELATION_ID = "routingCorrelationId";
+    private static final String LOG_KEY_ROUTER = "router";
+    private static final String LOG_KEY_TARGET_NODE_ID = "targetNodeId";
 
     private final Map<String, RouteDescriptor> nestedRoutes;
     private final NodeIdMapping nestedNodeIdMapping;
@@ -73,7 +76,7 @@ class NestedRouterDispatch implements RouterDispatch {
             LOGGER.atWarn()
                     .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                     .addKeyValue(LOG_KEY_ROUTE, route)
-                    .addKeyValue("router", routerName)
+                    .addKeyValue(LOG_KEY_ROUTER, routerName)
                     .log("Nested router attempted to send to unknown route");
             return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown route: " + route));
         }
@@ -100,8 +103,8 @@ class NestedRouterDispatch implements RouterDispatch {
 
         LOGGER.atTrace()
                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                .addKeyValue("route", qualifiedRoute)
-                .addKeyValue("routingCorrelationId", routingCorrelationId)
+                .addKeyValue(LOG_KEY_ROUTE, qualifiedRoute)
+                .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
                 .log("Nested request sent to route");
         return future;
     }
@@ -138,9 +141,9 @@ class NestedRouterDispatch implements RouterDispatch {
 
         LOGGER.atTrace()
                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                .addKeyValue("route", qualifiedRoute)
-                .addKeyValue("targetNodeId", targetNodeId)
-                .addKeyValue("routingCorrelationId", routingCorrelationId)
+                .addKeyValue(LOG_KEY_ROUTE, qualifiedRoute)
+                .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
+                .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
                 .log("Nested request sent to specific node");
         return future;
     }
