@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-name: Build Kroxylicious Operator
+name: Build Kroxylicious Kubernetes Modules
 
 on:
   push:
@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build_operator:
+  build_kubernetes_modules:
     runs-on: ubuntu-latest
 
     steps:
@@ -61,34 +61,38 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-      - name: 'Build & test Kroxylicious operator'
+      - name: 'Install proxy dependencies'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          source scripts/ci-build-functions.sh
           mvn --batch-mode \
-            --activate-profiles 'ci,!qa' \
-            --projects ':kroxylicious-operator' \
-            --also-make \
+            -P "!build-the-world,!qa" \
+            -P "${PROXY_MODULES}" \
+            -DskipTests \
+            -Derrorprone.skip=true \
+            install
+      - name: 'Build & test Kubernetes modules'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          source scripts/ci-build-functions.sh
+          mvn --batch-mode \
+            -P "!build-the-world,!qa" \
+            -P "${KUBERNETES_MODULES},ci" \
             -Derrorprone.skip=true \
             -Djapicmp.skip=true \
             -DskipITs=true \
-            install
+            verify
       - name: 'SonarCloud scan on main for the Operator'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn --batch-mode \
-            --activate-profiles 'ci,!qa' \
-            --projects ':kroxylicious-operator,:kroxylicious-operator-dist,:kroxylicious-kubernetes-api,:kroxylicious-operator-test-support,:kroxylicious-kubernetes-parent,:kroxylicious-parent' \
-            -Derrorprone.skip=true \
-            -Djapicmp.skip=true \
-            -DskipITs=true \
-            -Dsonar.projectName='Kroxylicious Operator' \
-            -Dsonar.projectKey='kroxylicious_operator' \
-            verify \
-            org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
+          source scripts/ci-build-functions.sh
+          run_sonar "${KUBERNETES_MODULES}" 'Kroxylicious Operator' 'kroxylicious_operator' \
+            -Djapicmp.skip=true
       - name: Save PR number to file
         if: github.event_name == 'pull_request'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
