@@ -67,7 +67,7 @@ class NestedRoutingIT {
     @Name("clusterB")
     static KafkaCluster clusterB;
 
-    private ConfigurationBuilder nestedRoutingConfig(String topic) {
+    private ConfigurationBuilder nestedRoutingConfig() {
         var targetA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
         var targetB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
 
@@ -107,7 +107,7 @@ class NestedRoutingIT {
         // Given
         String topic = topicOnA.name();
         createTopicOnCluster(clusterB, topic);
-        var config = nestedRoutingConfig(topic);
+        var config = nestedRoutingConfig();
 
         // When
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
@@ -140,7 +140,7 @@ class NestedRoutingIT {
         // Given
         String topic = topicOnB.name();
         createTopicOnCluster(clusterA, topic);
-        var config = nestedRoutingConfig(topic);
+        var config = nestedRoutingConfig();
 
         // When
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();

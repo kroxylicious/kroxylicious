@@ -77,7 +77,7 @@ class NestedRouteFilterIT {
     @Name("clusterB")
     static KafkaCluster clusterB;
 
-    private ConfigurationBuilder nestedRoutingWithFilters(String topic, String outerCounterId, String innerCounterId) {
+    private ConfigurationBuilder nestedRoutingWithFilters(String outerCounterId, String innerCounterId) {
         var targetA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
         var targetB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
 
@@ -129,7 +129,7 @@ class NestedRouteFilterIT {
         createTopicOnCluster(clusterB, topic);
         String outerCtr = "direct-outer-" + topic;
         String innerCtr = "direct-inner-" + topic;
-        var config = nestedRoutingWithFilters(topic, outerCtr, innerCtr);
+        var config = nestedRoutingWithFilters(outerCtr, innerCtr);
 
         // When
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
@@ -170,7 +170,7 @@ class NestedRouteFilterIT {
         createTopicOnCluster(clusterA, topic);
         String outerCtr = "nested-outer-" + topic;
         String innerCtr = "nested-inner-" + topic;
-        var config = nestedRoutingWithFilters(topic, outerCtr, innerCtr);
+        var config = nestedRoutingWithFilters(outerCtr, innerCtr);
 
         // When
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
