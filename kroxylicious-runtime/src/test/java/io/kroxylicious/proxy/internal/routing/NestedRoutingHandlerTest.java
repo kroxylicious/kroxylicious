@@ -493,7 +493,10 @@ class NestedRoutingHandlerTest {
         var handler = createHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
 
-        // When / Then
+        // When
         channel.pipeline().remove(handler);
+
+        // Then
+        assertThat(channel.pipeline().get(NestedRoutingHandler.class)).isNull();
     }
 }

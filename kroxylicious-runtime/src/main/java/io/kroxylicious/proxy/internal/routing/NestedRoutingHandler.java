@@ -47,6 +47,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class NestedRoutingHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NestedRoutingHandler.class);
+    private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
+    private static final String LOG_KEY_SESSION_ID = "sessionId";
+    private static final String LOG_KEY_NESTED_ROUTER = "nestedRouter";
+    private static final String LOG_KEY_API_KEY = "apiKey";
 
     private final String activationRoute;
     private final String nestedRouterName;
@@ -69,6 +73,8 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
     @Nullable
     private ChannelHandlerContext ctx;
 
+    // all parameters are genuinely needed: identity, routing config, protocol infrastructure, session, auth, network
+    @SuppressWarnings("java:S107")
     public NestedRoutingHandler(String activationRoute,
                                 String nestedRouterName,
                                 String virtualClusterName,
@@ -114,11 +120,9 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof DecodedRequestFrame<?> frame) {
-            if (activationRoute.equals(frame.routeName())) {
-                dispatchToNestedRouter(ctx, frame);
-                return;
-            }
+        if (msg instanceof DecodedRequestFrame<?> frame && activationRoute.equals(frame.routeName())) {
+            dispatchToNestedRouter(ctx, frame);
+            return;
         }
         ctx.fireChannelRead(msg);
     }
@@ -129,10 +133,10 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
         short apiVersion = frame.apiVersion();
 
         LOGGER.atTrace()
-                .addKeyValue("virtualCluster", virtualClusterName)
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("nestedRouter", nestedRouterName)
-                .addKeyValue("apiKey", apiKey)
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
+                .addKeyValue(LOG_KEY_API_KEY, apiKey)
                 .addKeyValue("outerCorrelationId", outerCorrelationId)
                 .log("Dispatching to nested router");
 
@@ -150,10 +154,10 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
             }
             ctx.fireChannelRead(frame);
             LOGGER.atTrace()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("nestedRouter", nestedRouterName)
-                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
+                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
                     .addKeyValue("route", qualifiedRoute)
                     .log("Nested static route selected");
             return;
@@ -178,10 +182,10 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
                 .whenComplete((result, error) -> {
                     if (error != null) {
                         LOGGER.atError()
-                                .addKeyValue("virtualCluster", virtualClusterName)
-                                .addKeyValue("sessionId", sessionId)
-                                .addKeyValue("nestedRouter", nestedRouterName)
-                                .addKeyValue("apiKey", apiKey)
+                                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                                .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
+                                .addKeyValue(LOG_KEY_API_KEY, apiKey)
                                 .setCause(error)
                                 .log("Nested router returned failed future");
                         writeErrorResponse(ctx, outerCorrelationId, apiVersion, frame, error);
@@ -189,9 +193,9 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
                     }
                     if (!(result instanceof RouterResponseImpl rri)) {
                         LOGGER.atError()
-                                .addKeyValue("virtualCluster", virtualClusterName)
-                                .addKeyValue("sessionId", sessionId)
-                                .addKeyValue("nestedRouter", nestedRouterName)
+                                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                                .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
                                 .log("Nested router returned unrecognised RouterResponse type");
                         writeErrorResponse(ctx, outerCorrelationId, apiVersion, frame,
                                 new IllegalStateException("Nested router returned unrecognised response type"));
@@ -199,19 +203,18 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
                     }
                     if (rri.closeConnection()) {
                         LOGGER.atWarn()
-                                .addKeyValue("virtualCluster", virtualClusterName)
-                                .addKeyValue("sessionId", sessionId)
-                                .addKeyValue("nestedRouter", nestedRouterName)
+                                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                                .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
                                 .log("Nested router attempted to close connection; ignoring close request");
                     }
-                    writeNestedResponse(ctx, outerCorrelationId, apiVersion, frame, rri);
+                    writeNestedResponse(ctx, outerCorrelationId, apiVersion, rri);
                 });
     }
 
     private void writeNestedResponse(ChannelHandlerContext ctx,
                                      int outerCorrelationId,
                                      short apiVersion,
-                                     DecodedRequestFrame<?> requestFrame,
                                      RouterResponseImpl rri) {
         ApiMessage body;
         switch (rri) {
@@ -223,9 +226,9 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
             }
             case RouterResponseImpl.RespondWithoutReply ignored -> {
                 LOGGER.atTrace()
-                        .addKeyValue("virtualCluster", virtualClusterName)
-                        .addKeyValue("sessionId", sessionId)
-                        .addKeyValue("nestedRouter", nestedRouterName)
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                        .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
                         .addKeyValue("outerCorrelationId", outerCorrelationId)
                         .log("Nested router completed with no reply");
                 return;
@@ -264,9 +267,9 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
                         pending.nodeIdMapping(), pending.route());
                 pending.future().complete(frame.body());
                 LOGGER.atTrace()
-                        .addKeyValue("virtualCluster", virtualClusterName)
-                        .addKeyValue("sessionId", sessionId)
-                        .addKeyValue("nestedRouter", nestedRouterName)
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                        .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
                         .addKeyValue("routingCorrelationId", correlationId)
                         .log("Nested routed response matched to pending request");
                 promise.setSuccess();
