@@ -208,6 +208,16 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
+        "/.github/workflows/*.ya?ml/"
+      ],
+      "matchStrings": [
+        "(?<depName>org.apache.maven.plugins:maven-help-plugin):(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "maven"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
         "/^\\.github\\/actions\\/common\\/setup-minikube\\/.*\\.ya?ml$/"
       ],
       "matchStrings": [
