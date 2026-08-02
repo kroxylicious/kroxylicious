@@ -6,8 +6,10 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -71,6 +73,14 @@ class NestedRouterDispatch implements RouterDispatch {
                                                      ApiMessage request,
                                                      String sessionId,
                                                      int clientCorrelationId) {
+        return executeOnEventLoop(() -> doSendToAnyNode(route, header, request, sessionId, clientCorrelationId));
+    }
+
+    private CompletableFuture<ApiMessage> doSendToAnyNode(String route,
+                                                          RequestHeaderData header,
+                                                          ApiMessage request,
+                                                          String sessionId,
+                                                          int clientCorrelationId) {
         RouteDescriptor rd = nestedRoutes.get(route);
         if (rd == null) {
             LOGGER.atWarn()
@@ -111,6 +121,15 @@ class NestedRouterDispatch implements RouterDispatch {
                                                           ApiMessage request,
                                                           String sessionId,
                                                           int clientCorrelationId) {
+        return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId));
+    }
+
+    private CompletableFuture<ApiMessage> doSendToSpecificNode(int targetNodeId,
+                                                               String route,
+                                                               RequestHeaderData header,
+                                                               ApiMessage request,
+                                                               String sessionId,
+                                                               int clientCorrelationId) {
         RouteDescriptor rd = nestedRoutes.get(route);
         if (rd == null) {
             return CompletableFuture.failedFuture(
@@ -141,5 +160,22 @@ class NestedRouterDispatch implements RouterDispatch {
                 .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
                 .log("Nested request sent to specific node");
         return future;
+    }
+
+    private <T> CompletionStage<T> executeOnEventLoop(Supplier<CompletableFuture<T>> work) {
+        var executor = Objects.requireNonNull(ctx, "sendRequest called before handlerAdded").executor();
+        if (executor.inEventLoop()) {
+            return work.get();
+        }
+        CompletableFuture<T> bridge = new CompletableFuture<>();
+        executor.execute(() -> work.get().whenComplete((r, e) -> {
+            if (e != null) {
+                bridge.completeExceptionally(e);
+            }
+            else {
+                bridge.complete(r);
+            }
+        }));
+        return bridge;
     }
 }
