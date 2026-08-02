@@ -141,7 +141,7 @@ jobs:
         run: |
           mvn --quiet \
             --batch-mode \
-            --activate-profiles '!qa' \
+            --activate-profiles 'dist,!qa' \
             --also-make \
             --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist,:kroxylicious-admission \
             -Derrorprone.skip=true \
@@ -226,9 +226,10 @@ jobs:
           cache-from: type=gha,scope=admission
           cache-to: type=gha,mode=max,compression=zstd,scope=admission
 
-      # `clean package` on kroxylicious-app alone wipes its target/ directory so
-      # the aarch64 assembly contains only linux-aarch_64 Netty native binaries
-      # (no leftovers from the amd64 run above).
+      # `clean package` on runtime+app wipes their target/ directories so the
+      # aarch64 assembly contains only linux-aarch_64 Netty native binaries (no
+      # amd64 leftovers). Scope limited to runtime+app: the operator and admission
+      # webhook have no platform-specific native binaries.
 
       - name: Build arm64 distribution artifacts
         if: steps.build_configuration.outputs.multi_arch == 'true'

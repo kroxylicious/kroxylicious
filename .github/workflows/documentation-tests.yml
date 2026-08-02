@@ -56,6 +56,8 @@ jobs:
         uses: ./.github/actions/common/cache-maven-packages
       - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
         run: |
+          # Explicit --projects: docs tests only load the proxy and operator images
+          # into minikube; the admission webhook image is not required here.
           mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
