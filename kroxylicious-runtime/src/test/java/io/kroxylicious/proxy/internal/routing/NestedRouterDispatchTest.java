@@ -8,6 +8,9 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -229,6 +232,64 @@ class NestedRouterDispatchTest {
         // Then
         assertThat(future.toCompletableFuture()).isCompletedWithValue(null);
         assertThat(pendingResponses).isEmpty();
+    }
+
+    // --- event loop confinement ---
+
+    @Test
+    void sendToAnyNodeShouldExecuteOnEventLoopWhenCalledFromDifferentThread() throws Exception {
+        // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
+        var dispatch = createDispatch(Map.of("r1", clusterRoute("r1", 0)));
+        Thread eventLoopThread = obtainEventLoopThread();
+        var dispatchThread = new AtomicReference<Thread>();
+
+        // When — supplyAsync runs the call on a ForkJoinPool thread, not the event loop
+        var future = CompletableFuture.supplyAsync(() -> {
+            dispatchThread.set(Thread.currentThread());
+            return dispatch.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        });
+        channel.runPendingTasks();
+        future.get(5, TimeUnit.SECONDS);
+
+        // Then
+        assertThat(dispatchThread.get())
+                .describedAs("caller must be off the event loop for this test to be meaningful")
+                .isNotEqualTo(eventLoopThread);
+        assertThat(pendingResponses).hasSize(1);
+        assertThat(pendingResponses.get(ROUTING_CORRELATION_ID)).isNotNull();
+    }
+
+    @Test
+    void sendToSpecificNodeShouldExecuteOnEventLoopWhenCalledFromDifferentThread() throws Exception {
+        // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
+        var dispatch = createDispatch(Map.of("r1", clusterRoute("r1", 0)));
+        Thread eventLoopThread = obtainEventLoopThread();
+        var dispatchThread = new AtomicReference<Thread>();
+
+        // When — supplyAsync runs the call on a ForkJoinPool thread, not the event loop
+        var future = CompletableFuture.supplyAsync(() -> {
+            dispatchThread.set(Thread.currentThread());
+            return dispatch.sendToSpecificNode(5, "r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        });
+        channel.runPendingTasks();
+        future.get(5, TimeUnit.SECONDS);
+
+        // Then
+        assertThat(dispatchThread.get())
+                .describedAs("caller must be off the event loop for this test to be meaningful")
+                .isNotEqualTo(eventLoopThread);
+        assertThat(pendingResponses).hasSize(1);
+        assertThat(pendingResponses.get(ROUTING_CORRELATION_ID)).isNotNull();
+    }
+
+    private Thread obtainEventLoopThread() {
+        var future = new CompletableFuture<Thread>();
+        channel.eventLoop().submit(() -> future.complete(Thread.currentThread()));
+        channel.runPendingTasks();
+        assertThat(future).isCompleted();
+        return future.getNow(null);
     }
 
     // --- accessors ---
