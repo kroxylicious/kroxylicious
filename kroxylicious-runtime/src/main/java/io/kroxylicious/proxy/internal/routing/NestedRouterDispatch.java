@@ -28,6 +28,8 @@ import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 class NestedRouterDispatch implements RouterDispatch {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NestedRouterDispatch.class);
+    private static final String LOG_KEY_SESSION_ID = "sessionId";
+    private static final String LOG_KEY_ROUTE = "route";
 
     private final Map<String, RouteDescriptor> nestedRoutes;
     private final NodeIdMapping nestedNodeIdMapping;
@@ -69,8 +71,8 @@ class NestedRouterDispatch implements RouterDispatch {
         RouteDescriptor rd = nestedRoutes.get(route);
         if (rd == null) {
             LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("route", route)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_ROUTE, route)
                     .addKeyValue("router", routerName)
                     .log("Nested router attempted to send to unknown route");
             return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown route: " + route));
@@ -97,7 +99,7 @@ class NestedRouterDispatch implements RouterDispatch {
         ctx.fireChannelRead(frame);
 
         LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                 .addKeyValue("route", qualifiedRoute)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .log("Nested request sent to route");
@@ -135,7 +137,7 @@ class NestedRouterDispatch implements RouterDispatch {
         ctx.fireChannelRead(frame);
 
         LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                 .addKeyValue("route", qualifiedRoute)
                 .addKeyValue("targetNodeId", targetNodeId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)

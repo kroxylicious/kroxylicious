@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -32,7 +33,7 @@ public sealed interface NodeIdMapping permits BijectiveNodeIdMapping, IdentityNo
         if (routeDescriptors.size() == 1) {
             return new IdentityNodeIdMapping(routeDescriptors.keySet().iterator().next());
         }
-        var routeIds = new java.util.HashMap<String, Integer>(routeDescriptors.size());
+        var routeIds = HashMap.<String, Integer> newHashMap(routeDescriptors.size());
         for (var entry : routeDescriptors.entrySet()) {
             routeIds.put(entry.getKey(), entry.getValue().id());
         }
