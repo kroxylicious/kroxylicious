@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -53,6 +54,7 @@ import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
 import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.impl.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
+import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.NestedRoutingHandler;
@@ -318,11 +320,13 @@ public class KafkaProxyFrontendHandler
         return routeFilters;
     }
 
-    private void installNestedRoutingHandler(ChannelPipeline pipeline, DynamicRouting dr,
-                                             String nestedRouterName, String activationRoute) {
+    private void installNestedRoutingHandler(ChannelPipeline pipeline,
+                                             DynamicRouting dr,
+                                             String nestedRouterName,
+                                             String activationRoute) {
         var routerChainFactory = dr.routerChainFactory();
         // Build the nested router's routes and NodeIdMapping from allRouteDescriptors
-        var nestedRoutes = new java.util.LinkedHashMap<String, RouteDescriptor>();
+        var nestedRoutes = new LinkedHashMap<String, RouteDescriptor>();
         String prefix = nestedRouterName + "/";
         for (var entry : dr.allRouteDescriptors().entrySet()) {
             if (entry.getKey().startsWith(prefix)) {
@@ -346,7 +350,7 @@ public class KafkaProxyFrontendHandler
                         rdh.correlationIdAllocator(),
                         clientConnectionStateMachine.sessionId(),
                         clientConnectionStateMachine.authenticatedSubject(),
-                        clientConnectionStateMachine.endpointBinding() instanceof io.kroxylicious.proxy.internal.net.BrokerEndpointBinding beb ? beb.nodeId() : null));
+                        clientConnectionStateMachine.endpointBinding() instanceof BrokerEndpointBinding beb ? beb.nodeId() : null));
     }
 
     private List<FilterAndInvoker> buildFilters() {
