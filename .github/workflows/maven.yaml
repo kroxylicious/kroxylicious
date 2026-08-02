@@ -106,8 +106,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mvn --batch-mode \
-            --activate-profiles 'ci,!qa' \
-            --projects '!:kroxylicious-kubernetes-api,!:kroxylicious-operator,!:kroxylicious-operator-dist,!:kroxylicious-operator-test-support' \
+            --activate-profiles '!build-the-world,proxy-runtime,runtime-plugins,supplementary,ci,!qa' \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} \
