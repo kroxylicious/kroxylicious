@@ -104,7 +104,8 @@ jobs:
         if: env.SONAR_TOKEN_SET == 'true'
         run: |
           mvn --batch-mode \
-            --activate-profiles '!build-the-world,proxy-runtime,runtime-plugins,supplementary,ci,!qa' \
+            -P '!build-the-world,!qa' \
+            -P 'proxy-runtime,runtime-plugins,supplementary,ci' \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=true \
@@ -121,8 +122,16 @@ jobs:
       - name: SonarCloud scan on PR for the Operator
         if: env.SONAR_TOKEN_SET == 'true'
         run: |
+          if [ -f "kroxylicious-kubernetes/pom.xml" ]; then
+            SCOPE=('-P' 'kubernetes-management')
+          else
+            # Old release branches: operator was not under kroxylicious-kubernetes/
+            SCOPE=('--projects' ':kroxylicious-operator,:kroxylicious-parent,:kroxylicious-operator-dist')
+          fi
           mvn --batch-mode \
-            --activate-profiles '!build-the-world,kubernetes-management,ci,!qa' \
+            -P '!build-the-world,!qa' \
+            -P ci \
+            "${SCOPE[@]}" \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=true \

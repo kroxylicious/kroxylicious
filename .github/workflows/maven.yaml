@@ -106,7 +106,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mvn --batch-mode \
-            --activate-profiles '!build-the-world,proxy-runtime,runtime-plugins,supplementary,ci,!qa' \
+            -P '!build-the-world,!qa' \
+            -P 'proxy-runtime,runtime-plugins,supplementary,ci' \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} \
