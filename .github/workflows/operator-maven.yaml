@@ -71,6 +71,7 @@ jobs:
             -P "${PROXY_MODULES}" \
             -DskipTests \
             -Derrorprone.skip=true \
+            -Djapicmp.skip=true \
             install
       - name: 'Build & test Kubernetes modules'
         env:
