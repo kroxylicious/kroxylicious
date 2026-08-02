@@ -138,7 +138,7 @@ jobs:
               -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
               -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
               -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} \
-              clean verify \
+              verify \
               org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
           fi
         env:

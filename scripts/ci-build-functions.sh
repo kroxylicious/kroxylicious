@@ -37,6 +37,6 @@ run_sonar() {
     -Derrorprone.skip=true \
     -DskipITs=true \
     "$@" \
-    clean verify \
+    verify \
     org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
 }
