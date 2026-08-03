@@ -73,6 +73,8 @@ jobs:
           expected=$(( $(grep -h -r --include="pom.xml" "<module>" . | grep -v target | sort | uniq | wc -l) + 1 ))
           python3 scripts/validate_pom_metadata.py target/effective-pom.xml "$expected"
           python3 scripts/validate_pom_metadata.py kroxylicious-bom/target/effective-pom.xml
+      - name: 'Install xmllint'
+        run: sudo apt-get install -y libxml2-utils
       - name: 'Validate module-profile structure'
         run: bash scripts/validate-module-structure.sh
       - name: 'Lint changelog entries'
