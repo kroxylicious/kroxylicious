@@ -17,13 +17,12 @@
 #        Defaults to pom.xml in the current directory.
 
 set -euo pipefail
-set -x
+
+command -v xmllint >/dev/null 2>&1 || { echo "xmllint not found — install libxml2-utils (Ubuntu) or ensure Xcode CLI tools are present (macOS)" >&2; exit 1; }
 
 POM="${1:-pom.xml}"
 PROJECT_DIR="$(cd "$(dirname "$POM")" && pwd)"
 ERRORS=0
-
-xmllint --version 2>&1 || true
 
 fail() {
     echo "ERROR: $*" >&2
@@ -31,11 +30,11 @@ fail() {
 }
 
 xpath_count() {
-    xmllint --xpath "count($1)" "$2" 2>&1 || echo 0
+    xmllint --xpath "count($1)" "$2" 2>/dev/null || echo 0
 }
 
 xpath_text_lines() {
-    xmllint --xpath "$1" "$2" 2>&1 || true
+    xmllint --xpath "$1" "$2" 2>/dev/null || true
 }
 
 # Rule 1: root <modules> must have no direct children.
