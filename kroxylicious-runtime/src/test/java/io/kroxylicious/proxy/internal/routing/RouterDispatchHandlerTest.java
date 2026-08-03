@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -37,6 +38,7 @@ import io.kroxylicious.proxy.internal.InternalRequestFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -469,6 +471,42 @@ class RouterDispatchHandlerTest {
         // Then: frame was consumed by the handler, not forwarded to the client
         assertThat((Object) channel.readOutbound()).isNull();
         assertThat(pendingFuture).isCompletedWithValueMatching(ProduceResponseData.class::isInstance);
+    }
+
+    @Test
+    void metadataRoutingResponseShouldPopulateSharedNodeAddressMap() {
+        // Given
+        when(ccsm.sessionId()).thenReturn("test-session");
+        var sharedAddresses = new HashMap<Integer, HostPort>();
+        var handler = new RouterDispatchHandler(
+                router,
+                Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
+                Map.of(), sharedAddresses, ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+        channel = channelWithTerminal(handler);
+
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.METADATA.id)
+                .setRequestApiVersion((short) 12);
+        handler.sendToAnyNode(DEFAULT_ROUTE, header, new MetadataRequestData(), "test-session", 100);
+
+        int routingCorrelationId = Integer.MIN_VALUE / 2;
+        var broker = new MetadataResponseData.MetadataResponseBroker()
+                .setNodeId(0).setHost("broker0").setPort(9092);
+        var md = new MetadataResponseData();
+        md.brokers().add(broker);
+        var responseFrame = new DecodedResponseFrame<>((short) 12, routingCorrelationId, new ResponseHeaderData(), md);
+
+        // When
+        channel.writeOutbound(responseFrame);
+
+        // Then: shared map contains the address learned from the METADATA response
+        assertThat(handler.resolveRouterNodeAddress(0))
+                .isPresent()
+                .hasValueSatisfying(hp -> {
+                    assertThat(hp.host()).isEqualTo("broker0");
+                    assertThat(hp.port()).isEqualTo(9092);
+                });
+        assertThat(sharedAddresses).containsKey(0);
     }
 
     @Test

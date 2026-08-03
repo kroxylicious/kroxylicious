@@ -80,7 +80,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     private final ClientConnectionStateMachine ccsm;
     private final String virtualClusterName;
     final NodeIdMapping nodeIdMapping;
-    private final Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
+    private final Map<Integer, HostPort> routerNodeAddresses;
 
     /**
      * Tracks correlation IDs of in-flight statically-routed requests that need response
@@ -110,9 +110,21 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                  String virtualClusterName,
                                  NodeIdMapping nodeIdMapping,
                                  @Nullable Integer nodeId) {
+        this(router, routes, staticRoutes, new HashMap<>(), ccsm, virtualClusterName, nodeIdMapping, nodeId);
+    }
+
+    public RouterDispatchHandler(Router router,
+                                 Map<String, RouteDescriptor> routes,
+                                 Map<ApiKeys, String> staticRoutes,
+                                 Map<Integer, HostPort> sharedNodeAddresses,
+                                 ClientConnectionStateMachine ccsm,
+                                 String virtualClusterName,
+                                 NodeIdMapping nodeIdMapping,
+                                 @Nullable Integer nodeId) {
         this.router = router;
         this.routes = routes;
         this.staticRoutes = staticRoutes;
+        this.routerNodeAddresses = sharedNodeAddresses;
         this.ccsm = ccsm;
         this.virtualClusterName = virtualClusterName;
         this.nodeIdMapping = nodeIdMapping;
