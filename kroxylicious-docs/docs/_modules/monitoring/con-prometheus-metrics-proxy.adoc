@@ -310,3 +310,23 @@ example, a cluster transitioning from `initializing` directly to `failed`.
  and `to` states.
 
 |===
+
+== Authentication metrics
+
+When a filter announces a client authentication outcome, the proxy records it
+so that operators can monitor authentication activity across all virtual
+clusters and mechanisms.
+
+.Authentication metrics
+|===
+|Metric Name |Type |Labels|Description
+
+|`kroxylicious_client_auth_total`
+|Counter
+|`virtual_cluster`, `mechanism`, `outcome`
+|Incremented by one every time a filter announces a client authentication
+ outcome. The `mechanism` label identifies the SASL mechanism used (for
+ example `SCRAM-SHA-256`, `OAUTHBEARER`), or `unknown` if the mechanism
+ could not be determined. The `outcome` label is `success` or `failure`.
+
+|===

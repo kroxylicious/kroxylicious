@@ -382,7 +382,12 @@ public class Metrics {
     // --- Authentication ---
 
     /**
-     * Counter of client authentication outcomes, tagged by virtual cluster, SASL mechanism, and outcome.
+     * Counter of client authentication outcomes, tagged by virtual cluster, SASL mechanism,
+     * and {@code outcome} ({@code success}, {@code failure}).
+     *
+     * @param virtualCluster the virtual cluster name
+     * @param mechanism the SASL mechanism name, or {@code "unknown"} if the mechanism is not known
+     * @param outcome the authentication outcome
      */
     public static Counter clientAuthCounter(String virtualCluster, String mechanism, String outcome) {
         return Counter.builder(CLIENT_AUTH_COUNTER_NAME)
