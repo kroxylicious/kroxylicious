@@ -21,12 +21,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class KroxyliciousTesterBuilder {
 
+    @Nullable
     private String trustStoreLocation = null;
     @Nullable
     private String trustStorePassword = null;
     private BiFunction<Configuration, Features, AutoCloseable> kroxyliciousFactory = DefaultKroxyliciousTester::spawnProxy;
     private Features features = Features.defaultFeatures();
     private DefaultKroxyliciousTester.ClientFactory clientFactory = (clusterName, defaultConfiguration) -> new KroxyliciousClients(defaultConfiguration);
+    @Nullable
     private ConfigurationBuilder configurationBuilder;
 
     /**

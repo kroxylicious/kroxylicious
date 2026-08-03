@@ -15,8 +15,6 @@ import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Class for utilities related to manipulating KroxyliciousConfig and it's builder.
  */
@@ -123,7 +121,6 @@ public class KroxyliciousConfigUtils {
         return defaultSniHostIdentifiesNodeGatewayBuilder(HostPort.parse(bootstrapAddress), advertisedBrokerAddressPattern);
     }
 
-    @NonNull
     public static VirtualClusterBuilder baseVirtualClusterBuilder(KafkaCluster cluster, String clusterName) {
         return new VirtualClusterBuilder()
                 .withNewTargetCluster()
