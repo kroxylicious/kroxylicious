@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -43,6 +44,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * When the nested router's {@code onRequest()} completes, writes the
  * composed response upstream so it flows through outer route filters
  * back to {@link RouterDispatchHandler}.
+ *
+ * <p>Not thread-safe; all callers must be on the same Netty event loop.
  */
 public class NestedRoutingHandler extends ChannelDuplexHandler {
 
@@ -250,7 +253,7 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
         var header = new ResponseHeaderData();
         header.setCorrelationId(outerCorrelationId);
         ApiMessage body = KafkaProxyExceptionMapper.errorResponseForMessage(
-                requestFrame.header(), requestFrame.body(), new org.apache.kafka.common.errors.UnknownServerException(error.getMessage())).data();
+                requestFrame.header(), requestFrame.body(), new UnknownServerException(error.getMessage())).data();
         var responseFrame = new DecodedResponseFrame<>(apiVersion, outerCorrelationId, header, body);
         responseFrame.setRouteName(activationRoute);
         ctx.write(responseFrame, ctx.voidPromise());
