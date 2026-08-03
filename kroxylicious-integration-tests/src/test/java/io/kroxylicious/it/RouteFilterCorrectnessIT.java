@@ -15,7 +15,10 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ListGroupsResponseData;
 import org.apache.kafka.common.message.ListTransactionsRequestData;
 import org.apache.kafka.common.message.ListTransactionsResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -26,6 +29,7 @@ import io.kroxylicious.it.testplugins.RequestCountingFilter;
 import io.kroxylicious.it.testplugins.RequestCountingFilterFactory;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilter;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
+import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.it.testplugins.router.DynamicProduceRouterFactory;
 import io.kroxylicious.it.testplugins.router.PassThroughRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
@@ -37,6 +41,7 @@ import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.testing.filter.record.RecordTestUtils;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
@@ -86,6 +91,11 @@ class RouteFilterCorrectnessIT {
     private static final String CLUSTER_NAME = "backing";
     private static final String ROUTE_A = "route-a";
     private static final String ROUTE_B = "route-b";
+
+    @BeforeEach
+    void resetRouterState() {
+        ContextCapturingRouterFactory.reset();
+    }
 
     // ---------------------------------------------------------------------------
     // C1: Route filters see all traffic on a route, including router-originated
@@ -346,8 +356,86 @@ class RouteFilterCorrectnessIT {
     }
 
     // ---------------------------------------------------------------------------
+    // C7: Route filter onResponse called for dynamically-dispatched responses
+    // ---------------------------------------------------------------------------
+
+    /**
+     * When a router uses dynamic dispatch ({@code RouterContext.sendRequest()} +
+     * {@code respondWith()}), the upstream response flows back through the route filter
+     * chain. {@code RouteFilterHandler.write()} must stamp the route name on the response
+     * so that route filters can invoke {@code onResponse}.
+     *
+     * <p>Previously, {@code RoutingTerminalHandler.channelRead()} excluded routing-range
+     * correlation IDs from {@code correlationIdToRoute}, so routing responses arrived at
+     * {@code RouteFilterHandler} without a route name and {@code matchesRoute()} returned
+     * false, silently skipping {@code onResponse}.
+     */
+    @Test
+    void routeFilterOnResponseCalledForDynamicallyDispatchedResponse(KafkaCluster cluster, Topic topic) {
+        var filterName = "c7-filter";
+
+        // Given: route-level filter that marks the PRODUCE response body
+        var filterDef = new NamedFilterDefinitionBuilder(filterName, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(ApiKeys.PRODUCE),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.RESPONSE),
+                        "name", filterName,
+                        "forwardingStyle", ForwardingStyle.SYNCHRONOUS)
+                .build();
+        var config = contextCapturingConfigWithRouteFilter(cluster.getBootstrapServers(), filterDef);
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var client = tester.simpleTestClient()) {
+
+            // Given: establish the upstream connection
+            client.getSync(new Request(ApiKeys.METADATA, (short) 12, "metadata-client", new MetadataRequestData()));
+
+            // When
+            var response = client.getSync(produceRequest(topic.name(), (short) 1));
+
+            // Then: the filter's tag must be on the response body, proving onResponse was called
+            assertThat(unknownTaggedFieldsToStrings(response.payload().message(), FILTER_NAME_TAG))
+                    .as("route filter onResponse must be invoked for dynamically-dispatched PRODUCE responses")
+                    .containsExactly(RequestResponseMarkingFilter.class.getSimpleName() + "-" + filterName + "-response");
+        }
+    }
+
+    // ---------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------
+
+    private ConfigurationBuilder contextCapturingConfigWithRouteFilter(String bootstrapServers, NamedFilterDefinition filterDef) {
+        var clusterDef = new ClusterDefinition(CLUSTER_NAME, bootstrapServers, null);
+        var route = new RouteDefinition(ROUTE_A, 0, List.of(filterDef.name()), new RouteTarget(CLUSTER_NAME, null));
+        var routerDef = new RouterDefinition(ROUTER_NAME, ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config(ROUTE_A), List.of(route));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToFilterDefinitions(filterDef)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+    }
+
+    private static Request produceRequest(String topicName, short acks) {
+        var records = RecordTestUtils.singleElementMemoryRecords("key", "value");
+        var partitionData = new ProduceRequestData.PartitionProduceData()
+                .setIndex(0)
+                .setRecords(records);
+        var topicData = new ProduceRequestData.TopicProduceData()
+                .setName(topicName)
+                .setPartitionData(List.of(partitionData));
+        var topicCollection = new ProduceRequestData.TopicProduceDataCollection(
+                List.of(topicData).iterator());
+        var produceData = new ProduceRequestData()
+                .setAcks(acks)
+                .setTimeoutMs(5000)
+                .setTopicData(topicCollection);
+        return new Request(ApiKeys.PRODUCE, (short) 9, "test-client", produceData);
+    }
 
     private ConfigurationBuilder twoRouteConfig(String bootstrapServers,
                                                 List<String> routeAFilterNames,
