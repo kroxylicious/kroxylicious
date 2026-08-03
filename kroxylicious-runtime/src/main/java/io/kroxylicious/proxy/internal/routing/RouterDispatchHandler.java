@@ -35,6 +35,8 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.internal.CorrelationIdSpace;
+import io.kroxylicious.proxy.internal.InternalRequestFrame;
+import io.kroxylicious.proxy.internal.InternalResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.service.HostPort;
@@ -218,6 +220,15 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 ccsm.authenticatedSubject(),
                 nodeId);
 
+        // InternalRequestFrame = filter OOB (e.g. FilterContext.sendRequest). Skip its
+        // sequence slot immediately so the sequencer never waits for it. The response is
+        // delivered via channel.writeAndFlush (bypassing the sequencer) to avoid deadlock
+        // when the OOB fires inside the onRequest/onResponse of another sequenced frame.
+        InternalRequestFrame<?> oobFrame = frame instanceof InternalRequestFrame<?> irf ? irf : null;
+        if (oobFrame != null) {
+            Objects.requireNonNull(responseSequencer).skip(sequence);
+        }
+
         router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
                 .whenComplete((result, error) -> {
                     if (error != null) {
@@ -228,7 +239,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                 .addKeyValue("clientCorrelationId", correlationId)
                                 .setCause(error)
                                 .log("Router returned failed future");
-                        responseSequencer.skip(sequence);
+                        if (oobFrame == null) {
+                            responseSequencer.skip(sequence);
+                        }
                         ctx.channel().close();
                         return;
                     }
@@ -239,8 +252,23 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                 .addKeyValue("apiKey", apiKey)
                                 .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
                                 .log("Router returned unrecognised RouterResponse type; closing connection");
-                        responseSequencer.skip(sequence);
+                        if (oobFrame == null) {
+                            responseSequencer.skip(sequence);
+                        }
                         ctx.channel().close();
+                        return;
+                    }
+                    if (oobFrame != null && rri instanceof RouterResponseImpl.RespondWith rw) {
+                        // Deliver OOB response directly via writeAndFlush — bypasses the
+                        // sequencer so the OOB response arrives immediately even if a
+                        // sequenced response is still pending.
+                        var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
+                        header.setCorrelationId(correlationId);
+                        var internalResponse = new InternalResponseFrame<>(
+                                oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
+                        internalResponse.setRouteName(oobFrame.routeName());
+                        Objects.requireNonNull(ctx).channel().writeAndFlush(internalResponse);
+                        ccsm.onRoutedRequestComplete();
                         return;
                     }
                     deliverResponse(ctx, rri, apiKey, apiVersion, correlationId, sequence);
