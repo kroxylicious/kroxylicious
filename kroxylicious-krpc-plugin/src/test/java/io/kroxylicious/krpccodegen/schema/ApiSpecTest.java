@@ -109,6 +109,142 @@ class ApiSpecTest {
     }
 
     @Test
+    void shouldDetectEntityFieldInRequest() {
+        // Given
+        var request = messageSpec("""
+                {
+                  "apiKey": 1,
+                  "type": "request",
+                  "listeners": ["broker"],
+                  "name": "FetchRequest",
+                  "validVersions": "0",
+                  "flexibleVersions": "0+",
+                  "fields": [
+                    { "name": "TopicName", "type": "string", "versions": "0+", "entityType": "topicName",
+                      "about": "The topic." }
+                  ]
+                }
+                """);
+        var spec = new ApiSpec(request, FETCH_RESPONSE);
+
+        // When
+        var result = spec.hasAtLeastOneEntityField(Set.of(EntityType.TOPIC_NAME));
+
+        // Then
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void shouldDetectEntityFieldInResponse() {
+        // Given
+        var response = messageSpec("""
+                {
+                  "apiKey": 1,
+                  "type": "response",
+                  "name": "FetchResponse",
+                  "validVersions": "0",
+                  "flexibleVersions": "0+",
+                  "fields": [
+                    { "name": "TopicName", "type": "string", "versions": "0+", "entityType": "topicName",
+                      "about": "The topic." }
+                  ]
+                }
+                """);
+        var spec = new ApiSpec(FETCH_REQUEST, response);
+
+        // When
+        var result = spec.hasAtLeastOneEntityField(Set.of(EntityType.TOPIC_NAME));
+
+        // Then
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void shouldDetectAbsenceOfEntityField() {
+        // Given
+        var spec = new ApiSpec(FETCH_REQUEST, FETCH_RESPONSE);
+
+        // When
+        var result = spec.hasAtLeastOneEntityField(Set.of(EntityType.TOPIC_NAME));
+
+        // Then
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void shouldDetectResourceListInRequest() {
+        // Given
+        var request = messageSpec("""
+                {
+                  "apiKey": 1,
+                  "type": "request",
+                  "listeners": ["broker"],
+                  "name": "FetchRequest",
+                  "validVersions": "0",
+                  "flexibleVersions": "0+",
+                  "fields": [
+                    { "name": "Resources", "type": "[]Resource", "versions": "0+",
+                      "about": "The resources.", "fields": [
+                      { "name": "ResourceType", "type": "int8", "versions": "0+",
+                        "about": "The resource type." },
+                      { "name": "ResourceName", "type": "string", "versions": "0+",
+                        "about": "The resource name." }
+                    ]}
+                  ]
+                }
+                """);
+        var spec = new ApiSpec(request, FETCH_RESPONSE);
+
+        // When
+        var result = spec.hasResourceList();
+
+        // Then
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void shouldDetectResourceListInResponse() {
+        // Given
+        var response = messageSpec("""
+                {
+                  "apiKey": 1,
+                  "type": "response",
+                  "name": "FetchResponse",
+                  "validVersions": "0",
+                  "flexibleVersions": "0+",
+                  "fields": [
+                    { "name": "Resources", "type": "[]Resource", "versions": "0+",
+                      "about": "The resources.", "fields": [
+                      { "name": "ResourceType", "type": "int8", "versions": "0+",
+                        "about": "The resource type." },
+                      { "name": "ResourceName", "type": "string", "versions": "0+",
+                        "about": "The resource name." }
+                    ]}
+                  ]
+                }
+                """);
+        var spec = new ApiSpec(FETCH_REQUEST, response);
+
+        // When
+        var result = spec.hasResourceList();
+
+        // Then
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void shouldDetectAbsenceOfResourceList() {
+        // Given
+        var spec = new ApiSpec(FETCH_REQUEST, FETCH_RESPONSE);
+
+        // When
+        var result = spec.hasResourceList();
+
+        // Then
+        assertThat(result).isFalse();
+    }
+
+    @Test
     void shouldRejectMismatchedApiKeys() {
         // Given
         var otherResponse = messageSpec("""
