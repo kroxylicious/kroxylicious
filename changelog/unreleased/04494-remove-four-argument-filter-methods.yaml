@@ -1,0 +1,8 @@
+title: "refactor(api): remove deprecated four-argument filter methods"
+type: removed
+issues:
+  - 4494
+important_notes:
+  - |
+    The four-argument `RequestFilter.onRequest` and `ResponseFilter.onResponse` methods have been removed.
+    Filter implementations must use the five-argument variants that include the API version.

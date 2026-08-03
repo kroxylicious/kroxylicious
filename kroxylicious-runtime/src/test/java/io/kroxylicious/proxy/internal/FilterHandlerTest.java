@@ -1227,42 +1227,10 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    void forwardRequestUsingDeprecatedNonSpecificFilterApi() {
-        var filter = new RequestFilter() {
-            @Override
-            @SuppressWarnings("removal")
-            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
-                return context.requestFilterResultBuilder().forward(header, request)
-                        .completed();
-            }
-        };
-        buildChannel(filter);
-        var frame = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readInbound();
-        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
-    }
-
-    @Test
     void forwardResponseUsingNonSpecificFilterApi() {
         var filter = new ResponseFilter() {
             @Override
             public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response,
-                                                                    FilterContext context) {
-                return context.forwardResponse(header, response);
-            }
-        };
-        buildChannel(filter);
-        var frame = writeResponse(new ApiVersionsResponseData());
-        var propagated = channel.readOutbound();
-        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
-    }
-
-    @Test
-    void forwardResponseUsingDeprecatedNonSpecificFilterApi() {
-        var filter = new ResponseFilter() {
-            @Override
-            @SuppressWarnings("removal")
-            public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response,
                                                                     FilterContext context) {
                 return context.forwardResponse(header, response);
             }

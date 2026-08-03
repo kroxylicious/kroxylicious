@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.bootstrap;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -19,8 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
@@ -31,7 +28,6 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactory;
-import io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.FlakyConfig;
@@ -43,18 +39,14 @@ import io.kroxylicious.proxy.internal.filter.TestFilter;
 import io.kroxylicious.proxy.internal.filter.TestFilterFactory;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import nl.altindag.log.LogCaptor;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FilterChainFactoryTest {
 
-    private static final Logger log = LoggerFactory.getLogger(FilterChainFactoryTest.class);
     private EventLoop eventLoop;
     private ExampleConfig config;
     private PluginFactoryRegistry pfr;
-    private LogCaptor logCaptor;
 
     @BeforeEach
     void setUp() {
@@ -79,9 +71,6 @@ class FilterChainFactoryTest {
                             }
                             else if (instanceName.endsWith(FlakyFactory.class.getSimpleName())) {
                                 return new FlakyFactory();
-                            }
-                            else if (instanceName.endsWith(DeprecatedMethodsFilterFactory.class.getSimpleName())) {
-                                return new DeprecatedMethodsFilterFactory();
                             }
                             throw new RuntimeException("Unknown FilterFactory: " + instanceName);
                         }
@@ -109,7 +98,6 @@ class FilterChainFactoryTest {
                 }
             }
         };
-        logCaptor = LogCaptor.forClass(FilterChainFactory.class);
     }
 
     @Test
@@ -151,33 +139,6 @@ class FilterChainFactoryTest {
             assertThat(testFilterImpl.getContext().filterDispatchExecutor()).isSameAs(filterDispatchExecutor);
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
-    }
-
-    @Test
-    void reportsUseOfFiltersWithMethodsOverridingDeprecatedApi() {
-        var nameFilterDefinitions = List.of(new NamedFilterDefinition("myFilterDef", DeprecatedMethodsFilterFactory.class.getName(), null));
-        try (var filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions)) {
-            var context = new NettyFilterContext(eventLoop, pfr);
-            filterChainFactory.createFilters(context);
-            assertThat(logCaptor.getLogEvents())
-                    .hasSize(2)
-                    .allSatisfy(logEvent -> {
-                        assertThat(logEvent.getMessage()).isEqualTo(
-                                "FilterDefinition created a Filter instance which implements a deprecated method. This Filter implementation must be updated as the method will be removed in a future release");
-                        assertThat(logEvent.getKeyValuePairs())
-                                .contains(Map.entry("filterName", "myFilterDef"))
-                                .contains(Map.entry("filterDefinitionType", "io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory"))
-                                .contains(Map.entry("filterClass", DeprecatedMethodsFilterFactory.TestFilterImpl.class));
-                    })
-                    .extracting(logEvent -> logEvent.getKeyValuePairs().stream()
-                            .filter(e -> e.getKey().equals("method"))
-                            .map(Map.Entry::getValue)
-                            .findFirst()
-                            .orElse(null))
-                    .containsExactlyInAnyOrder(
-                            "onRequest(ApiKeys, RequestHeaderData, ApiMessage, FilterContext)",
-                            "onResponse(ApiKeys, ResponseHeaderData, ApiMessage, FilterContext)");
-        }
     }
 
     @ParameterizedTest

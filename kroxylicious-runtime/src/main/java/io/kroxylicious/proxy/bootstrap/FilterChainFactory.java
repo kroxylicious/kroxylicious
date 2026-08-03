@@ -11,26 +11,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.filter.RequestFilter;
-import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
@@ -63,12 +52,6 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
  *
  */
 public class FilterChainFactory implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(FilterChainFactory.class);
-
-    private record ClassDescription(boolean overridesDeprecatedOnRequest, boolean overridesDeprecatedOnResponse) {}
-
-    private static final ConcurrentHashMap<Class<?>, ClassDescription> CLASS_DESCRIPTIONS = new ConcurrentHashMap<>();
-
     /**
      * Manages the lifesystem of a filter instance, initializing it on construction and closing it in {@link #close()}
      */
@@ -99,58 +82,11 @@ public class FilterChainFactory implements AutoCloseable {
                 throw new IllegalStateException("Filter factory " + filterDefinition.name() + " is closed");
             }
             try {
-                Filter filter = filterFactory.createFilter(context, initResult);
-                maybeWarnAboutDeprecations(filter);
-                return filter;
+                return filterFactory.createFilter(context, initResult);
             }
             catch (Exception e) {
                 throw new PluginConfigurationException("Exception instantiating filter " + filterDefinition.name() + " using factory " + filterFactory, e);
             }
-        }
-
-        /**
-         * Logging about deprecated method usage must be done reflectively as we do not want to add a Logger to the interface.
-         */
-        private void maybeWarnAboutDeprecations(Filter filter) {
-            ClassDescription description = inspectFilterForDeprecations(filter);
-            if (description.overridesDeprecatedOnRequest) {
-                logDeprecation(filter.getClass(), "onRequest", RequestHeaderData.class);
-            }
-            if (description.overridesDeprecatedOnResponse) {
-                logDeprecation(filter.getClass(), "onResponse", ResponseHeaderData.class);
-            }
-        }
-
-        private ClassDescription inspectFilterForDeprecations(Filter filter) {
-            return CLASS_DESCRIPTIONS.computeIfAbsent(filter.getClass(), clazz -> {
-                try {
-                    boolean isOnRequestDeprecated = filter instanceof RequestFilter && !clazz.getMethod("onRequest", ApiKeys.class,
-                            RequestHeaderData.class,
-                            ApiMessage.class,
-                            FilterContext.class).isDefault();
-                    boolean isOnResponseDeprecated = filter instanceof ResponseFilter && !clazz.getMethod("onResponse", ApiKeys.class,
-                            ResponseHeaderData.class,
-                            ApiMessage.class,
-                            FilterContext.class).isDefault();
-                    return new ClassDescription(isOnRequestDeprecated, isOnResponseDeprecated);
-                }
-                catch (Exception e) {
-                    LOGGER.atWarn()
-                            .setCause(e)
-                            .addKeyValue("filterName", filterDefinition.name())
-                            .log("Exception while inspecting Filter implementation for deprecations");
-                    return new ClassDescription(false, false);
-                }
-            });
-        }
-
-        private void logDeprecation(Class<? extends Filter> filterClass, String methodName, Class<? extends ApiMessage> headerType) {
-            LOGGER.atWarn()
-                    .addKeyValue("filterName", filterDefinition.name())
-                    .addKeyValue("filterDefinitionType", filterDefinition.type())
-                    .addKeyValue("filterClass", filterClass)
-                    .addKeyValue("method", methodName + "(ApiKeys, " + headerType.getSimpleName() + ", ApiMessage, FilterContext)")
-                    .log("FilterDefinition created a Filter instance which implements a deprecated method. This Filter implementation must be updated as the method will be removed in a future release");
         }
 
         private void close() {
