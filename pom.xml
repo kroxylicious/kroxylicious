@@ -77,7 +77,7 @@
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
-        <strimzi.version>1.0.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
+        <strimzi.version>1.1.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
         <kubernetes-client.version>7.8.0</kubernetes-client.version>
         <maven.core.version>3.9.16</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
@@ -689,6 +689,8 @@
                                     <!-- Need to keep original copyright for Vert.x classes -->
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
                                     <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
+                                    <!-- Exclude third-party CRDs (carry their own license) -->
+                                    <exclude>src/test/resources/strimzi-crds/**</exclude>
                                     <!-- Exclude test key material -->
                                     <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.key</exclude>
                                     <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.pem</exclude>

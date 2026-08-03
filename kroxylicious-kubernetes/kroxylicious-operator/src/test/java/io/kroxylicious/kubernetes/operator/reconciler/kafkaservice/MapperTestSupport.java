@@ -27,7 +27,7 @@ import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.source.IndexerResourceCache;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
-import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerAddressBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
 
@@ -156,10 +156,12 @@ class MapperTestSupport {
             .endMetadata()
             .withNewSpec()
                 .withNewKafka()
-                    .withListeners(new GenericKafkaListenerBuilder()
+                    .addNewListener()
                             .withName("plain")
+                            .withPort(9092)
+                            .withType(KafkaListenerType.INTERNAL)
                             .withTls(false)
-                            .build())
+                        .endListener()
                 .endKafka()
             .endSpec()
             .withNewStatus()

@@ -35,9 +35,9 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Updatable;
-import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
@@ -114,12 +114,12 @@ class AllReconcilersIT {
             .withReconciler(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR, sharedInformerManager))
             .withSetupAction(() -> {
                 try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-                    client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
+                    client.apiextensions().v1().customResourceDefinitions().resource(StrimziCrdUtils.kafkaCrd()).createOr(Updatable::update);
                 }
             })
             .withTeardownAction(() -> {
                 try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-                    client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
+                    client.apiextensions().v1().customResourceDefinitions().resource(StrimziCrdUtils.kafkaCrd()).delete();
                 }
             })
             .withAdditionalCleanupTypes(Kafka.class)
@@ -552,6 +552,8 @@ class AllReconcilersIT {
                     .withNewKafka()
                         .addNewListener()
                             .withName(STRIMZI_TLS_LISTENER)
+                            .withPort(9093)
+                            .withType(KafkaListenerType.INTERNAL)
                             .withTls(true)
                         .endListener()
                     .endKafka()
