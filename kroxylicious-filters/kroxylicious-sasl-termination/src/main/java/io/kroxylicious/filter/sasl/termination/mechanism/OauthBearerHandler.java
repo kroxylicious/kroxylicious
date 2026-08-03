@@ -138,10 +138,11 @@ public class OauthBearerHandler implements MechanismHandler {
         catch (Exception e) {
             LOGGER.atDebug()
                     .setCause(e)
+                    .addKeyValue("error", e.getMessage())
                     .log("OAUTHBEARER authentication failed");
             return CompletableFuture.completedFuture(
                     AuthenticationResult.failure(new byte[0],
-                            "Authentication failed: " + e.getMessage()));
+                            "Authentication failed"));
         }
     }
 

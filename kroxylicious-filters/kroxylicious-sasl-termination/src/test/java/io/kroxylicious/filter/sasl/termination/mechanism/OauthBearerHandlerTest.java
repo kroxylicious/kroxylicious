@@ -63,5 +63,6 @@ class OauthBearerHandlerTest {
 
         // Then
         assertThat(result.outcome()).isEqualTo(AuthenticationResult.Outcome.FAILURE);
+        assertThat(result.errorMessage()).isEqualTo("Authentication failed");
     }
 }
