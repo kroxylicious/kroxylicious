@@ -191,7 +191,7 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
                                 .addKeyValue(LOG_KEY_API_KEY, apiKey)
                                 .setCause(error)
                                 .log("Nested router returned failed future");
-                        writeErrorResponse(ctx, outerCorrelationId, apiVersion, frame, error);
+                        writeErrorResponse(ctx, frame, error);
                         return;
                     }
                     if (!(result instanceof RouterResponseImpl rri)) {
@@ -200,7 +200,7 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
                                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                                 .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
                                 .log("Nested router returned unrecognised RouterResponse type");
-                        writeErrorResponse(ctx, outerCorrelationId, apiVersion, frame,
+                        writeErrorResponse(ctx, frame,
                                 new IllegalStateException("Nested router returned unrecognised response type"));
                         return;
                     }
@@ -211,13 +211,12 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
                                 .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
                                 .log("Nested router attempted to close connection; ignoring close request");
                     }
-                    writeNestedResponse(ctx, outerCorrelationId, apiVersion, rri);
+                    writeNestedResponse(ctx, frame, rri);
                 });
     }
 
     private void writeNestedResponse(ChannelHandlerContext ctx,
-                                     int outerCorrelationId,
-                                     short apiVersion,
+                                     DecodedRequestFrame<?> requestFrame,
                                      RouterResponseImpl rri) {
         ApiMessage body;
         switch (rri) {
@@ -232,29 +231,27 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
                         .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                         .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                         .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
-                        .addKeyValue("outerCorrelationId", outerCorrelationId)
+                        .addKeyValue("outerCorrelationId", requestFrame.correlationId())
                         .log("Nested router completed with no reply");
                 return;
             }
         }
         var header = new ResponseHeaderData();
-        header.setCorrelationId(outerCorrelationId);
-        var responseFrame = new DecodedResponseFrame<>(apiVersion, outerCorrelationId, header, body);
+        header.setCorrelationId(requestFrame.correlationId());
+        var responseFrame = requestFrame.responseFrame(header, body);
         responseFrame.setRouteName(activationRoute);
         ctx.write(responseFrame, ctx.voidPromise());
         ctx.flush();
     }
 
     private void writeErrorResponse(ChannelHandlerContext ctx,
-                                    int outerCorrelationId,
-                                    short apiVersion,
                                     DecodedRequestFrame<?> requestFrame,
                                     Throwable error) {
         var header = new ResponseHeaderData();
-        header.setCorrelationId(outerCorrelationId);
+        header.setCorrelationId(requestFrame.correlationId());
         ApiMessage body = KafkaProxyExceptionMapper.errorResponseForMessage(
                 requestFrame.header(), requestFrame.body(), new UnknownServerException(error.getMessage())).data();
-        var responseFrame = new DecodedResponseFrame<>(apiVersion, outerCorrelationId, header, body);
+        var responseFrame = requestFrame.responseFrame(header, body);
         responseFrame.setRouteName(activationRoute);
         ctx.write(responseFrame, ctx.voidPromise());
         ctx.flush();
