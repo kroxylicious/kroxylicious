@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -23,17 +24,67 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param errorMessage the error message (only present on FAILURE)
  * @param sessionLifetimeMs session lifetime in milliseconds for reauthentication (KIP-368), 0 = no expiry
  */
+@SuppressWarnings("ArrayRecordComponent") // defensive copies, equals and hashCode are overridden
 public record AuthenticationResult(
                                    Outcome outcome,
                                    byte[] responseBytes,
                                    @Nullable String authorizationId,
                                    @Nullable String errorMessage,
                                    long sessionLifetimeMs) {
+
+    /**
+     * Canonical constructor with validation and defensive copy.
+     */
+    public AuthenticationResult {
+        Objects.requireNonNull(outcome, "outcome must not be null");
+        Objects.requireNonNull(responseBytes, "responseBytes must not be null");
+        responseBytes = responseBytes.clone();
+        if (outcome == Outcome.SUCCESS && authorizationId == null) {
+            throw new IllegalArgumentException("authorizationId required for SUCCESS outcome");
+        }
+        if (outcome == Outcome.FAILURE && errorMessage == null) {
+            throw new IllegalArgumentException("errorMessage required for FAILURE outcome");
+        }
+        if (outcome == Outcome.CHALLENGE && authorizationId != null) {
+            throw new IllegalArgumentException("authorizationId must be null for CHALLENGE outcome");
+        }
+        if (sessionLifetimeMs < 0) {
+            throw new IllegalArgumentException("sessionLifetimeMs must not be negative");
+        }
+    }
+
+    @Override
+    public byte[] responseBytes() {
+        return responseBytes.clone();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof AuthenticationResult that)) {
+            return false;
+        }
+        return sessionLifetimeMs == that.sessionLifetimeMs
+                && outcome == that.outcome
+                && Arrays.equals(responseBytes, that.responseBytes)
+                && Objects.equals(authorizationId, that.authorizationId)
+                && Objects.equals(errorMessage, that.errorMessage);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(outcome, authorizationId, errorMessage, sessionLifetimeMs);
+        result = 31 * result + Arrays.hashCode(responseBytes);
+        return result;
+    }
+
     @Override
     public String toString() {
         return "AuthenticationResult{" +
-                "authorizationId='" + authorizationId + '\'' +
-                ", outcome=" + outcome +
+                "outcome=" + outcome +
+                ", authorizationId='" + authorizationId + '\'' +
                 ", errorMessage='" + errorMessage + '\'' +
                 ", sessionLifetimeMs=" + sessionLifetimeMs +
                 '}';
@@ -60,26 +111,6 @@ public record AuthenticationResult(
          * The {@link #errorMessage} field contains the failure reason.
          */
         FAILURE
-    }
-
-    /**
-     * Canonical constructor with validation.
-     */
-    public AuthenticationResult {
-        Objects.requireNonNull(outcome, "outcome must not be null");
-        Objects.requireNonNull(responseBytes, "responseBytes must not be null");
-        if (outcome == Outcome.SUCCESS && authorizationId == null) {
-            throw new IllegalArgumentException("authorizationId required for SUCCESS outcome");
-        }
-        if (outcome == Outcome.FAILURE && errorMessage == null) {
-            throw new IllegalArgumentException("errorMessage required for FAILURE outcome");
-        }
-        if (outcome == Outcome.CHALLENGE && authorizationId != null) {
-            throw new IllegalArgumentException("authorizationId must be null for CHALLENGE outcome");
-        }
-        if (sessionLifetimeMs < 0) {
-            throw new IllegalArgumentException("sessionLifetimeMs must not be negative");
-        }
     }
 
     /**

@@ -7,6 +7,8 @@
 package io.kroxylicious.sasl.credentialstore.keystore;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -84,6 +86,12 @@ public class ScramCredentialSerializer {
         }
     }
 
+    // Sensitive byte[] fields (salt, serverKey, storedKey) live in the JVM heap for the
+    // lifetime of this object. This is an accepted risk: the same data already resides in
+    // the ScramCredential record that this type feeds into, and there is no practical way
+    // to guarantee memory clearing in a JVM (GC copies, JIT dead-store elimination).
+    // See the "Accepted risk: credential material in JVM heap" section of proposal 124.
+    @SuppressWarnings("ArrayRecordComponent") // defensive copies, equals and hashCode are overridden
     record VersionedCredential(
                                @JsonProperty(required = true) int version,
                                @JsonProperty(required = true) String username,
@@ -91,5 +99,62 @@ public class ScramCredentialSerializer {
                                @JsonProperty(required = true) int iterations,
                                @JsonProperty(required = true) byte[] serverKey,
                                @JsonProperty(required = true) byte[] storedKey,
-                               @JsonProperty(required = true) String hashAlgorithm) {}
+                               @JsonProperty(required = true) String hashAlgorithm) {
+
+        VersionedCredential {
+            salt = salt != null ? salt.clone() : null;
+            serverKey = serverKey != null ? serverKey.clone() : null;
+            storedKey = storedKey != null ? storedKey.clone() : null;
+        }
+
+        @Override
+        public byte[] salt() {
+            return salt != null ? salt.clone() : null;
+        }
+
+        @Override
+        public byte[] serverKey() {
+            return serverKey != null ? serverKey.clone() : null;
+        }
+
+        @Override
+        public byte[] storedKey() {
+            return storedKey != null ? storedKey.clone() : null;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof VersionedCredential that)) {
+                return false;
+            }
+            return version == that.version
+                    && iterations == that.iterations
+                    && Objects.equals(username, that.username)
+                    && Arrays.equals(salt, that.salt)
+                    && Arrays.equals(serverKey, that.serverKey)
+                    && Arrays.equals(storedKey, that.storedKey)
+                    && Objects.equals(hashAlgorithm, that.hashAlgorithm);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Objects.hash(version, username, iterations, hashAlgorithm);
+            result = 31 * result + Arrays.hashCode(salt);
+            result = 31 * result + Arrays.hashCode(serverKey);
+            result = 31 * result + Arrays.hashCode(storedKey);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "VersionedCredential{version=" + version
+                    + ", username='" + username + "'"
+                    + ", iterations=" + iterations
+                    + ", hashAlgorithm='" + hashAlgorithm + "'"
+                    + "}";
+        }
+    }
 }
