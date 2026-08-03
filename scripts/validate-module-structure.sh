@@ -49,18 +49,18 @@ check_root_modules_empty() {
 
 # Rule 2: every module listed in build-the-world must have a non-empty pom.xml.
 check_build_the_world_parents() {
-    local base_xpath count
-    base_xpath="//*[local-name()='profile'][*[local-name()='id' and text()='build-the-world']]/*[local-name()='modules']/*[local-name()='module']"
-    count=$(xpath_count "$base_xpath" "$POM")
+    local modules
+    modules=$(xpath_text_lines \
+        "//*[local-name()='profile'][*[local-name()='id' and text()='build-the-world']]/*[local-name()='modules']/*[local-name()='module']/text()" \
+        "$POM")
 
-    if [ "$count" -eq 0 ]; then
+    if [ -z "$modules" ]; then
         fail "build-the-world profile has no modules."
         return
     fi
 
-    local i module_dir parent_pom leaf_count
-    for i in $(seq 1 "$count"); do
-        module_dir=$(xmllint --xpath "string(${base_xpath}[$i])" "$POM" 2>/dev/null)
+    local module_dir parent_pom leaf_count
+    while IFS= read -r module_dir; do
         [ -n "$module_dir" ] || continue
         parent_pom="$PROJECT_DIR/$module_dir/pom.xml"
 
@@ -75,7 +75,7 @@ check_build_the_world_parents() {
         if [ "$leaf_count" -eq 0 ]; then
             fail "$parent_pom has no <module> entries — intermediate parents must not be empty."
         fi
-    done
+    done <<< "$modules"
 }
 
 check_root_modules_empty
