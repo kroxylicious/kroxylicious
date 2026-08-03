@@ -66,7 +66,7 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
         KrpcFilterState state;
         switch (decodedFrame.apiKey()) {
 <#list inputSpecs as inputSpec>
-            case ${inputSpec.apiKeyEnumName}:
+            case ${inputSpec.kafkaApiKeyEnumName}:
                 state = ((${inputSpec.name}Filter) this).on${inputSpec.name}((${inputSpec.name}Data) decodedFrame.body(), filterContext);
                 break;
 </#list>
@@ -95,7 +95,7 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
     default boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
         switch (apiKey) {
 <#list inputSpecs as inputSpec>
-            case ${inputSpec.apiKeyEnumName}:
+            case ${inputSpec.kafkaApiKeyEnumName}:
                 return this instanceof ${inputSpec.name}Filter;
 </#list>
             default:

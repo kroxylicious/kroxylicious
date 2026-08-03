@@ -6,28 +6,71 @@
 
 package io.kroxylicious.krpccodegen.schema;
 
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
 /**
  * Represents a Kafka API: the paired request and response message specifications for a single Kafka RPC.
- *
- * @param name name of the API (request spec name with "Request" suffix removed)
- * @param apiKey numeric API key from the message spec (e.g. 1 for Fetch)
- * @param apiKeyEnumName the Kafka ApiKeys enum constant name (e.g. "FETCH", "CREATE_TOPICS")
- * @param listeners the kafka entity(s) that listen for the request (and generate the response)
- * @param request request spec
- * @param response response spec
+ * All derived fields (name, apiKey, kafkaApiKeyEnumName, listeners) are extracted from the request
+ * and frozen at construction time. The constructor validates that the request and response pair correctly.
  */
-public record ApiSpec(String name, short apiKey, String apiKeyEnumName, Set<RequestListenerType> listeners, MessageSpec request,
-                      MessageSpec response)
-        implements Named {
-    public ApiSpec {
-        Objects.requireNonNull(name);
-        Objects.requireNonNull(apiKeyEnumName);
-        Objects.requireNonNull(listeners);
+public final class ApiSpec implements Named {
+
+    private final String name;
+    private final short apiKey;
+    private final String kafkaApiKeyEnumName;
+    private final Set<RequestListenerType> listeners;
+    private final MessageSpec request;
+    private final MessageSpec response;
+
+    public ApiSpec(MessageSpec request, MessageSpec response) {
         Objects.requireNonNull(request);
         Objects.requireNonNull(response);
+        if (!request.name().endsWith("Request")) {
+            throw new IllegalArgumentException(
+                    "Request name " + request.name() + " does not end with 'Request'");
+        }
+        if (!response.name().endsWith("Response")) {
+            throw new IllegalArgumentException(
+                    "Response name " + response.name() + " does not end with 'Response'");
+        }
+        if (!request.apiKey().equals(response.apiKey())) {
+            throw new IllegalArgumentException(
+                    "Request apiKey " + request.apiKey() + " does not match response apiKey " + response.apiKey());
+        }
+        this.request = request;
+        this.response = response;
+        this.name = request.name().replaceFirst("Request$", "");
+        this.apiKey = request.apiKey().orElseThrow(() -> new IllegalStateException("Request " + request.name() + " has no apiKey"));
+        this.kafkaApiKeyEnumName = request.kafkaApiKeyEnumName();
+        var l = request.listeners();
+        this.listeners = l == null ? Set.of() : Set.copyOf(new HashSet<>(l));
+    }
+
+    @Override
+    public String name() {
+        return name;
+    }
+
+    public short apiKey() {
+        return apiKey;
+    }
+
+    public String kafkaApiKeyEnumName() {
+        return kafkaApiKeyEnumName;
+    }
+
+    public Set<RequestListenerType> listeners() {
+        return listeners;
+    }
+
+    public MessageSpec request() {
+        return request;
+    }
+
+    public MessageSpec response() {
+        return response;
     }
 
     /**
@@ -37,7 +80,7 @@ public record ApiSpec(String name, short apiKey, String apiKeyEnumName, Set<Requ
      * @return true if present, false otherwise
      */
     public boolean hasAtLeastOneEntityField(Set<EntityType> entityTypes) {
-        return request().hasAtLeastOneEntityField(entityTypes) || response().hasAtLeastOneEntityField(entityTypes);
+        return request.hasAtLeastOneEntityField(entityTypes) || response.hasAtLeastOneEntityField(entityTypes);
     }
 
     /**
@@ -45,6 +88,6 @@ public record ApiSpec(String name, short apiKey, String apiKeyEnumName, Set<Requ
      * @return true if present, false otherwise
      */
     public boolean hasResourceList() {
-        return request().hasResourceList() || response().hasResourceList();
+        return request.hasResourceList() || response.hasResourceList();
     }
 }

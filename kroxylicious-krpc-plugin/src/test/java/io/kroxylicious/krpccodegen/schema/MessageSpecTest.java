@@ -473,7 +473,7 @@ class MessageSpecTest {
                 .hasMessageContaining("`requestScope` property is only valid for messages with type `request`");
     }
 
-    static Stream<Arguments> apiKeyEnumName() {
+    static Stream<Arguments> kafkaApiKeyEnumName() {
         return Stream.of(
                 argumentSet("single word request", "FetchRequest", "FETCH"),
                 argumentSet("single word response", "FetchResponse", "FETCH"),
@@ -487,7 +487,7 @@ class MessageSpecTest {
 
     @MethodSource
     @ParameterizedTest
-    void apiKeyEnumName(String specName, String expected) {
+    void kafkaApiKeyEnumName(String specName, String expected) {
         // Given
         var spec = definitionToMessageSpec("""
                 {
@@ -502,7 +502,7 @@ class MessageSpecTest {
                 """.formatted(specName));
 
         // When
-        String result = spec.apiKeyEnumName();
+        String result = spec.kafkaApiKeyEnumName();
 
         // Then
         assertThat(result).isEqualTo(expected);

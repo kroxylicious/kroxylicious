@@ -21,7 +21,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -633,9 +632,7 @@ public class KrpcGenerator {
                     }
 
                     var response = allResponses.get(apiKey);
-                    var name = request.name().replaceFirst("Request$", "");
-                    var listeners = Set.copyOf(new HashSet<>(request.listeners()));
-                    return new ApiSpec(name, apiKey, request.apiKeyEnumName(), listeners, request, response);
+                    return new ApiSpec(request, response);
                 })
                 .sorted(Comparator.comparing(Named::name))
                 .collect(Collectors.toCollection(LinkedHashSet::new));

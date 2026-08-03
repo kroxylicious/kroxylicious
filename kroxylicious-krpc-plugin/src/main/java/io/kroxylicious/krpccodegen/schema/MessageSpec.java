@@ -25,7 +25,7 @@ public final class MessageSpec implements Named {
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<Short> apiKey;
 
-    private final String apiKeyEnumName;
+    private final String kafkaApiKeyEnumName;
 
     private final MessageSpecType type;
 
@@ -52,7 +52,7 @@ public final class MessageSpec implements Named {
         this.struct = new StructSpec(name, validVersions, deprecatedVersions, fields);
         this.apiKey = apiKey == null ? Optional.empty() : Optional.of(apiKey);
         String baseName = name.replaceFirst("(Request|Response)$", "");
-        this.apiKeyEnumName = baseName.replaceAll("([a-z])([A-Z])", "$1_$2").toUpperCase(Locale.ROOT);
+        this.kafkaApiKeyEnumName = baseName.replaceAll("([a-z])([A-Z])", "$1_$2").toUpperCase(Locale.ROOT);
         this.latestVersionUnstable = Optional.ofNullable(latestVersionUnstable);
         this.type = Objects.requireNonNull(type);
         this.commonStructs = commonStructs == null ? Collections.emptyList() : List.copyOf(commonStructs);
@@ -146,13 +146,13 @@ public final class MessageSpec implements Named {
     }
 
     /**
-     * Returns the {@code ApiKeys} enum constant name for this message spec
+     * Returns the Kafka {@code ApiKeys} enum constant name for this message spec
      * (e.g. "FetchRequest" becomes "FETCH", "CreateTopicsResponse" becomes "CREATE_TOPICS").
      *
      * @return the enum constant name
      */
-    public String apiKeyEnumName() {
-        return apiKeyEnumName;
+    public String kafkaApiKeyEnumName() {
+        return kafkaApiKeyEnumName;
     }
 
     public String dataClassName() {
