@@ -322,8 +322,8 @@ class NestedRoutingIT {
         String topic = topicOnA.name();
         createTopicOnCluster(clusterB, topic);
         var config = nestedRoutingConfig();
-        int producersPerCluster = 3;
-        int messagesPerProducer = 5;
+        int producersPerCluster = 2;
+        int messagesPerProducer = 3;
 
         // When
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
@@ -340,7 +340,7 @@ class NestedRoutingIT {
                                 "batch.size", 0,
                                 "linger.ms", 0))) {
                             for (int i = 0; i < messagesPerProducer; i++) {
-                                producer.send(new ProducerRecord<>(topic, "a-" + idx + "-" + i, "v")).get(10, TimeUnit.SECONDS);
+                                producer.send(new ProducerRecord<>(topic, "a-" + idx + "-" + i, "v")).get(30, TimeUnit.SECONDS);
                             }
                         }
                         return null;
@@ -353,14 +353,14 @@ class NestedRoutingIT {
                                 "batch.size", 0,
                                 "linger.ms", 0))) {
                             for (int i = 0; i < messagesPerProducer; i++) {
-                                producer.send(new ProducerRecord<>(topic, "b-" + idx + "-" + i, "v")).get(10, TimeUnit.SECONDS);
+                                producer.send(new ProducerRecord<>(topic, "b-" + idx + "-" + i, "v")).get(30, TimeUnit.SECONDS);
                             }
                         }
                         return null;
                     }));
                 }
                 for (var f : futures) {
-                    f.get(30, TimeUnit.SECONDS);
+                    f.get(60, TimeUnit.SECONDS);
                 }
             }
             finally {

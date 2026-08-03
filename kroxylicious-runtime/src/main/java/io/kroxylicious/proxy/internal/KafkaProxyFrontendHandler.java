@@ -56,6 +56,7 @@ import io.kroxylicious.proxy.internal.filter.impl.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.NestedRoutingHandler;
 import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
@@ -365,7 +366,8 @@ public class KafkaProxyFrontendHandler
                 .createFilters(filterContext);
         filterAndInvokers.addAll(filterChain);
 
-        if (clientConnectionStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()) {
+        if (clientConnectionStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()
+                && clientConnectionStateMachine.virtualCluster().routing() instanceof DirectRouting) {
             filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
         }
         filterAndInvokers
