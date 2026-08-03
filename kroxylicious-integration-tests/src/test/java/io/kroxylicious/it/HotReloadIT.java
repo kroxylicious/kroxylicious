@@ -611,8 +611,14 @@ class HotReloadIT extends BaseIT {
         }
     }
 
+    /*
+     * This test differs from shouldModifyPortAddressedVcWithSamePort in that it is the original
+     * producer client that is used to send additional messages after the virtual cluster is reconfigured.
+     * This tests the path where the virtual cluster has to drop the connection and the producer client
+     * is able to reconnect.
+     */
     @Test
-    void shouldDrainActiveConnectionsWhenVcIsReconfiguredWithFilterChange(@BrokerCluster KafkaCluster cluster) {
+    void shouldDrainActiveConnectionWhenVcIsReconfiguredWithFilterChange(@BrokerCluster KafkaCluster cluster) {
         var startingConfig = portConfig(portVc(cluster, "vc-active-conn"));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
