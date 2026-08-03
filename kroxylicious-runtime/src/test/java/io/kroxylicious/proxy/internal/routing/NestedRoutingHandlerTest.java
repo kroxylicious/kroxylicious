@@ -396,24 +396,29 @@ class NestedRoutingHandlerTest {
         var handler = createHandler(nestedRoutes);
         channel = new EmbeddedChannel(handler);
         when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
-        when(router.staticRoutes()).thenReturn(Map.of(ApiKeys.METADATA, "r1"));
+        when(router.staticRoutes()).thenReturn(Map.of(ApiKeys.METADATA, "r2"));
 
         channel.writeInbound(metadataFrame(CORRELATION_ID, ACTIVATION_ROUTE));
 
         var md = new MetadataResponseData();
-        md.setControllerId(0);
-        md.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(0).setHost("h0").setPort(9092));
+        md.setControllerId(1);
+        md.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("h0").setPort(9092));
         var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID,
                 new ResponseHeaderData(), md);
 
         // When
         channel.writeOutbound(responseFrame);
 
-        // Then
+        // Then — BijectiveNodeIdMapping(S=2): toVirtual("r2", 1) = 1 + 2*1 = 3
         DecodedResponseFrame<?> out = channel.readOutbound();
         assertThat(out).isNotNull();
         var translatedMd = (MetadataResponseData) out.body();
-        assertThat(translatedMd.controllerId()).isZero();
+        assertThat(translatedMd.controllerId()).isEqualTo(3);
+        assertThat(translatedMd.brokers()).hasSize(1);
+        var broker = translatedMd.brokers().iterator().next();
+        assertThat(broker.nodeId()).isEqualTo(3);
+        assertThat(broker.host()).isEqualTo("h0");
+        assertThat(broker.port()).isEqualTo(9092);
     }
 
     @Test
