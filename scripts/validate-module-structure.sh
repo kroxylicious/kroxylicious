@@ -17,10 +17,13 @@
 #        Defaults to pom.xml in the current directory.
 
 set -euo pipefail
+set -x
 
 POM="${1:-pom.xml}"
 PROJECT_DIR="$(cd "$(dirname "$POM")" && pwd)"
 ERRORS=0
+
+xmllint --version 2>&1 || true
 
 fail() {
     echo "ERROR: $*" >&2
@@ -28,11 +31,11 @@ fail() {
 }
 
 xpath_count() {
-    xmllint --xpath "count($1)" "$2" 2>/dev/null || echo 0
+    xmllint --xpath "count($1)" "$2" 2>&1 || echo 0
 }
 
 xpath_text_lines() {
-    xmllint --xpath "$1" "$2" 2>/dev/null || true
+    xmllint --xpath "$1" "$2" 2>&1 || true
 }
 
 # Rule 1: root <modules> must have no direct children.
