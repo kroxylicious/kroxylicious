@@ -11,8 +11,11 @@ import java.util.Set;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,12 +29,14 @@ import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.filter.record.RecordTestUtils;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
@@ -43,6 +48,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import static io.kroxylicious.it.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.it.testplugins.RequestResponseMarkingFilter.FILTER_NAME_TAG;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -72,7 +78,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code writeFuture} resolves; but that future waits for the OOB promise, which is
  * queued after it. Circular wait: the response never arrives.
  *
- * <p>All three tests use {@link ContextCapturingRouterFactory}, which on main routes
+ * <p>Bug 4: {@link #eagerMetadataLearnerOobHangsWhenApiKeyDynamicallyRouted}
+ * — Same root cause as Bug 1 but via an internal filter. When a client connects
+ * directly to a per-node port before the proxy has learned the upstream topology,
+ * {@code EagerMetadataLearner} is installed and fires an OOB METADATA request.
+ * On main this OOB enters {@code dispatchDynamically} and its promise never resolves,
+ * so the connection never closes and the client cannot reconnect.
+ *
+ * <p>All four tests use {@link ContextCapturingRouterFactory}, which on main routes
  * all API keys dynamically (empty {@code staticRoutes()}). On the fixed commit the same
  * factory overrides {@code shouldIntercept()} to return {@code true} unconditionally,
  * keeping all traffic on the dynamic path so the fixes are exercised.
@@ -247,6 +260,67 @@ class RoutingDynamicBugsIT {
     // Helpers
     // -----------------------------------------------------------------------
 
+    // -----------------------------------------------------------------------
+    // Bug 4: EagerMetadataLearner OOB hangs when API key is dynamically routed
+    // -----------------------------------------------------------------------
+
+    /**
+     * When a client connects directly to a per-node port before the proxy has learned
+     * the upstream topology, {@code EagerMetadataLearner} is installed as an internal
+     * VC-level filter. Like the user-facing filter in
+     * {@link #filterSendRequestHangsWhenApiKeyDynamicallyRouted}, it fires an OOB METADATA
+     * request via {@code FilterContext.sendRequest()}.
+     *
+     * <p>On main, the OOB {@code InternalRequestFrame} reaches {@code RouterDispatchHandler}
+     * and enters {@code dispatchDynamically} (METADATA is not in the empty
+     * {@code staticRoutes()}). The router responds with {@code RespondWith}, but
+     * {@code deliverResponse} creates a {@code DecodedResponseFrame}, which
+     * {@code FilterHandler.write()} dispatches to {@code onResponse} instead of
+     * completing the filter promise. {@code EagerMetadataLearner} never receives the
+     * METADATA response, the connection never closes, and the client cannot reconnect.
+     *
+     * <p>The expected behaviour on the fixed commit is:
+     * <ol>
+     *   <li>First connection to the per-node port: {@code EagerMetadataLearner} fires OOB
+     *       METADATA, receives the response, returns it to the client, and closes the
+     *       connection so the client reconnects to the correct broker.</li>
+     *   <li>Second connection: upstream topology is now known, no {@code EagerMetadataLearner},
+     *       and subsequent requests (e.g. PRODUCE) are routed normally.</li>
+     * </ol>
+     */
+    @Test
+    void eagerMetadataLearnerOobHangsWhenApiKeyDynamicallyRouted(KafkaCluster cluster, Topic topic) {
+        // Given
+        var config = dynamicRouterConfigWithNodePort(cluster.getBootstrapServers());
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
+
+            // When: first connection to per-node port triggers EagerMetadataLearner OOB
+            var firstFuture = tester.simpleTestClient("localhost:9193", false)
+                    .get(new Request(ApiKeys.METADATA, (short) 12, "init", new MetadataRequestData()));
+
+            // Then: EagerMetadataLearner must receive the METADATA response and close
+            assertThat(firstFuture)
+                    .as("EagerMetadataLearner OOB METADATA must complete so the first connection returns and closes")
+                    .succeedsWithin(Duration.ofSeconds(5));
+            assertThat(firstFuture.toCompletableFuture().join().payload().message())
+                    .isInstanceOf(MetadataResponseData.class);
+
+            // When: second connection to the same port, upstream topology now known
+            try (var secondClient = tester.simpleTestClient("localhost:9193", false)) {
+                var response = secondClient.getSync(produceRequest(topic.name(), (short) 1));
+
+                // Then: PRODUCE succeeds normally on the second connection
+                assertThat(response.payload().message()).isInstanceOf(ProduceResponseData.class);
+                var produceResponse = (ProduceResponseData) response.payload().message();
+                assertThat(produceResponse.responses())
+                        .singleElement()
+                        .satisfies(r -> assertThat(r.partitionResponses()).singleElement()
+                                .satisfies(p -> assertThat(p.errorCode()).isEqualTo(Errors.NONE.code())));
+            }
+        }
+    }
+
     /**
      * Config with the filter at VC level (before RouterDispatchHandler in the pipeline).
      * OOBs fired by the filter reach RouterDispatchHandler and enter dispatchDynamically.
@@ -287,6 +361,32 @@ class RoutingDynamicBugsIT {
         return baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addToFilterDefinitions(filterDef)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+    }
+
+    /**
+     * Config with a {@code portIdentifiesNode} gateway that exposes port 9192 as bootstrap
+     * and port 9193 as the per-node port for virtual node 0. Connecting to port 9193 before
+     * the proxy has learned the upstream topology installs {@code EagerMetadataLearner}.
+     */
+    private ConfigurationBuilder dynamicRouterConfigWithNodePort(String bootstrapServers) {
+        var clusterDef = new ClusterDefinition(CLUSTER_NAME, bootstrapServers, null);
+        var route = new RouteDefinition(ROUTE_NAME, 0, List.of(), new RouteTarget(CLUSTER_NAME, null));
+        var routerConfig = new ContextCapturingRouterFactory.Config(ROUTE_NAME);
+        var routerDef = new RouterDefinition(ROUTER_NAME, ContextCapturingRouterFactory.class.getName(), routerConfig, List.of(route));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .addToGateways(defaultGatewayBuilder()
+                        .withNewPortIdentifiesNode()
+                        .withBootstrapAddress(HostPort.parse("localhost:9192"))
+                        .withNodeIdRanges(new NamedRange("nodes", 0, 0))
+                        .endPortIdentifiesNode()
+                        .build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
                 .addToRouterDefinitions(routerDef)
                 .addToVirtualClusters(vc);
     }
