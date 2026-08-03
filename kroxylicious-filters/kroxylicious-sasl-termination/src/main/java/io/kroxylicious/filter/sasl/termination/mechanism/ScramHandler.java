@@ -7,9 +7,14 @@
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -52,18 +57,24 @@ public class ScramHandler implements MechanismHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ScramHandler.class);
     private static final Map<String, String> SASL_PROPS = Map.of();
+    private static final int PHANTOM_SALT_LENGTH = 20;
+    private static final int SERVER_NONCE_BYTES = 24;
+    private static final int PHANTOM_ITERATIONS = 4096;
     static final int MAX_USERNAME_LENGTH = 255;
 
     private final String mechanismName;
     private final ScramCredentialStore credentialStore;
     private final Clock clock;
     private final Duration fixedAuthDelay;
+    private final SecureRandom secureRandom;
 
     @Nullable
     private SaslServer saslServer;
 
     @Nullable
     private String extractedUsername;
+
+    private boolean phantomUser;
 
     /**
      * Create a SCRAM handler for the specified mechanism.
@@ -79,6 +90,7 @@ public class ScramHandler implements MechanismHandler {
         this.credentialStore = Objects.requireNonNull(credentialStore);
         this.clock = Objects.requireNonNull(clock);
         this.fixedAuthDelay = Objects.requireNonNull(fixedAuthDelay);
+        this.secureRandom = new SecureRandom();
     }
 
     @Override
@@ -95,7 +107,11 @@ public class ScramHandler implements MechanismHandler {
     public CompletionStage<AuthenticationResult> handleAuthenticate(byte[] authBytes) {
         Instant start = clock.instant();
         CompletionStage<AuthenticationResult> result;
-        if (saslServer == null) {
+        if (phantomUser) {
+            result = CompletableFuture.completedFuture(
+                    AuthenticationResult.failure(new byte[0], "Authentication failed"));
+        }
+        else if (saslServer == null) {
             result = handleFirstRound(authBytes);
         }
         else {
@@ -140,8 +156,7 @@ public class ScramHandler implements MechanismHandler {
             return credentialStore.lookupCredential(extractedUsername)
                     .thenCompose(credential -> {
                         if (credential == null) {
-                            return CompletableFuture.completedFuture(
-                                    AuthenticationResult.failure(new byte[0], "Authentication failed"));
+                            return generatePhantomChallenge(authBytes);
                         }
                         return processWithCredential(authBytes, credential);
                     })
@@ -222,6 +237,46 @@ public class ScramHandler implements MechanismHandler {
             return CompletableFuture.completedFuture(
                     AuthenticationResult.failure(new byte[0], "Authentication failed: " + e.getMessage()));
         }
+    }
+
+    private CompletionStage<AuthenticationResult> generatePhantomChallenge(byte[] clientFirstMessage) {
+        phantomUser = true;
+
+        String clientNonce = extractClientNonce(clientFirstMessage);
+
+        // Deterministic salt derived from username so repeated probes get the same salt
+        byte[] salt;
+        try {
+            String algorithm = mechanismName.contains("512") ? "SHA-512" : "SHA-256";
+            MessageDigest md = MessageDigest.getInstance(algorithm);
+            salt = Arrays.copyOf(md.digest(extractedUsername.getBytes(StandardCharsets.UTF_8)), PHANTOM_SALT_LENGTH);
+        }
+        catch (NoSuchAlgorithmException e) {
+            salt = new byte[PHANTOM_SALT_LENGTH];
+            secureRandom.nextBytes(salt);
+        }
+
+        byte[] serverNonceBytes = new byte[SERVER_NONCE_BYTES];
+        secureRandom.nextBytes(serverNonceBytes);
+        String serverNonce = Base64.getEncoder().encodeToString(serverNonceBytes);
+
+        String serverFirstMessage = "r=" + clientNonce + serverNonce
+                + ",s=" + Base64.getEncoder().encodeToString(salt)
+                + ",i=" + PHANTOM_ITERATIONS;
+
+        return CompletableFuture.completedFuture(
+                AuthenticationResult.challenge(serverFirstMessage.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private static String extractClientNonce(byte[] clientFirstMessage) {
+        String message = new String(clientFirstMessage, StandardCharsets.UTF_8);
+        int nonceStart = message.indexOf("r=");
+        if (nonceStart == -1) {
+            throw new IllegalArgumentException("Invalid SCRAM message: no nonce field");
+        }
+        nonceStart += 2;
+        int nonceEnd = message.indexOf(',', nonceStart);
+        return nonceEnd == -1 ? message.substring(nonceStart) : message.substring(nonceStart, nonceEnd);
     }
 
     private CompletionStage<AuthenticationResult> delayUntil(Instant deadline, AuthenticationResult result) {

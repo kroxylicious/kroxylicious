@@ -61,7 +61,7 @@ class ScramHandlerTest {
     }
 
     @Test
-    void shouldFailForUnknownUser() throws Exception {
+    void shouldReturnChallengeForUnknownUserOnFirstRound() throws Exception {
         // Given
         when(credentialStore.lookupCredential(TEST_USERNAME))
                 .thenReturn(CompletableFuture.completedFuture(null));
@@ -72,10 +72,30 @@ class ScramHandlerTest {
                 .toCompletableFuture().get();
 
         // Then
+        assertThat(result.outcome()).isEqualTo(AuthenticationResult.Outcome.CHALLENGE);
+        String serverFirstMessage = new String(result.responseBytes(), StandardCharsets.UTF_8);
+        assertThat(serverFirstMessage).startsWith("r=fyko+d2lbbFgONRv9qkxdawL");
+        assertThat(serverFirstMessage).contains(",s=");
+        assertThat(serverFirstMessage).contains(",i=");
+        verify(credentialStore).lookupCredential(TEST_USERNAME);
+    }
+
+    @Test
+    void shouldFailForUnknownUserOnSecondRound() throws Exception {
+        // Given
+        when(credentialStore.lookupCredential(TEST_USERNAME))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        byte[] clientFirstMessage = "n,,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+        handler.handleAuthenticate(clientFirstMessage).toCompletableFuture().get();
+
+        // When
+        byte[] clientFinalMessage = "c=biws,r=fyko+d2lbbFgONRv9qkxdawLsome-server-nonce,p=dHzbZapWIk4jUhN+Ute9ytag9zjfMHgsqmmiz7AndVQ=".getBytes(StandardCharsets.UTF_8);
+        AuthenticationResult result = handler.handleAuthenticate(clientFinalMessage)
+                .toCompletableFuture().get();
+
+        // Then
         assertThat(result.outcome()).isEqualTo(AuthenticationResult.Outcome.FAILURE);
         assertThat(result.errorMessage()).isEqualTo("Authentication failed");
-        assertThat(result.authorizationId()).isNull();
-        verify(credentialStore).lookupCredential(TEST_USERNAME);
     }
 
     @Test
