@@ -43,6 +43,7 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
             case "listeners" -> wrapper.wrap(spec.listeners());
             case "dataClassName" -> wrapper.wrap(spec.dataClassName());
             case "hasResourceList" -> wrapper.wrap(spec.hasResourceList());
+            case "kafkaApiKeyEnumName" -> wrapper.wrap(spec.kafkaApiKeyEnumName());
             case "hasAtLeastOneEntityField" -> wrapper.wrap((TemplateMethodModelEx) this::handleHasAtLeastOneEntityField);
             case "intersectedVersionsForEntityFields" -> wrapper.wrap((TemplateMethodModelEx) this::handleIntersectedVersionsForEntityFields);
             case "intersectedVersionsForResourceList" -> wrapper.wrap((TemplateMethodModelEx) this::handleIntersectedVersionsForResourceList);

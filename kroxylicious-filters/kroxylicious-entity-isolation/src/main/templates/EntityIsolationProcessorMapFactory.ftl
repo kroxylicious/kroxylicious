@@ -60,9 +60,9 @@ final class EntityIsolationProcessorMapFactory  {
 <#list inputSpecs>
     <#items as apiSpec>
         <#if apiSpec.hasAtLeastOneEntityField(filteredEntityTypes) || apiSpec.hasResourceList>
-        map.put(ApiKeys.${apiSpec.apiKey}, new ${apiSpec.name}EntityIsolationProcessor(shouldMap, entityNameMapper));
+        map.put(ApiKeys.${apiSpec.kafkaApiKeyEnumName}, new ${apiSpec.name}EntityIsolationProcessor(shouldMap, entityNameMapper));
         <#else>
-        map.put(ApiKeys.${apiSpec.apiKey}, new PassthroughEntityIsolationProcessor<${apiSpec.request.dataClassName}, ${apiSpec.response.dataClassName}>((short) ${apiSpec.request.validVersions.lowest}, (short) ${apiSpec.request.validVersions.highest}));
+        map.put(ApiKeys.${apiSpec.kafkaApiKeyEnumName}, new PassthroughEntityIsolationProcessor<${apiSpec.request.dataClassName}, ${apiSpec.response.dataClassName}>((short) ${apiSpec.request.validVersions.lowest}, (short) ${apiSpec.request.validVersions.highest}));
         </#if>
     </#items>
 </#list>

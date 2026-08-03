@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class MessageSpecTest {
 
@@ -470,6 +471,41 @@ class MessageSpecTest {
                 .rootCause()
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("`requestScope` property is only valid for messages with type `request`");
+    }
+
+    static Stream<Arguments> kafkaApiKeyEnumName() {
+        return Stream.of(
+                argumentSet("single word request", "FetchRequest", "FETCH"),
+                argumentSet("single word response", "FetchResponse", "FETCH"),
+                argumentSet("multi-word", "CreateTopicsRequest", "CREATE_TOPICS"),
+                argumentSet("three words", "AlterPartitionReassignmentsRequest", "ALTER_PARTITION_REASSIGNMENTS"),
+                argumentSet("abbreviation prefix", "TxnOffsetCommitRequest", "TXN_OFFSET_COMMIT"),
+                argumentSet("acronym-like prefix", "ApiVersionsRequest", "API_VERSIONS"),
+                argumentSet("sasl prefix", "SaslAuthenticateRequest", "SASL_AUTHENTICATE"),
+                argumentSet("no suffix", "ConsumerProtocolAssignment", "CONSUMER_PROTOCOL_ASSIGNMENT"));
+    }
+
+    @MethodSource
+    @ParameterizedTest
+    void kafkaApiKeyEnumName(String specName, String expected) {
+        // Given
+        var spec = definitionToMessageSpec("""
+                {
+                  "apiKey": 1,
+                  "type": "request",
+                  "listeners": ["broker"],
+                  "name": "%s",
+                  "validVersions": "0",
+                  "flexibleVersions": "0+",
+                  "fields": []
+                }
+                """.formatted(specName));
+
+        // When
+        String result = spec.kafkaApiKeyEnumName();
+
+        // Then
+        assertThat(result).isEqualTo(expected);
     }
 
     @Test

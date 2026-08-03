@@ -42,10 +42,10 @@ public class DataClasses {
 
 <#list inputSpecs as inputSpec>
     <#if inputSpec.type?lower_case == 'request'>
-        requestClasses.put(ApiKeys.${retrieveApiKey(inputSpec)}, ${inputSpec.name}Data.class);
+        requestClasses.put(ApiKeys.${inputSpec.kafkaApiKeyEnumName}, ${inputSpec.name}Data.class);
     </#if>
     <#if inputSpec.type?lower_case == 'response'>
-        responseClasses.put(ApiKeys.${retrieveApiKey(inputSpec)}, ${inputSpec.name}Data.class);
+        responseClasses.put(ApiKeys.${inputSpec.kafkaApiKeyEnumName}, ${inputSpec.name}Data.class);
     </#if>
 </#list>
     }

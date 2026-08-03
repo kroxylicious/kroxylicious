@@ -87,7 +87,7 @@ public class SpecificFilterArrayInvoker implements FilterInvoker {
         return switch (apiKey) {
 <#list inputSpecs as inputSpec>
     <#if inputSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(inputSpec)} ->
+            case ${inputSpec.kafkaApiKeyEnumName} ->
                 requestInvokers[apiKey.id].onRequest(apiKey, apiVersion, header, body, filterContext);
     </#if>
 </#list>
@@ -116,7 +116,7 @@ public class SpecificFilterArrayInvoker implements FilterInvoker {
         return switch (apiKey) {
 <#list inputSpecs as inputSpec>
     <#if inputSpec.type?lower_case == 'response'>
-            case ${retrieveApiKey(inputSpec)} ->
+            case ${inputSpec.kafkaApiKeyEnumName} ->
                     responseInvokers[apiKey.id].onResponse(apiKey, apiVersion, header, body, filterContext);
     </#if>
 </#list>
@@ -149,7 +149,7 @@ public class SpecificFilterArrayInvoker implements FilterInvoker {
         return switch (apiKey) {
 <#list inputSpecs as inputSpec>
     <#if inputSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(inputSpec)} ->
+            case ${inputSpec.kafkaApiKeyEnumName} ->
                     requestInvokers[apiKey.id].shouldHandleRequest(apiKey, apiVersion);
     </#if>
 </#list>
@@ -182,7 +182,7 @@ public class SpecificFilterArrayInvoker implements FilterInvoker {
             // See the InvokerDispatchBenchmark micro benchmark for a comparison
 <#list inputSpecs as inputSpec>
     <#if inputSpec.type?lower_case == 'response'>
-            case ${retrieveApiKey(inputSpec)} ->
+            case ${inputSpec.kafkaApiKeyEnumName} ->
                     responseInvokers[apiKey.id].shouldHandleResponse(apiKey, apiVersion);
     </#if>
 </#list>

@@ -53,7 +53,7 @@ public class BodyDecoder {
         return switch (apiKey) {
 <#list inputSpecs as inputSpec>
     <#if inputSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(inputSpec)} ->
+            case ${inputSpec.kafkaApiKeyEnumName} ->
                     new ${inputSpec.name}Data(accessor, apiVersion);
     </#if>
 </#list>
@@ -73,7 +73,7 @@ public class BodyDecoder {
         return switch (apiKey) {
 <#list inputSpecs as inputSpec>
     <#if inputSpec.type?lower_case == 'response'>
-        case ${retrieveApiKey(inputSpec)} -> new ${inputSpec.name}Data(accessor, apiVersion);
+        case ${inputSpec.kafkaApiKeyEnumName} -> new ${inputSpec.name}Data(accessor, apiVersion);
     </#if>
 </#list>
             default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);

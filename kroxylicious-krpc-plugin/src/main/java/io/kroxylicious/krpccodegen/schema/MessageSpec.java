@@ -7,6 +7,7 @@ package io.kroxylicious.krpccodegen.schema;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -23,6 +24,8 @@ public final class MessageSpec implements Named {
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<Short> apiKey;
+
+    private final String kafkaApiKeyEnumName;
 
     private final MessageSpecType type;
 
@@ -48,6 +51,8 @@ public final class MessageSpec implements Named {
                        @JsonProperty("listeners") List<RequestListenerType> listeners) {
         this.struct = new StructSpec(name, validVersions, deprecatedVersions, fields);
         this.apiKey = apiKey == null ? Optional.empty() : Optional.of(apiKey);
+        String baseName = name.replaceFirst("(Request|Response)$", "");
+        this.kafkaApiKeyEnumName = baseName.replaceAll("([a-z])([A-Z])", "$1_$2").toUpperCase(Locale.ROOT);
         this.latestVersionUnstable = Optional.ofNullable(latestVersionUnstable);
         this.type = Objects.requireNonNull(type);
         this.commonStructs = commonStructs == null ? Collections.emptyList() : List.copyOf(commonStructs);
@@ -138,6 +143,16 @@ public final class MessageSpec implements Named {
     @JsonProperty("listeners")
     public List<RequestListenerType> listeners() {
         return listeners;
+    }
+
+    /**
+     * Returns the Kafka {@code ApiKeys} enum constant name for this message spec
+     * (e.g. "FetchRequest" becomes "FETCH", "CreateTopicsResponse" becomes "CREATE_TOPICS").
+     *
+     * @return the enum constant name
+     */
+    public String kafkaApiKeyEnumName() {
+        return kafkaApiKeyEnumName;
     }
 
     public String dataClassName() {
