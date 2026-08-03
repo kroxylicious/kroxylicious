@@ -613,6 +613,7 @@
         <module>kroxylicious-kms-test-support</module>
         <module>kroxylicious-kms-tls-support</module>
         <module>kroxylicious-kms-providers</module>
+        <module>kroxylicious-scram-credential-store</module>
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
         <module>kroxylicious-app</module>
