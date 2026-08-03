@@ -26,6 +26,9 @@ import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
  * Translates local route names to qualified pipeline names and fires
  * frames downstream through the pipeline for processing by inner
  * route filters and {@link RoutingTerminalHandler}.
+ *
+ * <p>Not thread-safe; all callers must be on the same Netty event loop.
+ * Off-loop calls are bridged via {@link #executeOnEventLoop}.
  */
 class NestedRouterDispatch implements RouterDispatch {
 
