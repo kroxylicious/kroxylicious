@@ -5,12 +5,8 @@
  */
 package io.kroxylicious.it.testplugins.router;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -41,8 +37,6 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
     // When routing between independent clusters, the IDs differ, so cap at v12.
     private static final short MAX_PRODUCE_VERSION = 12;
 
-    private static final Set<ApiKeys> DYNAMICALLY_ROUTED = Set.of(ApiKeys.PRODUCE, ApiKeys.API_VERSIONS);
-
     public record Config(String routeA, String routeB, int batchSize) {}
 
     @Override
@@ -63,11 +57,18 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                 .addKeyValue("batchSize", batchSize)
                 .log("AlternatingRouter created");
 
-        Map<ApiKeys, String> staticMap = Arrays.stream(ApiKeys.values())
-                .filter(k -> !DYNAMICALLY_ROUTED.contains(k))
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> routeA));
-
         return new Router() {
+            @Override
+            public boolean shouldIntercept(ApiKeys apiKey, short apiVersion, RouterContext context) {
+                // Intercept all bootstrap traffic.
+                // On bound connections, also intercept PRODUCE (for alternating routing) and
+                // API_VERSIONS (to cap the PRODUCE version and prevent topic-ID mismatches
+                // across independent clusters).
+                return context.virtualNode().isEmpty()
+                        || apiKey == ApiKeys.PRODUCE
+                        || apiKey == ApiKeys.API_VERSIONS;
+            }
+
             @Override
             public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey,
                                                              short apiVersion,
@@ -87,22 +88,23 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                             });
                 }
 
-                int index = counter.getAndIncrement();
-                String route = ((index / batchSize) % 2 == 0) ? routeA : routeB;
-                LOGGER.atDebug()
-                        .addKeyValue("sessionId", ctx.sessionId())
-                        .addKeyValue("route", route)
-                        .addKeyValue("batchIndex", index)
-                        .addKeyValue("batchSize", batchSize)
-                        .log("Alternating router chose route based on batch index");
-                var node = ctx.anyNode(route);
-                return ctx.sendRequest(node, header, request)
-                        .thenCompose(body -> ctx.respondWith(body).completed());
-            }
+                if (apiKey == ApiKeys.PRODUCE) {
+                    int index = counter.getAndIncrement();
+                    String route = ((index / batchSize) % 2 == 0) ? routeA : routeB;
+                    LOGGER.atDebug()
+                            .addKeyValue("sessionId", ctx.sessionId())
+                            .addKeyValue("route", route)
+                            .addKeyValue("batchIndex", index)
+                            .addKeyValue("batchSize", batchSize)
+                            .log("Alternating router chose route based on batch index");
+                    var node = ctx.anyNode(route);
+                    return ctx.sendRequest(node, header, request)
+                            .thenCompose(body -> ctx.respondWith(body).completed());
+                }
 
-            @Override
-            public Map<ApiKeys, String> staticRoutes() {
-                return staticMap;
+                // All other bootstrap traffic (METADATA, FIND_COORDINATOR, etc.) goes to routeA
+                return ctx.sendRequest(ctx.anyNode(routeA), header, request)
+                        .thenCompose(body -> ctx.respondWith(body).completed());
             }
         };
     }

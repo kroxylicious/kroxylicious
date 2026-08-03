@@ -56,9 +56,9 @@ class RouterDispatchHandlerTest {
 
     private EmbeddedChannel channel;
 
-    private RouterDispatchHandler handlerWithIdentityMapping(Map<ApiKeys, String> staticRoutes) {
+    private RouterDispatchHandler handlerWithIdentityMapping() {
         return new RouterDispatchHandler(
-                router, Map.of(), staticRoutes, ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+                router, Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
     }
 
     private EmbeddedChannel channelWithTerminal(RouterDispatchHandler handler) {
@@ -68,7 +68,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldForwardNonFrameMessageToCcsm() {
         // Given
-        var handler = handlerWithIdentityMapping(Map.of());
+        var handler = handlerWithIdentityMapping();
         channel = channelWithTerminal(handler);
 
         // When
@@ -80,49 +80,38 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldDispatchDynamicallyForDecodedFrame() {
-        // Given
+        // Given: router intercepts FETCH
+        when(router.shouldIntercept(eq(ApiKeys.FETCH), anyShort(), any())).thenReturn(true);
         var frame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true,
                 new RequestHeaderData(), new FetchRequestData());
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
                         new RouterResponseImpl.RespondWithoutReply(false)));
         when(ccsm.sessionId()).thenReturn("test-session");
-        when(ccsm.authenticatedSubject()).thenReturn(io.kroxylicious.proxy.authentication.Subject.anonymous());
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
 
-        var handler = handlerWithIdentityMapping(Map.of());
+        var handler = handlerWithIdentityMapping();
         channel = new EmbeddedChannel(handler);
 
         // When
         channel.writeInbound(frame);
 
         // Then: router.onRequest was called with the frame's API key and version
-        verify(router).onRequest(any(ApiKeys.class), anyShort(), any(), any(), any());
+        verify(router).onRequest(eq(ApiKeys.FETCH), anyShort(), any(), any(), any());
     }
 
     @Test
-    void shouldForwardOpaqueFrameNotInStaticRoutesToCcsm() {
-        // Given
-        var staticRoutes = Map.of(ApiKeys.PRODUCE, DEFAULT_ROUTE);
-        var handler = handlerWithIdentityMapping(staticRoutes);
-        channel = channelWithTerminal(handler);
+    void shouldDispatchToRouterWhenInterceptReturnsTrue() {
+        // Given: router intercepts FETCH
+        when(router.shouldIntercept(eq(ApiKeys.FETCH), anyShort(), any())).thenReturn(true);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithoutReply(false)));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
 
-        var buf = Unpooled.buffer();
-        var opaqueFrame = new OpaqueRequestFrame(buf, ApiKeys.FETCH.id, (short) 12, CORRELATION_ID, false, 0, true);
-
-        // When
-        channel.writeInbound(opaqueFrame);
-
-        // Then
-        verify(ccsm).onClientFilterChainComplete(opaqueFrame);
-        buf.release();
-    }
-
-    @Test
-    void shouldForwardStaticallyRoutedDecodedFrameViaForwardToRoute() {
-        // Given
-        var staticRoutes = Map.of(ApiKeys.FETCH, DEFAULT_ROUTE);
-        var handler = handlerWithIdentityMapping(staticRoutes);
-        channel = channelWithTerminal(handler);
+        var handler = handlerWithIdentityMapping();
+        channel = new EmbeddedChannel(handler);
 
         var frame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true,
                 new RequestHeaderData(), new FetchRequestData());
@@ -130,16 +119,19 @@ class RouterDispatchHandlerTest {
         // When
         channel.writeInbound(frame);
 
-        // Then
-        verify(ccsm).forwardToRoute(DEFAULT_ROUTE, frame);
-        assertThat(frame.routeName()).isEqualTo(DEFAULT_ROUTE);
+        // Then: router.onRequest was called
+        verify(router).onRequest(eq(ApiKeys.FETCH), anyShort(), any(), any(), any());
     }
 
     @Test
-    void shouldForwardStaticallyRoutedOpaqueFrameViaForwardToRoute() {
-        // Given
-        var staticRoutes = Map.of(ApiKeys.FETCH, DEFAULT_ROUTE);
-        var handler = handlerWithIdentityMapping(staticRoutes);
+    void shouldPassThroughToBoundBrokerWhenInterceptReturnsFalse() {
+        // Given: router does not intercept FETCH, bound to node 10
+        when(router.shouldIntercept(eq(ApiKeys.FETCH), anyShort(), any())).thenReturn(false);
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = new RouterDispatchHandler(
+                router, Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), 10);
         channel = channelWithTerminal(handler);
 
         var buf = Unpooled.buffer();
@@ -148,34 +140,67 @@ class RouterDispatchHandlerTest {
         // When
         channel.writeInbound(opaqueFrame);
 
-        // Then
-        verify(ccsm).forwardToRoute(DEFAULT_ROUTE, opaqueFrame);
+        // Then: forwarded to the specific bound broker node
+        verify(ccsm).forwardToNode(10, DEFAULT_ROUTE, opaqueFrame);
         assertThat(opaqueFrame.routeName()).isEqualTo(DEFAULT_ROUTE);
+        assertThat(opaqueFrame.targetVirtualNodeId()).isEqualTo(10);
+        buf.release();
+    }
+
+    @Test
+    void shouldCloseConnectionWhenPassThroughAttemptedOnUnboundConnection() {
+        // Given: router does not intercept, but no bound node (nodeId=null)
+        when(router.shouldIntercept(eq(ApiKeys.FETCH), anyShort(), any())).thenReturn(false);
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithIdentityMapping();
+        channel = new EmbeddedChannel(handler);
+
+        var buf = Unpooled.buffer();
+        var opaqueFrame = new OpaqueRequestFrame(buf, ApiKeys.FETCH.id, (short) 12, CORRELATION_ID, false, 0, true);
+
+        // When
+        channel.writeInbound(opaqueFrame);
+
+        // Then: channel closed
+        assertThat(channel.isActive()).isFalse();
         buf.release();
     }
 
     @Test
     void shouldTranslateNodeIdsInMetadataResponse() {
-        // Given: bijective mapping with two routes; METADATA statically routed to route-a
-        var mapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
-        var handler = new RouterDispatchHandler(
-                router, Map.of(), Map.of(ApiKeys.METADATA, "route-a"), ccsm, "test-cluster", mapping, null);
-        channel = channelWithTerminal(handler);
+        // Given: bijective mapping with two routes; router intercepts METADATA and routes to route-a
+        when(router.shouldIntercept(eq(ApiKeys.METADATA), anyShort(), any())).thenReturn(true);
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
 
-        // Record the pending METADATA request
+        var mapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
+        var rd = new RouteDescriptor("route-a", 0, new TargetCluster("localhost:9092", null), null, List.of());
+        var handler = new RouterDispatchHandler(
+                router, Map.of("route-a", rd), ccsm, "test-cluster", mapping, null);
+        channel = new EmbeddedChannel(handler);
+
+        // Mock router to forward METADATA to route-a
+        when(router.onRequest(eq(ApiKeys.METADATA), anyShort(), any(), any(), any()))
+                .thenAnswer(inv -> {
+                    // Simulate response with upstream node IDs
+                    var md = new MetadataResponseData();
+                    md.setControllerId(0);
+                    md.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(0).setHost("h0").setPort(9092));
+                    md.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("h1").setPort(9093));
+
+                    return CompletableFuture.completedFuture(
+                            new RouterResponseImpl.RespondWith(null, md, false, "route-a"));
+                });
+
+        // When: METADATA request arrives
         var requestFrame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true,
                 new RequestHeaderData(), new MetadataRequestData());
         channel.writeInbound(requestFrame);
+        channel.runPendingTasks();
 
-        // When: METADATA response arrives with upstream node IDs 0 and 1
-        var md = new MetadataResponseData();
-        md.setControllerId(0);
-        md.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(0).setHost("h0").setPort(9092));
-        md.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("h1").setPort(9093));
-        var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, new ResponseHeaderData(), md);
-        channel.writeOutbound(responseFrame);
-
-        // Then: the outbound frame has translated node IDs
+        // Then: response has translated node IDs
         DecodedResponseFrame<?> out = channel.readOutbound();
         assertThat(out).isNotNull();
         var translatedMd = (MetadataResponseData) out.body();
@@ -192,13 +217,13 @@ class RouterDispatchHandlerTest {
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
         var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", null), null, List.of());
         return new RouterDispatchHandler(
-                router, Map.of(routeName, rd), Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(routeName), null);
+                router, Map.of(routeName, rd), ccsm, "test-cluster", new IdentityNodeIdMapping(routeName), null);
     }
 
     private RouterDispatchHandler handlerWithRouteForSendTests(String routeName) {
         var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", null), null, List.of());
         return new RouterDispatchHandler(
-                router, Map.of(routeName, rd), Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(routeName), null);
+                router, Map.of(routeName, rd), ccsm, "test-cluster", new IdentityNodeIdMapping(routeName), null);
     }
 
     private DecodedRequestFrame<ProduceRequestData> produceFrame(int correlationId) {
@@ -212,12 +237,13 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldSetClientCorrelationIdOnRespondWithResponse() {
         // Given
+        when(router.shouldIntercept(eq(ApiKeys.PRODUCE), anyShort(), any())).thenReturn(true);
         var handler = handlerWithRoute(DEFAULT_ROUTE);
         channel = new EmbeddedChannel(handler);
         var body = new MetadataRequestData();
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
-                        new RouterResponseImpl.RespondWith(null, body, false)));
+                        new RouterResponseImpl.RespondWith(null, body, false, null)));
 
         // When
         channel.writeInbound(produceFrame(CORRELATION_ID));
@@ -234,13 +260,14 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldSetClientCorrelationIdOnRespondWithExplicitHeader() {
         // Given: router provides its own header (which has a different correlationId)
+        when(router.shouldIntercept(eq(ApiKeys.PRODUCE), anyShort(), any())).thenReturn(true);
         var handler = handlerWithRoute(DEFAULT_ROUTE);
         channel = new EmbeddedChannel(handler);
         var routerHeader = new ResponseHeaderData().setCorrelationId(999);
         var body = new MetadataRequestData();
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
-                        new RouterResponseImpl.RespondWith(routerHeader, body, false)));
+                        new RouterResponseImpl.RespondWith(routerHeader, body, false, null)));
 
         // When
         channel.writeInbound(produceFrame(CORRELATION_ID));
@@ -255,6 +282,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldSetClientCorrelationIdOnRespondWithErrorResponse() {
         // Given
+        when(router.shouldIntercept(eq(ApiKeys.PRODUCE), anyShort(), any())).thenReturn(true);
         var handler = handlerWithRoute(DEFAULT_ROUTE);
         channel = new EmbeddedChannel(handler);
         var requestHeader = new RequestHeaderData()
@@ -280,7 +308,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldPassThroughUnknownCorrelationIdInResponse() {
         // Given: a handler with no pending requests
-        var handler = handlerWithIdentityMapping(Map.of(ApiKeys.METADATA, DEFAULT_ROUTE));
+        var handler = handlerWithIdentityMapping();
         channel = new EmbeddedChannel(handler);
 
         // When: a response arrives for an unknown correlation ID
@@ -297,6 +325,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldCloseChannelWhenRouterReturnedFutureFails() {
         // Given
+        when(router.shouldIntercept(eq(ApiKeys.PRODUCE), anyShort(), any())).thenReturn(true);
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("boom")));
         var handler = handlerWithRoute(DEFAULT_ROUTE);
@@ -313,6 +342,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldCloseChannelWhenRouterReturnsNullResult() {
         // Given
+        when(router.shouldIntercept(eq(ApiKeys.PRODUCE), anyShort(), any())).thenReturn(true);
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         var handler = handlerWithRoute(DEFAULT_ROUTE);
@@ -329,9 +359,10 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldCloseChannelAfterRespondWithWhenCloseConnectionIsTrue() {
         // Given
+        when(router.shouldIntercept(eq(ApiKeys.PRODUCE), anyShort(), any())).thenReturn(true);
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
-                        new RouterResponseImpl.RespondWith(null, new MetadataRequestData(), true)));
+                        new RouterResponseImpl.RespondWith(null, new MetadataRequestData(), true, null)));
         var handler = handlerWithRoute(DEFAULT_ROUTE);
         channel = new EmbeddedChannel(handler);
 
@@ -346,6 +377,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldCallOnRoutedRequestCompleteAfterDynamicDispatch() {
         // Given
+        when(router.shouldIntercept(eq(ApiKeys.PRODUCE), anyShort(), any())).thenReturn(true);
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
                         new RouterResponseImpl.RespondWithoutReply(false)));
@@ -363,6 +395,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldNotWriteOutboundFrameForRespondWithoutReply() {
         // Given
+        when(router.shouldIntercept(eq(ApiKeys.PRODUCE), anyShort(), any())).thenReturn(true);
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
                         new RouterResponseImpl.RespondWithoutReply(false)));
@@ -380,10 +413,11 @@ class RouterDispatchHandlerTest {
     @Test
     void respondWithoutReplyShouldNotBlockSubsequentResponse() {
         // Given: first request gets no reply, second gets a response
+        when(router.shouldIntercept(eq(ApiKeys.PRODUCE), anyShort(), any())).thenReturn(true);
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(new RouterResponseImpl.RespondWithoutReply(false)))
                 .thenReturn(CompletableFuture.completedFuture(
-                        new RouterResponseImpl.RespondWith(null, new MetadataResponseData(), false)));
+                        new RouterResponseImpl.RespondWith(null, new MetadataResponseData(), false, null)));
         var handler = handlerWithRoute(DEFAULT_ROUTE);
         channel = new EmbeddedChannel(handler);
 
@@ -402,7 +436,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldCloseRouterWhenHandlerRemoved() {
         // Given
-        var handler = handlerWithIdentityMapping(Map.of());
+        var handler = handlerWithIdentityMapping();
         channel = new EmbeddedChannel(handler);
 
         // When
@@ -415,7 +449,7 @@ class RouterDispatchHandlerTest {
     @Test
     void writeShouldPassThroughNonFrame() {
         // Given
-        var handler = handlerWithIdentityMapping(Map.of());
+        var handler = handlerWithIdentityMapping();
         channel = new EmbeddedChannel(handler);
 
         // When / Then
@@ -426,7 +460,7 @@ class RouterDispatchHandlerTest {
     @Test
     void writeShouldPassThroughFrameWithNonRoutingCorrelationId() {
         // Given
-        var handler = handlerWithIdentityMapping(Map.of());
+        var handler = handlerWithIdentityMapping();
         channel = new EmbeddedChannel(handler);
         var frame = new DecodedResponseFrame<>((short) 9, 99, new ResponseHeaderData(), new ProduceResponseData());
 
@@ -443,7 +477,7 @@ class RouterDispatchHandlerTest {
         when(ccsm.sessionId()).thenReturn("test-session");
         var handler = new RouterDispatchHandler(
                 router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
-                Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+                ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
         channel = channelWithTerminal(handler);
 
         var header = new RequestHeaderData()
@@ -470,7 +504,7 @@ class RouterDispatchHandlerTest {
         when(ccsm.sessionId()).thenReturn("test-session");
         var handler = new RouterDispatchHandler(
                 router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
-                Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+                ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
         channel = channelWithTerminal(handler);
 
         int routingCorrelationId = Integer.MIN_VALUE / 2;
@@ -528,7 +562,7 @@ class RouterDispatchHandlerTest {
         var routerRd = new RouteDescriptor("router-route", 1, null, "some-router-name", List.of());
         var handler = new RouterDispatchHandler(
                 router, Map.of(DEFAULT_ROUTE, rd, "router-route", routerRd),
-                Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+                ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
         channel = new EmbeddedChannel(handler);
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)

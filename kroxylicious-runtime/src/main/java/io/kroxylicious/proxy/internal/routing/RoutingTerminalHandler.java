@@ -15,11 +15,9 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
-import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
-import io.kroxylicious.proxy.internal.CorrelationIdSpace;
 
 import static java.util.Objects.requireNonNull;
 
@@ -57,11 +55,13 @@ public class RoutingTerminalHandler extends ChannelDuplexHandler {
                 return;
             }
             boolean hasResponse = !(msg instanceof RequestFrame rf) || rf.hasResponse();
-            boolean isRouterInternal = CorrelationIdSpace.isRoutingCorrelationId(frame.correlationId());
-            if (hasResponse && !isRouterInternal) {
+            if (hasResponse) {
+                // Track all requests (including router-internal routing requests) so that
+                // RouterDispatchHandler.write() hands routing responses back through the
+                // route filter chain, enabling route-filter onResponse processing.
                 correlationIdToRoute.put(frame.correlationId(), routeName);
             }
-            int targetNodeId = (frame instanceof DecodedFrame<?, ?> df) ? df.targetVirtualNodeId() : Frame.NO_TARGET_VIRTUAL_NODE_ID;
+            int targetNodeId = frame.targetVirtualNodeId();
             if (targetNodeId >= 0) {
                 ccsm.forwardToNode(targetNodeId, routeName, msg);
                 LOGGER.atTrace()

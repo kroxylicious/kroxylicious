@@ -55,4 +55,16 @@ public interface Frame {
     /** Sets the route this frame is associated with. */
     default void setRouteName(@Nullable String routeName) {
     }
+
+    /**
+     * The target virtual node ID for this frame, or {@link #NO_TARGET_VIRTUAL_NODE_ID} if the frame
+     * should be forwarded to the route's default (bootstrap) node.
+     */
+    default int targetVirtualNodeId() {
+        return NO_TARGET_VIRTUAL_NODE_ID;
+    }
+
+    /** Sets the target virtual node ID for this frame. See {@link #targetVirtualNodeId()}. */
+    default void setTargetVirtualNodeId(int targetVirtualNodeId) {
+    }
 }

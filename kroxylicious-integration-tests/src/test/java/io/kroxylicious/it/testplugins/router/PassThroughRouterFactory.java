@@ -5,10 +5,7 @@
  */
 package io.kroxylicious.it.testplugins.router;
 
-import java.util.Arrays;
-import java.util.Map;
 import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -20,22 +17,21 @@ import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 /**
- * A test router that forwards every request to a single named route, delivering
- * the response back to the client unchanged.
+ * A test router that forwards every bootstrap request to a single named route,
+ * delivering the response back to the client. On bound connections the default
+ * {@code shouldIntercept} behaviour returns {@code false}, so frames pass through
+ * directly to the assigned broker without calling {@code onRequest}.
  */
 @Plugin(configType = PassThroughRouterFactory.Config.class)
 public class PassThroughRouterFactory implements RouterFactory<PassThroughRouterFactory.Config, PassThroughRouterFactory.Config> {
 
     public record Config(String route) {}
 
-    private Map<ApiKeys, String> allStatic;
-
     @Override
     public Config initialize(RouterFactoryContext context, Config config) {
-        allStatic = Arrays.stream(ApiKeys.values())
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> config.route()));
         return config;
     }
 
@@ -49,12 +45,13 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
                                                              RequestHeaderData header,
                                                              ApiMessage request,
                                                              RouterContext routerContext) {
-                throw new IllegalStateException("all RPCs should be statically routed, onRequest invoked unexpectedly!");
-            }
-
-            @Override
-            public Map<ApiKeys, String> staticRoutes() {
-                return allStatic;
+                // Use virtualNode() if bound, anyNode(route) if bootstrap.
+                VirtualNode target = routerContext.virtualNode()
+                        .orElseGet(() -> routerContext.anyNode(config.route()));
+                return routerContext.sendRequest(target, header, request)
+                        .thenCompose(response -> response == null
+                                ? routerContext.respondWithoutReply().completed()
+                                : routerContext.respondWith(response).completed());
             }
         };
     }

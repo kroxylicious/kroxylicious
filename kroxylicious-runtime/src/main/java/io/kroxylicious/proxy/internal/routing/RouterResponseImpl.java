@@ -37,11 +37,18 @@ sealed interface RouterResponseImpl extends RouterResponse
     /**
      * Deliver a response body to the client. If {@code header} is null the runtime
      * supplies a default header; otherwise the provided header is used.
+     * <p>
+     * If {@code routeForTranslation} is non-null, node IDs in the response body are
+     * translated from upstream to virtual IDs using the named route's mapping before
+     * the frame is written to the client. Use this when the body contains real upstream
+     * node IDs that the client should see as virtual IDs. Leave null when the body
+     * already carries virtual IDs (e.g. the body came from {@link io.kroxylicious.proxy.router.RouterContext#sendRequest}).
      */
     record RespondWith(
                        @Nullable ResponseHeaderData header,
                        ApiMessage body,
-                       boolean closeConnection)
+                       boolean closeConnection,
+                       @Nullable String routeForTranslation)
             implements RouterResponseImpl {}
 
     /**
@@ -85,9 +92,10 @@ sealed interface RouterResponseImpl extends RouterResponse
                 return prototype;
             }
             return switch (prototype) {
-                case RespondWith rw -> new RespondWith(rw.header(), rw.body(), true);
+                case RespondWith rw -> new RespondWith(rw.header(), rw.body(), true, rw.routeForTranslation());
                 case RespondWithError rwe -> new RespondWithError(rwe.requestHeader(), rwe.request(), rwe.exception(), true);
                 case RespondWithoutReply ignored -> new RespondWithoutReply(true);
+
             };
         }
 

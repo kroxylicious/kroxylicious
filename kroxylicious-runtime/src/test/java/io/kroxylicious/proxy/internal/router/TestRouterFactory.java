@@ -6,10 +6,7 @@
 
 package io.kroxylicious.proxy.internal.router;
 
-import java.util.Arrays;
-import java.util.Map;
 import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -34,8 +31,6 @@ public class TestRouterFactory implements RouterFactory<Void, Void> {
 
     @Override
     public Router createRouter(RouterFactoryContext context, Void initializationData) {
-        Map<ApiKeys, String> allStatic = Arrays.stream(ApiKeys.values())
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> DEFAULT_ROUTE));
         return new Router() {
             @Override
             public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey, short apiVersion,
@@ -45,8 +40,8 @@ public class TestRouterFactory implements RouterFactory<Void, Void> {
             }
 
             @Override
-            public Map<ApiKeys, String> staticRoutes() {
-                return allStatic;
+            public boolean shouldIntercept(ApiKeys apiKey, short apiVersion, RouterContext context) {
+                return false;
             }
         };
     }

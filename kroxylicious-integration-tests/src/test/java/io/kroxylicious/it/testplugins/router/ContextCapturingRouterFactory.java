@@ -89,6 +89,11 @@ public class ContextCapturingRouterFactory
         String route = config.route();
         return new Router() {
             @Override
+            public boolean shouldIntercept(ApiKeys apiKey, short apiVersion, RouterContext ctx) {
+                return true;
+            }
+
+            @Override
             public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey,
                                                              short apiVersion,
                                                              RequestHeaderData header,

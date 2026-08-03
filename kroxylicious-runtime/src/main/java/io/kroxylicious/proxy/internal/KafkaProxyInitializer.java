@@ -6,14 +6,11 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
-import java.util.EnumSet;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +45,7 @@ import io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -74,6 +72,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @Nullable
     private final Long unauthenticatedIdleMillis;
     private final VirtualClusterRegistry virtualClusterRegistry;
+    private final ConcurrentHashMap<DynamicRouting, ConcurrentHashMap<Integer, HostPort>> sharedNodeAddressCache = new ConcurrentHashMap<>();
 
     @SuppressWarnings({ "OptionalUsedAsFieldOrParameterType", "java:S107" })
     public KafkaProxyInitializer(PluginFactoryRegistry pfr,
@@ -260,19 +259,21 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         switch (virtualCluster.routing()) {
             case DynamicRouting dr -> {
                 Router router = virtualCluster.createRouter();
-                Map<ApiKeys, String> staticRoutes = router.staticRoutes();
-                Set<ApiKeys> decodedKeys = EnumSet.allOf(ApiKeys.class);
-                if (!staticRoutes.isEmpty()) {
-                    decodedKeys.removeAll(staticRoutes.keySet());
-                }
-                // Always decode API keys whose responses carry node IDs so RouterDispatchHandler
-                // can translate them, even when those keys are statically routed.
-                decodedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_APIS);
-                dp.setRouterDecodingRequirements(decodedKeys);
 
+                var sharedAddresses = sharedNodeAddressCache.computeIfAbsent(dr, k -> new ConcurrentHashMap<>());
                 var dispatchHandler = new RouterDispatchHandler(
-                        router, dr.routeDescriptors(), staticRoutes, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(), dr.nodeIdMapping(),
+                        router, dr.routeDescriptors(), sharedAddresses, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(), dr.nodeIdMapping(),
                         binding.nodeId());
+
+                var routerContext = new io.kroxylicious.proxy.internal.routing.RouterContextImpl(
+                        null, // no frame yet
+                        dispatchHandler,
+                        clientConnectionStateMachine.sessionId(),
+                        clientConnectionStateMachine.authenticatedSubject(),
+                        binding.nodeId());
+
+                dp.setRouterInterceptionDelegate(router, routerContext);
+
                 clientConnectionStateMachine.setRouterActive();
                 clientConnectionStateMachine.setUpstreamAddressResolver(
                         virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)

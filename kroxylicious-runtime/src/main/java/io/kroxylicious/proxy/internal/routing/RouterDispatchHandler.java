@@ -30,11 +30,12 @@ import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.internal.CorrelationIdSpace;
+import io.kroxylicious.proxy.internal.InternalRequestFrame;
+import io.kroxylicious.proxy.internal.InternalResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.service.HostPort;
@@ -74,17 +75,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
     private final Router router;
     final Map<String, RouteDescriptor> routes;
-    private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
     private final String virtualClusterName;
     final NodeIdMapping nodeIdMapping;
-    private final Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
-
-    /**
-     * Tracks correlation IDs of in-flight statically-routed requests that need response
-     * node ID translation. Entries are removed when the response arrives in {@link #write}.
-     */
-    private final Map<Integer, String> pendingRoutes = new HashMap<>();
+    private final Map<Integer, HostPort> routerNodeAddresses;
 
     final Map<Integer, PendingResponse> pendingResponses = new HashMap<>();
 
@@ -103,14 +97,23 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
     public RouterDispatchHandler(Router router,
                                  Map<String, RouteDescriptor> routes,
-                                 Map<ApiKeys, String> staticRoutes,
+                                 ClientConnectionStateMachine ccsm,
+                                 String virtualClusterName,
+                                 NodeIdMapping nodeIdMapping,
+                                 @Nullable Integer nodeId) {
+        this(router, routes, new HashMap<>(), ccsm, virtualClusterName, nodeIdMapping, nodeId);
+    }
+
+    public RouterDispatchHandler(Router router,
+                                 Map<String, RouteDescriptor> routes,
+                                 Map<Integer, HostPort> sharedNodeAddresses,
                                  ClientConnectionStateMachine ccsm,
                                  String virtualClusterName,
                                  NodeIdMapping nodeIdMapping,
                                  @Nullable Integer nodeId) {
         this.router = router;
         this.routes = routes;
-        this.staticRoutes = staticRoutes;
+        this.routerNodeAddresses = sharedNodeAddresses;
         this.ccsm = ccsm;
         this.virtualClusterName = virtualClusterName;
         this.nodeIdMapping = nodeIdMapping;
@@ -157,32 +160,52 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof RequestFrame frame) {
             ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
-            String staticRoute = staticRoutes.get(apiKey);
-            if (staticRoute != null) {
-                if (NODE_ID_TRANSLATION_APIS.contains(apiKey)) {
-                    pendingRoutes.put(frame.correlationId(), staticRoute);
+
+            var routingContext = new RouterContextImpl(
+                    null,
+                    this,
+                    ccsm.sessionId(),
+                    ccsm.authenticatedSubject(),
+                    nodeId);
+
+            if (!router.shouldIntercept(apiKey, frame.apiVersion(), routingContext)) {
+                if (nodeId == null) {
+                    LOGGER.atWarn()
+                            .addKeyValue("virtualCluster", virtualClusterName)
+                            .addKeyValue("sessionId", ccsm.sessionId())
+                            .addKeyValue("apiKey", apiKey)
+                            .log("Pass-through attempted on unbound connection; use passThrough(route) in onRequest instead");
+                    ctx.channel().close();
+                    return;
                 }
-                ((Frame) msg).setRouteName(staticRoute);
+
+                var routeAndNode = nodeIdMapping.fromVirtual(nodeId);
+                frame.setRouteName(routeAndNode.route());
+                frame.setTargetVirtualNodeId(nodeId);
                 ctx.fireChannelRead(msg);
+
                 LOGGER.atTrace()
                         .addKeyValue("virtualCluster", virtualClusterName)
                         .addKeyValue("sessionId", ccsm.sessionId())
                         .addKeyValue("apiKey", apiKey)
-                        .addKeyValue("route", staticRoute)
-                        .addKeyValue("routingMode", "static")
-                        .log("Request forwarded via static route");
+                        .addKeyValue("targetNodeId", nodeId)
+                        .addKeyValue("route", routeAndNode.route())
+                        .addKeyValue("routingMode", "bound-pass-through")
+                        .log("Request forwarded to bound broker");
                 return;
             }
+
             if (msg instanceof DecodedRequestFrame<?> decoded) {
                 dispatchDynamically(ctx, decoded);
                 return;
             }
+
             LOGGER.atWarn()
                     .addKeyValue("virtualCluster", virtualClusterName)
                     .addKeyValue("sessionId", ccsm.sessionId())
                     .addKeyValue("apiKey", apiKey)
-                    .log("Dynamically-routed API key arrived as opaque frame, forwarding via pipeline");
-            ctx.fireChannelRead(msg);
+                    .log("Router intercepts but frame not decoded");
+            ctx.channel().close();
             return;
         }
         ctx.fireChannelRead(msg);
@@ -218,6 +241,15 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 ccsm.authenticatedSubject(),
                 nodeId);
 
+        // InternalRequestFrame = filter OOB (e.g. FilterContext.sendRequest). Skip its
+        // sequence slot immediately so the sequencer never waits for it. The response is
+        // delivered via channel.writeAndFlush (bypassing the sequencer) to avoid deadlock
+        // when the OOB fires inside the onRequest/onResponse of another sequenced frame.
+        InternalRequestFrame<?> oobFrame = frame instanceof InternalRequestFrame<?> irf ? irf : null;
+        if (oobFrame != null) {
+            Objects.requireNonNull(responseSequencer).skip(sequence);
+        }
+
         router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
                 .whenComplete((result, error) -> {
                     if (error != null) {
@@ -228,7 +260,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                 .addKeyValue("clientCorrelationId", correlationId)
                                 .setCause(error)
                                 .log("Router returned failed future");
-                        responseSequencer.skip(sequence);
+                        if (oobFrame == null) {
+                            responseSequencer.skip(sequence);
+                        }
                         ctx.channel().close();
                         return;
                     }
@@ -239,8 +273,23 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                 .addKeyValue("apiKey", apiKey)
                                 .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
                                 .log("Router returned unrecognised RouterResponse type; closing connection");
-                        responseSequencer.skip(sequence);
+                        if (oobFrame == null) {
+                            responseSequencer.skip(sequence);
+                        }
                         ctx.channel().close();
+                        return;
+                    }
+                    if (oobFrame != null && rri instanceof RouterResponseImpl.RespondWith rw) {
+                        // Deliver OOB response directly via writeAndFlush — bypasses the
+                        // sequencer so the OOB response arrives immediately even if a
+                        // sequenced response is still pending.
+                        var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
+                        header.setCorrelationId(correlationId);
+                        var internalResponse = new InternalResponseFrame<>(
+                                oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
+                        internalResponse.setRouteName(oobFrame.routeName());
+                        Objects.requireNonNull(ctx).channel().writeAndFlush(internalResponse);
+                        ccsm.onRoutedRequestComplete();
                         return;
                     }
                     deliverResponse(ctx, rri, apiKey, apiVersion, correlationId, sequence);
@@ -257,6 +306,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
             case RouterResponseImpl.RespondWith rw -> {
                 ResponseHeaderData header = rw.header() != null ? rw.header() : new ResponseHeaderData();
                 header.setCorrelationId(correlationId);
+                if (rw.routeForTranslation() != null) {
+                    NodeIdResponseTranslator.translate(rw.body(), apiVersion, nodeIdMapping, rw.routeForTranslation());
+                }
                 var responseFrame = new DecodedResponseFrame<>(apiVersion, correlationId, header, rw.body());
                 Objects.requireNonNull(responseSequencer).submit(sequence, responseFrame);
             }
@@ -311,9 +363,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 promise.setSuccess();
                 return;
             }
-            String routeName = pendingRoutes.remove(correlationId);
-            if (routeName != null) {
-                NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), nodeIdMapping, routeName);
+            // Translate node IDs in pass-through responses on bound connections.
+            if (nodeId != null && NODE_ID_TRANSLATION_APIS.contains(frame.apiKey())) {
+                var routeAndNode = nodeIdMapping.fromVirtual(nodeId);
+                NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), nodeIdMapping, routeAndNode.route());
+                cacheNodeAddressesIfMetadata(frame.body());
             }
         }
         ctx.write(msg, promise);

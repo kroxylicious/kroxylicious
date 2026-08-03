@@ -6,17 +6,21 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.Set;
-
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterContext;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyShort;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DelegatingDecodePredicateTest {
 
@@ -137,51 +141,63 @@ class DelegatingDecodePredicateTest {
     }
 
     @Test
-    void testRouterRequiresDecodingForcesDecodeForDynamicKeys() {
+    void testRouterInterceptForcesDecodeForInterceptedKeys() {
         givenPredicate();
         givenDelegateTargetsNothing();
-        predicate.setRouterDecodingRequirements(Set.of(ApiKeys.FETCH));
+
+        Router router = mock(Router.class);
+        RouterContext context = mock(RouterContext.class);
+        when(router.shouldIntercept(any(), anyShort(), any())).thenAnswer(inv -> {
+            ApiKeys key = inv.getArgument(0);
+            return key == ApiKeys.FETCH;
+        });
+
+        predicate.setRouterInterceptionDelegate(router, context);
         assertPredicateTargetsRequestKey(ApiKeys.FETCH);
     }
 
     @Test
-    void testRouterRequiresDecodingDoesNotForceDecodeForStaticKeys() {
+    void testRouterInterceptDoesNotForceDecodeForNonInterceptedKeys() {
         givenPredicate();
         givenDelegateTargetsNothing();
-        predicate.setRouterDecodingRequirements(Set.of(ApiKeys.FETCH));
+
+        Router router = mock(Router.class);
+        RouterContext context = mock(RouterContext.class);
+        when(router.shouldIntercept(any(), anyShort(), any())).thenAnswer(inv -> {
+            ApiKeys key = inv.getArgument(0);
+            return key == ApiKeys.FETCH;
+        });
+
+        predicate.setRouterInterceptionDelegate(router, context);
         assertPredicateDoesNotTargetRequestKey(ApiKeys.PRODUCE);
     }
 
     @Test
-    void testEmptyRouterRequirementsDoesNotForceDecoding() {
+    void testRouterNeverInterceptDoesNotForceDecoding() {
         givenPredicate();
         givenDelegateTargetsNothing();
-        predicate.setRouterDecodingRequirements(Set.of());
+
+        Router router = mock(Router.class);
+        RouterContext context = mock(RouterContext.class);
+        when(router.shouldIntercept(any(), anyShort(), any())).thenReturn(false);
+
+        predicate.setRouterInterceptionDelegate(router, context);
         assertPredicateDoesNotTargetRequestKey(ApiKeys.FETCH);
     }
 
     @Test
-    void testRouterRequiresDecodingForcesDecodeResponseForRequiredKey() {
+    void testRouterInterceptAffectsResponseDecoding() {
         givenPredicate();
         givenDelegateTargetsNothing();
-        predicate.setRouterDecodingRequirements(Set.of(ApiKeys.METADATA));
+
+        Router router = mock(Router.class);
+        RouterContext context = mock(RouterContext.class);
+        when(router.shouldIntercept(any(), anyShort(), any())).thenReturn(true);
+
+        predicate.setRouterInterceptionDelegate(router, context);
+        // Router intercept affects response decoding: router-internal requests (sendToAnyNode)
+        // need decoded response bodies for node-ID translation and to complete pending futures.
         assertPredicateTargetsResponseKey(ApiKeys.METADATA);
-    }
-
-    @Test
-    void testRouterRequiresDecodingDoesNotForceDecodeResponseForOtherKeys() {
-        givenPredicate();
-        givenDelegateTargetsNothing();
-        predicate.setRouterDecodingRequirements(Set.of(ApiKeys.METADATA));
-        assertPredicateDoesNotTargetResponseKey(ApiKeys.PRODUCE);
-    }
-
-    @Test
-    void testEmptyRouterRequirementsDoesNotForceResponseDecoding() {
-        givenPredicate();
-        givenDelegateTargetsNothing();
-        predicate.setRouterDecodingRequirements(Set.of());
-        assertPredicateDoesNotTargetResponseKey(ApiKeys.METADATA);
     }
 
     private void assertPredicateTargetsResponseKey(ApiKeys key) {

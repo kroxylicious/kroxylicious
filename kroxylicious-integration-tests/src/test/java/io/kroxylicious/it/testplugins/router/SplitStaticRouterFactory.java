@@ -5,12 +5,9 @@
  */
 package io.kroxylicious.it.testplugins.router;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -48,22 +45,23 @@ public class SplitStaticRouterFactory implements RouterFactory<SplitStaticRouter
     @Override
     public Router createRouter(RouterFactoryContext context, Config config) {
         var split = new HashSet<>(config.splitApiKeys());
-        Map<ApiKeys, String> routes = Arrays.stream(ApiKeys.values())
-                .collect(Collectors.toUnmodifiableMap(k -> k,
-                        k -> split.contains(k.name()) ? config.splitRoute() : config.defaultRoute()));
         return new Router() {
+            @Override
+            public boolean shouldIntercept(ApiKeys apiKey, short apiVersion, RouterContext context) {
+                // Intercept on bootstrap to route based on API key
+                return context.virtualNode().isEmpty();
+            }
+
             @Override
             public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey,
                                                              short apiVersion,
                                                              RequestHeaderData header,
                                                              ApiMessage request,
-                                                             RouterContext routerContext) {
-                throw new IllegalStateException("Dynamic routing is not supported");
-            }
-
-            @Override
-            public Map<ApiKeys, String> staticRoutes() {
-                return routes;
+                                                             RouterContext ctx) {
+                String route = split.contains(apiKey.name()) ? config.splitRoute() : config.defaultRoute();
+                var node = ctx.anyNode(route);
+                return ctx.sendRequest(node, header, request)
+                        .thenCompose(body -> ctx.respondWith(body).completed());
             }
         };
     }

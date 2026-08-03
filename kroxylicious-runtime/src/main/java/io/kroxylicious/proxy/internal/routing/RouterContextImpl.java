@@ -26,7 +26,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Per-request implementation of {@link RouterContext}. Created by
  * {@link RouterDispatchHandler} for each incoming client request.
  */
-class RouterContextImpl implements RouterContext {
+public class RouterContextImpl implements RouterContext {
 
     private final int clientCorrelationId;
     private final String sessionId;
@@ -35,12 +35,12 @@ class RouterContextImpl implements RouterContext {
     @Nullable
     private final Integer endpointVirtualNodeId;
 
-    RouterContextImpl(DecodedRequestFrame<?> clientFrame,
-                      RouterDispatchHandler handler,
-                      String sessionId,
-                      Subject subject,
-                      @Nullable Integer endpointVirtualNodeId) {
-        this.clientCorrelationId = clientFrame.correlationId();
+    public RouterContextImpl(@Nullable DecodedRequestFrame<?> clientFrame,
+                             RouterDispatchHandler handler,
+                             String sessionId,
+                             Subject subject,
+                             @Nullable Integer endpointVirtualNodeId) {
+        this.clientCorrelationId = clientFrame != null ? clientFrame.correlationId() : -1;
         this.handler = Objects.requireNonNull(handler);
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
@@ -104,12 +104,12 @@ class RouterContextImpl implements RouterContext {
 
     @Override
     public CloseOrTerminalStage respondWith(ApiMessage body) {
-        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWith(null, body, false));
+        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWith(null, body, false, null));
     }
 
     @Override
     public CloseOrTerminalStage respondWith(ResponseHeaderData header, ApiMessage body) {
-        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWith(header, body, false));
+        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWith(header, body, false, null));
     }
 
     @Override
@@ -123,4 +123,5 @@ class RouterContextImpl implements RouterContext {
     public CloseOrTerminalStage respondWithoutReply() {
         return RouterResponseImpl.builder(new RouterResponseImpl.RespondWithoutReply(false));
     }
+
 }

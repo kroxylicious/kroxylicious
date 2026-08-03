@@ -5,13 +5,11 @@
  */
 package io.kroxylicious.it.testplugins.router;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -54,19 +52,21 @@ public class InvocationCountingRouterFactory implements RouterFactory<Invocation
 
     @Override
     public Router createRouter(RouterFactoryContext context, Config initData) {
-        var allStatic = Arrays.stream(ApiKeys.values())
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> initData.route()));
         return new Router() {
+            @Override
+            public boolean shouldIntercept(ApiKeys apiKey, short apiVersion, RouterContext context) {
+                return context.virtualNode().isEmpty();
+            }
+
             @Override
             public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey, short apiVersion,
                                                              RequestHeaderData header, ApiMessage request,
                                                              RouterContext routerContext) {
-                throw new IllegalStateException("Dynamic routing not supported by InvocationCountingRouterFactory");
-            }
-
-            @Override
-            public Map<ApiKeys, String> staticRoutes() {
-                return allStatic;
+                var node = routerContext.anyNode(initData.route());
+                return routerContext.sendRequest(node, header, request)
+                        .thenCompose(body -> body == null
+                                ? routerContext.respondWithoutReply().completed()
+                                : routerContext.respondWith(body).completed());
             }
         };
     }

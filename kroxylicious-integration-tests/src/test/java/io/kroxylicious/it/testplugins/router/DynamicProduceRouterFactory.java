@@ -5,10 +5,7 @@
  */
 package io.kroxylicious.it.testplugins.router;
 
-import java.util.Arrays;
-import java.util.Map;
 import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -42,11 +39,13 @@ public class DynamicProduceRouterFactory
     @Override
     public Router createRouter(RouterFactoryContext context, Config config) {
         String route = config.route();
-        Map<ApiKeys, String> staticMap = Arrays.stream(ApiKeys.values())
-                .filter(k -> k != ApiKeys.PRODUCE)
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> route));
 
         return new Router() {
+            @Override
+            public boolean shouldIntercept(ApiKeys apiKey, short apiVersion, RouterContext context) {
+                return context.virtualNode().isEmpty();
+            }
+
             @Override
             public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey,
                                                              short apiVersion,
@@ -54,17 +53,12 @@ public class DynamicProduceRouterFactory
                                                              ApiMessage request,
                                                              RouterContext ctx) {
                 var node = ctx.anyNode(route);
-                if (request instanceof ProduceRequestData pd && pd.acks() == 0) {
+                if (apiKey == ApiKeys.PRODUCE && request instanceof ProduceRequestData pd && pd.acks() == 0) {
                     return ctx.sendRequest(node, header, request)
                             .thenCompose(ignored -> ctx.respondWithoutReply().completed());
                 }
                 return ctx.sendRequest(node, header, request)
                         .thenCompose(body -> ctx.respondWith(body).completed());
-            }
-
-            @Override
-            public Map<ApiKeys, String> staticRoutes() {
-                return staticMap;
             }
         };
     }

@@ -5,12 +5,9 @@
  */
 package io.kroxylicious.it.testplugins.router;
 
-import java.util.Arrays;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -73,21 +70,23 @@ public class RouterContractCapturingFactory
     @Override
     public Router createRouter(RouterFactoryContext context, InitData initData) {
         capturedCreate.set(new CreateCapture(context.virtualClusterName(), context.routerName(), initData));
-        Map<ApiKeys, String> allStatic = Arrays.stream(ApiKeys.values())
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> initData.config().route()));
         return new Router() {
+            @Override
+            public boolean shouldIntercept(ApiKeys apiKey, short apiVersion, RouterContext context) {
+                return context.virtualNode().isEmpty();
+            }
+
             @Override
             public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey,
                                                              short apiVersion,
                                                              RequestHeaderData header,
                                                              ApiMessage request,
                                                              RouterContext routerContext) {
-                throw new IllegalStateException("Dynamic routing is not supported");
-            }
-
-            @Override
-            public Map<ApiKeys, String> staticRoutes() {
-                return allStatic;
+                var node = routerContext.anyNode(initData.config().route());
+                return routerContext.sendRequest(node, header, request)
+                        .thenCompose(body -> body == null
+                                ? routerContext.respondWithoutReply().completed()
+                                : routerContext.respondWith(body).completed());
             }
         };
     }
