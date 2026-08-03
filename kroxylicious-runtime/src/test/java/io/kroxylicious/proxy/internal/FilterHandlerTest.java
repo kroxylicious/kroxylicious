@@ -38,12 +38,15 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -85,6 +88,22 @@ class FilterHandlerTest extends FilterHarness {
     private static final RawTaggedField MARK = createTag(ARBITRARY_TAG, "mark");
     public static final long TIMEOUT_MS = 50L;
     public static final String AUTHORIZATION_ID = "Bob's yer uncle";
+
+    private SimpleMeterRegistry simpleMeterRegistry;
+
+    @BeforeEach
+    void setUpMetrics() {
+        simpleMeterRegistry = new SimpleMeterRegistry();
+        io.micrometer.core.instrument.Metrics.globalRegistry.add(simpleMeterRegistry);
+    }
+
+    @AfterEach
+    void tearDownMetrics() {
+        if (simpleMeterRegistry != null) {
+            simpleMeterRegistry.getMeters().forEach(io.micrometer.core.instrument.Metrics.globalRegistry::remove);
+            io.micrometer.core.instrument.Metrics.globalRegistry.remove(simpleMeterRegistry);
+        }
+    }
 
     @Test
     void testForwardRequest() {
@@ -1280,6 +1299,12 @@ class FilterHandlerTest extends FilterHarness {
                     assertThat(saslContext.authorizationId()).isEqualTo(AUTHORIZATION_ID);
                     assertThat(saslContext.mechanismName()).isEqualTo(ScramMechanism.SCRAM_SHA_512.mechanismName());
                 });
+
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_auth_total")
+                .tags("virtual_cluster", "TestVirtualCluster",
+                        "mechanism", ScramMechanism.SCRAM_SHA_512.mechanismName(),
+                        "outcome", "success")
+                .counter().count()).isEqualTo(1.0);
     }
 
     @Test
@@ -1300,5 +1325,33 @@ class FilterHandlerTest extends FilterHarness {
 
         assertThat(clientConnectionStateMachine.clientSaslContext())
                 .isEmpty();
+
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_auth_total")
+                .tags("virtual_cluster", "TestVirtualCluster",
+                        "mechanism", ScramMechanism.SCRAM_SHA_512.mechanismName(),
+                        "outcome", "failure")
+                .counter().count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void shouldRecordUnknownMechanismOnSaslAuthFailureWithNullMechanism() {
+        // Given
+        SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setErrorMessage("denied");
+        buildChannel((SaslAuthenticateRequestFilter) (apiVersion, header, request, context) -> {
+            context.clientSaslAuthenticationFailure(null, null, new SaslAuthenticationException("denied"));
+            return context.requestFilterResultBuilder().shortCircuitResponse(responseData).completed();
+        });
+
+        // When
+        writeRequest(new SaslAuthenticateRequestData().setAuthBytes("Let me IN!".getBytes(UTF_8)));
+
+        // Then
+        channel.readOutbound();
+
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_auth_total")
+                .tags("virtual_cluster", "TestVirtualCluster",
+                        "mechanism", "unknown",
+                        "outcome", "failure")
+                .counter().count()).isEqualTo(1.0);
     }
 }

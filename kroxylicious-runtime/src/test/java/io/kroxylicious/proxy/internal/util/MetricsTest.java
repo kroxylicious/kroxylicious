@@ -182,4 +182,50 @@ class MetricsTest {
         assertThat(clientClosedCounter.count()).isEqualTo(1.0);
         assertThat(serverClosedCounter.count()).isEqualTo(1.0);
     }
+
+    @Test
+    void clientAuthCounterShouldIncludeAllTags() {
+        // Given
+        var counter = Metrics.clientAuthCounter("my-cluster", "SCRAM-SHA-512", "success");
+
+        // When
+        counter.increment();
+
+        // Then
+        assertThat(counter.getId().getTag("virtual_cluster")).isEqualTo("my-cluster");
+        assertThat(counter.getId().getTag("mechanism")).isEqualTo("SCRAM-SHA-512");
+        assertThat(counter.getId().getTag("outcome")).isEqualTo("success");
+        assertThat(counter.count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void clientAuthCounterShouldDistinguishOutcomes() {
+        // Given
+        var successCounter = Metrics.clientAuthCounter("cluster", "SCRAM-SHA-256", "success");
+        var failureCounter = Metrics.clientAuthCounter("cluster", "SCRAM-SHA-256", "failure");
+
+        // When
+        successCounter.increment();
+        failureCounter.increment();
+
+        // Then
+        assertThat(successCounter.count()).isEqualTo(1.0);
+        assertThat(failureCounter.count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void clientAuthCounterShouldDistinguishMechanisms() {
+        // Given
+        var scramCounter = Metrics.clientAuthCounter("cluster", "SCRAM-SHA-256", "success");
+        var oauthCounter = Metrics.clientAuthCounter("cluster", "OAUTHBEARER", "success");
+
+        // When
+        scramCounter.increment();
+        oauthCounter.increment();
+        oauthCounter.increment();
+
+        // Then
+        assertThat(scramCounter.count()).isEqualTo(1.0);
+        assertThat(oauthCounter.count()).isEqualTo(2.0);
+    }
 }

@@ -52,6 +52,7 @@ import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
+import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -671,6 +672,8 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("subject", subject)
                     .log("Filter announces client has passed SASL authentication");
 
+            Metrics.clientAuthCounter(getVirtualClusterName(), mechanism, "success").increment();
+
             clientConnectionStateMachine.onSessionSaslAuthenticated();
 
             // dispatch principal injection
@@ -688,6 +691,11 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .setCause(LOGGER.isDebugEnabled() ? exception : null)
                     .log("Filter announces client has failed SASL authentication" +
                             (LOGGER.isDebugEnabled() ? "" : ", increase log level to DEBUG for stacktrace"));
+
+            Metrics.clientAuthCounter(getVirtualClusterName(),
+                    mechanism != null ? mechanism : "unknown",
+                    "failure").increment();
+
             clientConnectionStateMachine.clientSaslAuthenticationFailure();
         }
 
