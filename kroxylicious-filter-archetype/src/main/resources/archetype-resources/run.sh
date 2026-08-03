@@ -1,4 +1,10 @@
 #! /bin/bash
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
 set -euo pipefail
 
 cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" # cd to the dir containing this script
