@@ -117,6 +117,7 @@ class PemUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("secrets:S6706") // The private key is test data
     void mustBeAbleToReadPKCS8RsaPrivateKey() throws Exception {
         // Given: PKCS#8 format RSA key (BEGIN PRIVATE KEY) - from Netty test data
         byte[] pkcs8Key = ("""
@@ -144,7 +145,7 @@ class PemUtilsTest {
                 r+eP5SKbKb8ZQlp10JeBkNnk8eAG8OkQyBaECYDBadEr1/LK2LmIEjYKzKAjYQ4cX2KMtY271jjX
                 WrzzXNqBdThFfMHiJE8k9xYmaLDKhQ==
                 -----END PRIVATE KEY-----
-                """).getBytes(StandardCharsets.US_ASCII);
+                """).getBytes(StandardCharsets.US_ASCII); // notsecret
 
         // When
         PrivateKey privateKey = PemUtils.parsePrivateKey(pkcs8Key, null);
@@ -156,6 +157,7 @@ class PemUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("secrets:S6706") // The private key is test data
     void mustBeAbleToReadPKCS1RsaPrivateKey() throws Exception {
         // Given: PKCS#1 format RSA key (BEGIN RSA PRIVATE KEY) - traditional format
         byte[] pkcs1Key = ("""
@@ -174,7 +176,7 @@ class PemUtilsTest {
                 To4619gxRP/66/4MUvRCqQJAX7YC1BsTLoQK0Ez6bxFYjNgaiVOOnDxLC9l95Vyy
                 LMqrHn3z/S078tNouyAtWsX5NcH2Bqs3//OZQfoevpJglQ==
                 -----END RSA PRIVATE KEY-----
-                """).getBytes(StandardCharsets.US_ASCII);
+                """).getBytes(StandardCharsets.US_ASCII); // notsecret
 
         // When
         PrivateKey privateKey = PemUtils.parsePrivateKey(pkcs1Key, null);
@@ -187,6 +189,7 @@ class PemUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("secrets:S6706") // The private key is test data
     void mustRejectEncryptedPrivateKeyWithPassword() {
         // Given: encrypted PKCS#8 key with password - from Netty test data
         byte[] encryptedKey = ("""
@@ -202,7 +205,7 @@ class PemUtilsTest {
                 i9fz8bCNoy4/dyWbE/wEK8UPGif1rzCpoodBYeWTt0QtHcIokE3ylXWyTTarz7jV
                 u9Rnbq4HAXYYEwPjLmWFQ6NeD/rx/t44oEAyekxS+ZPIHNTVXRLBH5Tl/LDkpK15
                 -----END ENCRYPTED PRIVATE KEY-----
-                """).getBytes(StandardCharsets.US_ASCII);
+                """).getBytes(StandardCharsets.US_ASCII); // notsecret
         char[] password = "password".toCharArray();
 
         // When/Then
@@ -214,6 +217,7 @@ class PemUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("secrets:S6706") // The private key is test data
     void mustRejectEncryptedPrivateKeyWithoutPassword() {
         // Given: encrypted key without password - should fail during parsing
         byte[] encryptedKey = ("""
@@ -221,7 +225,7 @@ class PemUtilsTest {
                 MIIE9jAoBgoqhkiG9w0BDAEDMBoEFDBlaUwB8TQ9ImbApCmAyVRTTX+kAgIIAASC
                 BMhC8QFNyn0VbVp7I+R9Yvmr+Ksl0xZshGg3zaUN8/HRblNSS3gPiP673rmnhcU3
                 -----END ENCRYPTED PRIVATE KEY-----
-                """).getBytes(StandardCharsets.US_ASCII);
+                """).getBytes(StandardCharsets.US_ASCII); // notsecret
 
         // When/Then - fails because the encrypted key can't be parsed as unencrypted
         assertThatThrownBy(() -> PemUtils.parsePrivateKey(encryptedKey, null))
@@ -265,6 +269,7 @@ class PemUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("secrets:S6706") // The private key is test data
     void mustRejectPKCS1EcPrivateKey() {
         // Given
         byte[] pkcs1EcKey = ("""
@@ -273,7 +278,7 @@ class PemUtilsTest {
                 AwEHoUQDQgAEbU4kz0QpW7MQvkqbijjDt/fu9T/FrjZuMd+8F9wSxwXrTfJhcHAA
                 7ibbeqf4y9m9QTPuRKzOQXS8A0qlOYEhzA==
                 -----END EC PRIVATE KEY-----
-                """).getBytes(StandardCharsets.US_ASCII);
+                """).getBytes(StandardCharsets.US_ASCII); // notsecret
 
         // When/Then
         assertThatThrownBy(() -> PemUtils.parsePrivateKey(pkcs1EcKey, null))
