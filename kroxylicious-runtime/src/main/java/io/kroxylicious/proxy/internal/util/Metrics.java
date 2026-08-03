@@ -44,6 +44,7 @@ public class Metrics {
     public static final String NODE_ID_LABEL = "node_id";
     public static final String API_KEY_LABEL = "api_key";
     public static final String API_VERSION_LABEL = "api_version";
+    public static final String MECHANISM_LABEL = "mechanism";
     public static final String DECODED_LABEL = "decoded";
 
     // Hot-reload / lifecycle labels
@@ -74,6 +75,9 @@ public class Metrics {
     private static final String RECONFIGURE_COUNTER_NAME = "kroxylicious_reconfigure_total";
     private static final String RECONFIGURE_DURATION_NAME = "kroxylicious_reconfigure_duration_seconds";
     private static final String RECONFIGURE_CLUSTERS_AFFECTED_COUNTER_NAME = "kroxylicious_reconfigure_clusters_affected_total";
+
+    // Authentication metric names
+    private static final String CLIENT_AUTH_COUNTER_NAME = "kroxylicious_client_auth_total";
 
     // Virtual cluster lifecycle metric names
     private static final String VIRTUAL_CLUSTER_STATE_NAME = "kroxylicious_virtual_cluster_state";
@@ -371,6 +375,25 @@ public class Metrics {
         return Counter.builder(RECONFIGURE_CLUSTERS_AFFECTED_COUNTER_NAME)
                 .description("Count of per-virtual-cluster operations during reconfigures.")
                 .tag(OPERATION_LABEL, operation)
+                .tag(OUTCOME_LABEL, outcome)
+                .register(globalRegistry);
+    }
+
+    // --- Authentication ---
+
+    /**
+     * Counter of client authentication outcomes, tagged by virtual cluster, SASL mechanism,
+     * and {@code outcome} ({@code success}, {@code failure}).
+     *
+     * @param virtualCluster the virtual cluster name
+     * @param mechanism the SASL mechanism name, or {@code "unknown"} if the mechanism is not known
+     * @param outcome the authentication outcome
+     */
+    public static Counter clientAuthCounter(String virtualCluster, String mechanism, String outcome) {
+        return Counter.builder(CLIENT_AUTH_COUNTER_NAME)
+                .description("Count of client authentication outcomes.")
+                .tag(VIRTUAL_CLUSTER_LABEL, virtualCluster)
+                .tag(MECHANISM_LABEL, mechanism)
                 .tag(OUTCOME_LABEL, outcome)
                 .register(globalRegistry);
     }
