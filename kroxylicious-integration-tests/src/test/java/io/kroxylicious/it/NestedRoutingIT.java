@@ -6,9 +6,13 @@
 package io.kroxylicious.it;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.StreamSupport;
@@ -37,6 +41,7 @@ import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.api.TerminationStyle;
 import io.kroxylicious.testing.kafka.common.ClientConfig;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
@@ -267,6 +272,109 @@ class NestedRoutingIT {
         assertThat(consumeFrom(verifyB, topic))
                 .extracting(ConsumerRecord::key)
                 .containsExactly("key-0", "key-1", "key-2");
+    }
+
+    // --- error propagation ---
+
+    @Test
+    void shouldPropagateErrorWhenBackingClusterIsUnreachable(
+                                                             @Name("clusterA") Topic topicOnA)
+            throws Exception {
+        // Given
+        String topic = topicOnA.name();
+        var config = nestedRoutingConfig();
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer(Map.of(
+                        "client.id", "app-a",
+                        "enable.idempotence", false,
+                        "retries", 0,
+                        "batch.size", 0,
+                        "linger.ms", 0,
+                        "delivery.timeout.ms", 5000,
+                        "request.timeout.ms", 3000))) {
+
+            assertThat(producer.send(new ProducerRecord<>(topic, "baseline", "ok")))
+                    .succeedsWithin(Duration.ofSeconds(10));
+
+            // When
+            clusterA.stopNodes(u -> true, TerminationStyle.GRACEFUL);
+            try {
+                // Then
+                assertThat(producer.send(new ProducerRecord<>(topic, "should-fail", "fail")))
+                        .failsWithin(Duration.ofSeconds(10));
+            }
+            finally {
+                clusterA.startNodes(u -> true);
+            }
+        }
+    }
+
+    // --- concurrency ---
+
+    @Test
+    void shouldHandleConcurrentProducersRoutingToDifferentClusters(
+                                                                   @Name("clusterA") Topic topicOnA,
+                                                                   @Name("clusterA") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-a") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyA,
+                                                                   @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB)
+            throws Exception {
+        // Given
+        String topic = topicOnA.name();
+        createTopicOnCluster(clusterB, topic);
+        var config = nestedRoutingConfig();
+        int producersPerCluster = 3;
+        int messagesPerProducer = 5;
+
+        // When
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
+            ExecutorService executor = Executors.newFixedThreadPool(producersPerCluster * 2);
+            try {
+                List<Future<?>> futures = new ArrayList<>();
+                for (int p = 0; p < producersPerCluster; p++) {
+                    int idx = p;
+                    futures.add(executor.submit(() -> {
+                        try (var producer = tester.producer(Map.of(
+                                "client.id", "app-a",
+                                "enable.idempotence", false,
+                                "retries", 0,
+                                "batch.size", 0,
+                                "linger.ms", 0))) {
+                            for (int i = 0; i < messagesPerProducer; i++) {
+                                producer.send(new ProducerRecord<>(topic, "a-" + idx + "-" + i, "v")).get(10, TimeUnit.SECONDS);
+                            }
+                        }
+                        return null;
+                    }));
+                    futures.add(executor.submit(() -> {
+                        try (var producer = tester.producer(Map.of(
+                                "client.id", "app-b",
+                                "enable.idempotence", false,
+                                "retries", 0,
+                                "batch.size", 0,
+                                "linger.ms", 0))) {
+                            for (int i = 0; i < messagesPerProducer; i++) {
+                                producer.send(new ProducerRecord<>(topic, "b-" + idx + "-" + i, "v")).get(10, TimeUnit.SECONDS);
+                            }
+                        }
+                        return null;
+                    }));
+                }
+                for (var f : futures) {
+                    f.get(30, TimeUnit.SECONDS);
+                }
+            }
+            finally {
+                executor.shutdownNow();
+            }
+        }
+
+        // Then
+        var recordsA = consumeFrom(verifyA, topic);
+        var recordsB = consumeFrom(verifyB, topic);
+        assertThat(recordsA).hasSize(producersPerCluster * messagesPerProducer);
+        assertThat(recordsA).extracting(ConsumerRecord::key).allSatisfy(k -> assertThat(k).startsWith("a-"));
+        assertThat(recordsB).hasSize(producersPerCluster * messagesPerProducer);
+        assertThat(recordsB).extracting(ConsumerRecord::key).allSatisfy(k -> assertThat(k).startsWith("b-"));
     }
 
     private static void createTopicOnCluster(KafkaCluster cluster, String topicName) throws ExecutionException, InterruptedException, TimeoutException {

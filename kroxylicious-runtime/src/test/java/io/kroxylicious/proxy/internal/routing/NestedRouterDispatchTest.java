@@ -42,6 +42,7 @@ class NestedRouterDispatchTest {
     private static final int ROUTING_CORRELATION_ID = 100;
 
     private EmbeddedChannel channel;
+    private NodeIdMapping lastCreatedMapping;
     private final Map<Integer, RouterDispatchHandler.PendingResponse> pendingResponses = new HashMap<>();
 
     @Mock
@@ -71,6 +72,7 @@ class NestedRouterDispatchTest {
                 : new BijectiveNodeIdMapping(
                         routes.entrySet().stream().collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id())),
                         routes.size());
+        lastCreatedMapping = mapping;
         return new NestedRouterDispatch(routes, mapping, ROUTER_NAME, correlationIdAllocator, pendingResponses, ctx);
     }
 
@@ -143,6 +145,8 @@ class NestedRouterDispatchTest {
         // Then
         assertThat(pendingResponses).hasSize(1);
         assertThat(future.toCompletableFuture()).isNotDone();
+        assertThat(pendingResponses.get(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
+        assertThat(pendingResponses.get(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
     }
 
     @Test
@@ -218,6 +222,8 @@ class NestedRouterDispatchTest {
         // Then
         assertThat(pendingResponses).hasSize(1);
         assertThat(future.toCompletableFuture()).isNotDone();
+        assertThat(pendingResponses.get(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
+        assertThat(pendingResponses.get(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
     }
 
     @Test
@@ -258,6 +264,8 @@ class NestedRouterDispatchTest {
                 .isNotEqualTo(eventLoopThread);
         assertThat(pendingResponses).hasSize(1);
         assertThat(pendingResponses.get(ROUTING_CORRELATION_ID)).isNotNull();
+        assertThat(pendingResponses.get(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
+        assertThat(pendingResponses.get(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
     }
 
     @Test
@@ -282,6 +290,8 @@ class NestedRouterDispatchTest {
                 .isNotEqualTo(eventLoopThread);
         assertThat(pendingResponses).hasSize(1);
         assertThat(pendingResponses.get(ROUTING_CORRELATION_ID)).isNotNull();
+        assertThat(pendingResponses.get(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
+        assertThat(pendingResponses.get(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
     }
 
     private Thread obtainEventLoopThread() {
