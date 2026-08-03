@@ -1334,6 +1334,29 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
+    void shouldAccumulateAuthMetricsOnReauthentication() {
+        // Given
+        SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setSessionLifetimeMs(10_000);
+        buildChannel((SaslAuthenticateRequestFilter) (apiVersion, header, request, context) -> {
+            context.clientSaslAuthenticationSuccess(ScramMechanism.SCRAM_SHA_512.mechanismName(), new Subject(new User(AUTHORIZATION_ID)));
+            return context.requestFilterResultBuilder().shortCircuitResponse(responseData).completed();
+        });
+
+        // When
+        writeRequest(new SaslAuthenticateRequestData().setAuthBytes("Let me IN!".getBytes(UTF_8)));
+        channel.readOutbound();
+        writeRequest(new SaslAuthenticateRequestData().setAuthBytes("Let me IN again!".getBytes(UTF_8)));
+        channel.readOutbound();
+
+        // Then
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_auth_total")
+                .tags("virtual_cluster", "TestVirtualCluster",
+                        "mechanism", ScramMechanism.SCRAM_SHA_512.mechanismName(),
+                        "outcome", "success")
+                .counter().count()).isEqualTo(2.0);
+    }
+
+    @Test
     void shouldRecordUnknownMechanismOnSaslAuthFailureWithNullMechanism() {
         // Given
         SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setErrorMessage("denied");
