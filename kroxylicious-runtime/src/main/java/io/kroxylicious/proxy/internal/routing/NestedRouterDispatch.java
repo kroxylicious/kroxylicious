@@ -76,14 +76,13 @@ class NestedRouterDispatch implements RouterDispatch {
                                                      ApiMessage request,
                                                      String sessionId,
                                                      int clientCorrelationId) {
-        return executeOnEventLoop(() -> doSendToAnyNode(route, header, request, sessionId, clientCorrelationId));
+        return executeOnEventLoop(() -> doSendToAnyNode(route, header, request, sessionId));
     }
 
     private CompletableFuture<ApiMessage> doSendToAnyNode(String route,
                                                           RequestHeaderData header,
                                                           ApiMessage request,
-                                                          String sessionId,
-                                                          int clientCorrelationId) {
+                                                          String sessionId) {
         RouteDescriptor rd = nestedRoutes.get(route);
         if (rd == null) {
             LOGGER.atWarn()
@@ -124,15 +123,14 @@ class NestedRouterDispatch implements RouterDispatch {
                                                           ApiMessage request,
                                                           String sessionId,
                                                           int clientCorrelationId) {
-        return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId));
+        return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId));
     }
 
     private CompletableFuture<ApiMessage> doSendToSpecificNode(int targetNodeId,
                                                                String route,
                                                                RequestHeaderData header,
                                                                ApiMessage request,
-                                                               String sessionId,
-                                                               int clientCorrelationId) {
+                                                               String sessionId) {
         RouteDescriptor rd = nestedRoutes.get(route);
         if (rd == null) {
             return CompletableFuture.failedFuture(
