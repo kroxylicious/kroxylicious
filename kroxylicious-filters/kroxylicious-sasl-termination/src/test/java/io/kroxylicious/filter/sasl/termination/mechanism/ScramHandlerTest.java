@@ -136,6 +136,37 @@ class ScramHandlerTest {
     }
 
     @Test
+    void shouldFailForOversizedUsername() throws Exception {
+        // Given
+        String longUsername = "a".repeat(ScramHandler.MAX_USERNAME_LENGTH + 1);
+        byte[] clientFirstMessage = ("n,,n=" + longUsername + ",r=fyko+d2lbbFgONRv9qkxdawL").getBytes(StandardCharsets.UTF_8);
+
+        // When
+        AuthenticationResult result = handler.handleAuthenticate(clientFirstMessage)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(result.outcome()).isEqualTo(AuthenticationResult.Outcome.FAILURE);
+        assertThat(result.errorMessage()).contains("username exceeds maximum length");
+    }
+
+    @Test
+    void shouldAcceptUsernameAtMaxLength() throws Exception {
+        // Given
+        String maxUsername = "a".repeat(ScramHandler.MAX_USERNAME_LENGTH);
+        when(credentialStore.lookupCredential(maxUsername))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        byte[] clientFirstMessage = ("n,,n=" + maxUsername + ",r=fyko+d2lbbFgONRv9qkxdawL").getBytes(StandardCharsets.UTF_8);
+
+        // When
+        AuthenticationResult result = handler.handleAuthenticate(clientFirstMessage)
+                .toCompletableFuture().get();
+
+        // Then
+        verify(credentialStore).lookupCredential(maxUsername);
+    }
+
+    @Test
     void shouldFailForCredentialLookupException() throws Exception {
         // Given
         when(credentialStore.lookupCredential(anyString()))

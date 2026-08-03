@@ -63,6 +63,7 @@ public class KeystoreCredentialManager {
     private static final int DEFAULT_ITERATIONS = 10000;
     private static final int SALT_LENGTH = 20;
     private static final int MIN_PASSWORD_LENGTH = 12;
+    private static final int MAX_USERNAME_LENGTH = 255;
     private final SecureRandom secureRandom;
 
     /**
@@ -99,6 +100,15 @@ public class KeystoreCredentialManager {
                             "NIST recommends 12-15 characters minimum for service credentials. " +
                             "Consider using a passphrase (e.g., \"coffee-sunrise-laptop-2026\") " +
                             "or a password manager to generate a strong password.");
+        }
+    }
+
+    private static void validateUsername(String username) {
+        if (username == null || username.isEmpty()) {
+            throw new IllegalArgumentException("Username must not be null or empty");
+        }
+        if (username.length() > MAX_USERNAME_LENGTH) {
+            throw new IllegalArgumentException("Username must not exceed " + MAX_USERNAME_LENGTH + " characters");
         }
     }
 
@@ -155,6 +165,7 @@ public class KeystoreCredentialManager {
                         String password,
                         ScramMechanism mechanism)
             throws KeyStoreException {
+        validateUsername(username);
         validatePasswordLength(storePassword, "KeyStore password");
         validatePasswordLength(password, "User password");
 
@@ -232,6 +243,7 @@ public class KeystoreCredentialManager {
                                String newPassword,
                                ScramMechanism mechanism)
             throws KeyStoreException {
+        validateUsername(username);
         validatePasswordLength(storePassword, "KeyStore password");
         validatePasswordLength(newPassword, "New password");
 

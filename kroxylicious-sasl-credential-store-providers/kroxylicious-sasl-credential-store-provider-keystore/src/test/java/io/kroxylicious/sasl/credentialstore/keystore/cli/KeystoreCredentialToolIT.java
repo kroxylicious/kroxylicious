@@ -272,6 +272,22 @@ class KeystoreCredentialToolIT {
     }
 
     @Test
+    void shouldRejectOversizedUsernameOnAdd(@TempDir Path tempDir) {
+        Path keystorePath = tempDir.resolve("credentials.p12");
+
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+
+        var addResult = executeCommand("--unlock-insecure-options", "add-user",
+                "-k", keystorePath.toString(),
+                "-p", KEYSTORE_PASSWORD,
+                "-u", "a".repeat(256),
+                "-w", "password-for-long-user");
+
+        assertThat(addResult.exitCode()).isNotZero();
+        assertThat(addResult.stderr()).contains("Username must not exceed 255 characters");
+    }
+
+    @Test
     void shouldShowUsageWhenNoCommand() {
         var result = executeCommand();
 

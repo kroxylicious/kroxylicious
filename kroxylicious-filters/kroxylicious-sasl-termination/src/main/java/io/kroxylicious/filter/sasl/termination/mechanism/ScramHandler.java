@@ -52,6 +52,7 @@ public class ScramHandler implements MechanismHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ScramHandler.class);
     private static final Map<String, String> SASL_PROPS = Map.of();
+    static final int MAX_USERNAME_LENGTH = 255;
 
     private final String mechanismName;
     private final ScramCredentialStore credentialStore;
@@ -249,6 +250,9 @@ public class ScramHandler implements MechanismHandler {
         String username = message.substring(usernameStart, usernameEnd);
         if (username.isEmpty()) {
             throw new IllegalArgumentException("Invalid SCRAM message: empty username");
+        }
+        if (username.length() > MAX_USERNAME_LENGTH) {
+            throw new IllegalArgumentException("Invalid SCRAM message: username exceeds maximum length of " + MAX_USERNAME_LENGTH + " characters");
         }
 
         return username;
