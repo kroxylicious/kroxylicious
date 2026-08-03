@@ -90,19 +90,19 @@ class KeystoreCredentialToolIT {
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "zebra",
-                "-w", "password");
+                "-w", "password-secure");
 
         executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
-                "-w", "password");
+                "-w", "password-secure");
 
         executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "mike",
-                "-w", "password");
+                "-w", "password-secure");
 
         // List should be sorted
         var listResult = executeCommand("--unlock-insecure-options", "list-users",
@@ -131,12 +131,12 @@ class KeystoreCredentialToolIT {
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
-                "-w", "password");
+                "-w", "password-secure");
         executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "bob",
-                "-w", "password");
+                "-w", "password-secure");
 
         // Remove alice
         var removeResult = executeCommand("--unlock-insecure-options", "remove-user",
@@ -215,7 +215,7 @@ class KeystoreCredentialToolIT {
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "nonexistent",
-                "-w", "password");
+                "-w", "password-secure");
 
         assertThat(updateResult.exitCode()).isEqualTo(1);
         assertThat(updateResult.stderr())
@@ -231,7 +231,7 @@ class KeystoreCredentialToolIT {
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
-                "-w", "password");
+                "-w", "password-secure");
 
         assertThat(addResult.exitCode()).isEqualTo(1);
         assertThat(addResult.stderr())
@@ -249,7 +249,7 @@ class KeystoreCredentialToolIT {
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
-                "-w", "password",
+                "-w", "password-secure",
                 "-m", "SCRAM_SHA_256");
 
         assertThat(addResult.exitCode()).isZero();
@@ -266,7 +266,7 @@ class KeystoreCredentialToolIT {
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
-                "-w", "password",
+                "-w", "password-secure",
                 "-m", "SCRAM_SHA_512");
 
         assertThat(addResult.exitCode()).isZero();
