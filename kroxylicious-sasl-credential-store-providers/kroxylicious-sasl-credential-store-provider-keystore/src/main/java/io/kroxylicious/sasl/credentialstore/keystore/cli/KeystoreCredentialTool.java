@@ -210,6 +210,10 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         @Option(names = { "-m", "--mechanism" }, description = "SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM_SHA_256")
         ScramMechanismType mechanism;
 
+        @Option(names = { "-i",
+                "--iterations" }, description = "PBKDF2 iteration count (default: ${DEFAULT-VALUE}, minimum: 4096)", defaultValue = "10000")
+        int iterations;
+
         @Override
         public Integer call() {
             try {
@@ -228,7 +232,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                         spec.commandLine().getErr());
 
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
-                manager.addUser(keystorePath, keystorePassword, username, password, mechanism.toScramMechanism());
+                manager.addUser(keystorePath, keystorePassword, username, password, mechanism.toScramMechanism(), iterations);
                 spec.commandLine().getOut().println("User '" + username + "' added successfully");
                 return 0;
             }
@@ -317,6 +321,10 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         @Option(names = { "-m", "--mechanism" }, description = "SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM_SHA_256")
         ScramMechanismType mechanism;
 
+        @Option(names = { "-i",
+                "--iterations" }, description = "PBKDF2 iteration count (default: ${DEFAULT-VALUE}, minimum: 4096)", defaultValue = "10000")
+        int iterations;
+
         @Override
         public Integer call() {
             try {
@@ -335,7 +343,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                         spec.commandLine().getErr());
 
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
-                manager.updatePassword(keystorePath, keystorePassword, username, password, mechanism.toScramMechanism());
+                manager.updatePassword(keystorePath, keystorePassword, username, password, mechanism.toScramMechanism(), iterations);
                 spec.commandLine().getOut().println("Password for user '" + username + "' updated successfully");
                 return 0;
             }

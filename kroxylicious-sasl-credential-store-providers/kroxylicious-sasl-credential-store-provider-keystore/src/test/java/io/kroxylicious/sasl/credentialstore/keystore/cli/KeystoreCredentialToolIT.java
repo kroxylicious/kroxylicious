@@ -272,6 +272,44 @@ class KeystoreCredentialToolIT {
     }
 
     @Test
+    void shouldAddUserWithCustomIterations(@TempDir Path tempDir) {
+        Path keystorePath = tempDir.resolve("credentials.p12");
+
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+
+        // When
+        var addResult = executeCommand("--unlock-insecure-options", "add-user",
+                "-k", keystorePath.toString(),
+                "-p", KEYSTORE_PASSWORD,
+                "-u", "alice",
+                "-w", "alice-secret-password",
+                "-i", "8192");
+
+        // Then
+        assertThat(addResult.exitCode()).isZero();
+        assertThat(addResult.stdout()).contains("User 'alice' added successfully");
+    }
+
+    @Test
+    void shouldRejectIterationsBelowMinimum(@TempDir Path tempDir) {
+        Path keystorePath = tempDir.resolve("credentials.p12");
+
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+
+        // When
+        var addResult = executeCommand("--unlock-insecure-options", "add-user",
+                "-k", keystorePath.toString(),
+                "-p", KEYSTORE_PASSWORD,
+                "-u", "alice",
+                "-w", "alice-secret-password",
+                "-i", "100");
+
+        // Then
+        assertThat(addResult.exitCode()).isNotZero();
+        assertThat(addResult.stderr()).contains("Iteration count must be at least 4096");
+    }
+
+    @Test
     void shouldRejectOversizedUsernameOnAdd(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 

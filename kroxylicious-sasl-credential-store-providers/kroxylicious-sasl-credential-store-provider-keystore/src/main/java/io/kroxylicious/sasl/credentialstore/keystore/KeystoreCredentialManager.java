@@ -165,6 +165,18 @@ public class KeystoreCredentialManager {
                         String password,
                         ScramMechanism mechanism)
             throws KeyStoreException {
+        addUser(keystorePath, storePassword, username, password, mechanism, DEFAULT_ITERATIONS);
+    }
+
+    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
+    public void addUser(
+                        Path keystorePath,
+                        String storePassword,
+                        String username,
+                        String password,
+                        ScramMechanism mechanism,
+                        int iterations)
+            throws KeyStoreException {
         validateUsername(username);
         validatePasswordLength(storePassword, "KeyStore password");
         validatePasswordLength(password, "User password");
@@ -172,7 +184,7 @@ public class KeystoreCredentialManager {
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
 
-            ScramCredential credential = generateScramCredential(username, password, mechanism);
+            ScramCredential credential = generateScramCredential(username, password, mechanism, iterations);
 
             ScramCredentialSerializer serializer = new ScramCredentialSerializer();
             byte[] credentialBytes = serializer.serialize(credential);
@@ -243,6 +255,17 @@ public class KeystoreCredentialManager {
                                String newPassword,
                                ScramMechanism mechanism)
             throws KeyStoreException {
+        updatePassword(keystorePath, storePassword, username, newPassword, mechanism, DEFAULT_ITERATIONS);
+    }
+
+    public void updatePassword(
+                               Path keystorePath,
+                               String storePassword,
+                               String username,
+                               String newPassword,
+                               ScramMechanism mechanism,
+                               int iterations)
+            throws KeyStoreException {
         validateUsername(username);
         validatePasswordLength(storePassword, "KeyStore password");
         validatePasswordLength(newPassword, "New password");
@@ -258,8 +281,7 @@ public class KeystoreCredentialManager {
             throw new KeyStoreException("Failed to update password for user '" + username + "'", e);
         }
 
-        // Update is implemented as remove + add
-        addUser(keystorePath, storePassword, username, newPassword, mechanism);
+        addUser(keystorePath, storePassword, username, newPassword, mechanism, iterations);
     }
 
     /**
@@ -390,16 +412,26 @@ public class KeystoreCredentialManager {
                                                    String username,
                                                    String password,
                                                    ScramMechanism mechanism) {
+        return generateScramCredential(username, password, mechanism, DEFAULT_ITERATIONS);
+    }
+
+    public ScramCredential generateScramCredential(
+                                                   String username,
+                                                   String password,
+                                                   ScramMechanism mechanism,
+                                                   int iterations) {
+        if (iterations < ScramCredential.MINIMUM_ITERATIONS) {
+            throw new IllegalArgumentException(
+                    "Iteration count must be at least " + ScramCredential.MINIMUM_ITERATIONS);
+        }
 
         try {
             byte[] salt = generateSalt();
 
             ScramFormatter formatter = new ScramFormatter(mechanism);
 
-            // Generate the salted password
-            byte[] saltedPassword = formatter.saltedPassword(password, salt, DEFAULT_ITERATIONS);
+            byte[] saltedPassword = formatter.saltedPassword(password, salt, iterations);
 
-            // Generate server key and stored key from the salted password
             byte[] serverKey = formatter.serverKey(saltedPassword);
             byte[] clientKey = formatter.clientKey(saltedPassword);
             byte[] storedKey = formatter.storedKey(clientKey);
@@ -409,7 +441,7 @@ public class KeystoreCredentialManager {
             return new ScramCredential(
                     username,
                     salt,
-                    DEFAULT_ITERATIONS,
+                    iterations,
                     serverKey,
                     storedKey,
                     hashAlgorithm);
