@@ -114,14 +114,12 @@ class AllReconcilersIT {
             .withReconciler(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR, sharedInformerManager))
             .withSetupAction(() -> {
                 try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-                    StrimziCrdUtils.crds(crd -> (Kafka.RESOURCE_PLURAL + "." + Kafka.RESOURCE_GROUP).equals(crd.getMetadata().getName()))
-                            .forEach(crd -> client.apiextensions().v1().customResourceDefinitions().resource(crd).createOr(Updatable::update));
+                    client.apiextensions().v1().customResourceDefinitions().resource(StrimziCrdUtils.kafkaCrd()).createOr(Updatable::update);
                 }
             })
             .withTeardownAction(() -> {
                 try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-                    StrimziCrdUtils.crds(crd -> (Kafka.RESOURCE_PLURAL + "." + Kafka.RESOURCE_GROUP).equals(crd.getMetadata().getName()))
-                            .forEach(crd -> client.apiextensions().v1().customResourceDefinitions().resource(crd).delete());
+                    client.apiextensions().v1().customResourceDefinitions().resource(StrimziCrdUtils.kafkaCrd()).delete();
                 }
             })
             .withAdditionalCleanupTypes(Kafka.class)
