@@ -74,7 +74,9 @@ class KeystoreCredentialToolIT {
         assertThat(listResult.exitCode()).isZero();
         assertThat(listResult.stdout())
                 .contains("Users in KeyStore (1):")
-                .contains("alice");
+                .contains("alice")
+                .contains("SCRAM-SHA-256")
+                .contains("iterations=10000");
     }
 
     @Test
@@ -269,6 +271,45 @@ class KeystoreCredentialToolIT {
 
         assertThat(addResult.exitCode()).isZero();
         assertThat(addResult.stdout()).contains("User 'alice' added successfully");
+    }
+
+    @Test
+    void shouldListUsersWithDifferentMechanismsAndIterations(@TempDir Path tempDir) {
+        Path keystorePath = tempDir.resolve("credentials.p12");
+
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+
+        executeCommand("--unlock-insecure-options", "add-user",
+                "-k", keystorePath.toString(),
+                "-p", KEYSTORE_PASSWORD,
+                "-u", "alice",
+                "-w", "alice-secret-password",
+                "-m", "SCRAM_SHA_256",
+                "-i", "8192");
+
+        executeCommand("--unlock-insecure-options", "add-user",
+                "-k", keystorePath.toString(),
+                "-p", KEYSTORE_PASSWORD,
+                "-u", "bob",
+                "-w", "bob-secret-password",
+                "-m", "SCRAM_SHA_512",
+                "-i", "16384");
+
+        // When
+        var listResult = executeCommand("--unlock-insecure-options", "list-users",
+                "-k", keystorePath.toString(),
+                "-p", KEYSTORE_PASSWORD);
+
+        // Then
+        assertThat(listResult.exitCode()).isZero();
+        assertThat(listResult.stdout())
+                .contains("Users in KeyStore (2):")
+                .contains("alice")
+                .contains("SCRAM-SHA-256")
+                .contains("iterations=8192")
+                .contains("bob")
+                .contains("SCRAM-SHA-512")
+                .contains("iterations=16384");
     }
 
     @Test

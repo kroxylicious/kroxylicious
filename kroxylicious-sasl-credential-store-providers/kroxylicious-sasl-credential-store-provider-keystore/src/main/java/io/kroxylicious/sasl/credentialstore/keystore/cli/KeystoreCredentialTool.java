@@ -387,15 +387,15 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                         spec.commandLine().getErr());
 
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
-                List<String> users = manager.listUsers(keystorePath, keystorePassword);
+                List<KeystoreCredentialManager.UserCredentialInfo> credentials = manager.listCredentials(keystorePath, keystorePassword);
 
-                if (users.isEmpty()) {
+                if (credentials.isEmpty()) {
                     spec.commandLine().getOut().println("No users found in KeyStore");
                 }
                 else {
-                    spec.commandLine().getOut().println("Users in KeyStore (" + users.size() + "):");
-                    for (String user : users) {
-                        spec.commandLine().getOut().println("  " + user);
+                    spec.commandLine().getOut().println("Users in KeyStore (" + credentials.size() + "):");
+                    for (var info : credentials) {
+                        spec.commandLine().getOut().println("  " + info.username() + "  " + info.mechanism() + "  iterations=" + info.iterations());
                     }
                 }
                 return 0;

@@ -323,6 +323,45 @@ public class KeystoreCredentialManager {
         }
     }
 
+    public record UserCredentialInfo(String username, String mechanism, int iterations) implements Comparable<UserCredentialInfo> {
+        @Override
+        public int compareTo(UserCredentialInfo other) {
+            return this.username.compareTo(other.username);
+        }
+    }
+
+    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
+    public List<UserCredentialInfo> listCredentials(
+                                                    Path keystorePath,
+                                                    String storePassword)
+            throws KeyStoreException {
+        validatePasswordLength(storePassword, "KeyStore password");
+
+        try {
+            KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
+            ScramCredentialSerializer serializer = new ScramCredentialSerializer();
+            KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(storePassword.toCharArray());
+
+            List<UserCredentialInfo> credentials = new ArrayList<>();
+            Enumeration<String> aliases = keyStore.aliases();
+            while (aliases.hasMoreElements()) {
+                String alias = aliases.nextElement();
+                if (keyStore.isKeyEntry(alias)) {
+                    KeyStore.SecretKeyEntry entry = (KeyStore.SecretKeyEntry) keyStore.getEntry(alias, protection);
+                    ScramCredential credential = serializer.deserialize(entry.getSecretKey().getEncoded(), alias);
+                    String mechanism = "SHA-256".equals(credential.hashAlgorithm()) ? "SCRAM-SHA-256" : "SCRAM-SHA-512";
+                    credentials.add(new UserCredentialInfo(credential.username(), mechanism, credential.iterations()));
+                }
+            }
+
+            Collections.sort(credentials);
+            return credentials;
+        }
+        catch (IOException | NoSuchAlgorithmException | CertificateException | java.security.UnrecoverableEntryException e) {
+            throw new KeyStoreException("Failed to list credentials from KeyStore", e);
+        }
+    }
+
     /**
      * Generate a KeyStore containing SCRAM credentials with specified mechanism.
      * <p>
