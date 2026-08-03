@@ -23,6 +23,7 @@ public record ApiSpec(String name, short apiKey, String apiKeyEnumName, Set<Requ
                       MessageSpec response)
         implements Named {
     public ApiSpec {
+        Objects.requireNonNull(name);
         Objects.requireNonNull(apiKeyEnumName);
         Objects.requireNonNull(listeners);
         Objects.requireNonNull(request);
