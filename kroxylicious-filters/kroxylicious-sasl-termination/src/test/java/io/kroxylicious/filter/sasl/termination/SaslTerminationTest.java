@@ -548,6 +548,117 @@ class SaslTerminationTest {
         verify(credentialStore).lookupCredential("unknown");
     }
 
+    @Test
+    void shouldRejectOversizedScramAuthBytes() throws Exception {
+        // Given
+        var handler = mock(io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandler.class);
+        when(handler.mechanismName()).thenReturn("SCRAM-SHA-256");
+        when(handler.maxAuthBytes()).thenReturn(4 * 1024);
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var authenticating = State.start().nextState(handler);
+        setFilterState(filter, authenticating);
+
+        byte[] oversizedPayload = new byte[handler.maxAuthBytes() + 1];
+        var request = new SaslAuthenticateRequestData().setAuthBytes(oversizedPayload);
+        var filterContext = mockFilterContextForShortCircuitWithClose();
+
+        // When
+        filter.onRequest(ApiKeys.SASL_AUTHENTICATE, (short) 0,
+                new RequestHeaderData(), request, filterContext);
+
+        // Then
+        verify(filterContext).requestFilterResultBuilder();
+    }
+
+    @Test
+    void shouldRejectOversizedOauthBearerAuthBytes() throws Exception {
+        // Given
+        var handler = mock(io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandler.class);
+        when(handler.mechanismName()).thenReturn("OAUTHBEARER");
+        when(handler.maxAuthBytes()).thenReturn(128 * 1024);
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("OAUTHBEARER", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var authenticating = State.start().nextState(handler);
+        setFilterState(filter, authenticating);
+
+        byte[] oversizedPayload = new byte[handler.maxAuthBytes() + 1];
+        var request = new SaslAuthenticateRequestData().setAuthBytes(oversizedPayload);
+        var filterContext = mockFilterContextForShortCircuitWithClose();
+
+        // When
+        filter.onRequest(ApiKeys.SASL_AUTHENTICATE, (short) 0,
+                new RequestHeaderData(), request, filterContext);
+
+        // Then
+        verify(filterContext).requestFilterResultBuilder();
+    }
+
+    @Test
+    void shouldAcceptAuthBytesWithinScramLimit() throws Exception {
+        // Given
+        var handler = mock(io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandler.class);
+        when(handler.mechanismName()).thenReturn("SCRAM-SHA-256");
+        when(handler.maxAuthBytes()).thenReturn(4 * 1024);
+        when(handler.handleAuthenticate(any())).thenReturn(
+                CompletableFuture.completedFuture(
+                        io.kroxylicious.filter.sasl.termination.mechanism.AuthenticationResult.failure(new byte[0], "test")));
+        var handlerFactory = mock(MechanismHandlerFactory.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                Map.of("SCRAM-SHA-256", handlerFactory), Map.of(), null, java.time.Clock.systemUTC(),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        var filter = new SaslTerminationFilter(context);
+
+        var authenticating = State.start().nextState(handler);
+        setFilterState(filter, authenticating);
+
+        byte[] payload = new byte[handler.maxAuthBytes()];
+        var request = new SaslAuthenticateRequestData().setAuthBytes(payload);
+        var filterContext = mockFilterContextForShortCircuitWithClose();
+
+        // When
+        filter.onRequest(ApiKeys.SASL_AUTHENTICATE, (short) 0,
+                new RequestHeaderData(), request, filterContext);
+
+        // Then
+        verify(handler).handleAuthenticate(any());
+    }
+
+    private static void setFilterState(SaslTerminationFilter filter, State state) {
+        try {
+            var field = SaslTerminationFilter.class.getDeclaredField("state");
+            field.setAccessible(true);
+            field.set(filter, state);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static FilterContext mockFilterContextForShortCircuitWithClose() {
+        var filterContext = mock(FilterContext.class);
+        var builder = mock(RequestFilterResultBuilder.class);
+        var closeOrTerminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage.class);
+        var terminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage.class);
+        var result = mock(RequestFilterResult.class);
+
+        when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
+        when(builder.shortCircuitResponse(any())).thenReturn(closeOrTerminal);
+        when(closeOrTerminal.withCloseConnection()).thenReturn(terminal);
+        when(terminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
+
+        return filterContext;
+    }
+
     @SuppressWarnings("unchecked")
     private static FilterContext mockFilterContextForShortCircuitResponse() {
         var filterContext = mock(FilterContext.class);

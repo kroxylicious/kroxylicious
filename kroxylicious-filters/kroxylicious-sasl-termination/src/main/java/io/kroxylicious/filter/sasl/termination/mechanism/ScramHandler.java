@@ -86,6 +86,11 @@ public class ScramHandler implements MechanismHandler {
     }
 
     @Override
+    public int maxAuthBytes() {
+        return 4 * 1024;
+    }
+
+    @Override
     public CompletionStage<AuthenticationResult> handleAuthenticate(byte[] authBytes) {
         Instant start = clock.instant();
         CompletionStage<AuthenticationResult> result;

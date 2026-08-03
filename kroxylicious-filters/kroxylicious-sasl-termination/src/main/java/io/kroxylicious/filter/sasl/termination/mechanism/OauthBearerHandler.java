@@ -81,6 +81,11 @@ public class OauthBearerHandler implements MechanismHandler {
     }
 
     @Override
+    public int maxAuthBytes() {
+        return 128 * 1024;
+    }
+
+    @Override
     public CompletionStage<AuthenticationResult> handleAuthenticate(byte[] authBytes) {
         Instant start = clock.instant();
         CompletionStage<AuthenticationResult> result = doHandleAuthenticate(authBytes);

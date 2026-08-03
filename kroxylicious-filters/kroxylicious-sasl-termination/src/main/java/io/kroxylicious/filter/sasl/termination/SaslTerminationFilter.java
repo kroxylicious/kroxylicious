@@ -310,6 +310,20 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
 
         MechanismHandler handler = authenticating.mechanismHandler();
 
+        int maxAuthBytes = handler.maxAuthBytes();
+        if (request.authBytes().length > maxAuthBytes) {
+            LOGGER.atWarn()
+                    .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
+                    .addKeyValue("mechanism", handler.mechanismName())
+                    .addKeyValue("payloadSize", request.authBytes().length)
+                    .addKeyValue("maxPayloadSize", maxAuthBytes)
+                    .log("Rejecting oversized SASL authenticate payload");
+            return handleAuthenticationFailure(
+                    "Authentication payload exceeds maximum size",
+                    handler,
+                    filterContext);
+        }
+
         return handler.handleAuthenticate(request.authBytes())
                 .thenCompose(result -> processAuthenticationResult(result, handler, filterContext))
                 .exceptionallyCompose(throwable -> {

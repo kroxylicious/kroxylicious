@@ -202,6 +202,11 @@ class StateTest {
         }
 
         @Override
+        public int maxAuthBytes() {
+            return 4 * 1024;
+        }
+
+        @Override
         public CompletionStage<AuthenticationResult> handleAuthenticate(byte[] authBytes) {
             return CompletableFuture.completedFuture(
                     AuthenticationResult.success(new byte[0], "test-user"));

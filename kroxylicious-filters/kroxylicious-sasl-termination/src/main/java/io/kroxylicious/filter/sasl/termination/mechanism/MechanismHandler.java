@@ -51,6 +51,15 @@ public interface MechanismHandler {
     String mechanismName();
 
     /**
+     * Maximum size in bytes of the {@code authBytes} field in a
+     * {@code SaslAuthenticateRequest} that this mechanism will accept.
+     * Payloads exceeding this limit are rejected before processing.
+     *
+     * @return the maximum auth bytes size
+     */
+    int maxAuthBytes();
+
+    /**
      * Handle a SASL authenticate request.
      * <p>
      * This method is called for each authenticate request from the client.
