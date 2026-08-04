@@ -68,7 +68,7 @@ jobs:
           source scripts/ci-build-functions.sh
           mvn --batch-mode \
             -P "!build-the-world,!qa" \
-            -P "${PROXY_MODULES}" \
+            -P "${PROXY_PROFILES}" \
             -DskipTests \
             -Derrorprone.skip=true \
             -Djapicmp.skip=true \
@@ -80,7 +80,7 @@ jobs:
           source scripts/ci-build-functions.sh
           mvn --batch-mode \
             -P "!build-the-world,!qa" \
-            -P "${KUBERNETES_MODULES},ci" \
+            -P "${KUBERNETES_PROFILES},ci" \
             -Derrorprone.skip=true \
             -Djapicmp.skip=true \
             -DskipITs=true \
@@ -92,7 +92,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           source scripts/ci-build-functions.sh
-          run_sonar "${KUBERNETES_MODULES}" 'Kroxylicious Operator' 'kroxylicious_operator' \
+          run_sonar "${KUBERNETES_PROFILES}" 'Kroxylicious Operator' 'kroxylicious_operator' \
             -Djapicmp.skip=true
       - name: Save PR number to file
         if: github.event_name == 'pull_request'

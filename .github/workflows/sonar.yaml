@@ -100,11 +100,11 @@ jobs:
             install
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: SonarCloud scan on PR for the Proxy Runtime
+      - name: SonarCloud scan on PR for the Proxy Core
         if: env.SONAR_TOKEN_SET == 'true'
         run: |
           source scripts/ci-build-functions.sh
-          run_sonar "${PROXY_MODULES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
+          run_sonar "${PROXY_PROFILES}" 'Proxy Core' 'kroxylicious_kroxylicious' \
             -Djapicmp.skip=true \
             -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
             -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
@@ -118,7 +118,7 @@ jobs:
         run: |
           source scripts/ci-build-functions.sh
           if [ -f "kroxylicious-kubernetes/pom.xml" ]; then
-            run_sonar "${KUBERNETES_MODULES}" 'Kroxylicious Operator' 'kroxylicious_operator' \
+            run_sonar "${KUBERNETES_PROFILES}" 'Kroxylicious Operator' 'kroxylicious_operator' \
               -Djapicmp.skip=true \
               -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
               -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
