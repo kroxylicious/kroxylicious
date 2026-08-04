@@ -82,11 +82,13 @@ class SaslTerminationFilterTest {
     }
 
     @Test
-    void shouldListSupportedMechanismsForUnsupportedHandshake() throws Exception {
+    void shouldCloseConnectionForUnsupportedHandshake() throws Exception {
         // Given
         var filter = createFilter();
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
-        var filterContext = mockShortCircuitFilterContext(captor);
+        var closeOrTerminal = mock(CloseOrTerminalStage.class);
+        var terminal = mock(TerminalStage.class);
+        var filterContext = mockShortCircuitFilterContextWithCloseTracking(captor, closeOrTerminal, terminal);
 
         // When
         filter.onRequest(ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_HANDSHAKE.latestVersion(),
@@ -98,6 +100,7 @@ class SaslTerminationFilterTest {
         var response = (SaslHandshakeResponseData) captor.getValue();
         assertThat(response.errorCode()).isEqualTo(Errors.UNSUPPORTED_SASL_MECHANISM.code());
         assertThat(response.mechanisms()).contains("OAUTHBEARER");
+        verify(closeOrTerminal).withCloseConnection();
     }
 
     @Test

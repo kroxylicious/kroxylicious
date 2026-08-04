@@ -171,8 +171,6 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         }
 
         String mechanism = request.mechanism();
-        Errors errorCode;
-        List<String> supportedMechanisms;
 
         MechanismStateMachine stateMachine = createStateMachine(mechanism);
         if (stateMachine != null) {
@@ -188,23 +186,24 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                 state = authenticated.nextStateReauthenticate(stateMachine, authStartNanos);
             }
 
-            errorCode = Errors.NONE;
-            supportedMechanisms = List.of();
+            return filterContext.requestFilterResultBuilder()
+                    .shortCircuitResponse(new SaslHandshakeResponseData()
+                            .setErrorCode(Errors.NONE.code())
+                            .setMechanisms(List.of()))
+                    .completed();
         }
         else {
             LOGGER.atDebug()
                     .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
                     .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                     .log("Unsupported mechanism");
-            errorCode = Errors.UNSUPPORTED_SASL_MECHANISM;
-            supportedMechanisms = List.copyOf(context.supportedMechanisms());
+            return filterContext.requestFilterResultBuilder()
+                    .shortCircuitResponse(new SaslHandshakeResponseData()
+                            .setErrorCode(Errors.UNSUPPORTED_SASL_MECHANISM.code())
+                            .setMechanisms(List.copyOf(context.supportedMechanisms())))
+                    .withCloseConnection()
+                    .completed();
         }
-
-        return filterContext.requestFilterResultBuilder()
-                .shortCircuitResponse(new SaslHandshakeResponseData()
-                        .setErrorCode(errorCode.code())
-                        .setMechanisms(supportedMechanisms))
-                .completed();
     }
 
     @Nullable
