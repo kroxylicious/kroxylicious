@@ -249,45 +249,53 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     private void handleOobCompletion(ChannelHandlerContext ctx, InternalRequestFrame<?> oobFrame,
                                      RouterResponse result, Throwable error,
                                      ApiKeys apiKey, short apiVersion, int correlationId) {
-        if (error != null) {
-            LOGGER.atError()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", ccsm.sessionId())
-                    .addKeyValue("apiKey", apiKey)
-                    .addKeyValue("clientCorrelationId", correlationId)
-                    .setCause(error)
-                    .log("Router returned failed future");
-            ctx.channel().close();
-            return;
-        }
-        if (!(result instanceof RouterResponseImpl rri)) {
-            LOGGER.atError()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", ccsm.sessionId())
-                    .addKeyValue("apiKey", apiKey)
-                    .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
-                    .log("Router returned unrecognised RouterResponse type; closing connection");
-            ctx.channel().close();
-            return;
-        }
-        if (rri instanceof RouterResponseImpl.RespondWith rw) {
-            var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
-            header.setCorrelationId(correlationId);
-            var internalResponse = new InternalResponseFrame<>(
-                    oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
-            internalResponse.setRouteName(oobFrame.routeName());
-            ctx.channel().writeAndFlush(internalResponse);
-        }
-        else {
-            Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
-                    ? rwe.exception()
-                    : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
-            oobFrame.promise().completeExceptionally(cause);
-            if (rri.closeConnection()) {
+        try {
+            if (error != null) {
+                LOGGER.atError()
+                        .addKeyValue("virtualCluster", virtualClusterName)
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("apiKey", apiKey)
+                        .addKeyValue("clientCorrelationId", correlationId)
+                        .setCause(error)
+                        .log("Router returned failed future");
+                oobFrame.promise().completeExceptionally(error);
                 ctx.channel().close();
+                return;
+            }
+            if (!(result instanceof RouterResponseImpl rri)) {
+                var cause = new IllegalStateException(
+                        "Router returned unrecognised RouterResponse type (apiKey=" + apiKey + ", type=" + (result == null ? "null" : result.getClass().getName()) + ")");
+                LOGGER.atError()
+                        .addKeyValue("virtualCluster", virtualClusterName)
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("apiKey", apiKey)
+                        .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
+                        .log("Router returned unrecognised RouterResponse type; closing connection");
+                oobFrame.promise().completeExceptionally(cause);
+                ctx.channel().close();
+                return;
+            }
+            if (rri instanceof RouterResponseImpl.RespondWith rw) {
+                var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
+                header.setCorrelationId(correlationId);
+                var internalResponse = new InternalResponseFrame<>(
+                        oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
+                internalResponse.setRouteName(oobFrame.routeName());
+                ctx.channel().writeAndFlush(internalResponse);
+            }
+            else {
+                Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
+                        ? rwe.exception()
+                        : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
+                oobFrame.promise().completeExceptionally(cause);
+                if (rri.closeConnection()) {
+                    ctx.channel().close();
+                }
             }
         }
-        ccsm.onRoutedRequestComplete();
+        finally {
+            ccsm.onRoutedRequestComplete();
+        }
     }
 
     private void handleRegularCompletion(ChannelHandlerContext ctx, RouterResponse result, Throwable error,

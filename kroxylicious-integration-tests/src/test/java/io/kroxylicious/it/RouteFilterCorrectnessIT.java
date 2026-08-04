@@ -64,23 +64,14 @@ import static org.apache.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests that demonstrate correctness issues identified in the per-route filter
- * chain implementation.  Each test targets a specific bug and is expected to fail until
- * the corresponding issue is fixed.
+ * Verifies per-route filter correctness across a range of user-facing gestures.
  *
- * <p>C1: Router-internal frames pass through route filter handlers.
- * <p>C2: {@code correlationIdToRoute} entries are never removed for router-internal requests.
- * <p>C3: {@code sendRequest()} in a route filter sends to an arbitrary backend when multiple
- *         routes are active.
- * <p>C4: Test name / behaviour mismatch in RouterDispatchHandlerTest masks a regression where
- *         forwarding failures leave the pending future stuck rather than completing exceptionally.
- * <p>C5: {@code InternalRequestFrame} objects created by a filter on route-a are processed by
- *         route-b's filter handlers. {@code RouteFilterHandler.channelRead} passes all
- *         {@code InternalRequestFrame} instances to {@code super.channelRead()} without checking
- *         whether they belong to that handler's route, so a filter on route-b can mutate
- *         internal requests it should never see.
- * <p>C6: Same filter factory type on both routes — internal requests must stay within the
- *         originating route even when both routes have filters created from the same factory.
+ * <p>C1: Route filters see all traffic on a route, including router-originated frames.
+ * <p>C2: Routing stays stable across many dynamic-produce operations.
+ * <p>C3: {@code sendRequest()} from a route filter reaches the correct backend.
+ * <p>C5: Route filters process only their own route's {@code InternalRequestFrame}s.
+ * <p>C6: Same filter factory type on multiple routes does not cause cross-contamination.
+ * <p>C7: Route filter {@code onResponse} is called for dynamically-dispatched responses.
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
@@ -98,19 +89,14 @@ class RouteFilterCorrectnessIT {
     }
 
     // ---------------------------------------------------------------------------
-    // C1: Route filters see all traffic on a route, including router-originated
+    // C1: Route filters see all traffic on a route, including router-originated frames
     // ---------------------------------------------------------------------------
 
     /**
-     * When a router uses dynamic routing (e.g. {@link DynamicProduceRouterFactory}), it
-     * forwards the request to the backend by calling {@code RouterContext.sendRequest()},
-     * which fires a {@code DecodedRequestFrame} through the pipeline.  Route filter handlers
-     * sit after {@code RouterDispatchHandler} in the pipeline, so they see this frame.
-     *
-     * <p>This is the intended behaviour: per-route filters apply to <em>all</em> traffic on
-     * a route, regardless of whether it was originated by the client or by the router.
-     * A name-mapping filter on a route must transform topic names in all requests reaching
-     * the backend through that route.
+     * When a router uses dynamic routing, it forwards client requests to the backend via
+     * {@code RouterContext.sendRequest()}. Route filters apply to all traffic on a route,
+     * including these router-originated frames. A name-mapping filter on a route must
+     * transform topic names in all requests reaching the backend through that route.
      */
     @Test
     void routeFilterSeesRouterOriginatedTraffic(KafkaCluster cluster, Topic topic) throws Exception {
@@ -150,22 +136,13 @@ class RouteFilterCorrectnessIT {
     }
 
     // ---------------------------------------------------------------------------
-    // C2: correlationIdToRoute entries never removed for router-internal requests
+    // C2: Routing stability across many dynamic-produce operations
     // ---------------------------------------------------------------------------
 
     /**
-     * {@code RoutingTerminalHandler} records a {@code correlationId → routeName} mapping for
-     * every inbound frame that expects a response.  When a router-internal frame goes through
-     * the terminal handler (as a consequence of C1), its router-range correlation ID is
-     * recorded.  The response is then consumed by {@code RouterDispatchHandler.write()} without
-     * calling {@code ctx.write()}, so {@code RoutingTerminalHandler.write()} is never triggered
-     * and the entry is never removed.
-     *
-     * <p>This leak is bounded (router correlation IDs cycle through a fixed range) and does
-     * not currently cause observable routing failures with a single route.  A targeted unit test
-     * against {@code RoutingTerminalHandler} is the appropriate level at which to assert the
-     * map invariant directly.  This test exercises the same code path at the integration level
-     * and verifies that routing remains correct after many dynamic-produce operations.
+     * When a router uses dynamic routing across many operations, routing must remain stable
+     * and deliver all records. Exposed a bug where correlation ID map entries leaked for
+     * router-internal requests.
      */
     @Test
     void routingRemainsStableAfterManyDynamicOperations(KafkaCluster cluster, Topic topic) throws Exception {
@@ -188,7 +165,7 @@ class RouteFilterCorrectnessIT {
                 var producer = tester.producer(Map.of(DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
                 var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, "c2-stability", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
 
-            // When: many dynamic produce cycles (each triggers a router-internal re-forward that leaks a map entry)
+            // When
             for (int i = 0; i < 50; i++) {
                 producer.send(new ProducerRecord<>(topic.name(), "key", "value-" + i)).get();
             }
@@ -196,28 +173,19 @@ class RouteFilterCorrectnessIT {
             consumer.subscribe(Set.of(topic.name()));
             var records = consumer.poll(Duration.ofSeconds(30));
 
-            // Then: routing continues to deliver all records correctly despite the growing correlationIdToRoute map
+            // Then
             assertThat(records).hasSize(50);
         }
     }
 
     // ---------------------------------------------------------------------------
-    // C3: sendRequest() from a route filter goes to an arbitrary backend
+    // C3: Route filter sendRequest() reaches the correct backend
     // ---------------------------------------------------------------------------
 
     /**
-     * When a route filter calls {@code FilterContext.sendRequest()}, the resulting
-     * {@code InternalRequestFrame} reaches {@code RoutingTerminalHandler} with a null route
-     * name.  The terminal handler delegates to
-     * {@code ClientConnectionStateMachine.onClientFilterChainComplete()}, which picks a backend
-     * connection via {@code serverConnections.values().iterator().next()}.  With a single active
-     * route this always returns the correct connection.  With two or more routes whose backends
-     * differ, the choice is non-deterministic.
-     *
-     * <p>This test uses a single cluster and a single route, so {@code sendRequest()} works
-     * correctly by accident.  Demonstrating the actual bug requires two distinct Kafka clusters
-     * (one per route) so that sending to the wrong connection produces a different — observable
-     * — response.
+     * When a route filter calls {@code FilterContext.sendRequest()}, the OOB request must reach
+     * the correct backend and the filter must observe the response. Exposed a bug where the
+     * backend was chosen non-deterministically with multiple active routes.
      */
     @Test
     void routeFilterSendRequestWorksWithSingleRoute() {
@@ -245,7 +213,7 @@ class RouteFilterCorrectnessIT {
             // When
             client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
 
-            // Then: sendRequest() reached the correct (only) backend and the filter marked the request
+            // Then
             var requestAtBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
             assertThat(unknownTaggedFieldsToStrings(requestAtBroker, FILTER_NAME_TAG))
                     .as("filter must have marked the request, proving sendRequest() reached the mock backend")
@@ -254,16 +222,9 @@ class RouteFilterCorrectnessIT {
     }
 
     /**
-     * {@code RouteFilterHandler.channelRead} passes every {@code InternalRequestFrame} to
-     * {@code super.channelRead()} without checking whether the frame originated from that
-     * handler's own filter.  As a result, a filter on route-b processes internal requests
-     * created by a filter on route-a.
-     *
-     * <p>{@code ASYNCHRONOUS_REQUEST_TO_BROKER} fires an {@code InternalRequestFrame} carrying
-     * a {@code ListGroupsRequestData} payload when it sees a matching client request.  With the
-     * bug, route-b's counting filter sees this LIST_GROUPS internal frame even though all client
-     * traffic is routed exclusively to route-a, incrementing the LIST_GROUPS counter.  After the
-     * fix the counter remains zero.
+     * When a filter on route-a sends an internal request, filters on route-b must not process it.
+     * Exposed a bug where {@code RouteFilterHandler} passed all {@code InternalRequestFrame}s
+     * to downstream handlers without checking route ownership.
      */
     @Test
     void routeFilterDoesNotSeeInternalRequestsOriginatedByOtherRouteFilter(KafkaCluster cluster, Topic topic) throws Exception {
@@ -288,31 +249,24 @@ class RouteFilterCorrectnessIT {
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
                 var producer = tester.producer(Map.of(DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
 
-            // When: client sends PRODUCE through route-a; route-a's marking filter fires an
-            // internal LIST_GROUPS via sendRequest()
+            // When
             producer.send(new ProducerRecord<>(topic.name(), "key", "value")).get();
         }
 
-        // Then: route-b's counting filter must not have seen the internal LIST_GROUPS frame
+        // Then
         assertThat(RequestCountingFilter.countFor(counterId, ApiKeys.LIST_GROUPS))
                 .as("route-b filter must not process InternalRequestFrame from route-a's filter")
                 .isZero();
     }
 
     // ---------------------------------------------------------------------------
-    // C6: Same filter definition on both routes — internal request must stay
-    // within the originating route even when both routes share the same
-    // filter factory type.
+    // C6: Same filter factory type on multiple routes does not cause cross-contamination
     // ---------------------------------------------------------------------------
 
     /**
-     * When the same filter factory type (here {@code RequestCountingFilterFactory}) appears
-     * on multiple routes, each route gets its own filter instance.  An {@code InternalRequestFrame}
-     * created by a filter on route-a must only be processed by route-a's filter chain, not
-     * route-b's — even though route-b has a filter of the same type.
-     *
-     * <p>This is the critical scenario for nested routers where a filter definition may appear
-     * on routes belonging to different routers.
+     * When the same filter factory type appears on multiple routes, each route gets its own
+     * filter instance. Internal requests from one route must not reach the other route's filters,
+     * even when both routes share the same factory type.
      */
     @Test
     void sameFilterDefinitionOnBothRoutesDoesNotCrossContaminate(KafkaCluster cluster, Topic topic) throws Exception {
@@ -360,21 +314,16 @@ class RouteFilterCorrectnessIT {
     // ---------------------------------------------------------------------------
 
     /**
-     * When a router uses dynamic dispatch ({@code RouterContext.sendRequest()} +
-     * {@code respondWith()}), the upstream response flows back through the route filter
-     * chain. {@code RouteFilterHandler.write()} must stamp the route name on the response
-     * so that route filters can invoke {@code onResponse}.
-     *
-     * <p>Previously, {@code RoutingTerminalHandler.channelRead()} excluded routing-range
-     * correlation IDs from {@code correlationIdToRoute}, so routing responses arrived at
-     * {@code RouteFilterHandler} without a route name and {@code matchesRoute()} returned
-     * false, silently skipping {@code onResponse}.
+     * When a router uses dynamic dispatch, the upstream response flows back through the route
+     * filter chain and the filter's {@code onResponse} must be called. Exposed a bug where
+     * routing-range correlation IDs were excluded from {@code correlationIdToRoute}, causing
+     * responses to skip {@code onResponse} silently.
      */
     @Test
     void routeFilterOnResponseCalledForDynamicallyDispatchedResponse(KafkaCluster cluster, Topic topic) {
         var filterName = "c7-filter";
 
-        // Given: route-level filter that marks the PRODUCE response body
+        // Given
         var filterDef = new NamedFilterDefinitionBuilder(filterName, RequestResponseMarkingFilterFactory.class.getName())
                 .withConfig("keysToMark", Set.of(ApiKeys.PRODUCE),
                         "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.RESPONSE),
@@ -386,13 +335,13 @@ class RouteFilterCorrectnessIT {
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
                 var client = tester.simpleTestClient()) {
 
-            // Given: establish the upstream connection
+            // Given
             client.getSync(new Request(ApiKeys.METADATA, (short) 12, "metadata-client", new MetadataRequestData()));
 
             // When
             var response = client.getSync(produceRequest(topic.name(), (short) 1));
 
-            // Then: the filter's tag must be on the response body, proving onResponse was called
+            // Then
             assertThat(unknownTaggedFieldsToStrings(response.payload().message(), FILTER_NAME_TAG))
                     .as("route filter onResponse must be invoked for dynamically-dispatched PRODUCE responses")
                     .containsExactly(RequestResponseMarkingFilter.class.getSimpleName() + "-" + filterName + "-response");

@@ -293,21 +293,15 @@ class FilterRouteFilterApiIT {
     }
 
     /**
-     * A route filter sends an OOB request ({@code FilterContext.sendRequest()}) inside
-     * {@code onResponse} for a dynamically-dispatched PRODUCE. The OOB response must arrive
-     * immediately without deadlocking the response pipeline.
-     *
-     * <p>With dynamic routing ({@code ContextCapturingRouterFactory}) the OOB response was
-     * delivered as a {@code DecodedResponseFrame} and chained in {@code FilterHandler.writeFuture}
-     * behind the enclosing routing response. The enclosing response could not complete until
-     * {@code onResponse} returned; {@code onResponse} waited for the OOB promise; the OOB was
-     * queued after the routing response. Circular wait, response never arrived.
+     * A route filter sends an OOB request from {@code onResponse} during a dynamically-dispatched
+     * PRODUCE. The OOB response must arrive without deadlocking the response pipeline.
+     * Exposed a bug where the OOB and the routing response formed a circular wait.
      */
     @Test
     void routeFilterOobFromOnResponseDoesNotDeadlock(KafkaCluster cluster, Topic topic) {
         var filterName = "oob-onresponse-filter";
 
-        // Given: route-level filter that sends an OOB from onResponse for PRODUCE
+        // Given
         var filterDef = new NamedFilterDefinitionBuilder(filterName, RequestResponseMarkingFilterFactory.class.getName())
                 .withConfig("keysToMark", Set.of(ApiKeys.PRODUCE),
                         "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.RESPONSE),
@@ -319,13 +313,13 @@ class FilterRouteFilterApiIT {
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
                 var client = tester.simpleTestClient()) {
 
-            // Given: establish the upstream connection
+            // Given
             client.getSync(new Request(ApiKeys.METADATA, (short) 12, "metadata-client", new MetadataRequestData()));
 
-            // When: async so the test fails fast if the response deadlocks
+            // When
             var futureResponse = client.get(produceRequest(topic.name(), (short) 1));
 
-            // Then: response must arrive without deadlock and carry the filter's tag
+            // Then
             assertThat(futureResponse)
                     .as("PRODUCE response must arrive: OOB from route filter onResponse must not deadlock")
                     .succeedsWithin(Duration.ofSeconds(5));
