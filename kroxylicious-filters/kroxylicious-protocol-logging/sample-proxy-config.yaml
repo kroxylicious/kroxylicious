@@ -1,0 +1,35 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Sample config to smoke-test the ProtocolLogging filter.
+# Start Kafka on localhost:9092, then run the proxy with this config.
+# The proxy listens on localhost:9192 and logs every protocol message at INFO.
+---
+management:
+  endpoints:
+    prometheus: {}
+virtualClusters:
+  - name: demo
+    targetCluster:
+      bootstrapServers: localhost:9092
+    gateways:
+      - name: default
+        portIdentifiesNode:
+          bootstrapAddress: localhost:9192
+    logNetwork: false
+    logFrames: false
+filterDefinitions:
+  - name: protocol-logger
+    type: ProtocolLogging
+    # Omit config entirely to log all API keys.
+    # To log only specific RPCs, uncomment and edit:
+    # config:
+    #   apiKeyNames:
+    #     - PRODUCE
+    #     - FETCH
+    #     - METADATA
+defaultFilters:
+  - protocol-logger

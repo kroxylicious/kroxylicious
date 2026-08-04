@@ -32,6 +32,7 @@
         <module>kroxylicious-authorization</module>
         <module>kroxylicious-connection-expiration</module>
         <module>kroxylicious-entity-isolation</module>
+        <module>kroxylicious-protocol-logging</module>
     </modules>
 
     <build>
