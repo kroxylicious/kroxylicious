@@ -28,6 +28,7 @@
         <module>kroxylicious-simple-transform</module>
         <module>kroxylicious-oauthbearer-validation</module>
         <module>kroxylicious-sasl-inspection</module>
+        <module>kroxylicious-sasl-termination</module>
         <module>kroxylicious-authorization</module>
         <module>kroxylicious-connection-expiration</module>
         <module>kroxylicious-entity-isolation</module>
