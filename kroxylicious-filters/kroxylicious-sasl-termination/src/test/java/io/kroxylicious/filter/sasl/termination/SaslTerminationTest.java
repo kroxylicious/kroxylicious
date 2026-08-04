@@ -356,7 +356,7 @@ class SaslTerminationTest {
     }
 
     @Test
-    void shouldRejectSaslHandshakeWithUnsupportedApiVersion() throws Exception {
+    void shouldRejectSaslHandshakeWithUnsupportedApiVersion() {
         // Given
         var context = testContext();
         var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
@@ -373,7 +373,7 @@ class SaslTerminationTest {
     }
 
     @Test
-    void shouldRejectSaslAuthenticateWithUnsupportedApiVersion() throws Exception {
+    void shouldRejectSaslAuthenticateWithUnsupportedApiVersion() {
         // Given
         var context = testContext();
         var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
@@ -442,7 +442,7 @@ class SaslTerminationTest {
             "CREATE_DELEGATION_TOKEN", "RENEW_DELEGATION_TOKEN",
             "EXPIRE_DELEGATION_TOKEN", "DESCRIBE_DELEGATION_TOKEN"
     })
-    void shouldRejectUnsupportedApiRequests(ApiKeys apiKey) throws Exception {
+    void shouldRejectUnsupportedApiRequests(ApiKeys apiKey) {
         // Given
         var context = testContext();
         var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
@@ -458,7 +458,7 @@ class SaslTerminationTest {
     }
 
     @Test
-    void shouldRemoveDelegationTokenApisFromApiVersionsResponse() throws Exception {
+    void shouldRemoveDelegationTokenApisFromApiVersionsResponse() {
         // Given
         var context = testContext();
         var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
@@ -490,7 +490,7 @@ class SaslTerminationTest {
     }
 
     @Test
-    void shouldHandleApiVersionsResponseWithNoTargetApis() throws Exception {
+    void shouldHandleApiVersionsResponseWithNoTargetApis() {
         // Given
         var context = testContext();
         var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
@@ -513,7 +513,7 @@ class SaslTerminationTest {
     }
 
     @Test
-    void shouldRejectOversizedOauthBearerAuthBytes() throws Exception {
+    void shouldRejectOversizedOauthBearerAuthBytes() {
         // Given
         int maxAuthBytes = 128 * 1024;
         var handler = mock(MechanismStateMachine.class);
@@ -541,8 +541,7 @@ class SaslTerminationTest {
     void fixedAuthDelayShouldCompleteOnProvidedExecutor() throws Exception {
         // Given
         var executorThreadName = "test-filter-dispatch";
-        var executor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, executorThreadName));
-        try {
+        try (var executor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, executorThreadName))) {
             var context = new SaslTermination.SaslTerminationContext(
                     null, Set.of("OAUTHBEARER"), List.of(), null, Clock.systemUTC(),
                     Duration.ofMillis(100), SaslTermination.DEFAULT_SUBJECT_BUILDER);
@@ -573,9 +572,6 @@ class SaslTerminationTest {
 
             // Then
             assertThat(completingThread.get()).isEqualTo(executorThreadName);
-        }
-        finally {
-            executor.shutdownNow();
         }
     }
 

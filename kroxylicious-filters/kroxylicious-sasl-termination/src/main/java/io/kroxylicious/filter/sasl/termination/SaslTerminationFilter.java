@@ -348,7 +348,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
      * Compute the effective session lifetime as the minimum of the configured
      * maximum and the mechanism-reported lifetime (KIP-368).
      */
-    private long computeSessionLifetimeMs(long handlerLifetimeMs) {
+    long computeSessionLifetimeMs(long handlerLifetimeMs) {
         if (maxTimeBeforeReauthMs > 0 && handlerLifetimeMs > 0) {
             return Math.min(maxTimeBeforeReauthMs, handlerLifetimeMs);
         }
@@ -454,9 +454,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
             return CompletableFuture.completedFuture(result);
         }
         CompletableFuture<RoundResult> future = new CompletableFuture<>();
-        executorService.schedule(() -> {
-            future.complete(result);
-        }, remainingMs, TimeUnit.MILLISECONDS);
+        executorService.schedule(() -> future.complete(result), remainingMs, TimeUnit.MILLISECONDS);
         return future;
     }
 

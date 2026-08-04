@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OauthBearerStateMachineTest {
@@ -49,13 +50,17 @@ class OauthBearerStateMachineTest {
     void shouldDisposeIdempotently() {
         // When/Then
         handler.dispose();
-        handler.dispose();
+        assertThatCode(() -> handler.dispose()).doesNotThrowAnyException();
     }
 
     @SuppressWarnings("DataFlowIssue")
     @Test
     void shouldRejectNullCallbackHandler() {
-        assertThatThrownBy(() -> new OauthBearerStateMachine(null, java.time.Clock.systemUTC()))
+        // Given
+        var clock = java.time.Clock.systemUTC();
+
+        // When/Then
+        assertThatThrownBy(() -> new OauthBearerStateMachine(null, clock))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -79,7 +84,7 @@ class OauthBearerStateMachineTest {
 
         // When/Then
         handler.dispose();
-        handler.dispose();
+        assertThatCode(() -> handler.dispose()).doesNotThrowAnyException();
     }
 
     @Test

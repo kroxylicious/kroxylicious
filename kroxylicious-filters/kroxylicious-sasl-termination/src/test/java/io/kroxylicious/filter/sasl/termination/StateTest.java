@@ -102,7 +102,7 @@ class StateTest {
     @Test
     void shouldProvideReadableToString() {
         State.RequiringHandshake handshake = State.start();
-        assertThat(handshake.toString()).isEqualTo("RequiringHandshake");
+        assertThat(handshake).hasToString("RequiringHandshake");
 
         State.RequiringAuthenticate authenticating = handshake.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"), 0L);
         assertThat(authenticating.toString()).contains("RequiringAuthenticate").contains("SCRAM-SHA-256");

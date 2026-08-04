@@ -100,8 +100,8 @@ sealed interface RoundResult
             if (this == o) {
                 return true;
             }
-            return o instanceof Challenge that
-                    && Arrays.equals(responseBytes, that.responseBytes);
+            return o instanceof Challenge(byte[] thatResponseBytes)
+                    && Arrays.equals(responseBytes, thatResponseBytes);
         }
 
         @Override
@@ -147,10 +147,10 @@ sealed interface RoundResult
             if (this == o) {
                 return true;
             }
-            return o instanceof Success that
-                    && sessionLifetimeMs == that.sessionLifetimeMs
-                    && Arrays.equals(responseBytes, that.responseBytes)
-                    && Objects.equals(authorizationId, that.authorizationId);
+            return o instanceof Success(byte[] thatResponseBytes, String thatAuthorizationId, long thatSessionLifetimeMs)
+                    && sessionLifetimeMs == thatSessionLifetimeMs
+                    && Arrays.equals(responseBytes, thatResponseBytes)
+                    && Objects.equals(authorizationId, thatAuthorizationId);
         }
 
         @Override
@@ -194,9 +194,9 @@ sealed interface RoundResult
             if (this == o) {
                 return true;
             }
-            return o instanceof Failure that
-                    && Arrays.equals(responseBytes, that.responseBytes)
-                    && Objects.equals(exception, that.exception);
+            return o instanceof Failure(byte[] thatResponseBytes, Exception thatException)
+                    && Arrays.equals(responseBytes, thatResponseBytes)
+                    && Objects.equals(exception, thatException);
         }
 
         @Override

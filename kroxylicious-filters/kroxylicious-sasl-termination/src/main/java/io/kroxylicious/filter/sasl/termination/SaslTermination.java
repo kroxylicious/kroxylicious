@@ -33,15 +33,15 @@ import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilderService;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import edu.umd.cs.findbugs.annotations.UnknownNullness;
 
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 
@@ -86,14 +86,14 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      * @param subjectBuilder builder for constructing the Subject after authentication
      * @param closeables Things to close
      */
-    record SaslTerminationContext(
-                                  @Nullable OAuthBearerValidatorCallbackHandler oauthCallbackHandler,
-                                  Set<String> supportedMechanisms,
-                                  List<AutoCloseable> closeables,
-                                  @Nullable Duration maxTimeBeforeReauth,
-                                  Clock clock,
-                                  Duration fixedAuthDelay,
-                                  SaslSubjectBuilder subjectBuilder)
+    public record SaslTerminationContext(
+                                         @Nullable OAuthBearerValidatorCallbackHandler oauthCallbackHandler,
+                                         Set<String> supportedMechanisms,
+                                         List<AutoCloseable> closeables,
+                                         @Nullable Duration maxTimeBeforeReauth,
+                                         Clock clock,
+                                         Duration fixedAuthDelay,
+                                         SaslSubjectBuilder subjectBuilder)
             implements AutoCloseable {
         @Override
         public void close() {
@@ -134,11 +134,11 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         }
     }
 
+    @UnknownNullness
     @Override
-    @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "Framework guarantees non-null parameters")
     public SaslTerminationContext initialize(
-                                             @NonNull FilterFactoryContext context,
-                                             @NonNull SaslTerminationConfig config)
+                                             FilterFactoryContext context,
+                                             @UnknownNullness SaslTerminationConfig config)
             throws PluginConfigurationException {
 
         OAuthBearerValidatorCallbackHandler oauthCallbackHandler = null;
@@ -194,23 +194,20 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
             LOGGER.atDebug().log("No subjectBuilder configured, using default");
             return null;
         }
-        SaslSubjectBuilderService<Object> service = (SaslSubjectBuilderService<Object>) context.pluginInstance(
+        SaslSubjectBuilderService<Object> service = context.pluginInstance(
                 SaslSubjectBuilderService.class, config.subjectBuilder());
         service.initialize(config.subjectBuilderConfig());
         return service;
     }
 
     @Override
-    @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "Framework guarantees non-null parameters")
-    public SaslTerminationFilter createFilter(
-                                              @NonNull FilterFactoryContext context,
-                                              @NonNull SaslTerminationContext filterContext) {
+    public Filter createFilter(FilterFactoryContext context,
+                               @UnknownNullness SaslTerminationContext filterContext) {
         return new SaslTerminationFilter(context.filterDispatchExecutor(), filterContext);
     }
 
     @Override
-    @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "Framework guarantees non-null parameters")
-    public void close(@NonNull SaslTerminationContext initializationData) {
+    public void close(@UnknownNullness SaslTerminationContext initializationData) {
         initializationData.close();
     }
 
@@ -298,7 +295,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         return saslConfig;
     }
 
-    private static void putIfNotNull(Map<String, Object> map, String key, Object value) {
+    private static void putIfNotNull(Map<String, Object> map, String key, @Nullable Object value) {
         if (value != null) {
             map.put(key, value);
         }

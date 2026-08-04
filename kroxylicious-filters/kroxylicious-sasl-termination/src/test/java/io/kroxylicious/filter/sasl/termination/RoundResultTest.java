@@ -68,7 +68,7 @@ class RoundResultTest {
 
         // Then
         assertThat(a).isEqualTo(b);
-        assertThat(a.hashCode()).isEqualTo(b.hashCode());
+        assertThat(a).hasSameHashCodeAs(b);
     }
 
     @SuppressWarnings("SelfAssertion")
@@ -198,7 +198,7 @@ class RoundResultTest {
 
         // Then
         assertThat(a).isEqualTo(b);
-        assertThat(a.hashCode()).isEqualTo(b.hashCode());
+        assertThat(a).hasSameHashCodeAs(b);
     }
 
     @Test
@@ -278,7 +278,11 @@ class RoundResultTest {
     @SuppressWarnings("DataFlowIssue")
     @Test
     void shouldRejectNullResponseBytesForFailure() {
-        assertThatThrownBy(() -> new RoundResult.Failure(null, new Exception("x")))
+        // Given
+        var exception = new Exception("x");
+
+        // When/Then
+        assertThatThrownBy(() -> new RoundResult.Failure(null, exception))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -325,7 +329,7 @@ class RoundResultTest {
 
         // Then
         assertThat(a).isEqualTo(b);
-        assertThat(a.hashCode()).isEqualTo(b.hashCode());
+        assertThat(a).hasSameHashCodeAs(b);
     }
 
     @Test
