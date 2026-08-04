@@ -271,9 +271,6 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                         return;
                     }
                     if (oobFrame != null && rri instanceof RouterResponseImpl.RespondWith rw) {
-                        // Deliver OOB response directly via writeAndFlush — bypasses the
-                        // sequencer so the OOB response arrives immediately even if a
-                        // sequenced response is still pending.
                         var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
                         header.setCorrelationId(correlationId);
                         var internalResponse = new InternalResponseFrame<>(
@@ -487,7 +484,6 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 .addKeyValue("route", route);
     }
 
-    // post transformation of ids into virtual ids
     private void cacheNodeAddressesIfMetadata(Object body) {
         if (body instanceof MetadataResponseData md) {
             for (var broker : md.brokers()) {

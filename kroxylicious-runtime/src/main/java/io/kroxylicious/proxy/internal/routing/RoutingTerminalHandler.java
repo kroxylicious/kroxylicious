@@ -57,9 +57,7 @@ public class RoutingTerminalHandler extends ChannelDuplexHandler {
             }
             boolean hasResponse = !(msg instanceof RequestFrame rf) || rf.hasResponse();
             if (hasResponse) {
-                // Track all requests (including router-internal routing requests) so that
-                // routing responses are stamped with the route name as they flow back through
-                // the route filter chain, enabling route-filter onResponse processing.
+                // Include router-internal requests so their responses are stamped with the route name, enabling route-filter onResponse.
                 correlationIdToRoute.put(frame.correlationId(), routeName);
             }
             int targetNodeId = (frame instanceof DecodedFrame<?, ?> df) ? df.targetVirtualNodeId() : Frame.NO_TARGET_VIRTUAL_NODE_ID;
