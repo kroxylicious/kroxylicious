@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -348,6 +349,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
      * Compute the effective session lifetime as the minimum of the configured
      * maximum and the mechanism-reported lifetime (KIP-368).
      */
+    @VisibleForTesting
     long computeSessionLifetimeMs(long handlerLifetimeMs) {
         if (maxTimeBeforeReauthMs > 0 && handlerLifetimeMs > 0) {
             return Math.min(maxTimeBeforeReauthMs, handlerLifetimeMs);
