@@ -11,15 +11,15 @@
 # Maven profile names for module groups.
 # When a new group is introduced, add a variable here and update the
 # root pom.xml profile list.
-readonly PROXY_MODULES="proxy-runtime,runtime-plugins,supplementary"
-readonly KUBERNETES_MODULES="kubernetes-management"
+readonly PROXY_PROFILES="proxy-core,runtime-plugins,supplementary"
+readonly KUBERNETES_PROFILES="kubernetes-management"
 
 # Run a Sonar scan for a module group on a pull request.
 #
-# Usage: run_sonar <modules> <project_name> <project_key> [extra mvn args...]
+# Usage: run_sonar <profiles> <project_name> <project_key> [extra mvn args...]
 #
-# <modules>      Comma-separated Maven profile names for the module group
-#                (use PROXY_MODULES or KUBERNETES_MODULES from above).
+# <profiles>     Comma-separated Maven profile names for the module group
+#                (use PROXY_PROFILES or KUBERNETES_PROFILES from above).
 # <project_name> sonar.projectName value (e.g. 'Proxy Runtime')
 # <project_key>  sonar.projectKey value  (e.g. 'kroxylicious_kroxylicious')
 # [extra args]   Passed directly to mvn — use for -Djapicmp.skip,

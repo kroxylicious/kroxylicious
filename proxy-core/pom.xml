@@ -15,9 +15,9 @@
         <version>0.24.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>kroxylicious-proxy-runtime-parent</artifactId>
+    <artifactId>kroxylicious-proxy-core-parent</artifactId>
 
-    <name>Proxy runtime components</name>
+    <name>Proxy core components</name>
     <description>Modules that build or enable use of the kroxylicious-api.
         Rule: a module belongs here if it IS the API/runtime or makes the runtime testable.</description>
     <packaging>pom</packaging>

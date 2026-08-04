@@ -608,7 +608,7 @@
 
     <!-- All modules are declared in named profiles below. The build-the-world profile is
          activated via .mvn/maven.config and builds everything by default. To add a module,
-         update the relevant intermediate parent pom.xml (proxy-runtime/, runtime-plugins/,
+         update the relevant intermediate parent pom.xml (proxy-core/, runtime-plugins/,
          supplementary/, or kroxylicious-kubernetes/) — not this file.
          Enforced by the module-profile lint check. -->
     <modules/>
@@ -1591,14 +1591,14 @@
               mvn ... -P '!build-the-world,kubernetes-management'
 
             Rules for which group a module belongs to:
-              proxy-runtime       — modules that ARE the API/runtime or make it testable
+              proxy-core          — modules that ARE the API/runtime or make it testable
               runtime-plugins     — modules that plug into the runtime (filters, KMS, authorisers)
                                     or provide test support for building such plugins
               supplementary       — modules that accompany a release but contain no proxy code
               kubernetes-management — modules that manage proxy deployment in Kubernetes;
                                     future deployment targets get their own <platform>-management
 
-            Intermediate parent POMs (proxy-runtime/, runtime-plugins/, supplementary/) list
+            Intermediate parent POMs (proxy-core/, runtime-plugins/, supplementary/) list
             their leaf modules via ../ relative paths because the leaves live at the repo root.
         -->
         <profile>
@@ -1611,16 +1611,16 @@
             -->
             <id>build-the-world</id>
             <modules>
-                <module>proxy-runtime</module>
+                <module>proxy-core</module>
                 <module>runtime-plugins</module>
                 <module>supplementary</module>
                 <module>kroxylicious-kubernetes</module>
             </modules>
         </profile>
         <profile>
-            <id>proxy-runtime</id>
+            <id>proxy-core</id>
             <modules>
-                <module>proxy-runtime</module>
+                <module>proxy-core</module>
             </modules>
         </profile>
         <profile>
