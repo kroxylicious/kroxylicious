@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -40,8 +41,8 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
-import edu.umd.cs.findbugs.annotations.UnknownNullness;
 
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 
@@ -134,12 +135,15 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         }
     }
 
-    @UnknownNullness
+    @SuppressWarnings("java:S2638") // Tightening UnknownNullness
+    @NonNull
     @Override
     public SaslTerminationContext initialize(
                                              FilterFactoryContext context,
-                                             @UnknownNullness SaslTerminationConfig config)
+                                             @NonNull SaslTerminationConfig config)
             throws PluginConfigurationException {
+
+        Objects.requireNonNull(config);
 
         OAuthBearerValidatorCallbackHandler oauthCallbackHandler = null;
         Set<String> supportedMechanisms = new LinkedHashSet<>();
@@ -196,18 +200,20 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         }
         SaslSubjectBuilderService<Object> service = context.pluginInstance(
                 SaslSubjectBuilderService.class, config.subjectBuilder());
-        service.initialize(config.subjectBuilderConfig());
+        service.initialize(Objects.requireNonNull(config.subjectBuilderConfig()));
         return service;
     }
 
+    @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     @Override
     public Filter createFilter(FilterFactoryContext context,
-                               @UnknownNullness SaslTerminationContext filterContext) {
+                               @NonNull SaslTerminationContext filterContext) {
         return new SaslTerminationFilter(context.filterDispatchExecutor(), filterContext);
     }
 
+    @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     @Override
-    public void close(@UnknownNullness SaslTerminationContext initializationData) {
+    public void close(@NonNull SaslTerminationContext initializationData) {
         initializationData.close();
     }
 
