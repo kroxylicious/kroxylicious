@@ -270,13 +270,26 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                         ctx.channel().close();
                         return;
                     }
-                    if (oobFrame != null && rri instanceof RouterResponseImpl.RespondWith rw) {
-                        var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
-                        header.setCorrelationId(correlationId);
-                        var internalResponse = new InternalResponseFrame<>(
-                                oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
-                        internalResponse.setRouteName(oobFrame.routeName());
-                        Objects.requireNonNull(ctx).channel().writeAndFlush(internalResponse);
+                    if (oobFrame != null) {
+                        if (rri instanceof RouterResponseImpl.RespondWith rw) {
+                            var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
+                            header.setCorrelationId(correlationId);
+                            var internalResponse = new InternalResponseFrame<>(
+                                    oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
+                            internalResponse.setRouteName(oobFrame.routeName());
+                            Objects.requireNonNull(ctx).channel().writeAndFlush(internalResponse);
+                        }
+                        else {
+                            // RespondWithError or RespondWithoutReply for an OOB: complete the promise
+                            // exceptionally so the filter's sendRequest() future resolves rather than hanging.
+                            Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
+                                    ? rwe.exception()
+                                    : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
+                            oobFrame.promise().completeExceptionally(cause);
+                            if (rri.closeConnection()) {
+                                Objects.requireNonNull(ctx).channel().close();
+                            }
+                        }
                         ccsm.onRoutedRequestComplete();
                         return;
                     }

@@ -679,6 +679,52 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
+    void oobFrameRespondWithErrorShouldCompletePromiseExceptionally() {
+        // Given: OOB whose router returns RespondWithError — sequence slot was already skipped for OOB;
+        // deliverResponse must NOT call responseSequencer.submit() with the already-skipped slot.
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(DEFAULT_ROUTE);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithError(new RequestHeaderData(), new ProduceRequestData(), new UnknownServerException("oob-error"), false)));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then: OOB promise must be completed exceptionally — not orphaned in the sequencer
+        assertThat(promise).isCompletedExceptionally();
+    }
+
+    @Test
+    void oobFrameRespondWithoutReplyShouldCompletePromise() {
+        // Given: OOB whose router returns RespondWithoutReply — same orphan risk as RespondWithError.
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(DEFAULT_ROUTE);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new RouterResponseImpl.RespondWithoutReply(false)));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then: OOB promise must be completed — not orphaned in the sequencer
+        assertThat(promise).isDone();
+    }
+
+    @Test
     void oobFrameRespondWithShouldDeliverInternalResponseFrame() {
         // Given
         var promise = new CompletableFuture<ProduceResponseData>();
