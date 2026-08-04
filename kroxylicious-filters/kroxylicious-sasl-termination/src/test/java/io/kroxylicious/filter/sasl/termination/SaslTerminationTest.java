@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -24,11 +25,13 @@ import javax.security.sasl.SaslException;
 
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -43,6 +46,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
 
 import static io.kroxylicious.filter.sasl.termination.SaslTermination.ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,14 +70,22 @@ class SaslTerminationTest {
     }
 
     private static SaslTermination.SaslTerminationContext testContext() {
-        return testContext(Set.of("OAUTHBEARER"), List.of());
+        return testContext(Set.of("SCRAM-SHA-256"), Map.of(), List.of());
     }
 
     private static SaslTermination.SaslTerminationContext testContext(
                                                                       Set<String> supportedMechanisms,
+                                                                      Map<ScramMechanism, ScramCredentialStore> scramStores,
                                                                       List<AutoCloseable> closeables) {
         return new SaslTermination.SaslTerminationContext(
-                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, supportedMechanisms, closeables, null, Clock.systemUTC(), Duration.ofMillis(200),
+                null,
+                OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES,
+                scramStores,
+                supportedMechanisms,
+                closeables,
+                null,
+                Clock.systemUTC(),
+                Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
     }
 
@@ -81,7 +93,7 @@ class SaslTerminationTest {
     void shouldCloseCloseableOnFactoryClose() throws Exception {
         // Given
         var closeable = mock(AutoCloseable.class);
-        var context = testContext(Set.of("OAUTHBEARER"), List.of(closeable));
+        var context = testContext(Set.of("SCRAM-SHA-256"), Map.of(), List.of(closeable));
 
         var factory = new SaslTermination();
 
@@ -97,7 +109,7 @@ class SaslTerminationTest {
         // Given
         var closeable1 = mock(AutoCloseable.class);
         var closeable2 = mock(AutoCloseable.class);
-        var context = testContext(Set.of("OAUTHBEARER"), List.of(closeable1, closeable2));
+        var context = testContext(Set.of("SCRAM-SHA-256"), Map.of(), List.of(closeable1, closeable2));
 
         var saslTermination = new SaslTermination();
 
@@ -116,7 +128,7 @@ class SaslTerminationTest {
         RuntimeException exception = new RuntimeException("Failed to close");
         doThrow(exception).when(closeable).close();
 
-        var context = testContext(Set.of("OAUTHBEARER"), List.of(closeable));
+        var context = testContext(Set.of("SCRAM-SHA-256"), Map.of(), List.of(closeable));
 
         var factory = new SaslTermination();
 
@@ -142,8 +154,11 @@ class SaslTerminationTest {
 
     @Test
     void shouldRejectEmptyMechanismsList() {
+        // Given
+        List<MechanismConfig> mechanisms = List.of();
+
         // When/Then
-        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(), null, null, null, null))
+        assertThatThrownBy(() -> new SaslTerminationConfig(mechanisms, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("At least one mechanism must be configured");
     }
@@ -151,15 +166,78 @@ class SaslTerminationTest {
     @Test
     void shouldRejectDuplicateMechanisms() {
         // Given
-        var config1 = oauthConfig();
-        var config2 = oauthConfig();
-
-        var mechanisms = List.<MechanismConfig> of(config1, config2);
+        var config1 = new ScramMechanismConfig("SCRAM-SHA-256", "store1", new Object());
+        var config2 = new ScramMechanismConfig("SCRAM-SHA-256", "store2", new Object());
+        List<MechanismConfig> mechanisms = List.of(config1, config2);
 
         // When/Then
         assertThatThrownBy(() -> new SaslTerminationConfig(mechanisms, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Duplicate mechanism: OAUTHBEARER");
+                .hasMessageContaining("Duplicate mechanism: SCRAM-SHA-256");
+    }
+
+    @Test
+    void shouldAcceptMultipleDistinctMechanisms() {
+        // Given
+        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object());
+        var oauth = new OauthBearerMechanismConfig(
+                URI.create("https://example.com/jwks"), "aud", "iss",
+                null, null, null, null, null,
+                OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
+
+        // When
+        var config = new SaslTerminationConfig(List.of(scram, oauth), null, null, null, null);
+
+        // Then
+        assertThat(config.mechanisms()).hasSize(2);
+    }
+
+    @Test
+    void shouldDeserializeScramSha256ConfigFromJson() throws Exception {
+        // Given
+        String json = """
+                {
+                  "mechanisms": [
+                    {
+                      "mechanism": "SCRAM-SHA-256",
+                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStoreConfig": {"file": "/path/to/creds.p12"}
+                    }
+                  ]
+                }
+                """;
+
+        // When
+        var config = ConfigParser.createBaseObjectMapper().readValue(json, SaslTerminationConfig.class);
+
+        // Then
+        assertThat(config.mechanisms()).hasSize(1);
+        assertThat(config.mechanisms().get(0)).isInstanceOf(ScramMechanismConfig.class);
+        assertThat(config.mechanisms().get(0).mechanismName()).isEqualTo("SCRAM-SHA-256");
+    }
+
+    @Test
+    void shouldDeserializeScramSha512ConfigFromJson() throws Exception {
+        // Given
+        String json = """
+                {
+                  "mechanisms": [
+                    {
+                      "mechanism": "SCRAM-SHA-512",
+                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStoreConfig": {"file": "/path/to/creds.p12"}
+                    }
+                  ]
+                }
+                """;
+
+        // When
+        var config = ConfigParser.createBaseObjectMapper().readValue(json, SaslTerminationConfig.class);
+
+        // Then
+        assertThat(config.mechanisms()).hasSize(1);
+        assertThat(config.mechanisms().get(0)).isInstanceOf(ScramMechanismConfig.class);
+        assertThat(config.mechanisms().get(0).mechanismName()).isEqualTo("SCRAM-SHA-512");
     }
 
     @Test
@@ -273,6 +351,36 @@ class SaslTerminationTest {
     }
 
     @Test
+    void shouldDeserializeMultipleMechanismsFromJson() throws Exception {
+        // Given
+        String json = """
+                {
+                  "mechanisms": [
+                    {
+                      "mechanism": "SCRAM-SHA-256",
+                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStoreConfig": {"file": "/path/to/creds.p12"}
+                    },
+                    {
+                      "mechanism": "OAUTHBEARER",
+                      "jwksEndpointUrl": "https://idp.example.com/.well-known/jwks.json",
+                      "expectedAudience": "kafka",
+                      "expectedIssuer": "https://idp.example.com"
+                    }
+                  ]
+                }
+                """;
+
+        // When
+        var config = ConfigParser.createBaseObjectMapper().readValue(json, SaslTerminationConfig.class);
+
+        // Then
+        assertThat(config.mechanisms()).hasSize(2);
+        assertThat(config.mechanisms().get(0)).isInstanceOf(ScramMechanismConfig.class);
+        assertThat(config.mechanisms().get(1)).isInstanceOf(OauthBearerMechanismConfig.class);
+    }
+
+    @Test
     void addAllowedUrlShouldAddToSystemProperty() throws Exception {
         // Given
         var jwksUrl = "https://" + UUID.randomUUID() + ".invalid/jwks";
@@ -359,7 +467,8 @@ class SaslTerminationTest {
     @Test
     void effectiveFixedAuthDelayShouldDefaultTo200ms() {
         // Given
-        var config = new SaslTerminationConfig(List.of(oauthConfig()), null, null, null, null);
+        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object());
+        var config = new SaslTerminationConfig(List.of(scram), null, null, null, null);
 
         // When/Then
         assertThat(config.effectiveFixedAuthDelay()).isEqualTo(Duration.ofMillis(200));
@@ -368,7 +477,8 @@ class SaslTerminationTest {
     @Test
     void effectiveFixedAuthDelayShouldUseConfiguredValue() {
         // Given
-        var config = new SaslTerminationConfig(List.of(oauthConfig()), null, Duration.ofMillis(500), null, null);
+        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object());
+        var config = new SaslTerminationConfig(List.of(scram), null, Duration.ofMillis(500), null, null);
 
         // When/Then
         assertThat(config.effectiveFixedAuthDelay()).isEqualTo(Duration.ofMillis(500));
@@ -377,7 +487,8 @@ class SaslTerminationTest {
     @Test
     void effectiveFixedAuthDelayShouldSupportZeroToDisable() {
         // Given
-        var config = new SaslTerminationConfig(List.of(oauthConfig()), null, Duration.ZERO, null, null);
+        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object());
+        var config = new SaslTerminationConfig(List.of(scram), null, Duration.ZERO, null, null);
 
         // When/Then
         assertThat(config.effectiveFixedAuthDelay()).isEqualTo(Duration.ZERO);
@@ -468,7 +579,8 @@ class SaslTerminationTest {
     @ParameterizedTest
     @EnumSource(value = ApiKeys.class, names = {
             "CREATE_DELEGATION_TOKEN", "RENEW_DELEGATION_TOKEN",
-            "EXPIRE_DELEGATION_TOKEN", "DESCRIBE_DELEGATION_TOKEN"
+            "EXPIRE_DELEGATION_TOKEN", "DESCRIBE_DELEGATION_TOKEN",
+            "ALTER_USER_SCRAM_CREDENTIALS"
     })
     void shouldRejectUnsupportedApiRequests(ApiKeys apiKey) {
         // Given
@@ -500,7 +612,9 @@ class SaslTerminationTest {
                 new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.CREATE_DELEGATION_TOKEN.id),
                 new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.RENEW_DELEGATION_TOKEN.id),
                 new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.EXPIRE_DELEGATION_TOKEN.id),
-                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.DESCRIBE_DELEGATION_TOKEN.id)));
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.DESCRIBE_DELEGATION_TOKEN.id),
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS.id),
+                new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS.id)));
         var response = new ApiVersionsResponseData();
         response.apiKeys().addAll(apiKeys);
 
@@ -517,7 +631,8 @@ class SaslTerminationTest {
                 .toList();
         assertThat(remainingApiKeys).containsExactly(
                 ApiKeys.PRODUCE.id,
-                ApiKeys.FETCH.id);
+                ApiKeys.FETCH.id,
+                ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS.id);
     }
 
     @Test
@@ -544,13 +659,61 @@ class SaslTerminationTest {
     }
 
     @Test
-    void shouldRejectOversizedOauthBearerAuthBytes() {
+    void shouldDescribeExistingUser() {
         // Given
-        int maxAuthBytes = 128 * 1024;
+        var credentialStore = mock(ScramCredentialStore.class);
+        var credential = mock(io.kroxylicious.scram.credentialstore.ScramCredential.class);
+        when(credential.iterations()).thenReturn(10000);
+        when(credentialStore.lookupCredential("alice"))
+                .thenReturn(CompletableFuture.completedFuture(credential));
+
+        var context = testContext(Set.of("SCRAM-SHA-256"), Map.of(ScramMechanism.SCRAM_SHA_256, credentialStore), List.of());
+        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+
+        var request = new DescribeUserScramCredentialsRequestData();
+        request.users().add(new DescribeUserScramCredentialsRequestData.UserName().setName("alice"));
+
+        var filterContext = mockFilterContextForShortCircuitResponse();
+
+        // When
+        filter.onRequest(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, (short) 0,
+                new RequestHeaderData(), request, filterContext);
+
+        // Then
+        verify(credentialStore).lookupCredential("alice");
+    }
+
+    @Test
+    void shouldDescribeNonExistentUser() {
+        // Given
+        var credentialStore = mock(ScramCredentialStore.class);
+        when(credentialStore.lookupCredential("unknown"))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        var context = testContext(Set.of("SCRAM-SHA-256"), Map.of(ScramMechanism.SCRAM_SHA_256, credentialStore), List.of());
+        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+
+        var request = new DescribeUserScramCredentialsRequestData();
+        request.users().add(new DescribeUserScramCredentialsRequestData.UserName().setName("unknown"));
+
+        var filterContext = mockFilterContextForShortCircuitResponse();
+
+        // When
+        filter.onRequest(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, (short) 0,
+                new RequestHeaderData(), request, filterContext);
+
+        // Then
+        verify(credentialStore).lookupCredential("unknown");
+    }
+
+    @Test
+    void shouldRejectOversizedScramAuthBytes() {
+        // Given
+        int maxAuthBytes = 4 * 1024;
         var handler = mock(MechanismStateMachine.class);
-        when(handler.mechanismName()).thenReturn("OAUTHBEARER");
+        when(handler.mechanismName()).thenReturn("SCRAM-SHA-256");
         when(handler.maxAuthBytes()).thenReturn(maxAuthBytes);
-        var context = testContext(Set.of("OAUTHBEARER"), List.of());
+        var context = testContext(Set.of("OAUTHBEARER"), Map.of(), List.of());
         var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
 
         var authenticating = State.start().nextState(handler);
@@ -569,18 +732,71 @@ class SaslTerminationTest {
     }
 
     @Test
+    void shouldRejectOversizedOauthBearerAuthBytes() {
+        // Given
+        int maxAuthBytes = 128 * 1024;
+        var handler = mock(MechanismStateMachine.class);
+        when(handler.mechanismName()).thenReturn("OAUTHBEARER");
+        when(handler.maxAuthBytes()).thenReturn(maxAuthBytes);
+        var context = testContext(Set.of("OAUTHBEARER"), Map.of(), List.of());
+        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+
+        var authenticating = State.start().nextState(handler);
+        setFilterState(filter, authenticating);
+
+        byte[] oversizedPayload = new byte[maxAuthBytes + 1];
+        var request = new SaslAuthenticateRequestData().setAuthBytes(oversizedPayload);
+        var filterContext = mockFilterContextForShortCircuitWithClose();
+
+        // When
+        filter.onRequest(ApiKeys.SASL_AUTHENTICATE, (short) 0,
+                new RequestHeaderData(), request, filterContext);
+
+        // Then
+        verify(filterContext).requestFilterResultBuilder();
+    }
+
+    @Test
+    void shouldAcceptAuthBytesWithinScramLimit() {
+        // Given
+        int maxAuthBytes = 4 * 1024;
+        var handler = mock(MechanismStateMachine.class);
+        when(handler.mechanismName()).thenReturn("SCRAM-SHA-256");
+        when(handler.maxAuthBytes()).thenReturn(maxAuthBytes);
+        when(handler.evaluateRound(any())).thenReturn(
+                CompletableFuture.completedFuture(
+                        RoundResult.failure(new byte[0], new javax.security.sasl.SaslException("test"))));
+        var context = testContext();
+        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+
+        var authenticating = State.start().nextState(handler);
+        setFilterState(filter, authenticating);
+
+        byte[] payload = new byte[maxAuthBytes];
+        var request = new SaslAuthenticateRequestData().setAuthBytes(payload);
+        var filterContext = mockFilterContextForShortCircuitWithClose();
+
+        // When
+        filter.onRequest(ApiKeys.SASL_AUTHENTICATE, (short) 0,
+                new RequestHeaderData(), request, filterContext);
+
+        // Then
+        verify(handler).evaluateRound(any());
+    }
+
+    @Test
     void fixedAuthDelayShouldCompleteOnProvidedExecutor() throws Exception {
         // Given
         var executorThreadName = "test-filter-dispatch";
         try (var executor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, executorThreadName))) {
             var context = new SaslTermination.SaslTerminationContext(
-                    null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(), null, Clock.systemUTC(),
+                    null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Set.of("OAUTHBEARER"), List.of(), null, Clock.systemUTC(),
                     Duration.ofMillis(100), SaslTermination.DEFAULT_SUBJECT_BUILDER);
             var filter = new SaslTerminationFilter(executor, context);
 
             var handler = mock(MechanismStateMachine.class);
-            when(handler.mechanismName()).thenReturn("OAUTHBEARER");
-            when(handler.maxAuthBytes()).thenReturn(128 * 1024);
+            when(handler.mechanismName()).thenReturn("SCRAM-SHA-256");
+            when(handler.maxAuthBytes()).thenReturn(4 * 1024);
             when(handler.evaluateRound(any())).thenReturn(
                     CompletableFuture.completedFuture(
                             RoundResult.failure(new byte[0], new SaslException("test"))));
@@ -608,6 +824,20 @@ class SaslTerminationTest {
 
     private static void setFilterState(SaslTerminationFilter filter, State state) {
         filter.forceState(state);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static FilterContext mockFilterContextForShortCircuitResponse() {
+        var filterContext = mock(FilterContext.class);
+        var builder = mock(RequestFilterResultBuilder.class);
+        var closeOrTerminal = mock(CloseOrTerminalStage.class);
+        var result = mock(RequestFilterResult.class);
+
+        when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
+        when(builder.shortCircuitResponse(any())).thenReturn(closeOrTerminal);
+        when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
+
+        return filterContext;
     }
 
     @SuppressWarnings("unchecked")

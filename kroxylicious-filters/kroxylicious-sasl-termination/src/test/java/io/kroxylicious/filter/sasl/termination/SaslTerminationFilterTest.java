@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -34,6 +35,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.apache.kafka.common.security.oauthbearer.internals.OAuthBearerSaslServerProvider;
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +54,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
+import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -488,7 +491,7 @@ class SaslTerminationFilterTest {
 
         try (var executor = Executors.newSingleThreadScheduledExecutor()) {
             var context = new SaslTermination.SaslTerminationContext(
-                    null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
+                    null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Set.of("OAUTHBEARER"), List.of(),
                     null, Clock.systemUTC(), fixedDelay,
                     SaslTermination.DEFAULT_SUBJECT_BUILDER);
             var filter = new SaslTerminationFilter(executor, context);
@@ -688,6 +691,27 @@ class SaslTerminationFilterTest {
                 .isEqualTo(apiKey + " is not supported when SASL is terminated at the proxy");
     }
 
+    @Test
+    void shouldRejectAlterScramCredentialsWithCorrectMessage() throws Exception {
+        // Given
+        var filter = createFilterWithScram();
+        var handler = mock(MechanismStateMachine.class);
+        var authenticating = State.start().nextState(handler);
+        setFilterState(filter, authenticating.nextStateSuccess("alice", "SCRAM-SHA-256", null));
+        var exceptionCaptor = ArgumentCaptor.forClass(ApiException.class);
+        var filterContext = mockErrorFilterContextWithoutClose(exceptionCaptor);
+
+        // When
+        filter.onRequest(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.ALTER_USER_SCRAM_CREDENTIALS.latestVersion(),
+                new RequestHeaderData(),
+                ApiKeys.ALTER_USER_SCRAM_CREDENTIALS.messageType.newRequest(),
+                filterContext).toCompletableFuture().get();
+
+        // Then
+        assertThat(exceptionCaptor.getValue().getMessage())
+                .isEqualTo(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS + " is not supported when SASL is terminated at the proxy");
+    }
+
     // --- API_VERSIONS ---
 
     @Test
@@ -776,7 +800,7 @@ class SaslTerminationFilterTest {
     private static SaslTerminationFilter createFilter() {
         var callbackHandler = new OAuthBearerValidatorCallbackHandler();
         var context = new SaslTermination.SaslTerminationContext(
-                callbackHandler, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES,
+                callbackHandler, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(),
                 Set.of("OAUTHBEARER"), List.of(),
                 null, Clock.systemUTC(), Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
@@ -785,7 +809,7 @@ class SaslTerminationFilterTest {
 
     private static SaslTerminationFilter createFilterWithZeroDelay() {
         var context = new SaslTermination.SaslTerminationContext(
-                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
+                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Set.of("OAUTHBEARER"), List.of(),
                 null, Clock.systemUTC(), Duration.ZERO,
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
@@ -793,7 +817,7 @@ class SaslTerminationFilterTest {
 
     private static SaslTerminationFilter createFilterWithZeroDelayAndClock(Clock clock) {
         var context = new SaslTermination.SaslTerminationContext(
-                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
+                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Set.of("OAUTHBEARER"), List.of(),
                 null, clock, Duration.ZERO,
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
@@ -801,8 +825,19 @@ class SaslTerminationFilterTest {
 
     private static SaslTerminationFilter createFilterWithMaxReauth(@Nullable Duration maxReauth) {
         var context = new SaslTermination.SaslTerminationContext(
-                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
+                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Set.of("OAUTHBEARER"), List.of(),
                 maxReauth, FIXED_CLOCK, Duration.ZERO,
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+    }
+
+    private static SaslTerminationFilter createFilterWithScram() {
+        var credentialStore = mock(ScramCredentialStore.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES,
+                Map.of(ScramMechanism.SCRAM_SHA_256, credentialStore),
+                Set.of("SCRAM-SHA-256"), List.of(),
+                null, Clock.systemUTC(), Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
     }
@@ -810,7 +845,7 @@ class SaslTerminationFilterTest {
     private static SaslTerminationFilter createFilterWithClock(Clock clock) {
         var callbackHandler = new OAuthBearerValidatorCallbackHandler();
         var context = new SaslTermination.SaslTerminationContext(
-                callbackHandler, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES,
+                callbackHandler, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(),
                 Set.of("OAUTHBEARER"), List.of(),
                 null, clock, Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
