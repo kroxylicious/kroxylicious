@@ -60,7 +60,7 @@ jobs:
           # All quality checks run: formatting, licensing, checkstyle, spotbugs, dependency analysis, enforcer, errorprone.
           # Other workflows skip QA to avoid duplication.
           mvn --batch-mode \
-            --activate-profiles ci,qa \
+            --activate-profiles build-the-world,ci,qa \
             --threads 1.5C \
             -DskipTests \
             -Djapicmp.skip=true \
