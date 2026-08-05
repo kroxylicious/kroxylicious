@@ -50,7 +50,8 @@ public record ScramCredential(
                               @JsonProperty(required = true) String hashAlgorithm) {
 
     /**
-     * Minimum number of PBKDF2 iterations required.
+     * Minimum number of PBKDF2 iterations required by RFC 5802.
+     * It is recommended that a significantly larger value is chosen.
      */
     public static final int MINIMUM_ITERATIONS = 4096;
 

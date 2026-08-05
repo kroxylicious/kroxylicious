@@ -30,7 +30,7 @@ package io.kroxylicious.scram.credentialstore;
 public interface ScramCredentialStoreService<C> extends AutoCloseable {
 
     /**
-     * Initialises the service. This method must be invoked exactly once
+     * Initializes the service. This method must be invoked exactly once
      * before {@link #buildCredentialStore()} is called.
      *
      * @param config credential store service configuration
@@ -52,8 +52,8 @@ public interface ScramCredentialStoreService<C> extends AutoCloseable {
      * <br/>
      * Implementations of this method must be idempotent.
      * <br/>
-     * Close implementations must tolerate the closing of a service that has not been initialised or
-     * one for which initialisation did not fully complete without further exception.
+     * Close implementations must tolerate the closing of a service that has not been initialized or
+     * one for which initialization did not fully complete without further exception.
      */
     @Override
     default void close() {
