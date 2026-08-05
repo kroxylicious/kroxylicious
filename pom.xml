@@ -680,6 +680,17 @@
                                     <exclude>**/.jbang/**</exclude>
                                     <exclude>changelog/**</exclude>
                                     <exclude>src/main/resources/archetype-resources/**</exclude>
+                                    <!-- Root-level scan: exclude archetype resources and Helm templates.
+                                         These paths are relative to the module that runs license-check.
+                                         Module-relative form above covers the archetype module's own execution;
+                                         root-relative forms below cover the root module's execution, which
+                                         scans the full tree when modules are declared in profiles rather than
+                                         unconditionally (profile-declared modules are not automatically skipped
+                                         by the license plugin). Helm templates cannot carry license headers
+                                         because helm renders them before the {{- comment syntax is processed,
+                                         which produces duplicate headers in rendered output. -->
+                                    <exclude>kroxylicious-filter-archetype/src/main/resources/archetype-resources/**</exclude>
+                                    <exclude>kroxylicious-openmessaging-benchmarks/helm/**</exclude>
                                     <!-- Need to keep original copyright for Vert.x classes -->
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
                                     <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
