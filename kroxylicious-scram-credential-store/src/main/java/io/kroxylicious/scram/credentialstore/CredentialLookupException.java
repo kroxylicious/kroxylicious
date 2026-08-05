@@ -23,7 +23,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *     <li>{@link CredentialServiceTimeoutException} - Operation timed out</li>
  * </ul>
  */
-public class CredentialLookupException extends Exception {
+public class CredentialLookupException extends RuntimeException {
 
     /**
      * Constructs a new credential lookup exception with the specified detail message.

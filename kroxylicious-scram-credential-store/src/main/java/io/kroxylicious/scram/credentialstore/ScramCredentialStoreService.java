@@ -14,7 +14,7 @@ package io.kroxylicious.scram.credentialstore;
  * or external identity providers.
  * </p>
  * <p>
- * The service follows a two-phase lifecycle:
+ * The service follows a three-step lifecycle:
  * </p>
  * <ol>
  *     <li>{@link #initialize(Object)} - Configure the service with type-safe configuration</li>
@@ -42,9 +42,8 @@ public interface ScramCredentialStoreService<C> extends AutoCloseable {
      * {@link #initialize(Object)} must have been called before this method is invoked.
      *
      * @return the credential store
-     * @throws IllegalStateException if the service has not been initialised or the service is closed
      */
-    ScramCredentialStore buildCredentialStore() throws IllegalStateException;
+    ScramCredentialStore buildCredentialStore();
 
     /**
      * Closes the service. Once the service is closed, the building of new {@link ScramCredentialStore}
