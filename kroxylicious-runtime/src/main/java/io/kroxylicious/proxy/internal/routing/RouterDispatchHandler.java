@@ -35,8 +35,11 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.internal.CorrelationIdSpace;
+import io.kroxylicious.proxy.internal.InternalRequestFrame;
+import io.kroxylicious.proxy.internal.InternalResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -78,7 +81,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     private final ClientConnectionStateMachine ccsm;
     private final String virtualClusterName;
     final NodeIdMapping nodeIdMapping;
-    private final Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
+    private final Map<Integer, HostPort> routerNodeAddresses;
 
     /**
      * Tracks correlation IDs of in-flight statically-routed requests that need response
@@ -108,9 +111,21 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                  String virtualClusterName,
                                  NodeIdMapping nodeIdMapping,
                                  @Nullable Integer nodeId) {
+        this(router, routes, staticRoutes, new HashMap<>(), ccsm, virtualClusterName, nodeIdMapping, nodeId);
+    }
+
+    public RouterDispatchHandler(Router router,
+                                 Map<String, RouteDescriptor> routes,
+                                 Map<ApiKeys, String> staticRoutes,
+                                 Map<Integer, HostPort> sharedNodeAddresses,
+                                 ClientConnectionStateMachine ccsm,
+                                 String virtualClusterName,
+                                 NodeIdMapping nodeIdMapping,
+                                 @Nullable Integer nodeId) {
         this.router = router;
         this.routes = routes;
         this.staticRoutes = staticRoutes;
+        this.routerNodeAddresses = sharedNodeAddresses;
         this.ccsm = ccsm;
         this.virtualClusterName = virtualClusterName;
         this.nodeIdMapping = nodeIdMapping;
@@ -218,33 +233,97 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 ccsm.authenticatedSubject(),
                 nodeId);
 
-        router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
-                .whenComplete((result, error) -> {
-                    if (error != null) {
-                        LOGGER.atError()
-                                .addKeyValue("virtualCluster", virtualClusterName)
-                                .addKeyValue("sessionId", ccsm.sessionId())
-                                .addKeyValue("apiKey", apiKey)
-                                .addKeyValue("clientCorrelationId", correlationId)
-                                .setCause(error)
-                                .log("Router returned failed future");
-                        responseSequencer.skip(sequence);
-                        ctx.channel().close();
-                        return;
-                    }
-                    if (!(result instanceof RouterResponseImpl rri)) {
-                        LOGGER.atError()
-                                .addKeyValue("virtualCluster", virtualClusterName)
-                                .addKeyValue("sessionId", ccsm.sessionId())
-                                .addKeyValue("apiKey", apiKey)
-                                .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
-                                .log("Router returned unrecognised RouterResponse type; closing connection");
-                        responseSequencer.skip(sequence);
-                        ctx.channel().close();
-                        return;
-                    }
-                    deliverResponse(ctx, rri, apiKey, apiVersion, correlationId, sequence);
-                });
+        if (frame instanceof InternalRequestFrame<?> oobFrame) {
+            // Skip the slot immediately: OOB response bypasses the sequencer to avoid
+            // deadlock when the OOB fires inside the onRequest/onResponse of a sequenced frame.
+            responseSequencer.skip(sequence);
+            router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
+                    .whenComplete((result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId));
+        }
+        else {
+            router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
+                    .whenComplete((result, error) -> handleRegularCompletion(ctx, result, error, apiKey, apiVersion, correlationId, sequence));
+        }
+    }
+
+    private void handleOobCompletion(ChannelHandlerContext ctx, InternalRequestFrame<?> oobFrame,
+                                     RouterResponse result, Throwable error,
+                                     ApiKeys apiKey, short apiVersion, int correlationId) {
+        try {
+            if (error != null) {
+                LOGGER.atError()
+                        .addKeyValue("virtualCluster", virtualClusterName)
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("apiKey", apiKey)
+                        .addKeyValue("clientCorrelationId", correlationId)
+                        .setCause(error)
+                        .log("Router returned failed future");
+                oobFrame.promise().completeExceptionally(error);
+                ctx.channel().close();
+                return;
+            }
+            if (!(result instanceof RouterResponseImpl rri)) {
+                var cause = new IllegalStateException(
+                        "Router returned unrecognised RouterResponse type (apiKey=" + apiKey + ", type=" + (result == null ? "null" : result.getClass().getName()) + ")");
+                LOGGER.atError()
+                        .addKeyValue("virtualCluster", virtualClusterName)
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("apiKey", apiKey)
+                        .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
+                        .log("Router returned unrecognised RouterResponse type; closing connection");
+                oobFrame.promise().completeExceptionally(cause);
+                ctx.channel().close();
+                return;
+            }
+            if (rri instanceof RouterResponseImpl.RespondWith rw) {
+                var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
+                header.setCorrelationId(correlationId);
+                var internalResponse = new InternalResponseFrame<>(
+                        oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
+                internalResponse.setRouteName(oobFrame.routeName());
+                ctx.channel().writeAndFlush(internalResponse);
+            }
+            else {
+                Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
+                        ? rwe.exception()
+                        : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
+                oobFrame.promise().completeExceptionally(cause);
+                if (rri.closeConnection()) {
+                    ctx.channel().close();
+                }
+            }
+        }
+        finally {
+            ccsm.onRoutedRequestComplete();
+        }
+    }
+
+    private void handleRegularCompletion(ChannelHandlerContext ctx, RouterResponse result, Throwable error,
+                                         ApiKeys apiKey, short apiVersion, int correlationId, long sequence) {
+        if (error != null) {
+            LOGGER.atError()
+                    .addKeyValue("virtualCluster", virtualClusterName)
+                    .addKeyValue("sessionId", ccsm.sessionId())
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("clientCorrelationId", correlationId)
+                    .setCause(error)
+                    .log("Router returned failed future");
+            Objects.requireNonNull(responseSequencer).skip(sequence);
+            ctx.channel().close();
+            return;
+        }
+        if (!(result instanceof RouterResponseImpl rri)) {
+            LOGGER.atError()
+                    .addKeyValue("virtualCluster", virtualClusterName)
+                    .addKeyValue("sessionId", ccsm.sessionId())
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
+                    .log("Router returned unrecognised RouterResponse type; closing connection");
+            Objects.requireNonNull(responseSequencer).skip(sequence);
+            ctx.channel().close();
+            return;
+        }
+        deliverResponse(ctx, rri, apiKey, apiVersion, correlationId, sequence);
     }
 
     private void deliverResponse(ChannelHandlerContext ctx,
@@ -447,7 +526,6 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 .addKeyValue("route", route);
     }
 
-    // post transformation of ids into virtual ids
     private void cacheNodeAddressesIfMetadata(Object body) {
         if (body instanceof MetadataResponseData md) {
             for (var broker : md.brokers()) {

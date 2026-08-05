@@ -173,7 +173,7 @@ class RoutingTerminalHandlerTest {
     }
 
     @Test
-    void shouldNotRecordCorrelationIdForRouterInternalRequest() {
+    void writeShouldSetRouteNameForRoutingCorrelationId() {
         // Given
         when(ccsm.sessionId()).thenReturn("test-session");
         var handler = new RoutingTerminalHandler(ccsm);
@@ -197,7 +197,9 @@ class RoutingTerminalHandlerTest {
         // Then
         DecodedResponseFrame<?> out = channel.readOutbound();
         assertThat(out).isNotNull();
-        assertThat(out.routeName()).as("router-internal correlation IDs must not be recorded, so no route name is set on the response").isNull();
+        assertThat(out.routeName())
+                .as("routing-range correlation IDs must be tracked so the route name is stamped on routing responses, enabling RouteFilterHandler.onResponse")
+                .isEqualTo(ROUTE_A);
     }
 
     private DecodedRequestFrame<FetchRequestData> fetchRequest() {
