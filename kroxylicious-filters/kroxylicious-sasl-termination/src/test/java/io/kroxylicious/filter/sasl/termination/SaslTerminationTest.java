@@ -605,20 +605,6 @@ class SaslTerminationTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static FilterContext mockFilterContextForShortCircuitResponse() {
-        var filterContext = mock(FilterContext.class);
-        var builder = mock(RequestFilterResultBuilder.class);
-        var closeOrTerminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage.class);
-        var result = mock(RequestFilterResult.class);
-
-        when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
-        when(builder.shortCircuitResponse(any())).thenReturn(closeOrTerminal);
-        when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
-
-        return filterContext;
-    }
-
-    @SuppressWarnings("unchecked")
     private static FilterContext mockFilterContextForErrorResponse() {
         var filterContext = mock(FilterContext.class);
         var builder = mock(RequestFilterResultBuilder.class);
