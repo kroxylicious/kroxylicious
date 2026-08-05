@@ -19,7 +19,10 @@ Format `<github issue/pr number>: <short description>`.
 {% if group.notEmpty %}
 {% for entry in group.entries %}
 {% if entry.mergeRequests %}{% set link_prefix = "[#" ~ entry.mergeRequests[0].value ~ "](" ~ repo ~ "/pull/" ~ entry.mergeRequests[0].value ~ "): " %}{% elif entry.issues %}{% set link_prefix = "[#" ~ entry.issues[0] ~ "](" ~ repo ~ "/issues/" ~ entry.issues[0] ~ "): " %}{% else %}{% set link_prefix = "" %}{% endif %}
-* {{ link_prefix }}{{ entry.title.value | trim }}
+{% set ns_extra = namespace(value="") %}
+{% for link in entry.links %}{% set ns_extra.value = ns_extra.value ~ " ([" ~ link.name ~ "](" ~ link.url ~ "))" %}{% endfor %}
+{% if entry.authors %}{% set ns_authors = namespace(value="") %}{% for author in entry.authors %}{% set author_label = ("@" ~ author.nick) if author.nick else author.name %}{% set author_md = ("[" ~ author_label ~ "](" ~ author.url ~ ")") if author.url else author_label %}{% set ns_authors.value = ns_authors.value ~ (", " if ns_authors.value else "") ~ author_md %}{% endfor %}{% set ns_extra.value = ns_extra.value ~ " (thanks " ~ ns_authors.value ~ ")" %}{% endif %}
+* {{ link_prefix }}{{ entry.title.value | trim }}{{ ns_extra.value }}
 {% endfor %}
 {% endif %}
 {% endfor %}
