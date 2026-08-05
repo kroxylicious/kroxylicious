@@ -619,7 +619,7 @@ class HotReloadIT extends BaseIT {
      * is able to reconnect. we infer that has happened by observing the producer metrics.
      */
     @Test
-    void shouldDrainActiveConnectionWhenVcIsReconfiguredWithFilterChange(@BrokerCluster KafkaCluster cluster) {
+    void shouldDrainActiveConnectionWhenVcIsReconfigured(@BrokerCluster KafkaCluster cluster) {
         var startingConfig = portConfig(portVc(cluster, "vc-active-conn"));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
