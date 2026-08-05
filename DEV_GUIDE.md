@@ -45,6 +45,27 @@ The running of the tests can be controlled with the following Maven properties:
 
 The build behavior can be controlled with the following Maven profiles:
 
+### Module group profiles
+
+All modules are declared in named group profiles. `.mvn/maven.config` (checked in) activates
+`build-the-world` by default so that a plain `mvn verify` builds everything. For isolated builds,
+deactivate it explicitly and name the group(s) you want:
+
+```shell
+mvn -P '!build-the-world,proxy-core' verify    # proxy modules only
+mvn -P '!build-the-world,kubernetes-management' verify  # kubernetes modules only
+```
+
+| profile                  | modules included                                                                                        |
+|--------------------------|---------------------------------------------------------------------------------------------------------|
+| `build-the-world`        | All groups — activated automatically via `.mvn/maven.config`. Developer convenience; CI is explicit.   |
+| `proxy-core`             | `kroxylicious-annotations`, `kroxylicious-krpc-plugin`, `kroxylicious-kafka-message-tools`, `kroxylicious-bom`, `kroxylicious-api`, `kroxylicious-integration-test-support`, `kroxylicious-runtime`, `kroxylicious-app` |
+| `runtime-plugins`        | KMS, filters, authorizer, and their test-support modules                                                |
+| `supplementary`          | `kroxylicious-docs`, `kroxylicious-openmessaging-benchmarks`                                            |
+| `kubernetes-management`  | All modules under `kroxylicious-kubernetes/`                                                            |
+
+### Functional profiles
+
 | profile                    | description                                                                                                                                                                                           |
 |----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-Pqa` (active by default) | Runs quality assurance checks: dependency analysis, code formatting, import sorting, license headers, checkstyle, spotbugs, japicmp API compatibility, and enforcer rules. Use `-P '!qa'` to disable. |
