@@ -13,8 +13,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -134,11 +135,17 @@ class AllReconcilersIT {
         externalOperator = operator.externalOperator();
     }
 
+    // unique per-test suffix to avoid stale reconciler events from a previous test
+    // racing against resources created by the next test with the same name
+    private static String uniqueSuffix() {
+        return UUID.randomUUID().toString().substring(0, 8);
+    }
+
     @Test
     void emptyProxyIsAllowed() {
         // Given
-
-        var myProxy = editableProxy(PROXY_A).build();
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
 
         // When
         createAll(myProxy);
@@ -149,39 +156,42 @@ class AllReconcilersIT {
 
     static Stream<Arguments> filterScenarios() {
         return Stream.of(
-                argumentSet("no filters", (Function<ClusterUser, KafkaProtocolFilter>) (builder -> null)),
-                argumentSet("filter with simple config", (Function<ClusterUser, KafkaProtocolFilter>) (actor -> {
-                    var filter = editableFilter(CLUSTER_FOO_FILTER).build();
-                    actor.create(filter);
-                    return filter;
-                })),
-                argumentSet("filter with config that refs a configmap", (Function<ClusterUser, KafkaProtocolFilter>) (actor -> {
-                // @formatter:off
-                    var filterConfigMap = new ConfigMapBuilder()
-                            .withNewMetadata()
-                            .withName("filter-configmap")
-                            .endMetadata()
-                            .addToData("key", "value")
-                            .build();
-                    var filter = editableFilter(CLUSTER_FOO_FILTER)
-                            .editOrNewSpec()
-                                .withConfigTemplate(Map.of("configMapProp", "${configmap:filter-configmap:key}"))
-                            .endSpec()
-                            .build();
-                    // @formatter:on
-                    actor.create(filter);
-                    actor.create(filterConfigMap);
-                    return filter;
-                })));
+                argumentSet("no filters", uniqueSuffix(),
+                        (BiFunction<ClusterUser, String, KafkaProtocolFilter>) ((actor, suffix) -> null)),
+                argumentSet("filter with simple config", uniqueSuffix(),
+                        (BiFunction<ClusterUser, String, KafkaProtocolFilter>) ((actor, suffix) -> {
+                            var filter = editableFilter(CLUSTER_FOO_FILTER + "-" + suffix).build();
+                            actor.create(filter);
+                            return filter;
+                        })),
+                argumentSet("filter with config that refs a configmap", uniqueSuffix(),
+                        (BiFunction<ClusterUser, String, KafkaProtocolFilter>) ((actor, suffix) -> {
+                        // @formatter:off
+                            var filterConfigMap = new ConfigMapBuilder()
+                                    .withNewMetadata()
+                                    .withName("filter-configmap-" + suffix)
+                                    .endMetadata()
+                                    .addToData("key", "value")
+                                    .build();
+                            var filter = editableFilter(CLUSTER_FOO_FILTER + "-" + suffix)
+                                    .editOrNewSpec()
+                                        .withConfigTemplate(Map.of("configMapProp", "${configmap:filter-configmap-" + suffix + ":key}"))
+                                    .endSpec()
+                                    .build();
+                            // @formatter:on
+                            actor.create(filter);
+                            actor.create(filterConfigMap);
+                            return filter;
+                        })));
     }
 
     @ParameterizedTest
     @MethodSource("filterScenarios")
-    void singleVirtualCluster(Function<ClusterUser, KafkaProtocolFilter> filterFunc) {
+    void singleVirtualCluster(String suffix, BiFunction<ClusterUser, String, KafkaProtocolFilter> filterFunc) {
         // Given
-        var myProxy = editableProxy(PROXY_A).build();
+        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
         // @formatter:off
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewClusterIP()
                         .withProtocol(Protocol.TCP)
@@ -189,11 +199,12 @@ class AllReconcilersIT {
                 .endSpec()
                 .build();
         // @formatter:on
-        var myService = editableService(CLUSTER_FOO_SERVICE).build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + "-" + suffix).build();
 
-        var myFilter = filterFunc.apply(clusterUser);
+        var myFilter = filterFunc.apply(clusterUser, suffix);
 
-        var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), Optional.ofNullable(myFilter).stream().toList()).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + "-" + suffix, myProxy, myService, List.of(myIngress), Optional.ofNullable(myFilter).stream().toList())
+                .build();
 
         // When
         createAll(myProxy, myCluster, myIngress, myService);
@@ -208,8 +219,8 @@ class AllReconcilersIT {
         // The accepted condition and ingresses may be set in separate reconciliation cycles,
         // so we wait explicitly for the ingresses to be populated rather than checking the
         // snapshot returned when the accepted condition first became true.
-        AWAIT.alias("cluster %s has ingresses with bootstrap servers".formatted(CLUSTER_FOO))
-                .untilAsserted(() -> assertThat(clusterUser.get(VirtualKafkaCluster.class, CLUSTER_FOO))
+        AWAIT.alias("cluster %s has ingresses with bootstrap servers".formatted(CLUSTER_FOO + "-" + suffix))
+                .untilAsserted(() -> assertThat(clusterUser.get(VirtualKafkaCluster.class, CLUSTER_FOO + "-" + suffix))
                         .isNotNull()
                         .extracting(VirtualKafkaCluster::getStatus)
                         .satisfies(vcs -> assertThat(vcs)
@@ -226,11 +237,12 @@ class AllReconcilersIT {
                 .withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
 
         // Given
+        var suffix = uniqueSuffix();
         var domain = OpenShiftUtils.getDefaultIngressControllerDomain();
-        var myProxy = editableProxy(PROXY_A).build();
-        var myService = editableService(CLUSTER_FOO_SERVICE).build();
+        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + "-" + suffix).build();
         // @formatter:off
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewOpenShiftRoute()
                     .endOpenShiftRoute()
@@ -239,7 +251,7 @@ class AllReconcilersIT {
                 .build();
         var tlsCert = new SecretBuilder()
                 .withNewMetadata()
-                    .withName("downstream-tls-certificate")
+                    .withName("downstream-tls-certificate-" + suffix)
                 .endMetadata()
                 .withType("kubernetes.io/tls")
                 .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
@@ -255,7 +267,7 @@ class AllReconcilersIT {
                 .build();
         var myCluster = new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
-                    .withName(CLUSTER_FOO)
+                    .withName(CLUSTER_FOO + "-" + suffix)
                 .endMetadata()
                 .withNewSpec()
                     .withNewProxyRef()
@@ -272,8 +284,8 @@ class AllReconcilersIT {
 
         // Then
         assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
-        AWAIT.alias("cluster %s has route-based bootstrap server".formatted(CLUSTER_FOO))
-                .untilAsserted(() -> assertThat(clusterUser.get(VirtualKafkaCluster.class, CLUSTER_FOO))
+        AWAIT.alias("cluster %s has route-based bootstrap server".formatted(CLUSTER_FOO + "-" + suffix))
+                .untilAsserted(() -> assertThat(clusterUser.get(VirtualKafkaCluster.class, CLUSTER_FOO + "-" + suffix))
                         .isNotNull()
                         .extracting(VirtualKafkaCluster::getStatus)
                         .satisfies(vcs -> assertThat(vcs)
@@ -285,61 +297,64 @@ class AllReconcilersIT {
 
     static Stream<Arguments> upstreamTlsScenarios() {
         return Stream.of(
-                argumentSet("tls", (Function<ClusterUser, Tls>) (builder -> new Tls())),
-                argumentSet("tls with trust from secret", (Function<ClusterUser, Tls>) (actor -> {
-                // @formatter:off
-                    var trust = new SecretBuilder()
-                            .withNewMetadata()
-                                .withName("upstream-trust")
-                            .endMetadata()
-                            .addToStringData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
-                            .build();
-                    var ref = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder()
-                            .withNewTrustAnchorRef()
-                                .withNewRef()
-                                  .withName(name(trust))
-                                  .withKind("Secret")
-                                .endRef()
-                              .withKey("trust.pem")
-                            .endTrustAnchorRef()
-                            .build();
-                    // @formatter:on
-                    actor.create(trust);
-                    return ref;
-                })),
-                argumentSet("tls with trust from secret with store type", (Function<ClusterUser, Tls>) (actor -> {
-                // @formatter:off
-                    var trust = new SecretBuilder()
-                            .withNewMetadata()
-                                .withName("upstream-trust")
-                            .endMetadata()
-                            .addToStringData("trust.crt", TestKeyMaterial.TEST_CERT_PEM)
-                            .build();
-                    var ref = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder()
-                            .withNewTrustAnchorRef()
-                                .withNewRef()
-                                  .withName(name(trust))
-                                  .withKind("Secret")
-                                .endRef()
-                              .withStoreType("PEM")
-                              .withKey("trust.crt")
-                            .endTrustAnchorRef()
-                            .build();
-                    // @formatter:on
-                    actor.create(trust);
-                    return ref;
-                })));
+                argumentSet("tls", uniqueSuffix(),
+                        (BiFunction<ClusterUser, String, Tls>) ((actor, suffix) -> new Tls())),
+                argumentSet("tls with trust from secret", uniqueSuffix(),
+                        (BiFunction<ClusterUser, String, Tls>) ((actor, suffix) -> {
+                        // @formatter:off
+                            var trust = new SecretBuilder()
+                                    .withNewMetadata()
+                                        .withName("upstream-trust-" + suffix)
+                                    .endMetadata()
+                                    .addToStringData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
+                                    .build();
+                            var ref = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder()
+                                    .withNewTrustAnchorRef()
+                                        .withNewRef()
+                                          .withName(name(trust))
+                                          .withKind("Secret")
+                                        .endRef()
+                                      .withKey("trust.pem")
+                                    .endTrustAnchorRef()
+                                    .build();
+                            // @formatter:on
+                            actor.create(trust);
+                            return ref;
+                        })),
+                argumentSet("tls with trust from secret with store type", uniqueSuffix(),
+                        (BiFunction<ClusterUser, String, Tls>) ((actor, suffix) -> {
+                        // @formatter:off
+                            var trust = new SecretBuilder()
+                                    .withNewMetadata()
+                                        .withName("upstream-trust-" + suffix)
+                                    .endMetadata()
+                                    .addToStringData("trust.crt", TestKeyMaterial.TEST_CERT_PEM)
+                                    .build();
+                            var ref = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder()
+                                    .withNewTrustAnchorRef()
+                                        .withNewRef()
+                                          .withName(name(trust))
+                                          .withKind("Secret")
+                                        .endRef()
+                                      .withStoreType("PEM")
+                                      .withKey("trust.crt")
+                                    .endTrustAnchorRef()
+                                    .build();
+                            // @formatter:on
+                            actor.create(trust);
+                            return ref;
+                        })));
     }
 
     @ParameterizedTest
     @MethodSource("upstreamTlsScenarios")
-    void upstreamTls(Function<ClusterUser, io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls> tlsFunc) {
+    void upstreamTls(String suffix, BiFunction<ClusterUser, String, io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls> tlsFunc) {
         // Given
-        var tlsScenario = tlsFunc.apply(clusterUser);
+        var tlsScenario = tlsFunc.apply(clusterUser, suffix);
 
-        var myProxy = editableProxy(PROXY_A).build();
+        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
         // @formatter:off
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewClusterIP()
                         .withProtocol(Protocol.TCP)
@@ -347,14 +362,14 @@ class AllReconcilersIT {
                 .endSpec()
                 .build();
 
-        var myService = editableService(CLUSTER_FOO_SERVICE)
+        var myService = editableService(CLUSTER_FOO_SERVICE + "-" + suffix)
                 .editOrNewSpec()
                     .withTls(tlsScenario)
                 .endSpec()
                 .build();
         // @formatter:on
 
-        var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), List.of()).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + "-" + suffix, myProxy, myService, List.of(myIngress), List.of()).build();
 
         // When
         createAll(myProxy, myCluster, myIngress, myService);
@@ -365,95 +380,123 @@ class AllReconcilersIT {
     }
 
     static Stream<Arguments> downstreamTlsScenarios() {
-        // @formatter:off
-        var downstreamCert = new SecretBuilder()
-                .withNewMetadata()
-                    .withName("downstream-cert")
-                .endMetadata()
-                .withType("kubernetes.io/tls")
-                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
-                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
-                .build();
-        var downstreamTls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder()
-                .withNewCertificateRef()
-                    .withName(name(downstreamCert))
-                .endCertificateRef()
-                .build();
-        // @formatter:on
-
         return Stream.of(
-                argumentSet("tls with platform trust",
-                        (Function<ClusterUser, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
-                            actor.create(downstreamCert);
-                            return new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder(downstreamTls).build();
-                        })),
-                argumentSet("tls with trust from configmap",
-                        (Function<ClusterUser, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
-
+                argumentSet("tls with platform trust", uniqueSuffix(),
+                        (BiFunction<ClusterUser, String, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) ((actor, suffix) -> {
                         // @formatter:off
-                    var downstreamTrust = new ConfigMapBuilder()
-                            .withNewMetadata()
-                                .withName("downstream-trust-configmap")
-                            .endMetadata()
-                            .addToData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
-                            .build();
-                    var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder(downstreamTls)
-                            .editOrNewTrustAnchorRef()
-                                .withNewRef()
-                                    .withName(name(downstreamTrust))
-                                .endRef()
-                                .withKey("trust.pem")
-                            .endTrustAnchorRef()
-                            .build();
-                    // @formatter:on
+                            var downstreamCert = new SecretBuilder()
+                                    .withNewMetadata()
+                                        .withName("downstream-cert-" + suffix)
+                                    .endMetadata()
+                                    .withType("kubernetes.io/tls")
+                                    .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                                    .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                                    .build();
+                            // @formatter:on
+                            actor.create(downstreamCert);
+                            return new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder()
+                                    .withNewCertificateRef()
+                                    .withName(name(downstreamCert))
+                                    .endCertificateRef()
+                                    .build();
+                        })),
+                argumentSet("tls with trust from configmap", uniqueSuffix(),
+                        (BiFunction<ClusterUser, String, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) ((actor, suffix) -> {
+                        // @formatter:off
+                            var downstreamCert = new SecretBuilder()
+                                    .withNewMetadata()
+                                        .withName("downstream-cert-" + suffix)
+                                    .endMetadata()
+                                    .withType("kubernetes.io/tls")
+                                    .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                                    .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                                    .build();
+                            var downstreamTrust = new ConfigMapBuilder()
+                                    .withNewMetadata()
+                                        .withName("downstream-trust-configmap-" + suffix)
+                                    .endMetadata()
+                                    .addToData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
+                                    .build();
+                            var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder()
+                                    .withNewCertificateRef()
+                                        .withName(name(downstreamCert))
+                                    .endCertificateRef()
+                                    .editOrNewTrustAnchorRef()
+                                        .withNewRef()
+                                            .withName(name(downstreamTrust))
+                                        .endRef()
+                                        .withKey("trust.pem")
+                                    .endTrustAnchorRef()
+                                    .build();
+                            // @formatter:on
                             actor.create(downstreamCert);
                             actor.create(downstreamTrust);
                             return tls;
                         })),
-                argumentSet("tls with trust from secret",
-                        (Function<ClusterUser, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
-
+                argumentSet("tls with trust from secret", uniqueSuffix(),
+                        (BiFunction<ClusterUser, String, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) ((actor, suffix) -> {
                         // @formatter:off
-                    var downstreamTrust = new SecretBuilder()
-                            .withNewMetadata()
-                                .withName("downstream-trust-secret")
-                            .endMetadata()
-                            .addToStringData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
-                            .build();
-                    var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder(downstreamTls)
-                            .editOrNewTrustAnchorRef()
-                                .withNewRef()
-                                    .withKind("Secret")
-                                    .withName(name(downstreamTrust))
-                                .endRef()
-                                .withKey("trust.pem")
-                            .endTrustAnchorRef()
-                            .build();
-                        // @formatter:on
+                            var downstreamCert = new SecretBuilder()
+                                    .withNewMetadata()
+                                        .withName("downstream-cert-" + suffix)
+                                    .endMetadata()
+                                    .withType("kubernetes.io/tls")
+                                    .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                                    .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                                    .build();
+                            var downstreamTrust = new SecretBuilder()
+                                    .withNewMetadata()
+                                        .withName("downstream-trust-secret-" + suffix)
+                                    .endMetadata()
+                                    .addToStringData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
+                                    .build();
+                            var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder()
+                                    .withNewCertificateRef()
+                                        .withName(name(downstreamCert))
+                                    .endCertificateRef()
+                                    .editOrNewTrustAnchorRef()
+                                        .withNewRef()
+                                            .withKind("Secret")
+                                            .withName(name(downstreamTrust))
+                                        .endRef()
+                                        .withKey("trust.pem")
+                                    .endTrustAnchorRef()
+                                    .build();
+                            // @formatter:on
                             actor.create(downstreamCert);
                             actor.create(downstreamTrust);
                             return tls;
                         })),
-                argumentSet("tls with trust from configmap with new key of supported store type",
-                        (Function<ClusterUser, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
-
+                argumentSet("tls with trust from configmap with new key of supported store type", uniqueSuffix(),
+                        (BiFunction<ClusterUser, String, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) ((actor, suffix) -> {
                         // @formatter:off
-                    var downstreamTrust = new ConfigMapBuilder()
-                            .withNewMetadata()
-                                .withName("downstream-trust-configmap")
-                            .endMetadata()
-                            .addToData("trust.crt", TestKeyMaterial.TEST_CERT_PEM)
-                            .build();
-                    var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder(downstreamTls)
-                            .editOrNewTrustAnchorRef()
-                                .withNewRef()
-                                    .withName(name(downstreamTrust))
-                                .endRef()
-                                .withKey("trust.crt")
-                                .withStoreType("PEM")
-                            .endTrustAnchorRef()
-                            .build();
-                    // @formatter:on
+                            var downstreamCert = new SecretBuilder()
+                                    .withNewMetadata()
+                                        .withName("downstream-cert-" + suffix)
+                                    .endMetadata()
+                                    .withType("kubernetes.io/tls")
+                                    .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                                    .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                                    .build();
+                            var downstreamTrust = new ConfigMapBuilder()
+                                    .withNewMetadata()
+                                        .withName("downstream-trust-configmap-" + suffix)
+                                    .endMetadata()
+                                    .addToData("trust.crt", TestKeyMaterial.TEST_CERT_PEM)
+                                    .build();
+                            var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder()
+                                    .withNewCertificateRef()
+                                        .withName(name(downstreamCert))
+                                    .endCertificateRef()
+                                    .editOrNewTrustAnchorRef()
+                                        .withNewRef()
+                                            .withName(name(downstreamTrust))
+                                        .endRef()
+                                        .withKey("trust.crt")
+                                        .withStoreType("PEM")
+                                    .endTrustAnchorRef()
+                                    .build();
+                            // @formatter:on
                             actor.create(downstreamCert);
                             actor.create(downstreamTrust);
                             return tls;
@@ -462,13 +505,13 @@ class AllReconcilersIT {
 
     @ParameterizedTest
     @MethodSource("downstreamTlsScenarios")
-    void downstreamTls(Function<ClusterUser, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls> tlsFunc) {
+    void downstreamTls(String suffix, BiFunction<ClusterUser, String, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls> tlsFunc) {
         // Given
-        var tlsScenario = tlsFunc.apply(clusterUser);
+        var tlsScenario = tlsFunc.apply(clusterUser, suffix);
 
-        var myProxy = editableProxy(PROXY_A).build();
+        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
         // @formatter:off
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewClusterIP()
                         .withProtocol(Protocol.TLS)
@@ -476,9 +519,9 @@ class AllReconcilersIT {
                 .endSpec()
                 .build();
 
-        var myService = editableService(CLUSTER_FOO_SERVICE).build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + "-" + suffix).build();
 
-        var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), List.of())
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + "-" + suffix, myProxy, myService, List.of(myIngress), List.of())
                 .editOrNewSpec()
                     .editIngress(0)
                         .withTls(tlsScenario)
@@ -498,9 +541,10 @@ class AllReconcilersIT {
     @Test
     void infrastructureAnnotationsAppliedToServices() {
         // Given
-        var myProxy = editableProxy(PROXY_A).build();
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
         // @formatter:off
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewInfrastructure()
                         .addToAnnotations("example.com/custom-annotation", "test-value")
@@ -513,8 +557,8 @@ class AllReconcilersIT {
                 .build();
         // @formatter:on
 
-        var myService = editableService(CLUSTER_FOO_SERVICE).build();
-        var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), List.of()).build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + "-" + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + "-" + suffix, myProxy, myService, List.of(myIngress), List.of()).build();
 
         // When
         createAll(myProxy, myIngress, myService, myCluster);
@@ -525,9 +569,9 @@ class AllReconcilersIT {
         assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
 
         // Verify Service has infrastructure annotations
-        AWAIT.alias("Service for cluster %s has infrastructure annotations".formatted(CLUSTER_FOO))
+        AWAIT.alias("Service for cluster %s has infrastructure annotations".formatted(CLUSTER_FOO + "-" + suffix))
                 .untilAsserted(() -> {
-                    String serviceName = CLUSTER_FOO + "-" + CLUSTER_FOO_CLUSTER_IP_INGRESS + "-bootstrap";
+                    String serviceName = CLUSTER_FOO + "-" + suffix + "-" + CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix + "-bootstrap";
                     var service = clusterUser.get(Service.class, serviceName);
                     assertThat(service)
                             .isNotNull()
@@ -542,7 +586,8 @@ class AllReconcilersIT {
     @Test
     void upstreamTlsFromStrimziKafkaRef() {
         // Given
-        String kafkaName = "my-cluster";
+        var suffix = uniqueSuffix();
+        String kafkaName = "my-cluster-" + suffix;
         // @formatter:off
         clusterUser.create(new KafkaBuilder()
                 .withNewMetadata()
@@ -583,9 +628,9 @@ class AllReconcilersIT {
                 .addToData(STRIMZI_CLUSTER_CA_BUNDLE, "dGVzdC1jYQ==")
                 .build());
 
-        var myService = editableStrimziService(CLUSTER_FOO_SERVICE, kafkaName, STRIMZI_TLS_LISTENER).build();
-        var myProxy = editableProxy(PROXY_A).build();
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+        var myService = editableStrimziService(CLUSTER_FOO_SERVICE + "-" + suffix, kafkaName, STRIMZI_TLS_LISTENER).build();
+        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewClusterIP()
                         .withProtocol(Protocol.TCP)
@@ -594,7 +639,7 @@ class AllReconcilersIT {
                 .build();
         // @formatter:on
 
-        var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), List.of()).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + "-" + suffix, myProxy, myService, List.of(myIngress), List.of()).build();
 
         // When
         createAll(myProxy, myCluster, myIngress, myService);
