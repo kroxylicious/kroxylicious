@@ -155,7 +155,7 @@ class AllReconcilersIT {
     }
 
     static Stream<Arguments> filterScenarios() {
-        return Stream.generate(() -> Stream.of(
+        return Stream.of(
                 argumentSet("no filters", uniqueSuffix(),
                         (BiFunction<ClusterUser, String, KafkaProtocolFilter>) ((actor, suffix) -> null)),
                 argumentSet("filter with simple config", uniqueSuffix(),
@@ -182,8 +182,7 @@ class AllReconcilersIT {
                             actor.create(filter);
                             actor.create(filterConfigMap);
                             return filter;
-                        }))))
-                .limit(20).flatMap(s -> s);
+                        })));
     }
 
     @ParameterizedTest
@@ -297,7 +296,7 @@ class AllReconcilersIT {
     }
 
     static Stream<Arguments> upstreamTlsScenarios() {
-        return Stream.generate(() -> Stream.of(
+        return Stream.of(
                 argumentSet("tls", uniqueSuffix(),
                         (BiFunction<ClusterUser, String, Tls>) ((actor, suffix) -> new Tls())),
                 argumentSet("tls with trust from secret", uniqueSuffix(),
@@ -344,8 +343,7 @@ class AllReconcilersIT {
                             // @formatter:on
                             actor.create(trust);
                             return ref;
-                        }))))
-                .limit(20).flatMap(s -> s);
+                        })));
     }
 
     @ParameterizedTest
@@ -382,7 +380,7 @@ class AllReconcilersIT {
     }
 
     static Stream<Arguments> downstreamTlsScenarios() {
-        return Stream.generate(() -> Stream.of(
+        return Stream.of(
                 argumentSet("tls with platform trust", uniqueSuffix(),
                         (BiFunction<ClusterUser, String, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) ((actor, suffix) -> {
                         // @formatter:off
@@ -502,8 +500,7 @@ class AllReconcilersIT {
                             actor.create(downstreamCert);
                             actor.create(downstreamTrust);
                             return tls;
-                        }))))
-                .limit(20).flatMap(s -> s);
+                        })));
     }
 
     @ParameterizedTest
