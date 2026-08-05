@@ -345,10 +345,10 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
         List<CompletionStage<T>> result = new ArrayList<>(partitions.size());
         for (T partitionData : partitions) {
             BaseRecords records = recordExtractor.apply(partitionData);
-            if (!(records instanceof MemoryRecords)) {
+            if (!(records instanceof MemoryRecords memoryRecords)) {
                 throw new IllegalStateException();
             }
-            var stage = maybeDecodeRecords(topicName, (MemoryRecords) records, context, partitionIndexExtractor.applyAsInt(partitionData),
+            var stage = maybeDecodeRecords(topicName, memoryRecords, context, partitionIndexExtractor.applyAsInt(partitionData),
                     setRecords.apply(partitionData)).exceptionallyCompose(t -> {
                         var cause = t.getCause();
                         if (cause instanceof UnknownKeyException) {

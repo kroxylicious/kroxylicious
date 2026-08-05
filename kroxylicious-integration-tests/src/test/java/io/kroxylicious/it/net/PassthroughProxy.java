@@ -55,8 +55,8 @@ public class PassthroughProxy implements Closeable {
         try {
             future.get(5, TimeUnit.SECONDS);
             SocketAddress socketAddress = future.channel().localAddress();
-            if (socketAddress instanceof InetSocketAddress) {
-                return ((InetSocketAddress) socketAddress).getPort();
+            if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
+                return inetSocketAddress.getPort();
             }
             else {
                 throw new RuntimeException("Unexpected socket address type: " + socketAddress.toString());

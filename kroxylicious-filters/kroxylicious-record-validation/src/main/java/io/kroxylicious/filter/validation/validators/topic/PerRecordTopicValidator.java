@@ -46,12 +46,12 @@ class PerRecordTopicValidator implements TopicValidator {
 
     private CompletionStage<PartitionValidationResult> validateTopicPartition(ProduceRequestData.PartitionProduceData partitionProduceData) {
         BaseRecords records = partitionProduceData.records();
-        if (!(records instanceof MemoryRecords)) {
+        if (!(records instanceof MemoryRecords memoryRecords)) {
             return CompletableFuture.completedFuture(new PartitionValidationResult(partitionProduceData.index(), List.of()));
         }
         int recordIndex = 0;
         CompletableFuture<List<RecordValidationFailure>> result = CompletableFuture.completedFuture(new ArrayList<>());
-        for (Record record : ((MemoryRecords) records).records()) {
+        for (Record record : memoryRecords.records()) {
             int finalRecordIndex = recordIndex;
             result = result.thenCompose(recordValidationFailures -> validator.validate(record).thenApply(result1 -> {
                 if (!result1.valid()) {
