@@ -22,6 +22,9 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static java.util.function.Function.identity;
 
+/**
+ * Represents the set of status conditions for a Kubernetes custom resource, supporting merging and replacement semantics.
+ */
 public class ResourceState {
 
     // we are aiming for a deterministic ordering, so we order by status if observed generation and last transition time are equal
@@ -37,6 +40,12 @@ public class ResourceState {
         this.conditions = new TreeMap<>(conditions);
     }
 
+    /**
+     * Creates a resource state containing a single condition.
+     *
+     * @param condition the condition to include
+     * @return a new resource state with the given condition
+     */
     public static ResourceState of(Condition condition) {
         return new ResourceState(Map.of(condition.getType(), condition));
     }
@@ -61,6 +70,12 @@ public class ResourceState {
         return new ResourceState(freshestConditionPerType);
     }
 
+    /**
+     * Merges this state with an existing state, preferring the freshest condition per type and preserving transition times when statuses are unchanged.
+     *
+     * @param existingState the existing resource state to merge with
+     * @return a new resource state containing the merged conditions
+     */
     public ResourceState replacementFor(ResourceState existingState) {
         Stream<Condition> allConditions = Stream.concat(this.conditions.values().stream(), existingState.conditions.values().stream());
         return new ResourceState(allConditions.collect(Collectors.toMap(Condition::getType, identity(), this::buildNewCondition, TreeMap::new)));
@@ -77,10 +92,22 @@ public class ResourceState {
         return builder.build();
     }
 
+    /**
+     * Returns the conditions in this state as an ordered list, sorted by condition type.
+     *
+     * @return an unmodifiable list of conditions
+     */
     public List<Condition> toList() {
         return conditions.values().stream().toList();
     }
 
+    /**
+     * Computes a replacement condition list by merging new status conditions into the existing ones.
+     *
+     * @param oldConditions the existing conditions from the resource status
+     * @param newStatus the new resource state to merge in
+     * @return the merged list of conditions
+     */
     public static List<Condition> newConditions(List<Condition> oldConditions, ResourceState newStatus) {
         ResourceState existingConditions = fromList(oldConditions);
         ResourceState replacement = newStatus.replacementFor(existingConditions);

@@ -21,11 +21,18 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findAllKnownPrimariesInNamespace;
 
+/**
+ * Maps VirtualKafkaCluster secondary resource events to their associated KafkaProxy primary resources for reconciliation.
+ */
 public class VirtualKafkaClusterSecondaryToKafkaProxyPrimaryMapper implements SecondaryToPrimaryMapper<VirtualKafkaCluster> {
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterSecondaryToKafkaProxyPrimaryMapper.class);
 
     private final EventSourceContext<KafkaProxy> context;
 
+    /**
+     * Constructs the mapper with the given event source context.
+     * @param context the event source context for accessing known KafkaProxy primaries
+     */
     public VirtualKafkaClusterSecondaryToKafkaProxyPrimaryMapper(EventSourceContext<KafkaProxy> context) {
         this.context = context;
     }

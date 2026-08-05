@@ -16,7 +16,16 @@ import io.javaoperatorsdk.operator.processing.dependent.workflow.Condition;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
+/**
+ * A condition that checks whether a Deployment has all replicas ready.
+ */
 public class DeploymentReadyCondition implements Condition<Deployment, KafkaProxy> {
+
+    /** Creates a DeploymentReadyCondition. */
+    public DeploymentReadyCondition() {
+        // explicit ctor needed for javadoc.
+    }
+
     @Override
     public boolean isMet(DependentResource<Deployment, KafkaProxy> dependentResource, KafkaProxy primary, Context<KafkaProxy> context) {
         var optionalResource = dependentResource.getSecondaryResource(primary, context);

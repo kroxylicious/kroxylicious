@@ -40,6 +40,16 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static java.lang.Math.toIntExact;
 
+/**
+ * Networking model for a cluster ingress using per-node TCP ClusterIP Services with port-based node identification.
+ *
+ * @param proxy the KafkaProxy that owns this model
+ * @param cluster the virtual Kafka cluster
+ * @param ingress the ingress resource
+ * @param nodeIdRanges the node ID ranges describing the upstream Kafka nodes
+ * @param firstIdentifyingPort the first port in the allocated port range
+ * @param lastIdentifyingPort the last port in the allocated port range
+ */
 public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                                                         VirtualKafkaCluster cluster,
                                                         KafkaProxyIngress ingress,
@@ -48,6 +58,9 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                                                         int lastIdentifyingPort)
         implements ClusterIngressNetworkingModel {
 
+    /**
+     * Validates that the proxy, cluster, ingress, and nodeIdRanges are non-null, nodeIdRanges is non-empty, and the port range matches the required number of identifying ports.
+     */
     public TcpClusterIPClusterIngressNetworkingModel {
         Objects.requireNonNull(proxy);
         Objects.requireNonNull(cluster);
@@ -64,6 +77,12 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
         }
     }
 
+    /**
+     * Computes the bootstrap service name from the cluster and ingress names.
+     * @param cluster the virtual Kafka cluster
+     * @param ingressName the name of the ingress
+     * @return the bootstrap service name in the form {@code <clusterName>-<ingressName>-bootstrap}
+     */
     public static String bootstrapServiceName(VirtualKafkaCluster cluster, String ingressName) {
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(ingressName);
@@ -155,12 +174,21 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
         return new HostPort(crossNamespaceBootstrapServiceAddress(), firstIdentifyingPort()).toString();
     }
 
+    /**
+     * Calculates the number of identifying ports required for the given node ID ranges (one per node plus one for bootstrap).
+     * @param nodeIdRanges the node ID ranges
+     * @return the total number of identifying ports required
+     */
     public static int numIdentifyingPortsRequired(List<NodeIdRanges> nodeIdRanges) {
         // one per broker plus the bootstrap
         return nodeCount(nodeIdRanges) + 1;
     }
 
-    // note: we use CRD validation to enforce end >= start at the apiserver level
+    /**
+     * Counts the total number of nodes across all node ID ranges (CRD validation enforces end &gt;= start).
+     * @param nodeIdRanges the node ID ranges
+     * @return the total node count
+     */
     public static int nodeCount(List<NodeIdRanges> nodeIdRanges) {
         Objects.requireNonNull(nodeIdRanges);
         if (nodeIdRanges.isEmpty()) {

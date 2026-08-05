@@ -18,6 +18,14 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
  */
 public class IsOpenshiftRouteSupportedActivationCondition
         implements Condition<Route, KafkaProxy> {
+
+    /**
+     * Constructs the activation condition for OpenShift Route support.
+     */
+    public IsOpenshiftRouteSupportedActivationCondition() {
+        // explicit ctor needed for javadoc.
+    }
+
     @Override
     public boolean isMet(
                          DependentResource<Route, KafkaProxy> dependentResource,

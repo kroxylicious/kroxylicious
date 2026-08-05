@@ -5,7 +5,7 @@
  */
 
 /**
- * Classes comprising the operator's logical networking model.
+ * Checksum generation for Kubernetes resource metadata change detection.
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)

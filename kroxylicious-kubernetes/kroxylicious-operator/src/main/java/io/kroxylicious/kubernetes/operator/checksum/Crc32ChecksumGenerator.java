@@ -16,6 +16,9 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A {@link MetadataChecksumGenerator} that computes checksums using CRC-32.
+ */
 @NotThreadSafe
 public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
 
@@ -23,6 +26,9 @@ public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
     private final CRC32 checksum;
     private final ByteBuffer byteBuffer;
 
+    /**
+     * Constructs a Crc32ChecksumGenerator.
+     */
     public Crc32ChecksumGenerator() {
         checksum = new CRC32();
         byteBuffer = ByteBuffer.wrap(new byte[Long.BYTES]);

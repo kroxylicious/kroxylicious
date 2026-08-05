@@ -54,6 +54,7 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
     }
 
     /**
+     * Returns all references from this cluster that could not be resolved.
      * @return a stream of all dangling references
      */
     public Stream<DanglingReference> allDanglingReferences() {
@@ -62,6 +63,7 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
     }
 
     /**
+     * Returns all successfully resolved referents of this cluster, excluding the KafkaProxy to prevent cycles.
      * @return a stream of all resolved referents of this Cluster, note that KafkaProxy is not considered a Referent of VirtualKafkaCluster to prevent cycles
      */
     public Stream<HasMetadata> allResolvedReferents() {
@@ -85,14 +87,29 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
      * @param absentRef the ref that could not be found
      */
     public record DanglingReference(LocalRef<?> referrer, LocalRef<?> absentRef) {
+        /**
+         * Returns a predicate that matches dangling references with the given referrer kind.
+         * @param kind the kind to match
+         * @return a predicate matching on referrer kind
+         */
         public static Predicate<DanglingReference> hasReferrerKind(String kind) {
             return p -> Objects.equals(p.referrer.getKind(), kind);
         }
 
+        /**
+         * Returns a predicate that matches dangling references with the given referent kind.
+         * @param kind the kind to match
+         * @return a predicate matching on referent kind
+         */
         public static Predicate<DanglingReference> hasReferentKind(String kind) {
             return p -> Objects.equals(p.absentRef.getKind(), kind);
         }
 
+        /**
+         * Returns a predicate that matches dangling references with the given referrer.
+         * @param referrer the referrer to match
+         * @return a predicate matching on referrer
+         */
         public static Predicate<DanglingReference> hasReferrer(LocalRef<?> referrer) {
             return p -> p.referrer.equals(referrer);
         }

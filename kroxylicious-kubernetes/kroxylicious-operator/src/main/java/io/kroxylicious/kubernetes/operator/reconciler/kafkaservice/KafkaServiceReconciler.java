@@ -64,10 +64,15 @@ public final class KafkaServiceReconciler implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconciler.class);
 
+    /** Event source name for TLS certificate Secret informer. */
     public static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
+    /** Event source name for trust anchor ConfigMap informer. */
     public static final String CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "configmapsTrustAnchorRef";
+    /** Event source name for Strimzi CA certificate Secret informer. */
     public static final String SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsStrimziTrustAnchorRef";
+    /** Event source name for trust anchor Secret informer. */
     public static final String SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsTrustAnchorRef";
+    /** Event source name for Strimzi Kafka resource informer. */
     public static final String STRIMZI_KAFKA_EVENT_SOURCE_NAME = "kafkas";
 
     private static final String SPEC_REF = "spec.strimziKafkaRef";
@@ -77,11 +82,23 @@ public final class KafkaServiceReconciler implements
     private final KafkaServiceStatusFactory statusFactory;
     private final SharedInformerManager sharedInformerManager;
 
+    /**
+     * Constructs a reconciler for KafkaService resources.
+     *
+     * @param clock the clock used for condition timestamps
+     * @param sharedInformerManager the manager providing shared informers for Secret, ConfigMap, and Kafka resources
+     */
     public KafkaServiceReconciler(Clock clock, SharedInformerManager sharedInformerManager) {
         this.statusFactory = new KafkaServiceStatusFactory(clock);
         this.sharedInformerManager = sharedInformerManager;
     }
 
+    /**
+     * Creates a new status factory for KafkaService resources.
+     *
+     * @param clock the clock used for condition timestamps
+     * @return a new status factory instance
+     */
     public static StatusFactory<KafkaService> newStatusFactory(Clock clock) {
         return new KafkaServiceStatusFactory(clock);
     }

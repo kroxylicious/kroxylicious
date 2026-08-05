@@ -25,6 +25,15 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
+/**
+ * Networking model for a cluster ingress using a shared LoadBalancer with SNI routing.
+ *
+ * @param cluster the virtual Kafka cluster
+ * @param ingress the ingress resource
+ * @param loadBalancer the load balancer specification
+ * @param tls the TLS configuration
+ * @param sharedSniPort the shared SNI port on the proxy container
+ */
 public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster cluster,
                                                         KafkaProxyIngress ingress,
                                                         LoadBalancer loadBalancer,
@@ -32,6 +41,9 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
                                                         int sharedSniPort)
         implements ClusterIngressNetworkingModel, SharedLoadBalancerServiceRequirements {
 
+    /**
+     * Validates that all required fields are non-null.
+     */
     public LoadBalancerClusterIngressNetworkingModel {
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(ingress);
@@ -83,6 +95,10 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
         return new Annotations.ClusterIngressBootstrapServers(name(cluster), name(ingress), bootstrapServers());
     }
 
+    /**
+     * Returns the bootstrap servers address for this cluster ingress.
+     * @return the bootstrap servers connection string
+     */
     public String bootstrapServers() {
         return HostPort.asString(loadBalancer.getBootstrapAddress(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT).replace("$(virtualClusterName)", name(cluster));
     }

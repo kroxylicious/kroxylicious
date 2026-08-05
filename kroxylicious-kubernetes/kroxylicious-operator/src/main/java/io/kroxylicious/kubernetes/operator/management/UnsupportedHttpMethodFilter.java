@@ -19,6 +19,7 @@ import com.sun.net.httpserver.HttpExchange;
  */
 public class UnsupportedHttpMethodFilter extends Filter {
 
+    /** Singleton instance of this filter. */
     public static final Filter INSTANCE = new UnsupportedHttpMethodFilter();
 
     private UnsupportedHttpMethodFilter() {
