@@ -17,10 +17,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * A reference to a file in a container, which may be on a mounted volume.
  */
-public record ContainerFileReference(
-                                     @Nullable Volume volume,
-                                     @Nullable VolumeMount mount,
-                                     Path containerPath) {
+record ContainerFileReference(
+                              @Nullable Volume volume,
+                              @Nullable VolumeMount mount,
+                              Path containerPath) {
 
     /**
      * A {@code volume} and {@code mount} must either both be non-null, or both be null.
