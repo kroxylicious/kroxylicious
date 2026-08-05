@@ -449,6 +449,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         return delayUntil(start.plus(fixedAuthDelay), result);
     }
 
+    @SuppressWarnings("FutureReturnValueIgnored") // the ScheduledFuture is not needed; completion is observed via the returned CompletableFuture
     private CompletionStage<RoundResult> delayUntil(Instant deadline, RoundResult result) {
         long remainingMs = Duration.between(clock.instant(), deadline).toMillis();
         if (remainingMs <= 0) {
