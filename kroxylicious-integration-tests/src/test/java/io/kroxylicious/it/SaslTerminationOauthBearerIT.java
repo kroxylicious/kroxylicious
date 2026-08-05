@@ -75,7 +75,6 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
 
     KafkaCluster cluster;
 
-
     @AfterEach
     @SuppressWarnings("java:S3011")
     void afterEach() throws Exception {
@@ -354,7 +353,6 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
             }
         }
     }
-
 
     private NamedFilterDefinition createOauthTerminationFilter() {
         return createOauthTerminationFilterWithConfig(
