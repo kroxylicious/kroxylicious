@@ -635,12 +635,19 @@ Not every commit needs a changelog entry e.g. documentation fixes, internal buil
 **Entry format:**
 ```yaml
 title: "feat(runtime): add graceful shutdown with configurable drain timeout"
-type: feat
+type: added
 merge_requests:    # use for PRs (only the first is rendered as a link prefix)
   - 1234
 # or:
 issues:            # use for issues (only the first is rendered as a link prefix)
   - 5678
+links:             # optional: links to external resources, e.g. design docs or CVE records
+  - name: CVE-2025-12345
+    url: https://www.cve.org/CVERecord?id=CVE-2025-12345
+authors:           # optional: credit the change's author(s)
+  - name: Your Name
+    nick: yourhandle
+    url: https://github.com/yourhandle
 important_notes:   # optional: appear under "Changes, deprecations and removals"
   - "Migration required: replace `oldConfig` with `newConfig`."
   - "`OldClass` is deprecated; use `NewClass` instead."
@@ -648,12 +655,17 @@ important_notes:   # optional: appear under "Changes, deprecations and removals"
 
 The `title` always appears in the main version section. If the change also requires a migration note or deprecation callout, add one or more `important_notes` - these appear as sub-bullets under the same entry in the "Changes, deprecations and removals" section.
 
-**`type`** - pick the one that best describes the change, ideally following [Conventional Commits](https://www.conventionalcommits.org/):
+Each `links` entry is rendered after the title as a bracketed link, e.g. `([CVE-2025-12345](https://...))`. Use links for design documents, CVE records, or other external resources relevant to the change. `authors` are rendered after the title as `(thanks [@yourhandle](https://github.com/yourhandle))` - the `nick` (prefixed with `@`) is preferred over `name`, and `url` is optional.
+
+**`type`** - pick the one that best describes the change (the `title` should still follow [Conventional Commits](https://www.conventionalcommits.org/), but the `type` field must be one of the values [logchange](https://github.com/logchange/logchange) accepts):
 
 | Type               | Use for                                                            |
 |--------------------|--------------------------------------------------------------------|
-| `feat`             | New features, capabilities, or configuration options               |
-| `fix`              | Bug fixes                                                          |
+| `added`            | New features, capabilities, or configuration options               |
+| `changed`          | Changes to existing behaviour                                      |
+| `deprecated`       | Deprecations of features or APIs                                   |
+| `removed`          | Removals of features or APIs                                       |
+| `fixed`            | Bug fixes                                                          |
 | `security`         | Security fixes                                                     |
 | `dependency_update`| Runtime dependency upgrades visible to users                       |
 | `other`            | Performance improvements or user-visible refactoring               |
@@ -663,7 +675,7 @@ Simple example (no migration notes):
 ```yaml
 # changelog/unreleased/01234-add-cool-feature.yaml
 title: "feat(runtime): add cool new feature"
-type: feat
+type: added
 merge_requests:
   - 1234
 ```
@@ -673,7 +685,7 @@ Example with migration notes:
 ```yaml
 # changelog/unreleased/01234-add-cool-feature.yaml
 title: "feat(runtime): add cool new feature"
-type: feat
+type: added
 merge_requests:
   - 1234
 important_notes:
