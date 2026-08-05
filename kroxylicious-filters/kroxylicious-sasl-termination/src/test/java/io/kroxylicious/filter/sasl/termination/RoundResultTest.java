@@ -67,8 +67,8 @@ class RoundResultTest {
         var b = new RoundResult.Challenge(new byte[]{ 1, 2, 3 });
 
         // Then
-        assertThat(a).isEqualTo(b);
-        assertThat(a).hasSameHashCodeAs(b);
+        assertThat(a).isEqualTo(b)
+                .hasSameHashCodeAs(b);
     }
 
     @SuppressWarnings("SelfAssertion")
@@ -197,8 +197,8 @@ class RoundResultTest {
         var b = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", 3600);
 
         // Then
-        assertThat(a).isEqualTo(b);
-        assertThat(a).hasSameHashCodeAs(b);
+        assertThat(a).isEqualTo(b)
+                .hasSameHashCodeAs(b);
     }
 
     @Test
@@ -328,8 +328,8 @@ class RoundResultTest {
         var b = new RoundResult.Failure(new byte[]{ 1, 2 }, exception);
 
         // Then
-        assertThat(a).isEqualTo(b);
-        assertThat(a).hasSameHashCodeAs(b);
+        assertThat(a).isEqualTo(b)
+                .hasSameHashCodeAs(b);
     }
 
     @Test

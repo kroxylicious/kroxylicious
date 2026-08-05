@@ -143,8 +143,10 @@ class SaslTerminationTest {
         var config1 = oauthConfig();
         var config2 = oauthConfig();
 
+        var mechanisms = List.<MechanismConfig> of(config1, config2);
+
         // When/Then
-        assertThatThrownBy(() -> new SaslTerminationConfig(List.of(config1, config2), null, null, null, null))
+        assertThatThrownBy(() -> new SaslTerminationConfig(mechanisms, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Duplicate mechanism: OAUTHBEARER");
     }

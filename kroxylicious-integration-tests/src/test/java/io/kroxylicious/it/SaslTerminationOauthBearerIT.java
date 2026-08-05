@@ -142,7 +142,7 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
     }
 
     @Test
-    void shouldRejectTokenWithWrongAudience(@TempDir Path tempDir) {
+    void shouldRejectTokenWithWrongAudience() {
         // Given
         var config = proxy(cluster)
                 .addToFilterDefinitions(createOauthTerminationFilter())
@@ -277,6 +277,7 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
         }
     }
 
+    @SuppressWarnings("java:S2925") // Can't test Kafka re-auth (KIP-368) without Thread#sleep
     @Test
     void shouldRejectExpiredSessionWithoutReauthentication() throws Exception {
         // Given
@@ -319,6 +320,7 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
         }
     }
 
+    @SuppressWarnings("java:S2925") // Can't test Kafka re-auth (KIP-368) without Thread#sleep
     @Test
     void shouldReauthenticateWithOauthBearer(Topic topic) {
         // Given
