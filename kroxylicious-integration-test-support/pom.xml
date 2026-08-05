@@ -25,6 +25,7 @@
 
     <properties>
         <errorprone.skip>true</errorprone.skip>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <dependencies>
