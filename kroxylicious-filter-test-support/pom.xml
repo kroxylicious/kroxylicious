@@ -22,6 +22,10 @@
     <name>Filter unit test support</name>
     <description>Support code to simplify writing unit tests for filter implementations</description>
 
+    <properties>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

@@ -22,6 +22,7 @@
     <description>Test support for modules testing KMS implementations.</description>
 
     <properties>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <dependencies>

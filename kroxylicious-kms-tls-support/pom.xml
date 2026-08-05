@@ -22,6 +22,7 @@
     <description>Optional TLS support classes for KMS implementations that need to make HTTPs connections to services.</description>
 
     <properties>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <dependencies>

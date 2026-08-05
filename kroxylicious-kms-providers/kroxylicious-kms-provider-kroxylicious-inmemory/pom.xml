@@ -22,6 +22,10 @@
     <name>In-memory KMS</name>
     <description>An in-memory KMS provider for test purposes</description>
 
+    <properties>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

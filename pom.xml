@@ -42,6 +42,7 @@
         <skipSTs>true</skipSTs>
         <skipDocs>true</skipDocs>
         <skipContainerImageBuild>false</skipContainerImageBuild>
+        <javadoc.failOnWarnings>true</javadoc.failOnWarnings>
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
@@ -638,6 +639,16 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>3.12.0</version>
+                    <configuration>
+                        <failOnWarnings>${javadoc.failOnWarnings}</failOnWarnings>
+                        <additionalDependencies>
+                            <additionalDependency>
+                                <groupId>com.google.code.findbugs</groupId>
+                                <artifactId>jsr305</artifactId>
+                                <version>3.0.2</version>
+                            </additionalDependency>
+                        </additionalDependencies>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

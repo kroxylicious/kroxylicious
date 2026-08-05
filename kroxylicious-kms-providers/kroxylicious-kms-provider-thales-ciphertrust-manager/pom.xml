@@ -22,6 +22,10 @@
     <name>Thales CipherTrust Manager KMS</name>
     <description>A KMS provider backed by Thales CipherTrust Manager</description>
 
+    <properties>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
+    </properties>
+
     <dependencies>
         <!-- Kroxylicious dependencies -->
         <dependency>

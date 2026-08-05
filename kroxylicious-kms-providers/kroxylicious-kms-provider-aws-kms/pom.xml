@@ -23,6 +23,10 @@
     <name>AWS KMS</name>
     <description>A KMS provider backed by a remote instance of AWS KMS</description>
 
+    <properties>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

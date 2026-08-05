@@ -24,6 +24,10 @@
     <name>Oauthbearer filter</name>
     <description>Pre-validate oauth token before sending it to upstream kafka</description>
 
+    <properties>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
+    </properties>
+
     <dependencies>
         <!-- project dependencies - runtime and compile -->
         <dependency>
