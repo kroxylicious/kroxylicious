@@ -279,4 +279,144 @@ class ScramCredentialTest {
 
         assertThat(credential1).isNotEqualTo(credential2);
     }
+
+    @Test
+    void shouldDetectInequalityInSalt() {
+        ScramCredential credential1 = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                4096,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-256");
+
+        ScramCredential credential2 = new ScramCredential(
+                "alice",
+                new byte[]{ 9, 8, 7 },
+                4096,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-256");
+
+        assertThat(credential1).isNotEqualTo(credential2);
+    }
+
+    @Test
+    void shouldDetectInequalityInIterations() {
+        ScramCredential credential1 = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                4096,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-256");
+
+        ScramCredential credential2 = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                8192,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-256");
+
+        assertThat(credential1).isNotEqualTo(credential2);
+    }
+
+    @Test
+    void shouldDetectInequalityInServerKey() {
+        ScramCredential credential1 = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                4096,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-256");
+
+        ScramCredential credential2 = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                4096,
+                new byte[]{ 9, 8, 7 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-256");
+
+        assertThat(credential1).isNotEqualTo(credential2);
+    }
+
+    @Test
+    void shouldDetectInequalityInStoredKey() {
+        ScramCredential credential1 = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                4096,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-256");
+
+        ScramCredential credential2 = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                4096,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 9, 8, 7 },
+                "SHA-256");
+
+        assertThat(credential1).isNotEqualTo(credential2);
+    }
+
+    @Test
+    void shouldDetectInequalityInHashAlgorithm() {
+        ScramCredential credential1 = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                4096,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-256");
+
+        ScramCredential credential2 = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                4096,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-512");
+
+        assertThat(credential1).isNotEqualTo(credential2);
+    }
+
+    @Test
+    void shouldProduceConsistentHashCode() {
+        ScramCredential credential = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                4096,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-256");
+
+        int hashCode1 = credential.hashCode();
+        int hashCode2 = credential.hashCode();
+
+        assertThat(hashCode1).isEqualTo(hashCode2);
+    }
+
+    @Test
+    void shouldProvideMeaningfulToString() {
+        ScramCredential credential = new ScramCredential(
+                "alice",
+                new byte[]{ 1, 2, 3 },
+                4096,
+                new byte[]{ 4, 5, 6 },
+                new byte[]{ 7, 8, 9 },
+                "SHA-256");
+
+        String toStringResult = credential.toString();
+
+        assertThat(toStringResult)
+                .contains("ScramCredential")
+                .contains("alice")
+                .contains("4096")
+                .contains("SHA-256");
+    }
 }
