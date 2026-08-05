@@ -19,6 +19,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.errors.InvalidRequestException;
+import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -85,6 +86,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
             ApiKeys.RENEW_DELEGATION_TOKEN.id,
             ApiKeys.EXPIRE_DELEGATION_TOKEN.id,
             ApiKeys.DESCRIBE_DELEGATION_TOKEN.id);
+    public static final String LOG_KEY_REAUTHENTICATION = "reauthentication";
 
     private final ScheduledExecutorService executorService;
     private final SaslTermination.SaslTerminationContext context;
@@ -210,7 +212,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
 
     @NonNull
     private static CompletionStage<RequestFilterResult> reauthenticationRejectedResponseAndClose(FilterContext filterContext, State.Authenticated authenticated,
-                                                                                              String mechanism) {
+                                                                                                 String mechanism) {
         LOGGER.atWarn()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
                 .addKeyValue(LOG_KEY_MECHANISM, mechanism)
@@ -316,11 +318,13 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                                                                RoundResult.Success success) {
         String authorizationId = success.authorizationId();
         String mechanism = stateMachine.mechanismName();
+        boolean reauthentication = state instanceof State.RequiringAuthenticate req && req.previousAuthorizationId() != null;
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
                 .addKeyValue(LOG_KEY_MECHANISM, stateMachine.mechanismName())
+                .addKeyValue(LOG_KEY_REAUTHENTICATION, reauthentication)
                 .addKeyValue("authorizationId", authorizationId)
-                .log("Authentication successful");
+                .log("Credential validation successful");
 
         long sessionLifetimeMs = computeSessionLifetimeMs(success.sessionLifetimeMs());
         @Nullable
@@ -331,12 +335,19 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
             if (previousAuthorizationId != null && !previousAuthorizationId.equals(authorizationId)) {
                 LOGGER.atWarn()
                         .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                        .addKeyValue(LOG_KEY_REAUTHENTICATION, true)
                         .addKeyValue("previousAuthorizationId", previousAuthorizationId)
                         .addKeyValue("newAuthorizationId", authorizationId)
                         .log("Reauthentication rejected: authorization ID changed");
                 return handleAuthenticationFailure(stateMachine, filterContext,
-                        new org.apache.kafka.common.errors.SaslAuthenticationException("Reauthentication failed: authorization identity changed"));
+                        new SaslAuthenticationException("Reauthentication failed: authorization identity changed"));
             }
+            LOGGER.atDebug()
+                    .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                    .addKeyValue(LOG_KEY_MECHANISM, mechanism)
+                    .addKeyValue("authorizationId", authorizationId)
+                    .addKeyValue(LOG_KEY_REAUTHENTICATION, reauthentication)
+                    .log("Authentication successful");
             recordAuthDuration(mechanism, filterContext.getVirtualClusterName(), authenticating.authStartNanos());
             state = authenticating.nextStateSuccess(authorizationId, mechanism, sessionExpiry);
         }
@@ -404,9 +415,11 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
 
     private CompletionStage<RequestFilterResult> handleAuthenticationFailure(
                                                                              MechanismStateMachine stateMachine, FilterContext filterContext, Exception exception) {
+        boolean reauthentication = state instanceof State.RequiringAuthenticate req && req.previousAuthorizationId() != null;
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
                 .addKeyValue(LOG_KEY_ERROR, exception.getMessage())
+                .addKeyValue(LOG_KEY_REAUTHENTICATION, reauthentication)
                 .log("Authentication failed");
 
         if (state instanceof State.RequiringAuthenticate authenticating) {
