@@ -60,6 +60,42 @@ class ScramCredentialTest {
                 .doesNotThrowAnyException();
     }
 
+    @Test
+    void shouldDefensivelyCopyArraysOnConstruction() {
+        // Given
+        byte[] salt = { 1, 2, 3 };
+        byte[] serverKey = { 4, 5, 6 };
+        byte[] storedKey = { 7, 8, 9 };
+        ScramCredential credential = new ScramCredential("alice", salt, 4096, serverKey, storedKey, "SHA-256");
+
+        // When
+        salt[0] = 99;
+        serverKey[0] = 99;
+        storedKey[0] = 99;
+
+        // Then
+        assertThat(credential.salt()[0]).isEqualTo((byte) 1);
+        assertThat(credential.serverKey()[0]).isEqualTo((byte) 4);
+        assertThat(credential.storedKey()[0]).isEqualTo((byte) 7);
+    }
+
+    @Test
+    void shouldDefensivelyCopyArraysOnAccess() {
+        // Given
+        ScramCredential credential = new ScramCredential(
+                "alice", new byte[]{ 1, 2, 3 }, 4096, new byte[]{ 4, 5, 6 }, new byte[]{ 7, 8, 9 }, "SHA-256");
+
+        // When
+        credential.salt()[0] = 99;
+        credential.serverKey()[0] = 99;
+        credential.storedKey()[0] = 99;
+
+        // Then
+        assertThat(credential.salt()[0]).isEqualTo((byte) 1);
+        assertThat(credential.serverKey()[0]).isEqualTo((byte) 4);
+        assertThat(credential.storedKey()[0]).isEqualTo((byte) 7);
+    }
+
     @SuppressWarnings("DataFlowIssue") // we're testing that the null argument is rejected
     @Test
     void shouldRejectNullUsername() {
@@ -417,6 +453,9 @@ class ScramCredentialTest {
                 .contains("ScramCredential")
                 .contains("alice")
                 .contains("4096")
-                .contains("SHA-256");
+                .contains("SHA-256")
+                .contains("salt=***")
+                .contains("serverKey=***")
+                .contains("storedKey=***");
     }
 }
