@@ -35,6 +35,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.inOrder;
@@ -218,6 +219,46 @@ class LocalKroxyliciousOperatorExtensionLifecycleTest {
         order.verify(localOp).afterAll(context);
         order.verify(teardownAction).execute();
         order.verify(localRbac).afterEach(context);
+    }
+
+    @Test
+    void beforeAllPropagatesExceptionFromFailingSetupAction() {
+        // Given
+        var cause = new RuntimeException("setup failed");
+        var ext = new LocalKroxyliciousOperatorExtension(
+                defaultBuilder().withSetupAction(() -> {
+                    throw cause;
+                }),
+                () -> rbacHandler,
+                handler -> locallyRunOperatorExtension,
+                () -> {
+                });
+
+        // When / Then
+        assertThatThrownBy(() -> ext.beforeAll(context))
+                .isSameAs(cause);
+    }
+
+    @Test
+    void afterAllWrapsFailingTeardownActionInAssertionError() throws Exception {
+        // Given
+        var cause = new RuntimeException("teardown failed");
+        var localRbac = mock(LocallyRunningOperatorRbacHandler.class);
+        var localOp = mock(LocallyRunOperatorExtension.class);
+        var ext = new LocalKroxyliciousOperatorExtension(
+                defaultBuilder().withTeardownAction(() -> {
+                    throw cause;
+                }),
+                () -> localRbac,
+                handler -> localOp,
+                () -> {
+                });
+        ext.beforeAll(context);
+
+        // When / Then
+        assertThatThrownBy(() -> ext.afterAll(context))
+                .isInstanceOf(AssertionError.class)
+                .hasCause(cause);
     }
 
     @Test
