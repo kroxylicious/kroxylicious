@@ -40,11 +40,13 @@ import java.lang.annotation.Target;
 public @interface DeprecatedPluginName {
     /**
      * The fully qualified class name by which this plugin was previously known.
+     * @return the fully qualified class name by which this plugin was previously known
      */
     String oldName();
 
     /**
      * Returns the version in which the name became deprecated.
+     * @return the version in which the name became deprecated, or the empty string if unspecified
      */
     String since() default "";
 

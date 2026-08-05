@@ -12,7 +12,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * A TrustProvider is a source of trust anchors used to determine whether a certificate present by a peer is trusted.
+ * A TrustProvider is a source of trust anchors used to determine whether a certificate presented by a peer is trusted.
  * <ul>
  *     <li>In the TLS <em>client</em> role, it is used to validate that the server's certificate is trusted.  If the
  *     trust provider is omitted platform trust is used instead.</li>
@@ -25,13 +25,16 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public interface TrustProvider {
 
     /**
-     * Visits the trust provider {@link TrustProviderVisitor}. Implementor should call one `visit` method on visitor.
+     * Accepts the given {@link TrustProviderVisitor}. Implementor should call the {@code visit} method
+     * on the visitor corresponding to this implementation.
      * @param visitor visitor.
+     * @param <T> result type of the visit
+     * @return the result of the visit
      */
     <T> T accept(TrustProviderVisitor<T> visitor);
 
     /**
-     * Trust options that apply to this TLS peer..
+     * Trust options that apply to this TLS peer.
      *
      * @return trust options
      */

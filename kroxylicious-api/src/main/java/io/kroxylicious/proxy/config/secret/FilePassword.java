@@ -24,6 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public record FilePassword(@JsonProperty(required = true) String passwordFile) implements PasswordProvider {
 
+    /**
+     * Creates a FilePassword.
+     * @param passwordFile file containing the password.
+     */
     public FilePassword {
         Objects.requireNonNull(passwordFile);
     }

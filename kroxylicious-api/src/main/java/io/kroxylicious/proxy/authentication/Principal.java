@@ -14,5 +14,9 @@ package io.kroxylicious.proxy.authentication;
  * (according to {@code equals()}). One easy way to achieve this is to use a {@code record} class with a single {@code name} component.</p>
  */
 public interface Principal {
+    /**
+     * Returns the name of this principal.
+     * @return the name of this principal
+     */
     String name();
 }

@@ -14,8 +14,16 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  * @param <C> The configuration type consumed by the particular {@link TransportSubjectBuilder} implementation.
  */
 public interface TransportSubjectBuilderService<C> extends AutoCloseable {
+    /**
+     * Initializes this service with its configuration.
+     * @param config The service configuration.
+     */
     void initialize(@UnknownNullness C config);
 
+    /**
+     * Builds a {@link TransportSubjectBuilder}.
+     * @return The builder.
+     */
     TransportSubjectBuilder build();
 
     @Override

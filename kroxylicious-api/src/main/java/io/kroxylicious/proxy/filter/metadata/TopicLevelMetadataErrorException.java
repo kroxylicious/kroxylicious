@@ -9,9 +9,13 @@ package io.kroxylicious.proxy.filter.metadata;
 import org.apache.kafka.common.protocol.Errors;
 
 /**
- * Indicates that there was an {@link Error} set on a {@link org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopic}.
+ * Indicates that there was an {@link Errors error} set on a {@link org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopic}.
  */
 public class TopicLevelMetadataErrorException extends TopicNameMappingException {
+    /**
+     * Creates a new exception for the given error.
+     * @param error the error set at the topic level of the metadata response
+     */
     public TopicLevelMetadataErrorException(Errors error) {
         super(error);
     }

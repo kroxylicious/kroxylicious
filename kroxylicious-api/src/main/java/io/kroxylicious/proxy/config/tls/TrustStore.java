@@ -32,6 +32,14 @@ public record TrustStore(@JsonProperty(required = true) String storeFile,
                          @JsonProperty(value = "trustOptions") @Nullable TrustOptions trustOptions)
         implements TrustProvider {
 
+    /**
+     * Creates a TrustStore.
+     * @param storeFile location of a key store, or reference to a PEM file containing both private-key/certificate/intermediates.
+     * @param storePasswordProvider provider for the store password or null if store does not require a password.
+     * @param storeType specifies the server key type. Legal values are those types supported by the platform {@link KeyStore},
+     *         and PEM (for X-509 certificates express in PEM format).
+     * @param trustOptions the trust options that will be applied to this peer.
+     */
     public TrustStore {
         Objects.requireNonNull(storeFile);
     }
@@ -48,10 +56,18 @@ public record TrustStore(@JsonProperty(required = true) String storeFile,
         this(storeFile, storePasswordProvider, storeType, null);
     }
 
+    /**
+     * Returns the store type, defaulting to the platform default store type if no store type was specified.
+     * @return the store type
+     */
     public String getType() {
         return Tls.getStoreTypeOrPlatformDefault(storeType);
     }
 
+    /**
+     * Indicates whether the store is in PEM format.
+     * @return true if the store type is PEM
+     */
     public boolean isPemType() {
         return Objects.equals(getType(), Tls.PEM);
     }

@@ -23,8 +23,11 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 public interface KeyProvider {
 
     /**
-     * Visits the trust provider {@link KeyProviderVisitor}. Implementor should call one `visit` method on visitor.
+     * Accepts the given {@link KeyProviderVisitor}. Implementor should call the {@code visit} method
+     * on the visitor corresponding to this implementation.
      * @param visitor visitor.
+     * @param <T> result type of the visit
+     * @return the result of the visit
      */
     <T> T accept(KeyProviderVisitor<T> visitor);
 
