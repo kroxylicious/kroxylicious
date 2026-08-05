@@ -35,6 +35,7 @@ public abstract class OpaqueFrame implements Frame {
     /** The message buffer excluding the frame size, including the header and body. */
     protected final ByteBuf buf;
     private @Nullable String routeName;
+    private int targetVirtualNodeId = Frame.NO_TARGET_VIRTUAL_NODE_ID;
 
     /**
      * @param apiKeyId api key id
@@ -118,6 +119,16 @@ public abstract class OpaqueFrame implements Frame {
     @Override
     public void setRouteName(@Nullable String routeName) {
         this.routeName = routeName;
+    }
+
+    @Override
+    public int targetVirtualNodeId() {
+        return targetVirtualNodeId;
+    }
+
+    @Override
+    public void setTargetVirtualNodeId(int targetVirtualNodeId) {
+        this.targetVirtualNodeId = targetVirtualNodeId;
     }
 
     @Override

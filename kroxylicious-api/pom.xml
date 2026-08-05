@@ -182,6 +182,8 @@
                                     <exclude>io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys, short, org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
                                     <!-- The following method was deprecated since 0.18 and removed at 0.21.0, see https://github.com/kroxylicious/kroxylicious/issues/3620 -->
                                     <exclude>io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String, java.lang.String)</exclude>
+                                    <!-- The following method was removed at 0.22.0 as part of proposal 118, replaced by shouldIntercept() -->
+                                    <exclude>io.kroxylicious.proxy.router.Router#staticRoutes()</exclude>
                                 </excludes>
                                 <!-- see documentation -->
                             </parameter>

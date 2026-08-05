@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.router;
 
-import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -20,6 +19,27 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * down named routes and to deliver a response back to the client. A single
  * incoming request may result in multiple outgoing requests to different
  * routes (e.g. fan-out), with the router composing the final response.</p>
+ *
+ * <h2>Control plane vs data plane</h2>
+ *
+ * <p>Kafka makes no protocol distinction between a bootstrap broker and a data
+ * broker, but the router world must, because the connection's endpoint is the
+ * only signal for whether a default broker exists:</p>
+ * <ul>
+ *   <li><strong>Bootstrap endpoint</strong> → connection is <em>unbound</em>
+ *       ({@link RouterContext#virtualNode()} is empty) → the <strong>control
+ *       plane</strong>: discovery, {@code METADATA}, coordinator lookup, the
+ *       routing decisions.</li>
+ *   <li><strong>Broker endpoint</strong> → connection is <em>bound</em> to one
+ *       {@code (route, broker)} → the <strong>data plane</strong>: data-plane
+ *       traffic to a known broker.</li>
+ * </ul>
+ *
+ * <p>By default, a router intercepts only control-plane traffic (bootstrap
+ * connections where {@code virtualNode()} is empty). Data-plane traffic on
+ * bound connections passes through to the assigned broker without calling
+ * {@link #onRequest}. Routers override {@link #shouldIntercept} to declare
+ * additional API keys they need to intercept.</p>
  *
  * <h2>Observability guidelines for router implementations</h2>
  *
@@ -109,20 +129,41 @@ public interface Router {
     }
 
     /**
-     * <p>Declares API keys that are always forwarded to a fixed named route
-     * without deserialisation. For these API keys the runtime forwards
-     * frames directly (opaque or decoded) without calling
-     * {@link #onRequest}. API keys absent from this map are
-     * considered dynamically routed and will be decoded so that
-     * {@code onRequest} can inspect them.</p>
+     * Whether the router must be invoked for this request. When false the
+     * runtime forwards the frame to the connection's assigned broker
+     * ({@link RouterContext#virtualNode()}) without calling
+     * {@link #onRequest}.
      *
-     * <p>This method may only be called once in the lifetime of a Router.
-     * The runtime is free to call it once and cache the result.</p>
+     * <p>The default implementation intercepts only when there is no assigned
+     * broker (bootstrap connections where {@code virtualNode()} is empty).
+     * This allows data-plane traffic on bound connections to pass through
+     * without decoding or routing decisions.</p>
      *
-     * @return a map from API key to route name; empty means all API keys
-     *         are dynamically routed (the default)
+     * <p><strong>Common patterns:</strong></p>
+     * <ul>
+     *   <li><strong>Single-cluster router</strong>: intercept only on bootstrap
+     *       ({@code virtualNode().isEmpty()}) to assign the cluster, then pass
+     *       through on bound connections (the default behaviour).</li>
+     *   <li><strong>Client-id or subject router</strong>: intercept only on
+     *       bootstrap ({@code virtualNode().isEmpty()}) to make the routing
+     *       decision, then pass through on bound connections.</li>
+     *   <li><strong>Topic router</strong>: intercept on bootstrap plus
+     *       cluster-spanning APIs ({@code METADATA}, {@code FIND_COORDINATOR})
+     *       and coordinator-pinned APIs on bound connections.</li>
+     * </ul>
+     *
+     * <p><strong>Threading model:</strong> Called on the same Netty event loop
+     * thread as {@link #onRequest}. Router implementations do not need to
+     * synchronise access to their own state.</p>
+     *
+     * @param apiKey the API key identifying the request type
+     * @param apiVersion the API version of the request
+     * @param context the router context providing connection state
+     * @return true if the router needs to handle this request via
+     *         {@link #onRequest}, false to forward directly to the assigned
+     *         broker
      */
-    default Map<ApiKeys, String> staticRoutes() {
-        return Map.of();
+    default boolean shouldIntercept(ApiKeys apiKey, short apiVersion, RouterContext context) {
+        return context.virtualNode().isEmpty();
     }
 }

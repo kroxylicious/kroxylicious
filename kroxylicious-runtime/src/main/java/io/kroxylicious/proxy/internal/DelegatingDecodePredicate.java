@@ -5,13 +5,14 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.Set;
-
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
+import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -40,7 +41,8 @@ class DelegatingDecodePredicate implements DecodePredicate {
     private static final Logger LOGGER = LoggerFactory.getLogger(DelegatingDecodePredicate.class);
 
     private @Nullable DecodePredicate delegate = null;
-    private @Nullable Set<ApiKeys> routerRequiresDecoding = null;
+    private @Nullable Router router = null;
+    private @Nullable RouterContext routerContext = null;
 
     DelegatingDecodePredicate() {
     }
@@ -53,11 +55,16 @@ class DelegatingDecodePredicate implements DecodePredicate {
     }
 
     /**
-     * Sets the API keys for which the router requires decoded frames.
-     * These are the dynamically-routed keys that need {@code onClientRequest}.
+     * Sets the router and context for interception checks.
+     * The decode predicate will consult {@link Router#shouldIntercept} to determine
+     * if requests need decoding for router interception.
      */
-    void setRouterDecodingRequirements(@Nullable Set<ApiKeys> dynamicallyRoutedKeys) {
-        this.routerRequiresDecoding = dynamicallyRoutedKeys;
+    void setRouterInterceptionDelegate(Router router, RouterContext context) {
+        LOGGER.atDebug()
+                .addKeyValue("router", router)
+                .log("Setting router interception delegate");
+        this.router = router;
+        this.routerContext = context;
     }
 
     @Override
@@ -71,7 +78,7 @@ class DelegatingDecodePredicate implements DecodePredicate {
         if (delegate.shouldDecodeRequest(apiKey, apiVersion)) {
             return true;
         }
-        return routerRequiresDecoding != null && routerRequiresDecoding.contains(apiKey);
+        return router != null && routerContext != null && router.shouldIntercept(apiKey, apiVersion, routerContext);
     }
 
     @Override
@@ -85,14 +92,27 @@ class DelegatingDecodePredicate implements DecodePredicate {
         if (delegate.shouldDecodeResponse(apiKey, apiVersion)) {
             return true;
         }
-        return routerRequiresDecoding != null && routerRequiresDecoding.contains(apiKey);
+        if (router != null && routerContext != null) {
+            // On bootstrap (unbound) connections, always decode: static pass-through sends
+            // the response through the route filter chain, and route filters' onResponse must
+            // see a DecodedResponseFrame. Dynamic routing also needs decoded bodies for routing
+            // futures and node-ID translation.
+            if (routerContext.virtualNode().isEmpty()) {
+                return true;
+            }
+            // On bound connections: decode when the router intercepts (e.g. AlternatingRouter
+            // intercepts PRODUCE) or when the response carries node IDs that need translation.
+            return router.shouldIntercept(apiKey, apiVersion, routerContext)
+                    || RouterDispatchHandler.NODE_ID_TRANSLATION_APIS.contains(apiKey);
+        }
+        return false;
     }
 
     @Override
     public String toString() {
         return "DelegatingDecodePredicate(" +
                 "delegate=" + delegate +
-                ", routerRequiresDecoding=" + routerRequiresDecoding +
+                ", router=" + router +
                 ')';
     }
 }
