@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -48,6 +49,7 @@ import io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -74,6 +76,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @Nullable
     private final Long unauthenticatedIdleMillis;
     private final VirtualClusterRegistry virtualClusterRegistry;
+    private final ConcurrentHashMap<DynamicRouting, ConcurrentHashMap<Integer, HostPort>> sharedNodeAddressCache = new ConcurrentHashMap<>();
 
     @SuppressWarnings({ "OptionalUsedAsFieldOrParameterType", "java:S107" })
     public KafkaProxyInitializer(PluginFactoryRegistry pfr,
@@ -270,9 +273,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 decodedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_APIS);
                 dp.setRouterDecodingRequirements(decodedKeys);
 
+                var sharedAddresses = sharedNodeAddressCache.computeIfAbsent(dr, k -> new ConcurrentHashMap<>());
                 var dispatchHandler = new RouterDispatchHandler(
-                        router, dr.routeDescriptors(), staticRoutes, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(), dr.nodeIdMapping(),
-                        binding.nodeId());
+                        router, dr.routeDescriptors(), staticRoutes, sharedAddresses, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(),
+                        dr.nodeIdMapping(), binding.nodeId());
                 clientConnectionStateMachine.setRouterActive();
                 clientConnectionStateMachine.setUpstreamAddressResolver(
                         virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)

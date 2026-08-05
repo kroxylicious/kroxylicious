@@ -14,32 +14,42 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.it.testplugins.ForwardingStyle;
+import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
+import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.it.testplugins.router.DynamicProduceRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.filter.record.RecordTestUtils;
 import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,6 +68,11 @@ class RoutingDynamicIT {
     private static final String ROUTE_NAME = "default-route";
     private static final String ROUTER_NAME = "dynamic-produce";
     private static final String TARGET_CLUSTER_NAME = "backing";
+
+    @BeforeEach
+    void resetRouterState() {
+        ContextCapturingRouterFactory.reset();
+    }
 
     private ConfigurationBuilder dynamicRoutingConfig(KafkaCluster cluster) {
         var targetCluster = new ClusterDefinition(TARGET_CLUSTER_NAME, cluster.getBootstrapServers(), null);
@@ -127,6 +142,116 @@ class RoutingDynamicIT {
                     .satisfies(r -> assertThat(r.partitionResponses()).singleElement()
                             .satisfies(p -> assertThat(p.errorCode()).isEqualTo(Errors.NONE.code())));
         }
+    }
+
+    /**
+     * A VC-level filter calls {@code FilterContext.sendRequest()} inside {@code onRequest}
+     * for PRODUCE. The OOB {@code InternalRequestFrame} reaches {@code RouterDispatchHandler}
+     * and enters {@code dispatchDynamically}. The router's response must complete the filter
+     * promise rather than being dispatched to {@code onResponse}, so that PRODUCE can proceed.
+     */
+    @Test
+    void vcFilterOobCompletesWhenApiKeyDynamicallyRouted(KafkaCluster cluster, Topic topic) {
+        var filterName = "oob-filter";
+
+        // Given: VC-level filter that sends an OOB from onRequest for PRODUCE
+        var filterDef = new NamedFilterDefinitionBuilder(filterName, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(ApiKeys.PRODUCE),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", filterName,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+        var config = contextCapturingConfigWithVcFilter(cluster, filterDef);
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer()) {
+
+            // When
+            var send = producer.send(new ProducerRecord<>(topic.name(), "key", "value"));
+
+            // Then: the OOB must complete so PRODUCE can reach the broker
+            assertThat(send)
+                    .as("PRODUCE must succeed: VC filter OOB must complete when API key is dynamically routed")
+                    .succeedsWithin(Duration.ofSeconds(10));
+        }
+    }
+
+    /**
+     * When a client connects to a per-node port before the proxy has learned the upstream
+     * topology, {@code EagerMetadataLearner} fires an OOB METADATA request. The OOB
+     * response must complete the filter promise so the connection closes and the client can
+     * reconnect to the correct broker.
+     */
+    @Test
+    void eagerMetadataLearnerOobCompletesWhenApiKeyDynamicallyRouted(KafkaCluster cluster, Topic topic) {
+        // Given
+        var config = contextCapturingConfigWithNodePort(cluster);
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
+
+            // When: first connection to per-node port triggers EagerMetadataLearner OOB
+            var firstFuture = tester.simpleTestClient("localhost:9193", false)
+                    .get(new Request(ApiKeys.METADATA, (short) 12, "init", new MetadataRequestData()));
+
+            // Then: EagerMetadataLearner must receive the METADATA response and close
+            assertThat(firstFuture)
+                    .as("EagerMetadataLearner OOB METADATA must complete so the first connection returns and closes")
+                    .succeedsWithin(Duration.ofSeconds(5));
+            assertThat(firstFuture.toCompletableFuture().join().payload().message())
+                    .isInstanceOf(MetadataResponseData.class);
+
+            // When: second connection to the same port, upstream topology now known
+            try (var secondClient = tester.simpleTestClient("localhost:9193", false)) {
+                var response = secondClient.getSync(produceRequest(topic.name(), (short) 1));
+
+                // Then: PRODUCE succeeds normally on the second connection
+                assertThat(response.payload().message()).isInstanceOf(ProduceResponseData.class);
+                var produceResponse = (ProduceResponseData) response.payload().message();
+                assertThat(produceResponse.responses())
+                        .singleElement()
+                        .satisfies(r -> assertThat(r.partitionResponses()).singleElement()
+                                .satisfies(p -> assertThat(p.errorCode()).isEqualTo(Errors.NONE.code())));
+            }
+        }
+    }
+
+    private ConfigurationBuilder contextCapturingConfigWithVcFilter(KafkaCluster cluster, NamedFilterDefinition filterDef) {
+        var clusterDef = new ClusterDefinition(TARGET_CLUSTER_NAME, cluster.getBootstrapServers(), null);
+        var route = new RouteDefinition(ROUTE_NAME, 0, List.of(), new RouteTarget(TARGET_CLUSTER_NAME, null));
+        var routerDef = new RouterDefinition(ROUTER_NAME, ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config(ROUTE_NAME), List.of(route));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .withFilters(List.of(filterDef.name()))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToFilterDefinitions(filterDef)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+    }
+
+    private ConfigurationBuilder contextCapturingConfigWithNodePort(KafkaCluster cluster) {
+        var clusterDef = new ClusterDefinition(TARGET_CLUSTER_NAME, cluster.getBootstrapServers(), null);
+        var route = new RouteDefinition(ROUTE_NAME, 0, List.of(), new RouteTarget(TARGET_CLUSTER_NAME, null));
+        var routerDef = new RouterDefinition(ROUTER_NAME, ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config(ROUTE_NAME), List.of(route));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .addToGateways(defaultGatewayBuilder()
+                        .withNewPortIdentifiesNode()
+                        .withBootstrapAddress(HostPort.parse("localhost:9192"))
+                        .withNodeIdRanges(new NamedRange("nodes", 0, 0))
+                        .endPortIdentifiesNode()
+                        .build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
     }
 
     private static Request produceRequest(String topicName, short acks) {

@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -28,11 +29,16 @@ import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
+import io.kroxylicious.proxy.internal.InternalRequestFrame;
+import io.kroxylicious.proxy.internal.InternalResponseFrame;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -53,6 +59,9 @@ class RouterDispatchHandlerTest {
 
     @Mock
     private ClientConnectionStateMachine ccsm;
+
+    @Mock
+    private Filter filter;
 
     private EmbeddedChannel channel;
 
@@ -465,6 +474,42 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
+    void metadataRoutingResponseShouldPopulateSharedNodeAddressMap() {
+        // Given
+        when(ccsm.sessionId()).thenReturn("test-session");
+        var sharedAddresses = new HashMap<Integer, HostPort>();
+        var handler = new RouterDispatchHandler(
+                router,
+                Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
+                Map.of(), sharedAddresses, ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+        channel = channelWithTerminal(handler);
+
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.METADATA.id)
+                .setRequestApiVersion((short) 12);
+        handler.sendToAnyNode(DEFAULT_ROUTE, header, new MetadataRequestData(), "test-session", 100);
+
+        int routingCorrelationId = Integer.MIN_VALUE / 2;
+        var broker = new MetadataResponseData.MetadataResponseBroker()
+                .setNodeId(0).setHost("broker0").setPort(9092);
+        var md = new MetadataResponseData();
+        md.brokers().add(broker);
+        var responseFrame = new DecodedResponseFrame<>((short) 12, routingCorrelationId, new ResponseHeaderData(), md);
+
+        // When
+        channel.writeOutbound(responseFrame);
+
+        // Then: shared map contains the address learned from the METADATA response
+        assertThat(handler.resolveRouterNodeAddress(0))
+                .isPresent()
+                .hasValueSatisfying(hp -> {
+                    assertThat(hp.host()).isEqualTo("broker0");
+                    assertThat(hp.port()).isEqualTo(9092);
+                });
+        assertThat(sharedAddresses).containsKey(0);
+    }
+
+    @Test
     void writeShouldCloseChannelForUnmatchedRoutingCorrelationId() {
         // Given
         when(ccsm.sessionId()).thenReturn("test-session");
@@ -631,5 +676,184 @@ class RouterDispatchHandlerTest {
         // Then
         assertThat(future.toCompletableFuture()).isCompletedExceptionally();
         assertThat(handler.pendingResponses).isEmpty();
+    }
+
+    @Test
+    void oobFrameRespondWithErrorShouldCompletePromiseExceptionally() {
+        // Given: OOB whose router returns RespondWithError — sequence slot was already skipped for OOB;
+        // deliverResponse must NOT call responseSequencer.submit() with the already-skipped slot.
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(DEFAULT_ROUTE);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithError(new RequestHeaderData(), new ProduceRequestData(), new UnknownServerException("oob-error"), false)));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then: OOB promise must be completed exceptionally — not orphaned in the sequencer
+        assertThat(promise).isCompletedExceptionally();
+    }
+
+    @Test
+    void oobFrameRespondWithoutReplyShouldCompletePromise() {
+        // Given: OOB whose router returns RespondWithoutReply — same orphan risk as RespondWithError.
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(DEFAULT_ROUTE);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new RouterResponseImpl.RespondWithoutReply(false)));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then: OOB promise must be completed — not orphaned in the sequencer
+        assertThat(promise).isDone();
+    }
+
+    @Test
+    void oobFrameRespondWithShouldDeliverInternalResponseFrame() {
+        // Given
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(DEFAULT_ROUTE);
+        var body = new ProduceResponseData();
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new RouterResponseImpl.RespondWith(null, body, false)));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then: InternalResponseFrame delivered directly (not a plain DecodedResponseFrame)
+        var out = channel.readOutbound();
+        assertThat(out).isInstanceOf(InternalResponseFrame.class);
+        InternalResponseFrame<?> irf = (InternalResponseFrame<?>) out;
+        assertThat(irf.correlationId()).isEqualTo(CORRELATION_ID);
+        assertThat(irf.routeName()).isEqualTo(DEFAULT_ROUTE);
+        assertThat(irf.promise()).isSameAs(promise);
+    }
+
+    @Test
+    void oobFrameShouldSkipSequenceImmediately() {
+        // Given: first request is an OOB whose router future is held pending; second is a regular request
+        var pendingOobFuture = new CompletableFuture<RouterResponse>();
+        var oob = oobProduceFrame(CORRELATION_ID, new CompletableFuture<>());
+        var regularFrame = produceFrame(CORRELATION_ID + 1);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(pendingOobFuture.minimalCompletionStage())
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWith(null, new ProduceResponseData(), false)));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When: OOB is sent first (pending), then a regular frame is sent
+        channel.writeInbound(oob);
+        channel.writeInbound(regularFrame);
+        channel.runPendingTasks();
+
+        // Then: regular frame's response arrives immediately — not blocked by the pending OOB sequence
+        DecodedResponseFrame<?> out = channel.readOutbound();
+        assertThat(out)
+                .as("regular frame response must not be blocked by the pending OOB sequence slot")
+                .isNotNull();
+        assertThat(out.correlationId()).isEqualTo(CORRELATION_ID + 1);
+    }
+
+    @Test
+    void oobFrameErrorShouldCloseChannelWithoutDoubleSkip() {
+        // Given
+        var oob = oobProduceFrame(CORRELATION_ID, new CompletableFuture<>());
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("boom")));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then: channel is closed; no exception (sequence not skipped twice)
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void oobFrameNullResultShouldCloseChannelAndCompletePromiseExceptionally() {
+        // Given
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(DEFAULT_ROUTE);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+        assertThat(promise).isCompletedExceptionally();
+    }
+
+    @Test
+    void oobFrameUnrecognisedResultTypeShouldCloseChannelAndCompletePromiseExceptionally() {
+        // Given
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(DEFAULT_ROUTE);
+        RouterResponse unknown = new RouterResponse() {
+        };
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(unknown));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+        assertThat(promise).isCompletedExceptionally();
+    }
+
+    private InternalRequestFrame<ProduceRequestData> oobProduceFrame(int correlationId, CompletableFuture<?> promise) {
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiVersion((short) 9)
+                .setCorrelationId(correlationId);
+        return new InternalRequestFrame<>((short) 9, correlationId, true, filter, promise, header, new ProduceRequestData());
     }
 }

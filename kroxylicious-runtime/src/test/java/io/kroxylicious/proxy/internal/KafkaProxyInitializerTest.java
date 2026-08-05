@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -48,6 +49,7 @@ import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
@@ -59,7 +61,12 @@ import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
+import io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static io.kroxylicious.proxy.internal.KafkaProxyInitializer.LOGGING_INBOUND_ERROR_HANDLER_NAME;
@@ -406,6 +413,35 @@ class KafkaProxyInitializerTest {
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
         return createKafkaProxyInitializer(tls, ProxyProtocolMode.DISABLED, bindingResolver);
+    }
+
+    @Test
+    void shouldAddRouterDispatchHandlerForDynamicRoutingOnBindingComplete() {
+        // Given
+        var routerChainFactory = mock(RouterChainFactory.class);
+        var router = mock(Router.class);
+        when(routerChainFactory.createRouter(any(), any())).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of());
+
+        virtualClusterModel = buildDynamicRoutingVirtualCluster(routerChainFactory);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initConnection(channel, endpointBinding, new KafkaSession(KafkaSessionState.ESTABLISHING));
+
+        // Then
+        verify(channelPipeline).addLast(eq("routerDispatchHandler"), isA(RouterDispatchHandler.class));
+        verify(channelPipeline).addLast(eq("routingTerminalHandler"), isA(RoutingTerminalHandler.class));
+    }
+
+    private VirtualClusterModel buildDynamicRoutingVirtualCluster(RouterChainFactory routerChainFactory) {
+        var route = new RouteDescriptor("default", 0, new TargetCluster("localhost:9090", Optional.empty()), null, List.of());
+        var routing = new DynamicRouting("test-router", Map.of("default", route), routerChainFactory);
+        VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", routing, false, false, List.of(),
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+        testCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
+        return testCluster;
     }
 
     @SuppressWarnings("DataFlowIssue")
