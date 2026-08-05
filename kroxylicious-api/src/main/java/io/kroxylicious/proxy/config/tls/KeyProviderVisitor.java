@@ -12,8 +12,18 @@ package io.kroxylicious.proxy.config.tls;
  */
 public interface KeyProviderVisitor<T> {
 
+    /**
+     * Visits a {@link KeyPair}.
+     * @param keyPair the key pair being visited
+     * @return the result of the visit
+     */
     T visit(KeyPair keyPair);
 
+    /**
+     * Visits a {@link KeyStore}.
+     * @param keyStore the key store being visited
+     * @return the result of the visit
+     */
     T visit(KeyStore keyStore);
 
 }

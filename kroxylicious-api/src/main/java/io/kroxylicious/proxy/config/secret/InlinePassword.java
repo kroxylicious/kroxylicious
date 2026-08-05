@@ -18,6 +18,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public record InlinePassword(@JsonProperty(required = true) String password) implements PasswordProvider {
 
+    /**
+     * Creates an InlinePassword.
+     * @param password the password
+     */
     public InlinePassword {
         Objects.requireNonNull(password);
     }

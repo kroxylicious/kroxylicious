@@ -29,6 +29,7 @@ public interface FilterDispatchExecutor extends ScheduledExecutorService {
 
     /**
      * Returns true if {@link Thread#currentThread()} is this Filter Dispatch Thread.
+     * @return true if {@link Thread#currentThread()} is this Filter Dispatch Thread
      */
     boolean isInFilterDispatchThread();
 

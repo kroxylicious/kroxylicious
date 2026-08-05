@@ -31,6 +31,12 @@ public record KeyPair(@JsonProperty(required = true) String privateKeyFile,
                       @JsonProperty(value = "keyPassword") @Nullable PasswordProvider keyPasswordProvider)
         implements KeyProvider {
 
+    /**
+     * Creates a KeyPair.
+     * @param privateKeyFile      location of a file containing the private key.
+     * @param certificateFile     location of a file containing the certificate and intermediates.
+     * @param keyPasswordProvider provider for the privateKeyFile password or null if key does not require a password
+     */
     public KeyPair {
         Objects.requireNonNull(privateKeyFile);
         Objects.requireNonNull(certificateFile);

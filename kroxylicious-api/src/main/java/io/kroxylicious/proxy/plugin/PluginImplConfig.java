@@ -23,6 +23,7 @@ public @interface PluginImplConfig {
 
     /**
      * Returns the name of the {@link PluginImplName @PluginImplName}-annotated sibling property.
+     * @return the name of the {@link PluginImplName @PluginImplName}-annotated sibling property
      */
     String implNameProperty();
 }

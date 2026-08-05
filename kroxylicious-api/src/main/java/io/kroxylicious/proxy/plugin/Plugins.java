@@ -8,6 +8,9 @@ package io.kroxylicious.proxy.plugin;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Utility methods for use by plugin implementations.
+ */
 public class Plugins {
     private Plugins() {
     }

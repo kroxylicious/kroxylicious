@@ -6,9 +6,15 @@
 
 package io.kroxylicious.proxy.config.tls;
 
+/**
+ * A {@link TrustProvider} that uses the platform's default trust anchors.
+ */
 @SuppressWarnings("java:S6548")
 public class PlatformTrustProvider implements TrustProvider {
 
+    /**
+     * The singleton instance of this trust provider.
+     */
     public static final PlatformTrustProvider INSTANCE = new PlatformTrustProvider();
 
     private PlatformTrustProvider() {
