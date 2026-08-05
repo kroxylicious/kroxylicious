@@ -249,8 +249,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         var builder = LocallyRunOperatorExtension.builder()
                 .withKubernetesClient(rbacHandler.operatorClient())
                 .waitForNamespaceDeletion(false)
-                .oneNamespacePerClass(true)
-                .withConfigurationService(x -> x.withCloseClientOnStop(false));
+                .oneNamespacePerClass(true);
         reconcilers.forEach(builder::withReconciler);
         // Always install all standard Kroxylicious CRDs — applyCrd is idempotent (createOrReplace)
         Stream.of(KafkaProxy.class, VirtualKafkaCluster.class, KafkaService.class,
