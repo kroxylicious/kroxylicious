@@ -16,5 +16,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonSubTypes({ @JsonSubTypes.Type(InlinePassword.class), @JsonSubTypes.Type(FilePassword.class) })
 @SuppressWarnings("java:S5738") // java:S5738 warns of the use of the deprecated class.
 public interface PasswordProvider {
+    /**
+     * Returns the password supplied by this provider.
+     * @return the password
+     */
     String getProvidedPassword();
 }

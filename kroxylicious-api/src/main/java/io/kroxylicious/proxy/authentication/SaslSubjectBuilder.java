@@ -24,7 +24,7 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
  * from the mechanism of SASL authentication.
  * SASL-authenticating filters are not obliged to use this abstraction.</p>
  *
- * <p>{@link TransportSubjectBuilder} is a similar interface use for building a
+ * <p>{@link TransportSubjectBuilder} is a similar interface used for building a
  * {@code Subject} based on transport-layer information.
  * However, note that a {@code SaslSubjectBuilder} is not specified directly
  * on a virtual cluster as a {@code TransportSubjectBuilder} is.</p>
@@ -46,11 +46,13 @@ public interface SaslSubjectBuilder {
     interface Context {
         /**
          * Returns the TLS context for the client connection, or empty if the client connection is not TLS.
+         * @return The TLS context for the client connection, or empty if the client connection is not TLS.
          */
         Optional<ClientTlsContext> clientTlsContext();
 
         /**
          * Returns the SASL context for the client connection.
+         * @return The SASL context for the client connection.
          */
         ClientSaslContext clientSaslContext();
     }

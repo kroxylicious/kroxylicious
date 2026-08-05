@@ -16,7 +16,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
- * A {@link KeyProvider} backed by a Java Truststore.
+ * A {@link KeyProvider} backed by a Java Keystore.
  *
  * @param storeFile             location of a key store, or reference to a PEM file containing both private-key and certificate/intermediates.
  * @param storePasswordProvider provider for the store password or null if store does not require a password.
@@ -31,14 +31,30 @@ public record KeyStore(@JsonProperty(required = true) String storeFile,
                        String storeType)
         implements KeyProvider {
 
+    /**
+     * Creates a KeyStore.
+     * @param storeFile             location of a key store, or reference to a PEM file containing both private-key and certificate/intermediates.
+     * @param storePasswordProvider provider for the store password or null if store does not require a password.
+     * @param keyPasswordProvider   provider for the key password. if null the password obtained from the storePasswordProvider will be used to decrypt the key.
+     * @param storeType             specifies the server key type. Legal values are those types supported by the platform {@link java.security.KeyStore},
+     *                              and PEM (for X-509 certificates express in PEM format).
+     */
     public KeyStore {
         Objects.requireNonNull(storeFile);
     }
 
+    /**
+     * Returns the store type, defaulting to the platform default store type if no store type was specified.
+     * @return the store type
+     */
     public String getType() {
         return Tls.getStoreTypeOrPlatformDefault(storeType);
     }
 
+    /**
+     * Indicates whether the store is in PEM format.
+     * @return true if the store type is PEM
+     */
     public boolean isPemType() {
         return Objects.equals(getType(), Tls.PEM);
     }

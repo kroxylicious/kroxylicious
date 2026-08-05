@@ -12,10 +12,25 @@ package io.kroxylicious.proxy.config.tls;
  */
 public interface TrustProviderVisitor<T> {
 
+    /**
+     * Visits a {@link TrustStore}.
+     * @param trustStore the trust store being visited
+     * @return the result of the visit
+     */
     T visit(TrustStore trustStore);
 
+    /**
+     * Visits an {@link InsecureTls}.
+     * @param insecureTls the insecure TLS configuration being visited
+     * @return the result of the visit
+     */
     T visit(InsecureTls insecureTls);
 
+    /**
+     * Visits a {@link PlatformTrustProvider}.
+     * @param platformTrustProviderTls the platform trust provider being visited
+     * @return the result of the visit
+     */
     T visit(PlatformTrustProvider platformTrustProviderTls);
 
 }

@@ -6,9 +6,22 @@
 
 package io.kroxylicious.proxy.authentication;
 
+/**
+ * The service interface used to construct a {@link SaslSubjectBuilder}.
+ *
+ * @param <C> The configuration type consumed by the particular {@link SaslSubjectBuilder} implementation.
+ */
 public interface SaslSubjectBuilderService<C> extends AutoCloseable {
+    /**
+     * Initializes this service with its configuration.
+     * @param config The service configuration.
+     */
     void initialize(C config);
 
+    /**
+     * Builds a {@link SaslSubjectBuilder}.
+     * @return The builder.
+     */
     SaslSubjectBuilder build();
 
     @Override

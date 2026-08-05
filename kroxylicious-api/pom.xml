@@ -25,7 +25,6 @@
         <libs.dir>libs</libs.dir>
         <ApiCompatability.ReferenceVersion>0.23.0</ApiCompatability.ReferenceVersion>
         <ApiCompatability.EnforceForMajorVersionZero>true</ApiCompatability.EnforceForMajorVersionZero>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <name>Kroxylicious API</name>

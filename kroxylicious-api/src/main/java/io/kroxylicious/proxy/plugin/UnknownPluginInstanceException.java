@@ -11,10 +11,19 @@ package io.kroxylicious.proxy.plugin;
  */
 public class UnknownPluginInstanceException extends RuntimeException {
 
+    /**
+     * Creates a new exception with the given message.
+     * @param message The detail message.
+     */
     public UnknownPluginInstanceException(String message) {
         super(message);
     }
 
+    /**
+     * Creates a new exception with the given message and cause.
+     * @param message The detail message.
+     * @param cause The cause.
+     */
     public UnknownPluginInstanceException(String message, Throwable cause) {
         super(message, cause);
     }

@@ -14,21 +14,43 @@ import org.apache.kafka.common.protocol.Errors;
  * Indicates there was some problem obtaining a name for a topic id
  */
 public class TopicNameMappingException extends RuntimeException {
+    /**
+     * The kafka error underlying this exception.
+     */
     private final Errors error;
 
+    /**
+     * Creates a new exception for the given error, using the error's default message and exception.
+     * @param error the kafka error underlying this exception
+     */
     public TopicNameMappingException(Errors error) {
         this(error, error.message(), error.exception());
     }
 
+    /**
+     * Creates a new exception for the given error with a custom message.
+     * @param error the kafka error underlying this exception
+     * @param message the detail message
+     */
     public TopicNameMappingException(Errors error, String message) {
         this(error, message, error.exception());
     }
 
+    /**
+     * Creates a new exception for the given error with a custom message and cause.
+     * @param error the kafka error underlying this exception
+     * @param message the detail message
+     * @param cause the cause
+     */
     public TopicNameMappingException(Errors error, String message, Throwable cause) {
         super(message, cause);
         this.error = Objects.requireNonNull(error);
     }
 
+    /**
+     * Returns the kafka error underlying this exception.
+     * @return the kafka error underlying this exception
+     */
     public Errors getError() {
         return error;
     }
