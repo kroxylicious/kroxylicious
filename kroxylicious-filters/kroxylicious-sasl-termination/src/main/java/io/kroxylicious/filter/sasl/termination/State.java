@@ -44,8 +44,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  *         is required to negotiate the mechanism.</li>
  *     <li><strong>RequiringAuthenticate</strong> - Handshake complete. Waiting for
  *         authentication request(s). May loop for multi-round mechanisms like SCRAM.</li>
- *     <li><strong>Authenticated</strong> - Terminal state. Authentication succeeded.
- *         Client may now send other Kafka requests.</li>
+ *     <li><strong>Authenticated</strong> - Authentication succeeded.
+ *         Client may now send other Kafka requests. Not terminal: reauthentication (KIP-368) is permitted.</li>
  *     <li><strong>Failed</strong> - Terminal state. Authentication failed. Connection
  *         should be closed.</li>
  * </ul>
@@ -89,9 +89,9 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
     }
 
     /**
-     * Check if in a terminal state (success or failure).
+     * Check if in a terminal (failure) state.
      *
-     * @return true if authenticated or failed
+     * @return true if in the Failed state
      */
     default boolean isTerminal() {
         return isFailed();
@@ -113,7 +113,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          * @return the requiring authenticate state
          */
         public RequiringAuthenticate nextState(MechanismStateMachine mechanismStateMachine, long authStartNanos) {
-            return new RequiringAuthenticate(mechanismStateMachine, authStartNanos);
+            return new RequiringAuthenticate(mechanismStateMachine, authStartNanos, null);
         }
 
         @Override
@@ -132,10 +132,13 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
 
         private final MechanismStateMachine mechanismStateMachine;
         private final long authStartNanos;
+        @Nullable
+        private final String previousAuthorizationId;
 
-        private RequiringAuthenticate(MechanismStateMachine mechanismStateMachine, long authStartNanos) {
+        private RequiringAuthenticate(MechanismStateMachine mechanismStateMachine, long authStartNanos, @Nullable String previousAuthorizationId) {
             this.mechanismStateMachine = mechanismStateMachine;
             this.authStartNanos = authStartNanos;
+            this.previousAuthorizationId = previousAuthorizationId;
         }
 
         /**
@@ -154,6 +157,16 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          */
         public long authStartNanos() {
             return authStartNanos;
+        }
+
+        /**
+         * Get the authorization ID from the previous authentication, if this is a reauthentication.
+         *
+         * @return the previous authorization ID, or null if this is an initial authentication
+         */
+        @Nullable
+        public String previousAuthorizationId() {
+            return previousAuthorizationId;
         }
 
         /**
@@ -199,6 +212,10 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
     /**
      * Authentication succeeded. Allows reauthentication (KIP-368) by
      * transitioning back to {@link RequiringAuthenticate}.
+     * Note that {@link Authenticated} is never truly terminal in the state machine sense.
+     * The reauthentication transition is allowed unconditionally, because even when
+     * {@link SaslTerminationConfig#maxTimeBeforeReauth()} is null or zero a client is
+     * free to reauthenticate voluntarily.
      */
     final class Authenticated implements State {
 
@@ -250,7 +267,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          * @return the requiring authenticate state
          */
         public RequiringAuthenticate nextStateReauthenticate(MechanismStateMachine mechanismStateMachine, long authStartNanos) {
-            return new RequiringAuthenticate(mechanismStateMachine, authStartNanos);
+            return new RequiringAuthenticate(mechanismStateMachine, authStartNanos, authorizationId);
         }
 
         @Override

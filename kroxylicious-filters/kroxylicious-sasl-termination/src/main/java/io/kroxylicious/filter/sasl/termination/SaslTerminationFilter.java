@@ -78,6 +78,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
     static final String AUTH_DURATION_METRIC = "kroxylicious_filter_sasl_termination_auth_duration_seconds";
     static final String SESSION_EXPIRED_METRIC = "kroxylicious_filter_sasl_termination_session_expired_total";
     private static final String MECHANISM_TAG = "mechanism";
+    static final String VIRTUAL_CLUSTER_TAG = "virtual_cluster";
 
     private static final Set<Short> FILTERED_API_KEYS = Set.of(
             ApiKeys.CREATE_DELEGATION_TOKEN.id,
@@ -159,21 +160,20 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                                                                         FilterContext filterContext) {
 
         if (!(state instanceof State.RequiringHandshake) && !(state instanceof State.Authenticated)) {
-            LOGGER.atWarn()
-                    .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
-                    .addKeyValue(LOG_KEY_STATE, state)
-                    .log("Received SASL handshake in unexpected state");
-            return filterContext.requestFilterResultBuilder()
-                    .shortCircuitResponse(new SaslHandshakeResponseData()
-                            .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
-                            .setMechanisms(List.of()))
-                    .completed();
+            return unexpectedHandshakeErrorResponse(filterContext);
         }
 
         String mechanism = request.mechanism();
 
+        if (state instanceof State.Authenticated authenticated && !mechanism.equals(authenticated.mechanismName())) {
+            return reauthenticationRejectedResponseAndClose(filterContext, authenticated, mechanism);
+        }
+
         MechanismStateMachine stateMachine = createStateMachine(mechanism);
-        if (stateMachine != null) {
+        if (stateMachine == null) {
+            return unsupportedMechanismResponseAndClose(filterContext, mechanism);
+        }
+        else {
             long authStartNanos = System.nanoTime();
             if (state instanceof State.RequiringHandshake handshake) {
                 state = handshake.nextState(stateMachine, authStartNanos);
@@ -192,18 +192,49 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                             .setMechanisms(List.of()))
                     .completed();
         }
-        else {
-            LOGGER.atDebug()
-                    .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
-                    .addKeyValue(LOG_KEY_MECHANISM, mechanism)
-                    .log("Unsupported mechanism");
-            return filterContext.requestFilterResultBuilder()
-                    .shortCircuitResponse(new SaslHandshakeResponseData()
-                            .setErrorCode(Errors.UNSUPPORTED_SASL_MECHANISM.code())
-                            .setMechanisms(List.copyOf(context.supportedMechanisms())))
-                    .withCloseConnection()
-                    .completed();
-        }
+    }
+
+    @NonNull
+    private CompletionStage<RequestFilterResult> unsupportedMechanismResponseAndClose(FilterContext filterContext, String mechanism) {
+        LOGGER.atDebug()
+                .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_MECHANISM, mechanism)
+                .log("Unsupported mechanism");
+        return filterContext.requestFilterResultBuilder()
+                .shortCircuitResponse(new SaslHandshakeResponseData()
+                        .setErrorCode(Errors.UNSUPPORTED_SASL_MECHANISM.code())
+                        .setMechanisms(List.copyOf(context.supportedMechanisms())))
+                .withCloseConnection()
+                .completed();
+    }
+
+    @NonNull
+    private static CompletionStage<RequestFilterResult> reauthenticationRejectedResponseAndClose(FilterContext filterContext, State.Authenticated authenticated,
+                                                                                              String mechanism) {
+        LOGGER.atWarn()
+                .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_MECHANISM, mechanism)
+                .addKeyValue("previousMechanism", authenticated.mechanismName())
+                .log("Reauthentication rejected: mechanism change not permitted");
+        return filterContext.requestFilterResultBuilder()
+                .shortCircuitResponse(new SaslHandshakeResponseData()
+                        .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
+                        .setMechanisms(List.of()))
+                .withCloseConnection()
+                .completed();
+    }
+
+    @NonNull
+    private CompletionStage<RequestFilterResult> unexpectedHandshakeErrorResponse(FilterContext filterContext) {
+        LOGGER.atWarn()
+                .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_STATE, state)
+                .log("Received SASL handshake in unexpected state");
+        return filterContext.requestFilterResultBuilder()
+                .shortCircuitResponse(new SaslHandshakeResponseData()
+                        .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
+                        .setMechanisms(List.of()))
+                .completed();
     }
 
     @Nullable
@@ -223,16 +254,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                                                                            FilterContext filterContext) {
 
         if (!(state instanceof State.RequiringAuthenticate authenticating)) {
-            LOGGER.atWarn()
-                    .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
-                    .addKeyValue(LOG_KEY_STATE, state)
-                    .log("Received SASL authenticate in unexpected state");
-            return filterContext.requestFilterResultBuilder()
-                    .shortCircuitResponse(new SaslAuthenticateResponseData()
-                            .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
-                            .setErrorMessage("Authentication not in progress")
-                            .setAuthBytes(new byte[0]))
-                    .completed();
+            return unexpectedAuthenticatedErrorResponse(filterContext);
         }
 
         MechanismStateMachine stateMachine = authenticating.mechanismStateMachine();
@@ -263,6 +285,20 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                 });
     }
 
+    @NonNull
+    private CompletionStage<RequestFilterResult> unexpectedAuthenticatedErrorResponse(FilterContext filterContext) {
+        LOGGER.atWarn()
+                .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_STATE, state)
+                .log("Received SASL authenticate in unexpected state");
+        return filterContext.requestFilterResultBuilder()
+                .shortCircuitResponse(new SaslAuthenticateResponseData()
+                        .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
+                        .setErrorMessage("Authentication not in progress")
+                        .setAuthBytes(new byte[0]))
+                .completed();
+    }
+
     private CompletionStage<RequestFilterResult> processRoundResult(
                                                                     RoundResult result,
                                                                     MechanismStateMachine stateMachine,
@@ -291,7 +327,17 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         Instant sessionExpiry = sessionLifetimeMs > 0 ? clock.instant().plusMillis(sessionLifetimeMs) : null;
 
         if (state instanceof State.RequiringAuthenticate authenticating) {
-            recordAuthDuration(mechanism, authenticating.authStartNanos());
+            String previousAuthorizationId = authenticating.previousAuthorizationId();
+            if (previousAuthorizationId != null && !previousAuthorizationId.equals(authorizationId)) {
+                LOGGER.atWarn()
+                        .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                        .addKeyValue("previousAuthorizationId", previousAuthorizationId)
+                        .addKeyValue("newAuthorizationId", authorizationId)
+                        .log("Reauthentication rejected: authorization ID changed");
+                return handleAuthenticationFailure(stateMachine, filterContext,
+                        new org.apache.kafka.common.errors.SaslAuthenticationException("Reauthentication failed: authorization identity changed"));
+            }
+            recordAuthDuration(mechanism, filterContext.getVirtualClusterName(), authenticating.authStartNanos());
             state = authenticating.nextStateSuccess(authorizationId, mechanism, sessionExpiry);
         }
 
@@ -364,7 +410,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                 .log("Authentication failed");
 
         if (state instanceof State.RequiringAuthenticate authenticating) {
-            recordAuthDuration(stateMachine.mechanismName(), authenticating.authStartNanos());
+            recordAuthDuration(stateMachine.mechanismName(), filterContext.getVirtualClusterName(), authenticating.authStartNanos());
             state = authenticating.nextStateFailure(exception.getMessage());
         }
 
@@ -391,6 +437,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
             if (expiry != null && clock.instant().isAfter(expiry)) {
                 Counter.builder(SESSION_EXPIRED_METRIC)
                         .tag(MECHANISM_TAG, authenticated.mechanismName())
+                        .tag(VIRTUAL_CLUSTER_TAG, filterContext.getVirtualClusterName())
                         .register(Metrics.globalRegistry)
                         .increment();
                 LOGGER.atDebug()
@@ -460,10 +507,11 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         return future;
     }
 
-    private static void recordAuthDuration(String mechanism, long authStartNanos) {
+    private static void recordAuthDuration(String mechanism, String virtualClusterName, long authStartNanos) {
         long durationNanos = System.nanoTime() - authStartNanos;
         Timer.builder(AUTH_DURATION_METRIC)
                 .tag(MECHANISM_TAG, mechanism)
+                .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
                 .register(Metrics.globalRegistry)
                 .record(durationNanos, TimeUnit.NANOSECONDS);
     }

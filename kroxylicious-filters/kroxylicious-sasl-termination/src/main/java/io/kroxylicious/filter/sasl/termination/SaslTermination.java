@@ -98,11 +98,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
             implements AutoCloseable {
         @Override
         public void close() {
-            RuntimeException firstException = closeSafely(() -> {
-                if (oauthCallbackHandler != null) {
-                    oauthCallbackHandler.close();
-                }
-            }, null);
+            RuntimeException firstException = null;
             for (var closeable : closeables()) {
                 firstException = closeSafely(closeable, firstException);
             }
@@ -176,13 +172,14 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
                                                                              List<AutoCloseable> closeables) {
         OAuthBearerSaslServerProvider.initialize();
         String jwksUrl = config.jwksEndpointUrl().toString();
-        addAllowedSaslOauthbearerUrl(jwksUrl, closeables);
 
         OAuthBearerValidatorCallbackHandler callbackHandler = new OAuthBearerValidatorCallbackHandler();
         callbackHandler.configure(
                 createOauthSaslConfigMap(config),
                 OAUTHBEARER_MECHANISM,
                 createDefaultJaasConfig());
+        closeables.add(callbackHandler::close);
+        addAllowedSaslOauthbearerUrl(jwksUrl, closeables);
 
         LOGGER.atInfo()
                 .addKeyValue("jwksEndpointUrl", jwksUrl)
@@ -295,6 +292,9 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
                 .map(String::trim)
                 .filter(element -> !element.isEmpty())
                 .toList();
+        if (audience.isEmpty()) {
+            throw new PluginConfigurationException("expectedAudience must contain at least one non-empty audience value");
+        }
         saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_EXPECTED_AUDIENCE, audience);
         saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_EXPECTED_ISSUER, config.expectedIssuer());
 

@@ -25,6 +25,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -32,6 +33,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static io.kroxylicious.filter.sasl.termination.SaslTermination.ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -244,6 +246,21 @@ class SaslTerminationTest {
                         org.apache.kafka.common.config.SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS)
                 .containsEntry(org.apache.kafka.common.config.SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS,
                         org.apache.kafka.common.config.SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { ",,,  ,", ",", "  ,  ,  " })
+    void shouldRejectExpectedAudienceWithNoValidEntries(String audience) {
+        // Given
+        var config = new OauthBearerMechanismConfig(
+                URI.create("https://idp.example.com/.well-known/jwks.json"),
+                audience, "https://idp.example.com",
+                null, null, null, null, null);
+
+        // When / Then
+        assertThatThrownBy(() -> SaslTermination.createOauthSaslConfigMap(config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("expectedAudience");
     }
 
     @Test
@@ -597,6 +614,7 @@ class SaslTerminationTest {
         var result = mock(RequestFilterResult.class);
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
+        when(filterContext.getVirtualClusterName()).thenReturn("test-cluster");
         when(builder.shortCircuitResponse(any())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.withCloseConnection()).thenReturn(terminal);
         when(terminal.completed()).thenReturn(CompletableFuture.completedFuture(result));

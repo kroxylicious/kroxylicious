@@ -140,6 +140,19 @@ class StateTest {
         assertThat(reauth.mechanismStateMachine()).isSameAs(handler2);
         assertThat(reauth.isAuthenticated()).isFalse();
         assertThat(reauth.isTerminal()).isFalse();
+        assertThat(reauth.previousAuthorizationId()).isEqualTo("alice");
+    }
+
+    @Test
+    void shouldHaveNullPreviousAuthorizationIdOnInitialAuth() {
+        // Given
+        State.RequiringHandshake initial = State.start();
+
+        // When
+        State.RequiringAuthenticate authenticating = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"), 0L);
+
+        // Then
+        assertThat(authenticating.previousAuthorizationId()).isNull();
     }
 
     @Test

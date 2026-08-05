@@ -29,12 +29,18 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.apache.kafka.common.security.oauthbearer.internals.OAuthBearerSaslServerProvider;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
+
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -55,10 +61,27 @@ class SaslTerminationFilterTest {
 
     private static final Instant FIXED_INSTANT = Instant.parse("2026-01-01T00:00:00Z");
     private static final Clock FIXED_CLOCK = Clock.fixed(FIXED_INSTANT, ZoneOffset.UTC);
+    private static final String TEST_VIRTUAL_CLUSTER = "test-cluster";
+
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeAll
     static void registerProvider() {
         OAuthBearerSaslServerProvider.initialize();
+    }
+
+    @BeforeEach
+    void setUpMetrics() {
+        meterRegistry = new SimpleMeterRegistry();
+        Metrics.globalRegistry.add(meterRegistry);
+    }
+
+    @AfterEach
+    void tearDownMetrics() {
+        if (meterRegistry != null) {
+            meterRegistry.getMeters().forEach(Metrics.globalRegistry::remove);
+            Metrics.globalRegistry.remove(meterRegistry);
+        }
     }
 
     // --- Handshake flow ---
@@ -267,6 +290,9 @@ class SaslTerminationFilterTest {
         assertThat(response.errorCode()).isEqualTo(Errors.NONE.code());
         assertThat(response.authBytes()).containsExactly(40, 50);
         assertThat(response.sessionLifetimeMs()).isEqualTo(3600000);
+        assertThat(meterRegistry.find(SaslTerminationFilter.AUTH_DURATION_METRIC)
+                .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER)))
+                .timer()).isNotNull();
     }
 
     @Test
@@ -324,6 +350,9 @@ class SaslTerminationFilterTest {
         assertThat(response.errorMessage()).isEqualTo("Authentication failed");
         verify(closeOrTerminal).withCloseConnection();
         verify(filterContext).clientSaslAuthenticationFailure(eq("OAUTHBEARER"), isNull(), eq(exception));
+        assertThat(meterRegistry.find(SaslTerminationFilter.AUTH_DURATION_METRIC)
+                .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER)))
+                .timer()).isNotNull();
     }
 
     @Test
@@ -408,6 +437,68 @@ class SaslTerminationFilterTest {
         verify(handler).dispose();
     }
 
+    // --- Reauthentication consistency ---
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldRejectReauthenticationWithDifferentMechanism() throws Exception {
+        // Given
+        var filter = createFilterWithZeroDelay();
+        var handler = mock(MechanismStateMachine.class);
+        var authenticating = State.start().nextState(handler, 0L);
+        setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
+
+        var captor = ArgumentCaptor.forClass(ApiMessage.class);
+        var closeOrTerminal = mock(CloseOrTerminalStage.class);
+        var terminal = mock(TerminalStage.class);
+        var filterContext = mockShortCircuitFilterContextWithCloseTracking(captor, closeOrTerminal, terminal);
+
+        // When
+        filter.onRequest(ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_HANDSHAKE.latestVersion(),
+                new RequestHeaderData(),
+                new SaslHandshakeRequestData().setMechanism("SCRAM-SHA-256"),
+                filterContext).toCompletableFuture().get();
+
+        // Then
+        var response = (SaslHandshakeResponseData) captor.getValue();
+        assertThat(response.errorCode()).isEqualTo(Errors.ILLEGAL_SASL_STATE.code());
+        verify(closeOrTerminal).withCloseConnection();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldRejectReauthenticationWithDifferentAuthorizationId() throws Exception {
+        // Given
+        var handler = mock(MechanismStateMachine.class);
+        when(handler.mechanismName()).thenReturn("OAUTHBEARER");
+        when(handler.maxAuthBytes()).thenReturn(4 * 1024);
+        when(handler.evaluateRound(any())).thenReturn(
+                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "bob", 0)));
+
+        var filter = createFilterWithZeroDelay();
+        var initialHandler = mock(MechanismStateMachine.class);
+        var authenticating = State.start().nextState(initialHandler, 0L);
+        var authenticated = authenticating.nextStateSuccess("alice", "OAUTHBEARER", null);
+        var reauthenticating = authenticated.nextStateReauthenticate(handler, System.nanoTime());
+        setFilterState(filter, reauthenticating);
+
+        var captor = ArgumentCaptor.forClass(ApiMessage.class);
+        var closeOrTerminal = mock(CloseOrTerminalStage.class);
+        var terminal = mock(TerminalStage.class);
+        var filterContext = mockShortCircuitFilterContextWithCloseTracking(captor, closeOrTerminal, terminal);
+
+        // When
+        filter.onRequest(ApiKeys.SASL_AUTHENTICATE, ApiKeys.SASL_AUTHENTICATE.latestVersion(),
+                new RequestHeaderData(),
+                new SaslAuthenticateRequestData().setAuthBytes(new byte[0]),
+                filterContext).toCompletableFuture().get();
+
+        // Then
+        var response = (SaslAuthenticateResponseData) captor.getValue();
+        assertThat(response.errorCode()).isEqualTo(Errors.SASL_AUTHENTICATION_FAILED.code());
+        verify(closeOrTerminal).withCloseConnection();
+    }
+
     // --- Default request / security barrier ---
 
     @Test
@@ -488,6 +579,10 @@ class SaslTerminationFilterTest {
 
         // Then
         assertThat(exceptionCaptor.getValue()).isInstanceOf(org.apache.kafka.common.errors.SaslAuthenticationException.class);
+        assertThat(meterRegistry.find(SaslTerminationFilter.SESSION_EXPIRED_METRIC)
+                .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER)))
+                .counter()).isNotNull()
+                .satisfies(counter -> assertThat(counter.count()).isEqualTo(1));
     }
 
     // --- Filtered API rejection ---
@@ -612,6 +707,7 @@ class SaslTerminationFilterTest {
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
         when(filterContext.sessionId()).thenReturn("test-session");
+        when(filterContext.getVirtualClusterName()).thenReturn(TEST_VIRTUAL_CLUSTER);
         when(filterContext.clientTlsContext()).thenReturn(Optional.empty());
         when(builder.shortCircuitResponse(captor.capture())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
@@ -630,6 +726,7 @@ class SaslTerminationFilterTest {
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
         when(filterContext.sessionId()).thenReturn("test-session");
+        when(filterContext.getVirtualClusterName()).thenReturn(TEST_VIRTUAL_CLUSTER);
         when(builder.shortCircuitResponse(captor.capture())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.withCloseConnection()).thenReturn(terminal);
         when(terminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
@@ -647,6 +744,7 @@ class SaslTerminationFilterTest {
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
         when(filterContext.sessionId()).thenReturn("test-session");
+        when(filterContext.getVirtualClusterName()).thenReturn(TEST_VIRTUAL_CLUSTER);
         when(builder.errorResponse(any(), any(), exceptionCaptor.capture())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.withCloseConnection()).thenReturn(terminal);
         when(terminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
