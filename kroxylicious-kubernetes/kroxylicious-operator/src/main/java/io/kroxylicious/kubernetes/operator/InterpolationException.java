@@ -6,8 +6,8 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-public class InterpolationException extends RuntimeException {
-    public InterpolationException(String message) {
+class InterpolationException extends RuntimeException {
+    InterpolationException(String message) {
         super(message);
     }
 }

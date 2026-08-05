@@ -142,14 +142,14 @@ public class KafkaProxyReconciler implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyReconciler.class);
 
-    public static final String CONFIG_STATE_DEP = "config-state";
-    public static final String CONFIG_DEP = "config";
-    public static final String DEPLOYMENT_DEP = "deployment";
-    public static final String CLUSTERS_DEP = "clusters";
+    static final String CONFIG_STATE_DEP = "config-state";
+    static final String CONFIG_DEP = "config";
+    static final String DEPLOYMENT_DEP = "deployment";
+    static final String CLUSTERS_DEP = "clusters";
     private static final String SECRET_PLURAL = "secrets";
     private static final String CONFIGMAP_PLURAL = "configmaps";
-    public static final String ROUTES_DEP = "routes";
-    public static final Path MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/");
+    static final String ROUTES_DEP = "routes";
+    private static final Path MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/");
     private static final Path TARGET_CLUSTER_MOUNTS_BASE = MOUNTS_BASE_DIR.resolve("target-cluster");
     private static final Path CLIENT_CERTS_BASE_DIR = TARGET_CLUSTER_MOUNTS_BASE.resolve("client-certs");
     private static final Path CLIENT_TRUSTED_CERTS_BASE_DIR = TARGET_CLUSTER_MOUNTS_BASE.resolve("trusted-certs");

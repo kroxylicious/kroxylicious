@@ -30,7 +30,7 @@ import io.kroxylicious.proxy.config.DurationSerde;
  */
 public class ProxyConfigStateData {
 
-    public static final String CLUSTER_KEY_PREFIX = "cluster-";
+    private static final String CLUSTER_KEY_PREFIX = "cluster-";
     // JavaTimeModule is required for java.time.Instant (used in Condition.lastTransitionTime).
     // DurationSerde must be registered after JavaTimeModule so it takes precedence for Duration,
     // overriding JavaTimeModule's ISO-8601-only DurationDeserializer with our Go-style one.
