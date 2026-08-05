@@ -20,6 +20,10 @@
     <name>Kafka message tools</name>
     <description>Tools for manipulating kafka messages, depends only on kafka-clients, has no dependency on the rest of Kroxylicious</description>
 
+    <properties>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

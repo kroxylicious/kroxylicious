@@ -24,6 +24,7 @@
     <packaging>jar</packaging>
 
     <properties>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <dependencies>

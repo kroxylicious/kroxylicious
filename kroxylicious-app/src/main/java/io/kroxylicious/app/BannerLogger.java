@@ -25,6 +25,9 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
+/**
+ * Logs the Kroxylicious startup banner.
+ */
 public class BannerLogger {
 
     private static final String DEFAULT_BANNER_LOCATION = "banner.txt";
@@ -32,6 +35,9 @@ public class BannerLogger {
     private final Supplier<Stream<String>> bannerReader;
     private final Level targetLevel;
 
+    /**
+     * Constructs a BannerLogger using the default banner resource.
+     */
     public BannerLogger() {
         this(getLogger("io.kroxylicious.proxy.StartupShutdownLogger"),
                 new BannerSupplier(DEFAULT_BANNER_LOCATION));
@@ -43,6 +49,9 @@ public class BannerLogger {
         targetLevel = Level.INFO;
     }
 
+    /**
+     * Logs the banner content.
+     */
     public void log() {
         bannerReader.get().forEach(line -> targetLogger.atLevel(targetLevel).log(line));
     }

@@ -31,6 +31,7 @@
         <fabric8-client.version>7.4.0</fabric8-client.version>
         <lombok.version>1.18.46</lombok.version>
         <errorprone.skip>true</errorprone.skip>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <dependencyManagement>

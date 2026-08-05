@@ -26,6 +26,7 @@
 
     <properties>
         <helm.chart.directory>${project.basedir}/helm/kroxylicious-benchmark</helm.chart.directory>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <dependencies>

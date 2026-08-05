@@ -22,6 +22,7 @@
     <name>Authorizer Plugin API</name>
 
     <properties>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <dependencies>

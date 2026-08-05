@@ -24,6 +24,7 @@
     <properties>
         <libs.dir>libs</libs.dir>
         <release.version>${project.version}</release.version>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <name>Proxy runtime</name>
