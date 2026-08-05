@@ -58,9 +58,12 @@ public record RouteHostDetails(
      * for the Gateway of the VirtualKafkaCluster.
      */
     public enum RouteFor {
+        /** Indicates the route is for the bootstrap address of the cluster. */
         BOOTSTRAP,
+        /** Indicates the route is for a specific broker node address. */
         NODE;
 
+        /** Label key used on Route resources to indicate whether a route targets bootstrap or a node. */
         public static final String LABEL_KEY = "kroxylicious.io/route-for";
 
         @Override
@@ -81,10 +84,13 @@ public record RouteHostDetails(
 
     /**
      * Tries to find the first {@link RouteHostDetails} that matches the provided details and return its {@link RouteHostDetails#hostWithoutSubdomain()}.
-     * <p>
-     * See {@link RouteHostDetails} for explanation of parameters.
      *
-     * @return An {@link Optional} containing the {@link RouteHostDetails#hostWithoutSubdomain()} if found, otherwise {@link Optional#empty()}.
+     * @param routeHostDetailsList the list of route host details to search
+     * @param routeNamespace the namespace of the route to match
+     * @param clusterName the cluster name to match
+     * @param ingressName the ingress name to match
+     * @param routeFor the route type to match (bootstrap or node)
+     * @return an {@link Optional} containing the {@link RouteHostDetails#hostWithoutSubdomain()} if found, otherwise {@link Optional#empty()}
      */
     public static Optional<String> findFirstRouteHostWithoutSubdomainFromList(List<RouteHostDetails> routeHostDetailsList, String routeNamespace, String clusterName,
                                                                               String ingressName, RouteHostDetails.RouteFor routeFor) {
@@ -101,6 +107,8 @@ public record RouteHostDetails(
 
     /**
      * Fetches {@link Route} secondary resources and maps them to a {@link RouteHostDetails} list.
+     * @param context the reconciler context containing the secondary Route resources
+     * @return the list of route host details extracted from the secondary Route resources
      */
     public static List<RouteHostDetails> fetchRouteHostDetailsList(Context<KafkaProxy> context) {
         return context.getSecondaryResources(Route.class)

@@ -20,8 +20,16 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
+/**
+ * Factory for building status patches for {@link KafkaProtocolFilter} resources.
+ */
 public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtocolFilter> {
 
+    /**
+     * Constructs a status factory for KafkaProtocolFilter resources.
+     *
+     * @param clock the clock used for condition timestamps
+     */
     public KafkaProtocolFilterStatusFactory(Clock clock) {
         super(clock);
     }

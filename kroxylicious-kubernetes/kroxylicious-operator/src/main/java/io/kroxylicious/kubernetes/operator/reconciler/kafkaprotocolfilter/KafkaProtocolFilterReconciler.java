@@ -66,6 +66,13 @@ public class KafkaProtocolFilterReconciler implements
     private final SecureConfigInterpolator secureConfigInterpolator;
     private final SharedInformerManager sharedInformerManager;
 
+    /**
+     * Constructs a reconciler for KafkaProtocolFilter resources.
+     *
+     * @param clock the clock used for condition timestamps
+     * @param secureConfigInterpolator the interpolator for resolving secure config template expressions
+     * @param sharedInformerManager the manager providing shared informers for Secret and ConfigMap resources
+     */
     public KafkaProtocolFilterReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator, SharedInformerManager sharedInformerManager) {
         this.statusFactory = new KafkaProtocolFilterStatusFactory(Objects.requireNonNull(clock));
         this.secureConfigInterpolator = Objects.requireNonNull(secureConfigInterpolator);

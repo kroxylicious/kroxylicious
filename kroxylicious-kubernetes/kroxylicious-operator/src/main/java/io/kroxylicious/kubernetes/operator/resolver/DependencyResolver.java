@@ -47,11 +47,16 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
  */
 public class DependencyResolver {
 
+    /** An empty resolution result representing a proxy with no virtual clusters. */
     public static final ProxyResolutionResult EMPTY_RESOLUTION_RESULT = new ProxyResolutionResult(Set.of());
 
     private DependencyResolver() {
     }
 
+    /**
+     * Creates a new DependencyResolver instance.
+     * @return a new DependencyResolver
+     */
     public static DependencyResolver create() {
         return new DependencyResolver();
     }

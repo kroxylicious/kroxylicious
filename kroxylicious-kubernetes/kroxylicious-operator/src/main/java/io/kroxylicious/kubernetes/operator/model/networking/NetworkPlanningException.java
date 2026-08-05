@@ -6,8 +6,15 @@
 
 package io.kroxylicious.kubernetes.operator.model.networking;
 
+/**
+ * Thrown when the networking planner encounters an invalid or unsupported ingress configuration.
+ */
 public class NetworkPlanningException extends RuntimeException {
 
+    /**
+     * Creates a new NetworkPlanningException.
+     * @param message the detail message
+     */
     public NetworkPlanningException(String message) {
         super(message);
     }

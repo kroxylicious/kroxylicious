@@ -34,9 +34,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class Annotations {
 
+    /** Annotation key for storing bootstrap server addresses on Kubernetes resources. */
     @VisibleForTesting
     public static final String BOOTSTRAP_SERVERS_ANNOTATION_KEY = "kroxylicious.io/bootstrap-servers";
 
+    /** Annotation key for storing a checksum of the referent resources. */
     @VisibleForTesting
     public static final String REFERENT_CHECKSUM_ANNOTATION_KEY = "kroxylicious.io/referent-checksum";
 
@@ -131,12 +133,24 @@ public class Annotations {
      */
     @JsonPropertyOrder({ "clusterName", "ingressName", "bootstrapServers" })
     public record ClusterIngressBootstrapServers(String clusterName, String ingressName, String bootstrapServers) {
+        /**
+         * Creates a ClusterIngressBootstrapServers with validated the arguments.
+         * @param clusterName VirtualKafkaCluster name
+         * @param ingressName KafkaProxyIngress name
+         * @param bootstrapServers client facing bootstrap servers
+         */
         public ClusterIngressBootstrapServers {
             Objects.requireNonNull(clusterName);
             Objects.requireNonNull(ingressName);
             Objects.requireNonNull(bootstrapServers);
         }
 
+        /**
+         * Tests whether this instance matches the given ingress and cluster names.
+         * @param ingressName the ingress name to match
+         * @param clusterName the cluster name to match
+         * @return {@code true} if both names match this instance
+         */
         public boolean matchesIngress(String ingressName, String clusterName) {
             return this.ingressName.equals(ingressName) && this.clusterName.equals(clusterName);
         }

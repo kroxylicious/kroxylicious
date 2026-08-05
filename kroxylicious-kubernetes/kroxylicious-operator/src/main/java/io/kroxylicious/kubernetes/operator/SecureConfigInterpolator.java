@@ -45,6 +45,7 @@ public class SecureConfigInterpolator {
 
     private static final InterpolatedValue NULL_INTERPOLATED_VALUE = new InterpolatedValue(null, List.of());
 
+    /** Default interpolator configured with secret and configmap providers mounted under {@code /opt/kroxylicious/secure}. */
     public static final SecureConfigInterpolator DEFAULT_INTERPOLATOR = new SecureConfigInterpolator("/opt/kroxylicious/secure", Map.<String, SecureConfigProvider> of(
             "secret", MountedResourceConfigProvider.SECRET_PROVIDER,
             "configmap", MountedResourceConfigProvider.CONFIGMAP_PROVIDER));
@@ -52,11 +53,23 @@ public class SecureConfigInterpolator {
     private final Map<String, SecureConfigProvider> providers;
     private final Path mountPathBase;
 
+    /**
+     * Constructs an interpolator with the given base mount path and config providers.
+     *
+     * @param mountPathBase the base filesystem path under which provider volumes are mounted
+     * @param providers a map of provider names to their implementations
+     */
     public SecureConfigInterpolator(String mountPathBase, Map<String, SecureConfigProvider> providers) {
         this.providers = providers;
         this.mountPathBase = Path.of(mountPathBase);
     }
 
+    /**
+     * Interpolates all provider placeholders in the given config template, resolving them to container file paths.
+     *
+     * @param configTemplate the configuration template object (may contain nested maps, lists, and strings with placeholders)
+     * @return the interpolation result containing the resolved config, required volumes, and volume mounts
+     */
     public InterpolationResult interpolate(Object configTemplate) {
         // use sets so that it doesn't matter is two providers require the same volume or mount (with exactly the same definition)
 
@@ -149,10 +162,18 @@ public class SecureConfigInterpolator {
         return new InterpolatedValue(sb.toString(), containerFileReferences);
     }
 
+    /**
+     * Holds the result of interpolating a config template, including the resolved config and any required Kubernetes volumes and mounts.
+     *
+     * @param config the interpolated configuration object, or null if the input was null
+     * @param volumes the set of Kubernetes volumes required by the interpolated config
+     * @param mounts the set of Kubernetes volume mounts required by the interpolated config
+     */
     public record InterpolationResult(@Nullable Object config,
                                       Set<Volume> volumes,
                                       Set<VolumeMount> mounts) {
 
+        /** Validates that volumes and mounts are non-null. */
         public InterpolationResult {
             Objects.requireNonNull(volumes);
             Objects.requireNonNull(mounts);

@@ -19,12 +19,14 @@ import io.kroxylicious.kubernetes.operator.Annotations;
 public interface SharedLoadBalancerServiceRequirements {
 
     /**
+     * Returns the client-facing ports required on the shared SNI LoadBalancer Service.
      * @return the client facing ports that should be exposed on the shared SNI LoadBalancer Service, mapping
      * to the shared SNI port on the proxy.
      */
     Stream<Integer> requiredClientFacingPorts();
 
     /**
+     * Returns the bootstrap servers to include in the shared LoadBalancer Service annotations.
      * @return the bootstrapServers that should be included in the shared SNI LoadBalancer Service metadata
      */
     Annotations.ClusterIngressBootstrapServers bootstrapServersToAnnotate();

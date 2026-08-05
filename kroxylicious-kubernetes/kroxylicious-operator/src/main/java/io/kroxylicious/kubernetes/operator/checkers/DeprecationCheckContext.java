@@ -36,6 +36,12 @@ public class DeprecationCheckContext<S, T, R extends CustomResource<S, T>, F ext
     private final F statusFactory;
     private final List<Condition> conditions = new ArrayList<>();
 
+    /**
+     * Constructs a new context for a deprecation check pass.
+     *
+     * @param resource the custom resource to check
+     * @param statusFactory the factory used to create status conditions
+     */
     public DeprecationCheckContext(R resource, F statusFactory) {
         this.resource = Objects.requireNonNull(resource);
         this.statusFactory = Objects.requireNonNull(statusFactory);

@@ -26,6 +26,11 @@ import static java.util.Comparator.comparing;
 public class ProxyResolutionResult {
     private final Set<ClusterResolutionResult> clusterResolutionResults;
 
+    /**
+     * Constructs a resolution result for a proxy from the per-cluster resolution results.
+     *
+     * @param clusterResolutionResults the set of per-cluster resolution results, must not be null
+     */
     public ProxyResolutionResult(Set<ClusterResolutionResult> clusterResolutionResults) {
         Objects.requireNonNull(clusterResolutionResults);
         this.clusterResolutionResults = clusterResolutionResults;
@@ -62,6 +67,11 @@ public class ProxyResolutionResult {
         return clusterResolutionResults;
     }
 
+    /**
+     * Checks whether all resolved referents and clusters have an up-to-date (fresh) status.
+     *
+     * @return true if every resolved referent and cluster has a fresh status, false otherwise
+     */
     public boolean allReferentsHaveFreshStatus() {
         return clusterResolutionResults.stream().allMatch(
                 clusterResolutionResult -> clusterResolutionResult.allResolvedReferents()
@@ -70,6 +80,11 @@ public class ProxyResolutionResult {
                                 clusterResolutionResult.cluster()));
     }
 
+    /**
+     * Returns all referents and clusters whose status is stale, represented as {@link LocalRef} instances.
+     *
+     * @return a stream of local references to resources with stale status
+     */
     // using wildcards intentionally
     @SuppressWarnings("java:S1452")
     public Stream<LocalRef<?>> allReferentsWithStaleStatus() {
@@ -84,6 +99,11 @@ public class ProxyResolutionResult {
         });
     }
 
+    /**
+     * Returns all per-cluster resolution results, ordered by the cluster's {@code metadata.name}.
+     *
+     * @return a stream of cluster resolution results sorted alphabetically by cluster name
+     */
     public Stream<ClusterResolutionResult> allResolutionResultsInClusterNameOrder() {
         return clusterResolutionResults.stream().sorted(comparing(r -> ResourcesUtil.name(r.cluster())));
     }

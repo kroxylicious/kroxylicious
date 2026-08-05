@@ -28,9 +28,12 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
  */
 @KubernetesDependent(useSSA = BooleanWithUndefined.TRUE)
 public class ProxyConfigDependentResource extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
+    /** Suffix appended to the KafkaProxy name to form the ConfigMap name. */
     public static final String PROXY_CONFIG_CONFIG_MAP_SUFFIX = "-proxy-config";
 
+    /** The key within the ConfigMap data used to store the proxy configuration YAML. */
     public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
+    /** Condition reason used when the proxy configuration is invalid. */
     public static final String REASON_INVALID = "Invalid";
 
     /**

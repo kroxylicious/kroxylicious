@@ -34,6 +34,7 @@ public class ProxyConfigStateData {
     // JavaTimeModule is required for java.time.Instant (used in Condition.lastTransitionTime).
     // DurationSerde must be registered after JavaTimeModule so it takes precedence for Duration,
     // overriding JavaTimeModule's ISO-8601-only DurationDeserializer with our Go-style one.
+    /** ObjectMapper configured for serializing and deserializing proxy configuration state. */
     public static final ObjectMapper CONFIG_OBJECT_MAPPER = ConfigParser.createObjectMapper()
             .registerModule(new JavaTimeModule())
             .registerModule(new SimpleModule()
@@ -57,10 +58,15 @@ public class ProxyConfigStateData {
 
     private final Map<String, String> data;
 
+    /** Constructs an empty instance with no data entries. */
     public ProxyConfigStateData() {
         this(new LinkedHashMap<>());
     }
 
+    /**
+     * Constructs an instance backed by the given data map.
+     * @param data the backing map of cluster keys to serialized status patches
+     */
     public ProxyConfigStateData(Map<String, String> data) {
         this.data = data;
     }
@@ -75,15 +81,33 @@ public class ProxyConfigStateData {
         }
     }
 
+    /**
+     * Adds a serialized status patch for the given cluster.
+     * @param clusterName the name of the virtual Kafka cluster
+     * @param patch the VirtualKafkaCluster containing the status patch to store
+     * @return this instance for chaining
+     */
     public ProxyConfigStateData addStatusPatchForCluster(String clusterName, VirtualKafkaCluster patch) {
         data.put(clusterKey(clusterName), toYaml(new VirtualKafkaClusterPatch(patch.getMetadata(), patch.getStatus())));
         return this;
     }
 
+    /**
+     * Checks whether a status patch has been stored for the given cluster name.
+     *
+     * @param clusterName the name of the virtual Kafka cluster
+     * @return true if a status patch exists for the cluster, false otherwise
+     */
     public boolean hasStatusPatchForCluster(String clusterName) {
         return data.containsKey(clusterKey(clusterName));
     }
 
+    /**
+     * Retrieves and deserializes the stored status patch for the given cluster name.
+     *
+     * @param clusterName the name of the virtual Kafka cluster
+     * @return an optional containing the deserialized VirtualKafkaCluster status patch, or empty if none exists
+     */
     public Optional<VirtualKafkaCluster> getStatusPatchForCluster(String clusterName) {
         var str = data.get(clusterKey(clusterName));
         if (str == null) {
@@ -98,6 +122,10 @@ public class ProxyConfigStateData {
         }
     }
 
+    /**
+     * Returns the accumulated data map.
+     * @return the map of cluster keys to serialized status patches
+     */
     public Map<String, String> build() {
         return data;
     }

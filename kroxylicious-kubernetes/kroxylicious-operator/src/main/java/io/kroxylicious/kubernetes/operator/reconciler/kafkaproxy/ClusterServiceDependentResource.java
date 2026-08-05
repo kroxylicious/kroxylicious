@@ -46,6 +46,9 @@ public class ClusterServiceDependentResource
         extends CRUDKubernetesDependentResource<Service, KafkaProxy>
         implements BulkDependentResource<Service, KafkaProxy, String> {
 
+    /**
+     * Constructs the dependent resource for managing Kubernetes Services.
+     */
     public ClusterServiceDependentResource() {
         super(Service.class);
     }

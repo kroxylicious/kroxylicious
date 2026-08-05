@@ -61,6 +61,13 @@ public record ConfigurationFragment<F>(F fragment, Set<Volume> volumes, Set<Volu
         return new ConfigurationFragment<>(mapper.apply(fragment), volumes, mounts);
     }
 
+    /**
+     * Apply the given mapping function to the fragment, merging the resulting volumes and mounts with this instance's.
+     *
+     * @param mapper the mapping function that returns a new configuration fragment
+     * @return a new fragment with merged volumes and mounts
+     * @param <G> the type of the new fragment
+     */
     public <G> ConfigurationFragment<G> flatMap(Function<F, ConfigurationFragment<G>> mapper) {
         ConfigurationFragment<G> apply = mapper.apply(fragment);
         return new ConfigurationFragment<>(apply.fragment(),
@@ -68,6 +75,13 @@ public record ConfigurationFragment<F>(F fragment, Set<Volume> volumes, Set<Volu
                 Stream.concat(mounts.stream(), apply.mounts.stream()).collect(Collectors.toSet()));
     }
 
+    /**
+     * Reduce a list of fragments into a single fragment containing all fragment values, with merged volumes and mounts.
+     *
+     * @param fragments the list of fragments to reduce
+     * @return a single fragment containing all fragment values as a list
+     * @param <F> the type of the individual fragments
+     */
     public static <F> ConfigurationFragment<List<F>> reduce(List<ConfigurationFragment<F>> fragments) {
         var list = fragments.stream().map(ConfigurationFragment::fragment).toList();
         return new ConfigurationFragment<>(list,

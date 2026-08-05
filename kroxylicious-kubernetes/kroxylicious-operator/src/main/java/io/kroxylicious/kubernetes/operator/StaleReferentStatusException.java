@@ -13,6 +13,11 @@ package io.kroxylicious.kubernetes.operator;
  * to reconcile again, this time successfully.
  */
 public class StaleReferentStatusException extends RuntimeException {
+    /**
+     * Constructs a StaleReferentStatusException with a message describing which referent has stale status.
+     *
+     * @param message a description of the stale referent
+     */
     public StaleReferentStatusException(String message) {
         super(message);
     }

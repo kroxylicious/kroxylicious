@@ -105,6 +105,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
+/**
+ * Reconciles KafkaProxy custom resources by generating proxy configuration, managing deployments, and updating status conditions.
+ */
 // @formatter:off
 @Workflow(dependents = {
         @Dependent(
@@ -164,12 +167,24 @@ public class KafkaProxyReconciler implements
     private final SecureConfigInterpolator secureConfigInterpolator;
     private final KafkaProxyStatusFactory statusFactory;
 
+    /**
+     * Constructs a reconciler for KafkaProxy resources.
+     *
+     * @param clock the clock used for condition timestamps
+     * @param secureConfigInterpolator the interpolator for resolving secure config template expressions
+     */
     public KafkaProxyReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
         this.statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(clock));
         this.clock = clock;
         this.secureConfigInterpolator = secureConfigInterpolator;
     }
 
+    /**
+     * Creates a new status factory for KafkaProxy resources.
+     *
+     * @param clock the clock used for condition timestamps
+     * @return a new status factory instance
+     */
     public static StatusFactory<KafkaProxy> newStatusFactory(Clock clock) {
         return new KafkaProxyStatusFactory(clock);
     }
@@ -308,6 +323,12 @@ public class KafkaProxyReconciler implements
                 (virtualCluster, gateways) -> virtualCluster);
     }
 
+    /**
+     * Builds a virtual cluster gateway configuration fragment from the given networking model.
+     *
+     * @param gateway the cluster ingress networking model to build the gateway from
+     * @return a configuration fragment containing the virtual cluster gateway
+     */
     public static ConfigurationFragment<VirtualClusterGateway> buildVirtualClusterGateway(ClusterIngressNetworkingModel gateway) {
 
         var tlsConfigFragment = gateway.downstreamTls()
@@ -488,7 +509,7 @@ public class KafkaProxyReconciler implements
     }
 
     /**
-     * The happy path, where all the dependent resources expressed a desired
+     * The happy path, where all the dependent resources expressed a desired state.
      */
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,

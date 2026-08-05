@@ -62,9 +62,9 @@ public class NetworkingPlanner {
      * be used by the proxy container. We want this to be as stable as possible, so we will allocate ports
      * to potentially unacceptable virtual clusters if we can.
      *
-     * @param primary primary being reconciled
-     * @param proxyResolutionResult
-     * @param routeHostDetails
+     * @param primary the KafkaProxy being reconciled
+     * @param proxyResolutionResult the resolved dependencies of the proxy
+     * @param routeHostDetails the route host details for OpenShift route ingresses
      * @return non-null ProxyIngressModel
      */
     public static ProxyNetworkingModel planNetworking(KafkaProxy primary,

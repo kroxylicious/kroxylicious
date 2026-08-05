@@ -21,6 +21,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param <T> the referent type
  * @param referrer the referring resource represented as a LocalRef
  * @param reference the reference we attempted to resolve
+ * @param referentNew the resolved referent resource, or null if the reference is dangling
  */
 public record ResolutionResult<T extends HasMetadata>(LocalRef<?> referrer, LocalRef<T> reference, @Nullable T referentNew) {
     /**
@@ -31,14 +32,32 @@ public record ResolutionResult<T extends HasMetadata>(LocalRef<?> referrer, Loca
         return referentNew == null;
     }
 
+    /**
+     * Returns the resolved referent resource, throwing if the reference is dangling.
+     *
+     * @return the resolved referent resource, never null
+     */
     public T referentResource() {
         return maybeReferentResource().orElseThrow(() -> new NullPointerException("Referent resource for " + reference + " is null"));
     }
 
+    /**
+     * Returns the resolved referent resource as an {@link Optional}, empty if the reference is dangling.
+     *
+     * @return an optional containing the referent resource, or empty if unresolved
+     */
     public Optional<T> maybeReferentResource() {
         return Optional.ofNullable(referentNew);
     }
 
+    /**
+     * Creates a successfully resolved result from the referring resource and the found referent.
+     *
+     * @param <T> the type of the referent resource
+     * @param referrer the resource that holds the reference
+     * @param referent the resource that was successfully resolved
+     * @return a new resolution result representing a successful resolution
+     */
     public static <T extends HasMetadata> ResolutionResult<T> resolved(HasMetadata referrer, T referent) {
         return new ResolutionResult<>(ResourcesUtil.toLocalRef(referrer), ResourcesUtil.toLocalRef(referent), referent);
     }

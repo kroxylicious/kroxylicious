@@ -37,6 +37,15 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static java.lang.Math.toIntExact;
 
+/**
+ * Networking model for TLS-terminated ClusterIP ingress using SNI-based routing.
+ * @param proxy the owning KafkaProxy resource
+ * @param cluster the virtual Kafka cluster
+ * @param ingress the ingress resource
+ * @param nodeIdRanges the node ID ranges for the cluster
+ * @param tls the TLS configuration
+ * @param sharedSniPort the shared SNI port number
+ */
 public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                                                         VirtualKafkaCluster cluster,
                                                         KafkaProxyIngress ingress,
@@ -45,8 +54,10 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                                                         int sharedSniPort)
         implements ClusterIngressNetworkingModel {
 
+    /** Port used for client-facing TLS connections. */
     public static final int CLIENT_FACING_PORT = 9292;
 
+    /** Validates that required parameters are non-null and nodeIdRanges is non-empty. */
     public TlsClusterIPClusterIngressNetworkingModel {
         Objects.requireNonNull(proxy);
         Objects.requireNonNull(cluster);

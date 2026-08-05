@@ -62,16 +62,22 @@ public class ProxyDeploymentDependentResource
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeploymentDependentResource.class);
+    /** Name of the Kubernetes volume used to mount the proxy configuration into the container. */
     public static final String CONFIG_VOLUME = "config-volume";
+    /** Absolute path within the proxy container where the configuration file is mounted. */
     public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigDependentResource.CONFIG_YAML_KEY;
     private static final int MANAGEMENT_PORT = 9190;
     private static final String MANAGEMENT_PORT_NAME = "management";
+    /** Starting port number used when allocating per-broker proxy ports. */
     public static final int PROXY_PORT_START = 9292;
+    /** Port number used for the shared SNI listener that multiplexes TLS connections by hostname. */
     public static final int SHARED_SNI_PORT = 9291;
 
     private final String kroxyliciousImage = getOperandImage();
+    /** Environment variable name that, when set, overrides the default Kroxylicious operand container image. */
     public static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
+    /** Creates a new dependent resource for managing the proxy {@code Deployment}. */
     public ProxyDeploymentDependentResource() {
         super(Deployment.class);
     }
@@ -164,6 +170,12 @@ public class ProxyDeploymentDependentResource
         return podLabels(primary);
     }
 
+    /**
+     * Returns the labels applied to pods created by the proxy deployment.
+     *
+     * @param primary the {@code KafkaProxy} resource that owns the deployment
+     * @return a map of label key-value pairs for the proxy pods
+     */
     public static Map<String, String> podLabels(KafkaProxy primary) {
         return standardLabels(primary);
     }
@@ -284,6 +296,12 @@ public class ProxyDeploymentDependentResource
                 .orElse(null);
     }
 
+    /**
+     * Determines the Kroxylicious container image to use, preferring the {@link #KROXYLICIOUS_IMAGE_ENV_VAR}
+     * environment variable and falling back to a classpath properties file.
+     *
+     * @return the fully qualified container image reference for the Kroxylicious operand
+     */
     @VisibleForTesting
     public static String getOperandImage() {
         var envImage = System.getenv().get(KROXYLICIOUS_IMAGE_ENV_VAR);
