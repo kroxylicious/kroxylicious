@@ -65,11 +65,10 @@ public class SaslPlainTermination
         public void handle(Callback[] callbacks) throws UnsupportedCallbackException {
             String username = null;
             for (Callback callback : callbacks) {
-                if (callback instanceof NameCallback) {
-                    username = ((NameCallback) callback).getDefaultName();
+                if (callback instanceof NameCallback nameCallback) {
+                    username = nameCallback.getDefaultName();
                 }
-                else if (callback instanceof PlainAuthenticateCallback) {
-                    PlainAuthenticateCallback plainCallback = (PlainAuthenticateCallback) callback;
+                else if (callback instanceof PlainAuthenticateCallback plainCallback) {
                     boolean authenticated = authenticate(username, plainCallback.password());
                     plainCallback.authenticated(authenticated);
                 }

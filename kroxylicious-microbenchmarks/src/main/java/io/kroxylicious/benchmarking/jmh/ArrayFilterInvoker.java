@@ -294,389 +294,389 @@ public class ArrayFilterInvoker implements FilterInvoker {
     public ArrayFilterInvoker(Filter filter) {
         Map<Integer, FilterInvoker> requestInvokers = new HashMap<>();
         Map<Integer, FilterInvoker> responseInvokers = new HashMap<>();
-        if (filter instanceof AddOffsetsToTxnRequestFilter) {
-            requestInvokers.put(25, new AddOffsetsToTxnRequestFilterInvoker((AddOffsetsToTxnRequestFilter) filter));
+        if (filter instanceof AddOffsetsToTxnRequestFilter addOffsetsToTxnRequestFilter) {
+            requestInvokers.put(25, new AddOffsetsToTxnRequestFilterInvoker(addOffsetsToTxnRequestFilter));
         }
-        if (filter instanceof AddOffsetsToTxnResponseFilter) {
-            responseInvokers.put(25, new AddOffsetsToTxnResponseFilterInvoker((AddOffsetsToTxnResponseFilter) filter));
+        if (filter instanceof AddOffsetsToTxnResponseFilter addOffsetsToTxnResponseFilter) {
+            responseInvokers.put(25, new AddOffsetsToTxnResponseFilterInvoker(addOffsetsToTxnResponseFilter));
         }
-        if (filter instanceof AddPartitionsToTxnRequestFilter) {
-            requestInvokers.put(24, new AddPartitionsToTxnRequestFilterInvoker((AddPartitionsToTxnRequestFilter) filter));
+        if (filter instanceof AddPartitionsToTxnRequestFilter addPartitionsToTxnRequestFilter) {
+            requestInvokers.put(24, new AddPartitionsToTxnRequestFilterInvoker(addPartitionsToTxnRequestFilter));
         }
-        if (filter instanceof AddPartitionsToTxnResponseFilter) {
-            responseInvokers.put(24, new AddPartitionsToTxnResponseFilterInvoker((AddPartitionsToTxnResponseFilter) filter));
+        if (filter instanceof AddPartitionsToTxnResponseFilter addPartitionsToTxnResponseFilter) {
+            responseInvokers.put(24, new AddPartitionsToTxnResponseFilterInvoker(addPartitionsToTxnResponseFilter));
         }
-        if (filter instanceof AllocateProducerIdsRequestFilter) {
-            requestInvokers.put(67, new AllocateProducerIdsRequestFilterInvoker((AllocateProducerIdsRequestFilter) filter));
+        if (filter instanceof AllocateProducerIdsRequestFilter allocateProducerIdsRequestFilter) {
+            requestInvokers.put(67, new AllocateProducerIdsRequestFilterInvoker(allocateProducerIdsRequestFilter));
         }
-        if (filter instanceof AllocateProducerIdsResponseFilter) {
-            responseInvokers.put(67, new AllocateProducerIdsResponseFilterInvoker((AllocateProducerIdsResponseFilter) filter));
+        if (filter instanceof AllocateProducerIdsResponseFilter allocateProducerIdsResponseFilter) {
+            responseInvokers.put(67, new AllocateProducerIdsResponseFilterInvoker(allocateProducerIdsResponseFilter));
         }
-        if (filter instanceof AlterClientQuotasRequestFilter) {
-            requestInvokers.put(49, new AlterClientQuotasRequestFilterInvoker((AlterClientQuotasRequestFilter) filter));
+        if (filter instanceof AlterClientQuotasRequestFilter alterClientQuotasRequestFilter) {
+            requestInvokers.put(49, new AlterClientQuotasRequestFilterInvoker(alterClientQuotasRequestFilter));
         }
-        if (filter instanceof AlterClientQuotasResponseFilter) {
-            responseInvokers.put(49, new AlterClientQuotasResponseFilterInvoker((AlterClientQuotasResponseFilter) filter));
+        if (filter instanceof AlterClientQuotasResponseFilter alterClientQuotasResponseFilter) {
+            responseInvokers.put(49, new AlterClientQuotasResponseFilterInvoker(alterClientQuotasResponseFilter));
         }
-        if (filter instanceof AlterConfigsRequestFilter) {
-            requestInvokers.put(33, new AlterConfigsRequestFilterInvoker((AlterConfigsRequestFilter) filter));
+        if (filter instanceof AlterConfigsRequestFilter alterConfigsRequestFilter) {
+            requestInvokers.put(33, new AlterConfigsRequestFilterInvoker(alterConfigsRequestFilter));
         }
-        if (filter instanceof AlterConfigsResponseFilter) {
-            responseInvokers.put(33, new AlterConfigsResponseFilterInvoker((AlterConfigsResponseFilter) filter));
+        if (filter instanceof AlterConfigsResponseFilter alterConfigsResponseFilter) {
+            responseInvokers.put(33, new AlterConfigsResponseFilterInvoker(alterConfigsResponseFilter));
         }
-        if (filter instanceof AlterPartitionReassignmentsRequestFilter) {
-            requestInvokers.put(45, new AlterPartitionReassignmentsRequestFilterInvoker((AlterPartitionReassignmentsRequestFilter) filter));
+        if (filter instanceof AlterPartitionReassignmentsRequestFilter alterPartitionReassignmentsRequestFilter) {
+            requestInvokers.put(45, new AlterPartitionReassignmentsRequestFilterInvoker(alterPartitionReassignmentsRequestFilter));
         }
-        if (filter instanceof AlterPartitionReassignmentsResponseFilter) {
-            responseInvokers.put(45, new AlterPartitionReassignmentsResponseFilterInvoker((AlterPartitionReassignmentsResponseFilter) filter));
+        if (filter instanceof AlterPartitionReassignmentsResponseFilter alterPartitionReassignmentsResponseFilter) {
+            responseInvokers.put(45, new AlterPartitionReassignmentsResponseFilterInvoker(alterPartitionReassignmentsResponseFilter));
         }
-        if (filter instanceof AlterPartitionRequestFilter) {
-            requestInvokers.put(56, new AlterPartitionRequestFilterInvoker((AlterPartitionRequestFilter) filter));
+        if (filter instanceof AlterPartitionRequestFilter alterPartitionRequestFilter) {
+            requestInvokers.put(56, new AlterPartitionRequestFilterInvoker(alterPartitionRequestFilter));
         }
-        if (filter instanceof AlterPartitionResponseFilter) {
-            responseInvokers.put(56, new AlterPartitionResponseFilterInvoker((AlterPartitionResponseFilter) filter));
+        if (filter instanceof AlterPartitionResponseFilter alterPartitionResponseFilter) {
+            responseInvokers.put(56, new AlterPartitionResponseFilterInvoker(alterPartitionResponseFilter));
         }
-        if (filter instanceof AlterReplicaLogDirsRequestFilter) {
-            requestInvokers.put(34, new AlterReplicaLogDirsRequestFilterInvoker((AlterReplicaLogDirsRequestFilter) filter));
+        if (filter instanceof AlterReplicaLogDirsRequestFilter alterReplicaLogDirsRequestFilter) {
+            requestInvokers.put(34, new AlterReplicaLogDirsRequestFilterInvoker(alterReplicaLogDirsRequestFilter));
         }
-        if (filter instanceof AlterReplicaLogDirsResponseFilter) {
-            responseInvokers.put(34, new AlterReplicaLogDirsResponseFilterInvoker((AlterReplicaLogDirsResponseFilter) filter));
+        if (filter instanceof AlterReplicaLogDirsResponseFilter alterReplicaLogDirsResponseFilter) {
+            responseInvokers.put(34, new AlterReplicaLogDirsResponseFilterInvoker(alterReplicaLogDirsResponseFilter));
         }
-        if (filter instanceof AlterUserScramCredentialsRequestFilter) {
-            requestInvokers.put(51, new AlterUserScramCredentialsRequestFilterInvoker((AlterUserScramCredentialsRequestFilter) filter));
+        if (filter instanceof AlterUserScramCredentialsRequestFilter alterUserScramCredentialsRequestFilter) {
+            requestInvokers.put(51, new AlterUserScramCredentialsRequestFilterInvoker(alterUserScramCredentialsRequestFilter));
         }
-        if (filter instanceof AlterUserScramCredentialsResponseFilter) {
-            responseInvokers.put(51, new AlterUserScramCredentialsResponseFilterInvoker((AlterUserScramCredentialsResponseFilter) filter));
+        if (filter instanceof AlterUserScramCredentialsResponseFilter alterUserScramCredentialsResponseFilter) {
+            responseInvokers.put(51, new AlterUserScramCredentialsResponseFilterInvoker(alterUserScramCredentialsResponseFilter));
         }
-        if (filter instanceof ApiVersionsRequestFilter) {
-            requestInvokers.put(18, new ApiVersionsRequestFilterInvoker((ApiVersionsRequestFilter) filter));
+        if (filter instanceof ApiVersionsRequestFilter apiVersionsRequestFilter) {
+            requestInvokers.put(18, new ApiVersionsRequestFilterInvoker(apiVersionsRequestFilter));
         }
-        if (filter instanceof ApiVersionsResponseFilter) {
-            responseInvokers.put(18, new ApiVersionsResponseFilterInvoker((ApiVersionsResponseFilter) filter));
+        if (filter instanceof ApiVersionsResponseFilter apiVersionsResponseFilter) {
+            responseInvokers.put(18, new ApiVersionsResponseFilterInvoker(apiVersionsResponseFilter));
         }
-        if (filter instanceof BeginQuorumEpochRequestFilter) {
-            requestInvokers.put(53, new BeginQuorumEpochRequestFilterInvoker((BeginQuorumEpochRequestFilter) filter));
+        if (filter instanceof BeginQuorumEpochRequestFilter beginQuorumEpochRequestFilter) {
+            requestInvokers.put(53, new BeginQuorumEpochRequestFilterInvoker(beginQuorumEpochRequestFilter));
         }
-        if (filter instanceof BeginQuorumEpochResponseFilter) {
-            responseInvokers.put(53, new BeginQuorumEpochResponseFilterInvoker((BeginQuorumEpochResponseFilter) filter));
+        if (filter instanceof BeginQuorumEpochResponseFilter beginQuorumEpochResponseFilter) {
+            responseInvokers.put(53, new BeginQuorumEpochResponseFilterInvoker(beginQuorumEpochResponseFilter));
         }
-        if (filter instanceof BrokerHeartbeatRequestFilter) {
-            requestInvokers.put(63, new BrokerHeartbeatRequestFilterInvoker((BrokerHeartbeatRequestFilter) filter));
+        if (filter instanceof BrokerHeartbeatRequestFilter brokerHeartbeatRequestFilter) {
+            requestInvokers.put(63, new BrokerHeartbeatRequestFilterInvoker(brokerHeartbeatRequestFilter));
         }
-        if (filter instanceof BrokerHeartbeatResponseFilter) {
-            responseInvokers.put(63, new BrokerHeartbeatResponseFilterInvoker((BrokerHeartbeatResponseFilter) filter));
+        if (filter instanceof BrokerHeartbeatResponseFilter brokerHeartbeatResponseFilter) {
+            responseInvokers.put(63, new BrokerHeartbeatResponseFilterInvoker(brokerHeartbeatResponseFilter));
         }
-        if (filter instanceof BrokerRegistrationRequestFilter) {
-            requestInvokers.put(62, new BrokerRegistrationRequestFilterInvoker((BrokerRegistrationRequestFilter) filter));
+        if (filter instanceof BrokerRegistrationRequestFilter brokerRegistrationRequestFilter) {
+            requestInvokers.put(62, new BrokerRegistrationRequestFilterInvoker(brokerRegistrationRequestFilter));
         }
-        if (filter instanceof BrokerRegistrationResponseFilter) {
-            responseInvokers.put(62, new BrokerRegistrationResponseFilterInvoker((BrokerRegistrationResponseFilter) filter));
+        if (filter instanceof BrokerRegistrationResponseFilter brokerRegistrationResponseFilter) {
+            responseInvokers.put(62, new BrokerRegistrationResponseFilterInvoker(brokerRegistrationResponseFilter));
         }
-        if (filter instanceof CreateAclsRequestFilter) {
-            requestInvokers.put(30, new CreateAclsRequestFilterInvoker((CreateAclsRequestFilter) filter));
+        if (filter instanceof CreateAclsRequestFilter createAclsRequestFilter) {
+            requestInvokers.put(30, new CreateAclsRequestFilterInvoker(createAclsRequestFilter));
         }
-        if (filter instanceof CreateAclsResponseFilter) {
-            responseInvokers.put(30, new CreateAclsResponseFilterInvoker((CreateAclsResponseFilter) filter));
+        if (filter instanceof CreateAclsResponseFilter createAclsResponseFilter) {
+            responseInvokers.put(30, new CreateAclsResponseFilterInvoker(createAclsResponseFilter));
         }
-        if (filter instanceof CreateDelegationTokenRequestFilter) {
-            requestInvokers.put(38, new CreateDelegationTokenRequestFilterInvoker((CreateDelegationTokenRequestFilter) filter));
+        if (filter instanceof CreateDelegationTokenRequestFilter createDelegationTokenRequestFilter) {
+            requestInvokers.put(38, new CreateDelegationTokenRequestFilterInvoker(createDelegationTokenRequestFilter));
         }
-        if (filter instanceof CreateDelegationTokenResponseFilter) {
-            responseInvokers.put(38, new CreateDelegationTokenResponseFilterInvoker((CreateDelegationTokenResponseFilter) filter));
+        if (filter instanceof CreateDelegationTokenResponseFilter createDelegationTokenResponseFilter) {
+            responseInvokers.put(38, new CreateDelegationTokenResponseFilterInvoker(createDelegationTokenResponseFilter));
         }
-        if (filter instanceof CreatePartitionsRequestFilter) {
-            requestInvokers.put(37, new CreatePartitionsRequestFilterInvoker((CreatePartitionsRequestFilter) filter));
+        if (filter instanceof CreatePartitionsRequestFilter createPartitionsRequestFilter) {
+            requestInvokers.put(37, new CreatePartitionsRequestFilterInvoker(createPartitionsRequestFilter));
         }
-        if (filter instanceof CreatePartitionsResponseFilter) {
-            responseInvokers.put(37, new CreatePartitionsResponseFilterInvoker((CreatePartitionsResponseFilter) filter));
+        if (filter instanceof CreatePartitionsResponseFilter createPartitionsResponseFilter) {
+            responseInvokers.put(37, new CreatePartitionsResponseFilterInvoker(createPartitionsResponseFilter));
         }
-        if (filter instanceof CreateTopicsRequestFilter) {
-            requestInvokers.put(19, new CreateTopicsRequestFilterInvoker((CreateTopicsRequestFilter) filter));
+        if (filter instanceof CreateTopicsRequestFilter createTopicsRequestFilter) {
+            requestInvokers.put(19, new CreateTopicsRequestFilterInvoker(createTopicsRequestFilter));
         }
-        if (filter instanceof CreateTopicsResponseFilter) {
-            responseInvokers.put(19, new CreateTopicsResponseFilterInvoker((CreateTopicsResponseFilter) filter));
+        if (filter instanceof CreateTopicsResponseFilter createTopicsResponseFilter) {
+            responseInvokers.put(19, new CreateTopicsResponseFilterInvoker(createTopicsResponseFilter));
         }
-        if (filter instanceof DeleteAclsRequestFilter) {
-            requestInvokers.put(31, new DeleteAclsRequestFilterInvoker((DeleteAclsRequestFilter) filter));
+        if (filter instanceof DeleteAclsRequestFilter deleteAclsRequestFilter) {
+            requestInvokers.put(31, new DeleteAclsRequestFilterInvoker(deleteAclsRequestFilter));
         }
-        if (filter instanceof DeleteAclsResponseFilter) {
-            responseInvokers.put(31, new DeleteAclsResponseFilterInvoker((DeleteAclsResponseFilter) filter));
+        if (filter instanceof DeleteAclsResponseFilter deleteAclsResponseFilter) {
+            responseInvokers.put(31, new DeleteAclsResponseFilterInvoker(deleteAclsResponseFilter));
         }
-        if (filter instanceof DeleteGroupsRequestFilter) {
-            requestInvokers.put(42, new DeleteGroupsRequestFilterInvoker((DeleteGroupsRequestFilter) filter));
+        if (filter instanceof DeleteGroupsRequestFilter deleteGroupsRequestFilter) {
+            requestInvokers.put(42, new DeleteGroupsRequestFilterInvoker(deleteGroupsRequestFilter));
         }
-        if (filter instanceof DeleteGroupsResponseFilter) {
-            responseInvokers.put(42, new DeleteGroupsResponseFilterInvoker((DeleteGroupsResponseFilter) filter));
+        if (filter instanceof DeleteGroupsResponseFilter deleteGroupsResponseFilter) {
+            responseInvokers.put(42, new DeleteGroupsResponseFilterInvoker(deleteGroupsResponseFilter));
         }
-        if (filter instanceof DeleteRecordsRequestFilter) {
-            requestInvokers.put(21, new DeleteRecordsRequestFilterInvoker((DeleteRecordsRequestFilter) filter));
+        if (filter instanceof DeleteRecordsRequestFilter deleteRecordsRequestFilter) {
+            requestInvokers.put(21, new DeleteRecordsRequestFilterInvoker(deleteRecordsRequestFilter));
         }
-        if (filter instanceof DeleteRecordsResponseFilter) {
-            responseInvokers.put(21, new DeleteRecordsResponseFilterInvoker((DeleteRecordsResponseFilter) filter));
+        if (filter instanceof DeleteRecordsResponseFilter deleteRecordsResponseFilter) {
+            responseInvokers.put(21, new DeleteRecordsResponseFilterInvoker(deleteRecordsResponseFilter));
         }
-        if (filter instanceof DeleteTopicsRequestFilter) {
-            requestInvokers.put(20, new DeleteTopicsRequestFilterInvoker((DeleteTopicsRequestFilter) filter));
+        if (filter instanceof DeleteTopicsRequestFilter deleteTopicsRequestFilter) {
+            requestInvokers.put(20, new DeleteTopicsRequestFilterInvoker(deleteTopicsRequestFilter));
         }
-        if (filter instanceof DeleteTopicsResponseFilter) {
-            responseInvokers.put(20, new DeleteTopicsResponseFilterInvoker((DeleteTopicsResponseFilter) filter));
+        if (filter instanceof DeleteTopicsResponseFilter deleteTopicsResponseFilter) {
+            responseInvokers.put(20, new DeleteTopicsResponseFilterInvoker(deleteTopicsResponseFilter));
         }
-        if (filter instanceof DescribeAclsRequestFilter) {
-            requestInvokers.put(29, new DescribeAclsRequestFilterInvoker((DescribeAclsRequestFilter) filter));
+        if (filter instanceof DescribeAclsRequestFilter describeAclsRequestFilter) {
+            requestInvokers.put(29, new DescribeAclsRequestFilterInvoker(describeAclsRequestFilter));
         }
-        if (filter instanceof DescribeAclsResponseFilter) {
-            responseInvokers.put(29, new DescribeAclsResponseFilterInvoker((DescribeAclsResponseFilter) filter));
+        if (filter instanceof DescribeAclsResponseFilter describeAclsResponseFilter) {
+            responseInvokers.put(29, new DescribeAclsResponseFilterInvoker(describeAclsResponseFilter));
         }
-        if (filter instanceof DescribeClientQuotasRequestFilter) {
-            requestInvokers.put(48, new DescribeClientQuotasRequestFilterInvoker((DescribeClientQuotasRequestFilter) filter));
+        if (filter instanceof DescribeClientQuotasRequestFilter describeClientQuotasRequestFilter) {
+            requestInvokers.put(48, new DescribeClientQuotasRequestFilterInvoker(describeClientQuotasRequestFilter));
         }
-        if (filter instanceof DescribeClientQuotasResponseFilter) {
-            responseInvokers.put(48, new DescribeClientQuotasResponseFilterInvoker((DescribeClientQuotasResponseFilter) filter));
+        if (filter instanceof DescribeClientQuotasResponseFilter describeClientQuotasResponseFilter) {
+            responseInvokers.put(48, new DescribeClientQuotasResponseFilterInvoker(describeClientQuotasResponseFilter));
         }
-        if (filter instanceof DescribeClusterRequestFilter) {
-            requestInvokers.put(60, new DescribeClusterRequestFilterInvoker((DescribeClusterRequestFilter) filter));
+        if (filter instanceof DescribeClusterRequestFilter describeClusterRequestFilter) {
+            requestInvokers.put(60, new DescribeClusterRequestFilterInvoker(describeClusterRequestFilter));
         }
-        if (filter instanceof DescribeClusterResponseFilter) {
-            responseInvokers.put(60, new DescribeClusterResponseFilterInvoker((DescribeClusterResponseFilter) filter));
+        if (filter instanceof DescribeClusterResponseFilter describeClusterResponseFilter) {
+            responseInvokers.put(60, new DescribeClusterResponseFilterInvoker(describeClusterResponseFilter));
         }
-        if (filter instanceof DescribeConfigsRequestFilter) {
-            requestInvokers.put(32, new DescribeConfigsRequestFilterInvoker((DescribeConfigsRequestFilter) filter));
+        if (filter instanceof DescribeConfigsRequestFilter describeConfigsRequestFilter) {
+            requestInvokers.put(32, new DescribeConfigsRequestFilterInvoker(describeConfigsRequestFilter));
         }
-        if (filter instanceof DescribeConfigsResponseFilter) {
-            responseInvokers.put(32, new DescribeConfigsResponseFilterInvoker((DescribeConfigsResponseFilter) filter));
+        if (filter instanceof DescribeConfigsResponseFilter describeConfigsResponseFilter) {
+            responseInvokers.put(32, new DescribeConfigsResponseFilterInvoker(describeConfigsResponseFilter));
         }
-        if (filter instanceof DescribeDelegationTokenRequestFilter) {
-            requestInvokers.put(41, new DescribeDelegationTokenRequestFilterInvoker((DescribeDelegationTokenRequestFilter) filter));
+        if (filter instanceof DescribeDelegationTokenRequestFilter describeDelegationTokenRequestFilter) {
+            requestInvokers.put(41, new DescribeDelegationTokenRequestFilterInvoker(describeDelegationTokenRequestFilter));
         }
-        if (filter instanceof DescribeDelegationTokenResponseFilter) {
-            responseInvokers.put(41, new DescribeDelegationTokenResponseFilterInvoker((DescribeDelegationTokenResponseFilter) filter));
+        if (filter instanceof DescribeDelegationTokenResponseFilter describeDelegationTokenResponseFilter) {
+            responseInvokers.put(41, new DescribeDelegationTokenResponseFilterInvoker(describeDelegationTokenResponseFilter));
         }
-        if (filter instanceof DescribeGroupsRequestFilter) {
-            requestInvokers.put(15, new DescribeGroupsRequestFilterInvoker((DescribeGroupsRequestFilter) filter));
+        if (filter instanceof DescribeGroupsRequestFilter describeGroupsRequestFilter) {
+            requestInvokers.put(15, new DescribeGroupsRequestFilterInvoker(describeGroupsRequestFilter));
         }
-        if (filter instanceof DescribeGroupsResponseFilter) {
-            responseInvokers.put(15, new DescribeGroupsResponseFilterInvoker((DescribeGroupsResponseFilter) filter));
+        if (filter instanceof DescribeGroupsResponseFilter describeGroupsResponseFilter) {
+            responseInvokers.put(15, new DescribeGroupsResponseFilterInvoker(describeGroupsResponseFilter));
         }
-        if (filter instanceof DescribeLogDirsRequestFilter) {
-            requestInvokers.put(35, new DescribeLogDirsRequestFilterInvoker((DescribeLogDirsRequestFilter) filter));
+        if (filter instanceof DescribeLogDirsRequestFilter describeLogDirsRequestFilter) {
+            requestInvokers.put(35, new DescribeLogDirsRequestFilterInvoker(describeLogDirsRequestFilter));
         }
-        if (filter instanceof DescribeLogDirsResponseFilter) {
-            responseInvokers.put(35, new DescribeLogDirsResponseFilterInvoker((DescribeLogDirsResponseFilter) filter));
+        if (filter instanceof DescribeLogDirsResponseFilter describeLogDirsResponseFilter) {
+            responseInvokers.put(35, new DescribeLogDirsResponseFilterInvoker(describeLogDirsResponseFilter));
         }
-        if (filter instanceof DescribeProducersRequestFilter) {
-            requestInvokers.put(61, new DescribeProducersRequestFilterInvoker((DescribeProducersRequestFilter) filter));
+        if (filter instanceof DescribeProducersRequestFilter describeProducersRequestFilter) {
+            requestInvokers.put(61, new DescribeProducersRequestFilterInvoker(describeProducersRequestFilter));
         }
-        if (filter instanceof DescribeProducersResponseFilter) {
-            responseInvokers.put(61, new DescribeProducersResponseFilterInvoker((DescribeProducersResponseFilter) filter));
+        if (filter instanceof DescribeProducersResponseFilter describeProducersResponseFilter) {
+            responseInvokers.put(61, new DescribeProducersResponseFilterInvoker(describeProducersResponseFilter));
         }
-        if (filter instanceof DescribeQuorumRequestFilter) {
-            requestInvokers.put(55, new DescribeQuorumRequestFilterInvoker((DescribeQuorumRequestFilter) filter));
+        if (filter instanceof DescribeQuorumRequestFilter describeQuorumRequestFilter) {
+            requestInvokers.put(55, new DescribeQuorumRequestFilterInvoker(describeQuorumRequestFilter));
         }
-        if (filter instanceof DescribeQuorumResponseFilter) {
-            responseInvokers.put(55, new DescribeQuorumResponseFilterInvoker((DescribeQuorumResponseFilter) filter));
+        if (filter instanceof DescribeQuorumResponseFilter describeQuorumResponseFilter) {
+            responseInvokers.put(55, new DescribeQuorumResponseFilterInvoker(describeQuorumResponseFilter));
         }
-        if (filter instanceof DescribeTransactionsRequestFilter) {
-            requestInvokers.put(65, new DescribeTransactionsRequestFilterInvoker((DescribeTransactionsRequestFilter) filter));
+        if (filter instanceof DescribeTransactionsRequestFilter describeTransactionsRequestFilter) {
+            requestInvokers.put(65, new DescribeTransactionsRequestFilterInvoker(describeTransactionsRequestFilter));
         }
-        if (filter instanceof DescribeTransactionsResponseFilter) {
-            responseInvokers.put(65, new DescribeTransactionsResponseFilterInvoker((DescribeTransactionsResponseFilter) filter));
+        if (filter instanceof DescribeTransactionsResponseFilter describeTransactionsResponseFilter) {
+            responseInvokers.put(65, new DescribeTransactionsResponseFilterInvoker(describeTransactionsResponseFilter));
         }
-        if (filter instanceof DescribeUserScramCredentialsRequestFilter) {
-            requestInvokers.put(50, new DescribeUserScramCredentialsRequestFilterInvoker((DescribeUserScramCredentialsRequestFilter) filter));
+        if (filter instanceof DescribeUserScramCredentialsRequestFilter describeUserScramCredentialsRequestFilter) {
+            requestInvokers.put(50, new DescribeUserScramCredentialsRequestFilterInvoker(describeUserScramCredentialsRequestFilter));
         }
-        if (filter instanceof DescribeUserScramCredentialsResponseFilter) {
-            responseInvokers.put(50, new DescribeUserScramCredentialsResponseFilterInvoker((DescribeUserScramCredentialsResponseFilter) filter));
+        if (filter instanceof DescribeUserScramCredentialsResponseFilter describeUserScramCredentialsResponseFilter) {
+            responseInvokers.put(50, new DescribeUserScramCredentialsResponseFilterInvoker(describeUserScramCredentialsResponseFilter));
         }
-        if (filter instanceof ElectLeadersRequestFilter) {
-            requestInvokers.put(43, new ElectLeadersRequestFilterInvoker((ElectLeadersRequestFilter) filter));
+        if (filter instanceof ElectLeadersRequestFilter electLeadersRequestFilter) {
+            requestInvokers.put(43, new ElectLeadersRequestFilterInvoker(electLeadersRequestFilter));
         }
-        if (filter instanceof ElectLeadersResponseFilter) {
-            responseInvokers.put(43, new ElectLeadersResponseFilterInvoker((ElectLeadersResponseFilter) filter));
+        if (filter instanceof ElectLeadersResponseFilter electLeadersResponseFilter) {
+            responseInvokers.put(43, new ElectLeadersResponseFilterInvoker(electLeadersResponseFilter));
         }
-        if (filter instanceof EndQuorumEpochRequestFilter) {
-            requestInvokers.put(54, new EndQuorumEpochRequestFilterInvoker((EndQuorumEpochRequestFilter) filter));
+        if (filter instanceof EndQuorumEpochRequestFilter endQuorumEpochRequestFilter) {
+            requestInvokers.put(54, new EndQuorumEpochRequestFilterInvoker(endQuorumEpochRequestFilter));
         }
-        if (filter instanceof EndQuorumEpochResponseFilter) {
-            responseInvokers.put(54, new EndQuorumEpochResponseFilterInvoker((EndQuorumEpochResponseFilter) filter));
+        if (filter instanceof EndQuorumEpochResponseFilter endQuorumEpochResponseFilter) {
+            responseInvokers.put(54, new EndQuorumEpochResponseFilterInvoker(endQuorumEpochResponseFilter));
         }
-        if (filter instanceof EndTxnRequestFilter) {
-            requestInvokers.put(26, new EndTxnRequestFilterInvoker((EndTxnRequestFilter) filter));
+        if (filter instanceof EndTxnRequestFilter endTxnRequestFilter) {
+            requestInvokers.put(26, new EndTxnRequestFilterInvoker(endTxnRequestFilter));
         }
-        if (filter instanceof EndTxnResponseFilter) {
-            responseInvokers.put(26, new EndTxnResponseFilterInvoker((EndTxnResponseFilter) filter));
+        if (filter instanceof EndTxnResponseFilter endTxnResponseFilter) {
+            responseInvokers.put(26, new EndTxnResponseFilterInvoker(endTxnResponseFilter));
         }
-        if (filter instanceof EnvelopeRequestFilter) {
-            requestInvokers.put(58, new EnvelopeRequestFilterInvoker((EnvelopeRequestFilter) filter));
+        if (filter instanceof EnvelopeRequestFilter envelopeRequestFilter) {
+            requestInvokers.put(58, new EnvelopeRequestFilterInvoker(envelopeRequestFilter));
         }
-        if (filter instanceof EnvelopeResponseFilter) {
-            responseInvokers.put(58, new EnvelopeResponseFilterInvoker((EnvelopeResponseFilter) filter));
+        if (filter instanceof EnvelopeResponseFilter envelopeResponseFilter) {
+            responseInvokers.put(58, new EnvelopeResponseFilterInvoker(envelopeResponseFilter));
         }
-        if (filter instanceof ExpireDelegationTokenRequestFilter) {
-            requestInvokers.put(40, new ExpireDelegationTokenRequestFilterInvoker((ExpireDelegationTokenRequestFilter) filter));
+        if (filter instanceof ExpireDelegationTokenRequestFilter expireDelegationTokenRequestFilter) {
+            requestInvokers.put(40, new ExpireDelegationTokenRequestFilterInvoker(expireDelegationTokenRequestFilter));
         }
-        if (filter instanceof ExpireDelegationTokenResponseFilter) {
-            responseInvokers.put(40, new ExpireDelegationTokenResponseFilterInvoker((ExpireDelegationTokenResponseFilter) filter));
+        if (filter instanceof ExpireDelegationTokenResponseFilter expireDelegationTokenResponseFilter) {
+            responseInvokers.put(40, new ExpireDelegationTokenResponseFilterInvoker(expireDelegationTokenResponseFilter));
         }
-        if (filter instanceof FetchRequestFilter) {
-            requestInvokers.put(1, new FetchRequestFilterInvoker((FetchRequestFilter) filter));
+        if (filter instanceof FetchRequestFilter fetchRequestFilter) {
+            requestInvokers.put(1, new FetchRequestFilterInvoker(fetchRequestFilter));
         }
-        if (filter instanceof FetchResponseFilter) {
-            responseInvokers.put(1, new FetchResponseFilterInvoker((FetchResponseFilter) filter));
+        if (filter instanceof FetchResponseFilter fetchResponseFilter) {
+            responseInvokers.put(1, new FetchResponseFilterInvoker(fetchResponseFilter));
         }
-        if (filter instanceof FetchSnapshotRequestFilter) {
-            requestInvokers.put(59, new FetchSnapshotRequestFilterInvoker((FetchSnapshotRequestFilter) filter));
+        if (filter instanceof FetchSnapshotRequestFilter fetchSnapshotRequestFilter) {
+            requestInvokers.put(59, new FetchSnapshotRequestFilterInvoker(fetchSnapshotRequestFilter));
         }
-        if (filter instanceof FetchSnapshotResponseFilter) {
-            responseInvokers.put(59, new FetchSnapshotResponseFilterInvoker((FetchSnapshotResponseFilter) filter));
+        if (filter instanceof FetchSnapshotResponseFilter fetchSnapshotResponseFilter) {
+            responseInvokers.put(59, new FetchSnapshotResponseFilterInvoker(fetchSnapshotResponseFilter));
         }
-        if (filter instanceof FindCoordinatorRequestFilter) {
-            requestInvokers.put(10, new FindCoordinatorRequestFilterInvoker((FindCoordinatorRequestFilter) filter));
+        if (filter instanceof FindCoordinatorRequestFilter findCoordinatorRequestFilter) {
+            requestInvokers.put(10, new FindCoordinatorRequestFilterInvoker(findCoordinatorRequestFilter));
         }
-        if (filter instanceof FindCoordinatorResponseFilter) {
-            responseInvokers.put(10, new FindCoordinatorResponseFilterInvoker((FindCoordinatorResponseFilter) filter));
+        if (filter instanceof FindCoordinatorResponseFilter findCoordinatorResponseFilter) {
+            responseInvokers.put(10, new FindCoordinatorResponseFilterInvoker(findCoordinatorResponseFilter));
         }
-        if (filter instanceof HeartbeatRequestFilter) {
-            requestInvokers.put(12, new HeartbeatRequestFilterInvoker((HeartbeatRequestFilter) filter));
+        if (filter instanceof HeartbeatRequestFilter heartbeatRequestFilter) {
+            requestInvokers.put(12, new HeartbeatRequestFilterInvoker(heartbeatRequestFilter));
         }
-        if (filter instanceof HeartbeatResponseFilter) {
-            responseInvokers.put(12, new HeartbeatResponseFilterInvoker((HeartbeatResponseFilter) filter));
+        if (filter instanceof HeartbeatResponseFilter heartbeatResponseFilter) {
+            responseInvokers.put(12, new HeartbeatResponseFilterInvoker(heartbeatResponseFilter));
         }
-        if (filter instanceof IncrementalAlterConfigsRequestFilter) {
-            requestInvokers.put(44, new IncrementalAlterConfigsRequestFilterInvoker((IncrementalAlterConfigsRequestFilter) filter));
+        if (filter instanceof IncrementalAlterConfigsRequestFilter incrementalAlterConfigsRequestFilter) {
+            requestInvokers.put(44, new IncrementalAlterConfigsRequestFilterInvoker(incrementalAlterConfigsRequestFilter));
         }
-        if (filter instanceof IncrementalAlterConfigsResponseFilter) {
-            responseInvokers.put(44, new IncrementalAlterConfigsResponseFilterInvoker((IncrementalAlterConfigsResponseFilter) filter));
+        if (filter instanceof IncrementalAlterConfigsResponseFilter incrementalAlterConfigsResponseFilter) {
+            responseInvokers.put(44, new IncrementalAlterConfigsResponseFilterInvoker(incrementalAlterConfigsResponseFilter));
         }
-        if (filter instanceof InitProducerIdRequestFilter) {
-            requestInvokers.put(22, new InitProducerIdRequestFilterInvoker((InitProducerIdRequestFilter) filter));
+        if (filter instanceof InitProducerIdRequestFilter initProducerIdRequestFilter) {
+            requestInvokers.put(22, new InitProducerIdRequestFilterInvoker(initProducerIdRequestFilter));
         }
-        if (filter instanceof InitProducerIdResponseFilter) {
-            responseInvokers.put(22, new InitProducerIdResponseFilterInvoker((InitProducerIdResponseFilter) filter));
+        if (filter instanceof InitProducerIdResponseFilter initProducerIdResponseFilter) {
+            responseInvokers.put(22, new InitProducerIdResponseFilterInvoker(initProducerIdResponseFilter));
         }
-        if (filter instanceof JoinGroupRequestFilter) {
-            requestInvokers.put(11, new JoinGroupRequestFilterInvoker((JoinGroupRequestFilter) filter));
+        if (filter instanceof JoinGroupRequestFilter joinGroupRequestFilter) {
+            requestInvokers.put(11, new JoinGroupRequestFilterInvoker(joinGroupRequestFilter));
         }
-        if (filter instanceof JoinGroupResponseFilter) {
-            responseInvokers.put(11, new JoinGroupResponseFilterInvoker((JoinGroupResponseFilter) filter));
+        if (filter instanceof JoinGroupResponseFilter joinGroupResponseFilter) {
+            responseInvokers.put(11, new JoinGroupResponseFilterInvoker(joinGroupResponseFilter));
         }
-        if (filter instanceof LeaveGroupRequestFilter) {
-            requestInvokers.put(13, new LeaveGroupRequestFilterInvoker((LeaveGroupRequestFilter) filter));
+        if (filter instanceof LeaveGroupRequestFilter leaveGroupRequestFilter) {
+            requestInvokers.put(13, new LeaveGroupRequestFilterInvoker(leaveGroupRequestFilter));
         }
-        if (filter instanceof LeaveGroupResponseFilter) {
-            responseInvokers.put(13, new LeaveGroupResponseFilterInvoker((LeaveGroupResponseFilter) filter));
+        if (filter instanceof LeaveGroupResponseFilter leaveGroupResponseFilter) {
+            responseInvokers.put(13, new LeaveGroupResponseFilterInvoker(leaveGroupResponseFilter));
         }
-        if (filter instanceof ListGroupsRequestFilter) {
-            requestInvokers.put(16, new ListGroupsRequestFilterInvoker((ListGroupsRequestFilter) filter));
+        if (filter instanceof ListGroupsRequestFilter listGroupsRequestFilter) {
+            requestInvokers.put(16, new ListGroupsRequestFilterInvoker(listGroupsRequestFilter));
         }
-        if (filter instanceof ListGroupsResponseFilter) {
-            responseInvokers.put(16, new ListGroupsResponseFilterInvoker((ListGroupsResponseFilter) filter));
+        if (filter instanceof ListGroupsResponseFilter listGroupsResponseFilter) {
+            responseInvokers.put(16, new ListGroupsResponseFilterInvoker(listGroupsResponseFilter));
         }
-        if (filter instanceof ListOffsetsRequestFilter) {
-            requestInvokers.put(2, new ListOffsetsRequestFilterInvoker((ListOffsetsRequestFilter) filter));
+        if (filter instanceof ListOffsetsRequestFilter listOffsetsRequestFilter) {
+            requestInvokers.put(2, new ListOffsetsRequestFilterInvoker(listOffsetsRequestFilter));
         }
-        if (filter instanceof ListOffsetsResponseFilter) {
-            responseInvokers.put(2, new ListOffsetsResponseFilterInvoker((ListOffsetsResponseFilter) filter));
+        if (filter instanceof ListOffsetsResponseFilter listOffsetsResponseFilter) {
+            responseInvokers.put(2, new ListOffsetsResponseFilterInvoker(listOffsetsResponseFilter));
         }
-        if (filter instanceof ListPartitionReassignmentsRequestFilter) {
-            requestInvokers.put(46, new ListPartitionReassignmentsRequestFilterInvoker((ListPartitionReassignmentsRequestFilter) filter));
+        if (filter instanceof ListPartitionReassignmentsRequestFilter listPartitionReassignmentsRequestFilter) {
+            requestInvokers.put(46, new ListPartitionReassignmentsRequestFilterInvoker(listPartitionReassignmentsRequestFilter));
         }
-        if (filter instanceof ListPartitionReassignmentsResponseFilter) {
-            responseInvokers.put(46, new ListPartitionReassignmentsResponseFilterInvoker((ListPartitionReassignmentsResponseFilter) filter));
+        if (filter instanceof ListPartitionReassignmentsResponseFilter listPartitionReassignmentsResponseFilter) {
+            responseInvokers.put(46, new ListPartitionReassignmentsResponseFilterInvoker(listPartitionReassignmentsResponseFilter));
         }
-        if (filter instanceof ListTransactionsRequestFilter) {
-            requestInvokers.put(66, new ListTransactionsRequestFilterInvoker((ListTransactionsRequestFilter) filter));
+        if (filter instanceof ListTransactionsRequestFilter listTransactionsRequestFilter) {
+            requestInvokers.put(66, new ListTransactionsRequestFilterInvoker(listTransactionsRequestFilter));
         }
-        if (filter instanceof ListTransactionsResponseFilter) {
-            responseInvokers.put(66, new ListTransactionsResponseFilterInvoker((ListTransactionsResponseFilter) filter));
+        if (filter instanceof ListTransactionsResponseFilter listTransactionsResponseFilter) {
+            responseInvokers.put(66, new ListTransactionsResponseFilterInvoker(listTransactionsResponseFilter));
         }
-        if (filter instanceof MetadataRequestFilter) {
-            requestInvokers.put(3, new MetadataRequestFilterInvoker((MetadataRequestFilter) filter));
+        if (filter instanceof MetadataRequestFilter metadataRequestFilter) {
+            requestInvokers.put(3, new MetadataRequestFilterInvoker(metadataRequestFilter));
         }
-        if (filter instanceof MetadataResponseFilter) {
-            responseInvokers.put(3, new MetadataResponseFilterInvoker((MetadataResponseFilter) filter));
+        if (filter instanceof MetadataResponseFilter metadataResponseFilter) {
+            responseInvokers.put(3, new MetadataResponseFilterInvoker(metadataResponseFilter));
         }
-        if (filter instanceof OffsetCommitRequestFilter) {
-            requestInvokers.put(8, new OffsetCommitRequestFilterInvoker((OffsetCommitRequestFilter) filter));
+        if (filter instanceof OffsetCommitRequestFilter offsetCommitRequestFilter) {
+            requestInvokers.put(8, new OffsetCommitRequestFilterInvoker(offsetCommitRequestFilter));
         }
-        if (filter instanceof OffsetCommitResponseFilter) {
-            responseInvokers.put(8, new OffsetCommitResponseFilterInvoker((OffsetCommitResponseFilter) filter));
+        if (filter instanceof OffsetCommitResponseFilter offsetCommitResponseFilter) {
+            responseInvokers.put(8, new OffsetCommitResponseFilterInvoker(offsetCommitResponseFilter));
         }
-        if (filter instanceof OffsetDeleteRequestFilter) {
-            requestInvokers.put(47, new OffsetDeleteRequestFilterInvoker((OffsetDeleteRequestFilter) filter));
+        if (filter instanceof OffsetDeleteRequestFilter offsetDeleteRequestFilter) {
+            requestInvokers.put(47, new OffsetDeleteRequestFilterInvoker(offsetDeleteRequestFilter));
         }
-        if (filter instanceof OffsetDeleteResponseFilter) {
-            responseInvokers.put(47, new OffsetDeleteResponseFilterInvoker((OffsetDeleteResponseFilter) filter));
+        if (filter instanceof OffsetDeleteResponseFilter offsetDeleteResponseFilter) {
+            responseInvokers.put(47, new OffsetDeleteResponseFilterInvoker(offsetDeleteResponseFilter));
         }
-        if (filter instanceof OffsetFetchRequestFilter) {
-            requestInvokers.put(9, new OffsetFetchRequestFilterInvoker((OffsetFetchRequestFilter) filter));
+        if (filter instanceof OffsetFetchRequestFilter offsetFetchRequestFilter) {
+            requestInvokers.put(9, new OffsetFetchRequestFilterInvoker(offsetFetchRequestFilter));
         }
-        if (filter instanceof OffsetFetchResponseFilter) {
-            responseInvokers.put(9, new OffsetFetchResponseFilterInvoker((OffsetFetchResponseFilter) filter));
+        if (filter instanceof OffsetFetchResponseFilter offsetFetchResponseFilter) {
+            responseInvokers.put(9, new OffsetFetchResponseFilterInvoker(offsetFetchResponseFilter));
         }
-        if (filter instanceof OffsetForLeaderEpochRequestFilter) {
-            requestInvokers.put(23, new OffsetForLeaderEpochRequestFilterInvoker((OffsetForLeaderEpochRequestFilter) filter));
+        if (filter instanceof OffsetForLeaderEpochRequestFilter offsetForLeaderEpochRequestFilter) {
+            requestInvokers.put(23, new OffsetForLeaderEpochRequestFilterInvoker(offsetForLeaderEpochRequestFilter));
         }
-        if (filter instanceof OffsetForLeaderEpochResponseFilter) {
-            responseInvokers.put(23, new OffsetForLeaderEpochResponseFilterInvoker((OffsetForLeaderEpochResponseFilter) filter));
+        if (filter instanceof OffsetForLeaderEpochResponseFilter offsetForLeaderEpochResponseFilter) {
+            responseInvokers.put(23, new OffsetForLeaderEpochResponseFilterInvoker(offsetForLeaderEpochResponseFilter));
         }
-        if (filter instanceof ProduceRequestFilter) {
-            requestInvokers.put(0, new ProduceRequestFilterInvoker((ProduceRequestFilter) filter));
+        if (filter instanceof ProduceRequestFilter produceRequestFilter) {
+            requestInvokers.put(0, new ProduceRequestFilterInvoker(produceRequestFilter));
         }
-        if (filter instanceof ProduceResponseFilter) {
-            responseInvokers.put(0, new ProduceResponseFilterInvoker((ProduceResponseFilter) filter));
+        if (filter instanceof ProduceResponseFilter produceResponseFilter) {
+            responseInvokers.put(0, new ProduceResponseFilterInvoker(produceResponseFilter));
         }
-        if (filter instanceof RenewDelegationTokenRequestFilter) {
-            requestInvokers.put(39, new RenewDelegationTokenRequestFilterInvoker((RenewDelegationTokenRequestFilter) filter));
+        if (filter instanceof RenewDelegationTokenRequestFilter renewDelegationTokenRequestFilter) {
+            requestInvokers.put(39, new RenewDelegationTokenRequestFilterInvoker(renewDelegationTokenRequestFilter));
         }
-        if (filter instanceof RenewDelegationTokenResponseFilter) {
-            responseInvokers.put(39, new RenewDelegationTokenResponseFilterInvoker((RenewDelegationTokenResponseFilter) filter));
+        if (filter instanceof RenewDelegationTokenResponseFilter renewDelegationTokenResponseFilter) {
+            responseInvokers.put(39, new RenewDelegationTokenResponseFilterInvoker(renewDelegationTokenResponseFilter));
         }
-        if (filter instanceof SaslAuthenticateRequestFilter) {
-            requestInvokers.put(36, new SaslAuthenticateRequestFilterInvoker((SaslAuthenticateRequestFilter) filter));
+        if (filter instanceof SaslAuthenticateRequestFilter saslAuthenticateRequestFilter) {
+            requestInvokers.put(36, new SaslAuthenticateRequestFilterInvoker(saslAuthenticateRequestFilter));
         }
-        if (filter instanceof SaslAuthenticateResponseFilter) {
-            responseInvokers.put(36, new SaslAuthenticateResponseFilterInvoker((SaslAuthenticateResponseFilter) filter));
+        if (filter instanceof SaslAuthenticateResponseFilter saslAuthenticateResponseFilter) {
+            responseInvokers.put(36, new SaslAuthenticateResponseFilterInvoker(saslAuthenticateResponseFilter));
         }
-        if (filter instanceof SaslHandshakeRequestFilter) {
-            requestInvokers.put(17, new SaslHandshakeRequestFilterInvoker((SaslHandshakeRequestFilter) filter));
+        if (filter instanceof SaslHandshakeRequestFilter saslHandshakeRequestFilter) {
+            requestInvokers.put(17, new SaslHandshakeRequestFilterInvoker(saslHandshakeRequestFilter));
         }
-        if (filter instanceof SaslHandshakeResponseFilter) {
-            responseInvokers.put(17, new SaslHandshakeResponseFilterInvoker((SaslHandshakeResponseFilter) filter));
+        if (filter instanceof SaslHandshakeResponseFilter saslHandshakeResponseFilter) {
+            responseInvokers.put(17, new SaslHandshakeResponseFilterInvoker(saslHandshakeResponseFilter));
         }
-        if (filter instanceof SyncGroupRequestFilter) {
-            requestInvokers.put(14, new SyncGroupRequestFilterInvoker((SyncGroupRequestFilter) filter));
+        if (filter instanceof SyncGroupRequestFilter syncGroupRequestFilter) {
+            requestInvokers.put(14, new SyncGroupRequestFilterInvoker(syncGroupRequestFilter));
         }
-        if (filter instanceof SyncGroupResponseFilter) {
-            responseInvokers.put(14, new SyncGroupResponseFilterInvoker((SyncGroupResponseFilter) filter));
+        if (filter instanceof SyncGroupResponseFilter syncGroupResponseFilter) {
+            responseInvokers.put(14, new SyncGroupResponseFilterInvoker(syncGroupResponseFilter));
         }
-        if (filter instanceof TxnOffsetCommitRequestFilter) {
-            requestInvokers.put(28, new TxnOffsetCommitRequestFilterInvoker((TxnOffsetCommitRequestFilter) filter));
+        if (filter instanceof TxnOffsetCommitRequestFilter txnOffsetCommitRequestFilter) {
+            requestInvokers.put(28, new TxnOffsetCommitRequestFilterInvoker(txnOffsetCommitRequestFilter));
         }
-        if (filter instanceof TxnOffsetCommitResponseFilter) {
-            responseInvokers.put(28, new TxnOffsetCommitResponseFilterInvoker((TxnOffsetCommitResponseFilter) filter));
+        if (filter instanceof TxnOffsetCommitResponseFilter txnOffsetCommitResponseFilter) {
+            responseInvokers.put(28, new TxnOffsetCommitResponseFilterInvoker(txnOffsetCommitResponseFilter));
         }
-        if (filter instanceof UnregisterBrokerRequestFilter) {
-            requestInvokers.put(64, new UnregisterBrokerRequestFilterInvoker((UnregisterBrokerRequestFilter) filter));
+        if (filter instanceof UnregisterBrokerRequestFilter unregisterBrokerRequestFilter) {
+            requestInvokers.put(64, new UnregisterBrokerRequestFilterInvoker(unregisterBrokerRequestFilter));
         }
-        if (filter instanceof UnregisterBrokerResponseFilter) {
-            responseInvokers.put(64, new UnregisterBrokerResponseFilterInvoker((UnregisterBrokerResponseFilter) filter));
+        if (filter instanceof UnregisterBrokerResponseFilter unregisterBrokerResponseFilter) {
+            responseInvokers.put(64, new UnregisterBrokerResponseFilterInvoker(unregisterBrokerResponseFilter));
         }
-        if (filter instanceof UpdateFeaturesRequestFilter) {
-            requestInvokers.put(57, new UpdateFeaturesRequestFilterInvoker((UpdateFeaturesRequestFilter) filter));
+        if (filter instanceof UpdateFeaturesRequestFilter updateFeaturesRequestFilter) {
+            requestInvokers.put(57, new UpdateFeaturesRequestFilterInvoker(updateFeaturesRequestFilter));
         }
-        if (filter instanceof UpdateFeaturesResponseFilter) {
-            responseInvokers.put(57, new UpdateFeaturesResponseFilterInvoker((UpdateFeaturesResponseFilter) filter));
+        if (filter instanceof UpdateFeaturesResponseFilter updateFeaturesResponseFilter) {
+            responseInvokers.put(57, new UpdateFeaturesResponseFilterInvoker(updateFeaturesResponseFilter));
         }
-        if (filter instanceof VoteRequestFilter) {
-            requestInvokers.put(52, new VoteRequestFilterInvoker((VoteRequestFilter) filter));
+        if (filter instanceof VoteRequestFilter voteRequestFilter) {
+            requestInvokers.put(52, new VoteRequestFilterInvoker(voteRequestFilter));
         }
-        if (filter instanceof VoteResponseFilter) {
-            responseInvokers.put(52, new VoteResponseFilterInvoker((VoteResponseFilter) filter));
+        if (filter instanceof VoteResponseFilter voteResponseFilter) {
+            responseInvokers.put(52, new VoteResponseFilterInvoker(voteResponseFilter));
         }
-        if (filter instanceof WriteTxnMarkersRequestFilter) {
-            requestInvokers.put(27, new WriteTxnMarkersRequestFilterInvoker((WriteTxnMarkersRequestFilter) filter));
+        if (filter instanceof WriteTxnMarkersRequestFilter writeTxnMarkersRequestFilter) {
+            requestInvokers.put(27, new WriteTxnMarkersRequestFilterInvoker(writeTxnMarkersRequestFilter));
         }
-        if (filter instanceof WriteTxnMarkersResponseFilter) {
-            responseInvokers.put(27, new WriteTxnMarkersResponseFilterInvoker((WriteTxnMarkersResponseFilter) filter));
+        if (filter instanceof WriteTxnMarkersResponseFilter writeTxnMarkersResponseFilter) {
+            responseInvokers.put(27, new WriteTxnMarkersResponseFilterInvoker(writeTxnMarkersResponseFilter));
         }
         this.requestInvokers = createFrom(requestInvokers);
         this.responseInvokers = createFrom(responseInvokers);

@@ -59,8 +59,8 @@ public class SpecificFilterArrayInvoker implements FilterInvoker {
         Map<Integer, FilterInvoker> requestInvokers = new HashMap<>();
         Map<Integer, FilterInvoker> responseInvokers = new HashMap<>();
         <#list inputSpecs as inputSpec>
-        if (filter instanceof ${inputSpec.name}Filter) {
-            ${inputSpec.type?lower_case}Invokers.put(${inputSpec.apiKey.get()}, new ${inputSpec.name}FilterInvoker((${inputSpec.name}Filter) filter));
+        if (filter instanceof ${inputSpec.name}Filter ${inputSpec.name?uncap_first}Filter) {
+            ${inputSpec.type?lower_case}Invokers.put(${inputSpec.apiKey.get()}, new ${inputSpec.name}FilterInvoker(${inputSpec.name?uncap_first}Filter));
         }
         </#list>
         this.requestInvokers = createFrom(requestInvokers);
