@@ -16,10 +16,12 @@ class ScramCredentialTest {
 
     @Test
     void shouldCreateValidCredential() {
+        // Given
         byte[] salt = { 1, 2, 3, 4, 5 };
         byte[] serverKey = { 10, 20, 30, 40, 50 };
         byte[] storedKey = { 11, 21, 31, 41, 51 };
 
+        // When
         ScramCredential credential = new ScramCredential(
                 "alice",
                 salt,
@@ -28,6 +30,7 @@ class ScramCredentialTest {
                 storedKey,
                 "SHA-256");
 
+        // Then
         assertThat(credential.username()).isEqualTo("alice");
         assertThat(credential.salt()).isEqualTo(salt);
         assertThat(credential.iterations()).isEqualTo(4096);
