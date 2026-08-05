@@ -801,6 +801,54 @@ class RouterDispatchHandlerTest {
         assertThat(channel.isOpen()).isFalse();
     }
 
+    @Test
+    void oobFrameNullResultShouldCloseChannelAndCompletePromiseExceptionally() {
+        // Given
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(DEFAULT_ROUTE);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+        assertThat(promise).isCompletedExceptionally();
+    }
+
+    @Test
+    void oobFrameUnrecognisedResultTypeShouldCloseChannelAndCompletePromiseExceptionally() {
+        // Given
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(DEFAULT_ROUTE);
+        RouterResponse unknown = new RouterResponse() {
+        };
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(unknown));
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+        assertThat(promise).isCompletedExceptionally();
+    }
+
     private InternalRequestFrame<ProduceRequestData> oobProduceFrame(int correlationId, CompletableFuture<?> promise) {
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)
