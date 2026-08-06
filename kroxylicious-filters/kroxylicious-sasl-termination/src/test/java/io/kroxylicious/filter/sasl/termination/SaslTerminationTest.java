@@ -9,13 +9,20 @@ package io.kroxylicious.filter.sasl.termination;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
+import javax.security.sasl.SaslException;
+
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -33,6 +40,8 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
+import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static io.kroxylicious.filter.sasl.termination.SaslTermination.ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG;
@@ -222,9 +231,9 @@ class SaslTerminationTest {
 
         // Then
         assertThat(saslConfig)
-                .containsEntry(org.apache.kafka.common.config.SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS, 300_000L)
-                .containsEntry(org.apache.kafka.common.config.SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS, 1_000L)
-                .containsEntry(org.apache.kafka.common.config.SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS, 10_000L);
+                .containsEntry(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS, 300_000L)
+                .containsEntry(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS, 1_000L)
+                .containsEntry(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS, 10_000L);
     }
 
     @Test
@@ -240,12 +249,12 @@ class SaslTerminationTest {
 
         // Then
         assertThat(saslConfig)
-                .containsEntry(org.apache.kafka.common.config.SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS,
-                        org.apache.kafka.common.config.SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS)
-                .containsEntry(org.apache.kafka.common.config.SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS,
-                        org.apache.kafka.common.config.SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS)
-                .containsEntry(org.apache.kafka.common.config.SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS,
-                        org.apache.kafka.common.config.SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS);
+                .containsEntry(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS,
+                        SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS)
+                .containsEntry(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS,
+                        SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS)
+                .containsEntry(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS,
+                        SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS);
     }
 
     @ParameterizedTest
@@ -378,7 +387,7 @@ class SaslTerminationTest {
     void shouldRejectSaslHandshakeWithUnsupportedApiVersion() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
 
         var filterContext = mockFilterContextForErrorResponse();
         short unsupportedVersion = (short) (ApiKeys.SASL_HANDSHAKE.latestVersion() + 1);
@@ -395,7 +404,7 @@ class SaslTerminationTest {
     void shouldRejectSaslAuthenticateWithUnsupportedApiVersion() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
 
         var filterContext = mockFilterContextForErrorResponse();
         short unsupportedVersion = (short) (ApiKeys.SASL_AUTHENTICATE.latestVersion() + 1);
@@ -412,7 +421,7 @@ class SaslTerminationTest {
     void shouldHandleRequestReturnsTrueInRequiringHandshakeState() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
 
         // When/Then
         assertThat(filter.shouldHandleRequest(ApiKeys.PRODUCE, (short) 0)).isTrue();
@@ -422,7 +431,7 @@ class SaslTerminationTest {
     void shouldHandleRequestReturnsFalseWhenAuthenticatedWithNoExpiry() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
 
         var start = State.start();
         var handler = mock(MechanismStateMachine.class);
@@ -443,12 +452,12 @@ class SaslTerminationTest {
     void shouldHandleRequestReturnsTrueWhenAuthenticatedWithExpiry() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
 
         var start = State.start();
         var handler = mock(MechanismStateMachine.class);
         var authenticating = start.nextState(handler);
-        var authenticated = authenticating.nextStateSuccess("alice", "OAUTHBEARER", java.time.Instant.now().plusSeconds(3600));
+        var authenticated = authenticating.nextStateSuccess("alice", "OAUTHBEARER", Instant.now().plusSeconds(3600));
 
         setFilterState(filter, authenticated);
 
@@ -464,7 +473,7 @@ class SaslTerminationTest {
     void shouldRejectUnsupportedApiRequests(ApiKeys apiKey) {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
         var handler = mock(MechanismStateMachine.class);
         var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
@@ -483,7 +492,7 @@ class SaslTerminationTest {
     void shouldRemoveDelegationTokenApisFromApiVersionsResponse() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
 
         var apiKeys = new ArrayList<>(List.of(
                 new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.PRODUCE.id),
@@ -515,7 +524,7 @@ class SaslTerminationTest {
     void shouldHandleApiVersionsResponseWithNoTargetApis() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
 
         var response = new ApiVersionsResponseData();
         response.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.PRODUCE.id));
@@ -542,7 +551,7 @@ class SaslTerminationTest {
         when(handler.mechanismName()).thenReturn("OAUTHBEARER");
         when(handler.maxAuthBytes()).thenReturn(maxAuthBytes);
         var context = testContext(Set.of("OAUTHBEARER"), List.of());
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
 
         var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating);
@@ -574,7 +583,7 @@ class SaslTerminationTest {
             when(handler.maxAuthBytes()).thenReturn(128 * 1024);
             when(handler.evaluateRound(any())).thenReturn(
                     CompletableFuture.completedFuture(
-                            RoundResult.failure(new byte[0], new javax.security.sasl.SaslException("test"))));
+                            RoundResult.failure(new byte[0], new SaslException("test"))));
 
             var authenticating = State.start().nextState(handler);
             setFilterState(filter, authenticating);
@@ -583,14 +592,14 @@ class SaslTerminationTest {
             var filterContext = mockFilterContextForShortCircuitWithClose();
 
             // When
-            var completingThread = new java.util.concurrent.atomic.AtomicReference<String>();
+            var completingThread = new AtomicReference<String>();
             filter.onRequest(ApiKeys.SASL_AUTHENTICATE, (short) 0,
                     new RequestHeaderData(), request, filterContext)
                     .thenApply(result -> {
                         completingThread.set(Thread.currentThread().getName());
                         return result;
                     })
-                    .toCompletableFuture().get(5, java.util.concurrent.TimeUnit.SECONDS);
+                    .toCompletableFuture().get(5, TimeUnit.SECONDS);
 
             // Then
             assertThat(completingThread.get()).isEqualTo(executorThreadName);
@@ -612,8 +621,8 @@ class SaslTerminationTest {
     private static FilterContext mockFilterContextForShortCircuitWithClose() {
         var filterContext = mock(FilterContext.class);
         var builder = mock(RequestFilterResultBuilder.class);
-        var closeOrTerminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage.class);
-        var terminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage.class);
+        var closeOrTerminal = mock(CloseOrTerminalStage.class);
+        var terminal = mock(TerminalStage.class);
         var result = mock(RequestFilterResult.class);
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
@@ -629,8 +638,8 @@ class SaslTerminationTest {
     private static FilterContext mockFilterContextForErrorResponse() {
         var filterContext = mock(FilterContext.class);
         var builder = mock(RequestFilterResultBuilder.class);
-        var closeOrTerminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage.class);
-        var terminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage.class);
+        var closeOrTerminal = mock(CloseOrTerminalStage.class);
+        var terminal = mock(TerminalStage.class);
         var result = mock(RequestFilterResult.class);
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
@@ -645,7 +654,7 @@ class SaslTerminationTest {
     private static FilterContext mockFilterContextForErrorResponseWithoutClose() {
         var filterContext = mock(FilterContext.class);
         var builder = mock(RequestFilterResultBuilder.class);
-        var closeOrTerminal = mock(io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage.class);
+        var closeOrTerminal = mock(CloseOrTerminalStage.class);
         var result = mock(RequestFilterResult.class);
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);

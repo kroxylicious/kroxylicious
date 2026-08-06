@@ -84,6 +84,9 @@ class OauthBearerStateMachine implements MechanismStateMachine {
                 saslServer = Sasl.createSaslServer(
                         OAUTHBEARER_MECHANISM,
                         "kafka",
+                        // ^^ align with
+                        // o.a.k.common.security.oauthbearer.internals.OAuthBearerSaslServer.OAuthBearerSaslServerFactory#createSaslServer
+                        // which uses "kafka", but the kafka internals don't depend on it.
                         null,
                         null,
                         callbackHandler);

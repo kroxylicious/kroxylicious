@@ -650,7 +650,7 @@ class SaslTerminationFilterTest {
 
         // Then
         assertThat(exceptionCaptor.getValue().getMessage())
-                .isEqualTo("Delegation tokens are not supported when SASL is terminated at the proxy");
+                .isEqualTo(apiKey + " is not supported when SASL is terminated at the proxy");
     }
 
     // --- API_VERSIONS ---

@@ -118,8 +118,8 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
     public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
         if (state instanceof State.Authenticated authenticated && authenticated.sessionExpiry() == null) {
             return switch (apiKey) {
-                case API_VERSIONS, SASL_HANDSHAKE, SASL_AUTHENTICATE, CREATE_DELEGATION_TOKEN, RENEW_DELEGATION_TOKEN, EXPIRE_DELEGATION_TOKEN, DESCRIBE_DELEGATION_TOKEN -> true;
-                default -> false;
+                case API_VERSIONS, SASL_HANDSHAKE, SASL_AUTHENTICATE -> true;
+                default -> FILTERED_API_KEYS.contains(apiKey.id);
             };
         }
         return true;
@@ -327,7 +327,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         boolean reauthentication = authenticating.previousAuthorizationId() != null;
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
-                .addKeyValue(LOG_KEY_MECHANISM, stateMachine.mechanismName())
+                .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                 .addKeyValue(LOG_KEY_REAUTHENTICATION, reauthentication)
                 .addKeyValue("authorizationId", authorizationId)
                 .log("Credential validation successful");
@@ -492,14 +492,16 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         if (state instanceof State.Authenticated authenticated) {
             Instant expiry = authenticated.sessionExpiry();
             if (expiry == null || !clock.instant().isAfter(expiry)) {
-                return switch (apiKey) {
-                    case CREATE_DELEGATION_TOKEN, RENEW_DELEGATION_TOKEN, EXPIRE_DELEGATION_TOKEN, DESCRIBE_DELEGATION_TOKEN -> rejectUnsupportedApi(header,
+                if (FILTERED_API_KEYS.contains(apiKey.id)) {
+                    return rejectUnsupportedApi(header,
                             request,
                             apiKey,
-                            "Delegation tokens are not supported when SASL is terminated at the proxy",
+                            apiKey + " is not supported when SASL is terminated at the proxy",
                             filterContext);
-                    default -> filterContext.forwardRequest(header, request);
-                };
+                }
+                else {
+                    return filterContext.forwardRequest(header, request);
+                }
             }
             else {
                 Counter.builder(SESSION_EXPIRED_METRIC)
