@@ -1,0 +1,46 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-authentication-overview-{context}']
+= Overview of client authentication
+
+[role="_abstract"]
+Kroxylicious is a Layer 7 (application layer) proxy for the Kafka protocol.
+It understands and can act on the content of Kafka protocol messages, rather than simply forwarding TCP traffic.
+
+This architecture has an important consequence for TLS: the proxy always _terminates_ TLS connections from clients.
+Unlike a network-layer (Layer 4) proxy, it cannot pass TLS connections through transparently because it needs to read and potentially modify Kafka protocol messages.
+If TLS is configured between clients and the proxy, the proxy holds the server certificate and manages the TLS session with the client.
+A separate TLS session may be established between the proxy and the upstream Kafka brokers.
+
+== Authentication mechanisms
+
+Client authentication in Kroxylicious can use either or both of the following mechanisms:
+
+Client mutual TLS (mTLS)::
+The proxy requires clients to present a TLS client certificate during the TLS handshake.
+The proxy validates the certificate against a trust store containing trusted CA certificates.
+This provides strong client identity based on the certificate's subject or subject alternative names (SANs).
+
+SASL authentication::
+Kafka clients and brokers use the Simple Authentication and Security Layer (SASL) protocol to authenticate.
+The proxy can interact with this SASL exchange in several ways, ranging from transparently forwarding it to actively validating credentials.
+The different SASL authentication modes are described in xref:con-sasl-authentication-modes-{context}[].
+
+These mechanisms are not mutually exclusive.
+A deployment can use mTLS to establish transport-level identity and SASL to establish application-level identity.
+
+== The authenticated subject
+
+When authentication succeeds, the proxy constructs an _authenticated subject_ representing the client's identity.
+A subject contains one or more _principals_ — named identifiers such as a user name derived from a certificate DN or a SASL authorization ID.
+
+Filters in the proxy chain can access the authenticated subject to make decisions about the client.
+For example, the authorization filter uses the subject to enforce access control policies, and the entity isolation filter uses it to provide per-client topic namespaces.
+
+Without authentication, the subject is anonymous and identity-aware filters cannot function.

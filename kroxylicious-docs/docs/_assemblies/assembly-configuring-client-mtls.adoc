@@ -1,0 +1,28 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+
+[id='assembly-configuring-client-mtls-{context}']
+= Configuring client mutual TLS (mTLS)
+
+[role="_abstract"]
+To use mTLS for client authentication, configure TLS on the virtual cluster gateway with a trust store containing the CA certificates that the proxy uses to validate client certificates.
+
+.Prerequisites
+
+* An instance of Kroxylicious.
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
+* A server certificate for the virtual cluster gateway.
+* A trust store containing the CA certificates used to sign client certificates.
+* Client certificates issued by a trusted CA for each Kafka client that needs to authenticate.
+
+include::../_modules/configuring/con-configuring-vc-client-tls.adoc[leveloffset=+1]
