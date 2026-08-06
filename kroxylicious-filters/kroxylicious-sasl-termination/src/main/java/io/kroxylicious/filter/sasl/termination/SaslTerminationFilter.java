@@ -359,7 +359,6 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                         success,
                         subject,
                         mechanism,
-                        authorizationId,
                         reauthentication,
                         sessionLifetimeMs,
                         authDuration))
@@ -386,11 +385,11 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
                                                                         RoundResult.Success success,
                                                                         Subject subject,
                                                                         String mechanism,
-                                                                        String authorizationId,
                                                                         boolean reauthentication,
                                                                         long sessionLifetimeMs,
                                                                         Duration authDuration) {
         recordAuthDuration(mechanism, filterContext.getVirtualClusterName(), authDuration);
+        String authorizationId = success.authorizationId();
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
                 .addKeyValue(LOG_KEY_MECHANISM, mechanism)
