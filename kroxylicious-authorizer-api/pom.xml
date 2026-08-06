@@ -21,10 +21,6 @@
     <artifactId>kroxylicious-authorizer-api</artifactId>
     <name>Authorizer Plugin API</name>
 
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
