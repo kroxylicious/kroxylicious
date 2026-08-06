@@ -24,14 +24,40 @@ import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
+/**
+ * A {@link ByteBufferTransformationFactory} for a transformation which replaces
+ * matches of a regular expression with a fixed replacement value.
+ */
 @Plugin(configType = Replacing.Config.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.simpletransform.Replacing", since = "0.19.0")
 public class Replacing implements ByteBufferTransformationFactory<Replacing.Config> {
+
+    /**
+     * Creates a new factory.
+     */
+    public Replacing() {
+        // empty
+    }
+
+    /**
+     * The configuration for the {@link Replacing} transformation.
+     * @param charset The name of the charset used to decode and re-encode the buffer. Defaults to UTF-8.
+     * @param targetPattern The regular expression whose matches are replaced.
+     * @param replacementValue The replacement value. Mutually exclusive with {@code pathToReplacementValue}.
+     * @param pathToReplacementValue The path of a file containing the replacement value. Mutually exclusive with {@code replacementValue}.
+     */
     public record Config(
                          @JsonProperty String charset,
                          @JsonProperty(required = true) String targetPattern,
                          @JsonProperty String replacementValue,
                          @JsonProperty Path pathToReplacementValue) {
+        /**
+         * Creates a new configuration.
+         * @param charset The name of the charset used to decode and re-encode the buffer. Defaults to UTF-8 when null.
+         * @param targetPattern The regular expression whose matches are replaced.
+         * @param replacementValue The replacement value. Mutually exclusive with {@code pathToReplacementValue}.
+         * @param pathToReplacementValue The path of a file containing the replacement value. Mutually exclusive with {@code replacementValue}.
+         */
         public Config(@JsonProperty String charset, @JsonProperty(required = true) String targetPattern, @JsonProperty String replacementValue,
                       @JsonProperty Path pathToReplacementValue) {
             this.charset = Optional.ofNullable(charset).orElse(StandardCharsets.UTF_8.name());
@@ -66,6 +92,9 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
         return new Transformation(configuration);
     }
 
+    /**
+     * A {@link ByteBufferTransformation} which replaces matches of a regular expression with a replacement value.
+     */
     public static class Transformation implements ByteBufferTransformation {
 
         private final Charset charset;
