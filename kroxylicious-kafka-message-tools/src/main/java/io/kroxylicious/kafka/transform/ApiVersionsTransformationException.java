@@ -10,6 +10,11 @@ package io.kroxylicious.kafka.transform;
  * Thrown when there is some issue during an ApiVersions transformation
  */
 public class ApiVersionsTransformationException extends RuntimeException {
+    /**
+     * Initializes a new instance.
+     *
+     * @param message the detail message
+     */
     public ApiVersionsTransformationException(String message) {
         super(message);
     }

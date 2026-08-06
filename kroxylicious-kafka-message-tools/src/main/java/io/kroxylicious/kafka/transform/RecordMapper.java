@@ -9,8 +9,23 @@ package io.kroxylicious.kafka.transform;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 
+/**
+ * A function that maps a {@link Record}, together with the {@link RecordBatch} that contains it
+ * and any state associated with the record, to some result.
+ *
+ * @param <S> The type of state associated with a record.
+ * @param <T> The type of the result of the mapping.
+ */
 @FunctionalInterface
 public interface RecordMapper<S, T> {
 
+    /**
+     * Maps the given record to a result.
+     *
+     * @param batch The batch containing the record.
+     * @param record The record.
+     * @param state The state associated with the record.
+     * @return The result of the mapping.
+     */
     T apply(RecordBatch batch, Record record, S state);
 }

@@ -99,6 +99,13 @@ public class RecordStream<T> {
         return new RecordStream<>(records, (batch, record, idx) -> mapper.apply(batch, record, stateFunction.apply(batch, record, idx)));
     }
 
+    /**
+     * Invokes the given {@code mapper} for each record in this stream, together with its associated state.
+     * Control batches are skipped.
+     * This iterates the batches in the source {@link MemoryRecords} and so will result in
+     * batch decompression.
+     * @param mapper The consumer to invoke for each record
+     */
     public void forEachRecord(RecordConsumer<T> mapper) {
         int i = 0;
         for (var batch : records.batches()) {
@@ -123,6 +130,15 @@ public class RecordStream<T> {
         return toCollection(mapper, new HashSet<>());
     }
 
+    /**
+     * Map each of the records in this stream to some new state and return the list of those mapped states,
+     * in stream order.
+     * This iterates the batches in the source {@link MemoryRecords} and so will result in
+     * batch decompression.
+     * @param mapper The mapper function
+     * @return The list
+     * @param <S> The type of state
+     */
     public <S> List<S> toList(RecordMapper<T, S> mapper) {
         return toCollection(mapper, new ArrayList<>());
     }
@@ -147,6 +163,7 @@ public class RecordStream<T> {
      * This iterates the batches in the source {@link MemoryRecords} and so will result in
      * batch decompression.
      *
+     * @param buffer The buffer into which the mapped records are written
      * @param transform The record transform
      * @return The mapped records
      */

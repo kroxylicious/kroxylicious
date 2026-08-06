@@ -112,6 +112,14 @@ public class BatchAwareMemoryRecordsBuilder {
         return this;
     }
 
+    /**
+     * Starts a batch with the current magic value and defaults for the remaining batch parameters.
+     *
+     * @param compression the compression type of the batch
+     * @param timestampType the timestamp type of the batch
+     * @param baseOffset the base offset of the batch
+     * @return this builder
+     */
     public BatchAwareMemoryRecordsBuilder addBatch(Compression compression,
                                                    TimestampType timestampType,
                                                    long baseOffset) {
@@ -250,6 +258,13 @@ public class BatchAwareMemoryRecordsBuilder {
         return this;
     }
 
+    /**
+     * Appends a control record at the given offset in the current batch.
+     *
+     * @param offset The absolute offset of the record in the log buffer
+     * @param record The control record to append
+     * @return This builder
+     */
     public BatchAwareMemoryRecordsBuilder appendControlRecordWithOffset(long offset, SimpleRecord record) {
         checkIfClosed();
         checkHasBatch();
@@ -257,6 +272,13 @@ public class BatchAwareMemoryRecordsBuilder {
         return this;
     }
 
+    /**
+     * Appends an end transaction marker to the current batch.
+     *
+     * @param timestamp The timestamp of the marker record
+     * @param marker The end transaction marker to append
+     * @return This builder
+     */
     public BatchAwareMemoryRecordsBuilder appendEndTxnMarker(long timestamp,
                                                              EndTransactionMarker marker) {
         checkIfClosed();

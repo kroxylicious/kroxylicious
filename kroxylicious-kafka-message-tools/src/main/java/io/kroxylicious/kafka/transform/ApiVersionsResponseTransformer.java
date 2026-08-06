@@ -28,6 +28,13 @@ public interface ApiVersionsResponseTransformer {
      */
     ApiVersionsResponseData transform(ApiVersionsResponseData data);
 
+    /**
+     * Composes this transformer with another, returning a transformer that applies
+     * this transformer first and then applies the given {@code transformer} to the result.
+     *
+     * @param transformer the transformer to apply after this one, must not be null
+     * @return the composed transformer
+     */
     default ApiVersionsResponseTransformer and(ApiVersionsResponseTransformer transformer) {
         Objects.requireNonNull(transformer, "transformer must not be null");
         return data -> transformer.transform(transform(data));
