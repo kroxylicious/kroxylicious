@@ -221,8 +221,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>nz.thebarkers</groupId>
-            <artifactId>log-on-fail</artifactId>
+            <groupId>io.github.sambarker</groupId>
+            <artifactId>logsquelcher</artifactId>
+            <version>${logsquelcher.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
