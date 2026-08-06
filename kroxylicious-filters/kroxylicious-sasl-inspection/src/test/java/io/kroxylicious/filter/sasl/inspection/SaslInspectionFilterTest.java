@@ -40,6 +40,10 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.github.sambarker.logsquelcher.CapturedLogs;
+import io.github.sambarker.logsquelcher.LogSquelcherExtension;
+import io.github.sambarker.logsquelcher.LoggingEventAssert;
+
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.SubjectBuildingException;
@@ -53,8 +57,6 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
-import nl.altindag.log.LogCaptor;
-import nl.altindag.log.model.LogEvent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -73,11 +75,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@ExtendWith(LogSquelcherExtension.class)
 class SaslInspectionFilterTest {
 
     public static final String SESSION_ID = "123-session-id-abc";
-
-    LogCaptor logCaptor;
 
     @Mock(strictness = LENIENT)
     private FilterContext context;
@@ -95,7 +96,6 @@ class SaslInspectionFilterTest {
 
     @BeforeEach
     void setUp() {
-        logCaptor = LogCaptor.forClass(SaslInspectionFilter.class);
         when(context.sessionId()).thenReturn(SESSION_ID);
         when(context.forwardRequest(any(RequestHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
             var filterResult = mock(RequestFilterResult.class);
@@ -698,7 +698,7 @@ class SaslInspectionFilterTest {
     @SuppressWarnings("deprecation")
     @ParameterizedTest
     @MethodSource("observerFactories")
-    void shouldNotForwardMetadataWhenAuthnNotPerformedButRequired(SaslObserverFactory observerFactory) {
+    void shouldNotForwardMetadataWhenAuthnNotPerformedButRequired(SaslObserverFactory observerFactory, CapturedLogs capturedLogs) {
         // Given
         var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder, true);
 
@@ -713,14 +713,13 @@ class SaslInspectionFilterTest {
         verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
         verify(context, never()).forwardRequest(any(), ArgumentMatchers.assertArg(r -> assertThat(ApiKeys.forId(r.apiKey())).isEqualTo(ApiKeys.METADATA)));
         verify(requestCloseOrTerminalStage).withCloseConnection();
-        assertThat(logCaptor.getLogEvents()).singleElement()
-                .satisfies(log -> attemptedRequestWithoutAuth(log, "attempted", "closing connection with error"));
+        attemptedRequestWithoutAuth(capturedLogs, "attempted", "closing connection with error");
     }
 
     @SuppressWarnings("deprecation")
     @ParameterizedTest
     @MethodSource("observerFactories")
-    void shouldForwardMetadataWhenAuthnNotPerformedButNotRequired(SaslObserverFactory observerFactory) {
+    void shouldForwardMetadataWhenAuthnNotPerformedButNotRequired(SaslObserverFactory observerFactory, CapturedLogs capturedLogs) {
         // Given
         var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder, false);
         // ** no authentication! **
@@ -742,24 +741,24 @@ class SaslInspectionFilterTest {
                     assertThat(ApiKeys.forId(rfr.message().apiKey()))
                             .isEqualTo(ApiKeys.METADATA);
                 });
-        assertThat(logCaptor.getLogEvents()).singleElement()
-                .satisfies(log -> attemptedRequestWithoutAuth(log, "attempted", "forwarding request"));
+        attemptedRequestWithoutAuth(capturedLogs, "attempted", "forwarding request");
     }
 
-    private static void attemptedRequestWithoutAuth(LogEvent log, String expectedDisposition, String expectedOutcome) {
-        assertThat(log.getMessage())
-                .contains("Client attempted request without having SASL authentication");
-        assertThat(log.getKeyValuePairs())
-                .contains(Map.entry("sessionId", "123-session-id-abc"))
-                .contains(Map.entry("apiKey", "METADATA"))
-                .contains(Map.entry("authenticationDisposition", expectedDisposition))
-                .contains(Map.entry("outcome", expectedOutcome));
+    private static void attemptedRequestWithoutAuth(CapturedLogs capturedLogs, String expectedDisposition, String expectedOutcome) {
+        LoggingEventAssert.assertThat(capturedLogs.logged(SaslInspectionFilter.class))
+                .satisfiesOnlyOnce(loggingEvent -> {
+                    LoggingEventAssert.assertThat(loggingEvent).containsKeyValue("sessionId", "123-session-id-abc")
+                            .containsKeyValue("apiKey", "METADATA")
+                            .containsKeyValue("authenticationDisposition", expectedDisposition)
+                            .containsKeyValue("outcome", expectedOutcome)
+                            .hasFormattedMessage("Client attempted request without having SASL authentication");
+                });
     }
 
     @SuppressWarnings("deprecation")
     @ParameterizedTest
     @MethodSource("observerFactories")
-    void shouldForwardMetadataWhenAuthnFailedButNotRequired(SaslObserverFactory observerFactory) {
+    void shouldForwardMetadataWhenAuthnFailedButNotRequired(SaslObserverFactory observerFactory, CapturedLogs capturedLogs) {
         // Given
         var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder, false);
 
@@ -787,10 +786,7 @@ class SaslInspectionFilterTest {
                     assertThat(ApiKeys.forId(rfr.message().apiKey()))
                             .isEqualTo(ApiKeys.METADATA);
                 });
-        assertThat(logCaptor.getLogEvents())
-                .anySatisfy(log -> {
-                    attemptedRequestWithoutAuth(log, "completed", "forwarding request");
-                });
+        attemptedRequestWithoutAuth(capturedLogs, "completed", "forwarding request");
     }
 
     private void doAuthenticateSuccessfully(SaslObserverFactory saslObserverFactory, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {

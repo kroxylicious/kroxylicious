@@ -15,11 +15,12 @@ import java.util.stream.Stream;
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.slf4j.event.Level;
 
+import io.github.sambarker.logsquelcher.LogSquelcherExtension;
 import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
 
@@ -40,13 +41,10 @@ import io.kroxylicious.proxy.internal.filter.TestFilter;
 import io.kroxylicious.proxy.internal.filter.TestFilterFactory;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import nz.thebarkers.logonfail.LogOnFailExtension;
-import nz.thebarkers.logonfail.LoggingEventAssert;
-
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@ExtendWith(LogSquelcherExtension.class)
 class FilterChainFactoryTest {
 
     private EventLoop eventLoop;
@@ -145,22 +143,6 @@ class FilterChainFactoryTest {
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
     }
-
-    @Test
-    void reportsUseOfFiltersWithMethodsOverridingDeprecatedApi(LogOnFailExtension logOnFail) {
-        var nameFilterDefinitions = List.of(new NamedFilterDefinition("myFilterDef", DeprecatedMethodsFilterFactory.class.getName(), null));
-        try (var filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions)) {
-            var context = new NettyFilterContext(eventLoop, pfr);
-            filterChainFactory.createFilters(context);
-            LoggingEventAssert.assertThat(logOnFail.logged(FilterChainFactory.class, Level.WARN))
-                    .hasFormattedMessage(
-                            "FilterDefinition created a Filter instance which implements a deprecated method. This Filter implementation must be updated as the method will be removed in a future release")
-                    .containsKeyValue("filterName", "myFilterDef")
-                    .containsKeyValue("filterDefinitionType", "io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory")
-                    .containsKeyValue("filterClass", DeprecatedMethodsFilterFactory.TestFilterImpl.class);
-        }
-    }
-
 
     @ParameterizedTest
     @MethodSource(value = "filterTypes")

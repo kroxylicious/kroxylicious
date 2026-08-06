@@ -10,15 +10,17 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.event.Level;
 
-import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
+import io.github.sambarker.logsquelcher.CapturedLogs;
+import io.github.sambarker.logsquelcher.LogSquelcherExtension;
+import io.github.sambarker.logsquelcher.LoggingEventAssert;
 
-import nz.thebarkers.logonfail.LogOnFailExtension;
-import nz.thebarkers.logonfail.LoggingEventAssert;
+import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -26,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+@ExtendWith(LogSquelcherExtension.class)
 class ServiceBasedPluginFactoryRegistryTest {
 
     @Test
@@ -103,16 +106,17 @@ class ServiceBasedPluginFactoryRegistryTest {
 
     @ParameterizedTest
     @MethodSource
-    void shouldLogWarningOnInstantiation(String instanceName, String expectedMessage, Map<String, String> expectedKeyValues, LogOnFailExtension logOnFail) {
+    void shouldLogWarningOnInstantiation(String instanceName, String expectedMessage, Map<String, String> expectedKeyValues, CapturedLogs capturedLogs) {
         // Given
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
         // When
         var instance = factory.pluginInstance(instanceName);
         // Then
         assertThat(instance).isNotNull();
-        var eventAssert = LoggingEventAssert.assertThat(logOnFail.logged(ServiceBasedPluginFactoryRegistry.class, Level.WARN))
-                .hasFormattedMessage(expectedMessage);
-        expectedKeyValues.forEach(eventAssert::containsKeyValue);
+        LoggingEventAssert.assertThat(capturedLogs.logged(ServiceBasedPluginFactoryRegistry.class, Level.WARN))
+                .singleElement()
+                .hasFormattedMessage(expectedMessage)
+                .hasKeyValues(expectedKeyValues);
     }
 
     static List<Arguments> shouldNotLogWarningOnInstantiation() {
@@ -129,14 +133,14 @@ class ServiceBasedPluginFactoryRegistryTest {
 
     @ParameterizedTest
     @MethodSource
-    void shouldNotLogWarningOnInstantiation(String instanceName, LogOnFailExtension logOnFail) {
+    void shouldNotLogWarningOnInstantiation(String instanceName, CapturedLogs capturedLogs) {
         // Given
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
         // When
         var instance = factory.pluginInstance("RepackagedImplementation");
         // Then
         assertThat(instance).isNotNull();
-        logOnFail.assertNotLogged(ServiceBasedPluginFactoryRegistry.class, Level.WARN);
+        LoggingEventAssert.assertThat(capturedLogs.logged(ServiceBasedPluginFactoryRegistry.class, Level.WARN)).isEmpty();
     }
 
     @Test
@@ -150,12 +154,13 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
-    void shouldThrowForAmbiguousNameWithDeprecatedName(LogOnFailExtension logOnFail) {
+    void shouldThrowForAmbiguousNameWithDeprecatedName(CapturedLogs capturedLogs) {
         ServiceBasedPluginFactoryRegistry serviceBasedPluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
         assertThatThrownBy(() -> serviceBasedPluginFactoryRegistry.pluginFactory(ServiceWithCollidingAlias.class))
                 .isExactlyInstanceOf(RuntimeException.class)
                 .hasMessage("Ambiguous plugin implementation name 'io.kroxylicious.proxy.config.ServiceWithCollidingAliasX'");
-        LoggingEventAssert.assertThat(logOnFail.logged(ServiceBasedPluginFactoryRegistry.class, Level.WARN))
+        LoggingEventAssert.assertThat(capturedLogs.logged(ServiceBasedPluginFactoryRegistry.class, Level.WARN))
+                .singleElement()
                 .hasFormattedMessage(
                         "Plugin implementation class is annotated with @DeprecatedPluginName which collides with another plugin implementation class, you must remove one of these classes from the class path")
                 .containsKeyValue("annotatedClass", "io.kroxylicious.proxy.config.ServiceWithCollidingAliasY")
@@ -165,12 +170,13 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
-    void shouldThrowForAmbiguousNameWithDeprecatedName2(LogOnFailExtension logOnFail) {
+    void shouldThrowForAmbiguousNameWithDeprecatedName2(CapturedLogs capturedLogs) {
         ServiceBasedPluginFactoryRegistry serviceBasedPluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
         assertThatThrownBy(() -> serviceBasedPluginFactoryRegistry.pluginFactory(ServiceWithCollidingAlias2.class))
                 .isExactlyInstanceOf(RuntimeException.class)
                 .hasMessage("Ambiguous plugin implementation name 'io.kroxylicious.proxy.config.ServiceWithCollidingAlias2Z'");
-        LoggingEventAssert.assertThat(logOnFail.logged(ServiceBasedPluginFactoryRegistry.class, Level.WARN))
+        LoggingEventAssert.assertThat(capturedLogs.logged(ServiceBasedPluginFactoryRegistry.class, Level.WARN))
+                .singleElement()
                 .hasFormattedMessage(
                         "Plugin implementation class is annotated with @DeprecatedPluginName which collides with another plugin implementation class, you must remove one of these classes from the class path")
                 .containsKeyValue("annotatedClass", "io.kroxylicious.proxy.config.ServiceWithCollidingAlias2X")

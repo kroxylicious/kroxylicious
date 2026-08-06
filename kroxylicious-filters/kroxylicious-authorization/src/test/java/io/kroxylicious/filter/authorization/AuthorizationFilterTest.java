@@ -27,16 +27,23 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderDataJsonConverter;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.event.Level;
+import org.slf4j.event.LoggingEvent;
+import org.slf4j.helpers.MessageFormatter;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.reflect.ClassPath;
+
+import io.github.sambarker.logsquelcher.CapturedLogs;
+import io.github.sambarker.logsquelcher.LogSquelcherExtension;
+import io.github.sambarker.logsquelcher.LoggingEventAssert;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
@@ -48,20 +55,17 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter;
 
-import nl.altindag.log.LogCaptor;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Fail.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(LogSquelcherExtension.class)
 class AuthorizationFilterTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile("scenarios/.*\\.yaml");
-
-    private static final LogCaptor logCaptor = LogCaptor.forClass(AuthorizationFilter.class);
 
     static Stream<Arguments> authorization() throws Exception {
         List<ClassPath.ResourceInfo> resources = ClassPath.from(AuthorizationFilterTest.class.getClassLoader()).getResources().stream()
@@ -75,11 +79,6 @@ class AuthorizationFilterTest {
                 throw new RuntimeException(e);
             }
         });
-    }
-
-    @BeforeEach
-    void setup() {
-        logCaptor.clearLogs();
     }
 
     @Test
@@ -151,7 +150,7 @@ class AuthorizationFilterTest {
 
     @ParameterizedTest
     @MethodSource
-    void authorization(ScenarioDefinition definition) {
+    void authorization(ScenarioDefinition definition, CapturedLogs capturedLogs) {
         SimpleAuthorizer authorizer = new SimpleAuthorizer(definition.given().authorizerRules());
         AuthorizationFilter authorizationFilter = new AuthorizationFilter(authorizer);
         ApiKeys apiKeys = definition.metadata().apiKeys();
@@ -178,7 +177,7 @@ class AuthorizationFilterTest {
             throw new IllegalStateException("test has finished, but mock responses are still queued");
         }
 
-        assertOutcomeLogged(definition.then().isExpectAuthorizationOutcomeLog());
+        assertOutcomeLogged(capturedLogs, definition.then().isExpectAuthorizationOutcomeLog());
         // we expect that any inflight state pushed during a request is always popped on the corresponding response
         // if it is non-empty then we may have a memory leak
         assertThat(authorizationFilter.inflightState())
@@ -186,30 +185,32 @@ class AuthorizationFilterTest {
                 .isEmpty();
     }
 
-    private static void assertOutcomeLogged(Boolean expectOutcomeLogs) {
+    private static void assertOutcomeLogged(CapturedLogs capturedLogs, Boolean expectOutcomeLogs) {
+        List<LoggingEvent> actualLogs = capturedLogs.logged(AuthorizationFilter.class);
         if (expectOutcomeLogs) {
-            assertThat(logCaptor.getLogEvents())
+            LoggingEventAssert.assertThat(actualLogs)
                     .isNotEmpty()
                     .allSatisfy(event -> {
-                        if ("INFO".equalsIgnoreCase(event.getLevel())) {
+                        if (Level.INFO == event.getLevel()) {
                             assertThat(event.getMessage())
                                     .contains("Authorization DENY decision");
                             assertThat(event.getKeyValuePairs())
-                                    .anyMatch(entry -> entry.getKey().equals("deniedActions"));
+                                    .anyMatch(entry -> entry.key.equals("deniedActions"));
                         }
-                        else if ("DEBUG".equalsIgnoreCase(event.getLevel())) {
+                        else if (Level.DEBUG == event.getLevel()) {
                             assertThat(event.getMessage())
                                     .containsAnyOf("Authorization ALLOW decision", "Non-authorizable");
                         }
                         else {
                             // false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
                             // noinspection ResultOfMethodCallIgnored
-                            fail("unexpected event logged: %s", event.getFormattedMessage());
+                            fail("unexpected event logged: %s",
+                                    MessageFormatter.arrayFormat(event.getMessage(), event.getArgumentArray(), event.getThrowable()).getMessage());
                         }
                     });
         }
         else {
-            assertThat(logCaptor.getLogEvents()).isEmpty();
+            assertThat(actualLogs).isEmpty();
         }
     }
 
