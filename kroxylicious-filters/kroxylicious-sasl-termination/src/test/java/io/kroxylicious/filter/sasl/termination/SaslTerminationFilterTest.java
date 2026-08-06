@@ -14,9 +14,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import javax.security.sasl.SaslException;
 
 import org.apache.kafka.common.errors.ApiException;
+import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -323,7 +328,7 @@ class SaslTerminationFilterTest {
     @Test
     void shouldReturnFailureAndCloseConnection() throws Exception {
         // Given
-        var exception = new javax.security.sasl.SaslException("bad credentials");
+        var exception = new SaslException("bad credentials");
         var handler = mock(MechanismStateMachine.class);
         when(handler.mechanismName()).thenReturn("OAUTHBEARER");
         when(handler.maxAuthBytes()).thenReturn(4 * 1024);
@@ -447,8 +452,8 @@ class SaslTerminationFilterTest {
                 CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice", 0)));
 
         Duration fixedDelay = Duration.ofMillis(200);
-        var executor = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
-        try {
+
+        try (var executor = Executors.newSingleThreadScheduledExecutor()) {
             var context = new SaslTermination.SaslTerminationContext(
                     null, Set.of("OAUTHBEARER"), List.of(),
                     null, Clock.systemUTC(), fixedDelay,
@@ -470,11 +475,8 @@ class SaslTerminationFilterTest {
                     .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER)))
                     .timer();
             assertThat(timer).isNotNull();
-            assertThat(timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS))
+            assertThat(timer.totalTime(TimeUnit.MILLISECONDS))
                     .isLessThan(fixedDelay.toMillis());
-        }
-        finally {
-            executor.shutdownNow();
         }
     }
 
@@ -556,7 +558,7 @@ class SaslTerminationFilterTest {
                 filterContext).toCompletableFuture().get();
 
         // Then
-        assertThat(exceptionCaptor.getValue()).isInstanceOf(org.apache.kafka.common.errors.SaslAuthenticationException.class);
+        assertThat(exceptionCaptor.getValue()).isInstanceOf(SaslAuthenticationException.class);
     }
 
     @Test
@@ -619,7 +621,7 @@ class SaslTerminationFilterTest {
                 filterContext).toCompletableFuture().get();
 
         // Then
-        assertThat(exceptionCaptor.getValue()).isInstanceOf(org.apache.kafka.common.errors.SaslAuthenticationException.class);
+        assertThat(exceptionCaptor.getValue()).isInstanceOf(SaslAuthenticationException.class);
         assertThat(meterRegistry.find(SaslTerminationFilter.SESSION_EXPIRED_METRIC)
                 .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER)))
                 .counter()).isNotNull()
