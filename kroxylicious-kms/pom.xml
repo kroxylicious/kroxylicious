@@ -23,10 +23,6 @@
     <description>An API for interacting with Key Management Systems (KMSes).</description>
     <packaging>jar</packaging>
 
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
