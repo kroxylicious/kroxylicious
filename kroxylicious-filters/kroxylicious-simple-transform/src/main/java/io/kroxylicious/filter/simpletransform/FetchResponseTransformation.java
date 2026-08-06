@@ -30,6 +30,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation", since = "0.19.0")
 public class FetchResponseTransformation implements FilterFactory<Config, Config> {
 
+    /**
+     * Creates a new factory.
+     */
+    public FetchResponseTransformation() {
+        // empty
+    }
+
     @Override
     public Config initialize(FilterFactoryContext context, @Nullable Config config) {
         return Plugins.requireConfig(this, config);
@@ -44,6 +51,11 @@ public class FetchResponseTransformation implements FilterFactory<Config, Config
         return new FetchResponseTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }
 
+    /**
+     * The configuration for the {@link FetchResponseTransformation} filter factory.
+     * @param transformation The name of the {@link ByteBufferTransformationFactory} plugin implementation to use.
+     * @param transformationConfig The configuration for the transformation.
+     */
     public record Config(@JsonProperty(required = true) @PluginImplName(ByteBufferTransformationFactory.class) String transformation,
                          @PluginImplConfig(implNameProperty = "transformation") Object transformationConfig) {
 

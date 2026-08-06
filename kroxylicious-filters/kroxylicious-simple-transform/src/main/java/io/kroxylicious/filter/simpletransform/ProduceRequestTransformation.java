@@ -29,9 +29,22 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation", since = "0.19.0")
 public class ProduceRequestTransformation
         implements FilterFactory<Config, Config> {
+
+    /**
+     * The configuration for the {@link ProduceRequestTransformation} filter factory.
+     * @param transformation The name of the {@link ByteBufferTransformationFactory} plugin implementation to use.
+     * @param transformationConfig The configuration for the transformation.
+     */
     public record Config(
                          @PluginImplName(ByteBufferTransformationFactory.class) @JsonProperty(required = true) String transformation,
                          @PluginImplConfig(implNameProperty = "transformation") Object transformationConfig) {}
+
+    /**
+     * Creates a new factory.
+     */
+    public ProduceRequestTransformation() {
+        // empty
+    }
 
     @Override
     @SuppressWarnings({ "rawtypes", "unchecked", "java:S2638" })
