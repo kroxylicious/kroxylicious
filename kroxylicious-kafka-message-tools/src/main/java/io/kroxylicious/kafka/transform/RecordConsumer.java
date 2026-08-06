@@ -9,8 +9,21 @@ package io.kroxylicious.kafka.transform;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 
+/**
+ * A consumer of {@link Record}s, together with the {@link RecordBatch} that contains them
+ * and any state associated with the record.
+ *
+ * @param <S> The type of state associated with a record.
+ */
 @FunctionalInterface
 public interface RecordConsumer<S> {
 
+    /**
+     * Consumes the given record.
+     *
+     * @param batch The batch containing the record.
+     * @param record The record.
+     * @param state The state associated with the record.
+     */
     void accept(RecordBatch batch, Record record, S state);
 }
