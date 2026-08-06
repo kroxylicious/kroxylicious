@@ -1,0 +1,10 @@
+# This file is used by logchange tool to generate CHANGELOG.md 🌳 🪓 => 🪵 
+# Visit https://github.com/logchange/logchange and leave a star 🌟 
+# More info about configuration you can find https://github.com/logchange/logchange#yaml-format ⬅️⬅ ️
+title: "fix(routing): nodeForId and virtualNode preserve virtual broker ID"
+merge_requests:
+  - 4600
+issues:
+  - 4595
+type: fixed
+
