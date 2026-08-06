@@ -75,7 +75,7 @@ jobs:
         env:
           ADDITIONAL_TAGS: ${{ inputs.additional-tags }}
         run: |
-          POMS_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          POMS_VERSION=$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)
           echo "release_version=${POMS_VERSION}" >> $GITHUB_OUTPUT
           echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
           SHA_TAG="commit-$(git rev-parse --short "${GITHUB_SHA}")"

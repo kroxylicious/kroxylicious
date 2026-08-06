@@ -8,7 +8,7 @@
 set -euo pipefail
 DEFAULT_KROXYLICIOUS_IMAGE='quay.io/kroxylicious/proxy'
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-${DEFAULT_KROXYLICIOUS_IMAGE}}
-STRIMZI_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)
+STRIMZI_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version --quiet -DforceStdout)
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
