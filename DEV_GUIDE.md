@@ -47,18 +47,18 @@ The build behavior can be controlled with the following Maven profiles:
 
 ### Module group profiles
 
-All modules are declared in named group profiles. `.mvn/maven.config` (checked in) activates
-`build-the-world` by default so that a plain `mvn verify` builds everything. For isolated builds,
-deactivate it explicitly and name the group(s) you want:
+All modules are declared in named group profiles. `build-the-world` activates automatically when
+the `sub-build` property is absent, so a plain `mvn verify` builds everything. IDEs pick this up
+without any extra configuration. For isolated builds, pass `-Dsub-build` and name the group(s) you want:
 
 ```shell
-mvn -P '!build-the-world,proxy-core' verify    # proxy modules only
-mvn -P '!build-the-world,kubernetes-management' verify  # kubernetes modules only
+mvn -Dsub-build -Pproxy-core verify              # proxy modules only
+mvn -Dsub-build -Pkubernetes-management verify   # kubernetes modules only
 ```
 
 | profile                  | modules included                                                                                        |
 |--------------------------|---------------------------------------------------------------------------------------------------------|
-| `build-the-world`        | All groups — activated automatically via `.mvn/maven.config`. Developer convenience; CI is explicit.   |
+| `build-the-world`        | All groups — activated when `sub-build` property is absent. Pass `-Dsub-build` to exclude it.          |
 | `proxy-core`             | `kroxylicious-annotations`, `kroxylicious-krpc-plugin`, `kroxylicious-kafka-message-tools`, `kroxylicious-bom`, `kroxylicious-api`, `kroxylicious-integration-test-support`, `kroxylicious-runtime`, `kroxylicious-app` |
 | `runtime-plugins`        | KMS, filters, authorizer, and their test-support modules                                                |
 | `supplementary`          | `kroxylicious-docs`, `kroxylicious-openmessaging-benchmarks`                                            |

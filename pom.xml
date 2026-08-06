@@ -1597,9 +1597,9 @@
         <!--
             Module group profiles — control which set of modules enters the reactor.
 
-            build-the-world is activated by .mvn/maven.config and includes every group.
-            For subset builds, deactivate it explicitly alongside the target group:
-              mvn ... -P '!build-the-world,kubernetes-management'
+            build-the-world activates when the sub-build property is absent (the OOB default).
+            For subset builds, pass -Dsub-build alongside the target group:
+              mvn -Dsub-build -Pkubernetes-management ...
 
             Rules for which group a module belongs to:
               proxy-core          — modules that ARE the API/runtime or make it testable
@@ -1614,13 +1614,18 @@
         -->
         <profile>
             <!--
-                Full build profile — activated by default via .mvn/maven.config.
-                For a subset build, deactivate this explicitly: -P '!build-the-world,kubernetes-management'
-                Note: activeByDefault cannot be used here because Maven deactivates it
-                whenever any other profile in the same POM becomes active (including
-                property-activated profiles like qa and test-suites).
+                Full build profile — activated when the sub-build property is absent.
+                OOB (mvn verify with no flags) builds everything because sub-build is unset by default.
+                IDEs pick up property-based activation automatically without any extra configuration.
+                For a subset build, pass -Dsub-build alongside the target group profile:
+                  mvn -Dsub-build -Pproxy-core verify
             -->
             <id>build-the-world</id>
+            <activation>
+                <property>
+                    <name>!sub-build</name>
+                </property>
+            </activation>
             <modules>
                 <module>proxy-core</module>
                 <module>runtime-plugins</module>
