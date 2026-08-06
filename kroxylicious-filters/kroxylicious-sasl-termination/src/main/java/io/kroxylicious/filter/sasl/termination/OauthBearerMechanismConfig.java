@@ -50,7 +50,7 @@ public record OauthBearerMechanismConfig(
                                          @Nullable Duration jwksEndpointRetryBackoffMax)
         implements MechanismConfig {
 
-    private static final String MECHANISM_NAME = "OAUTHBEARER";
+    public static final String MECHANISM_NAME = "OAUTHBEARER";
 
     /** Validates that required fields are present and non-blank. */
     public OauthBearerMechanismConfig {

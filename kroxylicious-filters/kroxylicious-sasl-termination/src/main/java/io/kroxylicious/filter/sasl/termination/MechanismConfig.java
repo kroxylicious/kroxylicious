@@ -19,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "mechanism")
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = OauthBearerMechanismConfig.class, name = "OAUTHBEARER")
+        @JsonSubTypes.Type(value = OauthBearerMechanismConfig.class, name = OauthBearerMechanismConfig.MECHANISM_NAME)
 })
 public sealed interface MechanismConfig
         permits OauthBearerMechanismConfig {

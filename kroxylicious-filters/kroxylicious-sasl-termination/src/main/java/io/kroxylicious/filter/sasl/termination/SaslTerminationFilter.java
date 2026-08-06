@@ -77,6 +77,8 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
     private static final String LOG_KEY_MECHANISM = "mechanism";
     private static final String LOG_KEY_STATE = "state";
     private static final String LOG_KEY_ERROR = "error";
+    private static final String LOG_KEY_REAUTHENTICATION = "reauthentication";
+    private static final String LOG_KEY_REASON = "reason";
 
     static final String AUTH_DURATION_METRIC = "kroxylicious_filter_sasl_termination_auth_duration_seconds";
     static final String SESSION_EXPIRED_METRIC = "kroxylicious_filter_sasl_termination_session_expired_total";
@@ -88,8 +90,6 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
             ApiKeys.RENEW_DELEGATION_TOKEN.id,
             ApiKeys.EXPIRE_DELEGATION_TOKEN.id,
             ApiKeys.DESCRIBE_DELEGATION_TOKEN.id);
-    public static final String LOG_KEY_REAUTHENTICATION = "reauthentication";
-    public static final String LOG_KEY_REASON = "reason";
 
     private final ScheduledExecutorService executorService;
     private final SaslTermination.SaslTerminationContext context;
@@ -97,6 +97,11 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
     private final long maxTimeBeforeReauthMs;
     private final SaslSubjectBuilder subjectBuilder;
     private State state;
+
+    @VisibleForTesting
+    void forceState(State state) {
+        this.state = state;
+    }
 
     /**
      * Constructs the filter.
@@ -243,7 +248,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
             return null;
         }
         return switch (mechanism) {
-            case "OAUTHBEARER" -> new OauthBearerStateMachine(Objects.requireNonNull(context.oauthCallbackHandler()),
+            case OauthBearerMechanismConfig.MECHANISM_NAME -> new OauthBearerStateMachine(Objects.requireNonNull(context.oauthCallbackHandler()),
                     context.clock());
             default -> throw new IllegalStateException("No state machine for configured mechanism: " + mechanism);
         };

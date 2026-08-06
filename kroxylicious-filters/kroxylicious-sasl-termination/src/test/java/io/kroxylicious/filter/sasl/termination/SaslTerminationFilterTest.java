@@ -822,13 +822,6 @@ class SaslTerminationFilterTest {
     }
 
     private static void setFilterState(SaslTerminationFilter filter, State state) {
-        try {
-            var field = SaslTerminationFilter.class.getDeclaredField("state");
-            field.setAccessible(true);
-            field.set(filter, state);
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        filter.forceState(state);
     }
 }
