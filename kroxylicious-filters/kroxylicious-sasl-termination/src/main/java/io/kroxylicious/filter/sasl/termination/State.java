@@ -112,7 +112,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          * @param authStartNanos the {@link System#nanoTime()} when authentication started
          * @return the requiring authenticate state
          */
-        public RequiringAuthenticate nextState(MechanismStateMachine mechanismStateMachine, long authStartNanos) {
+        RequiringAuthenticate nextState(MechanismStateMachine mechanismStateMachine, long authStartNanos) {
             return new RequiringAuthenticate(mechanismStateMachine, authStartNanos, null);
         }
 
@@ -146,7 +146,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          *
          * @return the mechanism state machine
          */
-        public MechanismStateMachine mechanismStateMachine() {
+        MechanismStateMachine mechanismStateMachine() {
             return mechanismStateMachine;
         }
 
@@ -266,7 +266,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          * @param authStartNanos the {@link System#nanoTime()} when reauthentication started
          * @return the requiring authenticate state
          */
-        public RequiringAuthenticate nextStateReauthenticate(MechanismStateMachine mechanismStateMachine, long authStartNanos) {
+        RequiringAuthenticate nextStateReauthenticate(MechanismStateMachine mechanismStateMachine, long authStartNanos) {
             return new RequiringAuthenticate(mechanismStateMachine, authStartNanos, authorizationId);
         }
 

@@ -595,6 +595,9 @@ class SaslTerminationFilterTest {
     void shouldRejectDelegationTokenApiWithCorrectMessage(ApiKeys apiKey) throws Exception {
         // Given
         var filter = createFilter();
+        var handler = mock(MechanismStateMachine.class);
+        var authenticating = State.start().nextState(handler, 0L);
+        setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
         var exceptionCaptor = ArgumentCaptor.forClass(ApiException.class);
         var filterContext = mockErrorFilterContextWithoutClose(exceptionCaptor);
 

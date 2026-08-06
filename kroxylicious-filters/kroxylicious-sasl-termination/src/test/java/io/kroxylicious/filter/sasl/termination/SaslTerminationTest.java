@@ -465,6 +465,9 @@ class SaslTerminationTest {
         // Given
         var context = testContext();
         var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var handler = mock(MechanismStateMachine.class);
+        var authenticating = State.start().nextState(handler, 0L);
+        setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
 
         var filterContext = mockFilterContextForErrorResponseWithoutClose();
 
