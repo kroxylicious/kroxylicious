@@ -1,0 +1,47 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+
+[id='assembly-configuring-authentication-oauthbearer-{context}']
+= Configuring OAuthBearer Validation
+
+[role="_abstract"]
+To enable OAuthBearer Validation, configure an `OauthBearerValidation` filter in the proxy's filter chain.
+This filter validates JWT bearer tokens received from clients before forwarding the SASL exchange to the broker.
+If the token is invalid, the proxy short-circuits the exchange and returns an error to the client.
+
+.Prerequisites
+
+* An instance of Kroxylicious.
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
+* The Kafka cluster's listener must be configured with the `OAUTHBEARER` SASL mechanism.
+* A reachable JWKS endpoint that publishes the public keys used to verify JWT signatures.
+
+.Procedure
+
+. Configure an `OauthBearerValidation` type filter.
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-example-proxy-config-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment using a `KafkaProtocolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
+endif::[]
+
+NOTE: OauthBearer configuration follows link:{ApacheKafkaDocsBase}security/encryption-and-authentication-using-ssl[Kafka's SSL properties].
+
+ifdef::include-platform-bare-metal[]
+include::../_modules/oauth-bearer-validation/con-example-proxy-config.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-platform-kubernetes[]
+include::../_modules/oauth-bearer-validation/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
+endif::[]

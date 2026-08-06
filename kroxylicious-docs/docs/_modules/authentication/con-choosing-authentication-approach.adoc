@@ -1,0 +1,100 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-choosing-authentication-approach-{context}']
+= Choosing an authentication approach
+
+[role="_abstract"]
+The right authentication approach depends on your existing infrastructure, your security requirements, and which proxy features you need.
+This section provides guidance to help you decide.
+
+== Mutual TLS (mTLS)
+
+Use mTLS when:
+
+* Your clients can use client certificates which are signed by an issuer which you can trust. This is straightforward if you operate your own PKI and issue all the client certificates. It can also work with externally issued certificates provided you trust the issuing CAs.
+* You want strong transport-level identity without depending on SASL.
+* You are willing to manage the operational overhead of certificate distribution, renewal, and revocation.
+
+mTLS is independent of any SASL mechanism.
+The client's identity is derived from the TLS client certificate, so even clients that do not use SASL authentication can be identified.
+
+== SASL Passthrough
+
+Use SASL Passthrough (the default) when:
+
+* You do not need the proxy to know the client's identity.
+* Your filters do not require an authenticated subject (for example, you are using only record encryption or record validation).
+* You want the simplest possible configuration.
+
+Be aware that in this mode the proxy cannot log which client is making requests, and identity-aware filters cannot function.
+
+== SASL Passthrough Inspection
+
+Use SASL Passthrough Inspection when:
+
+* You need the proxy to know the client's identity (for example, to use the authorization filter or entity isolation filter).
+* You want the broker to remain the authority for authentication decisions.
+
+Consider the following:
+
+* The broker still decides whether authentication succeeds.
+  An unauthenticated attacker that can reach the proxy still has proxied access to the broker.
+  If your threat model requires preventing unauthenticated traffic from reaching the broker, consider OAuthBearer Validation or mTLS instead.
+* The proxy observes the SASL exchange and holds the authorization ID in memory.
+  For mechanisms that transmit credentials in plain text (such as PLAIN), this means plain-text passwords briefly exist in the proxy's memory.
+  The PLAIN mechanism is disabled by default for this reason.
+
+== OAuthBearer Validation
+
+Use OAuthBearer Validation when:
+
+* Your Kafka clients authenticate using OAuth 2.0 bearer tokens (the `OAUTHBEARER` SASL mechanism).
+* You want the proxy to reject clients with invalid or expired tokens before they reach the broker.
+* You want to reduce load on the broker from repeated invalid authentication attempts.
+
+This mode requires a reachable JWKS endpoint that provides the public keys used to verify JWT signatures.
+
+== Combining approaches
+
+mTLS and SASL authentication are not mutually exclusive.
+You can configure both on the same virtual cluster:
+
+* The transport subject builder creates an initial authenticated subject from the TLS client certificate.
+* If SASL Passthrough Inspection or OAuthBearer Validation is also configured, the SASL subject builder replaces the subject after successful SASL authentication.
+
+This can be useful when you want transport-level identity as a baseline and application-level identity for fine-grained access control.
+
+.Summary of authentication approaches
+|===
+|Approach |Proxy knows client identity |Proxy validates credentials |Requires filter configuration |Additional infrastructure
+
+|mTLS
+|Yes (from certificate)
+|Yes (certificate validation)
+|No (configured on virtual cluster)
+|PKI for client certificates
+
+|SASL Passthrough
+|No
+|No
+|No (default)
+|None
+
+|SASL Passthrough Inspection
+|Yes (from SASL exchange)
+|No (broker decides)
+|Yes (`SaslInspection` filter)
+|None
+
+|OAuthBearer Validation
+|Yes (from JWT token)
+|Yes (token validation)
+|Yes (`OauthBearerValidation` filter)
+|JWKS endpoint
+|===
