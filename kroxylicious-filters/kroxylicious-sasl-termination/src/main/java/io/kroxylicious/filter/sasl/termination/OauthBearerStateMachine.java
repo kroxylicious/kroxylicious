@@ -132,19 +132,16 @@ class OauthBearerStateMachine implements MechanismStateMachine {
     }
 
     private long extractTokenLifetimeMs() {
-        try {
-            // CREDENTIAL.LIFETIME.MS has a misleading name — it is actually an absolute epoch timestamp
-            Object credentialExpiryEpochMs = saslServer.getNegotiatedProperty("CREDENTIAL.LIFETIME.MS");
-            if (credentialExpiryEpochMs instanceof Long expiryEpochMs) {
-                return Math.max(0, expiryEpochMs - clock.millis());
-            }
+        // CREDENTIAL.LIFETIME.MS has a misleading name — it is actually an absolute epoch timestamp
+        Object credentialExpiryEpochMs = saslServer.getNegotiatedProperty("CREDENTIAL.LIFETIME.MS");
+        if (credentialExpiryEpochMs == null) {
+            return 0;
         }
-        catch (Exception e) {
-            LOGGER.atDebug()
-                    .setCause(e)
-                    .log("Could not extract token lifetime");
+        if (credentialExpiryEpochMs instanceof Long expiryEpochMs) {
+            return Math.max(0, expiryEpochMs - clock.millis());
         }
-        return 0;
+        throw new IllegalStateException(
+                "Expected CREDENTIAL.LIFETIME.MS to be Long but was " + credentialExpiryEpochMs.getClass().getName());
     }
 
     @Override
