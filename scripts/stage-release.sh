@@ -126,7 +126,7 @@ cleanup() {
 updateVersions() {
   local FROM_VERSION=$1
   local NEW_VERSION=$2
-  mvn -q -B versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
+  mvn --quiet --batch-mode versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
 
   git add '**/*.yaml' '**/pom.xml' 'pom.xml'
 }
@@ -136,20 +136,20 @@ trap cleanup EXIT
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
-INITIAL_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
+INITIAL_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version --quiet -DforceStdout)
 
 TEMPORARY_RELEASE_BRANCH="${WORK_BRANCH_NAME}-rel"
 git checkout -b "${TEMPORARY_RELEASE_BRANCH}" "${REPOSITORY}/${BRANCH_FROM}"
 
 if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
     printf "Validating the build is ${GREEN}green${NC}"
-    mvn -q clean verify
+    mvn --quiet clean verify
 fi
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
 ${SED} -i "s|\\\${changelog.link.prefix}|${CHANGELOG_LINK_PREFIX}|g" changelog/.templates/CHANGELOG.md
-mvn -q logchange:release
+mvn --quiet logchange:release
 git checkout -- changelog/.templates/CHANGELOG.md
 git add changelog/ CHANGELOG.md
 
@@ -162,7 +162,7 @@ updateVersionInBenchmarks "${RELEASE_VERSION}"
 replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${RELEASE_VERSION}_g" performance-tests/docker-compose.yaml
 
 echo "Validating things still build"
-mvn -q -B clean install -Pquick
+mvn --quiet --batch-mode clean install --activate-profiles quick
 
 RELEASE_TAG="v${RELEASE_VERSION}"
 
@@ -176,7 +176,7 @@ git push "${REPOSITORY}" "${RELEASE_TAG}"
 echo "Deploying release"
 
 MVN_DEPLOY_OUTPUT=$(mktemp)
-mvn -Prelease,dist -DskipTests=true -DskipDocs=true -DskipContainerImageBuild=true -DreleaseSigningKey="${GPG_KEY}" -DprocessAllModules=true deploy | tee ${MVN_DEPLOY_OUTPUT}
+mvn --activate-profiles release,dist -DskipTests=true -DskipDocs=true -DskipContainerImageBuild=true -DreleaseSigningKey="${GPG_KEY}" -DprocessAllModules=true deploy | tee ${MVN_DEPLOY_OUTPUT}
 DEPLOYMENT_ID=$(awk -F'[ .]' '/Uploaded bundle successfully/ {print $9}' < ${MVN_DEPLOY_OUTPUT})
 
 if [[ -z "${DEPLOYMENT_ID}" ]]; then
@@ -207,9 +207,9 @@ updateVersionInBenchmarks "${NEXT_VERSION}"
 replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${NEXT_VERSION}_g" performance-tests/docker-compose.yaml
 
 # bump the reference version in kroxylicious-api
-mvn -q -B -pl :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
+mvn --quiet --batch-mode --projects :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
 # reset kroxylicious-api to enable semver checks if they have been disabled
-mvn -q -B -pl :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.EnforceForMajorVersionZero" -DnewVersion="true" -DgenerateBackupPoms=false
+mvn --quiet --batch-mode --projects :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.EnforceForMajorVersionZero" -DnewVersion="true" -DgenerateBackupPoms=false
 git add kroxylicious-api/pom.xml
 
 git commit --message "Start next development version" --signoff

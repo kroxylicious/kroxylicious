@@ -18,7 +18,7 @@ info "Starting minikube with 4GB memory"
 ${MINIKUBE} start --memory=4096
 
 info "Building distribution with Maven"
-mvn clean install -Pdist -Dquick -pl :kroxylicious-admission-dist -am
+mvn clean install --activate-profiles dist -Dquick --projects :kroxylicious-admission-dist --also-make
 
 info "Extracting distribution tarball"
 DIST_DIR=$(mktemp -d)

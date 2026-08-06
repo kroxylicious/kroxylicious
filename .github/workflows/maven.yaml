@@ -69,7 +69,7 @@ jobs:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Test for unpublished reference release (japicmp)'
         run: |
-          REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
+          REFERENCE_RELEASE=$(mvn --quiet --projects kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
           echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
@@ -79,7 +79,7 @@ jobs:
         run: |
           GIT_HASH="$(git rev-parse HEAD)"
           IMAGE_TAG="dev-git-${GIT_HASH}"
-          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
+          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version --quiet -DforceStdout)"
           KROXYLICIOUS_IMAGE="quay.io/kroxylicious/proxy:${IMAGE_TAG}"
           echo "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" >> "$GITHUB_ENV"
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
