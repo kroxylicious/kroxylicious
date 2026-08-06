@@ -97,8 +97,7 @@
         <azure.core.version>1.58.1</azure.core.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
-        <logcaptor.version>2.12.6</logcaptor.version>
-        <log-on-fail.version>0.1.0-SNAPSHOT</log-on-fail.version>
+        <logsquelcher.version>0.2.0-SNAPSHOT</logsquelcher.version>
         <async-profiler.version>4.5</async-profiler.version>
         <json-unit-assertj.version>6.0.1</json-unit-assertj.version>
 
@@ -600,21 +599,15 @@
                 <version>${netty.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.github.hakky54</groupId>
-                <artifactId>logcaptor</artifactId>
-                <version>${logcaptor.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
                 <groupId>org.threeten</groupId>
                 <artifactId>threeten-extra</artifactId>
                 <version>1.10.0</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>nz.thebarkers</groupId>
-                <artifactId>log-on-fail</artifactId>
-                <version>${log-on-fail.version}</version>
+                <groupId>io.github.sambarker</groupId>
+                <artifactId>logsquelcher</artifactId>
+                <version>${logsquelcher.version}</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -902,8 +895,11 @@
                                 junit.jupiter.extensions.autodetection.enabled=true
                             </configurationParameters>
                         </properties>
+                        <additionalClasspathElements>
+                            <additionalClasspathElement>${settings.localRepository}/io/github/sambarker/logsquelcher/${logsquelcher.version}/logsquelcher-${logsquelcher.version}.jar</additionalClasspathElement>
+                        </additionalClasspathElements>
                         <systemPropertyVariables>
-                            <slf4j.provider>nz.thebarkers.logonfail.LogOnFailSLF4JProvider</slf4j.provider>
+                            <slf4j.provider>io.github.sambarker.logsquelcher.LogSquelcherSLF4JProvider</slf4j.provider>
                         </systemPropertyVariables>
                         <statelessTestsetReporter
                                 implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
