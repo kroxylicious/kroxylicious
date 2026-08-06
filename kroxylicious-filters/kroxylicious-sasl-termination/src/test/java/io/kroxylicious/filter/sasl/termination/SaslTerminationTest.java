@@ -426,7 +426,7 @@ class SaslTerminationTest {
 
         var start = State.start();
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = start.nextState(handler, 0L);
+        var authenticating = start.nextState(handler);
         var authenticated = authenticating.nextStateSuccess("alice", "OAUTHBEARER", null);
 
         setFilterState(filter, authenticated);
@@ -447,7 +447,7 @@ class SaslTerminationTest {
 
         var start = State.start();
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = start.nextState(handler, 0L);
+        var authenticating = start.nextState(handler);
         var authenticated = authenticating.nextStateSuccess("alice", "OAUTHBEARER", java.time.Instant.now().plusSeconds(3600));
 
         setFilterState(filter, authenticated);
@@ -466,7 +466,7 @@ class SaslTerminationTest {
         var context = testContext();
         var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = State.start().nextState(handler, 0L);
+        var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
 
         var filterContext = mockFilterContextForErrorResponseWithoutClose();
@@ -544,7 +544,7 @@ class SaslTerminationTest {
         var context = testContext(Set.of("OAUTHBEARER"), List.of());
         var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
 
-        var authenticating = State.start().nextState(handler, 0L);
+        var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating);
 
         byte[] oversizedPayload = new byte[maxAuthBytes + 1];
@@ -576,7 +576,7 @@ class SaslTerminationTest {
                     CompletableFuture.completedFuture(
                             RoundResult.failure(new byte[0], new javax.security.sasl.SaslException("test"))));
 
-            var authenticating = State.start().nextState(handler, System.nanoTime());
+            var authenticating = State.start().nextState(handler);
             setFilterState(filter, authenticating);
 
             var request = new SaslAuthenticateRequestData().setAuthBytes(new byte[0]);

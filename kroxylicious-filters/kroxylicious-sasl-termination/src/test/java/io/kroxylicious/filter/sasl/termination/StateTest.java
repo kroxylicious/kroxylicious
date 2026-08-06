@@ -31,7 +31,7 @@ class StateTest {
         State.RequiringHandshake initial = State.start();
         MechanismStateMachine handler = new TestMechanismStateMachine("SCRAM-SHA-256");
 
-        State.RequiringAuthenticate next = initial.nextState(handler, 0L);
+        State.RequiringAuthenticate next = initial.nextState(handler);
 
         assertThat(next.mechanismStateMachine()).isSameAs(handler);
         assertThat(next.isAuthenticated()).isFalse();
@@ -43,7 +43,7 @@ class StateTest {
     void shouldStayInAuthenticateForChallenge() {
         State.RequiringHandshake initial = State.start();
         MechanismStateMachine handler = new TestMechanismStateMachine("SCRAM-SHA-256");
-        State.RequiringAuthenticate authenticating = initial.nextState(handler, 0L);
+        State.RequiringAuthenticate authenticating = initial.nextState(handler);
 
         State.RequiringAuthenticate nextRound = authenticating.nextStateChallenge();
 
@@ -55,7 +55,7 @@ class StateTest {
     @Test
     void shouldTransitionToAuthenticatedOnSuccess() {
         State.RequiringHandshake initial = State.start();
-        State.RequiringAuthenticate authenticating = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"), 0L);
+        State.RequiringAuthenticate authenticating = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"));
 
         State.Authenticated authenticated = authenticating.nextStateSuccess("alice", "SCRAM-SHA-256", null);
 
@@ -68,7 +68,7 @@ class StateTest {
     @Test
     void shouldTransitionToFailedOnFailure() {
         State.RequiringHandshake initial = State.start();
-        State.RequiringAuthenticate authenticating = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"), 0L);
+        State.RequiringAuthenticate authenticating = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"));
 
         State.Failed failed = authenticating.nextStateFailure("Invalid credentials");
 
@@ -85,7 +85,7 @@ class StateTest {
         MechanismStateMachine handler = new TestMechanismStateMachine("SCRAM-SHA-256");
 
         // Round 1
-        State.RequiringAuthenticate round1 = initial.nextState(handler, 0L);
+        State.RequiringAuthenticate round1 = initial.nextState(handler);
         assertThat(round1.isTerminal()).isFalse();
 
         // Round 2 (challenge)
@@ -104,7 +104,7 @@ class StateTest {
         State.RequiringHandshake handshake = State.start();
         assertThat(handshake).hasToString("RequiringHandshake");
 
-        State.RequiringAuthenticate authenticating = handshake.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"), 0L);
+        State.RequiringAuthenticate authenticating = handshake.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"));
         assertThat(authenticating.toString()).contains("RequiringAuthenticate").contains("SCRAM-SHA-256");
 
         State.Authenticated authenticated = authenticating.nextStateSuccess("alice", "SCRAM-SHA-256", null);
@@ -117,7 +117,7 @@ class StateTest {
     @Test
     void shouldHandleNullErrorMessageInFailed() {
         State.RequiringHandshake initial = State.start();
-        State.RequiringAuthenticate authenticating = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"), 0L);
+        State.RequiringAuthenticate authenticating = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"));
 
         State.Failed failed = authenticating.nextStateFailure(null);
 
@@ -130,11 +130,11 @@ class StateTest {
         // Given
         State.RequiringHandshake initial = State.start();
         MechanismStateMachine handler1 = new TestMechanismStateMachine("SCRAM-SHA-256");
-        State.Authenticated authenticated = initial.nextState(handler1, 0L).nextStateSuccess("alice", "SCRAM-SHA-256", null);
+        State.Authenticated authenticated = initial.nextState(handler1).nextStateSuccess("alice", "SCRAM-SHA-256", null);
         MechanismStateMachine handler2 = new TestMechanismStateMachine("SCRAM-SHA-256");
 
         // When
-        State.RequiringAuthenticate reauth = authenticated.nextStateReauthenticate(handler2, 0L);
+        State.RequiringAuthenticate reauth = authenticated.nextStateReauthenticate(handler2);
 
         // Then
         assertThat(reauth.mechanismStateMachine()).isSameAs(handler2);
@@ -149,7 +149,7 @@ class StateTest {
         State.RequiringHandshake initial = State.start();
 
         // When
-        State.RequiringAuthenticate authenticating = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"), 0L);
+        State.RequiringAuthenticate authenticating = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"));
 
         // Then
         assertThat(authenticating.previousAuthorizationId()).isNull();
@@ -162,7 +162,7 @@ class StateTest {
         Instant expiry = Instant.now().plusSeconds(3600);
 
         // When
-        State.Authenticated authenticated = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"), 0L)
+        State.Authenticated authenticated = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"))
                 .nextStateSuccess("alice", "SCRAM-SHA-256", expiry);
 
         // Then
@@ -175,7 +175,7 @@ class StateTest {
         State.RequiringHandshake initial = State.start();
 
         // When
-        State.Authenticated authenticated = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"), 0L)
+        State.Authenticated authenticated = initial.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"))
                 .nextStateSuccess("alice", "SCRAM-SHA-256", null);
 
         // Then
@@ -185,7 +185,7 @@ class StateTest {
     @Test
     void shouldDistinguishTerminalStates() {
         State.RequiringHandshake handshake = State.start();
-        State.RequiringAuthenticate authenticating = handshake.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"), 0L);
+        State.RequiringAuthenticate authenticating = handshake.nextState(new TestMechanismStateMachine("SCRAM-SHA-256"));
         State.Authenticated authenticated = authenticating.nextStateSuccess("alice", "SCRAM-SHA-256", null);
         State.Failed failed = authenticating.nextStateFailure("error");
 
@@ -196,6 +196,59 @@ class StateTest {
 
         // Terminal states
         assertThat(failed.isTerminal()).isTrue();
+    }
+
+    @Test
+    void shouldStartWithZeroAccumulatedAuthWorkNanos() {
+        // Given
+        State.RequiringHandshake initial = State.start();
+
+        // When
+        State.RequiringAuthenticate authenticating = initial.nextState(new TestMechanismStateMachine("OAUTHBEARER"));
+
+        // Then
+        assertThat(authenticating.accumulatedAuthWorkNanos()).isZero();
+    }
+
+    @Test
+    void shouldAccumulateRoundDurations() {
+        // Given
+        State.RequiringAuthenticate authenticating = State.start().nextState(new TestMechanismStateMachine("SCRAM-SHA-256"));
+
+        // When
+        authenticating.addRoundDuration(100);
+        authenticating.addRoundDuration(200);
+
+        // Then
+        assertThat(authenticating.accumulatedAuthWorkNanos()).isEqualTo(300);
+    }
+
+    @Test
+    void shouldRetainAccumulatedDurationAcrossChallengeRounds() {
+        // Given
+        State.RequiringAuthenticate round1 = State.start().nextState(new TestMechanismStateMachine("SCRAM-SHA-256"));
+        round1.addRoundDuration(100);
+
+        // When
+        State.RequiringAuthenticate round2 = round1.nextStateChallenge();
+        round2.addRoundDuration(200);
+
+        // Then
+        assertThat(round2.accumulatedAuthWorkNanos()).isEqualTo(300);
+    }
+
+    @Test
+    void shouldResetAccumulatedDurationOnReauthentication() {
+        // Given
+        State.RequiringAuthenticate authenticating = State.start().nextState(new TestMechanismStateMachine("OAUTHBEARER"));
+        authenticating.addRoundDuration(500);
+        State.Authenticated authenticated = authenticating.nextStateSuccess("alice", "OAUTHBEARER", null);
+
+        // When
+        State.RequiringAuthenticate reauth = authenticated.nextStateReauthenticate(new TestMechanismStateMachine("OAUTHBEARER"));
+
+        // Then
+        assertThat(reauth.accumulatedAuthWorkNanos()).isZero();
     }
 
     // Test mechanism handler implementation

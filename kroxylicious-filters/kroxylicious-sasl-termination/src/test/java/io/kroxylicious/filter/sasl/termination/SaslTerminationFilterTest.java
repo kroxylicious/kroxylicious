@@ -131,7 +131,7 @@ class SaslTerminationFilterTest {
         // Given
         var filter = createFilter();
         var handler = mock(MechanismStateMachine.class);
-        setFilterState(filter, State.start().nextState(handler, 0L));
+        setFilterState(filter, State.start().nextState(handler));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
         var filterContext = mockShortCircuitFilterContext(captor);
@@ -152,7 +152,7 @@ class SaslTerminationFilterTest {
         // Given
         var filter = createFilter();
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = State.start().nextState(handler, 0L);
+        var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateFailure("previous failure"));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
@@ -174,7 +174,7 @@ class SaslTerminationFilterTest {
         // Given
         var filter = createFilter();
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = State.start().nextState(handler, 0L);
+        var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
@@ -217,7 +217,7 @@ class SaslTerminationFilterTest {
         // Given
         var filter = createFilter();
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = State.start().nextState(handler, 0L);
+        var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
@@ -246,7 +246,7 @@ class SaslTerminationFilterTest {
                 CompletableFuture.completedFuture(RoundResult.challenge(challengeBytes)));
 
         var filter = createFilterWithZeroDelay();
-        setFilterState(filter, State.start().nextState(handler, System.nanoTime()));
+        setFilterState(filter, State.start().nextState(handler));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
         var filterContext = mockShortCircuitFilterContext(captor);
@@ -274,7 +274,7 @@ class SaslTerminationFilterTest {
                 CompletableFuture.completedFuture(RoundResult.success(responseBytes, "alice", 3600000)));
 
         var filter = createFilterWithZeroDelay();
-        setFilterState(filter, State.start().nextState(handler, System.nanoTime()));
+        setFilterState(filter, State.start().nextState(handler));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
         var filterContext = mockShortCircuitFilterContextForSuccess(captor);
@@ -305,7 +305,7 @@ class SaslTerminationFilterTest {
                 CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice", 0)));
 
         var filter = createFilterWithZeroDelay();
-        setFilterState(filter, State.start().nextState(handler, System.nanoTime()));
+        setFilterState(filter, State.start().nextState(handler));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
         var filterContext = mockShortCircuitFilterContextForSuccess(captor);
@@ -331,7 +331,7 @@ class SaslTerminationFilterTest {
                 CompletableFuture.completedFuture(RoundResult.failure(new byte[0], exception)));
 
         var filter = createFilterWithZeroDelay();
-        setFilterState(filter, State.start().nextState(handler, System.nanoTime()));
+        setFilterState(filter, State.start().nextState(handler));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
         var closeOrTerminal = mock(CloseOrTerminalStage.class);
@@ -366,7 +366,7 @@ class SaslTerminationFilterTest {
         when(handler.evaluateRound(any())).thenReturn(failedFuture);
 
         var filter = createFilterWithZeroDelay();
-        setFilterState(filter, State.start().nextState(handler, System.nanoTime()));
+        setFilterState(filter, State.start().nextState(handler));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
         var closeOrTerminal = mock(CloseOrTerminalStage.class);
@@ -395,7 +395,7 @@ class SaslTerminationFilterTest {
                 CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice", 0)));
 
         var filter = createFilterWithZeroDelay();
-        setFilterState(filter, State.start().nextState(handler, System.nanoTime()));
+        setFilterState(filter, State.start().nextState(handler));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
         var filterContext = mockShortCircuitFilterContextForSuccess(captor);
@@ -420,7 +420,7 @@ class SaslTerminationFilterTest {
                 CompletableFuture.completedFuture(RoundResult.failure(new byte[0], new Exception("fail"))));
 
         var filter = createFilterWithZeroDelay();
-        setFilterState(filter, State.start().nextState(handler, System.nanoTime()));
+        setFilterState(filter, State.start().nextState(handler));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
         var closeOrTerminal = mock(CloseOrTerminalStage.class);
@@ -437,6 +437,47 @@ class SaslTerminationFilterTest {
         verify(handler).dispose();
     }
 
+    @Test
+    void shouldRecordAuthDurationExcludingFixedDelay() throws Exception {
+        // Given
+        var handler = mock(MechanismStateMachine.class);
+        when(handler.mechanismName()).thenReturn("OAUTHBEARER");
+        when(handler.maxAuthBytes()).thenReturn(4 * 1024);
+        when(handler.evaluateRound(any())).thenReturn(
+                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice", 0)));
+
+        Duration fixedDelay = Duration.ofMillis(200);
+        var executor = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+        try {
+            var context = new SaslTermination.SaslTerminationContext(
+                    null, Set.of("OAUTHBEARER"), List.of(),
+                    null, Clock.systemUTC(), fixedDelay,
+                    SaslTermination.DEFAULT_SUBJECT_BUILDER);
+            var filter = new SaslTerminationFilter(executor, context);
+            setFilterState(filter, State.start().nextState(handler));
+
+            var captor = ArgumentCaptor.forClass(ApiMessage.class);
+            var filterContext = mockShortCircuitFilterContextForSuccess(captor);
+
+            // When
+            filter.onRequest(ApiKeys.SASL_AUTHENTICATE, ApiKeys.SASL_AUTHENTICATE.latestVersion(),
+                    new RequestHeaderData(),
+                    new SaslAuthenticateRequestData().setAuthBytes(new byte[0]),
+                    filterContext).toCompletableFuture().get();
+
+            // Then
+            var timer = meterRegistry.find(SaslTerminationFilter.AUTH_DURATION_METRIC)
+                    .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER)))
+                    .timer();
+            assertThat(timer).isNotNull();
+            assertThat(timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS))
+                    .isLessThan(fixedDelay.toMillis());
+        }
+        finally {
+            executor.shutdownNow();
+        }
+    }
+
     // --- Reauthentication consistency ---
 
     @SuppressWarnings("unchecked")
@@ -445,7 +486,7 @@ class SaslTerminationFilterTest {
         // Given
         var filter = createFilterWithZeroDelay();
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = State.start().nextState(handler, 0L);
+        var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
@@ -477,9 +518,9 @@ class SaslTerminationFilterTest {
 
         var filter = createFilterWithZeroDelay();
         var initialHandler = mock(MechanismStateMachine.class);
-        var authenticating = State.start().nextState(initialHandler, 0L);
+        var authenticating = State.start().nextState(initialHandler);
         var authenticated = authenticating.nextStateSuccess("alice", "OAUTHBEARER", null);
-        var reauthenticating = authenticated.nextStateReauthenticate(handler, System.nanoTime());
+        var reauthenticating = authenticated.nextStateReauthenticate(handler);
         setFilterState(filter, reauthenticating);
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
@@ -523,7 +564,7 @@ class SaslTerminationFilterTest {
         // Given
         var filter = createFilter();
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = State.start().nextState(handler, 0L);
+        var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
 
         var filterContext = mockForwardingFilterContext();
@@ -543,7 +584,7 @@ class SaslTerminationFilterTest {
         // Given
         var filter = createFilterWithClock(FIXED_CLOCK);
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = State.start().nextState(handler, 0L);
+        var authenticating = State.start().nextState(handler);
         Instant futureExpiry = FIXED_INSTANT.plusSeconds(3600);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", futureExpiry));
 
@@ -564,7 +605,7 @@ class SaslTerminationFilterTest {
         // Given
         var filter = createFilterWithClock(FIXED_CLOCK);
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = State.start().nextState(handler, 0L);
+        var authenticating = State.start().nextState(handler);
         Instant pastExpiry = FIXED_INSTANT.minusSeconds(60);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", pastExpiry));
 
@@ -596,7 +637,7 @@ class SaslTerminationFilterTest {
         // Given
         var filter = createFilter();
         var handler = mock(MechanismStateMachine.class);
-        var authenticating = State.start().nextState(handler, 0L);
+        var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
         var exceptionCaptor = ArgumentCaptor.forClass(ApiException.class);
         var filterContext = mockErrorFilterContextWithoutClose(exceptionCaptor);

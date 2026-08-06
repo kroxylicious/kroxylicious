@@ -109,11 +109,10 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          * Transition to the next state after receiving handshake request.
          *
          * @param mechanismStateMachine the state machine for the negotiated mechanism
-         * @param authStartNanos the {@link System#nanoTime()} when authentication started
          * @return the requiring authenticate state
          */
-        RequiringAuthenticate nextState(MechanismStateMachine mechanismStateMachine, long authStartNanos) {
-            return new RequiringAuthenticate(mechanismStateMachine, authStartNanos, null);
+        RequiringAuthenticate nextState(MechanismStateMachine mechanismStateMachine) {
+            return new RequiringAuthenticate(mechanismStateMachine, null);
         }
 
         @Override
@@ -131,13 +130,12 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
     final class RequiringAuthenticate implements State {
 
         private final MechanismStateMachine mechanismStateMachine;
-        private final long authStartNanos;
+        private long accumulatedAuthWorkNanos;
         @Nullable
         private final String previousAuthorizationId;
 
-        private RequiringAuthenticate(MechanismStateMachine mechanismStateMachine, long authStartNanos, @Nullable String previousAuthorizationId) {
+        private RequiringAuthenticate(MechanismStateMachine mechanismStateMachine, @Nullable String previousAuthorizationId) {
             this.mechanismStateMachine = mechanismStateMachine;
-            this.authStartNanos = authStartNanos;
             this.previousAuthorizationId = previousAuthorizationId;
         }
 
@@ -151,12 +149,21 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
         }
 
         /**
-         * Get the {@link System#nanoTime()} when authentication started.
+         * Add the duration of an {@code evaluateRound()} call to the accumulated authentication work time.
          *
-         * @return the auth start time in nanos
+         * @param nanos the duration in nanoseconds
          */
-        public long authStartNanos() {
-            return authStartNanos;
+        void addRoundDuration(long nanos) {
+            accumulatedAuthWorkNanos += nanos;
+        }
+
+        /**
+         * Get the total time spent in {@code evaluateRound()} calls across all rounds.
+         *
+         * @return accumulated authentication work time in nanoseconds
+         */
+        long accumulatedAuthWorkNanos() {
+            return accumulatedAuthWorkNanos;
         }
 
         /**
@@ -263,11 +270,10 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          * Transition to reauthentication after receiving a new SASL handshake.
          *
          * @param mechanismStateMachine the state machine for the new authentication session
-         * @param authStartNanos the {@link System#nanoTime()} when reauthentication started
          * @return the requiring authenticate state
          */
-        RequiringAuthenticate nextStateReauthenticate(MechanismStateMachine mechanismStateMachine, long authStartNanos) {
-            return new RequiringAuthenticate(mechanismStateMachine, authStartNanos, authorizationId);
+        RequiringAuthenticate nextStateReauthenticate(MechanismStateMachine mechanismStateMachine) {
+            return new RequiringAuthenticate(mechanismStateMachine, authorizationId);
         }
 
         @Override

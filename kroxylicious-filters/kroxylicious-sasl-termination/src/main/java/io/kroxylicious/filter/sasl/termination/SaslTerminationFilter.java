@@ -178,16 +178,15 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
     @NonNull
     private CompletionStage<RequestFilterResult> acceptHandshake(FilterContext filterContext, MechanismStateMachine stateMachine,
                                                                  String mechanism) {
-        long authStartNanos = System.nanoTime();
         if (state instanceof State.RequiringHandshake handshake) {
-            state = handshake.nextState(stateMachine, authStartNanos);
+            state = handshake.nextState(stateMachine);
         }
         else if (state instanceof State.Authenticated authenticated) {
             LOGGER.atDebug()
                     .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
                     .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                     .log("Reauthentication initiated");
-            state = authenticated.nextStateReauthenticate(stateMachine, authStartNanos);
+            state = authenticated.nextStateReauthenticate(stateMachine);
         }
 
         return filterContext.requestFilterResultBuilder()
@@ -272,7 +271,9 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         }
 
         Instant authRoundStart = clock.instant();
+        long roundStartNanos = System.nanoTime();
         return stateMachine.evaluateRound(request.authBytes())
+                .whenComplete((result, ex) -> authenticating.addRoundDuration(System.nanoTime() - roundStartNanos))
                 .thenCompose(result -> applyFixedAuthDelay(result, authRoundStart, stateMachine.mechanismName()))
                 .thenCompose(result -> switch (result) {
                     case RoundResult.Challenge challenge -> acceptAuthenticateContinue(filterContext, challenge);
@@ -344,7 +345,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         // because rejectAuthenticateInternalError also records the duration, so we don't
         // want to record a second duration for the same authentication if the subjectBuilder
         // returned a failed CompletionStage.
-        Duration authDuration = Duration.ofNanos(System.nanoTime() - authenticating.authStartNanos());
+        Duration authDuration = Duration.ofNanos(authenticating.accumulatedAuthWorkNanos());
         state = authenticating.nextStateSuccess(authorizationId, mechanism, sessionExpiry);
         stateMachine.dispose();
 
@@ -463,7 +464,7 @@ public class SaslTerminationFilter implements RequestFilter, ApiVersionsResponse
         if (state instanceof State.RequiringAuthenticate authenticating) {
             String mechanism = stateMachine.mechanismName();
             String virtualClusterName = filterContext.getVirtualClusterName();
-            Duration authDuration = Duration.ofNanos(System.nanoTime() - authenticating.authStartNanos());
+            Duration authDuration = Duration.ofNanos(authenticating.accumulatedAuthWorkNanos());
             recordAuthDuration(mechanism, virtualClusterName, authDuration);
             state = authenticating.nextStateFailure(exception.getMessage());
         }
