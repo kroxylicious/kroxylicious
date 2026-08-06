@@ -29,8 +29,17 @@ public final class DestroyableRawSecretKey implements SecretKey {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DestroyableRawSecretKey.class);
 
+    /**
+     * The lower-cased name of the key algorithm.
+     */
     private final String algorithm;
+    /**
+     * Whether {@link #destroy()} has been called.
+     */
     private boolean destroyed = false;
+    /**
+     * The RAW-encoded key material, which is zeroed out when the key is {@linkplain #destroy() destroyed}.
+     */
     private final byte[] key;
 
     private DestroyableRawSecretKey(byte[] bytes, String algorithm) {
@@ -40,6 +49,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
 
     /**
      * Returns the number of bits in this key.
+     * @return The number of bits in this key.
      */
     public int numKeyBits() {
         return key.length * Byte.SIZE;
@@ -121,6 +131,11 @@ public final class DestroyableRawSecretKey implements SecretKey {
         return key.clone();
     }
 
+    /**
+     * Checks that the given key has not been destroyed.
+     * @param key The key to check.
+     * @throws IllegalStateException if the key has been destroyed
+     */
     public static void checkNotDestroyed(SecretKey key) {
         if (key.isDestroyed()) {
             throw new IllegalStateException("Key has been destroyed");
