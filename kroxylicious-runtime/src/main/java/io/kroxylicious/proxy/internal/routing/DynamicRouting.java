@@ -27,35 +27,46 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 public record DynamicRouting(
                              String routerName,
                              Map<String, RouteDescriptor> routeDescriptors,
+                             Map<String, RouteDescriptor> allRouteDescriptors,
                              NodeIdMapping nodeIdMapping,
                              RouterChainFactory routerChainFactory,
                              Map<String, UpstreamClusterModel> routeClusterModels)
         implements RoutingModel {
 
     /**
-     * Production constructor: computes the {@link NodeIdMapping} from the supplied route descriptors.
+     * Production constructor: computes the {@link NodeIdMapping} from the top-level route descriptors.
+     *
+     * @param routerName the name of the top-level router
+     * @param routeDescriptors the top-level router's route descriptors (local names)
+     * @param allRouteDescriptors all route descriptors including nested routers (qualified names: {@code routerName/routeName})
+     * @param routerChainFactory the router chain factory
+     * @param routeClusterModels upstream cluster models for all cluster-targeting routes (qualified names)
      */
     public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors,
+                          Map<String, RouteDescriptor> allRouteDescriptors,
                           RouterChainFactory routerChainFactory, Map<String, UpstreamClusterModel> routeClusterModels) {
-        this(routerName, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, routeClusterModels);
+        this(routerName, routeDescriptors, allRouteDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, routeClusterModels);
     }
 
     /**
-     * Test-only constructor: uses an empty cluster model map.
+     * Test-only constructor: uses an empty cluster model map. {@code allRouteDescriptors}
+     * defaults to the provided {@code routeDescriptors} (i.e. no nested routes).
      * Production code should supply fully-built {@link UpstreamClusterModel} instances.
      */
     @VisibleForTesting
     public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors, RouterChainFactory routerChainFactory) {
-        this(routerName, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, Map.of());
+        this(routerName, routeDescriptors, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, Map.of());
     }
 
     public DynamicRouting {
         Objects.requireNonNull(routerName, "routerName");
         Objects.requireNonNull(routeDescriptors, "routeDescriptors");
+        Objects.requireNonNull(allRouteDescriptors, "allRouteDescriptors");
         Objects.requireNonNull(nodeIdMapping, "nodeIdMapping");
         Objects.requireNonNull(routerChainFactory, "routerChainFactory");
         Objects.requireNonNull(routeClusterModels, "routeClusterModels");
         routeDescriptors = Map.copyOf(routeDescriptors);
+        allRouteDescriptors = Map.copyOf(allRouteDescriptors);
         routeClusterModels = Map.copyOf(routeClusterModels);
     }
 

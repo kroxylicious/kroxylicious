@@ -1,0 +1,11 @@
+  title: "feat(runtime): **Preview** — nested router dispatch"
+  type: added
+  issues:
+    - 4157
+  important_notes:
+    - |
+      Routes in `routerDefinitions` can now target other routers, forming a DAG
+      of routing decisions. The client sees a single consistent virtual
+      cluster topology. The routing preview feature flag
+      (`KROXYLICIOUS_UNLOCK_ROUTING=true`) is still required.
+      
