@@ -15,6 +15,14 @@ import io.kroxylicious.proxy.plugin.Plugin;
 @Plugin(configType = Void.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.ScramSha256SaslObserverFactory", since = "0.19.0")
 public class ScramSha256SaslObserverFactory implements SaslObserverFactory {
+
+    /**
+     * Constructs a ScramSha256SaslObserverFactory.
+     */
+    public ScramSha256SaslObserverFactory() {
+        // explicit ctor needed for javadoc
+    }
+
     @Override
     public SaslObserver createObserver() {
         return new ScramSaslObserver(this.mechanismName());
