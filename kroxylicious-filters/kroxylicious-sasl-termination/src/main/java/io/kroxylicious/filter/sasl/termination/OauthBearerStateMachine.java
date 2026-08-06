@@ -52,6 +52,7 @@ class OauthBearerStateMachine implements MechanismStateMachine {
 
     private final OAuthBearerValidatorCallbackHandler callbackHandler;
     private final Clock clock;
+    private final int maxAuthBytes;
 
     @Nullable
     private SaslServer saslServer;
@@ -61,10 +62,12 @@ class OauthBearerStateMachine implements MechanismStateMachine {
      *
      * @param callbackHandler the configured callback handler for JWT validation
      * @param clock clock for computing token remaining lifetime
+     * @param maxAuthBytes maximum auth payload size in bytes
      */
-    OauthBearerStateMachine(OAuthBearerValidatorCallbackHandler callbackHandler, Clock clock) {
+    OauthBearerStateMachine(OAuthBearerValidatorCallbackHandler callbackHandler, Clock clock, int maxAuthBytes) {
         this.callbackHandler = Objects.requireNonNull(callbackHandler);
         this.clock = Objects.requireNonNull(clock);
+        this.maxAuthBytes = maxAuthBytes;
     }
 
     @Override
@@ -72,9 +75,12 @@ class OauthBearerStateMachine implements MechanismStateMachine {
         return OAUTHBEARER_MECHANISM;
     }
 
+    // Limits the processing cost (JWT parsing, JWKS validation) of oversized payloads.
+    // This is defense-in-depth: the byte[] is already allocated from the network buffer
+    // before the filter is called, so this cannot prevent the allocation itself.
     @Override
     public int maxAuthBytes() {
-        return 128 * 1024;
+        return maxAuthBytes;
     }
 
     @Override

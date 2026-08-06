@@ -22,7 +22,7 @@ class OauthBearerMechanismConfigTest {
     void shouldCreateWithRequiredFieldsOnly() {
         // When
         var config = new OauthBearerMechanismConfig(VALID_JWKS_URL, "kafka", "https://idp.example.com",
-                null, null, null, null, null);
+                null, null, null, null, null, null);
 
         // Then
         assertThat(config.jwksEndpointUrl()).isEqualTo(VALID_JWKS_URL);
@@ -39,7 +39,7 @@ class OauthBearerMechanismConfigTest {
     void shouldCreateWithAllFields() {
         // When
         var config = new OauthBearerMechanismConfig(VALID_JWKS_URL, "kafka", "https://idp.example.com",
-                "scp", "subject", Duration.ofMinutes(5), Duration.ofSeconds(1), Duration.ofSeconds(30));
+                "scp", "subject", Duration.ofMinutes(5), Duration.ofSeconds(1), Duration.ofSeconds(30), null);
 
         // Then
         assertThat(config.scopeClaimName()).isEqualTo("scp");
@@ -53,7 +53,7 @@ class OauthBearerMechanismConfigTest {
     @Test
     void shouldRejectNullJwksEndpointUrl() {
         assertThatThrownBy(() -> new OauthBearerMechanismConfig(null, "kafka", "https://idp.example.com",
-                null, null, null, null, null))
+                null, null, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("jwksEndpointUrl must not be null");
     }
@@ -62,7 +62,7 @@ class OauthBearerMechanismConfigTest {
     @Test
     void shouldRejectNullExpectedAudience() {
         assertThatThrownBy(() -> new OauthBearerMechanismConfig(VALID_JWKS_URL, null, "https://idp.example.com",
-                null, null, null, null, null))
+                null, null, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("expectedAudience must not be null or blank");
     }
@@ -70,7 +70,7 @@ class OauthBearerMechanismConfigTest {
     @Test
     void shouldRejectBlankExpectedAudience() {
         assertThatThrownBy(() -> new OauthBearerMechanismConfig(VALID_JWKS_URL, "  ", "https://idp.example.com",
-                null, null, null, null, null))
+                null, null, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("expectedAudience must not be null or blank");
     }
@@ -79,7 +79,7 @@ class OauthBearerMechanismConfigTest {
     @Test
     void shouldRejectNullExpectedIssuer() {
         assertThatThrownBy(() -> new OauthBearerMechanismConfig(VALID_JWKS_URL, "kafka", null,
-                null, null, null, null, null))
+                null, null, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("expectedIssuer must not be null or blank");
     }
@@ -87,7 +87,7 @@ class OauthBearerMechanismConfigTest {
     @Test
     void shouldRejectBlankExpectedIssuer() {
         assertThatThrownBy(() -> new OauthBearerMechanismConfig(VALID_JWKS_URL, "kafka", "  ",
-                null, null, null, null, null))
+                null, null, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("expectedIssuer must not be null or blank");
     }
@@ -96,7 +96,7 @@ class OauthBearerMechanismConfigTest {
     void shouldReturnOauthbearerMechanismName() {
         // Given
         var config = new OauthBearerMechanismConfig(VALID_JWKS_URL, "kafka", "https://idp.example.com",
-                null, null, null, null, null);
+                null, null, null, null, null, null);
 
         // Then
         assertThat(config.mechanismName()).isEqualTo("OAUTHBEARER");

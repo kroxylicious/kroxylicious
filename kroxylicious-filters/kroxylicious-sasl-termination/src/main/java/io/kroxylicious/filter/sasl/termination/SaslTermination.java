@@ -80,6 +80,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      * Context for the SASL termination filter.
      *
      * @param oauthCallbackHandler initialized callback handler for OAUTHBEARER, null if not configured
+     * @param oauthMaxAuthBytes maximum auth payload size for OAUTHBEARER
      * @param supportedMechanisms set of configured mechanism names
      * @param maxTimeBeforeReauth maximum session lifetime, null if disabled
      * @param clock clock for session expiry computation
@@ -89,6 +90,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      */
     public record SaslTerminationContext(
                                          @Nullable OAuthBearerValidatorCallbackHandler oauthCallbackHandler,
+                                         int oauthMaxAuthBytes,
                                          Set<String> supportedMechanisms,
                                          List<AutoCloseable> closeables,
                                          @Nullable Duration maxTimeBeforeReauth,
@@ -142,6 +144,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         Objects.requireNonNull(config);
 
         OAuthBearerValidatorCallbackHandler oauthCallbackHandler = null;
+        int oauthMaxAuthBytes = OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES;
         Set<String> supportedMechanisms = new LinkedHashSet<>();
         Duration fixedAuthDelay = config.effectiveFixedAuthDelay();
 
@@ -150,7 +153,10 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         for (MechanismConfig mechanismConfig : config.mechanisms()) {
             supportedMechanisms.add(mechanismConfig.mechanismName());
             switch (mechanismConfig) {
-                case OauthBearerMechanismConfig oauthConfig -> oauthCallbackHandler = initializeOauthBearer(oauthConfig, closeables);
+                case OauthBearerMechanismConfig oauthConfig -> {
+                    oauthCallbackHandler = initializeOauthBearer(oauthConfig, closeables);
+                    oauthMaxAuthBytes = oauthConfig.effectiveMaxAuthBytes();
+                }
             }
         }
 
@@ -163,7 +169,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
             closeables.add(builderService);
             subjectBuilder = builderService.build();
         }
-        return new SaslTerminationContext(oauthCallbackHandler, supportedMechanisms, closeables,
+        return new SaslTerminationContext(oauthCallbackHandler, oauthMaxAuthBytes, supportedMechanisms, closeables,
                 config.maxTimeBeforeReauth(), clock, fixedAuthDelay, subjectBuilder);
     }
 

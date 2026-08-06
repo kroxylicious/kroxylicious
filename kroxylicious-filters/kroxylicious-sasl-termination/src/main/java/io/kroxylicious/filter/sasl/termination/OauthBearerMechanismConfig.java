@@ -37,6 +37,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param jwksEndpointRefresh JWKS endpoint refresh interval
  * @param jwksEndpointRetryBackoff initial retry backoff
  * @param jwksEndpointRetryBackoffMax maximum retry backoff
+ * @param maxAuthBytes maximum size in bytes of the auth payload accepted per round, null = 128KB default
  */
 @JsonIgnoreProperties("mechanism")
 public record OauthBearerMechanismConfig(
@@ -47,10 +48,14 @@ public record OauthBearerMechanismConfig(
                                          @Nullable String subClaimName,
                                          @Nullable Duration jwksEndpointRefresh,
                                          @Nullable Duration jwksEndpointRetryBackoff,
-                                         @Nullable Duration jwksEndpointRetryBackoffMax)
+                                         @Nullable Duration jwksEndpointRetryBackoffMax,
+                                         @Nullable Integer maxAuthBytes)
         implements MechanismConfig {
 
     public static final String MECHANISM_NAME = "OAUTHBEARER";
+    // 128KB accommodates large enterprise JWT tokens with many group/role claims
+    // while rejecting multi-MB payloads before token parsing and validation.
+    static final int DEFAULT_MAX_AUTH_BYTES = 128 * 1024;
 
     /** Validates that required fields are present and non-blank. */
     public OauthBearerMechanismConfig {
@@ -63,6 +68,18 @@ public record OauthBearerMechanismConfig(
         if (expectedIssuer == null || expectedIssuer.isBlank()) {
             throw new IllegalArgumentException("expectedIssuer must not be null or blank");
         }
+        if (maxAuthBytes != null && maxAuthBytes <= 0) {
+            throw new IllegalArgumentException("maxAuthBytes must be positive");
+        }
+    }
+
+    /**
+     * Returns the effective maximum auth bytes, defaulting to 128KB if not configured.
+     *
+     * @return the maximum auth bytes size
+     */
+    public int effectiveMaxAuthBytes() {
+        return maxAuthBytes != null ? maxAuthBytes : DEFAULT_MAX_AUTH_BYTES;
     }
 
     @Override

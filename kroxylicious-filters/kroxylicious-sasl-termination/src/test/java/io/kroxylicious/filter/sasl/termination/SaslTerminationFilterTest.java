@@ -455,7 +455,7 @@ class SaslTerminationFilterTest {
 
         try (var executor = Executors.newSingleThreadScheduledExecutor()) {
             var context = new SaslTermination.SaslTerminationContext(
-                    null, Set.of("OAUTHBEARER"), List.of(),
+                    null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
                     null, Clock.systemUTC(), fixedDelay,
                     SaslTermination.DEFAULT_SUBJECT_BUILDER);
             var filter = new SaslTerminationFilter(executor, context);
@@ -687,7 +687,7 @@ class SaslTerminationFilterTest {
         // Given
         Duration maxReauth = maxTimeBeforeReauthMs > 0 ? Duration.ofMillis(maxTimeBeforeReauthMs) : null;
         var context = new SaslTermination.SaslTerminationContext(
-                null, Set.of("OAUTHBEARER"), List.of(),
+                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
                 maxReauth, Clock.systemUTC(), Duration.ZERO,
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
@@ -704,7 +704,7 @@ class SaslTerminationFilterTest {
     private static SaslTerminationFilter createFilter() {
         var callbackHandler = new OAuthBearerValidatorCallbackHandler();
         var context = new SaslTermination.SaslTerminationContext(
-                callbackHandler,
+                callbackHandler, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES,
                 Set.of("OAUTHBEARER"), List.of(),
                 null, Clock.systemUTC(), Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
@@ -713,7 +713,7 @@ class SaslTerminationFilterTest {
 
     private static SaslTerminationFilter createFilterWithZeroDelay() {
         var context = new SaslTermination.SaslTerminationContext(
-                null, Set.of("OAUTHBEARER"), List.of(),
+                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
                 null, Clock.systemUTC(), Duration.ZERO,
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
@@ -722,7 +722,7 @@ class SaslTerminationFilterTest {
     private static SaslTerminationFilter createFilterWithClock(Clock clock) {
         var callbackHandler = new OAuthBearerValidatorCallbackHandler();
         var context = new SaslTermination.SaslTerminationContext(
-                callbackHandler,
+                callbackHandler, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES,
                 Set.of("OAUTHBEARER"), List.of(),
                 null, clock, Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);

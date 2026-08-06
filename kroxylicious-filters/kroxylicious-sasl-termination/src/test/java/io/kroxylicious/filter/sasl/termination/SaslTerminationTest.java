@@ -62,7 +62,7 @@ class SaslTerminationTest {
 
     private static OauthBearerMechanismConfig oauthConfig() {
         return new OauthBearerMechanismConfig(JWKS_URL, "kafka", "https://idp.example.com",
-                null, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     private static SaslTermination.SaslTerminationContext testContext() {
@@ -73,7 +73,7 @@ class SaslTerminationTest {
                                                                       Set<String> supportedMechanisms,
                                                                       List<AutoCloseable> closeables) {
         return new SaslTermination.SaslTerminationContext(
-                null, supportedMechanisms, closeables, null, Clock.systemUTC(), Duration.ofMillis(200),
+                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, supportedMechanisms, closeables, null, Clock.systemUTC(), Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
     }
 
@@ -224,7 +224,7 @@ class SaslTerminationTest {
                 URI.create("https://idp.example.com/.well-known/jwks.json"),
                 "kafka", "https://idp.example.com",
                 null, null,
-                Duration.ofMinutes(5), Duration.ofSeconds(1), Duration.ofSeconds(10));
+                Duration.ofMinutes(5), Duration.ofSeconds(1), Duration.ofSeconds(10), null);
 
         // When
         var saslConfig = SaslTermination.createOauthSaslConfigMap(config);
@@ -242,7 +242,7 @@ class SaslTerminationTest {
         var config = new OauthBearerMechanismConfig(
                 URI.create("https://idp.example.com/.well-known/jwks.json"),
                 "kafka", "https://idp.example.com",
-                null, null, null, null, null);
+                null, null, null, null, null, null);
 
         // When
         var saslConfig = SaslTermination.createOauthSaslConfigMap(config);
@@ -264,7 +264,7 @@ class SaslTerminationTest {
         var config = new OauthBearerMechanismConfig(
                 URI.create("https://idp.example.com/.well-known/jwks.json"),
                 audience, "https://idp.example.com",
-                null, null, null, null, null);
+                null, null, null, null, null, null);
 
         // When / Then
         assertThatThrownBy(() -> SaslTermination.createOauthSaslConfigMap(config))
@@ -574,7 +574,7 @@ class SaslTerminationTest {
         var executorThreadName = "test-filter-dispatch";
         try (var executor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, executorThreadName))) {
             var context = new SaslTermination.SaslTerminationContext(
-                    null, Set.of("OAUTHBEARER"), List.of(), null, Clock.systemUTC(),
+                    null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(), null, Clock.systemUTC(),
                     Duration.ofMillis(100), SaslTermination.DEFAULT_SUBJECT_BUILDER);
             var filter = new SaslTerminationFilter(executor, context);
 
