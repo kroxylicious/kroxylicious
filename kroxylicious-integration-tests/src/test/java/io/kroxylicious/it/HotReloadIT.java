@@ -65,7 +65,8 @@ class HotReloadIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(HotReloadIT.class);
 
     private static final int PORT_REUSE_BOOTSTRAP = 9292;
-    private static final String PORT_REUSE_LOCK = "localhost:" + PORT_REUSE_BOOTSTRAP;
+    private static final int PORT_RELOCATE_TARGET_BOOTSTRAP = PORT_REUSE_BOOTSTRAP + 10;
+    private static final int PORT_SAME_MODIFY_BOOTSTRAP = 9291;
 
     private static final String VC_BASELINE_NAME = "vc-baseline";
     private static final String VC_OUTGOING_NAME = "vc-outgoing";
@@ -344,7 +345,7 @@ class HotReloadIT extends BaseIT {
     }
 
     @Test
-    @ResourceLock(PORT_REUSE_LOCK)
+    @ResourceLock("localhost:" + PORT_REUSE_BOOTSTRAP)
     void shouldSupportPortReuseAcrossReconfigures(@BrokerCluster KafkaCluster cluster) throws Exception {
         var startingConfig = portConfig(
                 portVc(cluster, "vc-retain"),
@@ -430,15 +431,13 @@ class HotReloadIT extends BaseIT {
     }
 
     @Test
+    @ResourceLock("localhost:" + PORT_SAME_MODIFY_BOOTSTRAP)
     void shouldModifyPortAddressedVcWithSamePort(@BrokerCluster KafkaCluster cluster) throws Exception {
         // Same-port modify is the tight-timing case: ReplaceCluster's internal unbind happens
         // immediately before its rebind of the SAME port. Triggered here by flipping logNetwork
         // (a runtime-observable field whose change `VirtualCluster.sameAs` reports as a modify
         // but which doesn't affect client behaviour, so the cluster keeps working).
-        //
-        // Starts on port 0 so the OS assigns a port safely; after startup we capture the
-        // bound port and reconfigure with that explicit port to guarantee same-port rebind.
-        var startingConfig = portConfig(portVc(cluster, "vc-modify"));
+        var startingConfig = portConfig(portVc(cluster, "vc-modify", PORT_SAME_MODIFY_BOOTSTRAP));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
@@ -447,11 +446,9 @@ class HotReloadIT extends BaseIT {
             // Given
             String topic = tester.createTopic("vc-modify");
             assertProduceConsumeRoundTrip(tester, "vc-modify", topic, "given-pre-modify");
-            int port = boundPort(tester, "vc-modify");
 
             // When
-            var afterConfig = portConfig(portVcWithLogNetwork(cluster, "vc-modify", port, true));
-            LOGGER.info("Reconfiguring to modify vc-modify (same port {}, logNetwork=true)", port);
+            var afterConfig = portConfig(portVcWithLogNetwork(cluster, "vc-modify", PORT_SAME_MODIFY_BOOTSTRAP, true));
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -464,10 +461,10 @@ class HotReloadIT extends BaseIT {
     }
 
     @Test
-    @ResourceLock(PORT_REUSE_LOCK)
+    @ResourceLock("localhost:" + PORT_REUSE_BOOTSTRAP)
+    @ResourceLock("localhost:" + PORT_RELOCATE_TARGET_BOOTSTRAP)
     void shouldModifyPortAddressedVcWithDifferentPort(@BrokerCluster KafkaCluster cluster) throws Exception {
         int relocateFromPort = PORT_REUSE_BOOTSTRAP;
-        int relocateToPort = PORT_REUSE_BOOTSTRAP + 10;
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(portVc(cluster, "vc-relocate", relocateFromPort));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
@@ -477,7 +474,7 @@ class HotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-relocate", topicBefore, "given-old-port");
 
             // When
-            var afterConfig = portConfig(portVc(cluster, "vc-relocate", relocateToPort));
+            var afterConfig = portConfig(portVc(cluster, "vc-relocate", PORT_RELOCATE_TARGET_BOOTSTRAP));
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -654,9 +651,10 @@ class HotReloadIT extends BaseIT {
     }
 
     /**
-     * Polls until the port is bindable without SO_REUSEADDR. Using setReuseAddress(false)
-     * ensures we wait until the OS has fully released the socket, not just until TIME_WAIT
-     * allows a reuse-flagged bind to succeed.
+     * Polls until the port is bindable with SO_REUSEADDR, matching the semantics of the
+     * proxy's own {@code ServerBootstrap} ({@code SO_REUSEADDR=true}). This lets the probe
+     * succeed as soon as Netty closes the listening channel, without waiting for any
+     * TIME_WAIT connections to drain.
      */
     private static void assertPortIsBindable(int port) {
         await("port " + port + " to be bindable")
@@ -664,7 +662,7 @@ class HotReloadIT extends BaseIT {
                 .pollInterval(Duration.ofMillis(100))
                 .untilAsserted(() -> assertThatCode(() -> {
                     try (var s = new ServerSocket()) {
-                        s.setReuseAddress(false);
+                        s.setReuseAddress(true);
                         s.bind(new InetSocketAddress((InetAddress) null, port));
                     }
                 }).doesNotThrowAnyException());
