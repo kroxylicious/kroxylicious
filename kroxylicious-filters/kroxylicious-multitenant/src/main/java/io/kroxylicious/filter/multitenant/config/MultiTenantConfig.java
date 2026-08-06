@@ -14,13 +14,21 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Configuration for the Multi Tenant Filter.
- * @param prefixResourceNameSeparator separator character used to form the prefixed resource name, if not null
- * a default is used.
+ * @param prefixResourceNameSeparator separator used between the tenant prefix and the resource name
+ * when forming the prefixed resource name. If null, {@link #DEFAULT_SEPARATOR} is used.
  */
 public record MultiTenantConfig(String prefixResourceNameSeparator) {
 
+    /**
+     * Separator used between the tenant prefix and the resource name when no separator is configured.
+     */
     public static final String DEFAULT_SEPARATOR = "-";
 
+    /**
+     * Constructs a MultiTenantConfig.
+     * @param prefixResourceNameSeparator separator used between the tenant prefix and the resource name
+     * when forming the prefixed resource name. If null, {@link #DEFAULT_SEPARATOR} is used.
+     */
     public MultiTenantConfig(@Nullable @JsonProperty(required = false) String prefixResourceNameSeparator) {
         this.prefixResourceNameSeparator = Objects.requireNonNullElse(prefixResourceNameSeparator, DEFAULT_SEPARATOR);
     }
