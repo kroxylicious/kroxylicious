@@ -133,6 +133,45 @@ class RouterContextImplTest {
     }
 
     @Test
+    void nodeForIdPreservesVirtualIdWithBijectiveMapping() {
+        // BijectiveNodeIdMapping: route-b id=1, totalRoutes=2.
+        // fromVirtual(1) → RouteAndNode("route-b", physicalNode=0). VirtualNode must retain virtual ID 1, not 0.
+        var bijectiveRoutes = Map.of(
+                "route-a", new RouteDescriptor("route-a", 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of()),
+                "route-b", new RouteDescriptor("route-b", 1, new TargetCluster("localhost:9093", Optional.empty()), null, List.of()));
+        var bijectiveMapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
+        var handler = new RouterDispatchHandler(router, bijectiveRoutes, Map.of(), ccsm, "test-cluster", bijectiveMapping, null);
+        var ctx = new RouterContextImpl(clientFrame, handler, "test-session", Subject.anonymous(), null);
+
+        // When
+        var node = ctx.nodeForId(1);
+
+        // Then
+        assertThat(((VirtualNodeImpl) node).route()).isEqualTo("route-b");
+        assertThat(((VirtualNodeImpl) node).virtualNodeId()).isEqualTo(1);
+    }
+
+    @Test
+    void virtualNodePreservesVirtualIdWithBijectiveMapping() {
+        // BijectiveNodeIdMapping: route-b id=1, totalRoutes=2.
+        // fromVirtual(1) → RouteAndNode("route-b", physicalNode=0). VirtualNode must retain virtual ID 1, not 0.
+        var bijectiveRoutes = Map.of(
+                "route-a", new RouteDescriptor("route-a", 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of()),
+                "route-b", new RouteDescriptor("route-b", 1, new TargetCluster("localhost:9093", Optional.empty()), null, List.of()));
+        var bijectiveMapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
+        var handler = new RouterDispatchHandler(router, bijectiveRoutes, Map.of(), ccsm, "test-cluster", bijectiveMapping, null);
+        var ctx = new RouterContextImpl(clientFrame, handler, "test-session", Subject.anonymous(), 1);
+
+        // When
+        var vn = ctx.virtualNode();
+
+        // Then
+        assertThat(vn).isPresent();
+        assertThat(((VirtualNodeImpl) vn.get()).route()).isEqualTo("route-b");
+        assertThat(((VirtualNodeImpl) vn.get()).virtualNodeId()).isEqualTo(1);
+    }
+
+    @Test
     void respondWithBodyShouldBuildRespondWithResult() {
         // Given
         var ctx = createContext();
