@@ -415,7 +415,8 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
                 .addKeyValue(LOG_KEY_MECHANISM, stateMachine.mechanismName())
                 .setCause(throwable)
-                .log("Authentication error: {}", origin);
+                .addKeyValue("origin", origin)
+                .log("Authentication error");
         Exception exception = throwable instanceof Exception e ? e : new RuntimeException(throwable);
         return rejectAuthenticateAndClose(stateMachine,
                 filterContext,
