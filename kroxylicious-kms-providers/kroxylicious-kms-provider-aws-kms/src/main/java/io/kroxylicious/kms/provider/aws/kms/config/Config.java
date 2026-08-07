@@ -36,6 +36,19 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
                      @JsonProperty(value = "region", required = true) String region,
                      @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
 
+    /**
+     * Creates the configuration, migrating any deprecated flat credential fields into the
+     * {@code credentials} node.
+     *
+     * @param endpointUrl URL of the AWS KMS e.g. {@code https://kms.us-east-1.amazonaws.com}
+     * @param longTermCredentialsProviderConfig <b>deprecated</b> — use {@code credentials.longTerm} instead.
+     *                                          Config for long-term credentials (access key id and secret access key).
+     * @param ec2MetadataCredentialsProviderConfig <b>deprecated</b> — use {@code credentials.ec2Metadata} instead.
+     *                                             Config obtaining credentials from EC2 metadata.
+     * @param credentials grouped credential provider configuration.
+     * @param region AWS region
+     * @param tls TLS settings
+     */
     public Config {
         Objects.requireNonNull(endpointUrl);
         Objects.requireNonNull(region);

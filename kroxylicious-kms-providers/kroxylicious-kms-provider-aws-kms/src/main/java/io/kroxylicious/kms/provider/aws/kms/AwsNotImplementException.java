@@ -13,6 +13,11 @@ import io.kroxylicious.kms.service.KmsException;
  */
 public class AwsNotImplementException extends KmsException {
 
+    /**
+     * Creates the exception.
+     *
+     * @param alias alias of the key for which the function is not implemented.
+     */
     public AwsNotImplementException(String alias) {
         super(alias);
     }

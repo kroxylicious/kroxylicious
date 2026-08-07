@@ -197,6 +197,11 @@ public class PodIdentityCredentialsProvider extends AbstractRefreshingCredential
     /**
      * The temporary credentials returned by the EKS Pod Identity agent.  The payload shape is the
      * same one EC2 IMDS has used for years (sans the EC2-specific {@code Code} field).
+     *
+     * @param accessKeyId AWS access key id.
+     * @param secretAccessKey AWS secret access key.
+     * @param token temporary security token associated with the access key.
+     * @param expiration instant at which the credentials expire.
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record PodIdentityCredentials(@JsonProperty("AccessKeyId") String accessKeyId,
@@ -204,6 +209,14 @@ public class PodIdentityCredentialsProvider extends AbstractRefreshingCredential
                                          @JsonProperty("Token") String token,
                                          @JsonProperty("Expiration") Instant expiration)
             implements Credentials {
+        /**
+         * Creates the pod identity credentials.
+         *
+         * @param accessKeyId AWS access key id.
+         * @param secretAccessKey AWS secret access key.
+         * @param token temporary security token associated with the access key.
+         * @param expiration instant at which the credentials expire.
+         */
         public PodIdentityCredentials {
             Objects.requireNonNull(accessKeyId);
             Objects.requireNonNull(secretAccessKey);

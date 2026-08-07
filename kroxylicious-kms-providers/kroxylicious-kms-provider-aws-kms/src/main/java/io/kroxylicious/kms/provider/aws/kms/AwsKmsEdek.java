@@ -17,6 +17,12 @@ import java.util.Objects;
  */
 public record AwsKmsEdek(String kekRef,
                          @SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
+    /**
+     * Creates an AWS KMS Encrypted Dek.
+     *
+     * @param kekRef kek reference.
+     * @param edek edek bytes.
+     */
     public AwsKmsEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
