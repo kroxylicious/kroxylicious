@@ -21,6 +21,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record RotateKeyResponse(
                                 @JsonProperty("id") String id) {
 
+    /**
+     * Creates a RotateKeyResponse.
+     *
+     * @param id unique key identifier (the new key's ID after rotation)
+     */
     public RotateKeyResponse {
         Objects.requireNonNull(id);
     }
