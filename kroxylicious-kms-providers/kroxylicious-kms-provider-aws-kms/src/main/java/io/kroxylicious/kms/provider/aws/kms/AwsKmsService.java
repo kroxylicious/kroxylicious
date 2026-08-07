@@ -33,6 +33,9 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
     @Nullable
     private CredentialsProvider credentialsProvider;
 
+    /**
+     * Creates the AWS KMS service using the default credentials provider factory.
+     */
     public AwsKmsService() {
         this(CredentialsProviderFactory.DEFAULT);
     }

@@ -18,8 +18,18 @@ import io.kroxylicious.kms.service.KmsException;
 @FunctionalInterface
 public interface CredentialsProviderFactory {
 
+    /**
+     * Creates the credentials provider defined by the given configuration.
+     *
+     * @param config KMS service configuration.
+     * @return credentials provider.
+     */
     CredentialsProvider createCredentialsProvider(Config config);
 
+    /**
+     * Default factory that creates the provider corresponding to the single credential
+     * provider defined by the {@code credentials} node of the configuration.
+     */
     CredentialsProviderFactory DEFAULT = config -> {
         var creds = config.credentials();
         if (creds == null) {
