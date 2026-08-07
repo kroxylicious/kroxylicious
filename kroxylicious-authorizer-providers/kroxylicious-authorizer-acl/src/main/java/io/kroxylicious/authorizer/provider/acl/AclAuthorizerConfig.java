@@ -6,5 +6,11 @@
 
 package io.kroxylicious.authorizer.provider.acl;
 
+/**
+ * Configuration for the {@link AclAuthorizerService} plugin.
+ *
+ * @param aclFile the path of the file containing the ACL rules from which the
+ *        {@link AclAuthorizer} will be built.
+ */
 public record AclAuthorizerConfig(
                                   String aclFile) {}

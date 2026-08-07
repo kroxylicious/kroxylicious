@@ -44,10 +44,23 @@ import io.kroxylicious.proxy.plugin.Plugins;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * An {@link AuthorizerService} which builds an {@link AclAuthorizer} from a file of ACL rules.
+ * The rules file is named by the {@link AclAuthorizerConfig#aclFile()} configuration property
+ * and expresses the rules using naturalish language, according to a simple grammar
+ * (see {@code src/main/antlr4/io/kroxylicious/authorizer/provider/acl/parser/AclRules.g4}).
+ */
 @Plugin(configType = AclAuthorizerConfig.class)
 public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConfig> {
 
     private @Nullable AclAuthorizer aclAuthorizer;
+
+    /**
+     * Constructs an AclAuthorizerService.
+     */
+    public AclAuthorizerService() {
+        // explicit ctor needed for javadoc
+    }
 
     @Override
     public void initialize(@Nullable AclAuthorizerConfig config1) {
