@@ -78,6 +78,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     private static final String LOG_KEY_ERROR = "error";
     private static final String LOG_KEY_REAUTHENTICATION = "reauthentication";
     private static final String LOG_KEY_REASON = "reason";
+    private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
 
     static final String AUTH_DURATION_METRIC = "kroxylicious_filter_sasl_termination_auth_duration_seconds";
     static final String SESSION_EXPIRED_METRIC = "kroxylicious_filter_sasl_termination_session_expired_total";
@@ -153,11 +154,14 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     }
 
     private CompletionStage<RequestFilterResult> onSaslHandshakeRequest(
-                                                                        ApiKeys apiKey, short apiVersion, RequestHeaderData header, SaslHandshakeRequestData request,
+                                                                        ApiKeys apiKey,
+                                                                        short apiVersion,
+                                                                        RequestHeaderData header,
+                                                                        SaslHandshakeRequestData request,
                                                                         FilterContext filterContext) {
 
         if (isUnsupportedApiVersion(ApiKeys.SASL_HANDSHAKE, apiVersion)) {
-            return rejectUnsupportedVersionAndClose(apiKey, apiVersion, header, request, filterContext);
+            return rejectUnsupportedVersionAndClose(filterContext, apiKey, apiVersion, header, request);
         }
 
         if (!(state instanceof State.RequiringHandshake) && !(state instanceof State.Authenticated)) {
@@ -180,7 +184,8 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     }
 
     @NonNull
-    private CompletionStage<RequestFilterResult> acceptHandshake(FilterContext filterContext, MechanismStateMachine stateMachine,
+    private CompletionStage<RequestFilterResult> acceptHandshake(FilterContext filterContext,
+                                                                 MechanismStateMachine stateMachine,
                                                                  String mechanism) {
         if (state instanceof State.RequiringHandshake handshake) {
             state = handshake.nextState(stateMachine);
@@ -188,6 +193,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         else if (state instanceof State.Authenticated authenticated) {
             LOGGER.atDebug()
                     .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                     .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                     .log("Reauthentication initiated");
             state = authenticated.nextStateReauthenticate(stateMachine);
@@ -200,9 +206,11 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .completed();
     }
 
-    private CompletionStage<RequestFilterResult> rejectHandshakeUnsupportedMechanism(FilterContext filterContext, String mechanism) {
+    private CompletionStage<RequestFilterResult> rejectHandshakeUnsupportedMechanism(FilterContext filterContext,
+                                                                                     String mechanism) {
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                 .log("Unsupported mechanism");
         return filterContext.requestFilterResultBuilder()
@@ -218,6 +226,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                                                                                              String mechanism) {
         LOGGER.atWarn()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                 .addKeyValue("previousMechanism", authenticated.mechanismName())
                 .log("Reauthentication rejected: mechanism change not permitted");
@@ -232,6 +241,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     private CompletionStage<RequestFilterResult> rejectHandshakeNotExpected(FilterContext filterContext) {
         LOGGER.atWarn()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue(LOG_KEY_STATE, state)
                 .log("Received SASL handshake in unexpected state");
         return filterContext.requestFilterResultBuilder()
@@ -256,11 +266,12 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     private CompletionStage<RequestFilterResult> onSaslAuthenticateRequest(
                                                                            ApiKeys apiKey,
                                                                            short apiVersion,
-                                                                           RequestHeaderData header, SaslAuthenticateRequestData request,
+                                                                           RequestHeaderData header,
+                                                                           SaslAuthenticateRequestData request,
                                                                            FilterContext filterContext) {
 
         if (isUnsupportedApiVersion(ApiKeys.SASL_AUTHENTICATE, apiVersion)) {
-            return rejectUnsupportedVersionAndClose(apiKey, apiVersion, header, request, filterContext);
+            return rejectUnsupportedVersionAndClose(filterContext, apiKey, apiVersion, header, request);
         }
 
         if (!(state instanceof State.RequiringAuthenticate authenticating)) {
@@ -271,43 +282,45 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
 
         int maxAuthBytes = stateMachine.maxAuthBytes();
         if (request.authBytes().length > maxAuthBytes) {
-            return rejectAuthenticateBytesTooLarge(request, filterContext, stateMachine, maxAuthBytes);
+            return rejectAuthenticateBytesTooLarge(filterContext, request, stateMachine, maxAuthBytes);
         }
 
         Instant authRoundStart = clock.instant();
         long roundStartNanos = System.nanoTime();
         return stateMachine.evaluateRound(request.authBytes())
                 .whenComplete((result, ex) -> authenticating.addRoundDuration(System.nanoTime() - roundStartNanos))
-                .thenCompose(result -> applyFixedAuthDelay(result, authRoundStart, stateMachine.mechanismName()))
+                .thenCompose(result -> applyFixedAuthDelay(filterContext, result, authRoundStart, stateMachine.mechanismName()))
                 .thenCompose(result -> switch (result) {
                     case RoundResult.Challenge challenge -> acceptAuthenticateContinue(filterContext, challenge);
-                    case RoundResult.Success success -> processMechanismSuccess(stateMachine, filterContext, success);
-                    case RoundResult.Failure failure -> rejectAuthenticateMechanismFailed(stateMachine, filterContext, failure.exception());
+                    case RoundResult.Success success -> processMechanismSuccess(filterContext, stateMachine, success);
+                    case RoundResult.Failure failure -> rejectAuthenticateMechanismFailed(filterContext, stateMachine, failure.exception());
                 })
-                .exceptionallyCompose(throwable -> rejectAuthenticateInternalError(stateMachine,
-                        filterContext,
+                .exceptionallyCompose(throwable -> rejectAuthenticateInternalError(filterContext, stateMachine,
                         "stateMachine",
                         throwable));
     }
 
     @NonNull
-    private CompletionStage<RequestFilterResult> rejectAuthenticateBytesTooLarge(SaslAuthenticateRequestData request, FilterContext filterContext,
-                                                                                 MechanismStateMachine stateMachine, int maxAuthBytes) {
+    private CompletionStage<RequestFilterResult> rejectAuthenticateBytesTooLarge(FilterContext filterContext,
+                                                                                 SaslAuthenticateRequestData request,
+                                                                                 MechanismStateMachine stateMachine,
+                                                                                 int maxAuthBytes) {
         LOGGER.atWarn()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue(LOG_KEY_MECHANISM, stateMachine.mechanismName())
                 .addKeyValue("payloadSize", request.authBytes().length)
                 .addKeyValue("maxPayloadSize", maxAuthBytes)
                 .log("Rejecting oversized SASL authenticate payload");
         return rejectAuthenticateAndClose(
-                stateMachine,
-                filterContext,
+                filterContext, stateMachine,
                 new InvalidRequestException("Authentication payload exceeds maximum size"));
     }
 
     private CompletionStage<RequestFilterResult> rejectAuthenticateNotExpected(FilterContext filterContext) {
         LOGGER.atWarn()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue(LOG_KEY_STATE, state)
                 .log("Received SASL authenticate in unexpected state");
         return filterContext.requestFilterResultBuilder()
@@ -318,8 +331,8 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .completed();
     }
 
-    private CompletionStage<RequestFilterResult> processMechanismSuccess(MechanismStateMachine stateMachine,
-                                                                         FilterContext filterContext,
+    private CompletionStage<RequestFilterResult> processMechanismSuccess(FilterContext filterContext,
+                                                                         MechanismStateMachine stateMachine,
                                                                          RoundResult.Success success) {
 
         if (!(state instanceof State.RequiringAuthenticate authenticating)) {
@@ -331,6 +344,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         boolean reauthentication = authenticating.previousAuthorizationId() != null;
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                 .addKeyValue(LOG_KEY_REAUTHENTICATION, reauthentication)
                 .addKeyValue("authorizationId", authorizationId)
@@ -341,7 +355,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         String previousAuthorizationId = authenticating.previousAuthorizationId();
         if (previousAuthorizationId != null
                 && !previousAuthorizationId.equals(authorizationId)) {
-            return rejectAuthenticateIdChanged(stateMachine, filterContext, previousAuthorizationId, authorizationId);
+            return rejectAuthenticateIdChanged(filterContext, stateMachine, previousAuthorizationId, authorizationId);
         }
 
         // capture the duration here, but only record it on the acceptAuthenticateDone path
@@ -353,35 +367,36 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         stateMachine.dispose();
 
         return subjectBuilder.buildSaslSubject(new SubjectContext(filterContext, mechanism, authorizationId))
-                .thenCompose(subject -> completeSubjectBuild(stateMachine,
-                        filterContext,
+                .thenCompose(subject -> completeSubjectBuild(filterContext, stateMachine,
                         success,
                         subject,
                         mechanism,
                         reauthentication,
                         sessionExpiry,
                         authDuration))
-                .exceptionallyCompose(throwable -> rejectAuthenticateInternalError(stateMachine,
-                        filterContext,
+                .exceptionallyCompose(throwable -> rejectAuthenticateInternalError(filterContext, stateMachine,
                         "subjectBuilder",
                         throwable));
     }
 
     @NonNull
-    private CompletionStage<RequestFilterResult> rejectAuthenticateIdChanged(MechanismStateMachine stateMachine, FilterContext filterContext,
-                                                                             String previousAuthorizationId, String authorizationId) {
+    private CompletionStage<RequestFilterResult> rejectAuthenticateIdChanged(FilterContext filterContext,
+                                                                             MechanismStateMachine stateMachine,
+                                                                             String previousAuthorizationId,
+                                                                             String authorizationId) {
         LOGGER.atWarn()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue(LOG_KEY_REAUTHENTICATION, true)
                 .addKeyValue("previousAuthorizationId", previousAuthorizationId)
                 .addKeyValue("newAuthorizationId", authorizationId)
                 .log("Reauthentication rejected: authorization ID changed");
-        return rejectAuthenticateAndClose(stateMachine, filterContext,
+        return rejectAuthenticateAndClose(filterContext, stateMachine,
                 new SaslAuthenticationException("Reauthentication failed: authorization identity changed"));
     }
 
-    private CompletionStage<RequestFilterResult> completeSubjectBuild(MechanismStateMachine stateMachine,
-                                                                      FilterContext filterContext,
+    private CompletionStage<RequestFilterResult> completeSubjectBuild(FilterContext filterContext,
+                                                                      MechanismStateMachine stateMachine,
                                                                       RoundResult.Success success,
                                                                       Subject subject,
                                                                       String mechanism,
@@ -393,9 +408,10 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         if (sessionExpiry != null && !clock.instant().isBefore(sessionExpiry)) {
             LOGGER.atWarn()
                     .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                     .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                     .log("Token expired during authentication");
-            return rejectAuthenticateAndClose(stateMachine, filterContext,
+            return rejectAuthenticateAndClose(filterContext, stateMachine,
                     new SaslAuthenticationException("Token expired during authentication"));
         }
 
@@ -411,6 +427,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         String authorizationId = success.authorizationId();
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                 .addKeyValue("authorizationId", authorizationId)
                 .addKeyValue(LOG_KEY_REAUTHENTICATION, reauthentication)
@@ -427,23 +444,24 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .completed();
     }
 
-    private CompletionStage<RequestFilterResult> rejectAuthenticateInternalError(MechanismStateMachine stateMachine,
-                                                                                 FilterContext filterContext,
+    private CompletionStage<RequestFilterResult> rejectAuthenticateInternalError(FilterContext filterContext,
+                                                                                 MechanismStateMachine stateMachine,
                                                                                  String origin,
                                                                                  Throwable throwable) {
         LOGGER.atError()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue(LOG_KEY_MECHANISM, stateMachine.mechanismName())
                 .setCause(throwable)
                 .addKeyValue("origin", origin)
                 .log("Authentication error");
         Exception exception = throwable instanceof Exception e ? e : new RuntimeException(throwable);
-        return rejectAuthenticateAndClose(stateMachine,
-                filterContext,
+        return rejectAuthenticateAndClose(filterContext, stateMachine,
                 exception);
     }
 
-    private CompletionStage<RequestFilterResult> acceptAuthenticateContinue(FilterContext filterContext, RoundResult.Challenge challenge) {
+    private CompletionStage<RequestFilterResult> acceptAuthenticateContinue(FilterContext filterContext,
+                                                                            RoundResult.Challenge challenge) {
         if (state instanceof State.RequiringAuthenticate authenticating) {
             state = authenticating.nextStateChallenge();
         }
@@ -470,22 +488,22 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     }
 
     private CompletionStage<RequestFilterResult> rejectAuthenticateMechanismFailed(
-                                                                                   MechanismStateMachine stateMachine,
-                                                                                   FilterContext filterContext,
+                                                                                   FilterContext filterContext, MechanismStateMachine stateMachine,
                                                                                    Exception exception) {
         boolean reauthentication = state instanceof State.RequiringAuthenticate req
                 && req.previousAuthorizationId() != null;
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue(LOG_KEY_ERROR, exception.getMessage())
                 .addKeyValue(LOG_KEY_REAUTHENTICATION, reauthentication)
                 .log("Authentication failed");
-        return rejectAuthenticateAndClose(stateMachine, filterContext, exception);
+        return rejectAuthenticateAndClose(filterContext, stateMachine, exception);
     }
 
     private CompletionStage<RequestFilterResult> rejectAuthenticateAndClose(
-                                                                            MechanismStateMachine stateMachine,
                                                                             FilterContext filterContext,
+                                                                            MechanismStateMachine stateMachine,
                                                                             Exception exception) {
 
         if (state instanceof State.RequiringAuthenticate authenticating) {
@@ -518,11 +536,10 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
             Instant expiry = authenticated.sessionExpiry();
             if (expiry == null || !clock.instant().isAfter(expiry)) {
                 if (FILTERED_API_KEYS.contains(apiKey.id)) {
-                    return rejectUnsupportedApi(header,
+                    return rejectUnsupportedApi(filterContext, header,
                             request,
                             apiKey,
-                            apiKey + " is not supported when SASL is terminated at the proxy",
-                            filterContext);
+                            apiKey + " is not supported when SASL is terminated at the proxy");
                 }
                 else {
                     return filterContext.forwardRequest(header, request);
@@ -536,6 +553,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                     .increment();
             LOGGER.atWarn()
                     .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                     .addKeyValue(LOG_KEY_REASON, "SASL session expired")
                     .addKeyValue("sessionExpiry", expiry)
                     .addKeyValue("requestType", request.getClass().getSimpleName())
@@ -544,6 +562,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         else {
             LOGGER.atWarn()
                     .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                     .addKeyValue(LOG_KEY_REASON, "Client is not authenticated")
                     .addKeyValue(LOG_KEY_STATE, state)
                     .addKeyValue("requestType", request.getClass().getSimpleName())
@@ -557,13 +576,14 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     }
 
     private static CompletionStage<RequestFilterResult> rejectUnsupportedApi(
+                                                                             FilterContext filterContext,
                                                                              RequestHeaderData header,
                                                                              ApiMessage request,
                                                                              ApiKeys apiKey,
-                                                                             String reason,
-                                                                             FilterContext filterContext) {
+                                                                             String reason) {
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue("apiKey", apiKey)
                 .addKeyValue(LOG_KEY_REASON, reason)
                 .log("Rejecting unsupported API request");
@@ -572,7 +592,10 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .completed();
     }
 
-    private CompletionStage<RoundResult> applyFixedAuthDelay(RoundResult result, Instant start, String mechanismName) {
+    private CompletionStage<RoundResult> applyFixedAuthDelay(FilterContext filterContext,
+                                                             RoundResult result,
+                                                             Instant start,
+                                                             String mechanismName) {
         Duration fixedAuthDelay = context.fixedAuthDelay();
         if (fixedAuthDelay.isZero()) {
             return CompletableFuture.completedFuture(result);
@@ -580,6 +603,8 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         Duration elapsed = Duration.between(start, clock.instant());
         if (elapsed.compareTo(fixedAuthDelay) > 0) {
             LOGGER.atWarn()
+                    .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                     .addKeyValue(LOG_KEY_MECHANISM, mechanismName)
                     .addKeyValue("elapsed", elapsed)
                     .addKeyValue("fixedAuthDelay", fixedAuthDelay)
@@ -616,11 +641,14 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     }
 
     private CompletionStage<RequestFilterResult> rejectUnsupportedVersionAndClose(
-                                                                                  ApiKeys apiKey, short apiVersion, RequestHeaderData header,
-                                                                                  ApiMessage request,
-                                                                                  FilterContext filterContext) {
+                                                                                  FilterContext filterContext,
+                                                                                  ApiKeys apiKey,
+                                                                                  short apiVersion,
+                                                                                  RequestHeaderData header,
+                                                                                  ApiMessage request) {
         LOGGER.atWarn()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, filterContext.getVirtualClusterName())
                 .addKeyValue("apiKey", apiKey)
                 .addKeyValue("apiVersion", apiVersion)
                 .log("Rejecting SASL request with unsupported API version");
