@@ -33,6 +33,13 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
     private static final ExtensionContext.Namespace STORE_NAMESPACE = ExtensionContext.Namespace.create("TEST_KMS");
     private static final String FACADE_FACTORIES = "KMS_FACADE_FACTORIES";
 
+    /**
+     * Creates the provider.
+     */
+    public TestKmsFacadeInvocationContextProvider() {
+        // Intentionally empty
+    }
+
     @Override
     public boolean supportsTestTemplate(ExtensionContext context) {
         return true;
