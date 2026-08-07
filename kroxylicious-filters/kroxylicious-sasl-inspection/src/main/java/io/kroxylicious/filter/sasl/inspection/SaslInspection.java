@@ -43,11 +43,23 @@ public class SaslInspection implements FilterFactory<Config, Void> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslInspection.class);
 
+    /**
+     * The default {@link SaslSubjectBuilder}, used when the configuration does not name a
+     * {@code subjectBuilder} plugin. It builds a {@link Subject} with a single {@link User}
+     * principal named after the SASL authorization id.
+     */
     public static final SaslSubjectBuilder DEFAULT_SUBJECT_BUILDER = context -> CompletableFuture
             .completedStage(new Subject(Set.of(new User(context.clientSaslContext().authorizationId()))));
     private @Nullable Map<String, SaslObserverFactory> observerFactoryMap;
     private @Nullable SaslSubjectBuilder subjectBuilder;
     private boolean authenticationRequired = false;
+
+    /**
+     * Constructs a SaslInspection filter factory.
+     */
+    public SaslInspection() {
+        // explicit ctor needed for javadoc
+    }
 
     @Override
     public Void initialize(FilterFactoryContext context,

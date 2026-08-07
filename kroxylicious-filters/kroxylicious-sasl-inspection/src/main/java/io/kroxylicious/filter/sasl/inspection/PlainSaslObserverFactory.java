@@ -13,12 +13,20 @@ import io.kroxylicious.proxy.plugin.Plugin;
  * Factory for the {@link PlainSaslObserver} instances.
  * <br/>
  * The PLAIN mechanism relies on cleartext password being passed between client
- * and server. THis means the cleartext password will exist in the memory of the
+ * and server. This means the cleartext password will exist in the memory of the
  * Proxy.
  */
 @Plugin(configType = Void.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.PlainSaslObserverFactory", since = "0.19.0")
 public class PlainSaslObserverFactory implements SaslObserverFactory {
+
+    /**
+     * Constructs a PlainSaslObserverFactory.
+     */
+    public PlainSaslObserverFactory() {
+        // explicit ctor needed for javadoc
+    }
+
     @Override
     public SaslObserver createObserver() {
         return new PlainSaslObserver();
