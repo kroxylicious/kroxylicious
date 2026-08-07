@@ -287,15 +287,20 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         long roundStartNanos = System.nanoTime();
         return stateMachine.evaluateRound(request.authBytes())
                 .whenComplete((result, ex) -> authenticating.addRoundDuration(System.nanoTime() - roundStartNanos))
-                .thenCompose(result -> applyFixedAuthDelay(filterContext, result, authRoundStart, stateMachine.mechanismName()))
-                .thenCompose(result -> switch (result) {
-                    case RoundResult.Challenge challenge -> acceptAuthenticateContinue(filterContext, challenge);
-                    case RoundResult.Success success -> processMechanismSuccess(filterContext, stateMachine, success);
-                    case RoundResult.Failure failure -> rejectAuthenticateMechanismFailed(filterContext, stateMachine, failure.exception());
-                })
-                .exceptionallyCompose(throwable -> rejectAuthenticateInternalError(filterContext, stateMachine,
-                        "stateMachine",
-                        throwable));
+                .handle((result, ex) -> new RoundOutcome(result, ex))
+                .thenCompose(outcome -> applyFixedAuthDelay(filterContext, outcome, authRoundStart, stateMachine.mechanismName()))
+                .thenCompose(outcome -> {
+                    if (outcome.exception() != null) {
+                        return rejectAuthenticateInternalError(filterContext, stateMachine,
+                                "stateMachine",
+                                outcome.exception());
+                    }
+                    return switch (outcome.result()) {
+                        case RoundResult.Challenge challenge -> acceptAuthenticateContinue(filterContext, challenge);
+                        case RoundResult.Success success -> processMechanismSuccess(filterContext, stateMachine, success);
+                        case RoundResult.Failure failure -> rejectAuthenticateMechanismFailed(filterContext, stateMachine, failure.exception());
+                    };
+                });
     }
 
     private CompletionStage<RequestFilterResult> rejectAuthenticateBytesTooLarge(FilterContext filterContext,
@@ -584,13 +589,13 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .completed();
     }
 
-    private CompletionStage<RoundResult> applyFixedAuthDelay(FilterContext filterContext,
-                                                             RoundResult result,
-                                                             Instant start,
-                                                             String mechanismName) {
+    private CompletionStage<RoundOutcome> applyFixedAuthDelay(FilterContext filterContext,
+                                                              RoundOutcome outcome,
+                                                              Instant start,
+                                                              String mechanismName) {
         Duration fixedAuthDelay = context.fixedAuthDelay();
         if (fixedAuthDelay.isZero()) {
-            return CompletableFuture.completedFuture(result);
+            return CompletableFuture.completedFuture(outcome);
         }
         Duration elapsed = Duration.between(start, clock.instant());
         if (elapsed.compareTo(fixedAuthDelay) > 0) {
@@ -602,19 +607,21 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                     .addKeyValue("fixedAuthDelay", fixedAuthDelay)
                     .log("Authentication took longer than fixedAuthDelay, consider increasing fixedAuthDelay");
         }
-        return delayUntil(start.plus(fixedAuthDelay), result);
+        return delayUntil(start.plus(fixedAuthDelay), outcome);
     }
 
     @SuppressWarnings("FutureReturnValueIgnored") // the ScheduledFuture is not needed; completion is observed via the returned CompletableFuture
-    private CompletionStage<RoundResult> delayUntil(Instant deadline, RoundResult result) {
+    private CompletionStage<RoundOutcome> delayUntil(Instant deadline, RoundOutcome outcome) {
         long remainingMs = Duration.between(clock.instant(), deadline).toMillis();
         if (remainingMs <= 0) {
-            return CompletableFuture.completedFuture(result);
+            return CompletableFuture.completedFuture(outcome);
         }
-        CompletableFuture<RoundResult> future = new CompletableFuture<>();
-        executorService.schedule(() -> future.complete(result), remainingMs, TimeUnit.MILLISECONDS);
+        CompletableFuture<RoundOutcome> future = new CompletableFuture<>();
+        executorService.schedule(() -> future.complete(outcome), remainingMs, TimeUnit.MILLISECONDS);
         return future;
     }
+
+    record RoundOutcome(@Nullable RoundResult result, @Nullable Throwable exception) {}
 
     private static void recordAuthDuration(String mechanism,
                                            String virtualClusterName,
