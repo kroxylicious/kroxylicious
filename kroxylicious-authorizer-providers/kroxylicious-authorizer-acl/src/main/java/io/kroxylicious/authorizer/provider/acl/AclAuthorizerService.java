@@ -297,7 +297,8 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             this.subjectBuilder = null;
         }
 
-        private <T> @Nullable Class<? extends T> lookupClass(String ident, Token identToken, Class<T> cls, String desc) {
+        @Nullable
+        private <T> Class<? extends T> lookupClass(String ident, Token identToken, Class<T> cls, String desc) {
             // look it up in the imports
             String localClassName = ident;
             var qualifiedClassName = this.localToQualified.get(localClassName);

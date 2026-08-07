@@ -392,7 +392,8 @@ public class FilterHandler extends ChannelDuplexHandler {
         return requestFilterResult;
     }
 
-    private <F extends FilterResult> @Nullable F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
+    @Nullable
+    private <F extends FilterResult> F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
         if (LOGGER.isWarnEnabled()) {
             var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
             log(WARN)
