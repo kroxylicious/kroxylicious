@@ -203,7 +203,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         }
         SaslSubjectBuilderService<Object> service = context.pluginInstance(
                 SaslSubjectBuilderService.class, config.subjectBuilder());
-        service.initialize(Objects.requireNonNull(config.subjectBuilderConfig()));
+        service.initialize(config.subjectBuilderConfig());
         return service;
     }
 
