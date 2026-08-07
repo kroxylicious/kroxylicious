@@ -411,8 +411,10 @@ class RoutingContextContractIT {
 
     @Test
     void nodeForIdWithBijectiveMappingRoutesToCorrectUpstream() {
-        // Two routes → BijectiveNodeIdMapping: route-a id=0, route-b id=1.
-        // Physical node 0 in route-b = virtual node 1. nodeForId(1) must reach route-b's broker.
+        // With two routes, BijectiveNodeIdMapping assigns virtual IDs across both target clusters.
+        // route-a's physical node 0 becomes virtual node 0; route-b's physical node 0 becomes virtual node 1.
+        // Each target cluster advertises its own physical node 0 in METADATA responses, but the virtual IDs differ.
+        // nodeForId(1) must resolve to route-b's target node (physical 0, virtual 1), not route-a's.
         try (var mockA = MockServer.startOnRandomPort();
                 var mockB = MockServer.startOnRandomPort()) {
 
