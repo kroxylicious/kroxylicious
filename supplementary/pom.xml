@@ -23,6 +23,10 @@
         without being part of the runtime or plugin surface.</description>
     <packaging>pom</packaging>
 
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
     <!--
         Leaf modules live at the repository root. Paths use ../ because this aggregator
         is one directory below root. No source files move — only this pom.xml is new.
