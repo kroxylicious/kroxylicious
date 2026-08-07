@@ -337,8 +337,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .addKeyValue("authorizationId", authorizationId)
                 .log("Credential validation successful");
 
-        long sessionLifetimeMs = computeSessionLifetimeMs(success.sessionLifetimeMs());
-        Instant sessionExpiry = sessionLifetimeMs > 0 ? clock.instant().plusMillis(sessionLifetimeMs) : null;
+        Instant sessionExpiry = computeSessionExpiry(success.sessionExpiry());
 
         String previousAuthorizationId = authenticating.previousAuthorizationId();
         if (previousAuthorizationId != null
@@ -355,12 +354,13 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         stateMachine.dispose();
 
         return subjectBuilder.buildSaslSubject(new SubjectContext(filterContext, mechanism, authorizationId))
-                .thenCompose(subject -> acceptAuthenticateDone(filterContext,
+                .thenCompose(subject -> completeSubjectBuild(stateMachine,
+                        filterContext,
                         success,
                         subject,
                         mechanism,
                         reauthentication,
-                        sessionLifetimeMs,
+                        sessionExpiry,
                         authDuration))
                 .exceptionallyCompose(throwable -> rejectAuthenticateInternalError(stateMachine,
                         filterContext,
@@ -381,14 +381,34 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 new SaslAuthenticationException("Reauthentication failed: authorization identity changed"));
     }
 
+    private CompletionStage<RequestFilterResult> completeSubjectBuild(MechanismStateMachine stateMachine,
+                                                                      FilterContext filterContext,
+                                                                      RoundResult.Success success,
+                                                                      Subject subject,
+                                                                      String mechanism,
+                                                                      boolean reauthentication,
+                                                                      @Nullable Instant sessionExpiry,
+                                                                      Duration authDuration) {
+        recordAuthDuration(mechanism, filterContext.getVirtualClusterName(), authDuration);
+
+        if (sessionExpiry != null && !clock.instant().isBefore(sessionExpiry)) {
+            LOGGER.atWarn()
+                    .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                    .addKeyValue(LOG_KEY_MECHANISM, mechanism)
+                    .log("Token expired during authentication");
+            return rejectAuthenticateAndClose(stateMachine, filterContext,
+                    new SaslAuthenticationException("Token expired during authentication"));
+        }
+
+        return acceptAuthenticateDone(filterContext, success, subject, mechanism, reauthentication, sessionExpiry);
+    }
+
     private CompletionStage<RequestFilterResult> acceptAuthenticateDone(FilterContext filterContext,
                                                                         RoundResult.Success success,
                                                                         Subject subject,
                                                                         String mechanism,
                                                                         boolean reauthentication,
-                                                                        long sessionLifetimeMs,
-                                                                        Duration authDuration) {
-        recordAuthDuration(mechanism, filterContext.getVirtualClusterName(), authDuration);
+                                                                        @Nullable Instant sessionExpiry) {
         String authorizationId = success.authorizationId();
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
@@ -399,6 +419,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
 
         filterContext.clientSaslAuthenticationSuccess(mechanism, subject);
 
+        long sessionLifetimeMs = sessionExpiry != null ? Duration.between(clock.instant(), sessionExpiry).toMillis() : 0;
         return filterContext.requestFilterResultBuilder()
                 .shortCircuitResponse(new SaslAuthenticateResponseData()
                         .setErrorCode(Errors.NONE.code())
@@ -436,15 +457,17 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     }
 
     /**
-     * Compute the effective session lifetime as the minimum of the configured
-     * maximum and the mechanism-reported lifetime (KIP-368).
+     * Compute the effective session expiry as the earlier of the configured
+     * maximum reauth time and the mechanism-reported expiry (KIP-368).
      */
     @VisibleForTesting
-    long computeSessionLifetimeMs(long handlerLifetimeMs) {
-        if (maxTimeBeforeReauthMs > 0 && handlerLifetimeMs > 0) {
-            return Math.min(maxTimeBeforeReauthMs, handlerLifetimeMs);
+    @Nullable
+    Instant computeSessionExpiry(@Nullable Instant mechanismExpiry) {
+        Instant maxReauthExpiry = maxTimeBeforeReauthMs > 0 ? clock.instant().plusMillis(maxTimeBeforeReauthMs) : null;
+        if (maxReauthExpiry != null && mechanismExpiry != null) {
+            return maxReauthExpiry.isBefore(mechanismExpiry) ? maxReauthExpiry : mechanismExpiry;
         }
-        return Math.max(maxTimeBeforeReauthMs, handlerLifetimeMs);
+        return maxReauthExpiry != null ? maxReauthExpiry : mechanismExpiry;
     }
 
     private CompletionStage<RequestFilterResult> rejectAuthenticateMechanismFailed(

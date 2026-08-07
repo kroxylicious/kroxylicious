@@ -39,7 +39,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 
@@ -53,6 +52,8 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -275,10 +276,11 @@ class SaslTerminationFilterTest {
         var handler = mock(MechanismStateMachine.class);
         when(handler.mechanismName()).thenReturn("OAUTHBEARER");
         when(handler.maxAuthBytes()).thenReturn(4 * 1024);
+        Instant sessionExpiry = FIXED_INSTANT.plusMillis(3600000);
         when(handler.evaluateRound(any())).thenReturn(
-                CompletableFuture.completedFuture(RoundResult.success(responseBytes, "alice", 3600000)));
+                CompletableFuture.completedFuture(RoundResult.success(responseBytes, "alice", sessionExpiry)));
 
-        var filter = createFilterWithZeroDelay();
+        var filter = createFilterWithZeroDelayAndClock(FIXED_CLOCK);
         setFilterState(filter, State.start().nextState(handler));
 
         var captor = ArgumentCaptor.forClass(ApiMessage.class);
@@ -307,7 +309,7 @@ class SaslTerminationFilterTest {
         when(handler.mechanismName()).thenReturn("OAUTHBEARER");
         when(handler.maxAuthBytes()).thenReturn(4 * 1024);
         when(handler.evaluateRound(any())).thenReturn(
-                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice", 0)));
+                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice")));
 
         var filter = createFilterWithZeroDelay();
         setFilterState(filter, State.start().nextState(handler));
@@ -391,13 +393,44 @@ class SaslTerminationFilterTest {
     }
 
     @Test
+    void shouldRejectAuthenticationWhenTokenExpiresBeforeResponseIsSent() throws Exception {
+        // Given
+        var handler = mock(MechanismStateMachine.class);
+        when(handler.mechanismName()).thenReturn("OAUTHBEARER");
+        when(handler.maxAuthBytes()).thenReturn(4 * 1024);
+        Instant alreadyExpired = FIXED_INSTANT.minusMillis(1);
+        when(handler.evaluateRound(any())).thenReturn(
+                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice", alreadyExpired)));
+
+        var filter = createFilterWithZeroDelayAndClock(FIXED_CLOCK);
+        setFilterState(filter, State.start().nextState(handler));
+
+        var captor = ArgumentCaptor.forClass(ApiMessage.class);
+        var closeOrTerminal = mock(CloseOrTerminalStage.class);
+        var terminal = mock(TerminalStage.class);
+        var filterContext = mockShortCircuitFilterContextWithCloseTracking(captor, closeOrTerminal, terminal);
+
+        // When
+        filter.onRequest(ApiKeys.SASL_AUTHENTICATE, ApiKeys.SASL_AUTHENTICATE.latestVersion(),
+                new RequestHeaderData(),
+                new SaslAuthenticateRequestData().setAuthBytes(new byte[0]),
+                filterContext).toCompletableFuture().get();
+
+        // Then
+        var response = (SaslAuthenticateResponseData) captor.getValue();
+        assertThat(response.errorCode()).isEqualTo(Errors.SASL_AUTHENTICATION_FAILED.code());
+        verify(closeOrTerminal).withCloseConnection();
+        verify(filterContext).clientSaslAuthenticationFailure(eq("OAUTHBEARER"), isNull(), any(Exception.class));
+    }
+
+    @Test
     void shouldDisposeStateMachineOnSuccess() throws Exception {
         // Given
         var handler = mock(MechanismStateMachine.class);
         when(handler.mechanismName()).thenReturn("OAUTHBEARER");
         when(handler.maxAuthBytes()).thenReturn(4 * 1024);
         when(handler.evaluateRound(any())).thenReturn(
-                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice", 0)));
+                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice")));
 
         var filter = createFilterWithZeroDelay();
         setFilterState(filter, State.start().nextState(handler));
@@ -449,7 +482,7 @@ class SaslTerminationFilterTest {
         when(handler.mechanismName()).thenReturn("OAUTHBEARER");
         when(handler.maxAuthBytes()).thenReturn(4 * 1024);
         when(handler.evaluateRound(any())).thenReturn(
-                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice", 0)));
+                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "alice")));
 
         Duration fixedDelay = Duration.ofMillis(200);
 
@@ -516,7 +549,7 @@ class SaslTerminationFilterTest {
         when(handler.mechanismName()).thenReturn("OAUTHBEARER");
         when(handler.maxAuthBytes()).thenReturn(4 * 1024);
         when(handler.evaluateRound(any())).thenReturn(
-                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "bob", 0)));
+                CompletableFuture.completedFuture(RoundResult.success(new byte[0], "bob")));
 
         var filter = createFilterWithZeroDelay();
         var initialHandler = mock(MechanismStateMachine.class);
@@ -673,30 +706,69 @@ class SaslTerminationFilterTest {
         verify(filterContext).forwardRequest(any(), any());
     }
 
-    // --- computeSessionLifetimeMs ---
+    // --- computeSessionExpiry ---
 
-    @ParameterizedTest
-    @CsvSource({
-            "0, 0, 0",
-            "5000, 0, 5000",
-            "0, 3000, 3000",
-            "5000, 3000, 3000",
-            "3000, 5000, 3000"
-    })
-    void shouldComputeSessionLifetimeMs(long maxTimeBeforeReauthMs, long handlerLifetimeMs, long expected) {
+    @Test
+    void shouldReturnNullWhenBothExpiriesAreNull() {
         // Given
-        Duration maxReauth = maxTimeBeforeReauthMs > 0 ? Duration.ofMillis(maxTimeBeforeReauthMs) : null;
-        var context = new SaslTermination.SaslTerminationContext(
-                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
-                maxReauth, Clock.systemUTC(), Duration.ZERO,
-                SaslTermination.DEFAULT_SUBJECT_BUILDER);
-        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        var filter = createFilterWithMaxReauth(null);
 
         // When
-        long result = filter.computeSessionLifetimeMs(handlerLifetimeMs);
+        Instant result = filter.computeSessionExpiry(null);
 
         // Then
-        assertThat(result).isEqualTo(expected);
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void shouldReturnMaxReauthExpiryWhenMechanismExpiryIsNull() {
+        // Given
+        var filter = createFilterWithMaxReauth(Duration.ofMillis(5000));
+
+        // When
+        Instant result = filter.computeSessionExpiry(null);
+
+        // Then
+        assertThat(result).isEqualTo(FIXED_INSTANT.plusMillis(5000));
+    }
+
+    @Test
+    void shouldReturnMechanismExpiryWhenMaxReauthIsNull() {
+        // Given
+        var filter = createFilterWithMaxReauth(null);
+        Instant mechanismExpiry = FIXED_INSTANT.plusMillis(3000);
+
+        // When
+        Instant result = filter.computeSessionExpiry(mechanismExpiry);
+
+        // Then
+        assertThat(result).isEqualTo(mechanismExpiry);
+    }
+
+    @Test
+    void shouldReturnEarlierOfMaxReauthAndMechanismExpiryWhenMechanismIsEarlier() {
+        // Given
+        var filter = createFilterWithMaxReauth(Duration.ofMillis(5000));
+        Instant mechanismExpiry = FIXED_INSTANT.plusMillis(3000);
+
+        // When
+        Instant result = filter.computeSessionExpiry(mechanismExpiry);
+
+        // Then
+        assertThat(result).isEqualTo(mechanismExpiry);
+    }
+
+    @Test
+    void shouldReturnEarlierOfMaxReauthAndMechanismExpiryWhenMaxReauthIsEarlier() {
+        // Given
+        var filter = createFilterWithMaxReauth(Duration.ofMillis(3000));
+        Instant mechanismExpiry = FIXED_INSTANT.plusMillis(5000);
+
+        // When
+        Instant result = filter.computeSessionExpiry(mechanismExpiry);
+
+        // Then
+        assertThat(result).isEqualTo(FIXED_INSTANT.plusMillis(3000));
     }
 
     // --- Helper methods ---
@@ -715,6 +787,22 @@ class SaslTerminationFilterTest {
         var context = new SaslTermination.SaslTerminationContext(
                 null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
                 null, Clock.systemUTC(), Duration.ZERO,
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+    }
+
+    private static SaslTerminationFilter createFilterWithZeroDelayAndClock(Clock clock) {
+        var context = new SaslTermination.SaslTerminationContext(
+                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
+                null, clock, Duration.ZERO,
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+    }
+
+    private static SaslTerminationFilter createFilterWithMaxReauth(@Nullable Duration maxReauth) {
+        var context = new SaslTermination.SaslTerminationContext(
+                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Set.of("OAUTHBEARER"), List.of(),
+                maxReauth, FIXED_CLOCK, Duration.ZERO,
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
     }

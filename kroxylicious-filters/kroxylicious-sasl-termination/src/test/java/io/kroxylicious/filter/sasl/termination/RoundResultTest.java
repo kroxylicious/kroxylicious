@@ -6,6 +6,8 @@
 
 package io.kroxylicious.filter.sasl.termination;
 
+import java.time.Instant;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -126,42 +128,35 @@ class RoundResultTest {
         byte[] bytes = { 10, 20 };
 
         // When
-        var success = new RoundResult.Success(bytes, "alice", 3600);
+        var success = new RoundResult.Success(bytes, "alice", Instant.ofEpochMilli(3600));
 
         // Then
         assertThat(success.responseBytes()).containsExactly(10, 20);
         assertThat(success.authorizationId()).isEqualTo("alice");
-        assertThat(success.sessionLifetimeMs()).isEqualTo(3600);
+        assertThat(success.sessionExpiry()).isEqualTo(Instant.ofEpochMilli(3600));
     }
 
     @SuppressWarnings("DataFlowIssue")
     @Test
     void shouldRejectNullResponseBytesForSuccess() {
-        assertThatThrownBy(() -> new RoundResult.Success(null, "alice", 0))
+        assertThatThrownBy(() -> new RoundResult.Success(null, "alice", null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @SuppressWarnings("DataFlowIssue")
     @Test
     void shouldRejectNullAuthorizationIdForSuccess() {
-        assertThatThrownBy(() -> new RoundResult.Success(new byte[0], null, 0))
+        assertThatThrownBy(() -> new RoundResult.Success(new byte[0], null, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    void shouldRejectNegativeSessionLifetimeMs() {
-        assertThatThrownBy(() -> new RoundResult.Success(new byte[0], "alice", -1))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("sessionLifetimeMs must not be negative");
-    }
-
-    @Test
-    void shouldAcceptZeroSessionLifetimeMs() {
+    void shouldAcceptNullSessionExpiry() {
         // When
-        var success = new RoundResult.Success(new byte[0], "alice", 0);
+        var success = new RoundResult.Success(new byte[0], "alice", null);
 
         // Then
-        assertThat(success.sessionLifetimeMs()).isZero();
+        assertThat(success.sessionExpiry()).isNull();
     }
 
     @Test
@@ -170,7 +165,7 @@ class RoundResultTest {
         byte[] input = { 1, 2, 3 };
 
         // When
-        var success = new RoundResult.Success(input, "alice", 0);
+        var success = new RoundResult.Success(input, "alice", null);
         input[0] = 99;
 
         // Then
@@ -180,7 +175,7 @@ class RoundResultTest {
     @Test
     void shouldDefensivelyCopyOutputForSuccess() {
         // Given
-        var success = new RoundResult.Success(new byte[]{ 1, 2, 3 }, "alice", 0);
+        var success = new RoundResult.Success(new byte[]{ 1, 2, 3 }, "alice", null);
 
         // When
         byte[] out = success.responseBytes();
@@ -193,8 +188,8 @@ class RoundResultTest {
     @Test
     void shouldBeEqualForSameContentSuccess() {
         // Given
-        var a = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", 3600);
-        var b = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", 3600);
+        var a = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", Instant.ofEpochMilli(3600));
+        var b = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", Instant.ofEpochMilli(3600));
 
         // Then
         assertThat(a).isEqualTo(b)
@@ -204,8 +199,8 @@ class RoundResultTest {
     @Test
     void shouldNotBeEqualForDifferentResponseBytesSuccess() {
         // Given
-        var a = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", 3600);
-        var b = new RoundResult.Success(new byte[]{ 3, 4 }, "alice", 3600);
+        var a = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", Instant.ofEpochMilli(3600));
+        var b = new RoundResult.Success(new byte[]{ 3, 4 }, "alice", Instant.ofEpochMilli(3600));
 
         // Then
         assertThat(a).isNotEqualTo(b);
@@ -214,18 +209,18 @@ class RoundResultTest {
     @Test
     void shouldNotBeEqualForDifferentAuthorizationIdSuccess() {
         // Given
-        var a = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", 3600);
-        var b = new RoundResult.Success(new byte[]{ 1, 2 }, "bob", 3600);
+        var a = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", Instant.ofEpochMilli(3600));
+        var b = new RoundResult.Success(new byte[]{ 1, 2 }, "bob", Instant.ofEpochMilli(3600));
 
         // Then
         assertThat(a).isNotEqualTo(b);
     }
 
     @Test
-    void shouldNotBeEqualForDifferentSessionLifetimeMsSuccess() {
+    void shouldNotBeEqualForDifferentSessionExpirySuccess() {
         // Given
-        var a = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", 3600);
-        var b = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", 7200);
+        var a = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", Instant.ofEpochMilli(3600));
+        var b = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", Instant.ofEpochMilli(7200));
 
         // Then
         assertThat(a).isNotEqualTo(b);
@@ -234,7 +229,7 @@ class RoundResultTest {
     @Test
     void shouldNotBeEqualToNullSuccess() {
         // Given
-        var s = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", 0);
+        var s = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", null);
 
         // Then
         assertThat(s).isNotEqualTo(null);
@@ -243,7 +238,7 @@ class RoundResultTest {
     @Test
     void shouldNotBeEqualToDifferentTypeSuccess() {
         // Given
-        var s = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", 0);
+        var s = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", null);
         var c = new RoundResult.Challenge(new byte[]{ 1, 2 });
 
         // Then
@@ -253,10 +248,10 @@ class RoundResultTest {
     @Test
     void shouldReturnDescriptiveToStringForSuccess() {
         // Given
-        var s = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", 3600);
+        var s = new RoundResult.Success(new byte[]{ 1, 2 }, "alice", Instant.ofEpochMilli(3600));
 
         // Then
-        assertThat(s).hasToString("Success{authorizationId='alice', sessionLifetimeMs=3600}");
+        assertThat(s).hasToString("Success{authorizationId='alice', sessionExpiry=" + Instant.ofEpochMilli(3600) + "}");
     }
 
     // --- Failure ---
@@ -393,20 +388,20 @@ class RoundResultTest {
         var success = (RoundResult.Success) result;
         assertThat(success.responseBytes()).containsExactly(10, 20);
         assertThat(success.authorizationId()).isEqualTo("alice");
-        assertThat(success.sessionLifetimeMs()).isZero();
+        assertThat(success.sessionExpiry()).isNull();
     }
 
     @Test
     void shouldCreateSuccessViaThreeArgFactoryMethod() {
         // When
-        RoundResult result = RoundResult.success(new byte[]{ 10, 20 }, "alice", 5000);
+        RoundResult result = RoundResult.success(new byte[]{ 10, 20 }, "alice", Instant.ofEpochMilli(5000));
 
         // Then
         assertThat(result).isInstanceOf(RoundResult.Success.class);
         var success = (RoundResult.Success) result;
         assertThat(success.responseBytes()).containsExactly(10, 20);
         assertThat(success.authorizationId()).isEqualTo("alice");
-        assertThat(success.sessionLifetimeMs()).isEqualTo(5000);
+        assertThat(success.sessionExpiry()).isEqualTo(Instant.ofEpochMilli(5000));
     }
 
     @Test

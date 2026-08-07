@@ -6,8 +6,11 @@
 
 package io.kroxylicious.filter.sasl.termination;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Objects;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Outcome of a single authentication round, encoding the state transition
@@ -40,26 +43,26 @@ sealed interface RoundResult
     }
 
     /**
-     * Create a success result with no session lifetime (no reauthentication).
+     * Create a success result with no session expiry (no reauthentication).
      *
      * @param responseBytes the final response bytes
      * @param authorizationId the authenticated user's authorization ID
      * @return the round result
      */
     static Success success(byte[] responseBytes, String authorizationId) {
-        return new Success(responseBytes, authorizationId, 0);
+        return new Success(responseBytes, authorizationId, null);
     }
 
     /**
-     * Create a success result with a session lifetime for reauthentication (KIP-368).
+     * Create a success result with a session expiry for reauthentication (KIP-368).
      *
      * @param responseBytes the final response bytes
      * @param authorizationId the authenticated user's authorization ID
-     * @param sessionLifetimeMs session lifetime in milliseconds (0 = no expiry)
+     * @param sessionExpiry absolute time at which the credential expires, null = no expiry
      * @return the round result
      */
-    static Success success(byte[] responseBytes, String authorizationId, long sessionLifetimeMs) {
-        return new Success(responseBytes, authorizationId, sessionLifetimeMs);
+    static Success success(byte[] responseBytes, String authorizationId, @Nullable Instant sessionExpiry) {
+        return new Success(responseBytes, authorizationId, sessionExpiry);
     }
 
     /**
@@ -120,10 +123,10 @@ sealed interface RoundResult
      *
      * @param responseBytes the final response bytes to send to the client
      * @param authorizationId the authenticated user's authorization ID
-     * @param sessionLifetimeMs session lifetime in milliseconds for reauthentication (KIP-368), 0 = no expiry
+     * @param sessionExpiry absolute time at which the credential expires (KIP-368), null = no expiry
      */
     @SuppressWarnings("ArrayRecordComponent") // defensive copies, equals and hashCode are overridden
-    record Success(byte[] responseBytes, String authorizationId, long sessionLifetimeMs) implements RoundResult {
+    record Success(byte[] responseBytes, String authorizationId, @Nullable Instant sessionExpiry) implements RoundResult {
 
         /**
          * Canonical constructor with validation and defensive copy.
@@ -132,9 +135,6 @@ sealed interface RoundResult
             Objects.requireNonNull(responseBytes);
             Objects.requireNonNull(authorizationId);
             responseBytes = responseBytes.clone();
-            if (sessionLifetimeMs < 0) {
-                throw new IllegalArgumentException("sessionLifetimeMs must not be negative");
-            }
         }
 
         @Override
@@ -147,22 +147,22 @@ sealed interface RoundResult
             if (this == o) {
                 return true;
             }
-            return o instanceof Success(byte[] thatResponseBytes, String thatAuthorizationId, long thatSessionLifetimeMs)
-                    && sessionLifetimeMs == thatSessionLifetimeMs
+            return o instanceof Success(byte[] thatResponseBytes, String thatAuthorizationId, Instant thatSessionExpiry)
+                    && Objects.equals(sessionExpiry, thatSessionExpiry)
                     && Arrays.equals(responseBytes, thatResponseBytes)
                     && Objects.equals(authorizationId, thatAuthorizationId);
         }
 
         @Override
         public int hashCode() {
-            int result = Objects.hash(authorizationId, sessionLifetimeMs);
+            int result = Objects.hash(authorizationId, sessionExpiry);
             result = 31 * result + Arrays.hashCode(responseBytes);
             return result;
         }
 
         @Override
         public String toString() {
-            return "Success{authorizationId='" + authorizationId + "', sessionLifetimeMs=" + sessionLifetimeMs + '}';
+            return "Success{authorizationId='" + authorizationId + "', sessionExpiry=" + sessionExpiry + '}';
         }
     }
 

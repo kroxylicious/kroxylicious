@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.sasl.termination;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -108,12 +109,12 @@ class OauthBearerStateMachine implements MechanismStateMachine {
 
             if (saslServer.isComplete()) {
                 String authorizationId = saslServer.getAuthorizationID();
-                long sessionLifetimeMs = extractTokenLifetimeMs();
+                Instant sessionExpiry = extractTokenExpiry();
                 return CompletableFuture.completedFuture(
                         RoundResult.success(
                                 response != null ? response : new byte[0],
                                 authorizationId,
-                                sessionLifetimeMs));
+                                sessionExpiry));
             }
             else {
                 return CompletableFuture.completedFuture(
@@ -131,14 +132,15 @@ class OauthBearerStateMachine implements MechanismStateMachine {
         }
     }
 
-    private long extractTokenLifetimeMs() {
+    @Nullable
+    private Instant extractTokenExpiry() {
         // CREDENTIAL.LIFETIME.MS has a misleading name — it is actually an absolute epoch timestamp
         Object credentialExpiryEpochMs = saslServer.getNegotiatedProperty("CREDENTIAL.LIFETIME.MS");
         if (credentialExpiryEpochMs == null) {
-            return 0;
+            return null;
         }
         if (credentialExpiryEpochMs instanceof Long expiryEpochMs) {
-            return Math.max(0, expiryEpochMs - clock.millis());
+            return Instant.ofEpochMilli(expiryEpochMs);
         }
         throw new IllegalStateException(
                 "Expected CREDENTIAL.LIFETIME.MS to be Long but was " + credentialExpiryEpochMs.getClass().getName());
