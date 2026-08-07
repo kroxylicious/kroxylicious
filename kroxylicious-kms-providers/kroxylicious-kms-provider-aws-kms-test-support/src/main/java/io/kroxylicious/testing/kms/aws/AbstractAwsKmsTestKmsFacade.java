@@ -45,6 +45,12 @@ import io.kroxylicious.testing.kms.aws.model.ScheduleKeyDeletionResponse;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+/**
+ * Abstract base for {@link TestKmsFacade} implementations backed by an AWS KMS instance.
+ * Provides a {@link TestKekManager} that manages KEKs using the AWS KMS REST API, leaving
+ * subclasses responsible for the lifecycle of, and connection details for, the underlying
+ * KMS instance.
+ */
 public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Config, String, AwsKmsEdek> {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int MINIMUM_ALLOWED_EXPIRY_DAYS = 7;
@@ -66,11 +72,20 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
     };
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 
+    /**
+     * Creates the facade.
+     */
     protected AbstractAwsKmsTestKmsFacade() {
     }
 
+    /**
+     * Starts the underlying KMS instance.
+     */
     protected abstract void startKms();
 
+    /**
+     * Stops the underlying KMS instance.
+     */
     protected abstract void stopKms();
 
     @Override
@@ -78,6 +93,10 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         startKms();
     }
 
+    /**
+     * Gets the endpoint URL of the AWS KMS instance.
+     * @return the endpoint URL.
+     */
     protected abstract URI getAwsUrl();
 
     @Override
@@ -87,10 +106,22 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         return new Config(getAwsUrl(), null, null, credentials, getRegion(), null);
     }
 
+    /**
+     * Gets the AWS region of the KMS instance.
+     * @return the region.
+     */
     protected abstract String getRegion();
 
+    /**
+     * Gets the AWS secret access key used to authenticate with the KMS instance.
+     * @return the secret access key.
+     */
     protected abstract String getSecretKey();
 
+    /**
+     * Gets the AWS access key id used to authenticate with the KMS instance.
+     * @return the access key id.
+     */
     protected abstract String getAccessKey();
 
     @Override
