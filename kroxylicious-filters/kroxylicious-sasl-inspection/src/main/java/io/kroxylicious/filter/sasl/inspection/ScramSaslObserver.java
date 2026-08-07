@@ -28,6 +28,11 @@ public class ScramSaslObserver implements SaslObserver {
     private boolean gotServerFinal = false;
     private @Nullable String authorizationId = null;
 
+    /**
+     * Constructs a ScramSaslObserver for the given mechanism.
+     *
+     * @param mechanismName the SASL mechanism name (e.g. {@code SCRAM-SHA-256} or {@code SCRAM-SHA-512})
+     */
     public ScramSaslObserver(String mechanismName) {
         Objects.requireNonNull(mechanismName);
         this.mechanismName = mechanismName;

@@ -15,6 +15,14 @@ import io.kroxylicious.proxy.plugin.Plugin;
 @Plugin(configType = Void.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.OauthBearerSaslObserverFactory", since = "0.19.0")
 public class OauthBearerSaslObserverFactory implements SaslObserverFactory {
+
+    /**
+     * Constructs an OauthBearerSaslObserverFactory.
+     */
+    public OauthBearerSaslObserverFactory() {
+        // explicit ctor needed for javadoc
+    }
+
     @Override
     public SaslObserver createObserver() {
         return new OauthBearerSaslObserver();
