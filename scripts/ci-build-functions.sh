@@ -30,7 +30,7 @@ run_sonar() {
   local project_key="$3"
   shift 3
   mvn --batch-mode \
-    --activate-profiles "!build-the-world,!qa" \
+    --activate-profiles "!build-the-world,!qa,!test-suites" \
     --activate-profiles "${modules},ci" \
     -Dsonar.projectName="${project_name}" \
     -Dsonar.projectKey="${project_key}" \
