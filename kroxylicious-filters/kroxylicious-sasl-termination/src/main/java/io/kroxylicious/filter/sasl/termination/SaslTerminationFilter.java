@@ -287,7 +287,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         long roundStartNanos = System.nanoTime();
         return stateMachine.evaluateRound(request.authBytes())
                 .whenComplete((result, ex) -> authenticating.addRoundDuration(System.nanoTime() - roundStartNanos))
-                .handle((result, ex) -> new RoundOutcome(result, ex))
+                .handle(RoundOutcome::new)
                 .thenCompose(outcome -> applyFixedAuthDelay(filterContext, outcome, authRoundStart, stateMachine.mechanismName()))
                 .thenCompose(outcome -> {
                     if (outcome.exception() != null) {
