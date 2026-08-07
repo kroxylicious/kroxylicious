@@ -39,6 +39,7 @@ import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.jwt.JwtClaims;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.io.TempDir;
@@ -72,6 +73,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
+
+    @BeforeAll
+    static void removeJwksUrlsToVerifyProductionCodeAddsThem() {
+        // The base class pre-populates JWKS URLs for the in-VM test broker (see BaseOauthBearerIT).
+        // Strip them here so these tests verify that the SaslTermination filter's production code
+        // adds JWKS URLs to the allowed list itself. Token endpoint URLs are kept for the Kafka client.
+        System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG,
+                TOKEN_ENDPOINT_URL + "," + TOKEN_ENDPOINT_URL_OTHER_ISSUER);
+    }
 
     KafkaCluster cluster;
 
