@@ -48,7 +48,6 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -183,7 +182,6 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         }
     }
 
-    @NonNull
     private CompletionStage<RequestFilterResult> acceptHandshake(FilterContext filterContext,
                                                                  MechanismStateMachine stateMachine,
                                                                  String mechanism) {
@@ -300,7 +298,6 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                         throwable));
     }
 
-    @NonNull
     private CompletionStage<RequestFilterResult> rejectAuthenticateBytesTooLarge(FilterContext filterContext,
                                                                                  SaslAuthenticateRequestData request,
                                                                                  MechanismStateMachine stateMachine,
@@ -379,7 +376,6 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                         throwable));
     }
 
-    @NonNull
     private CompletionStage<RequestFilterResult> rejectAuthenticateIdChanged(FilterContext filterContext,
                                                                              MechanismStateMachine stateMachine,
                                                                              String previousAuthorizationId,

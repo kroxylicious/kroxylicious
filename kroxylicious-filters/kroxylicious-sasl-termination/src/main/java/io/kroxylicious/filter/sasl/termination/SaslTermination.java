@@ -41,7 +41,6 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
@@ -134,11 +133,10 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
     }
 
     @SuppressWarnings("java:S2638") // Tightening UnknownNullness
-    @NonNull
     @Override
     public SaslTerminationContext initialize(
                                              FilterFactoryContext context,
-                                             @NonNull SaslTerminationConfig config)
+                                             SaslTerminationConfig config)
             throws PluginConfigurationException {
 
         Objects.requireNonNull(config);
@@ -210,13 +208,13 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
     @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     @Override
     public Filter createFilter(FilterFactoryContext context,
-                               @NonNull SaslTerminationContext filterContext) {
+                               SaslTerminationContext filterContext) {
         return new SaslTerminationFilter(context.filterDispatchExecutor(), filterContext);
     }
 
     @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     @Override
-    public void close(@NonNull SaslTerminationContext initializationData) {
+    public void close(SaslTerminationContext initializationData) {
         initializationData.close();
     }
 
