@@ -22,6 +22,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param clientSaslContext client SASL context - will be null if channel has not negotiated SASL.
  */
 public record MapperContext(Subject authenticatedSubject, @Nullable ClientTlsContext clientTlsContext, @Nullable ClientSaslContext clientSaslContext) {
+    /**
+     * Validates the mapper context.
+     */
     public MapperContext {
         Objects.requireNonNull(authenticatedSubject);
     }

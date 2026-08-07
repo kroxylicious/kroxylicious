@@ -6,6 +6,12 @@
 
 package io.kroxylicious.filter.entityisolation;
 
+/**
+ * A pluggable service responsible for building the {@link EntityNameMapper} used by the
+ * {@link EntityIsolationFilter} to map entity names between the downstream and upstream.
+ *
+ * @param <C> the service configuration type
+ */
 public interface EntityNameMapperService<C> {
 
     /**
