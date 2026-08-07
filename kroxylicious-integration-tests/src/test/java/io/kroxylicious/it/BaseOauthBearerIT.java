@@ -68,11 +68,11 @@ public abstract class BaseOauthBearerIT extends BaseIT {
     @BeforeAll
     static void beforeAll() {
         // Kafka 4.0 requires that the org.apache.kafka.sasl.oauthbearer.allowed.urls sys property is set in order to use Oauth Bearer.
-        // The Kafka Broker and Proxy requires that JWKS_ENDPOINT_URL is in the allow list.
         // The Kafka Client requires that TOKEN_ENDPOINT_URL is in the allow list.
+        // JWKS URLs are NOT set here: SASL termination tests rely on the production code to add them,
+        // and OauthBearerValidationIT adds them for the broker.
         System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG,
-                JWKS_ENDPOINT_URL + "," + TOKEN_ENDPOINT_URL + ","
-                        + JWKS_ENDPOINT_URL_OTHER_ISSUER + "," + TOKEN_ENDPOINT_URL_OTHER_ISSUER);
+                TOKEN_ENDPOINT_URL + "," + TOKEN_ENDPOINT_URL_OTHER_ISSUER);
 
         oauthServer = new OauthServerContainer(BaseOauthBearerIT.DOCKER_IMAGE_NAME);
         oauthServer.setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*started server on address.*"));

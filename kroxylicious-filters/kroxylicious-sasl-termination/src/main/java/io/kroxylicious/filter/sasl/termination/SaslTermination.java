@@ -177,13 +177,14 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         OAuthBearerSaslServerProvider.initialize();
         String jwksUrl = config.jwksEndpointUrl().toString();
 
+        addAllowedSaslOauthbearerUrl(jwksUrl, closeables);
+
         OAuthBearerValidatorCallbackHandler callbackHandler = new OAuthBearerValidatorCallbackHandler();
         callbackHandler.configure(
                 createOauthSaslConfigMap(config),
                 OAUTHBEARER_MECHANISM,
                 createDefaultJaasConfig());
         closeables.add(callbackHandler::close);
-        addAllowedSaslOauthbearerUrl(jwksUrl, closeables);
 
         LOGGER.atInfo()
                 .addKeyValue("jwksEndpointUrl", jwksUrl)
