@@ -1228,9 +1228,6 @@
                                         @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
                                         <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
                                         </ignoredUnusedDeclaredDependency>
-                                        <!-- registered via ServiceLoader for JUnit 5 auto-detection, no direct import -->
-                                        <ignoredUnusedDeclaredDependency>nz.thebarkers:log-on-fail
-                                        </ignoredUnusedDeclaredDependency>
                                     </ignoredUnusedDeclaredDependencies>
                                     <ignoredDependencies>
                                         <!-- Kroxylicious junit extension requires this to be on the classpath -->
