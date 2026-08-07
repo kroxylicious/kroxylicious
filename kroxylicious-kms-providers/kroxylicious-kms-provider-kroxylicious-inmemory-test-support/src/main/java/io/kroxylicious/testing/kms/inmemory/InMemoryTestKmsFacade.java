@@ -21,11 +21,23 @@ import io.kroxylicious.testing.kms.TestKmsFacade;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A {@link TestKmsFacade} backed by the in-memory KMS provided by
+ * {@link IntegrationTestingKmsService}. Provides a {@link TestKekManager} that manages
+ * KEKs directly on the underlying {@link InMemoryKms} instance.
+ */
 public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemoryEdek> {
 
     private final UUID kmsId = UUID.randomUUID();
     private @Nullable InMemoryKms kms;
     private @Nullable IntegrationTestingKmsService service;
+
+    /**
+     * Creates the facade.
+     */
+    public InMemoryTestKmsFacade() {
+        // Intentionally empty
+    }
 
     @Override
     public void start() {
