@@ -355,12 +355,6 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
             return rejectAuthenticateIdChanged(filterContext, stateMachine, previousAuthorizationId, authorizationId);
         }
 
-        // capture the duration here, but only record it on the acceptAuthenticateDone path
-        // because rejectAuthenticateInternalError also records the duration, so we don't
-        // want to record a second duration for the same authentication if the subjectBuilder
-        // returned a failed CompletionStage.
-        Duration authDuration = Duration.ofNanos(authenticating.accumulatedAuthWorkNanos());
-        state = authenticating.nextStateSuccess(authorizationId, mechanism, sessionExpiry);
         stateMachine.dispose();
 
         return subjectBuilder.buildSaslSubject(new SubjectContext(filterContext, mechanism, authorizationId))
@@ -369,8 +363,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                         subject,
                         mechanism,
                         reauthentication,
-                        sessionExpiry,
-                        authDuration))
+                        sessionExpiry))
                 .exceptionallyCompose(throwable -> rejectAuthenticateInternalError(filterContext, stateMachine,
                         "subjectBuilder",
                         throwable));
@@ -397,10 +390,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                                                                       Subject subject,
                                                                       String mechanism,
                                                                       boolean reauthentication,
-                                                                      @Nullable Instant sessionExpiry,
-                                                                      Duration authDuration) {
-        recordAuthDuration(mechanism, filterContext.getVirtualClusterName(), authDuration);
-
+                                                                      @Nullable Instant sessionExpiry) {
         if (sessionExpiry != null && !clock.instant().isBefore(sessionExpiry)) {
             LOGGER.atWarn()
                     .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
@@ -420,6 +410,12 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                                                                         String mechanism,
                                                                         boolean reauthentication,
                                                                         @Nullable Instant sessionExpiry) {
+        if (state instanceof State.RequiringAuthenticate authenticating) {
+            recordAuthDuration(mechanism, filterContext.getVirtualClusterName(),
+                    Duration.ofNanos(authenticating.accumulatedAuthWorkNanos()));
+            state = authenticating.nextStateSuccess(success.authorizationId(), mechanism, sessionExpiry);
+        }
+
         String authorizationId = success.authorizationId();
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
