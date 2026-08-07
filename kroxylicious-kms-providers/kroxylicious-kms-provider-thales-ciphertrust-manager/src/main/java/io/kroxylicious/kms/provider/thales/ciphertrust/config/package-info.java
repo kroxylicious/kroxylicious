@@ -5,10 +5,11 @@
  */
 
 /**
- * Configuration model for Thales CipherTrust Manager KMS provider.
+ * Configuration model for the Thales CipherTrust Manager KMS provider.
  * <p>
- * Supports both user authentication (username/password) and client authentication
- * (client_id/client_secret), though only user authentication is implemented initially.
+ * Supports two mutually exclusive authentication methods: user authentication
+ * (username/password) and client certificate authentication (client ID with a
+ * TLS client certificate).
  * </p>
  */
 @ReturnValuesAreNonnullByDefault
