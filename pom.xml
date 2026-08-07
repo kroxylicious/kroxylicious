@@ -1607,9 +1607,9 @@
         <!--
             Module group profiles — control which set of modules enters the reactor.
 
-            build-the-world activates when the sub-build property is absent (the OOB default).
-            For subset builds, pass -Dsub-build alongside the target group:
-              mvn -Dsub-build -Pkubernetes-management ...
+            build-the-world activates when the component-build property is absent (the OOB default).
+            For subset builds, pass -Dcomponent-build alongside the target group:
+              mvn -Dcomponent-build -Pkubernetes-management ...
 
             Rules for which group a module belongs to:
               proxy-core          — modules that ARE the API/runtime or make it testable
@@ -1624,16 +1624,16 @@
         -->
         <profile>
             <!--
-                Full build profile — activated when the sub-build property is absent.
-                OOB (mvn verify with no flags) builds everything because sub-build is unset by default.
+                Full build profile — activated when the component-build property is absent.
+                OOB (mvn verify with no flags) builds everything because component-build is unset by default.
                 IDEs pick up property-based activation automatically without any extra configuration.
-                For a subset build, pass -Dsub-build alongside the target group profile:
-                  mvn -Dsub-build -Pproxy-core verify
+                For a subset build, pass -Dcomponent-build alongside the target group profile:
+                  mvn -Dcomponent-build -Pproxy-core verify
             -->
             <id>build-the-world</id>
             <activation>
                 <property>
-                    <name>!sub-build</name>
+                    <name>!component-build</name>
                 </property>
             </activation>
             <modules>
