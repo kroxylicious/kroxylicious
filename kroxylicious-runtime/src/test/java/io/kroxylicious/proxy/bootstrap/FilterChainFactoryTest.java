@@ -15,12 +15,10 @@ import java.util.stream.Stream;
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.github.sambarker.logsquelcher.LogSquelcherExtension;
 import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
 
@@ -44,7 +42,6 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@ExtendWith(LogSquelcherExtension.class)
 class FilterChainFactoryTest {
 
     private EventLoop eventLoop;
