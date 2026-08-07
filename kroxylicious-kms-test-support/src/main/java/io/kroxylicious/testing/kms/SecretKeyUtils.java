@@ -13,6 +13,9 @@ import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Utilities to help tests make assertions about {@link DestroyableRawSecretKey}s.
+ */
 public class SecretKeyUtils {
 
     private SecretKeyUtils() {
@@ -22,7 +25,7 @@ public class SecretKeyUtils {
      * Tests whether the arguments represent the same key.
      * @param thisKey The one key
      * @param thatKey The other key
-     * @return true if they keys have the same algorithm and key material.
+     * @return true if the keys have the same algorithm and key material.
      */
     public static boolean same(@NonNull DestroyableRawSecretKey thisKey, @NonNull DestroyableRawSecretKey thatKey) {
         if (thisKey == thatKey) {
