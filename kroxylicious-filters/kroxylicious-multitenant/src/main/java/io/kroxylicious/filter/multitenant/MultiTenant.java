@@ -26,6 +26,13 @@ public class MultiTenant implements FilterFactory<MultiTenantConfig, MultiTenant
 
     private static final MultiTenantConfig DEFAULT_TENANT_CONFIG = new MultiTenantConfig(null);
 
+    /**
+     * Constructs a MultiTenant filter factory.
+     */
+    public MultiTenant() {
+        // explicit ctor needed for javadoc
+    }
+
     @Override
     public @Nullable MultiTenantConfig initialize(FilterFactoryContext context, @Nullable MultiTenantConfig config) {
         return config;

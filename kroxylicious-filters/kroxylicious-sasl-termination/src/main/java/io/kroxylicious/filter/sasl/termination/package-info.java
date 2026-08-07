@@ -5,13 +5,12 @@
  */
 
 /**
- * Test support for the AWS KMS provider, providing {@link io.kroxylicious.testing.kms.TestKmsFacade}
- * implementations backed by either a LocalStack container or an actual AWS KMS instance.
+ * SASL termination filter for Kroxylicious.
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)
-package io.kroxylicious.testing.kms.aws;
+package io.kroxylicious.filter.sasl.termination;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
 import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;

@@ -4,6 +4,9 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+/**
+ * Model classes for the subset of the AWS KMS REST API used to manage KEKs during tests.
+ */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)
