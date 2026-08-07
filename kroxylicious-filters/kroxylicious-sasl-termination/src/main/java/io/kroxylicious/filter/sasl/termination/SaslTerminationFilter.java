@@ -32,7 +32,6 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.spi.LoggingEventBuilder;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
@@ -515,8 +514,6 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                                                                    RequestHeaderData header,
                                                                    ApiMessage request,
                                                                    FilterContext filterContext) {
-        LoggingEventBuilder loggingEventBuilder = LOGGER.atWarn();
-
         if (state instanceof State.Authenticated authenticated) {
             Instant expiry = authenticated.sessionExpiry();
             if (expiry == null || !clock.instant().isAfter(expiry)) {
@@ -531,25 +528,27 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                     return filterContext.forwardRequest(header, request);
                 }
             }
-            else {
-                Counter.builder(SESSION_EXPIRED_METRIC)
-                        .description("Number of sessions that expired without the client reauthenticating in time.")
-                        .tag(MECHANISM_TAG, authenticated.mechanismName())
-                        .tag(VIRTUAL_CLUSTER_TAG, filterContext.getVirtualClusterName())
-                        .register(Metrics.globalRegistry)
-                        .increment();
-                loggingEventBuilder = loggingEventBuilder.addKeyValue(LOG_KEY_REASON, "SASL session expired")
-                        .addKeyValue("sessionExpiry", expiry);
-            }
+            Counter.builder(SESSION_EXPIRED_METRIC)
+                    .description("Number of sessions that expired without the client reauthenticating in time.")
+                    .tag(MECHANISM_TAG, authenticated.mechanismName())
+                    .tag(VIRTUAL_CLUSTER_TAG, filterContext.getVirtualClusterName())
+                    .register(Metrics.globalRegistry)
+                    .increment();
+            LOGGER.atWarn()
+                    .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                    .addKeyValue(LOG_KEY_REASON, "SASL session expired")
+                    .addKeyValue("sessionExpiry", expiry)
+                    .addKeyValue("requestType", request.getClass().getSimpleName())
+                    .log("Rejecting request from unauthenticated client");
         }
         else {
-            loggingEventBuilder = loggingEventBuilder.addKeyValue(LOG_KEY_REASON, "Client is not authenticated")
-                    .addKeyValue(LOG_KEY_STATE, state);
+            LOGGER.atWarn()
+                    .addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
+                    .addKeyValue(LOG_KEY_REASON, "Client is not authenticated")
+                    .addKeyValue(LOG_KEY_STATE, state)
+                    .addKeyValue("requestType", request.getClass().getSimpleName())
+                    .log("Rejecting request from unauthenticated client");
         }
-
-        loggingEventBuilder.addKeyValue(LOG_KEY_SESSION_ID, filterContext.sessionId())
-                .addKeyValue("requestType", request.getClass().getSimpleName())
-                .log("Rejecting request from unauthenticated client");
 
         return filterContext.requestFilterResultBuilder()
                 .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED.exception())
