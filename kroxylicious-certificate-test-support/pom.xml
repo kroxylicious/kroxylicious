@@ -21,10 +21,6 @@
     <name>Certificate test support</name>
     <description>Test support for generating TLS certificates.</description>
 
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.bouncycastle</groupId>
