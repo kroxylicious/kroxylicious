@@ -509,7 +509,7 @@ class SaslTerminationFilterTest {
                     .timer();
             assertThat(timer).isNotNull();
             assertThat(timer.totalTime(TimeUnit.MILLISECONDS))
-                    .isLessThan(fixedDelay.toMillis());
+                    .isLessThan((double) fixedDelay.toMillis());
         }
     }
 
@@ -723,20 +723,20 @@ class SaslTerminationFilterTest {
     @Test
     void shouldReturnMaxReauthExpiryWhenMechanismExpiryIsNull() {
         // Given
-        var filter = createFilterWithMaxReauth(Duration.ofMillis(5000));
+        var filter = createFilterWithMaxReauth(Duration.ofSeconds(5));
 
         // When
         Instant result = filter.computeSessionExpiry(null);
 
         // Then
-        assertThat(result).isEqualTo(FIXED_INSTANT.plusMillis(5000));
+        assertThat(result).isEqualTo(FIXED_INSTANT.plusSeconds(5));
     }
 
     @Test
     void shouldReturnMechanismExpiryWhenMaxReauthIsNull() {
         // Given
         var filter = createFilterWithMaxReauth(null);
-        Instant mechanismExpiry = FIXED_INSTANT.plusMillis(3000);
+        Instant mechanismExpiry = FIXED_INSTANT.plusSeconds(3);
 
         // When
         Instant result = filter.computeSessionExpiry(mechanismExpiry);
@@ -748,8 +748,8 @@ class SaslTerminationFilterTest {
     @Test
     void shouldReturnEarlierOfMaxReauthAndMechanismExpiryWhenMechanismIsEarlier() {
         // Given
-        var filter = createFilterWithMaxReauth(Duration.ofMillis(5000));
-        Instant mechanismExpiry = FIXED_INSTANT.plusMillis(3000);
+        var filter = createFilterWithMaxReauth(Duration.ofSeconds(5));
+        Instant mechanismExpiry = FIXED_INSTANT.plusSeconds(3);
 
         // When
         Instant result = filter.computeSessionExpiry(mechanismExpiry);
@@ -761,14 +761,14 @@ class SaslTerminationFilterTest {
     @Test
     void shouldReturnEarlierOfMaxReauthAndMechanismExpiryWhenMaxReauthIsEarlier() {
         // Given
-        var filter = createFilterWithMaxReauth(Duration.ofMillis(3000));
-        Instant mechanismExpiry = FIXED_INSTANT.plusMillis(5000);
+        var filter = createFilterWithMaxReauth(Duration.ofSeconds(3));
+        Instant mechanismExpiry = FIXED_INSTANT.plusSeconds(5);
 
         // When
         Instant result = filter.computeSessionExpiry(mechanismExpiry);
 
         // Then
-        assertThat(result).isEqualTo(FIXED_INSTANT.plusMillis(3000));
+        assertThat(result).isEqualTo(FIXED_INSTANT.plusSeconds(3));
     }
 
     // --- Helper methods ---

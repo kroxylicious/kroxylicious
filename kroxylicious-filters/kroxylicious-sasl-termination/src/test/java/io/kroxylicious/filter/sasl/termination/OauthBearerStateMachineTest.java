@@ -8,7 +8,6 @@ package io.kroxylicious.filter.sasl.termination;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Clock;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.UnsupportedCallbackException;
@@ -41,7 +40,7 @@ class OauthBearerStateMachineTest {
     @BeforeEach
     void setUp() {
         callbackHandler = new OAuthBearerValidatorCallbackHandler();
-        handler = new OauthBearerStateMachine(callbackHandler, Clock.systemUTC(), OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
+        handler = new OauthBearerStateMachine(callbackHandler, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
     }
 
     @AfterEach
@@ -66,18 +65,8 @@ class OauthBearerStateMachineTest {
     @SuppressWarnings("DataFlowIssue")
     @Test
     void shouldRejectNullCallbackHandler() {
-        // Given
-        var clock = Clock.systemUTC();
-
         // When/Then
-        assertThatThrownBy(() -> new OauthBearerStateMachine(null, clock, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES))
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @SuppressWarnings("DataFlowIssue")
-    @Test
-    void shouldRejectNullClock() {
-        assertThatThrownBy(() -> new OauthBearerStateMachine(callbackHandler, null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES))
+        assertThatThrownBy(() -> new OauthBearerStateMachine(null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -117,7 +106,7 @@ class OauthBearerStateMachineTest {
     void shouldReturnChallengeWithJsonErrorWhenTokenIsRejected() throws Exception {
         // Given
         handler = new OauthBearerStateMachine(
-                rejectingCallbackHandler("invalid_token", null, null), Clock.systemUTC(), OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
+                rejectingCallbackHandler("invalid_token", null, null), OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
 
         // When
         RoundResult result = handler.evaluateRound(clientInitialResponse())
@@ -136,7 +125,7 @@ class OauthBearerStateMachineTest {
         handler = new OauthBearerStateMachine(
                 rejectingCallbackHandler("insufficient_scope", "email profile",
                         "https://example.com/.well-known/openid-configuration"),
-                Clock.systemUTC(), OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
+                OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
 
         // When
         RoundResult result = handler.evaluateRound(clientInitialResponse())
@@ -155,7 +144,7 @@ class OauthBearerStateMachineTest {
     void shouldFailAfterClientAcknowledgesErrorWithControlA() throws Exception {
         // Given
         handler = new OauthBearerStateMachine(
-                rejectingCallbackHandler("invalid_token", null, null), Clock.systemUTC(), OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
+                rejectingCallbackHandler("invalid_token", null, null), OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
         handler.evaluateRound(clientInitialResponse()).toCompletableFuture().get();
 
         // When

@@ -256,7 +256,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         }
         return switch (mechanism) {
             case OauthBearerMechanismConfig.MECHANISM_NAME -> new OauthBearerStateMachine(Objects.requireNonNull(context.oauthCallbackHandler()),
-                    context.clock(), context.oauthMaxAuthBytes());
+                    context.oauthMaxAuthBytes());
             default -> throw new IllegalStateException("No state machine for configured mechanism: " + mechanism);
         };
     }

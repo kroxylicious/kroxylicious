@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.sasl.termination;
 
-import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -52,7 +51,6 @@ class OauthBearerStateMachine implements MechanismStateMachine {
     private static final Logger LOGGER = LoggerFactory.getLogger(OauthBearerStateMachine.class);
 
     private final OAuthBearerValidatorCallbackHandler callbackHandler;
-    private final Clock clock;
     private final int maxAuthBytes;
 
     @Nullable
@@ -62,12 +60,10 @@ class OauthBearerStateMachine implements MechanismStateMachine {
      * Create an OAUTHBEARER state machine.
      *
      * @param callbackHandler the configured callback handler for JWT validation
-     * @param clock clock for computing token remaining lifetime
      * @param maxAuthBytes maximum auth payload size in bytes
      */
-    OauthBearerStateMachine(OAuthBearerValidatorCallbackHandler callbackHandler, Clock clock, int maxAuthBytes) {
+    OauthBearerStateMachine(OAuthBearerValidatorCallbackHandler callbackHandler, int maxAuthBytes) {
         this.callbackHandler = Objects.requireNonNull(callbackHandler);
-        this.clock = Objects.requireNonNull(clock);
         this.maxAuthBytes = maxAuthBytes;
     }
 
