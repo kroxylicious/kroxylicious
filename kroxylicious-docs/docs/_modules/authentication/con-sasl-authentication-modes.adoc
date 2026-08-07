@@ -1,0 +1,80 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-sasl-authentication-modes-{context}']
+= SASL authentication modes
+
+[role="_abstract"]
+The proxy can interact with the SASL authentication exchange between a Kafka client and broker in several ways.
+Each mode offers a different trade-off between simplicity, visibility, and security.
+
+== SASL Passthrough
+
+In SASL Passthrough mode, the proxy forwards `SaslHandshake` and `SaslAuthenticate` requests from the client to the broker and relays the broker's responses back to the client without inspecting or modifying them.
+
+This is the *default behavior* when no SASL-related filter is configured.
+The proxy acts as a transparent intermediary for the SASL exchange.
+
+In this mode, the proxy does not know the client's identity.
+The authenticated subject remains anonymous, so identity-aware filters such as authorization or entity isolation cannot function.
+
+== SASL Passthrough Inspection
+
+In SASL Passthrough Inspection mode, the proxy observes the SASL exchange as it passes through.
+It extracts the client's authorization ID from the SASL messages without modifying them.
+The broker still makes the final decision about whether authentication succeeds or fails.
+
+This mode is implemented by the `SaslInspection` filter.
+When the broker accepts the client's credentials, the filter constructs an authenticated subject from the authorization ID, making the client's identity available to other filters in the chain.
+
+The `SaslInspection` filter supports the following SASL mechanisms:
+
+.Supported SASL mechanisms for inspection
+|===
+|SASL mechanism |Enabled by default
+
+|https://tools.ietf.org/html/rfc4616[PLAIN]
+|No
+
+|https://datatracker.ietf.org/doc/html/rfc7677[SCRAM-SHA-256]
+|Yes
+
+|https://datatracker.ietf.org/doc/html/draft-melnikov-scram-sha-512-00[SCRAM-SHA-512]
+|Yes
+
+|https://datatracker.ietf.org/doc/html/rfc7628[OAUTHBEARER]
+|Yes
+|===
+
+Mechanisms that transmit credentials in plain text (such as PLAIN) are disabled by default to avoid plain-text passwords existing in the proxy's memory.
+
+For the `OAUTHBEARER` mechanism, only JWT tokens that use signatures (JWS) are supported.
+JWT tokens that use encryption (JWE) are not supported.
+Unsigned JWT tokens are supported but not recommended for production use.
+
+== OAuthBearer Validation
+
+OAuthBearer Validation is a specialized mode in which the proxy validates a client's JWT bearer token _before_ forwarding the SASL exchange to the broker.
+If the token is invalid, the proxy short-circuits the exchange and returns an error to the client without contacting the broker.
+
+This mode is implemented by the `OauthBearerValidation` filter.
+It reduces load on the broker by rejecting clients with invalid or expired tokens at the proxy, and it prevents unauthenticated traffic from reaching the broker.
+
+The filter validates tokens against a JSON Web Key Set (JWKS) retrieved from a configurable endpoint.
+It supports configurable token validation including expected audience, expected issuer, and custom claim names.
+
+To limit the impact of repeated authentication failures, the filter applies exponential backoff to clients that present invalid tokens.
+
+// == SASL Termination (future)
+//
+// NOTE: SASL Termination is not yet available as a production feature.
+//
+// In SASL Termination mode, the proxy handles the SASL authentication exchange itself, without forwarding `SaslAuthenticate` requests to the broker.
+// The proxy validates the client's credentials directly and constructs an authenticated subject on success.
+//
+// This mode fully decouples client authentication from broker authentication, which can be useful when the proxy and broker use different credential stores.

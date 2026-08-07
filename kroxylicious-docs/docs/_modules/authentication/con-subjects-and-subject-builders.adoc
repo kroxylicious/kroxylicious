@@ -1,0 +1,60 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-subjects-and-subject-builders-{context}']
+= Understanding subjects and subject builders
+
+[role="_abstract"]
+When the proxy authenticates a client, it constructs an _authenticated subject_ that represents the client's identity.
+This subject is made available to filters in the proxy chain so that they can make decisions based on who the client is.
+
+== Subjects and principals
+
+A subject contains a set of _principals_.
+Each principal is a named identifier that represents one aspect of the client's identity.
+For example, a principal might represent a user name, an email address, or a group membership.
+
+A subject may contain at most one `User` principal, which represents the primary identity of the client.
+
+If no authentication is configured, or if authentication has not yet completed, the subject is _anonymous_ — it contains no principals.
+
+== Subject builders
+
+Subject builders are responsible for constructing the authenticated subject from information obtained during authentication.
+The proxy provides two types of subject builder, corresponding to the two authentication mechanisms:
+
+Transport subject builder::
+Builds a subject from information in the client's TLS certificate.
+The transport subject builder runs after the TLS handshake completes and has access to the client certificate's distinguished name (DN) and subject alternative names (SANs).
++
+The transport subject builder is configured on the virtual cluster.
+See xref:con-configuring-vc-transport-subject-builder-{context}[] for configuration details.
+
+SASL subject builder::
+Builds a subject from information obtained during a successful SASL authentication exchange, such as the SASL authorization ID.
++
+The SASL subject builder is configured on the SASL filter (for example, the `SaslInspection` filter).
+See xref:con-configuring-sasl-subject-builder-auth-sasl-inspection[] for configuration details.
+
+Both subject builders use a pluggable architecture.
+The default implementations extract principals from certificate fields or SASL authorization IDs using configurable mapping rules.
+Custom implementations can augment the subject with information looked up from external trusted systems, such as a directory service (for example, ActiveDirectory or LDAP), to add additional principals representing roles or group memberships.
+
+== Subject lifecycle
+
+The authenticated subject evolves through the connection lifecycle:
+
+. *TLS handshake* — If a transport subject builder is configured and the client presents a TLS certificate, the builder creates the initial subject.
+  If no transport subject builder is configured, or if TLS client authentication is not enabled, the subject starts as anonymous.
+
+. *SASL authentication* — If a SASL-aware filter (such as the `SaslInspection` filter) is configured and the client authenticates successfully via SASL, the SASL subject builder creates a new subject that _replaces_ the transport subject.
+
+. *Re-authentication* — Kafka supports re-authentication (https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate[KIP-368]).
+  When a client re-authenticates, the SASL subject builder creates a new subject that replaces the previous one.
+
+. *Authentication failure* — If SASL authentication fails, the subject reverts to anonymous.
