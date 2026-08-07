@@ -42,6 +42,18 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
     @SuppressWarnings("java:S3077") // Config is an immutable object
     private volatile @Nullable Config config;
 
+    /**
+     * Creates the service.
+     * Use of {@link #newInstance()} is preferred.
+     */
+    public UnitTestingKmsService() {
+        // Intentionally empty
+    }
+
+    /**
+     * Creates a new instance of this service using the {@link ServiceLoader} mechanism.
+     * @return The new instance.
+     */
     public static UnitTestingKmsService newInstance() {
         return (UnitTestingKmsService) ServiceLoader.load(KmsService.class).stream()
                 .filter(p -> p.type() == UnitTestingKmsService.class)
@@ -50,6 +62,14 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
                 .orElse(null);
     }
 
+    /**
+     * The definition of a pre-existing Key Encryption Key (KEK) to be provisioned in the KMS.
+     *
+     * @param uuid The id of the KEK.
+     * @param key The key material.
+     * @param algorithm The name of the key algorithm.
+     * @param alias The alias of the KEK.
+     */
     @SuppressWarnings("java:S6218") // we currently don't need equals/hash to consider key contents
     public record Kek(
                       @JsonProperty(required = true) String uuid,
@@ -57,10 +77,21 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
                       @JsonProperty(required = true) String algorithm,
                       @JsonProperty(required = true) String alias) {}
 
+    /**
+     * The configuration for the {@link UnitTestingKmsService}.
+     *
+     * @param numIvBytes The number of bytes in the initialization vector used when wrapping DEKs.
+     * @param numAuthBits The length of the GCM authentication tag, in bits, used when wrapping DEKs.
+     * @param existingKeks The KEKs to be provisioned in the KMS.
+     */
     public record Config(
                          int numIvBytes,
                          int numAuthBits,
                          List<Kek> existingKeks) {
+        /**
+         * Validates the record components.
+         * @throws IllegalArgumentException if {@code numIvBytes} or {@code numAuthBits} is less than 1.
+         */
         public Config {
             if (numIvBytes < 1) {
                 throw new IllegalArgumentException();
@@ -70,6 +101,9 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
             }
         }
 
+        /**
+         * Creates a config with default values and no pre-provisioned KEKs.
+         */
         public Config() {
             this(12, 128, List.of());
         }
