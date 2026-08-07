@@ -20,6 +20,7 @@ import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
 import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
@@ -406,6 +407,152 @@ class RoutingContextContractIT {
             // Then: the router's onRequest was invoked and chose respondWithoutReply
             assertThat(produceHandled).succeedsWithin(Duration.ofSeconds(10));
         }
+    }
+
+    @Test
+    void nodeForIdWithBijectiveMappingRoutesToCorrectUpstream() {
+        // With two routes, BijectiveNodeIdMapping assigns virtual IDs across both target clusters.
+        // route-a's physical node 0 becomes virtual node 0; route-b's physical node 0 becomes virtual node 1.
+        // Each target cluster advertises its own physical node 0 in METADATA responses, but the virtual IDs differ.
+        // nodeForId(1) must resolve to route-b's target node (physical 0, virtual 1), not route-a's.
+        try (var mockA = MockServer.startOnRandomPort();
+                var mockB = MockServer.startOnRandomPort()) {
+
+            // Given
+            var mdA = new MetadataResponseData();
+            mdA.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockA.port()));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdA));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+            var mdB = new MetadataResponseData();
+            mdB.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockB.port()));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+            var metadataHeader = new RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.METADATA.id)
+                    .setRequestApiVersion((short) 12);
+
+            // Internal METADATA to each route populates routerNodeAddresses before nodeForId(1) resolves.
+            ContextCapturingRouterFactory.currentAction
+                    .set((apiKey, apiVersion, header, request, ctx) -> ctx.sendRequest(ctx.anyNode("route-a"), metadataHeader, new MetadataRequestData())
+                            .thenCompose(ignored -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new MetadataRequestData()))
+                            .thenCompose(ignored -> {
+                                var node = ctx.nodeForId(1);
+                                return ctx.sendRequest(node, header, request)
+                                        .thenCompose(body -> ctx.respondWith(body).completed());
+                            }));
+
+            try (var tester = KroxyliciousTesters.newBuilder(bijectiveConfig(mockA, mockB))
+                    .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                    var client = tester.simpleTestClient()) {
+
+                // When
+                var response = client.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+
+                // Then
+                assertThat(response.payload().message()).isInstanceOf(ListGroupsResponseData.class);
+                assertThat(mockB.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .contains(ApiKeys.LIST_GROUPS);
+                assertThat(mockA.getReceivedRequests())
+                        .filteredOn(r -> r.apiKeys() == ApiKeys.LIST_GROUPS)
+                        .isEmpty();
+            }
+        }
+    }
+
+    @Test
+    void virtualNodeWithBijectiveMappingRoutesToCorrectUpstream() {
+        // Two routes → BijectiveNodeIdMapping: route-a id=0 = virtual 0 (port 9193), route-b id=1 = virtual 1 (port 9194).
+        // Bootstrap merges METADATA from both routes so BrokerAddressFilter reconciles both node-port bindings,
+        // preventing EagerMetadataLearner from firing when the test connects to 9193 and 9194.
+        // duplicate() required: brokers returned by bodyB already belong to its ImplicitLinkedHashCollection.
+        try (var mockA = MockServer.startOnRandomPort();
+                var mockB = MockServer.startOnRandomPort()) {
+
+            // Given
+            var mdA = new MetadataResponseData();
+            mdA.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockA.port()));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdA));
+
+            var mdB = new MetadataResponseData();
+            mdB.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockB.port()));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
+
+            var metadataHeader = new RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.METADATA.id)
+                    .setRequestApiVersion((short) 12);
+
+            ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
+                var vn = ctx.virtualNode();
+                if (vn.isEmpty()) {
+                    return ctx.sendRequest(ctx.anyNode("route-a"), header, request)
+                            .thenCompose(bodyA -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new MetadataRequestData())
+                                    .thenCompose(bodyB -> {
+                                        ((MetadataResponseData) bodyB).brokers()
+                                                .forEach(b -> ((MetadataResponseData) bodyA).brokers().add(b.duplicate()));
+                                        return ctx.respondWith(bodyA).completed();
+                                    }));
+                }
+                return ctx.sendRequest(vn.get(), header, request)
+                        .thenCompose(body -> ctx.respondWith(body).completed());
+            });
+
+            try (var tester = KroxyliciousTesters.newBuilder(bijectiveConfig(mockA, mockB))
+                    .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
+
+                primeProxyWithBrokerAddresses(tester);
+                mockA.clear();
+                mockB.clear();
+                // Two responses on mockA: guards against both requests landing there if the bug regresses.
+                mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+                mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+                mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+                // When
+                try (var nodeZero = tester.simpleTestClient("localhost:9193", false)) {
+                    nodeZero.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+                }
+                try (var nodeOne = tester.simpleTestClient("localhost:9194", false)) {
+                    nodeOne.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+                }
+
+                // Then
+                assertThat(mockA.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .containsExactly(ApiKeys.LIST_GROUPS);
+                assertThat(mockB.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .containsExactly(ApiKeys.LIST_GROUPS);
+            }
+        }
+    }
+
+    private ConfigurationBuilder bijectiveConfig(MockServer mockA, MockServer mockB) {
+        var clusterA = new ClusterDefinition("cluster-a", "localhost:" + mockA.port(), null);
+        var clusterB = new ClusterDefinition("cluster-b", "localhost:" + mockB.port(), null);
+        var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
+        var routerDef = new RouterDefinition(ROUTER,
+                ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config("route-a"),
+                List.of(routeA, routeB));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER))
+                .addToGateways(defaultGatewayBuilder()
+                        .withNewPortIdentifiesNode()
+                        .withBootstrapAddress(HostPort.parse(BOOTSTRAP))
+                        .withNodeIdRanges(new NamedRange("nodes", 0, 1))
+                        .endPortIdentifiesNode()
+                        .build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterA)
+                .addToClusterDefinitions(clusterB)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
     }
 
     private static void primeProxyWithBrokerAddresses(KroxyliciousTester tester) {
