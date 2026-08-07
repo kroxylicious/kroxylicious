@@ -223,7 +223,6 @@
         <dependency>
             <groupId>io.github.sambarker</groupId>
             <artifactId>logsquelcher</artifactId>
-            <version>${logsquelcher.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
