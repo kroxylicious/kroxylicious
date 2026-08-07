@@ -69,7 +69,7 @@ jobs:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Test for unpublished reference release (japicmp)'
         run: |
-          REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
+          REFERENCE_RELEASE=$(mvn --quiet --projects kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
           echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
@@ -79,7 +79,7 @@ jobs:
         run: |
           GIT_HASH="$(git rev-parse HEAD)"
           IMAGE_TAG="dev-git-${GIT_HASH}"
-          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
+          KROXYLICIOUS_VERSION="$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)"
           KROXYLICIOUS_IMAGE="quay.io/kroxylicious/proxy:${IMAGE_TAG}"
           echo "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" >> "$GITHUB_ENV"
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
@@ -105,14 +105,9 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn --batch-mode \
-            --activate-profiles 'ci,!qa' \
-            --projects '!:kroxylicious-kubernetes-api,!:kroxylicious-operator,!:kroxylicious-operator-dist,!:kroxylicious-operator-test-support' \
-            -Derrorprone.skip=true \
-            -DskipITs=true \
-            -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} \
-            verify \
-            org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
+          source scripts/ci-build-functions.sh
+          run_sonar "${PROXY_PROFILES}" 'Proxy Core' 'kroxylicious_kroxylicious' \
+            -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
         uses: ./.github/actions/common/slack-notification

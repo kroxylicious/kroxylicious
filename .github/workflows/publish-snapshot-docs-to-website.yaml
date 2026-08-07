@@ -68,11 +68,11 @@ jobs:
         uses: ./kroxylicious/.github/actions/common/setup-java
 
       - name: Build and install BOM
-        run: mvn clean install -pl :kroxylicious-bom
+        run: mvn clean install --projects :kroxylicious-bom
         working-directory: kroxylicious
 
       - name: Build with Maven
-        run: mvn -Dquick -P dist package --pl kroxylicious-docs --am
+        run: mvn -Dquick --activate-profiles dist package --projects kroxylicious-docs --also-make
         working-directory: kroxylicious
 
       - name: Checkout Website
