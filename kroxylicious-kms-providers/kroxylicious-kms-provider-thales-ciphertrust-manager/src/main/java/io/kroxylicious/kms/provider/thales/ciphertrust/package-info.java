@@ -15,13 +15,6 @@
  * Unlike AWS KMS or HashiCorp Vault, CTM doesn't natively support envelope encryption,
  * so this implementation manually generates DEKs and wraps them using CTM's encryption API.
  * </p>
- *
- * <h2>Future Enhancements</h2>
- * <ul>
- * <li>Support CipherTrust Manager domains parameter (issue #4118)</li>
- * <li>Implement client credentials authentication (issue #4117)</li>
- * </ul>
- *
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
