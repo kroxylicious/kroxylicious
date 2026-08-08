@@ -190,8 +190,9 @@ abstract class AbstractAuthzEquivalenceIT extends BaseIT {
                 .isEqualTo(expectedErrorCode);
     }
 
+    @Nullable
     @SuppressWarnings("unchecked")
-    static <M extends Message> @Nullable List<M> duplicateList(@Nullable List<M> topics) {
+    static <M extends Message> List<M> duplicateList(@Nullable List<M> topics) {
         if (topics != null) {
             return topics.stream()
                     .map(m -> (M) m.duplicate())
