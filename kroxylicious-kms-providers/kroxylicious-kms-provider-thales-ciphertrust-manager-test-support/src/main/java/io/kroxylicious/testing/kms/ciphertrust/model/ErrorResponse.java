@@ -20,6 +20,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record ErrorResponse(
                             @JsonProperty("error") String error) {
 
+    /**
+     * Creates an ErrorResponse.
+     *
+     * @param error error message
+     */
     public ErrorResponse {
         Objects.requireNonNull(error);
     }
