@@ -22,10 +22,6 @@
     <name>ACL Authorization plugin implementation</name>
     <description>An Authorization plugin implementation using Access Control Lists (ACLs)</description>
 
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
