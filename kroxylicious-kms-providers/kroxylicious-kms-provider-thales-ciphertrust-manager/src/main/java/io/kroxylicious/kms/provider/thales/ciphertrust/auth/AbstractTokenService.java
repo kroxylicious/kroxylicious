@@ -38,10 +38,24 @@ import io.kroxylicious.kms.service.KmsException;
  */
 abstract class AbstractTokenService implements BearerTokenService {
 
+    /**
+     * Logger shared with subclasses.
+     */
     protected static final Logger LOGGER = LoggerFactory.getLogger(AbstractTokenService.class);
+
+    /**
+     * Mapper used to serialize authentication requests and deserialize authentication responses.
+     */
     protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+    /**
+     * URL of the CipherTrust Manager token endpoint.
+     */
     protected final URI authEndpoint;
+
+    /**
+     * HTTP client used to send authentication requests.
+     */
     protected final HttpClient client;
 
     /**
