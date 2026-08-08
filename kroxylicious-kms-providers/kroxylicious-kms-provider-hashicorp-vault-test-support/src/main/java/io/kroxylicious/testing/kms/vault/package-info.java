@@ -4,6 +4,10 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+/**
+ * Test support for the HashiCorp Vault KMS provider, providing {@link io.kroxylicious.testing.kms.TestKmsFacade}
+ * implementations backed by a HashiCorp Vault container.
+ */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)

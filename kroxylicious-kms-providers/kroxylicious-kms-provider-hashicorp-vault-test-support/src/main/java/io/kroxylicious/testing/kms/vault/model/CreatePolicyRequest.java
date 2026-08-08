@@ -12,8 +12,20 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
+/**
+ * A request to create a Vault policy.
+ *
+ * @param policy the policy document, in HCL format.
+ * @see <a href="https://developer.hashicorp.com/vault/api-docs/system/policy#create-update-policy">Vault API Create/Update Policy</a>
+ */
 public record CreatePolicyRequest(String policy) {
 
+    /**
+     * Creates a CreatePolicyRequest from an input stream.
+     *
+     * @param is stream containing the policy document, in HCL format.
+     * @return the CreatePolicyRequest.
+     */
     public static CreatePolicyRequest fromInputStream(InputStream is) {
         Objects.requireNonNull(is);
         try {

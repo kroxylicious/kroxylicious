@@ -43,6 +43,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+/**
+ * Abstract base for {@link TestKmsFacade} implementations backed by a HashiCorp Vault instance.
+ * Prepares Vault for use by the tests (enabling the Transit engine and creating a least-privilege
+ * token for the KMS) and provides a {@link TestKekManager} that manages KEKs using the Vault
+ * Transit engine REST API, leaving subclasses responsible for the lifecycle of, and connection
+ * details for, the underlying Vault instance.
+ */
 public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVaultTestKmsFacade.class);
@@ -55,13 +62,25 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
     private @Nullable String kmsVaultToken;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final HttpClient vaultClient = HttpClient.newHttpClient();
+    /**
+     * The root token used to authenticate with the Vault instance.
+     */
     public static final String VAULT_ROOT_TOKEN = "rootToken";
 
+    /**
+     * Creates the facade.
+     */
     protected AbstractVaultTestKmsFacade() {
     }
 
+    /**
+     * Starts the underlying Vault instance.
+     */
     protected abstract void startVault();
 
+    /**
+     * Stops the underlying Vault instance.
+     */
     protected abstract void stopVault();
 
     @Override
@@ -114,6 +133,9 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
+    /**
+     * Enables the Vault Transit engine at the {@code transit} mount path, if it is not already enabled.
+     */
     protected void enableTransit() {
         String expectedMountPath = "transit";
         if (!sendRequestExpectingOk(createVaultGet(getVaultUrl().resolve("/v1/sys/mounts/" + expectedMountPath + "/")))) {
@@ -128,6 +150,12 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
+    /**
+     * Creates a Vault policy.
+     *
+     * @param policyName name of the policy.
+     * @param policyStream stream containing the policy document, in HCL format.
+     */
     protected void createPolicy(String policyName, InputStream policyStream) {
         Objects.requireNonNull(policyName);
         Objects.requireNonNull(policyStream);
@@ -137,6 +165,14 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         sendRequestExpectingNoContentResponse(request);
     }
 
+    /**
+     * Creates a Vault orphan token.
+     *
+     * @param description display name for the token.
+     * @param noDefaultPolicy if true, the {@code default} policy will not be attached to the token.
+     * @param policies names of the policies to attach to the token.
+     * @return the client token.
+     */
     protected String createOrphanToken(String description, boolean noDefaultPolicy, Set<String> policies) {
         var token = new CreateTokenRequest(description, noDefaultPolicy, policies);
         String body = encodeJson(token);
@@ -145,6 +181,10 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         return sendRequestForKey("dummy", request, VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF).auth().clientToken();
     }
 
+    /**
+     * Gets the endpoint URL of the Vault instance.
+     * @return the endpoint URL.
+     */
     protected abstract URI getVaultUrl();
 
     @Override
@@ -162,6 +202,10 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         stopVault();
     }
 
+    /**
+     * Gets the URL of the Transit engine of the Vault instance.
+     * @return the Transit engine URL.
+     */
     protected final URI getVaultTransitEngineUrl() {
         return getVaultUrl().resolve("v1/transit/");
     }
