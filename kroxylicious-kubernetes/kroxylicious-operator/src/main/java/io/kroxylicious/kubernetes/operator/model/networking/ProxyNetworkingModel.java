@@ -38,6 +38,11 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
  */
 public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkingModels) {
 
+    /**
+     * Finds the networking model for a given cluster, if one exists.
+     * @param cluster the virtual Kafka cluster to look up
+     * @return an optional containing the cluster's networking model, or empty if not found
+     */
     public Optional<ClusterNetworkingModel> clusterIngressModel(VirtualKafkaCluster cluster) {
         return clusterNetworkingModels.stream()
                 .filter(c -> name(c.cluster).equals(name(cluster)))
@@ -45,20 +50,32 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
     }
 
     /**
-     *
+     * The networking model for a single VirtualKafkaCluster, including all its ingresses.
      * @param cluster cluster
      * @param clusterIngressNetworkingModelResults the ingress model results, one per ingress in the VKC spec.ingresses in the same order
      */
     public record ClusterNetworkingModel(VirtualKafkaCluster cluster, List<ClusterIngressNetworkingModelResult> clusterIngressNetworkingModelResults) {
 
+        /**
+         * Builds all Kubernetes Services required by the ingresses of this cluster.
+         * @return a stream of Services
+         */
         public Stream<Service> services() {
             return clusterIngressNetworkingModelResults.stream().flatMap(it -> it.clusterIngressNetworkingModel().services()).map(ServiceBuilder::build);
         }
 
+        /**
+         * Builds all OpenShift Routes required by the ingresses of this cluster.
+         * @return a stream of Routes
+         */
         public Stream<Route> routes() {
             return clusterIngressNetworkingModelResults.stream().flatMap(it -> it.clusterIngressNetworkingModel().routes()).map(RouteBuilder::build);
         }
 
+        /**
+         * Collects all conflict exceptions encountered when modelling the cluster's ingresses.
+         * @return the set of ingress conflict exceptions
+         */
         public Set<IngressConflictException> ingressExceptions() {
             return clusterIngressNetworkingModelResults.stream()
                     .filter(it -> it.exception != null)
@@ -74,11 +91,19 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
             clusterIngressNetworkingModelResults.forEach(result -> result.proxyContainerPorts().forEach(portConsumer));
         }
 
+        /**
+         * Determines whether any ingress in this cluster requires a shared SNI container port.
+         * @return true if at least one ingress requires a shared SNI container port
+         */
         public boolean anyIngressRequiresSharedSniPort() {
             return clusterIngressNetworkingModelResults.stream()
                     .anyMatch(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().requiresSharedSniContainerPort());
         }
 
+        /**
+         * Collects all client-facing ports required on the shared SNI LoadBalancer Service across all ingresses.
+         * @return a stream of port numbers required for the shared SNI LoadBalancer
+         */
         public Stream<Integer> requiredSniLoadbalancerPorts() {
             return clusterIngressNetworkingModelResults.stream()
                     .flatMap(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().sharedLoadBalancerServiceRequirements().stream())
@@ -93,6 +118,10 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
      */
     public record ClusterIngressNetworkingModelResult(ClusterIngressNetworkingModel clusterIngressNetworkingModel, @Nullable IngressConflictException exception) {
 
+        /**
+         * Returns the container ports that this ingress model requires on the proxy container.
+         * @return a stream of container ports for identifying upstream nodes
+         */
         public Stream<ContainerPort> proxyContainerPorts() {
             return clusterIngressNetworkingModel.identifyingProxyContainerPorts();
         }

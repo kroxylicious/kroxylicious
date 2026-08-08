@@ -12,13 +12,23 @@ package io.kroxylicious.kubernetes.operator.model.networking;
  */
 public class IngressConflictException extends RuntimeException {
 
+    /** The name of the conflicting ingress resource. */
     private final String ingressName;
 
+    /**
+     * Creates a new IngressConflictException.
+     * @param ingressName the name of the conflicting ingress
+     * @param message the detail message
+     */
     public IngressConflictException(String ingressName, String message) {
         super(message);
         this.ingressName = ingressName;
     }
 
+    /**
+     * Returns the name of the conflicting ingress.
+     * @return the ingress name
+     */
     public String getIngressName() {
         return ingressName;
     }

@@ -4,6 +4,10 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+/**
+ * Test support for the AWS KMS provider, providing {@link io.kroxylicious.testing.kms.TestKmsFacade}
+ * implementations backed by either a LocalStack container or an actual AWS KMS instance.
+ */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)

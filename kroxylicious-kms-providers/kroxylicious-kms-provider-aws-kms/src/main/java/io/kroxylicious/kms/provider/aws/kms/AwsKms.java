@@ -54,6 +54,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class AwsKms implements Kms<String, AwsKmsEdek> {
 
+    /**
+     * The content type used by AWS KMS API requests and responses.
+     */
     public static final String APPLICATION_X_AMZ_JSON_1_1 = "application/x-amz-json-1.1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
@@ -68,8 +71,17 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
     private static final String TRENT_SERVICE_DESCRIBE_KEY = "TrentService.DescribeKey";
     private static final String TRENT_SERVICE_GENERATE_DATA_KEY = "TrentService.GenerateDataKey";
     private static final String TRENT_SERVICE_DECRYPT = "TrentService.Decrypt";
+    /**
+     * The name of the HTTP header used to convey the content type of the request.
+     */
     public static final String CONTENT_TYPE_HEADER = "Content-Type";
+    /**
+     * The name of the HTTP header used to convey the AWS KMS operation being invoked.
+     */
     public static final String X_AMZ_TARGET_HEADER = "X-Amz-Target";
+    /**
+     * The prefix used to distinguish a key alias from a key id.
+     */
     public static final String ALIAS_PREFIX = "alias/";
 
     private final CredentialsProvider credentialsProvider;

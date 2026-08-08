@@ -1,0 +1,4 @@
+title: "feat(sasl-termination): add SASL termination filter with OAUTHBEARER"
+type: added
+issues:
+  - 4519

@@ -13,7 +13,8 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Abstract
+ * Abstract base for tests exercising a {@link TestKmsFacade} implementation, verifying that
+ * the facade and its {@link TestKekManager} honour their contracts.
  * @param <C> The config type
  * @param <K> The key reference
  * @param <E> The type of encrypted DEK
@@ -21,9 +22,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SuppressWarnings("java:S5960") // this is test code, it exists in the main module to facilitate its use by concrete test cases
 public abstract class AbstractTestKmsFacadeTest<C, K, E> {
 
+    /** Alias of the KEK used by the tests. */
     protected static final String ALIAS = "myalias";
+    /** Factory creating the facade under test. */
     protected final TestKmsFacadeFactory<C, K, E> factory;
 
+    /**
+     * Creates the test instance.
+     *
+     * @param factory factory creating the facade under test.
+     */
     protected AbstractTestKmsFacadeTest(TestKmsFacadeFactory<C, K, E> factory) {
         Objects.requireNonNull(factory);
         this.factory = factory;

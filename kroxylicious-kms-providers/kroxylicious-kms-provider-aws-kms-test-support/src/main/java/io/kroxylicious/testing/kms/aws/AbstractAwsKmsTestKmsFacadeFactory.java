@@ -10,7 +10,17 @@ import io.kroxylicious.kms.provider.aws.kms.AwsKmsEdek;
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
 
+/**
+ * Abstract factory for {@link AbstractAwsKmsTestKmsFacade}s.
+ */
 public abstract class AbstractAwsKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, AwsKmsEdek> {
+    /**
+     * Creates the factory.
+     */
+    protected AbstractAwsKmsTestKmsFacadeFactory() {
+        // Intentionally empty
+    }
+
     @Override
     public abstract AbstractAwsKmsTestKmsFacade build();
 }

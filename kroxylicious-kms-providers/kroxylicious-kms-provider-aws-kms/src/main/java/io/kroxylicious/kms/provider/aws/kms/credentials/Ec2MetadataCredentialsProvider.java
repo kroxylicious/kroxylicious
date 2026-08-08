@@ -197,6 +197,15 @@ public class Ec2MetadataCredentialsProvider extends AbstractRefreshingCredential
         return body instanceof byte[] bytes ? new String(bytes, StandardCharsets.UTF_8) : String.valueOf(body);
     }
 
+    /**
+     * The temporary credentials returned by the EC2 instance metadata service.
+     *
+     * @param code result code reported by the metadata service, {@code Success} on success.
+     * @param accessKeyId AWS access key id.
+     * @param secretAccessKey AWS secret access key.
+     * @param token temporary security token associated with the access key.
+     * @param expiration instant at which the credentials expire.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record SecurityCredentials(@JsonProperty(value = "Code") String code,
                                       @JsonProperty(value = "AccessKeyId") String accessKeyId,
@@ -204,6 +213,15 @@ public class Ec2MetadataCredentialsProvider extends AbstractRefreshingCredential
                                       @JsonProperty(value = "Token") String token,
                                       @JsonProperty(value = "Expiration") Instant expiration)
             implements Credentials {
+        /**
+         * Creates the security credentials.
+         *
+         * @param code result code reported by the metadata service, {@code Success} on success.
+         * @param accessKeyId AWS access key id.
+         * @param secretAccessKey AWS secret access key.
+         * @param token temporary security token associated with the access key.
+         * @param expiration instant at which the credentials expire.
+         */
         public SecurityCredentials {
             Objects.requireNonNull(code);
             Objects.requireNonNull(accessKeyId);

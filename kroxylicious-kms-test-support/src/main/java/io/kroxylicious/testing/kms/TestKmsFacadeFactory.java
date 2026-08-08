@@ -44,6 +44,9 @@ public interface TestKmsFacadeFactory<C, K, E> {
     /**
      * Discovers the available {@link TestKmsFacadeFactory}.
      *
+     * @param <C> The config type
+     * @param <K> The key reference
+     * @param <E> The type of encrypted DEK
      * @return factories
      */
     @SuppressWarnings("unchecked")

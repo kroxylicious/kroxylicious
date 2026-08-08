@@ -23,6 +23,13 @@ public class AbsentSpecDeprecationChecker implements DeprecationChecker<KafkaPro
 
     private static final String MESSAGE = "No spec, please add an empty one. Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.";
 
+    /**
+     * Constructs an AbsentSpecDeprecationChecker.
+     */
+    public AbsentSpecDeprecationChecker() {
+        // explicit ctor needed for javadoc
+    }
+
     public void check(DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> context) {
         var proxy = context.resource();
 

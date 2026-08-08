@@ -32,11 +32,21 @@ public class ProxyModelBuilder {
 
     private final DependencyResolver resolver;
 
+    /**
+     * Creates a ProxyModelBuilder using the given dependency resolver.
+     * @param resolver the resolver used to look up proxy dependencies
+     */
     public ProxyModelBuilder(DependencyResolver resolver) {
         Objects.requireNonNull(resolver);
         this.resolver = resolver;
     }
 
+    /**
+     * Resolves all dependencies of the given KafkaProxy and computes the logical proxy model including networking and valid clusters.
+     * @param primary the KafkaProxy custom resource being reconciled
+     * @param context the reconciler context providing access to secondary resources
+     * @return the computed proxy model
+     */
     public ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
         ProxyResolutionResult resolutionResult = resolver.resolveProxyRefs(primary, context);
         if (!resolutionResult.allReferentsHaveFreshStatus()) {
@@ -59,6 +69,10 @@ public class ProxyModelBuilder {
         return new ProxyModel(resolutionResult, ingressModel, clustersWithValidIngresses);
     }
 
+    /**
+     * Creates a ProxyModelBuilder with the default dependency resolver.
+     * @return a new ProxyModelBuilder instance
+     */
     public static ProxyModelBuilder contextBuilder() {
         return new ProxyModelBuilder(DependencyResolver.create());
     }

@@ -25,10 +25,21 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ErrorResponse(@JsonProperty(value = "__type") String type,
                             @JsonProperty(value = "message") @Nullable String message) {
+    /**
+     * Creates the error response.
+     *
+     * @param type type of error
+     * @param message associated error message
+     */
     public ErrorResponse {
         Objects.requireNonNull(type);
     }
 
+    /**
+     * Determines whether this error indicates that the key is not found (or is pending deletion).
+     *
+     * @return true if the key is not found, false otherwise.
+     */
     public boolean isNotFound() {
         return type().equalsIgnoreCase("NotFoundException") ||
                 (type().equalsIgnoreCase("KMSInvalidStateException") && String.valueOf(message()).toLowerCase(Locale.ROOT).contains("is pending deletion"));

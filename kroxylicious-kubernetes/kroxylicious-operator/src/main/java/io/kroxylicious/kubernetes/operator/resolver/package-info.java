@@ -5,7 +5,7 @@
  */
 
 /**
- * Classes comprising the operator's configuration model.
+ * Dependency resolution for Kubernetes custom resource references.
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)

@@ -30,6 +30,9 @@ public class ClusterRouteDependentResource
         extends CRUDKubernetesDependentResource<Route, KafkaProxy>
         implements BulkDependentResource<Route, KafkaProxy, String> {
 
+    /**
+     * Constructs the dependent resource for managing OpenShift Routes.
+     */
     public ClusterRouteDependentResource() {
         super(Route.class);
     }

@@ -9,8 +9,8 @@ package io.kroxylicious.kubernetes.operator;
 /**
  * Thrown when there was a problem attempting to serialize or deserialize an annotation value
  */
-public class AnnotationSerializationException extends RuntimeException {
-    public AnnotationSerializationException(Exception cause) {
+class AnnotationSerializationException extends RuntimeException {
+    AnnotationSerializationException(Exception cause) {
         super(cause);
     }
 }

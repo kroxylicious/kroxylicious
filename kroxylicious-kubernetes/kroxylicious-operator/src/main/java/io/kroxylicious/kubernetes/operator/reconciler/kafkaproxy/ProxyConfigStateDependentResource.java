@@ -38,8 +38,10 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 public class ProxyConfigStateDependentResource
         extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
 
+    /** Suffix appended to the proxy name to form the config-state {@code ConfigMap} name. */
     public static final String CONFIG_STATE_CONFIG_MAP_SUFFIX = "-config-state";
 
+    /** Creates a new dependent resource for managing the proxy config-state {@code ConfigMap}. */
     public ProxyConfigStateDependentResource() {
         super(ConfigMap.class);
     }

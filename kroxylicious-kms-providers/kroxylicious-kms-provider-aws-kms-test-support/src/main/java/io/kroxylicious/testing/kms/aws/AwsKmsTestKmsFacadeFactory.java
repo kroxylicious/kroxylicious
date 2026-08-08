@@ -15,6 +15,13 @@ import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
  */
 public class AwsKmsTestKmsFacadeFactory extends AbstractAwsKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, AwsKmsEdek> {
     /**
+     * Creates the factory.
+     */
+    public AwsKmsTestKmsFacadeFactory() {
+        // Intentionally empty
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override

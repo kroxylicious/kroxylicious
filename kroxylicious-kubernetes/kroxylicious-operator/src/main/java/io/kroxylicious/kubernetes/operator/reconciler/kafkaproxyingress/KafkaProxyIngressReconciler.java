@@ -54,13 +54,25 @@ public class KafkaProxyIngressReconciler implements
         Reconciler<KafkaProxyIngress> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyIngressReconciler.class);
+    /** Event source name for the KafkaProxy informer. */
     public static final String PROXY_EVENT_SOURCE_NAME = "proxy";
     private final KafkaProxyIngressStatusFactory statusFactory;
 
+    /**
+     * Constructs a reconciler for KafkaProxyIngress resources.
+     *
+     * @param clock the clock used for condition timestamps
+     */
     public KafkaProxyIngressReconciler(Clock clock) {
         this.statusFactory = new KafkaProxyIngressStatusFactory(Objects.requireNonNull(clock));
     }
 
+    /**
+     * Creates a new status factory for KafkaProxyIngress resources.
+     *
+     * @param clock the clock used for condition timestamps
+     * @return a new status factory instance
+     */
     public static StatusFactory<KafkaProxyIngress> newStatusFactory(Clock clock) {
         return new KafkaProxyIngressStatusFactory(clock);
     }

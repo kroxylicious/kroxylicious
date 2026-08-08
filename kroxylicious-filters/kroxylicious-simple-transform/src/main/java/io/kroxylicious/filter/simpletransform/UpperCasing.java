@@ -15,9 +15,25 @@ import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
+/**
+ * A {@link ByteBufferTransformationFactory} for a transformation which converts
+ * the buffer, decoded using a configured charset, to upper case.
+ */
 @Plugin(configType = UpperCasing.Config.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.simpletransform.UpperCasing", since = "0.19.0")
 public class UpperCasing implements ByteBufferTransformationFactory<UpperCasing.Config> {
+
+    /**
+     * Creates a new factory.
+     */
+    public UpperCasing() {
+        // empty
+    }
+
+    /**
+     * The configuration for the {@link UpperCasing} transformation.
+     * @param charset The name of the charset used to decode and re-encode the buffer.
+     */
     public record Config(String charset) {}
 
     @Override

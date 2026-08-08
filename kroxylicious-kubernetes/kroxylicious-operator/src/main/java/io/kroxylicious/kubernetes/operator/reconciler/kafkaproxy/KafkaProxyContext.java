@@ -25,11 +25,11 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public record KafkaProxyContext(StatusFactory<VirtualKafkaCluster> virtualKafkaClusterStatusFactory,
-                                ProxyModel model,
-                                Optional<Configuration> configuration,
-                                List<Volume> volumes,
-                                List<VolumeMount> mounts) {
+record KafkaProxyContext(StatusFactory<VirtualKafkaCluster> virtualKafkaClusterStatusFactory,
+                         ProxyModel model,
+                         Optional<Configuration> configuration,
+                         List<Volume> volumes,
+                         List<VolumeMount> mounts) {
 
     @VisibleForTesting
     static final String KEY_CTX = KafkaProxyContext.class.getName();

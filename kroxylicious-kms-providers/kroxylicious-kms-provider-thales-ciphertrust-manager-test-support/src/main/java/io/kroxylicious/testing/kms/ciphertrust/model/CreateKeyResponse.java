@@ -24,6 +24,13 @@ public record CreateKeyResponse(
                                 @JsonProperty("name") String name,
                                 @JsonProperty("algorithm") String algorithm) {
 
+    /**
+     * Creates a CreateKeyResponse.
+     *
+     * @param id unique key identifier
+     * @param name key name
+     * @param algorithm encryption algorithm
+     */
     public CreateKeyResponse {
         Objects.requireNonNull(id);
         Objects.requireNonNull(name);

@@ -88,6 +88,10 @@ public class OperatorMain {
     @Nullable
     private SharedInformerManager sharedInformerManager;
 
+    /**
+     * Constructs an OperatorMain with default configuration.
+     * @throws IOException if the management HTTP server cannot be created
+     */
     public OperatorMain() throws IOException {
         this(createHttpServer(), null, new ControllerConfigurer());
     }
@@ -116,6 +120,10 @@ public class OperatorMain {
         return VersionInfo.fromResource(OPERATOR_METADATA_RESOURCE);
     }
 
+    /**
+     * Entrypoint for the operator process.
+     * @param args command-line arguments (currently unused)
+     */
     public static void main(String[] args) {
         try {
             new OperatorMain().start();

@@ -15,7 +15,7 @@ import io.kroxylicious.proxy.plugin.PluginImplName;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Configuration for the Sasl Initiation Filter.
+ * Configuration for the SASL inspection filter.
  *
  * @param enabledMechanisms set of SASL mechanisms to enable. Refer to the mechanism by its
  * IANA registered name.  If enabledMechanisms is null, the system will automatically enable

@@ -60,10 +60,21 @@ public interface EntityNameMapper {
      * Signals that the entity name that would be created by the mapper is somehow invalid.
      */
     class EntityMapperException extends RuntimeException {
+        /**
+         * Creates an entity mapper exception.
+         *
+         * @param message the detail message.
+         */
         public EntityMapperException(String message) {
             super(message);
         }
 
+        /**
+         * Creates an entity mapper exception.
+         *
+         * @param message the detail message.
+         * @param cause the underlying cause.
+         */
         public EntityMapperException(String message, Throwable cause) {
             super(message, cause);
         }

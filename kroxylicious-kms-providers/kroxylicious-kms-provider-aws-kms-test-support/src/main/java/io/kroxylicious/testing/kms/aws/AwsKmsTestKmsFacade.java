@@ -16,12 +16,23 @@ import org.testcontainers.utility.DockerImageName;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A {@link io.kroxylicious.testing.kms.TestKmsFacade} backed by an AWS KMS instance provided
+ * by a <a href="https://www.localstack.cloud/">LocalStack</a> container.
+ */
 public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private static final Logger LOG = LoggerFactory.getLogger(AwsKmsTestKmsFacade.class);
     private static final String IMAGE = "localstack/localstack:4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a";
     private static final DockerImageName LOCALSTACK_IMAGE = DockerImageName.parse(IMAGE)
             .asCompatibleSubstituteFor(DockerImageName.parse(IMAGE.substring(0, IMAGE.indexOf("@"))));
     private @Nullable LocalStackContainer localStackContainer;
+
+    /**
+     * Creates the facade.
+     */
+    public AwsKmsTestKmsFacade() {
+        // Intentionally empty
+    }
 
     @Override
     public boolean isAvailable() {

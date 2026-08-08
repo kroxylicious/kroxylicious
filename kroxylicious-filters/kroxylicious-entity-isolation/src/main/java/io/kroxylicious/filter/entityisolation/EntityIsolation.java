@@ -97,6 +97,11 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
                          @JsonProperty(required = true) @PluginImplName(EntityNameMapperService.class) String mapper,
                          @PluginImplConfig(implNameProperty = "mapper") Object mapperConfig) {
 
+        /**
+         * Validates the configuration, rejecting entity types that are not yet supported.
+         *
+         * @throws IllegalArgumentException if {@code entityTypes} contains an unsupported entity type.
+         */
         public Config {
             Objects.requireNonNull(entityTypes);
             Objects.requireNonNull(mapper);

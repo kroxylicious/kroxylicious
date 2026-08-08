@@ -55,6 +55,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 
+/**
+ * Utility methods for working with Kubernetes resources, references, and operator status conditions.
+ */
 public class ResourcesUtil {
 
     /**
@@ -81,6 +84,13 @@ public class ResourcesUtil {
                 || inRange(ch, '0', '9');
     }
 
+    /**
+     * Checks whether the given string is a valid DNS label (max 63 characters, alphanumeric with interior hyphens).
+     *
+     * @param string the string to validate
+     * @param rfc1035 if true, the first character must be a lowercase letter (RFC 1035); if false, it may also be a digit (RFC 1123)
+     * @return true if the string is a valid DNS label according to the selected RFC
+     */
     public static boolean isDnsLabel(String string, boolean rfc1035) {
         int length = string.length();
         if (length == 0 || length > 63) {
@@ -105,6 +115,15 @@ public class ResourcesUtil {
         return true;
     }
 
+    /**
+     * Validates that the given string is a valid DNS label, throwing if it is not.
+     *
+     * @param string the string to validate
+     * @param rfc1035 if true, apply RFC 1035 rules; if false, apply RFC 1123 rules
+     * @param message the exception message to use if validation fails
+     * @return the input string if it is a valid DNS label
+     * @throws IllegalArgumentException if the string is not a valid DNS label
+     */
     public static String requireIsDnsLabel(String string, boolean rfc1035, String message) {
         if (!isDnsLabel(string, rfc1035)) {
             throw new IllegalArgumentException(message);
@@ -112,6 +131,15 @@ public class ResourcesUtil {
         return string;
     }
 
+    /**
+     * Constructs a Kubernetes volume name from the API group, plural resource kind, and resource name.
+     *
+     * @param group the API group (may be empty for core resources)
+     * @param plural the plural form of the resource kind
+     * @param resourceName the name of the resource
+     * @return the constructed volume name, validated as an RFC 1035 DNS label
+     * @throws IllegalArgumentException if the resulting volume name is not a valid DNS label
+     */
     public static String volumeName(String group, String plural, String resourceName) {
         String volumeNamePrefix = group.isEmpty() ? plural : group + "." + plural;
         String volumeName = volumeNamePrefix + "-" + resourceName;
@@ -119,21 +147,46 @@ public class ResourcesUtil {
                 "volume name would not be a DNS label: " + volumeName);
     }
 
+    /**
+     * Determines whether the given local reference refers to a Kubernetes Secret (core API group, kind "Secret" or unspecified).
+     *
+     * @param ref the local reference to check
+     * @return true if the reference refers to a Secret
+     */
     public static boolean isSecret(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Secret".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
 
+    /**
+     * Determines whether the given local reference refers to a Strimzi Kafka resource (kafka.strimzi.io group, kind "Kafka" or unspecified).
+     *
+     * @param ref the local reference to check
+     * @return true if the reference refers to a Strimzi Kafka resource
+     */
     public static boolean isStrimziKafka(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Kafka".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty() || "kafka.strimzi.io".equals(ref.getGroup()));
     }
 
+    /**
+     * Determines whether the given local reference refers to a Kubernetes ConfigMap (core API group, kind "ConfigMap" or unspecified).
+     *
+     * @param ref the local reference to check
+     * @return true if the reference refers to a ConfigMap
+     */
     public static boolean isConfigMap(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "ConfigMap".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
 
+    /**
+     * Creates a new {@link OwnerReference} pointing to the given owner resource.
+     *
+     * @param owner the resource to create an owner reference for
+     * @return a new OwnerReference with the owner's kind, apiVersion, name, and UID
+     * @param <O> the type of the owner resource
+     */
     public static <O extends HasMetadata> OwnerReference newOwnerReferenceTo(O owner) {
         return new OwnerReferenceBuilder()
                 .withKind(owner.getKind())
@@ -143,14 +196,32 @@ public class ResourcesUtil {
                 .build();
     }
 
+    /**
+     * Extracts the kind from the given resource.
+     *
+     * @param resource the resource from which to extract the kind
+     * @return the resource kind
+     */
     public static String kind(HasMetadata resource) {
         return resource.getKind();
     }
 
+    /**
+     * Extracts the name from the given resource's metadata.
+     *
+     * @param resource the resource from which to extract the name
+     * @return the resource name
+     */
     public static String name(HasMetadata resource) {
         return resource.getMetadata().getName();
     }
 
+    /**
+     * Extracts the namespace from the given resource's metadata.
+     *
+     * @param resource the resource from which to extract the namespace
+     * @return the resource namespace
+     */
     public static String namespace(HasMetadata resource) {
         return resource.getMetadata().getNamespace();
     }
@@ -159,7 +230,7 @@ public class ResourcesUtil {
      * Extract generation from a resource's {@code metadata} object.
      *
      * @param resource the object from which to extract the metadata generation.
-     * @return the metadata generation of <code>0</code> if the metadata or the generation itself is null in alignment with @see <a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1623-standardize-conditions#kep-1623-standardize-conditions">KEP 1623</a>.
+     * @return the metadata generation, or {@code 0} if the metadata or the generation itself is null in alignment with <a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1623-standardize-conditions#kep-1623-standardize-conditions">KEP 1623</a>.
      */
     public static long generation(HasMetadata resource) {
         ObjectMeta metadata = resource.getMetadata();
@@ -169,6 +240,12 @@ public class ResourcesUtil {
         return metadata.getGeneration();
     }
 
+    /**
+     * Extracts the UID from the given resource's metadata.
+     *
+     * @param resource the resource from which to extract the UID
+     * @return the resource UID
+     */
     public static String uid(HasMetadata resource) {
         return resource.getMetadata().getUid();
     }
@@ -193,6 +270,13 @@ public class ResourcesUtil {
         return Collectors.toMap(ResourcesUtil::toLocalRef, Function.identity());
     }
 
+    /**
+     * Converts a Kubernetes resource into a {@link LocalRef} containing the resource's kind, group, and name.
+     *
+     * @param ref the resource to convert
+     * @return a local reference representing the given resource
+     * @param <T> the type of the resource
+     */
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public static <T extends HasMetadata> LocalRef<T> toLocalRef(T ref) {
         return (LocalRef) new AnyLocalRefBuilder()
@@ -202,6 +286,12 @@ public class ResourcesUtil {
                 .build();
     }
 
+    /**
+     * Extracts the API group from the given resource's apiVersion, returning an empty string for core resources.
+     *
+     * @param resource the resource from which to extract the API group
+     * @return the API group, or an empty string for core API resources (e.g. Secret, ConfigMap)
+     */
     public static String group(HasMetadata resource) {
         // core CustomResource classes like Secret, Deployment etc. have a group of empty string and their apiVersion is the String 'v1'
         if (!resource.getApiVersion().contains("/")) {
@@ -210,6 +300,16 @@ public class ResourcesUtil {
         return resource.getApiVersion().substring(0, resource.getApiVersion().indexOf("/"));
     }
 
+    /**
+     * Returns the {@link ResourceID}s of resources matching the given predicate in the same namespace as the primary resource.
+     *
+     * @param context the event source context providing access to the Kubernetes client
+     * @param primary the resource whose namespace is used for the lookup
+     * @param clazz the class of resources to search for
+     * @param predicate a filter applied to each resource to determine inclusion
+     * @return the set of matching resource IDs
+     * @param <T> the type of the resources being searched
+     */
     public static <T extends HasMetadata> Set<ResourceID> filteredResourceIdsInSameNamespace(EventSourceContext<?> context,
                                                                                              HasMetadata primary,
                                                                                              Class<T> clazz,
@@ -237,6 +337,14 @@ public class ResourcesUtil {
                 .stream();
     }
 
+    /**
+     * Checks whether the given resource is the target of the given local reference by comparing names.
+     *
+     * @param ref the local reference to check
+     * @param resource the resource to test against the reference
+     * @return true if the resource's name matches the reference's name
+     * @param <T> the type of the referent
+     */
     public static <T> boolean isReferent(LocalRef<T> ref, HasMetadata resource) {
         return Objects.equals(ResourcesUtil.name(resource), ref.getName());
     }
@@ -253,15 +361,38 @@ public class ResourcesUtil {
         return Set.of(new ResourceID(ref.getName(), owner.getMetadata().getNamespace()));
     }
 
+    /**
+     * Returns the given namespace if non-null, otherwise falls back to the owner's namespace.
+     *
+     * @param owner the resource providing the fallback namespace
+     * @param namespace the explicit namespace, or null to use the owner's namespace
+     * @return the resolved namespace
+     */
     public static String namespaceFor(HasMetadata owner, String namespace) {
         return Optional.ofNullable(namespace)
                 .orElse(owner.getMetadata().getNamespace());
     }
 
+    /**
+     * Formats a namespace and name into a "namespace/name" string suitable for logging and diagnostics.
+     *
+     * @param namespace the namespace
+     * @param name the resource name
+     * @return the formatted namespaced name
+     */
     public static String namespacedName(String namespace, String name) {
         return namespace + "/" + name;
     }
 
+    /**
+     * Converts a list of local references into a set of {@link ResourceID}s in the owner's namespace.
+     *
+     * @param owner the resource owning the references, used to determine the namespace
+     * @param refs the list of local references to convert
+     * @return a set of ResourceIDs corresponding to the given references
+     * @param <O> the type of the reference owner
+     * @param <R> the type of the referents
+     */
     public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner,
                                                                                                         List<? extends LocalRef<R>> refs) {
         return refs.stream()
@@ -271,7 +402,7 @@ public class ResourcesUtil {
 
     /**
      * Finds the (ids of) the resources which reference the given referent
-     * This is the inverse of {@link #localRefAsResourceId(HasMetadata, LocalRef)}}.
+     * This is the inverse of {@link #localRefAsResourceId(HasMetadata, LocalRef)}.
      * @param context The context
      * @param referent The referent
      * @param owner The type of the owner of the reference
@@ -432,6 +563,13 @@ public class ResourcesUtil {
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * Builds a human-readable namespaced slug string for a local reference, such as "secret/my-secret in namespace 'default'".
+     *
+     * @param ref the local reference to describe
+     * @param resource the resource providing the namespace context
+     * @return a namespaced slug string for use in diagnostic messages
+     */
     public static String namespacedSlug(LocalRef<?> ref, HasMetadata resource) {
         return slug(ref) + " in namespace '" + namespace(resource) + "'";
     }
@@ -444,6 +582,12 @@ public class ResourcesUtil {
         return kind + groupString + "/" + name;
     }
 
+    /**
+     * Builds a human-readable slug string for a resource, such as "secret/my-secret" or "kafka.strimzi.io/my-cluster".
+     *
+     * @param ref the resource to describe
+     * @return a slug string combining the lowercase kind, optional group, and name
+     */
     public static String slug(HasMetadata ref) {
         String group = group(ref);
         String name = name(ref);
@@ -510,18 +654,39 @@ public class ResourcesUtil {
                 .anyMatch(Condition::isResolvedRefsFalse);
     }
 
+    /**
+     * Returns a predicate that tests whether a resource's status observedGeneration matches its metadata generation.
+     *
+     * @return a predicate that returns true for resources with fresh (up-to-date) status
+     */
     public static Predicate<HasMetadata> isStatusFresh() {
         return ResourcesUtil::isStatusFresh;
     }
 
+    /**
+     * Returns a predicate that tests whether a resource's status observedGeneration does not match its metadata generation.
+     *
+     * @return a predicate that returns true for resources with stale (not-yet-reconciled) status
+     */
     public static Predicate<HasMetadata> isStatusStale() {
         return isStatusFresh().negate();
     }
 
+    /**
+     * Returns a predicate that tests whether a resource has a current-generation ResolvedRefs=false condition.
+     *
+     * @return a predicate that returns true for resources with an unresolved-references condition matching the current generation
+     */
     public static Predicate<HasMetadata> hasFreshResolvedRefsFalseCondition() {
         return ResourcesUtil::hasFreshResolvedRefsFalseCondition;
     }
 
+    /**
+     * Returns a predicate that tests whether a resource has the specified kind.
+     *
+     * @param kind the expected resource kind
+     * @return a predicate that returns true for resources matching the given kind
+     */
     public static Predicate<HasMetadata> hasKind(String kind) {
         return hasMetadata -> HasMetadata.getKind(hasMetadata.getClass()).equals(kind);
     }
@@ -664,10 +829,31 @@ public class ResourcesUtil {
         }
     }
 
+    /**
+     * Retrieves the Strimzi Kafka secondary resource from the given reconciliation context.
+     *
+     * @param context the reconciliation context to query
+     * @param eventSourceName the event source name used to look up the Kafka resource
+     * @return an Optional containing the Kafka resource if found, or empty otherwise
+     * @param <T> the type of the primary custom resource
+     */
     public static <T extends CustomResource<?, ?>> Optional<Kafka> getKafka(Context<T> context, String eventSourceName) {
         return context.getSecondaryResource(Kafka.class, eventSourceName);
     }
 
+    /**
+     * Validates a {@link StrimziKafkaRef} by checking that the Kafka CRD is installed, the referenced Kafka resource exists,
+     * and the specified listener is present in both the spec and the status.
+     *
+     * @param resource the custom resource containing the reference
+     * @param context the reconciliation context
+     * @param eventSourceName the event source name used to resolve the Kafka resource
+     * @param strimziKafkaRef the Strimzi Kafka reference to validate
+     * @param path the path to the reference within the resource spec, used in condition messages
+     * @param statusFactory used to generate status condition patches on validation failure
+     * @return a result containing either a status condition patch (if invalid) or the resolved Kafka resource
+     * @param <T> the custom resource type
+     */
     public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkStrimziKafkaRef(T resource,
                                                                                                Context<T> context,
                                                                                                String eventSourceName,
@@ -699,6 +885,14 @@ public class ResourcesUtil {
         }
     }
 
+    /**
+     * Retrieves the {@link ListenerStatus} for the listener named in the KafkaService's strimziKafkaRef from the Strimzi Kafka resource status.
+     *
+     * @param context the reconciliation context for the KafkaService
+     * @param service the KafkaService whose strimziKafkaRef identifies the listener
+     * @param eventSourceName the event source name used to resolve the Kafka resource
+     * @return an Optional containing the matching ListenerStatus, or empty if the Kafka resource or listener is not found
+     */
     public static Optional<ListenerStatus> retrieveBootstrapServerAddress(Context<KafkaService> context,
                                                                           KafkaService service,
                                                                           String eventSourceName) {
@@ -757,7 +951,11 @@ public class ResourcesUtil {
     }
 
     /**
-     * If `storeType` is null in the KafkaService CR then derive it from the key
+     * Derives the trust store type (PEM, PKCS12, or JKS) from the file extension of the trust anchor's key.
+     *
+     * @param trustAnchorRef the trust anchor reference whose key extension determines the store type
+     * @return the store type string corresponding to the key's file extension
+     * @throws IllegalArgumentException if the key extension is not recognized or the key has no extension
      */
     public static String deriveStoreTypeFromKeySuffix(TrustAnchorRef trustAnchorRef) {
         String ext = getKeyExtension(trustAnchorRef.getKey());
@@ -793,19 +991,38 @@ public class ResourcesUtil {
         return null;
     }
 
+    /**
+     * Determines whether the given trust anchor reference points to a Kubernetes Secret.
+     *
+     * @param trustAnchorRef the trust anchor reference to check
+     * @return true if the trust anchor's underlying ref has kind "Secret"
+     */
     public static boolean isSecret(TrustAnchorRef trustAnchorRef) {
         return "Secret".equals(trustAnchorRef.getRef().getKind());
     }
 
     /**
-     * @return an address that any pod in the same k8s cluster can use to address the service, regardless of which namespace the pod is in
-     * @param serviceName service name
-     * @param namespacedResource resource in the namespace of the Service
+     * Builds a fully-qualified cluster-local DNS address for a Kubernetes Service that is routable from any namespace.
+     *
+     * @param serviceName the name of the Service
+     * @param namespacedResource a resource in the same namespace as the Service, used to determine the namespace
+     * @return a fully-qualified service address in the form "serviceName.namespace.svc.cluster.local"
      */
     public static String crossNamespaceServiceAddress(String serviceName, HasMetadata namespacedResource) {
         return serviceName + "." + namespace(namespacedResource) + ".svc.cluster.local";
     }
 
+    /**
+     * Validates the Strimzi-generated cluster CA trust anchor Secret for the referenced Kafka cluster, checking that
+     * the expected Secret exists and contains the {@value #STRIMZI_CLUSTER_CA_BUNDLE} data key.
+     *
+     * @param resource the KafkaService resource being reconciled
+     * @param context the reconciliation context
+     * @param eventSourceName the event source name used to resolve the cluster CA Secret
+     * @param strimziKafkaRef the Strimzi Kafka reference identifying the cluster
+     * @param statusFactory used to generate status condition patches on validation failure
+     * @return a result containing either a status condition patch (if invalid) or the resolved cluster CA Secret
+     */
     public static ResourceCheckResult<KafkaService> checkStrimziTrustAnchor(KafkaService resource, Context<KafkaService> context,
                                                                             String eventSourceName,
                                                                             StrimziKafkaRef strimziKafkaRef, StatusFactory<KafkaService> statusFactory) {

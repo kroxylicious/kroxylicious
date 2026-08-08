@@ -38,6 +38,18 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static java.lang.Math.toIntExact;
 
+/**
+ * Networking model for a cluster ingress using OpenShift Routes with SNI-based node identification.
+ *
+ * @param proxy the KafkaProxy that owns this model
+ * @param cluster the virtual Kafka cluster
+ * @param ingress the ingress resource
+ * @param openShiftRoute the OpenShift route specification from the ingress
+ * @param nodeIdRanges the node ID ranges describing the upstream Kafka nodes
+ * @param tls the TLS configuration for downstream connections
+ * @param sharedSniPort the shared SNI port on the proxy container
+ * @param routeHostDetails the resolved route host details used for domain substitution
+ */
 public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
                                                  VirtualKafkaCluster cluster,
                                                  KafkaProxyIngress ingress,
@@ -48,6 +60,9 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
                                                  List<RouteHostDetails> routeHostDetails)
         implements ClusterIngressNetworkingModel {
 
+    /**
+     * Validates that all required fields are non-null and nodeIdRanges is non-empty.
+     */
     public RouteClusterIngressNetworkingModel {
         Objects.requireNonNull(proxy);
         Objects.requireNonNull(cluster);
@@ -138,6 +153,11 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
         return Stream.empty();
     }
 
+    /**
+     * Looks up the resolved domain (host without subdomain) for the given route type from the route host details.
+     * @param routeFor the route type to look up (bootstrap or node)
+     * @return an optional containing the domain if resolved, or empty if not yet available
+     */
     public Optional<String> getDomain(RouteHostDetails.RouteFor routeFor) {
         return RouteHostDetails.findFirstRouteHostWithoutSubdomainFromList(routeHostDetails, namespace(cluster), name(cluster), name(ingress), routeFor);
     }

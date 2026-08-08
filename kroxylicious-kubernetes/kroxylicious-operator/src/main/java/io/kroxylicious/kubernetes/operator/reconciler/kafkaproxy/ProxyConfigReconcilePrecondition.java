@@ -18,6 +18,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
  */
 public class ProxyConfigReconcilePrecondition implements Condition<ConfigMap, KafkaProxy> {
 
+    /**
+     * Constructs the precondition for proxy config reconciliation.
+     */
+    public ProxyConfigReconcilePrecondition() {
+        // explicit ctor needed for javadoc.
+    }
+
     @Override
     public boolean isMet(DependentResource<ConfigMap, KafkaProxy> dependentResource,
                          KafkaProxy primary,
