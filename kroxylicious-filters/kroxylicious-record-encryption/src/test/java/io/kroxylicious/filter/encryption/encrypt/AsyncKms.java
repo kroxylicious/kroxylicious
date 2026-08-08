@@ -50,7 +50,8 @@ class AsyncKms<K, E> implements Kms<K, E> {
         return completingOnExecutor(delegate.resolveAlias(alias));
     }
 
-    private <T> @NonNull CompletionStage<T> completingOnExecutor(@NonNull CompletionStage<T> stage) {
+    @NonNull
+    private <T> CompletionStage<T> completingOnExecutor(@NonNull CompletionStage<T> stage) {
         return stage.whenCompleteAsync((t, throwable) -> {
         }, executor);
     }

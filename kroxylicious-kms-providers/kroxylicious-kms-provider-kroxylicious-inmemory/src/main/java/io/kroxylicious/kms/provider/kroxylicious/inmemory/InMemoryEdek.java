@@ -10,12 +10,26 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * An encrypted Data Encryption Key (DEK), as produced by {@link InMemoryKms}, wrapped using
+ * AES-GCM with a Key Encryption Key (KEK) held in the KMS.
+ *
+ * @param numAuthBits the length of the GCM authentication tag, in bits.
+ * @param iv the initialization vector used when wrapping the DEK.
+ * @param kekRef the id of the KEK used to wrap the DEK.
+ * @param edek the wrapped DEK.
+ */
 public record InMemoryEdek(
                            int numAuthBits,
                            @SuppressWarnings("ArrayRecordComponent") byte[] iv, // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
                            UUID kekRef,
                            @SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
 
+    /**
+     * Validates the record components.
+     * @throws IllegalArgumentException if {@code numAuthBits} is not an authentication tag
+     * length permitted by NIST.SP.800-38D §5.2.1.2.
+     */
     public InMemoryEdek {
         if (numAuthBits != 128
                 && numAuthBits != 120
