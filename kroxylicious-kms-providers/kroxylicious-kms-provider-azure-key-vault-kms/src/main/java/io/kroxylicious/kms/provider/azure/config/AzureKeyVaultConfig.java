@@ -50,6 +50,12 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
     private static final Logger LOGGER = LoggerFactory.getLogger(AzureKeyVaultConfig.class);
     private static final Pattern VAULT_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9\\-]{3,24}$");
 
+    /**
+     * Validates the record components.
+     * @throws IllegalArgumentException if neither or both of {@code oauth2ClientCredentials} and
+     * {@code managedIdentityCredentials} are specified, if {@code keyVaultName}, {@code keyVaultHost},
+     * {@code keyVaultScheme} or {@code keyVaultPort} is invalid.
+     */
     public AzureKeyVaultConfig {
         Objects.requireNonNull(keyVaultName);
         Objects.requireNonNull(keyVaultHost);
@@ -101,6 +107,12 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
         return keyVaultScheme == null ? "https" : keyVaultScheme;
     }
 
+    /**
+     * The base URL for requests to the named vault, built from the configured scheme, host and port.
+     *
+     * @param vaultName the name of the vault.
+     * @return the base URL for the vault, without a trailing slash.
+     */
     public String keyVaultUrl(String vaultName) {
         String host = vaultName + "." + keyVaultHost;
         String portSpec = keyVaultPort() == null ? "" : ":" + keyVaultPort();

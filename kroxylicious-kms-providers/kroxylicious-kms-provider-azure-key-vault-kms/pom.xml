@@ -22,10 +22,6 @@
     <name>Azure Key Vault KMS</name>
     <description>An Azure Key Vault KMS Implementation</description>
 
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

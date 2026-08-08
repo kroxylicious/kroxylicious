@@ -28,13 +28,27 @@ import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
+/**
+ * A minimal client for the <a href="https://learn.microsoft.com/en-us/rest/api/keyvault/">Azure Key Vault REST API</a>,
+ * supporting the get key, wrap key and unwrap key operations. Requests are authenticated using bearer tokens
+ * obtained from a {@link BearerTokenService}.
+ */
 public class KeyVaultClient implements AutoCloseable {
+    /**
+     * The version of the Azure Key Vault REST API used by this client.
+     */
     public static final String API_VERSION = "7.4";
     private final BearerTokenService service;
     private final HttpClient client;
     private final AzureKeyVaultConfig config;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    /**
+     * Creates the client.
+     *
+     * @param service service used to obtain bearer tokens to authenticate requests.
+     * @param config Azure Key Vault configuration.
+     */
     public KeyVaultClient(BearerTokenService service, AzureKeyVaultConfig config) {
         Objects.requireNonNull(service, "service cannot be null");
         Objects.requireNonNull(config, "config cannot be null");
@@ -46,14 +60,35 @@ public class KeyVaultClient implements AutoCloseable {
         this.client = builder.version(HttpClient.Version.HTTP_1_1).followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(10L)).build();
     }
 
+    /**
+     * Wraps key material using a key held in the vault.
+     *
+     * @param wrappingKey the key to wrap with.
+     * @param bytes the key material to wrap.
+     * @return stage which will be completed with the wrapped bytes, or failed if the operation fails.
+     */
     public CompletionStage<byte[]> wrap(WrappingKey wrappingKey, byte[] bytes) {
         return wrapOrUnwrap(wrappingKey, bytes, "wrapkey");
     }
 
+    /**
+     * Unwraps a wrapped key using a key held in the vault.
+     *
+     * @param wrappingKey the key to unwrap with.
+     * @param edek the wrapped bytes to unwrap.
+     * @return stage which will be completed with the unwrapped bytes, or failed if the operation fails.
+     */
     public CompletionStage<byte[]> unwrap(WrappingKey wrappingKey, byte[] edek) {
         return wrapOrUnwrap(wrappingKey, edek, "unwrapkey");
     }
 
+    /**
+     * Gets the latest version of a named key from a vault.
+     *
+     * @param vaultName the name of the vault holding the key.
+     * @param keyName the name of the key.
+     * @return stage which will be completed with the key details, or failed if the key cannot be retrieved.
+     */
     public CompletionStage<GetKeyResponse> getKey(String vaultName, String keyName) {
         Objects.requireNonNull(keyName);
         return service.getBearerToken()

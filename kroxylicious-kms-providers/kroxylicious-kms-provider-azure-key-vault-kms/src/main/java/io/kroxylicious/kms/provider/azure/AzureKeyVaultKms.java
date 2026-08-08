@@ -33,6 +33,10 @@ import io.kroxylicious.kms.service.UnknownKeyException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * An implementation of the {@link Kms} interface backed by Azure Key Vault. Data Encryption Keys (DEKs)
+ * are generated proxy-side and wrapped/unwrapped remotely using a Key Encryption Key (KEK) held in a vault.
+ */
 public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AzureKeyVaultKms.class);
@@ -44,6 +48,13 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
     private final String encryptingKeyVaultName;
     private final RandomGenerator random;
 
+    /**
+     * Creates the KMS.
+     *
+     * @param client client used to interact with Azure Key Vault.
+     * @param encryptingKeyVaultName name of the vault holding the Key Encryption Keys (KEKs).
+     * @param random source of randomness used to generate Data Encryption Keys (DEKs).
+     */
     public AzureKeyVaultKms(KeyVaultClient client, String encryptingKeyVaultName, RandomGenerator random) {
         this.client = client;
         this.encryptingKeyVaultName = encryptingKeyVaultName;
