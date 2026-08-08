@@ -608,8 +608,8 @@
 
     <!-- All modules are declared in named profiles below. The build-the-world profile is
          activated via .mvn/maven.config and builds everything by default. To add a module,
-         update the relevant intermediate parent pom.xml (proxy-core/, runtime-plugins/,
-         supplementary/, or kroxylicious-kubernetes/) — not this file.
+         update the relevant intermediate aggregator pom.xml (kroxylicious-proxy-core/,
+         kroxylicious-runtime-plugins/, kroxylicious-supplementary/, or kroxylicious-kubernetes/) — not this file.
          Enforced by the module-profile lint check. -->
     <modules/>
 
@@ -1619,8 +1619,9 @@
               kubernetes-management — modules that manage proxy deployment in Kubernetes;
                                     future deployment targets get their own <platform>-management
 
-            Intermediate parent POMs (proxy-core/, runtime-plugins/, supplementary/) list
-            their leaf modules via ../ relative paths because the leaves live at the repo root.
+            Intermediate aggregator POMs (kroxylicious-proxy-core/, kroxylicious-runtime-plugins/,
+            kroxylicious-supplementary/) list their leaf modules via ../ relative paths because
+            the leaves live at the repo root.
         -->
         <profile>
             <!--
@@ -1637,28 +1638,28 @@
                 </property>
             </activation>
             <modules>
-                <module>proxy-core</module>
-                <module>runtime-plugins</module>
-                <module>supplementary</module>
+                <module>kroxylicious-proxy-core</module>
+                <module>kroxylicious-runtime-plugins</module>
+                <module>kroxylicious-supplementary</module>
                 <module>kroxylicious-kubernetes</module>
             </modules>
         </profile>
         <profile>
             <id>proxy-core</id>
             <modules>
-                <module>proxy-core</module>
+                <module>kroxylicious-proxy-core</module>
             </modules>
         </profile>
         <profile>
             <id>runtime-plugins</id>
             <modules>
-                <module>runtime-plugins</module>
+                <module>kroxylicious-runtime-plugins</module>
             </modules>
         </profile>
         <profile>
             <id>supplementary</id>
             <modules>
-                <module>supplementary</module>
+                <module>kroxylicious-supplementary</module>
             </modules>
         </profile>
         <profile>

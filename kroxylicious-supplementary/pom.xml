@@ -15,11 +15,13 @@
         <version>0.24.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>kroxylicious-proxy-core-parent</artifactId>
+    <!-- Pure aggregator — do not declare this as <parent> in any child module. -->
+    <artifactId>kroxylicious-supplementary-aggregator</artifactId>
 
-    <name>Proxy core components</name>
-    <description>Modules that build or enable use of the kroxylicious-api.
-        Rule: a module belongs here if it IS the API/runtime or makes the runtime testable.</description>
+    <name>Supplementary components</name>
+    <description>Modules that accompany a release but contain no executable proxy code.
+        Rule: a module belongs here if it supports distribution or evaluation of the proxy
+        without being part of the runtime or plugin surface.</description>
     <packaging>pom</packaging>
 
     <properties>
@@ -31,13 +33,7 @@
         is one directory below root. No source files move — only this pom.xml is new.
     -->
     <modules>
-        <module>../kroxylicious-annotations</module>
-        <module>../kroxylicious-krpc-plugin</module>
-        <module>../kroxylicious-kafka-message-tools</module>
-        <module>../kroxylicious-bom</module>
-        <module>../kroxylicious-api</module>
-        <module>../kroxylicious-integration-test-support</module>
-        <module>../kroxylicious-runtime</module>
-        <module>../kroxylicious-app</module>
+        <module>../kroxylicious-docs</module>
+        <module>../kroxylicious-openmessaging-benchmarks</module>
     </modules>
 </project>

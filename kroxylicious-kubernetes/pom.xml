@@ -22,7 +22,6 @@
     <packaging>pom</packaging>
 
     <properties>
-        <maven.deploy.skip>true</maven.deploy.skip>
         <josdk.version>5.5.0</josdk.version>
     </properties>
 
