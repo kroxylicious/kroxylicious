@@ -4,6 +4,11 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+/**
+ * Test support for the Azure Key Vault KMS provider, providing a
+ * {@link io.kroxylicious.testing.kms.TestKmsFacade} implementation backed by a
+ * containerised Azure Key Vault emulator.
+ */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)
