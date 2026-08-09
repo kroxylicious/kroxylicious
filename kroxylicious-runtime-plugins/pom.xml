@@ -20,7 +20,7 @@
 
     <name>Runtime plugin components</name>
     <description>Modules that depend on kroxylicious-api and/or the runtime to provide functionality.
-        Rule: a module belongs here if it plugs into the runtime (filters, KMS providers, authorisers)
+        Rule: a module belongs here if it plugs into the runtime (filters, routers, KMS providers, authorisers)
         or provides test support for building such plugins.</description>
     <packaging>pom</packaging>
 
