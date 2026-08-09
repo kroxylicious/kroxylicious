@@ -16,6 +16,14 @@ import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
  * Factory for {@link InMemoryTestKmsFacade}s.
  */
 public class InMemoryTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, UUID, InMemoryEdek> {
+
+    /**
+     * Creates the factory.
+     */
+    public InMemoryTestKmsFacadeFactory() {
+        // Intentionally empty
+    }
+
     /**
      * {@inheritDoc}
      */
