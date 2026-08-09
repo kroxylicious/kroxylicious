@@ -30,7 +30,7 @@ This provides strong client identity based on the certificate's subject or subje
 SASL authentication::
 Kafka clients and brokers use the Simple Authentication and Security Layer (SASL) protocol to authenticate.
 The proxy can interact with this SASL exchange in several ways, ranging from transparently forwarding it to actively validating credentials.
-The different SASL authentication modes are described in xref:con-sasl-authentication-modes-{context}[].
+For more information about SASL authentication modes, see xref:con-sasl-authentication-modes-{context}[].
 
 These mechanisms are not mutually exclusive.
 A deployment can use mTLS to establish transport-level identity and SASL to establish application-level identity.

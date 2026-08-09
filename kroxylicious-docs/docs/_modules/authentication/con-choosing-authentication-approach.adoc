@@ -11,13 +11,13 @@
 
 [role="_abstract"]
 The right authentication approach depends on your existing infrastructure, your security requirements, and which proxy features you need.
-This section provides guidance to help you decide.
+This section provides guidance to help you choose the right authentication approach based on your existing infrastructure, security requirements, and required proxy features.
 
 == Mutual TLS (mTLS)
 
 Use mTLS when:
 
-* Your clients can use client certificates which are signed by an issuer which you can trust. This is straightforward if you operate your own PKI and issue all the client certificates. It can also work with externally issued certificates provided you trust the issuing CAs.
+* Clients can use certificates signed by a trusted issuer. While straightforward if you operate your own PKI, this approach also works with externally issued certificates if you trust the issuing CAs.
 * You want strong transport-level identity without depending on SASL.
 * You are willing to manage the operational overhead of certificate distribution, renewal, and revocation.
 
