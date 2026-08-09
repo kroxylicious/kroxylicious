@@ -15,10 +15,9 @@ set +u
 REPOSITORY="origin"
 BRANCH_FROM="main"
 WORK_BRANCH_NAME="release-work-$(openssl rand -hex 12)"
-SKIP_VALIDATION="false"
 RELEASE_NOTES_DIR=${RELEASE_NOTES_DIR:-.releaseNotes}
 CHANGELOG_LINK_PREFIX="https://github.com/kroxylicious/kroxylicious"
-while getopts ":l:v:b:k:r:n:w:c:sh" opt; do
+while getopts ":l:v:b:k:r:n:w:c:h" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
     ;;
@@ -36,11 +35,9 @@ while getopts ":l:v:b:k:r:n:w:c:sh" opt; do
     ;;
     c) CHANGELOG_LINK_PREFIX="${OPTARG}"
     ;;
-    s) SKIP_VALIDATION="true"
-    ;;
     h)
       1>&2 cat << EOF
-usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-c changelog-link-prefix] [-s] [-d] [-h]
+usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-c changelog-link-prefix] [-h]
  -k short key id used to sign the release
  -v version number e.g. 0.3.0
  -b branch to release from (defaults to 'main')
@@ -49,7 +46,6 @@ usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-c c
  -r the remote name of the kroxylicious repository (defaults to 'origin')
  -w release work branch
  -c URL prefix for issue/PR links in the changelog (defaults to https://github.com/kroxylicious/kroxylicious)
- -s skips validation
  -h this help message
 EOF
       exit 1
@@ -141,11 +137,6 @@ INITIAL_VERSION=$(mvn help:evaluate -Dexpression=project.version --quiet -Dforce
 TEMPORARY_RELEASE_BRANCH="${WORK_BRANCH_NAME}-rel"
 git checkout -b "${TEMPORARY_RELEASE_BRANCH}" "${REPOSITORY}/${BRANCH_FROM}"
 
-if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
-    printf "Validating the build is ${GREEN}green${NC}"
-    mvn --quiet clean verify
-fi
-
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
 ${SED} -i "s|\\\${changelog.link.prefix}|${CHANGELOG_LINK_PREFIX}|g" changelog/.templates/CHANGELOG.md
@@ -168,10 +159,6 @@ RELEASE_TAG="v${RELEASE_VERSION}"
 
 echo "Committing release to git"
 git commit --message "Release version ${RELEASE_TAG}" --signoff
-
-git tag -f "${RELEASE_TAG}"
-
-git push "${REPOSITORY}" "${RELEASE_TAG}"
 
 echo "Deploying release"
 
@@ -217,33 +204,6 @@ git commit --message "Start next development version" --signoff
 
 ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | (grep -v 'no default repository' || true))
 gh repo set-default "$(git remote get-url "${REPOSITORY}")"
-
-# create GitHub release via CLI https://cli.github.com/manual/gh_release_create
-# it is created as a draft, the deploy_release workflow will publish it.
-echo "Creating draft release notes."
-API_COMPATABILITY_REPORT=kroxylicious-api/target/japicmp/"${RELEASE_VERSION}"-compatability.html
-cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
-# csplit will create a file for every version as we use ## to denote versions. We also use # CHANGELOG as a header so the current release is actually in the 01 file (zero based)
-APP_BINARY_DISTRIBUTION_ASSET="./kroxylicious-app/target/kroxylicious-app-${RELEASE_VERSION}-bin"
-OPERATOR_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-${RELEASE_VERSION}"
-ADMISSION_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-${RELEASE_VERSION}"
-gh release create --title "${RELEASE_TAG}" \
-  --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" \
-  --draft "${RELEASE_TAG}" \
-  "${APP_BINARY_DISTRIBUTION_ASSET}.tar.gz" \
-  "${APP_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
-  "${APP_BINARY_DISTRIBUTION_ASSET}.zip" \
-  "${APP_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
-  "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.tar.gz" \
-  "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
-  "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.zip" \
-  "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
-  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.tar.gz" \
-  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
-  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.zip" \
-  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
-  "${API_COMPATABILITY_REPORT}"
-
 
 BODY="Release version ${RELEASE_VERSION}"
 
