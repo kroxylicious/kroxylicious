@@ -66,14 +66,14 @@ mvn -Dtargeted-build -Pkubernetes-management verify   # kubernetes modules only
 
 ### Functional profiles
 
-| profile                    | description                                                                                                                                                                                           |
-|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `-Pqa` (active by default) | Runs quality assurance checks: dependency analysis, code formatting, import sorting, license headers, checkstyle, spotbugs, japicmp API compatibility, and enforcer rules. Use `-P '!qa'` to disable. |
-| `-Pci`                     | CI-specific configuration: validates formatting instead of applying it, runs jacoco code coverage, switches license plugin to check mode instead of format mode.                                      |
-| `-Pdist`                   | Creates distribution artifacts including tarball, container images. Required for building deployable packages.                                                                                        |
-| `-Pquick`                  | Fast build mode: skips all tests, QA checks, javadoc, and documentation. Activates with `-Dquick`. Excludes integration/system test modules from reactor.                                             |
-| `-Psystemtest`             | Enables system test module and skips all other test types. Use with `-Pdist` to run Kubernetes-based system tests.                                                                                    |
-| `-P-withAdditionalFilters` | Excludes Kroxylicious-maintained filter implementations from the distribution. Only use with `-Pdist`.                                                                                                |
+| profile                                                 | description                                                                                                                                                                                                     |
+|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `-Pqa` (active by default)                              | Runs quality assurance checks: dependency analysis, code formatting, import sorting, license headers, checkstyle, spotbugs, japicmp API compatibility, and enforcer rules. Use `-P '!qa'` to disable.           |
+| `-Pci`                                                  | CI-specific configuration: validates formatting instead of applying it, runs jacoco code coverage, switches license plugin to check mode instead of format mode.                                                |
+| `-Pdist`                                                | Creates distribution artifacts including tarball, container images. Required for building deployable packages.                                                                                                  |
+| `quick`                                                 | Fast build mode: skips all tests, QA checks, javadoc, and documentation. Activated by setting the `quick` property. e.g. `-Dquick`. Excludes integration/system test modules from reactor.                      |
+| `-Psystemtest`                                          | Enables system test module and skips all other test types. Use with `-Pdist` to run Kubernetes-based system tests.                                                                                              |
+| `-P-withAdditionalFilters`                              | Excludes Kroxylicious-maintained filter implementations from the distribution. Only use with `-Pdist`.                                                                                                          |
 | `errorprone-jdk-compatible` (auto-activated on JDK 17+) | Runs Error Prone static analysis during compilation to detect bug patterns. Adds ~15-30% to compilation time. Disable with `-Derrorprone.skip=true` for faster builds (see property table above for semantics). |
 
 The kafka environment used by the integrations tests can be _defaulted_ with these two environment variables.
