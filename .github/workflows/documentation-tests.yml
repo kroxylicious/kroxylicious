@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build_operator:
+  documentation_tests:
     runs-on: ubuntu-latest
 
     steps:
