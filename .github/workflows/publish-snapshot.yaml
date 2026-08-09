@@ -74,7 +74,7 @@ jobs:
       - name: 'Determine project version'
         id: version
         run: |
-          PROJECT_VERSION=$(mvn --quiet help:evaluate -Dexpression=project.version -q -DforceStdout)
+          PROJECT_VERSION=$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)
           echo "PROJECT_VERSION=${PROJECT_VERSION}" >> "$GITHUB_OUTPUT"
           if [[ "${PROJECT_VERSION}" == *-SNAPSHOT ]]; then
             echo "is_snapshot=true" >> "$GITHUB_OUTPUT"
