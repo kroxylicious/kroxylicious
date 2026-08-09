@@ -40,6 +40,18 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @Plugin(configType = IntegrationTestingKmsService.Config.class)
 public class IntegrationTestingKmsService implements KmsService<IntegrationTestingKmsService.Config, UUID, InMemoryEdek> {
 
+    /**
+     * Creates the service.
+     * Use of {@link #newInstance()} is preferred.
+     */
+    public IntegrationTestingKmsService() {
+        // Intentionally empty
+    }
+
+    /**
+     * Creates a new instance of this service using the {@link ServiceLoader} mechanism.
+     * @return The new instance.
+     */
     public static IntegrationTestingKmsService newInstance() {
         return (IntegrationTestingKmsService) ServiceLoader.load(KmsService.class).stream()
                 .filter(p -> p.type() == IntegrationTestingKmsService.class)
@@ -51,8 +63,17 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
     @SuppressWarnings("java:S3077") // Config is an immutable object
     private volatile @Nullable Config config;
 
+    /**
+     * The configuration for the {@link IntegrationTestingKmsService}.
+     *
+     * @param name The name identifying the shared KMS state to use.
+     */
     public record Config(
                          String name) {
+        /**
+         * Validates the record components.
+         * @throws IllegalArgumentException if {@code name} is null or empty.
+         */
         public Config {
             if (name == null || name.isEmpty()) {
                 throw new IllegalArgumentException();
@@ -74,6 +95,10 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
         return KMSES.computeIfAbsent(config.name(), ignored -> new InMemoryKms(12, 128, Map.of(), Map.of()));
     }
 
+    /**
+     * Deletes the KMS state with the given name.
+     * @param name The name identifying the shared KMS state to delete.
+     */
     public static void delete(String name) {
         KMSES.remove(name);
     }
