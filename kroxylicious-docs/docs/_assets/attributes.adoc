@@ -187,6 +187,10 @@ ifndef::DocRoot[:DocRoot: ..]
 :SASLInspectionGuideText: SASL Inspection guide
 :SASLInspectionGuide: link:{SASLInspectionGuideUrl}[{SASLInspectionGuideText}]
 
+:AuthenticationGuideUrl: {DocRoot}/authentication-guide/
+:AuthenticationGuideText: Client Authentication guide
+:AuthenticationGuide: link:{AuthenticationGuideUrl}[{AuthenticationGuideText}]
+
 :ConnectionExpirationGuideUrl: {DocRoot}/connection-expiration-guide/
 :ConnectionExpirationGuideText: Connection Expiration guide
 :ConnectionExpirationGuide: link:{ConnectionExpirationGuideUrl}[{ConnectionExpirationGuideText}]

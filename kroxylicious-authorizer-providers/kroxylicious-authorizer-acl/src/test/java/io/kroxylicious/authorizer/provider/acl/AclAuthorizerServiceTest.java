@@ -6,6 +6,9 @@
 
 package io.kroxylicious.authorizer.provider.acl;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -15,6 +18,7 @@ import java.util.regex.Pattern;
 import org.antlr.v4.runtime.CharStreams;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -45,6 +49,29 @@ class AclAuthorizerServiceTest {
         assertThat(authorize).isCompleted();
         return authorize.toCompletableFuture().join()
                 .decision(resourceType, resourceName);
+    }
+
+    @Test
+    void shouldBuildAuthorizerFromConfiguredRulesFile(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path aclFile = tempDir.resolve("rules.acl");
+        Files.writeString(aclFile, """
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                allow User with name = "Alice" to READ Topic with name = "foo";
+
+                otherwise deny;""");
+        var service = new AclAuthorizerService();
+        service.initialize(new AclAuthorizerConfig(aclFile.toString()));
+
+        // When
+        var authorizer = service.build();
+
+        // Then
+        assertThat(decision((AclAuthorizer) authorizer, new User("Alice"), FakeTopicResource.READ, "foo"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision((AclAuthorizer) authorizer, new User("Bob"), FakeTopicResource.READ, "foo"))
+                .isEqualTo(Decision.DENY);
     }
 
     static List<Arguments> parserErrors() {

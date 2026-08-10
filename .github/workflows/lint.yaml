@@ -60,7 +60,7 @@ jobs:
           # All quality checks run: formatting, licensing, checkstyle, spotbugs, dependency analysis, enforcer, errorprone.
           # Other workflows skip QA to avoid duplication.
           mvn --batch-mode \
-            --activate-profiles ci,qa \
+            --activate-profiles build-the-world,ci,qa \
             --threads 1.5C \
             -DskipTests \
             -Djapicmp.skip=true \
@@ -68,11 +68,15 @@ jobs:
       - name: 'Validate POM metadata for Central Portal'
         run: |
           mvn --batch-mode --quiet help:effective-pom -Doutput=target/effective-pom.xml
-          mvn --batch-mode --quiet -pl kroxylicious-bom help:effective-pom -Doutput=target/effective-pom.xml
+          mvn --batch-mode --quiet --projects kroxylicious-bom help:effective-pom -Doutput=target/effective-pom.xml
           # +1 for the root reactor pom, which appears in the effective-pom but is not declared as a <module> anywhere
           expected=$(( $(grep -h -r --include="pom.xml" "<module>" . | grep -v target | sort | uniq | wc -l) + 1 ))
           python3 scripts/validate_pom_metadata.py target/effective-pom.xml "$expected"
           python3 scripts/validate_pom_metadata.py kroxylicious-bom/target/effective-pom.xml
+      - name: 'Install xmllint'
+        run: sudo apt-get install -y libxml2-utils
+      - name: 'Validate module-profile structure'
+        run: bash scripts/validate-module-structure.sh
       - name: 'Lint changelog entries'
         run: mvn --batch-mode logchange:lint
       - name: 'Validate changelog entry filenames'
