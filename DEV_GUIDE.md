@@ -122,6 +122,10 @@ mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolve-
 Every push to `main` and `release/*` branches publishes SNAPSHOT artifacts to the [Central Portal snapshot repository](https://central.sonatype.com/repository/maven-snapshots/).
 This lets you test against unreleased changes without building Kroxylicious from source.
 
+> **Warning:** SNAPSHOT artifacts carry no compatibility guarantees.
+> Unreleased APIs may change or be removed between snapshots without notice.
+> Do not use SNAPSHOTs in production.
+
 To pull SNAPSHOT Kroxylicious dependencies into a Maven project, add the snapshot repository to your `pom.xml`:
 
 ```xml
