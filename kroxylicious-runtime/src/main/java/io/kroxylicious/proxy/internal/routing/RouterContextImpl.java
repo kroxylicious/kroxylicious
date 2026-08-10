@@ -53,7 +53,7 @@ class RouterContextImpl implements RouterContext {
             return Optional.empty();
         }
         NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(endpointVirtualNodeId);
-        return Optional.of(new VirtualNodeImpl(ran.route(), ran.targetNodeId()));
+        return Optional.of(new VirtualNodeImpl(ran.route(), endpointVirtualNodeId));
     }
 
     /**
@@ -74,7 +74,7 @@ class RouterContextImpl implements RouterContext {
     @Override
     public VirtualNode nodeForId(int virtualNodeId) {
         NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(virtualNodeId);
-        return new VirtualNodeImpl(ran.route(), ran.targetNodeId());
+        return new VirtualNodeImpl(ran.route(), virtualNodeId);
     }
 
     @Override
