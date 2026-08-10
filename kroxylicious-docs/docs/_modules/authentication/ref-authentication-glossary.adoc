@@ -21,5 +21,5 @@ Principal:: A named identifier that represents one aspect of an authenticated cl
 SASL:: Simple Authentication and Security Layer is an https://datatracker.ietf.org/doc/html/rfc4422[IETF framework] for handling authentication.
 SASL Passthrough:: A mode in which the proxy forwards SASL authentication exchanges between client and broker without inspecting or modifying them. This is the default behavior.
 SASL Passthrough Inspection:: A mode in which the proxy observes SASL authentication exchanges to infer the client's identity without altering the exchange. The broker remains the authority for authentication decisions.
-SASL Termination:: A mode in which the proxy handles SASL authentication itself, without forwarding to the broker. Not yet available as a production feature.
+//SASL Termination:: A mode in which the proxy handles SASL authentication itself, without forwarding to the broker. Not yet available as a production feature.
 Subject:: The authenticated identity of a client, composed of one or more principals. Used by filters to make identity-aware decisions.
