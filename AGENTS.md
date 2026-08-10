@@ -17,7 +17,6 @@ See [README.md](README.md) for comprehensive project documentation including:
 
 See [DEV_GUIDE.md](DEV_GUIDE.md) for:
 - Build commands and Maven properties/profiles
-- Maven profiles: `qa` (quality checks), `ci`, `dist`, `quick`, `systemtest`, `errorprone-jdk-compatible`
 - IDE setup and debugging
 - Running integration/system tests locally
 - Container image building and pushing

@@ -58,7 +58,7 @@
         <log4j.version>2.26.1</log4j.version>
         <caffeine.version>3.2.4</caffeine.version>
         <picocli.version>4.7.7</picocli.version>
-        <netty.version>4.2.16.Final</netty.version>
+        <netty.version>4.2.17.Final</netty.version>
         <netty.epoll.architecture>linux-x86_64</netty.epoll.architecture>
         <netty.io_uring.architecture>linux-x86_64</netty.io_uring.architecture>
         <netty.kqueue.architecture>osx-x86_64</netty.kqueue.architecture>
@@ -606,29 +606,12 @@
         </dependencies>
     </dependencyManagement>
 
-    <modules>
-        <module>kroxylicious-annotations</module>
-        <module>kroxylicious-kafka-message-tools</module>
-        <module>kroxylicious-kms</module>
-        <module>kroxylicious-certificate-test-support</module>
-        <module>kroxylicious-kms-test-support</module>
-        <module>kroxylicious-kms-tls-support</module>
-        <module>kroxylicious-kms-providers</module>
-        <module>kroxylicious-bom</module>
-        <module>kroxylicious-api</module>
-        <module>kroxylicious-app</module>
-        <module>kroxylicious-krpc-plugin</module>
-        <module>kroxylicious-integration-test-support</module>
-        <module>kroxylicious-filter-test-support</module>
-        <module>kroxylicious-filter-archetype</module>
-        <module>kroxylicious-runtime</module>
-        <module>kroxylicious-filters</module>
-        <module>kroxylicious-kubernetes</module>
-        <module>kroxylicious-docs</module>
-        <module>kroxylicious-authorizer-api</module>
-        <module>kroxylicious-authorizer-providers</module>
-        <module>kroxylicious-openmessaging-benchmarks</module>
-    </modules>
+    <!-- All modules are declared in named profiles below. The build-the-world profile is
+         activated via .mvn/maven.config and builds everything by default. To add a module,
+         update the relevant intermediate aggregator pom.xml (kroxylicious-proxy-core/,
+         kroxylicious-runtime-plugins/, kroxylicious-supplementary/, or kroxylicious-kubernetes/) — not this file.
+         Enforced by the module-profile lint check. -->
+    <modules/>
 
 
     <build>
@@ -696,17 +679,23 @@
                                     <exclude>**/goal.txt</exclude>
                                     <exclude>**/.jbang/**</exclude>
                                     <exclude>changelog/**</exclude>
-                                    <exclude>src/main/resources/archetype-resources/**</exclude>
-                                    <!-- Need to keep original copyright for Vert.x classes -->
-                                    <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
-                                    <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
-                                    <!-- Exclude third-party CRDs (carry their own license) -->
-                                    <exclude>src/test/resources/strimzi-crds/**</exclude>
-                                    <!-- Exclude test key material -->
-                                    <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.key</exclude>
-                                    <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.pem</exclude>
-                                    <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.crt</exclude>
-                                    <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.password</exclude>
+                                    <!-- Use **/ prefix so each pattern works whether the license plugin runs
+                                         at module scope or from the root during a full-tree scan (profile-declared
+                                         modules are not automatically skipped by the license plugin). -->
+                                    <!-- Archetype stub resources are templates and cannot carry a project license header -->
+                                    <exclude>**/src/main/resources/archetype-resources/**</exclude>
+                                    <!-- Helm templates cannot carry license headers: helm renders them and the
+                                         {{- comment syntax produces duplicate headers in the rendered output -->
+                                    <exclude>**/helm/**</exclude>
+                                    <!-- Third-party CRDs carry their own license -->
+                                    <exclude>**/strimzi-crds/**</exclude>
+                                    <!-- Binary and credential formats that cannot carry a license header -->
+                                    <exclude>**/*.key</exclude>
+                                    <exclude>**/*.pem</exclude>
+                                    <exclude>**/*.crt</exclude>
+                                    <exclude>**/*.password</exclude>
+                                    <!-- JSON-based formats that cannot carry a license header -->
+                                    <exclude>**/*.excalidraw</exclude>
                                 </excludes>
                             </licenseSet>
                         </licenseSets>
@@ -998,6 +987,16 @@
                     <artifactId>central-publishing-maven-plugin</artifactId>
                     <version>0.11.0</version>
                     <extensions>true</extensions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-help-plugin</artifactId>
+                    <version>3.5.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonarsource.scanner.maven</groupId>
+                    <artifactId>sonar-maven-plugin</artifactId>
+                    <version>5.5.0.6356</version>
                 </plugin>
             </plugins>
 
@@ -1600,6 +1599,72 @@
                 </plugins>
             </build>
         </profile>
+        <!--
+            Module group profiles — control which set of modules enters the reactor.
+
+            build-the-world activates when the targeted-build property is absent (the OOB default).
+            For subset builds, pass -Dtargeted-build alongside the target group:
+              mvn -Dtargeted-build -Pkubernetes-management ...
+
+            Rules for which group a module belongs to:
+              proxy-core          — modules that ARE the API/runtime or make it testable
+              runtime-plugins     — modules that plug into the runtime (filters, KMS, authorisers)
+                                    or provide test support for building such plugins
+              supplementary       — modules that accompany a release but contain no proxy code
+              kubernetes-management — modules that manage proxy deployment in Kubernetes;
+                                    future deployment targets get their own <platform>-management
+
+            Intermediate aggregator POMs (kroxylicious-proxy-core/, kroxylicious-runtime-plugins/,
+            kroxylicious-supplementary/) list their leaf modules via ../ relative paths because
+            the leaves live at the repo root.
+        -->
+        <profile>
+            <!--
+                Full build profile — activated when the targeted-build property is absent.
+                OOB (mvn verify with no flags) builds everything because targeted-build is unset by default.
+                IDEs pick up property-based activation automatically without any extra configuration.
+                For a subset build, pass -Dtargeted-build alongside the target group profile:
+                  mvn -Dtargeted-build -Pproxy-core verify
+            -->
+            <id>build-the-world</id>
+            <activation>
+                <property>
+                    <name>!targeted-build</name>
+                </property>
+            </activation>
+            <modules>
+                <module>kroxylicious-proxy-core</module>
+                <module>kroxylicious-runtime-plugins</module>
+                <module>kroxylicious-supplementary</module>
+                <module>kroxylicious-kubernetes</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>proxy-core</id>
+            <modules>
+                <module>kroxylicious-proxy-core</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>runtime-plugins</id>
+            <modules>
+                <module>kroxylicious-runtime-plugins</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>supplementary</id>
+            <modules>
+                <module>kroxylicious-supplementary</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>kubernetes-management</id>
+            <modules>
+                <module>kroxylicious-kubernetes</module>
+            </modules>
+        </profile>
+
+        <!-- Test suite profiles — orthogonal to module groups above. -->
         <profile>
             <id>test-suites</id>
             <activation>

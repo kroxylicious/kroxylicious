@@ -65,6 +65,12 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * Creates the service.
+     *
+     * @param oauth2ClientCredentialsConfig OAuth 2.0 client credentials configuration.
+     * @param clock clock used to judge token expiry.
+     */
     public OauthClientCredentialsTokenService(Oauth2ClientCredentialsConfig oauth2ClientCredentialsConfig, Clock clock) {
         Objects.requireNonNull(oauth2ClientCredentialsConfig, "authConfiguration is null");
         Objects.requireNonNull(clock, "clock is null");

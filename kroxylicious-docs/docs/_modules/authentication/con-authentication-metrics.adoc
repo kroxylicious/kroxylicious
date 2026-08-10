@@ -1,0 +1,57 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-authentication-metrics-{context}']
+= Authentication metrics
+
+[role="_abstract"]
+When a filter announces a client authentication outcome, the proxy records it as a metric.
+This allows operators to monitor authentication activity across all virtual clusters and SASL mechanisms.
+
+== Available metrics
+
+.Authentication metrics
+|===
+|Metric name |Type |Labels |Description
+
+|`kroxylicious_client_auth_total`
+|Counter
+|`virtual_cluster`, `mechanism`, `outcome`
+|Incremented by one every time a filter announces a client authentication outcome.
+ The `mechanism` label identifies the SASL mechanism used (for example, `SCRAM-SHA-256`, `OAUTHBEARER`), or `unknown` if the mechanism could not be determined.
+ The `outcome` label is `success` or `failure`.
+|===
+
+NOTE: This metric is emitted by the proxy runtime, not by individual filters.
+It is incremented whenever a filter calls `clientSaslAuthenticationSuccess` or `clientSaslAuthenticationFailure` on the filter context.
+In SASL Passthrough mode (the default, with no SASL filter configured), no filter announces authentication outcomes, so this metric is not incremented.
+
+== Operational use
+
+Use `kroxylicious_client_auth_total` to:
+
+Monitor authentication failure rates::
+A sudden increase in `kroxylicious_client_auth_total{outcome="failure"}` may indicate misconfigured clients, expired credentials, or a brute-force attempt.
++
+Example Prometheus alert:
++
+[source,promql]
+----
+rate(kroxylicious_client_auth_total{outcome="failure"}[5m]) > 10
+----
+
+Compare authentication activity across mechanisms::
+Break down authentication events by the `mechanism` label to understand which SASL mechanisms are in use across your deployment.
+
+Detect unexpected mechanisms::
+Alert if clients authenticate using a mechanism you do not expect, which may indicate a misconfigured client or an attempt to use a weaker mechanism.
+
+Correlate with connection metrics::
+Compare `kroxylicious_client_auth_total{outcome="success"}` with `kroxylicious_client_to_proxy_connections_total` to understand what proportion of connections successfully authenticate.
+
+For the full list of proxy metrics, see the monitoring section of the {ProxyGuide}.

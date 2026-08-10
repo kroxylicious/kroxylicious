@@ -133,7 +133,7 @@ jobs:
           eval $(crc podman-env --root)
 
           GIT_HASH="$(git rev-parse HEAD)"
-          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
+          KROXYLICIOUS_VERSION="$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)"
           KROXYLICIOUS_IMAGE=quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}
 
           mvn --batch-mode \

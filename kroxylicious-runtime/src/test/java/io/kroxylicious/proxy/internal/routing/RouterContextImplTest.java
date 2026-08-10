@@ -70,6 +70,15 @@ class RouterContextImplTest {
                 endpointVirtualNodeId);
     }
 
+    private RouterContextImpl createBijectiveContext(Integer endpointVirtualNodeId) {
+        var bijectiveRoutes = Map.of(
+                "route-a", new RouteDescriptor("route-a", 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of()),
+                "route-b", new RouteDescriptor("route-b", 1, new TargetCluster("localhost:9093", Optional.empty()), null, List.of()));
+        var bijectiveMapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
+        var handler = new RouterDispatchHandler(router, bijectiveRoutes, Map.of(), ccsm, "test-cluster", bijectiveMapping, null);
+        return new RouterContextImpl(clientFrame, handler, "test-session", Subject.anonymous(), endpointVirtualNodeId);
+    }
+
     @Test
     void anyNodeShouldReturnVirtualNodeForKnownRoute() {
         // Given
@@ -130,6 +139,33 @@ class RouterContextImplTest {
         assertThat(node).isInstanceOf(VirtualNodeImpl.class);
         assertThat(((VirtualNodeImpl) node).route()).isEqualTo(DEFAULT_ROUTE);
         assertThat(((VirtualNodeImpl) node).virtualNodeId()).isEqualTo(3);
+    }
+
+    @Test
+    void nodeForIdPreservesVirtualIdWithBijectiveMapping() {
+        // Given
+        var ctx = createBijectiveContext(null);
+
+        // When: fromVirtual(1) → RouteAndNode("route-b", physicalNode=0); virtual ID must be retained as 1, not 0
+        var node = ctx.nodeForId(1);
+
+        // Then
+        assertThat(((VirtualNodeImpl) node).route()).isEqualTo("route-b");
+        assertThat(((VirtualNodeImpl) node).virtualNodeId()).isEqualTo(1);
+    }
+
+    @Test
+    void virtualNodePreservesVirtualIdWithBijectiveMapping() {
+        // Given: endpoint virtual node ID 1 → route-b, physical node 0
+        var ctx = createBijectiveContext(1);
+
+        // When
+        var vn = ctx.virtualNode();
+
+        // Then: virtual ID must be retained as 1, not the physical node ID 0
+        assertThat(vn).isPresent();
+        assertThat(((VirtualNodeImpl) vn.get()).route()).isEqualTo("route-b");
+        assertThat(((VirtualNodeImpl) vn.get()).virtualNodeId()).isEqualTo(1);
     }
 
     @Test

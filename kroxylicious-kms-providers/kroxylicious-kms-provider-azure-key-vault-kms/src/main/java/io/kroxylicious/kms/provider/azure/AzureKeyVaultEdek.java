@@ -14,6 +14,16 @@ import java.util.regex.Pattern;
 
 import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 
+/**
+ * An encrypted Data Encryption Key (DEK), as produced by {@link AzureKeyVaultKms}, wrapped by a
+ * Key Encryption Key (KEK) held in Azure Key Vault.
+ *
+ * @param keyName the name of the KEK used to wrap the DEK.
+ * @param keyVersion the version of the KEK used to wrap the DEK.
+ * @param edek the wrapped DEK.
+ * @param vaultName the name of the vault holding the KEK.
+ * @param supportedKeyType the type of the KEK.
+ */
 public record AzureKeyVaultEdek(String keyName,
                                 String keyVersion,
                                 @SuppressWarnings("ArrayRecordComponent") byte[] edek, // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
@@ -22,6 +32,12 @@ public record AzureKeyVaultEdek(String keyName,
 
     private static final Pattern KEY_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9-]+$");
 
+    /**
+     * Validates the record components.
+     * @throws IllegalArgumentException if {@code vaultName}, {@code keyName} or {@code keyVersion} is blank,
+     * if {@code keyName} is longer than 127 characters or contains characters other than letters, digits and dashes,
+     * if {@code keyVersion} is not 32 characters long, or if {@code edek} is empty.
+     */
     public AzureKeyVaultEdek {
         Objects.requireNonNull(supportedKeyType, "supportedKeyType must not be null");
         Objects.requireNonNull(vaultName, "vaultName must not be null");
@@ -59,6 +75,13 @@ public record AzureKeyVaultEdek(String keyName,
         return input.chars().allMatch(c -> (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'));
     }
 
+    /**
+     * The key version decoded as 128 bits of binary data, enabling a more compact serialization.
+     * Azure Key Vault key versions are usually 32 lowercase hex characters, but this is not
+     * documented as guaranteed, so we tolerate other 32 character strings.
+     *
+     * @return the decoded key version, or empty if the key version is not a 32 character lowercase hex string.
+     */
     public Optional<byte[]> keyVersion128bit() {
         try {
             if (isLowercaseHex(keyVersion)) {
