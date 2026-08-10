@@ -14,6 +14,10 @@ import org.testcontainers.vault.VaultContainer;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A {@link io.kroxylicious.testing.kms.TestKmsFacade} backed by a HashiCorp Vault instance
+ * provided by a <a href="https://hub.docker.com/r/hashicorp/vault">Vault</a> container.
+ */
 public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     private static final String IMAGE = "hashicorp/vault:2.0.3@sha256:a296a888b118615dc01d5f1a6846e6d4a7277946caaed5b447008fff5fe06b54";
     private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse(IMAGE)
@@ -21,6 +25,13 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
     @SuppressWarnings("rawtypes")
     private @Nullable VaultContainer vaultContainer;
+
+    /**
+     * Creates the facade.
+     */
+    public VaultTestKmsFacade() {
+        // Intentionally empty
+    }
 
     @Override
     public boolean isAvailable() {

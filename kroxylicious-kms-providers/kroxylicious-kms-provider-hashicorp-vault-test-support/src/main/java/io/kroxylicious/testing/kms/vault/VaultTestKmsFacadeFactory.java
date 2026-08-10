@@ -15,6 +15,13 @@ import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
  */
 public class VaultTestKmsFacadeFactory extends AbstractVaultTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, VaultEdek> {
     /**
+     * Creates the factory.
+     */
+    public VaultTestKmsFacadeFactory() {
+        // Intentionally empty
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
