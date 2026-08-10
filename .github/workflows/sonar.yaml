@@ -104,7 +104,7 @@ jobs:
         if: env.SONAR_TOKEN_SET == 'true' && hashFiles('scripts/ci-build-functions.sh') != ''
         run: |
           source scripts/ci-build-functions.sh
-          run_sonar "${PROXY_PROFILES}" 'Proxy Core' 'kroxylicious_kroxylicious' \
+          run_sonar "${PROXY_PROFILES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
             -Djapicmp.skip=true \
             -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
             -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \

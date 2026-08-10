@@ -106,7 +106,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           source scripts/ci-build-functions.sh
-          run_sonar "${PROXY_PROFILES}" 'Proxy Core' 'kroxylicious_kroxylicious' \
+          run_sonar "${PROXY_PROFILES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
             -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
