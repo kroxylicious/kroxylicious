@@ -42,6 +42,7 @@ import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.topology.VirtualNode;
 import io.kroxylicious.testing.integration.Request;
@@ -409,12 +410,22 @@ class RoutingContextContractIT {
         }
     }
 
+    /**
+     * Checks that a Router can send a request to {@link RouterContext#nodeForId(int)}} in a multi-upstream configuration like:
+     * <pre>
+     * mapping: BijectiveNodeIdMapping
+     * routes:
+     *   route-a:
+     *     upstream: { nodeId: 0, port: mockA }
+     *     virtualId: 0
+     *   route-b:
+     *     upstream: { nodeId: 0, port: mockB }
+     *     virtualId: 1
+     * </pre>
+     * With the expectation that the request will be forwarded on to the expected virtual node.
+     */
     @Test
     void nodeForIdWithBijectiveMappingRoutesToCorrectUpstream() {
-        // With two routes, BijectiveNodeIdMapping assigns virtual IDs across both target clusters.
-        // route-a's physical node 0 becomes virtual node 0; route-b's physical node 0 becomes virtual node 1.
-        // Each target cluster advertises its own physical node 0 in METADATA responses, but the virtual IDs differ.
-        // nodeForId(1) must resolve to route-b's target node (physical 0, virtual 1), not route-a's.
         try (var mockA = MockServer.startOnRandomPort();
                 var mockB = MockServer.startOnRandomPort()) {
 
@@ -462,12 +473,22 @@ class RoutingContextContractIT {
         }
     }
 
+    /**
+     * Checks that a Router can send a request to {@link RouterContext#virtualNode()} in a multi-upstream configuration like:
+     * <pre>
+     * mapping: BijectiveNodeIdMapping
+     * routes:
+     *   route-a:
+     *     upstream: { nodeId: 0, port: mockA }
+     *     virtualId: 0
+     *   route-b:
+     *     upstream: { nodeId: 0, port: mockB }
+     *     virtualId: 1
+     * </pre>
+     * With the expectation that the request will be forwarded on to the virtual node associated with the client's connection.
+     */
     @Test
     void virtualNodeWithBijectiveMappingRoutesToCorrectUpstream() {
-        // Two routes → BijectiveNodeIdMapping: route-a id=0 = virtual 0 (port 9193), route-b id=1 = virtual 1 (port 9194).
-        // Bootstrap merges METADATA from both routes so BrokerAddressFilter reconciles both node-port bindings,
-        // preventing EagerMetadataLearner from firing when the test connects to 9193 and 9194.
-        // duplicate() required: brokers returned by bodyB already belong to its ImplicitLinkedHashCollection.
         try (var mockA = MockServer.startOnRandomPort();
                 var mockB = MockServer.startOnRandomPort()) {
 
@@ -501,12 +522,12 @@ class RoutingContextContractIT {
 
             try (var tester = KroxyliciousTesters.newBuilder(bijectiveConfig(mockA, mockB))
                     .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
-
+                // Given
+                // Pre-condition: Bootstrap merges METADATA from both routes so BrokerAddressFilter reconciles both node-port bindings.
+                // This prevents EagerMetadataLearner from firing when the test connects to 9193 and 9194.
                 primeProxyWithBrokerAddresses(tester);
                 mockA.clear();
                 mockB.clear();
-                // Two responses on mockA: guards against both requests landing there if the bug regresses.
-                mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
                 mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
                 mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
 
