@@ -1,0 +1,25 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: REFERENCE
+
+[id='ref-authentication-glossary-{context}']
+= Glossary
+
+[role="_abstract"]
+Glossary of terms used in the Client Authentication guide.
+
+JWE:: JSON Web Encryption is an https://datatracker.ietf.org/doc/html/rfc7516[IETF standard] for exchanging encrypted data using JSON.
+JWKS:: JSON Web Key Set is an https://datatracker.ietf.org/doc/html/rfc7517[IETF standard] for representing cryptographic keys in JSON format. A JWKS endpoint publishes the public keys used to verify JWT signatures.
+JWS:: JSON Web Signature is an https://datatracker.ietf.org/doc/html/rfc7515[IETF-proposed standard] for signing arbitrary data.
+JWT:: JSON Web Token is an https://datatracker.ietf.org/doc/html/rfc7519[IETF standard] for securely transmitting information between parties as a JSON object.
+mTLS:: Mutual TLS. A TLS configuration in which both the server and the client present certificates to each other, providing mutual authentication.
+Principal:: A named identifier that represents one aspect of an authenticated client's identity, such as a user name or a group membership.
+SASL:: Simple Authentication and Security Layer is an https://datatracker.ietf.org/doc/html/rfc4422[IETF framework] for handling authentication.
+SASL Passthrough:: A mode in which the proxy forwards SASL authentication exchanges between client and broker without inspecting or modifying them. This is the default behavior.
+SASL Passthrough Inspection:: A mode in which the proxy observes SASL authentication exchanges to infer the client's identity without altering the exchange. The broker remains the authority for authentication decisions.
+//SASL Termination:: A mode in which the proxy handles SASL authentication itself, without forwarding to the broker. Not yet available as a production feature.
+Subject:: The authenticated identity of a client, composed of one or more principals. Used by filters to make identity-aware decisions.
