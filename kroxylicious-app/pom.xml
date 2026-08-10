@@ -422,7 +422,7 @@
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
-                    <artifactId>kroxylicious-protocol-logging</artifactId>
+                    <artifactId>kroxylicious-protocol-logger</artifactId>
                     <scope>runtime</scope>
                 </dependency>
             </dependencies>

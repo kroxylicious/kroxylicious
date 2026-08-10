@@ -19,7 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
-import io.kroxylicious.filter.protocollogging.ProtocolLogging;
+import io.kroxylicious.filter.protocollogger.ProtocolLogger;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
-class ProtocolLoggingFilterIT {
+class ProtocolLoggerFilterIT {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
@@ -40,7 +40,7 @@ class ProtocolLoggingFilterIT {
     void trafficRoundTripsCorrectlyWithFilterInChain(@BrokerCluster KafkaCluster cluster, Topic topic) {
         // Given
         var filterDef = new NamedFilterDefinitionBuilder(
-                "protocol-logger", ProtocolLogging.class.getName())
+                "protocol-logger", ProtocolLogger.class.getName())
                 .build();
         var proxyConfig = proxy(cluster);
         proxyConfig.addToFilterDefinitions(filterDef);
@@ -76,7 +76,7 @@ class ProtocolLoggingFilterIT {
     void filterAcceptsApiKeyGatingConfig(@BrokerCluster KafkaCluster cluster, Topic topic) {
         // Given
         var filterDef = new NamedFilterDefinitionBuilder(
-                "protocol-logger", ProtocolLogging.class.getName())
+                "protocol-logger", ProtocolLogger.class.getName())
                 .withConfig("apiKeyNames", List.of("METADATA"))
                 .build();
         var proxyConfig = proxy(cluster);
@@ -105,46 +105,12 @@ class ProtocolLoggingFilterIT {
         }
     }
 
-    /** Verifies maxBodyChars config is accepted and traffic is unaffected; truncation behaviour covered by unit tests. */
-    @Test
-    void filterAcceptsMaxBodyCharsConfig(@BrokerCluster KafkaCluster cluster, Topic topic) {
-        // Given
-        var filterDef = new NamedFilterDefinitionBuilder(
-                "protocol-logger", ProtocolLogging.class.getName())
-                .withConfig("maxBodyChars", 32)
-                .build();
-        var proxyConfig = proxy(cluster);
-        proxyConfig.addToFilterDefinitions(filterDef);
-        proxyConfig.addToDefaultFilters(filterDef.name());
-
-        // When
-        try (var tester = kroxyliciousTester(proxyConfig);
-                var producer = tester.producer();
-                var consumer = tester.consumer(Serdes.String(), Serdes.String(),
-                        Map.of(ConsumerConfig.GROUP_ID_CONFIG, "truncation-group",
-                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "truncated-test")))
-                    .succeedsWithin(TIMEOUT);
-
-            consumer.subscribe(List.of(topic.name()));
-
-            // Then
-            var records = consumer.poll(TIMEOUT).records(topic.name());
-            assertThat(records)
-                    .hasSize(1)
-                    .first()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo("truncated-test");
-        }
-    }
-
     /** Verifies logLevel config is accepted and traffic is unaffected; level gating covered by unit tests. */
     @Test
     void filterAcceptsLogLevelConfig(@BrokerCluster KafkaCluster cluster, Topic topic) {
         // Given
         var filterDef = new NamedFilterDefinitionBuilder(
-                "protocol-logger", ProtocolLogging.class.getName())
+                "protocol-logger", ProtocolLogger.class.getName())
                 .withConfig("logLevel", "TRACE")
                 .build();
         var proxyConfig = proxy(cluster);

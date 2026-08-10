@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.protocollogging;
+package io.kroxylicious.filter.protocollogger;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -16,8 +16,11 @@ import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
 import org.apache.kafka.common.message.CreateDelegationTokenResponseData;
 import org.apache.kafka.common.message.DescribeDelegationTokenRequestData;
 import org.apache.kafka.common.message.DescribeDelegationTokenResponseData;
-import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.ExpireDelegationTokenRequestData;
+import org.apache.kafka.common.message.ExpireDelegationTokenResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
+import org.apache.kafka.common.message.RenewDelegationTokenResponseData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -29,15 +32,18 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class MessageFormatterTest {
 
-    private final MessageFormatter formatter = new MessageFormatter(Integer.MAX_VALUE);
+    private final MessageFormatter formatter = new MessageFormatter();
 
     @ParameterizedTest
     @EnumSource(value = ApiKeys.class, names = {
             "SASL_AUTHENTICATE",
             "CREATE_DELEGATION_TOKEN",
+            "RENEW_DELEGATION_TOKEN",
+            "EXPIRE_DELEGATION_TOKEN",
             "ALTER_USER_SCRAM_CREDENTIALS",
             "DESCRIBE_DELEGATION_TOKEN"
     })
@@ -50,6 +56,8 @@ class MessageFormatterTest {
     @EnumSource(value = ApiKeys.class, names = {
             "SASL_AUTHENTICATE",
             "CREATE_DELEGATION_TOKEN",
+            "RENEW_DELEGATION_TOKEN",
+            "EXPIRE_DELEGATION_TOKEN",
             "ALTER_USER_SCRAM_CREDENTIALS",
             "DESCRIBE_DELEGATION_TOKEN"
     })
@@ -60,22 +68,36 @@ class MessageFormatterTest {
 
     static Stream<Arguments> credentialBearingRequestsWithSecrets() {
         return Stream.of(
-                Arguments.of(ApiKeys.SASL_AUTHENTICATE,
+                argumentSet("SASL_AUTHENTICATE request withholds auth bytes",
+                        ApiKeys.SASL_AUTHENTICATE,
                         new SaslAuthenticateRequestData()
                                 .setAuthBytes("SUPER_SECRET_SASL_TOKEN".getBytes(StandardCharsets.UTF_8)),
                         "SUPER_SECRET_SASL_TOKEN"),
-                Arguments.of(ApiKeys.CREATE_DELEGATION_TOKEN,
+                argumentSet("CREATE_DELEGATION_TOKEN request withholds owner principal",
+                        ApiKeys.CREATE_DELEGATION_TOKEN,
                         new CreateDelegationTokenRequestData()
                                 .setOwnerPrincipalName("DELEGATION_OWNER_SECRET"),
                         "DELEGATION_OWNER_SECRET"),
-                Arguments.of(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
+                argumentSet("RENEW_DELEGATION_TOKEN request withholds HMAC",
+                        ApiKeys.RENEW_DELEGATION_TOKEN,
+                        new RenewDelegationTokenRequestData()
+                                .setHmac("RENEW_HMAC_SECRET".getBytes(StandardCharsets.UTF_8)),
+                        "RENEW_HMAC_SECRET"),
+                argumentSet("EXPIRE_DELEGATION_TOKEN request withholds HMAC",
+                        ApiKeys.EXPIRE_DELEGATION_TOKEN,
+                        new ExpireDelegationTokenRequestData()
+                                .setHmac("EXPIRE_HMAC_SECRET".getBytes(StandardCharsets.UTF_8)),
+                        "EXPIRE_HMAC_SECRET"),
+                argumentSet("ALTER_USER_SCRAM_CREDENTIALS request withholds salted password",
+                        ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
                         new AlterUserScramCredentialsRequestData()
                                 .setUpsertions(List.of(new AlterUserScramCredentialsRequestData.ScramCredentialUpsertion()
                                         .setName("user1")
                                         .setSalt("SCRAM_SALT_SECRET".getBytes(StandardCharsets.UTF_8))
                                         .setSaltedPassword("SCRAM_PASSWORD_SECRET".getBytes(StandardCharsets.UTF_8)))),
                         "SCRAM_PASSWORD_SECRET"),
-                Arguments.of(ApiKeys.DESCRIBE_DELEGATION_TOKEN,
+                argumentSet("DESCRIBE_DELEGATION_TOKEN request withholds body",
+                        ApiKeys.DESCRIBE_DELEGATION_TOKEN,
                         new DescribeDelegationTokenRequestData(),
                         null));
     }
@@ -92,19 +114,31 @@ class MessageFormatterTest {
 
     static Stream<Arguments> credentialBearingResponsesWithSecrets() {
         return Stream.of(
-                Arguments.of(ApiKeys.SASL_AUTHENTICATE,
+                argumentSet("SASL_AUTHENTICATE response withholds auth bytes",
+                        ApiKeys.SASL_AUTHENTICATE,
                         new SaslAuthenticateResponseData()
                                 .setAuthBytes("SUPER_SECRET_SASL_RESPONSE".getBytes(StandardCharsets.UTF_8)),
                         "SUPER_SECRET_SASL_RESPONSE"),
-                Arguments.of(ApiKeys.CREATE_DELEGATION_TOKEN,
+                argumentSet("CREATE_DELEGATION_TOKEN response withholds HMAC",
+                        ApiKeys.CREATE_DELEGATION_TOKEN,
                         new CreateDelegationTokenResponseData()
                                 .setTokenId("DELEGATION_TOKEN_ID_SECRET")
                                 .setHmac("DELEGATION_HMAC_SECRET".getBytes(StandardCharsets.UTF_8)),
                         "DELEGATION_HMAC_SECRET"),
-                Arguments.of(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
+                argumentSet("RENEW_DELEGATION_TOKEN response withholds body",
+                        ApiKeys.RENEW_DELEGATION_TOKEN,
+                        new RenewDelegationTokenResponseData(),
+                        null),
+                argumentSet("EXPIRE_DELEGATION_TOKEN response withholds body",
+                        ApiKeys.EXPIRE_DELEGATION_TOKEN,
+                        new ExpireDelegationTokenResponseData(),
+                        null),
+                argumentSet("ALTER_USER_SCRAM_CREDENTIALS response withholds body",
+                        ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
                         new AlterUserScramCredentialsResponseData(),
                         null),
-                Arguments.of(ApiKeys.DESCRIBE_DELEGATION_TOKEN,
+                argumentSet("DESCRIBE_DELEGATION_TOKEN response withholds HMAC",
+                        ApiKeys.DESCRIBE_DELEGATION_TOKEN,
                         new DescribeDelegationTokenResponseData()
                                 .setTokens(List.of(new DescribeDelegationTokenResponseData.DescribedDelegationToken()
                                         .setTokenId("DESCRIBE_TOKEN_ID_SECRET")
@@ -123,62 +157,15 @@ class MessageFormatterTest {
     }
 
     @Test
-    void bodyUnderLimitIsUnmodified() {
-        // Given
-        MessageFormatter unlimited = new MessageFormatter(Integer.MAX_VALUE);
-        MessageFormatter limited = new MessageFormatter(8192);
-        MetadataRequestData request = new MetadataRequestData();
-
-        // When
-        String full = unlimited.formatRequest(ApiKeys.METADATA, (short) 12, request);
-        String truncated = limited.formatRequest(ApiKeys.METADATA, (short) 12, request);
-
-        // Then
-        assertThat(full.length()).isLessThanOrEqualTo(8192);
-        assertThat(truncated).isEqualTo(full);
-    }
-
-    @Test
-    void bodyOverLimitIsTruncatedWithMarker() {
-        // Given
-        MessageFormatter limited = new MessageFormatter(10);
-        MetadataRequestData request = new MetadataRequestData();
-
-        // When
-        String output = limited.formatRequest(ApiKeys.METADATA, (short) 12, request);
-
-        // Then
-        assertThat(output)
-                .contains("<truncated:")
-                .contains("more chars>")
-                .hasSizeLessThan(
-                        new MessageFormatter(Integer.MAX_VALUE).formatRequest(ApiKeys.METADATA, (short) 12, request).length());
-    }
-
-    @Test
     void nonCredentialResponseIsFormattedAsJson() {
         // Given
-        MessageFormatter unlimited = new MessageFormatter(Integer.MAX_VALUE);
         MetadataResponseData response = new MetadataResponseData();
 
         // When
-        String output = unlimited.formatResponse(ApiKeys.METADATA, (short) 12, response);
+        String output = formatter.formatResponse(ApiKeys.METADATA, (short) 12, response);
 
         // Then
         assertThat(output).startsWith("{").contains("\"brokers\"");
-    }
-
-    @Test
-    void withheldMarkerIsNeverTruncated() {
-        // Given
-        MessageFormatter limited = new MessageFormatter(1);
-
-        // When
-        String output = limited.formatRequest(ApiKeys.SASL_AUTHENTICATE, (short) 0,
-                new SaslAuthenticateRequestData().setAuthBytes("secret".getBytes(StandardCharsets.UTF_8)));
-
-        // Then
-        assertThat(output).isEqualTo(MessageFormatter.BODY_WITHHELD_MESSAGE);
     }
 
     private static ApiMessage requestMessageFor(ApiKeys apiKey) {
@@ -187,6 +174,10 @@ class MessageFormatterTest {
                     .setAuthBytes("secret-credential".getBytes(StandardCharsets.UTF_8));
             case CREATE_DELEGATION_TOKEN -> new CreateDelegationTokenRequestData()
                     .setOwnerPrincipalName("owner");
+            case RENEW_DELEGATION_TOKEN -> new RenewDelegationTokenRequestData()
+                    .setHmac("hmac-secret".getBytes(StandardCharsets.UTF_8));
+            case EXPIRE_DELEGATION_TOKEN -> new ExpireDelegationTokenRequestData()
+                    .setHmac("hmac-secret".getBytes(StandardCharsets.UTF_8));
             case ALTER_USER_SCRAM_CREDENTIALS -> new AlterUserScramCredentialsRequestData()
                     .setUpsertions(List.of(new AlterUserScramCredentialsRequestData.ScramCredentialUpsertion()
                             .setName("user")
@@ -204,6 +195,8 @@ class MessageFormatterTest {
             case CREATE_DELEGATION_TOKEN -> new CreateDelegationTokenResponseData()
                     .setTokenId("token-id")
                     .setHmac("hmac-secret".getBytes(StandardCharsets.UTF_8));
+            case RENEW_DELEGATION_TOKEN -> new RenewDelegationTokenResponseData();
+            case EXPIRE_DELEGATION_TOKEN -> new ExpireDelegationTokenResponseData();
             case ALTER_USER_SCRAM_CREDENTIALS -> new AlterUserScramCredentialsResponseData();
             case DESCRIBE_DELEGATION_TOKEN -> new DescribeDelegationTokenResponseData()
                     .setTokens(List.of(new DescribeDelegationTokenResponseData.DescribedDelegationToken()

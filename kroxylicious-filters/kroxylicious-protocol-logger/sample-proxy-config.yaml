@@ -4,7 +4,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-# Sample config to smoke-test the ProtocolLogging filter.
+# Sample config to smoke-test the ProtocolLogger filter.
 # Start Kafka on localhost:9092, then run the proxy with this config.
 # The proxy listens on localhost:9192 and logs every protocol message at INFO.
 ---
@@ -23,7 +23,7 @@ virtualClusters:
     logFrames: false
 filterDefinitions:
   - name: protocol-logger
-    type: ProtocolLogging
+    type: ProtocolLogger
     # Omit config entirely to log all API keys.
     # To log only specific RPCs, uncomment and edit:
     # config:

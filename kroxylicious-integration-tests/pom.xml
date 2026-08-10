@@ -149,7 +149,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-protocol-logging</artifactId>
+            <artifactId>kroxylicious-protocol-logger</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

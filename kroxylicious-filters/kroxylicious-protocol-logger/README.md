@@ -1,4 +1,4 @@
-# Protocol Logging Filter
+# Protocol Logger Filter
 
 A wire-level protocol trace for Kafka traffic passing through the proxy.
 It logs every field of every Kafka request and response for the configured API keys, as version-aware JSON.
@@ -11,10 +11,10 @@ The filter is silent by default.
 Two things must agree for output to appear:
 
 1. The filter's own `logLevel` config (default `DEBUG`).
-2. The logging backend must be enabled at that level for the logger `io.kroxylicious.filter.protocollogging`.
+2. The logging backend must be enabled at that level for the logger used by the filter instance.
 
 Setting one without the other produces no output at all.
-With default settings, adding the filter to your proxy config and seeing nothing is expected — the logging backend must also be told to emit DEBUG for this logger.
+With default settings, adding the filter to your proxy config and seeing nothing is expected — the logging backend must also be told to emit DEBUG for the filter's logger.
 
 The simplest way to see output is to set the environment variable before starting the proxy:
 
@@ -40,7 +40,7 @@ Configuration:
   Loggers:
     # ... other loggers ...
     Logger:
-      - name: io.kroxylicious.filter.protocollogging
+      - name: io.kroxylicious.filter.protocollogger.ProtocolLoggerFilter
         level: DEBUG           # change to WARN or OFF to silence
         additivity: false
         AppenderRef:
@@ -53,7 +53,9 @@ Edit the file, change the level, and within `monitorInterval` seconds the proxy 
 The default `log4j2.yaml` shipped with `kroxylicious-app` does **not** include `monitorInterval`.
 An operator must add it to enable live tuning.
 
-Other SLF4J backends work too — the only requirement is a logger named `io.kroxylicious.filter.protocollogging` enabled at the configured level.
+When using a custom `loggerName` (see below), the logger entry must match that name instead.
+
+Other SLF4J backends work too — the only requirement is a logger enabled at the configured level for the name used by the filter instance.
 Log4j 2 is the example because it is what `kroxylicious-app` uses by default.
 
 ## Configuration
@@ -61,14 +63,14 @@ Log4j 2 is the example because it is what `kroxylicious-app` uses by default.
 ```yaml
 filterDefinitions:
   - name: protocol-logger
-    type: ProtocolLogging
+    type: ProtocolLogger
     config:
       logLevel: DEBUG          # default; must match the backend level
       apiKeyNames:             # absent or empty = all API keys
         - METADATA
         - PRODUCE
         - FETCH
-      maxBodyChars: 8192       # default; must be > 0
+      loggerName: protocol.downstream  # default: the filter class name
 defaultFilters:
   - protocol-logger
 ```
@@ -76,16 +78,29 @@ defaultFilters:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `logLevel` | SLF4J Level | `DEBUG` | The level at which the filter emits log messages. |
-| `apiKeyNames` | List of strings | all | Kafka `ApiKeys` enum names to log. Absent or empty means all. |
-| `maxBodyChars` | int | `8192` | Maximum characters in the JSON body before truncation. Must be greater than zero. |
+| `apiKeyNames` | Set of strings | all | Kafka `ApiKeys` enum names to log. Absent or empty means all. Names are resolved case-insensitively and with non-alphanumeric characters stripped, so `FindCoordinator`, `find-coordinator` and `FIND_COORDINATOR` all work. |
+| `loggerName` | String | filter class name | The SLF4J logger name used by this filter instance. |
 
-When a body exceeds `maxBodyChars`, it is cut and a marker is appended:
+## Two-instance example
 
+An operator may place an instance at each end of the filter chain to see the effect of the filters between them.
+Distinct logger names let each instance be enabled independently from the logging backend.
+
+```yaml
+filterDefinitions:
+  - name: log-downstream
+    type: ProtocolLogger
+    config:
+      loggerName: protocol.downstream
+  - name: log-upstream
+    type: ProtocolLogger
+    config:
+      loggerName: protocol.upstream
+defaultFilters:
+  - log-downstream
+  - some-other-filter
+  - log-upstream
 ```
-<truncated: 45231 more chars>
-```
-
-The envelope line is never truncated.
 
 ## Security
 
@@ -94,6 +109,8 @@ The following API keys are hardcoded as excluded:
 
 - `SASL_AUTHENTICATE`
 - `CREATE_DELEGATION_TOKEN`
+- `RENEW_DELEGATION_TOKEN`
+- `EXPIRE_DELEGATION_TOKEN`
 - `ALTER_USER_SCRAM_CREDENTIALS`
 - `DESCRIBE_DELEGATION_TOKEN`
 
@@ -173,10 +190,13 @@ Correlation IDs are only unique within a single connection, so `sessionId` is re
 `sessionId` is deliberately not in the human-readable envelope — it is proxy-internal state, not part of the protocol trace.
 It appears only in the structured key-values.
 
+Correlation IDs in the output are not necessarily client correlation IDs.
+Filters and routers can dispatch out-of-band requests upstream via `FilterContext#sendRequest` and `RouterContext#sendRequest`, which carry synthetic negative correlation IDs.
+Depending on chain position this filter may observe them and cannot reliably tell them apart from client traffic, so pairing may produce entries with no counterpart.
+
 Latency can be derived from the log timestamps of matched request/response pairs.
 
 ## Caveats
 
-- **Truncated bodies are not valid JSON.** If the body exceeds `maxBodyChars`, the output is cut at an arbitrary character position — braces and string literals may be left unbalanced — so it will not parse with `jq` or similar tools.
 - **Idle consumers produce verbose output.** On an idle consumer the output is dominated by `HEARTBEAT` and `FETCH` responses. Use `apiKeyNames` to filter these out.
 - **No cost for excluded API keys.** Messages for API keys not in the configured set are not decoded at all, so there is no performance cost for them.

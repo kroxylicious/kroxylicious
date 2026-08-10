@@ -1,4 +1,0 @@
-title: "feat(filters): add ProtocolLogging filter for wire-level request/response tracing"
-type: added
-issues:
-  - 1121

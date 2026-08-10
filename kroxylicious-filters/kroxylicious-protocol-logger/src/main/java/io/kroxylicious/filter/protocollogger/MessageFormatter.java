@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.protocollogging;
+package io.kroxylicious.filter.protocollogger;
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -26,15 +26,14 @@ class MessageFormatter {
     static final Set<ApiKeys> CREDENTIAL_BEARING_API_KEYS = EnumSet.of(
             ApiKeys.SASL_AUTHENTICATE,
             ApiKeys.CREATE_DELEGATION_TOKEN,
+            ApiKeys.RENEW_DELEGATION_TOKEN,
+            ApiKeys.EXPIRE_DELEGATION_TOKEN,
             ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
             ApiKeys.DESCRIBE_DELEGATION_TOKEN);
 
     private static final ObjectWriter PRETTY_WRITER = new ObjectMapper().writerWithDefaultPrettyPrinter();
 
-    private final int maxBodyChars;
-
-    MessageFormatter(int maxBodyChars) {
-        this.maxBodyChars = maxBodyChars;
+    MessageFormatter() {
     }
 
     String formatRequest(ApiKeys apiKey, short apiVersion, ApiMessage message) {
@@ -43,7 +42,7 @@ class MessageFormatter {
         }
         KafkaApiMessageConverter.Converter converter = KafkaApiMessageConverter.requestConverterFor(apiKey.messageType);
         JsonNode json = converter.writer().apply(message, apiVersion);
-        return truncateIfNeeded(prettyPrint(json));
+        return prettyPrint(json);
     }
 
     String formatResponse(ApiKeys apiKey, short apiVersion, ApiMessage message) {
@@ -52,15 +51,7 @@ class MessageFormatter {
         }
         KafkaApiMessageConverter.Converter converter = KafkaApiMessageConverter.responseConverterFor(apiKey.messageType);
         JsonNode json = converter.writer().apply(message, apiVersion);
-        return truncateIfNeeded(prettyPrint(json));
-    }
-
-    private String truncateIfNeeded(String body) {
-        if (body.length() <= maxBodyChars) {
-            return body;
-        }
-        int excess = body.length() - maxBodyChars;
-        return body.substring(0, maxBodyChars) + "\n<truncated: " + excess + " more chars>";
+        return prettyPrint(json);
     }
 
     private static String prettyPrint(JsonNode json) {
