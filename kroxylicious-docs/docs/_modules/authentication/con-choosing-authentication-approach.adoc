@@ -10,7 +10,6 @@
 = Choosing an authentication approach
 
 [role="_abstract"]
-The right authentication approach depends on your existing infrastructure, your security requirements, and which proxy features you need.
 This section provides guidance to help you choose the right authentication approach based on your existing infrastructure, security requirements, and required proxy features.
 
 == Mutual TLS (mTLS)
