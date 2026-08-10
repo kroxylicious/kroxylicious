@@ -34,6 +34,7 @@
     <modules>
         <module>../kroxylicious-annotations</module>
         <module>../kroxylicious-krpc-plugin</module>
+        <module>../kroxylicious-kafka-message-generator</module>
         <module>../kroxylicious-kafka-message-tools</module>
         <module>../kroxylicious-bom</module>
         <module>../kroxylicious-api</module>
