@@ -160,6 +160,9 @@ RELEASE_TAG="v${RELEASE_VERSION}"
 echo "Committing release to git"
 git commit --message "Release version ${RELEASE_TAG}" --signoff
 
+echo "Pushing release branch ${TEMPORARY_RELEASE_BRANCH} to ${REPOSITORY}"
+git push "${REPOSITORY}" "${TEMPORARY_RELEASE_BRANCH}"
+
 echo "Deploying release"
 
 MVN_DEPLOY_OUTPUT=$(mktemp)
