@@ -58,6 +58,12 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * Creates the service.
+     *
+     * @param managedIdentityCredentialsConfig Managed Identity configuration.
+     * @param clock clock used to judge token expiry.
+     */
     public ManagedIdentityAccessTokenService(ManagedIdentityCredentialsConfig managedIdentityCredentialsConfig, Clock clock) {
         Objects.requireNonNull(managedIdentityCredentialsConfig, "authentication configuration is null");
         Objects.requireNonNull(clock, "clock is null");

@@ -12,11 +12,22 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
+/**
+ * The successful response to a Microsoft Entra access token request.
+ *
+ * @param tokenType the type of the token, expected to be {@code Bearer}.
+ * @param expiresIn the number of seconds until the token expires.
+ * @param accessToken the access token.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonPropertyOrder({ "token_type", "expires_in", "access_token" })
 public record AccessTokenResponse(@JsonProperty(value = "token_type", required = true) String tokenType,
                                   @JsonProperty(value = "expires_in", required = true) int expiresIn,
                                   @JsonProperty(value = "access_token", required = true) String accessToken) {
+    /**
+     * Validates the record components.
+     * @throws IllegalArgumentException if {@code expiresIn} is not greater than 0.
+     */
     public AccessTokenResponse {
         Objects.requireNonNull(tokenType, "token_type is required");
         if (expiresIn <= 0) {

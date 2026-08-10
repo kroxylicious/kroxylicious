@@ -9,7 +9,18 @@ package io.kroxylicious.kms.provider.azure.auth;
 import java.time.Instant;
 import java.util.Objects;
 
+/**
+ * A bearer token used to authenticate requests to Azure services.
+ *
+ * @param token the token.
+ * @param created the instant at which the token was acquired.
+ * @param expires the instant at which the token expires.
+ */
 public record BearerToken(String token, Instant created, Instant expires) {
+    /**
+     * Validates the record components.
+     * @throws NullPointerException if any component is null.
+     */
     public BearerToken {
         Objects.requireNonNull(token, "token is required");
         Objects.requireNonNull(created, "created is required");

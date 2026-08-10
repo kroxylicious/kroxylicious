@@ -40,6 +40,12 @@ public class CachingBearerTokenService implements BearerTokenService {
     private final Clock clock;
     private static final Logger LOGGER = LoggerFactory.getLogger(CachingBearerTokenService.class);
 
+    /**
+     * Creates the service.
+     *
+     * @param delegate service used to obtain fresh tokens.
+     * @param clock clock used to judge token expiry.
+     */
     public CachingBearerTokenService(BearerTokenService delegate, Clock clock) {
         this(delegate, new State.Initial(new CompletableFuture<>()), clock);
     }

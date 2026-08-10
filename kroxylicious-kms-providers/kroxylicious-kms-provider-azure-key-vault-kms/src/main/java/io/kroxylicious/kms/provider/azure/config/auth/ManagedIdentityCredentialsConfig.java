@@ -41,6 +41,10 @@ public record ManagedIdentityCredentialsConfig(@JsonProperty(required = true) St
     @SuppressWarnings("java:S1313") // Suppress warning about hard-coded IP addresses posing a security risk, it's what Microsoft say to use so there's no way around it here.
     public static final URI DEFAULT_IMDS_HOST = URI.create("http://169.254.169.254");
 
+    /**
+     * Validates the record components, warning if {@code identityServiceEndpoint} is configured
+     * as it should not be used in production.
+     */
     public ManagedIdentityCredentialsConfig {
         Objects.requireNonNull(targetResource, "targetResource cannot be null");
         if (identityServiceEndpoint != null) {
@@ -55,6 +59,11 @@ public record ManagedIdentityCredentialsConfig(@JsonProperty(required = true) St
         }
     }
 
+    /**
+     * The base URI of the identity service to request tokens from.
+     *
+     * @return the configured {@code identityServiceEndpoint}, or {@link #DEFAULT_IMDS_HOST} if not configured.
+     */
     public URI identityServiceURL() {
         return identityServiceEndpoint == null ? DEFAULT_IMDS_HOST : identityServiceEndpoint;
     }
