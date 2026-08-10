@@ -79,6 +79,60 @@ The full stack trace is included only at `DEBUG` level.
 The full stack trace is included only at `DEBUG` level.
 |===
 
+== SASL Termination filter logs
+
+The `SaslTermination` filter emits log messages for authentication events and security-relevant conditions.
+
+.SASL Termination filter log messages
+|===
+|Level |Message |Structured fields |When emitted
+
+|WARN
+|`Reauthentication rejected: mechanism change not permitted`
+|`sessionId`, `virtualCluster`, `mechanism`, `previousMechanism`
+|A client attempts to reauthenticate using a different SASL mechanism than the one used for the original authentication.
+The connection is closed.
+
+|WARN
+|`Reauthentication rejected: authorization ID changed`
+|`sessionId`, `virtualCluster`, `reauthentication`, `previousAuthorizationId`, `newAuthorizationId`
+|A client reauthenticates successfully but the authorization ID differs from the original authentication.
+The connection is closed.
+
+|WARN
+|`Rejecting oversized SASL authenticate payload`
+|`sessionId`, `virtualCluster`, `mechanism`, `payloadSize`, `maxPayloadSize`
+|A client sends a SASL authenticate request that exceeds the configured maximum payload size.
+The connection is closed.
+
+|WARN
+|`Token expired during authentication`
+|`sessionId`, `virtualCluster`, `mechanism`
+|A JWT token's expiry has already passed by the time authentication completes (for example, due to the fixed auth delay).
+The connection is closed.
+
+|WARN
+|`Rejecting request from unauthenticated client`
+|`sessionId`, `virtualCluster`, `reason`, `requestType`
+|A client sends a non-SASL request either without having authenticated or after the session has expired.
+The `reason` field indicates whether the client was never authenticated or the session expired.
+The connection is closed.
+
+|WARN
+|`Authentication took longer than fixedAuthDelay`
+|`sessionId`, `virtualCluster`, `mechanism`, `elapsed`, `fixedAuthDelay`
+|The actual authentication work took longer than the configured fixed auth delay, reducing the effectiveness of timing side-channel mitigation.
+Consider increasing `fixedAuthDelay`.
+
+|ERROR
+|`Authentication error`
+|`sessionId`, `virtualCluster`, `mechanism`, `origin`
+|An unexpected internal error occurred during authentication (for example, a failure in the subject builder or the mechanism state machine).
+The full stack trace is always included.
+|===
+
+For detailed authentication flow troubleshooting, enable `DEBUG` logging on `io.kroxylicious.filter.sasl.termination`.
+
 == OAuthBearer Validation filter logs
 
 The `OauthBearerValidation` filter emits log messages at `DEBUG` level for authentication events.

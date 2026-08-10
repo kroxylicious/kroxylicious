@@ -43,8 +43,8 @@ Use SASL Passthrough Inspection when:
 Consider the following:
 
 * The broker still decides whether authentication succeeds.
-  An unauthenticated attacker that can reach the proxy still has proxied access to the broker.
-  If your threat model requires preventing unauthenticated traffic from reaching the broker, consider OAuthBearer Validation or mTLS instead.
+  An unauthenticated attacker that can reach the proxy still has proxied access to the broker — the proxy forwards their application requests without restriction.
+  If your threat model requires that only authenticated clients' requests are forwarded to the broker, consider OAuthBearer Validation, SASL Termination, or mTLS instead.
 * The proxy observes the SASL exchange and holds the authorization ID in memory.
   For mechanisms that transmit credentials in plain text (such as PLAIN), this means plain-text passwords briefly exist in the proxy's memory.
   The PLAIN mechanism is disabled by default for this reason.
@@ -54,8 +54,25 @@ Consider the following:
 Use OAuthBearer Validation when:
 
 * Your Kafka clients authenticate using OAuth 2.0 bearer tokens (the `OAUTHBEARER` SASL mechanism).
-* You want the proxy to reject clients with invalid or expired tokens before they reach the broker.
+* You want the proxy to reject clients with invalid or expired tokens before their application requests are forwarded to the broker.
 * You want to reduce load on the broker from repeated invalid authentication attempts.
+
+This mode requires a reachable JWKS endpoint that provides the public keys used to verify JWT signatures.
+
+== SASL Termination
+
+Use SASL Termination when:
+
+* You want the proxy to be the sole authority for client authentication, fully decoupling it from the broker.
+* You need to ensure that only authenticated clients' application requests are forwarded to the broker.
+* Your Kafka clients authenticate using OAuth 2.0 bearer tokens (the `OAUTHBEARER` SASL mechanism), which is the only mechanism currently supported.
+
+Consider the following:
+
+* The proxy validates credentials directly and does not forward SASL exchanges to the broker.
+  The broker does not need to be configured for SASL authentication at all, or it can use a different authentication mechanism for other clients.
+* Delegation Token APIs (`CreateDelegationToken`, `RenewDelegationToken`, `ExpireDelegationToken`, `DescribeDelegationToken`) are not available to clients when SASL is terminated at the proxy, because these APIs depend on a broker-side SASL session.
+* Unlike SASL Passthrough Inspection, SASL Termination enforces authentication at the proxy: clients that fail authentication are rejected before their application requests are forwarded to the broker.
 
 This mode requires a reachable JWKS endpoint that provides the public keys used to verify JWT signatures.
 
@@ -96,4 +113,10 @@ This can be useful when you want transport-level identity as a baseline and appl
 |Yes (token validation)
 |Yes (`OauthBearerValidation` filter)
 |JWKS endpoint
+
+|SASL Termination
+|Yes (from SASL exchange)
+|Yes (proxy validates directly)
+|Yes (`SaslTermination` filter)
+|JWKS endpoint (for OAUTHBEARER)
 |===

@@ -1,0 +1,69 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-authentication-sasl-termination.adoc
+
+[id='con-example-proxy-config-{context}']
+= Example proxy configuration file
+
+[role="_abstract"]
+If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
+
+Here's a complete example of a `filterDefinitions` entry configured for SASL Termination:
+
+[source, yaml]
+----
+filterDefinitions:
+  - name: my-sasl-termination-filter
+    type: SaslTermination
+    config:
+      mechanisms:
+        - mechanism: OAUTHBEARER
+          jwksEndpointUrl: https://idp.example.com/.well-known/jwks.json
+          expectedAudience: kafka
+          expectedIssuer: https://idp.example.com
+      maxTimeBeforeReauth: 1h
+      fixedAuthDelay: 200ms
+      subjectBuilder: <class name>
+      subjectBuilderConfig: <object providing configuration for the subject builder>
+----
+where:
+
+* `mechanisms` (required) configures the list of SASL mechanisms that the filter supports.
+Each entry specifies a `mechanism` name and mechanism-specific configuration.
+Currently, only `OAUTHBEARER` is supported.
+* `maxTimeBeforeReauth` specifies the maximum session lifetime before the client must reauthenticate (https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate[KIP-368]).
+The effective session expiry is the earlier of this value and the token's own expiry.
+If omitted, session expiry is governed solely by the token's expiry claim.
+* `fixedAuthDelay` specifies the fixed delay applied to each authentication round to mitigate timing side-channel attacks.
+Defaults to 200 milliseconds if omitted.
+Set to `0s` to disable.
+* `subjectBuilder` is the name of a plugin class implementing `io.kroxylicious.proxy.authentication.SaslSubjectBuilderService`.
+If omitted, a default subject builder creates a principal with name matching the SASL authorization ID.
+* `subjectBuilderConfig` provides subject builder configuration.
+
+== OAUTHBEARER mechanism configuration
+
+The `OAUTHBEARER` mechanism validates JWT bearer tokens against a JWKS endpoint.
+
+* `jwksEndpointUrl` (required) specifies the OAuth/OIDC provider endpoint from which the JSON Web Key Set (JWKS) is retrieved.
+* `expectedAudience` (required) specifies the expected audience claim value used to verify the JWT.
+Use a comma-separated list for multiple valid audiences.
+* `expectedIssuer` (required) specifies the expected issuer claim value used to verify the JWT.
+
+The following properties are optional:
+
+* `scopeClaimName` specifies an alternative claim name for the scope in the JWT payload.
+* `subClaimName` specifies an alternative claim name for the subject in the JWT payload.
+* `jwksEndpointRefresh` specifies the interval between refreshes of the JWKS cache used to verify JWT signatures.
+* `jwksEndpointRetryBackoff` specifies the initial delay between attempts to retrieve the JWKS from the external authentication provider.
+* `jwksEndpointRetryBackoffMax` specifies the maximum delay between JWKS retrieval attempts.
+
+Refer to the {ProxyGuide} for more information about configuring the proxy.
