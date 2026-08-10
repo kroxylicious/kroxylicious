@@ -66,4 +66,4 @@ The following properties are optional:
 * `jwksEndpointRetryBackoff` specifies the initial delay between attempts to retrieve the JWKS from the external authentication provider.
 * `jwksEndpointRetryBackoffMax` specifies the maximum delay between JWKS retrieval attempts.
 
-For more information about configuring proxy, see the {ProxyGuide}. "
+For more information about configuring proxy, see the {ProxyGuide}.

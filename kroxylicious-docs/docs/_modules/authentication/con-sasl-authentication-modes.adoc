@@ -79,6 +79,7 @@ This mode is implemented by the `SaslTermination` filter.
 It fully decouples client authentication from broker authentication, which can be useful when the proxy and broker use different credential stores or when you want to ensure that only authenticated clients' application requests are forwarded to the broker.
 
 The `SaslTermination` filter currently supports the `OAUTHBEARER` SASL mechanism.
+If a client attempts to use a mechanism that is not configured, the proxy rejects the handshake with an unsupported mechanism error and closes the connection.
 For `OAUTHBEARER`, the filter validates JWT tokens against a JSON Web Key Set (JWKS) retrieved from a configurable endpoint, checking the token signature, audience, issuer, and expiry.
 
 The filter supports session expiry and reauthentication (https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate[KIP-368]).
