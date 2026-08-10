@@ -231,8 +231,8 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           gh pr merge --delete-branch --merge ${{ inputs.release-pr-issue-number }}
-          # --merge preserves original commit SHAs, so RELEASE_COMMIT_SHA (recorded at
-          # staging time) is directly reachable from main via the merge commit's ancestry.
+          # --merge (not --rebase) so the commit SHA the published images are tagged with
+          # is reachable on main.
           git tag "v${RELEASE_VERSION}" "${RELEASE_COMMIT_SHA}"
           git push origin "v${RELEASE_VERSION}"
 
