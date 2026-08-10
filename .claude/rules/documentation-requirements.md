@@ -80,6 +80,7 @@ Each filter guide must cover:
 - Use US (global) English
 - Follow IBM documentation style guide
 - Be comprehensive
+- Avoid contractions. For example instead of "Here's", use "Here is"
 
 ## Compiling the documentation
 

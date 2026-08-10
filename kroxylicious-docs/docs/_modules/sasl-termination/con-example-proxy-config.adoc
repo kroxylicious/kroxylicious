@@ -16,7 +16,7 @@
 [role="_abstract"]
 If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
 
-Here's a complete example of a `filterDefinitions` entry configured for SASL Termination:
+Here is a complete example of a `filterDefinitions` entry configured for SASL Termination:
 
 [source, yaml]
 ----
@@ -66,4 +66,4 @@ The following properties are optional:
 * `jwksEndpointRetryBackoff` specifies the initial delay between attempts to retrieve the JWKS from the external authentication provider.
 * `jwksEndpointRetryBackoffMax` specifies the maximum delay between JWKS retrieval attempts.
 
-Refer to the {ProxyGuide} for more information about configuring the proxy.
+For more information about configuring proxy, see the {ProxyGuide}. "

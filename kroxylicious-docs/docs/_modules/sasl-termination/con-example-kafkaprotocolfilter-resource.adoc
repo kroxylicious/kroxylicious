@@ -53,4 +53,4 @@ If omitted, a default subject builder creates a principal with name matching the
 
 For `OAUTHBEARER` mechanism configuration, see the bare-metal configuration example for a full description of the mechanism-specific fields (`jwksEndpointUrl`, `expectedAudience`, `expectedIssuer`, and others).
 
-Refer to the {OperatorGuide} for more information about configuration on Kubernetes.
+For more information about configuration on Kubernetes, see the {OperatorGuide}.
