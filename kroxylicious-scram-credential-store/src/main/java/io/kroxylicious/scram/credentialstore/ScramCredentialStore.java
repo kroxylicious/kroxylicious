@@ -29,6 +29,14 @@ import java.util.concurrent.CompletionStage;
  *         multiple threads</li>
  * </ul>
  *
+ * <h2>Lifecycle</h2>
+ * <p>
+ * Instances are created by a {@link ScramCredentialStoreService} and are managed by
+ * the service that created them. A {@code ScramCredentialStore} must not be used
+ * after the {@link ScramCredentialStoreService} that created it has been
+ * {@linkplain ScramCredentialStoreService#close() closed}.
+ * </p>
+ *
  * <h2>Error Handling</h2>
  * <p>
  * The returned {@link CompletionStage} may complete exceptionally with:

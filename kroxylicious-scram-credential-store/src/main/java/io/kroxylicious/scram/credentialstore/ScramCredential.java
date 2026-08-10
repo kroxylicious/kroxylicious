@@ -8,9 +8,6 @@ package io.kroxylicious.scram.credentialstore;
 
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.Set;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * SCRAM credential for SASL authentication.
@@ -38,27 +35,22 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param iterations number of PBKDF2 iterations (must be >= 4096)
  * @param serverKey SCRAM server key bytes
  * @param storedKey SCRAM stored key bytes
- * @param hashAlgorithm the hash algorithm ("SHA-256" or "SHA-512")
+ * @param hashAlgorithm the hash algorithm
  */
 @SuppressWarnings("ArrayRecordComponent") // arrays are cloned, and equals/hashCode is overridden => safe
 public record ScramCredential(
-                              @JsonProperty(required = true) String username,
-                              @JsonProperty(required = true) byte[] salt,
-                              @JsonProperty(required = true) int iterations,
-                              @JsonProperty(required = true) byte[] serverKey,
-                              @JsonProperty(required = true) byte[] storedKey,
-                              @JsonProperty(required = true) String hashAlgorithm) {
+                              String username,
+                              byte[] salt,
+                              int iterations,
+                              byte[] serverKey,
+                              byte[] storedKey,
+                              ScramHashAlgorithm hashAlgorithm) {
 
     /**
      * Minimum number of PBKDF2 iterations required by RFC 5802.
      * It is recommended that a significantly larger value is chosen.
      */
     public static final int MINIMUM_ITERATIONS = 4096;
-
-    /**
-     * Supported hash algorithms.
-     */
-    private static final Set<String> SUPPORTED_ALGORITHMS = Set.of("SHA-256", "SHA-512");
 
     /**
      * Canonical constructor with validation.
@@ -88,10 +80,6 @@ public record ScramCredential(
         if (iterations < MINIMUM_ITERATIONS) {
             throw new IllegalArgumentException(
                     "iterations must be at least " + MINIMUM_ITERATIONS + ", got: " + iterations);
-        }
-        if (!SUPPORTED_ALGORITHMS.contains(hashAlgorithm)) {
-            throw new IllegalArgumentException(
-                    "hashAlgorithm must be one of " + SUPPORTED_ALGORITHMS + ", got: " + hashAlgorithm);
         }
 
         // Defensive copies for mutable arrays
@@ -159,7 +147,7 @@ public record ScramCredential(
     public String toString() {
         return "ScramCredential{" +
                 "username='" + username + '\'' +
-                ", hashAlgorithm='" + hashAlgorithm + '\'' +
+                ", hashAlgorithm=" + hashAlgorithm.algorithmName() +
                 ", iterations=" + iterations +
                 ", salt=***" +
                 ", serverKey=***" +

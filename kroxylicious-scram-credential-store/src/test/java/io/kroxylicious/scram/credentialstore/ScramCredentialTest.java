@@ -8,6 +8,8 @@ package io.kroxylicious.scram.credentialstore;
 
 import org.junit.jupiter.api.Test;
 
+import static io.kroxylicious.scram.credentialstore.ScramHashAlgorithm.SHA_256;
+import static io.kroxylicious.scram.credentialstore.ScramHashAlgorithm.SHA_512;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,7 +30,7 @@ class ScramCredentialTest {
                 4096,
                 serverKey,
                 storedKey,
-                "SHA-256");
+                SHA_256);
 
         // Then
         assertThat(credential.username()).isEqualTo("alice");
@@ -36,7 +38,7 @@ class ScramCredentialTest {
         assertThat(credential.iterations()).isEqualTo(4096);
         assertThat(credential.serverKey()).isEqualTo(serverKey);
         assertThat(credential.storedKey()).isEqualTo(storedKey);
-        assertThat(credential.hashAlgorithm()).isEqualTo("SHA-256");
+        assertThat(credential.hashAlgorithm()).isEqualTo(SHA_256);
     }
 
     @Test
@@ -47,7 +49,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-512"))
+                SHA_512))
                 .doesNotThrowAnyException();
     }
 
@@ -59,7 +61,7 @@ class ScramCredentialTest {
                 10000,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256"))
+                SHA_256))
                 .doesNotThrowAnyException();
     }
 
@@ -69,7 +71,7 @@ class ScramCredentialTest {
         byte[] salt = { 1, 2, 3 };
         byte[] serverKey = { 4, 5, 6 };
         byte[] storedKey = { 7, 8, 9 };
-        ScramCredential credential = new ScramCredential("alice", salt, 4096, serverKey, storedKey, "SHA-256");
+        ScramCredential credential = new ScramCredential("alice", salt, 4096, serverKey, storedKey, SHA_256);
 
         // When
         salt[0] = 99;
@@ -86,7 +88,7 @@ class ScramCredentialTest {
     void shouldDefensivelyCopyArraysOnAccess() {
         // Given
         ScramCredential credential = new ScramCredential(
-                "alice", new byte[]{ 1, 2, 3 }, 4096, new byte[]{ 4, 5, 6 }, new byte[]{ 7, 8, 9 }, "SHA-256");
+                "alice", new byte[]{ 1, 2, 3 }, 4096, new byte[]{ 4, 5, 6 }, new byte[]{ 7, 8, 9 }, SHA_256);
 
         // When
         credential.salt()[0] = 99;
@@ -108,7 +110,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("username");
     }
@@ -121,7 +123,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("username must not be empty");
     }
@@ -135,7 +137,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("salt");
     }
@@ -148,7 +150,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("salt must not be empty");
     }
@@ -162,7 +164,7 @@ class ScramCredentialTest {
                 4096,
                 null,
                 new byte[]{ 7, 8, 9 },
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("serverKey");
     }
@@ -175,7 +177,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[0],
                 new byte[]{ 7, 8, 9 },
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("serverKey must not be empty");
     }
@@ -189,7 +191,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 null,
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("storedKey");
     }
@@ -202,7 +204,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[0],
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("storedKey must not be empty");
     }
@@ -216,24 +218,9 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                null))
+                (ScramHashAlgorithm) null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("hashAlgorithm");
-    }
-
-    @Test
-    void shouldRejectUnsupportedHashAlgorithm() {
-        assertThatThrownBy(() -> new ScramCredential(
-                "alice",
-                new byte[]{ 1, 2, 3 },
-                4096,
-                new byte[]{ 4, 5, 6 },
-                new byte[]{ 7, 8, 9 },
-                "MD5"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("hashAlgorithm must be one of")
-                .hasMessageContaining("SHA-256")
-                .hasMessageContaining("SHA-512");
     }
 
     @Test
@@ -244,7 +231,7 @@ class ScramCredentialTest {
                 4095,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("iterations must be at least 4096")
                 .hasMessageContaining("4095");
@@ -258,7 +245,7 @@ class ScramCredentialTest {
                 -1,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("iterations must be at least 4096");
     }
@@ -271,7 +258,7 @@ class ScramCredentialTest {
                 0,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256"))
+                SHA_256))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("iterations must be at least 4096");
     }
@@ -284,7 +271,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         ScramCredential credential2 = new ScramCredential(
                 "alice",
@@ -292,7 +279,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         assertThat(credential1).isEqualTo(credential2)
                 .hasSameHashCodeAs(credential2);
@@ -306,7 +293,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         ScramCredential credential2 = new ScramCredential(
                 "bob",
@@ -314,7 +301,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         assertThat(credential1).isNotEqualTo(credential2);
     }
@@ -327,7 +314,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         ScramCredential credential2 = new ScramCredential(
                 "alice",
@@ -335,7 +322,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         assertThat(credential1).isNotEqualTo(credential2);
     }
@@ -348,7 +335,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         ScramCredential credential2 = new ScramCredential(
                 "alice",
@@ -356,7 +343,7 @@ class ScramCredentialTest {
                 8192,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         assertThat(credential1).isNotEqualTo(credential2);
     }
@@ -369,7 +356,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         ScramCredential credential2 = new ScramCredential(
                 "alice",
@@ -377,7 +364,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 9, 8, 7 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         assertThat(credential1).isNotEqualTo(credential2);
     }
@@ -390,7 +377,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         ScramCredential credential2 = new ScramCredential(
                 "alice",
@@ -398,7 +385,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 9, 8, 7 },
-                "SHA-256");
+                SHA_256);
 
         assertThat(credential1).isNotEqualTo(credential2);
     }
@@ -411,7 +398,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         ScramCredential credential2 = new ScramCredential(
                 "alice",
@@ -419,7 +406,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-512");
+                SHA_512);
 
         assertThat(credential1).isNotEqualTo(credential2);
     }
@@ -432,7 +419,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         int hashCode1 = credential.hashCode();
         int hashCode2 = credential.hashCode();
@@ -448,7 +435,7 @@ class ScramCredentialTest {
                 4096,
                 new byte[]{ 4, 5, 6 },
                 new byte[]{ 7, 8, 9 },
-                "SHA-256");
+                SHA_256);
 
         String toStringResult = credential.toString();
 
