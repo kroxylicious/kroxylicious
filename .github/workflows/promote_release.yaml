@@ -126,6 +126,8 @@ jobs:
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
           WORK_BRANCH=$(jq --exit-status --raw-output '.workBranch' RELEASE_STATE.json)
           echo "WORK_BRANCH=${WORK_BRANCH}" >> $GITHUB_ENV
+          RELEASE_COMMIT_SHA=$(jq --exit-status --raw-output '.releaseCommitSha' RELEASE_STATE.json)
+          echo "RELEASE_COMMIT_SHA=${RELEASE_COMMIT_SHA}" >> $GITHUB_ENV
 
       - name: 'Stop workflow if PR is not approved'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && inputs.command == 'promote-release' }}
@@ -228,12 +230,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          gh pr merge --delete-branch --rebase ${{ inputs.release-pr-issue-number }}
-          # Tag the release commit on main.  After a rebase merge the release commit is one
-          # behind main's HEAD (main^ = release, main = dev-version bump).
-          git fetch origin
-          RELEASE_COMMIT=$(git rev-list -n 1 "origin/${PR_BASE_BRANCH}^")
-          git tag "v${RELEASE_VERSION}" "${RELEASE_COMMIT}"
+          gh pr merge --delete-branch --merge ${{ inputs.release-pr-issue-number }}
+          # --merge preserves original commit SHAs, so RELEASE_COMMIT_SHA (recorded at
+          # staging time) is directly reachable from main via the merge commit's ancestry.
+          git tag "v${RELEASE_VERSION}" "${RELEASE_COMMIT_SHA}"
           git push origin "v${RELEASE_VERSION}"
 
       - name: 'Create GitHub release'
