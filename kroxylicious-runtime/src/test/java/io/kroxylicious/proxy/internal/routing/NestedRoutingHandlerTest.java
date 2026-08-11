@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.authentication.Subject;
@@ -31,6 +32,7 @@ import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
@@ -88,6 +90,7 @@ class NestedRoutingHandlerTest {
                 nestedRoutes,
                 mapping,
                 correlationIdAllocator,
+                new java.util.concurrent.ConcurrentHashMap<>(),
                 SESSION_ID,
                 Subject.anonymous(),
                 null);
@@ -123,6 +126,13 @@ class NestedRoutingHandlerTest {
         return frame;
     }
 
+    private static OpaqueRequestFrame opaqueFrame(ApiKeys apiKey, int correlationId, String routeName) {
+        var buf = Unpooled.buffer();
+        var frame = new OpaqueRequestFrame(buf, apiKey.id, (short) 12, correlationId, false, 0, true);
+        frame.setRouteName(routeName);
+        return frame;
+    }
+
     // --- channelRead: routing ---
 
     @Test
@@ -151,6 +161,58 @@ class NestedRoutingHandlerTest {
 
         // Then
         assertThat((Object) channel.readInbound()).isEqualTo("not-a-frame");
+    }
+
+    @Test
+    void shouldForwardOpaqueFrameViaNestedStaticRoute() {
+        // Given
+        var handler = createHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
+        channel = new EmbeddedChannel(handler);
+        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of(ApiKeys.FETCH, "inner-r"));
+        var opaqueFrame = opaqueFrame(ApiKeys.FETCH, CORRELATION_ID, ACTIVATION_ROUTE);
+
+        // When
+        channel.writeInbound(opaqueFrame);
+
+        // Then
+        OpaqueRequestFrame forwarded = channel.readInbound();
+        assertThat(forwarded).isSameAs(opaqueFrame);
+        assertThat(forwarded.routeName()).isEqualTo(NESTED_ROUTER_NAME + "/inner-r");
+        opaqueFrame.releaseBuffer();
+    }
+
+    @Test
+    void shouldCloseChannelWhenOpaqueFrameArrivesForDynamicallyRoutedNestedApiKey() {
+        // Given
+        var handler = createHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
+        channel = new EmbeddedChannel(handler);
+        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of());
+        var opaqueFrame = opaqueFrame(ApiKeys.FETCH, CORRELATION_ID, ACTIVATION_ROUTE);
+
+        // When
+        channel.writeInbound(opaqueFrame);
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+        opaqueFrame.releaseBuffer();
+    }
+
+    @Test
+    void shouldPassThroughOpaqueFrameWhenRouteDoesNotMatchActivation() {
+        // Given
+        var handler = createHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
+        channel = new EmbeddedChannel(handler);
+        var opaqueFrame = opaqueFrame(ApiKeys.FETCH, CORRELATION_ID, "other-route");
+
+        // When
+        channel.writeInbound(opaqueFrame);
+
+        // Then
+        OpaqueRequestFrame passed = channel.readInbound();
+        assertThat(passed).isSameAs(opaqueFrame);
+        opaqueFrame.releaseBuffer();
     }
 
     @Test

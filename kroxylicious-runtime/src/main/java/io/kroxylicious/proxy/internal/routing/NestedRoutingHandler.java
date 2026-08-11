@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.kafka.common.errors.UnknownServerException;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -24,9 +25,12 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -62,6 +66,7 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
     private final Map<String, RouteDescriptor> nestedRoutes;
     private final NodeIdMapping nestedNodeIdMapping;
     private final CorrelationIdAllocator correlationIdAllocator;
+    private final Map<Integer, HostPort> routerNodeAddresses;
     private final String sessionId;
     private final Subject subject;
     @Nullable
@@ -85,6 +90,7 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
                                 Map<String, RouteDescriptor> nestedRoutes,
                                 NodeIdMapping nestedNodeIdMapping,
                                 CorrelationIdAllocator correlationIdAllocator,
+                                Map<Integer, HostPort> routerNodeAddresses,
                                 String sessionId,
                                 Subject subject,
                                 @Nullable Integer nodeId) {
@@ -95,6 +101,7 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
         this.nestedRoutes = nestedRoutes;
         this.nestedNodeIdMapping = nestedNodeIdMapping;
         this.correlationIdAllocator = correlationIdAllocator;
+        this.routerNodeAddresses = routerNodeAddresses;
         this.sessionId = sessionId;
         this.subject = subject;
         this.nodeId = nodeId;
@@ -127,7 +134,40 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
             dispatchToNestedRouter(ctx, frame);
             return;
         }
+        if (msg instanceof RequestFrame rf && !(msg instanceof DecodedRequestFrame<?>)
+                && activationRoute.equals(rf.routeName())) {
+            handleOpaqueFrame(ctx, rf, msg);
+            return;
+        }
         ctx.fireChannelRead(msg);
+    }
+
+    private void handleOpaqueFrame(ChannelHandlerContext ctx, RequestFrame rf, Object msg) {
+        ApiKeys apiKey = ApiKeys.forId(rf.apiKeyId());
+        if (nestedRouter == null) {
+            nestedRouter = routerChainFactory.createRouter(nestedRouterName, virtualClusterName);
+        }
+        String staticRoute = nestedRouter.staticRoutes().get(apiKey);
+        if (staticRoute != null) {
+            String qualifiedRoute = nestedRouterName + "/" + staticRoute;
+            ((Frame) msg).setRouteName(qualifiedRoute);
+            ctx.fireChannelRead(msg);
+            LOGGER.atTrace()
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
+                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                    .addKeyValue("route", qualifiedRoute)
+                    .log("Nested static route selected for opaque frame");
+            return;
+        }
+        LOGGER.atWarn()
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                .addKeyValue(LOG_KEY_NESTED_ROUTER, nestedRouterName)
+                .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                .log("Opaque frame arrived for dynamically-routed nested API key; decode predicate misconfigured");
+        ctx.close();
     }
 
     private void dispatchToNestedRouter(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) {
@@ -265,7 +305,9 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
             if (pending != null) {
                 NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(),
                         pending.nodeIdMapping(), pending.route());
+                cacheNodeAddressesIfMetadata(frame.body());
                 pending.future().complete(frame.body());
+                frame.release();
                 LOGGER.atTrace()
                         .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                         .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
@@ -282,5 +324,13 @@ public class NestedRoutingHandler extends ChannelDuplexHandler {
             }
         }
         ctx.write(msg, promise);
+    }
+
+    private void cacheNodeAddressesIfMetadata(Object body) {
+        if (body instanceof MetadataResponseData md) {
+            for (var broker : md.brokers()) {
+                routerNodeAddresses.put(broker.nodeId(), new HostPort(broker.host(), broker.port()));
+            }
+        }
     }
 }
