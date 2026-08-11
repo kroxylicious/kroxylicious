@@ -119,6 +119,15 @@ jobs:
           path: .releaseNotes
           github-token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
 
+      - name: Download release assets
+        if: ${{ inputs.command == 'promote-release' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          run-id: ${{ env.RELCAND_ID }}
+          name: RELEASE_ASSETS
+          path: release-assets
+          github-token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
       - name: 'Extract release metadata from the release state'
         run: |
           DEPLOYMENT_ID=$(jq --exit-status --raw-output '.deploymentId' RELEASE_STATE.json)
@@ -244,7 +253,8 @@ jobs:
         run: |
           gh release create "v${RELEASE_VERSION}" \
             --title "Kroxylicious ${RELEASE_VERSION}" \
-            --notes-file .releaseNotes/release-notes_01
+            --notes-file .releaseNotes/release-notes_01 \
+            release-assets/*
 
       - name: 'Delete release branch'
         if: ${{ inputs.command == 'promote-release' }}

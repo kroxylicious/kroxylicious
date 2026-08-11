@@ -240,6 +240,27 @@ jobs:
           name: RELEASE_NOTES
           path: .releaseNotes/release-notes_01
 
+      - name: 'Collect release assets'
+        run: |
+          VERSION="${{ github.event.inputs.release-version }}"
+          mkdir release-assets
+
+          copy_dist() {
+            local prefix="$1"
+            cp "${prefix}.tar.gz" "${prefix}.tar.gz.asc" "${prefix}.zip" "${prefix}.zip.asc" release-assets/
+          }
+
+          copy_dist "kroxylicious-app/target/kroxylicious-app-${VERSION}-bin"
+          copy_dist "kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-${VERSION}"
+          copy_dist "kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-${VERSION}"
+          cp "kroxylicious-api/target/japicmp/japicmp.html" "release-assets/${VERSION}-compatability.html"
+
+      - name: 'Archive release assets (used by the promote workflow)'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: RELEASE_ASSETS
+          path: release-assets/
+
       - name: 'Stage release docs'
         if: ${{ success() }}
         run: |
