@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.24.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>kroxylicious-kafka-message-generator</artifactId>
+    <name>Kafka Message Generator</name>
+    <description>Fork of the Apache Kafka MessageGenerator tool, used to generate *Data classes
+        from the Kafka protocol JSON IDL specs. Source files retain their original ASF copyright
+        headers and are redistributed under the Apache 2.0 licence.</description>
+
+    <properties>
+        <!-- All source in this module is forked from Apache Kafka and retains ASF copyright
+             headers. Checkstyle and ErrorProne are suppressed; a separate task will
+             bring the files into conformance with Kroxylicious conventions. -->
+        <errorprone.skip>true</errorprone.skip>
+        <checkstyle.skip>true</checkstyle.skip>
+        <spotbugs.skip>true</spotbugs.skip>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jdk8</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.sourceforge.argparse4j</groupId>
+            <artifactId>argparse4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <configuration combine.self="override">
+                    <!-- All source in this module is forked from Apache Kafka and carries ASF
+                         copyright headers. Override the project-wide Kroxylicious header with
+                         the ASF header. combine.self="override" prevents the parent's Kroxylicious
+                         licenseSet from merging in at module scope.
+                         Update this when modifications are made to the source. -->
+                    <strictCheck>true</strictCheck>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>${project.basedir}/etc/asf-license.txt</header>
+                            <excludes>
+                                <exclude>pom.xml</exclude>
+                            </excludes>
+                        </licenseSet>
+                    </licenseSets>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <!-- Forked ASF source lacks Javadoc on many members; suppress doclint. -->
+                    <doclint>none</doclint>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- Forked ASF source does not conform to Kroxylicious ErrorProne rules.
+                         Clear the annotation processor paths so ErrorProne does not run. -->
+                    <annotationProcessorPaths combine.self="override"/>
+                    <compilerArgs combine.self="override"/>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
