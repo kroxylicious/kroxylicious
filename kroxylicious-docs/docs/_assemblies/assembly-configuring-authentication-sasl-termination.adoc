@@ -1,0 +1,44 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+
+[id='assembly-configuring-authentication-sasl-termination-{context}']
+= Configuring SASL Termination
+
+[role="_abstract"]
+To enable SASL Termination, configure a `SaslTermination` filter in the proxy's filter chain.
+This filter handles the SASL authentication exchange at the proxy without forwarding it to the broker.
+The proxy validates the client's credentials directly and constructs an authenticated subject on success.
+
+.Prerequisites
+
+* An instance of Kroxylicious.
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
+* For the `OAUTHBEARER` mechanism, a reachable JWKS endpoint that publishes the public keys used to verify JWT signatures.
+
+.Procedure
+
+. Configure a `SaslTermination` type filter.
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-example-proxy-config-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment using a `KafkaProtocolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
+endif::[]
+
+ifdef::include-platform-bare-metal[]
+include::../_modules/sasl-termination/con-example-proxy-config.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-platform-kubernetes[]
+include::../_modules/sasl-termination/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
+endif::[]

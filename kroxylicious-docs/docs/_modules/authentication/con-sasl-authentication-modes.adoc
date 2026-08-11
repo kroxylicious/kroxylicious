@@ -63,18 +63,30 @@ OAuthBearer Validation is a specialized mode in which the proxy validates a clie
 If the token is invalid, the proxy short-circuits the exchange and returns an error to the client without contacting the broker.
 
 This mode is implemented by the `OauthBearerValidation` filter.
-It reduces load on the broker by rejecting clients with invalid or expired tokens at the proxy, and it prevents unauthenticated traffic from reaching the broker.
+It reduces load on the broker by rejecting clients with invalid or expired tokens at the proxy before their application requests are forwarded.
 
 The filter validates tokens against a JSON Web Key Set (JWKS) retrieved from a configurable endpoint.
 It supports configurable token validation including expected audience, expected issuer, and custom claim names.
 
 To limit the impact of repeated authentication failures, the filter applies exponential backoff to clients that present invalid tokens.
 
-// == SASL Termination (future)
-//
-// NOTE: SASL Termination is not yet available as a production feature.
-//
-// In SASL Termination mode, the proxy handles the SASL authentication exchange itself, without forwarding `SaslAuthenticate` requests to the broker.
-// The proxy validates the client's credentials directly and constructs an authenticated subject on success.
-//
-// This mode fully decouples client authentication from broker authentication, which can be useful when the proxy and broker use different credential stores.
+== SASL Termination
+
+In SASL Termination mode, the proxy handles the SASL authentication exchange itself, without forwarding `SaslAuthenticate` requests to the broker.
+The proxy validates the client's credentials directly and constructs an authenticated subject on success.
+
+This mode is implemented by the `SaslTermination` filter.
+It fully decouples client authentication from broker authentication, which can be useful when the proxy and broker use different credential stores or when you want to ensure that only authenticated clients' application requests are forwarded to the broker.
+
+The `SaslTermination` filter currently supports the `OAUTHBEARER` SASL mechanism.
+If a client attempts to use a mechanism that is not configured, the proxy rejects the handshake with an unsupported mechanism error and closes the connection.
+For `OAUTHBEARER`, the filter validates JWT tokens against a JSON Web Key Set (JWKS) retrieved from a configurable endpoint, checking the token signature, audience, issuer, and expiry.
+
+The filter supports session expiry and reauthentication (https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate[KIP-368]).
+When a token's expiry is reached, the client must reauthenticate or the connection is closed.
+
+Because SASL is terminated at the proxy, certain Kafka APIs that depend on a broker-side SASL session are not available.
+The filter removes the Delegation Token APIs (`CreateDelegationToken`, `RenewDelegationToken`, `ExpireDelegationToken`, `DescribeDelegationToken`) from the `ApiVersions` response and rejects any requests for these APIs.
+
+To mitigate timing side-channel attacks (such as username enumeration), the filter applies a configurable fixed delay to each authentication round.
+This ensures that authentication responses take a consistent amount of time regardless of the reason for success or failure.

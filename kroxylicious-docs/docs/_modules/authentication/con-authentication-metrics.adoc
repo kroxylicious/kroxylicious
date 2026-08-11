@@ -29,7 +29,30 @@ This allows operators to monitor authentication activity across all virtual clus
 
 NOTE: This metric is emitted by the proxy runtime, not by individual filters.
 It is incremented whenever a filter calls `clientSaslAuthenticationSuccess` or `clientSaslAuthenticationFailure` on the filter context.
+Both the `SaslInspection` and `SaslTermination` filters trigger this metric.
 In SASL Passthrough mode (the default, with no SASL filter configured), no filter announces authentication outcomes, so this metric is not incremented.
+
+== SASL Termination metrics
+
+The `SaslTermination` filter emits additional metrics specific to the termination process.
+
+.SASL Termination metrics
+|===
+|Metric name |Type |Labels |Description
+
+|`kroxylicious_filter_sasl_termination_auth_duration_seconds`
+|Timer
+|`mechanism`, `virtual_cluster`
+|Records the authentication latency, exclusive of the configured fixed timing delay.
+ This measures the real work performed during authentication: credential store lookup, token validation, and signature verification.
+ Recorded on both successful and failed authentication attempts.
+
+|`kroxylicious_filter_sasl_termination_session_expired_total`
+|Counter
+|`mechanism`, `virtual_cluster`
+|Incremented by one every time a client's session expires without the client reauthenticating in time.
+ When this counter increments, the client's next request is rejected and the connection is closed.
+|===
 
 == Operational use
 
@@ -53,5 +76,14 @@ Alert if clients authenticate using a mechanism you do not expect, which may ind
 
 Correlate with connection metrics::
 Compare `kroxylicious_client_auth_total{outcome="success"}` with `kroxylicious_client_to_proxy_connections_total` to understand what proportion of connections successfully authenticate.
+
+Tune the fixed authentication delay::
+Use `kroxylicious_filter_sasl_termination_auth_duration_seconds` to understand how long authentication actually takes.
+If the p99 latency approaches or exceeds the configured `fixedAuthDelay`, the filter logs a warning and the timing side-channel mitigation is less effective.
+Consider increasing `fixedAuthDelay` to maintain a margin above the observed authentication latency.
+
+Alert on session expiry::
+A rising `kroxylicious_filter_sasl_termination_session_expired_total` indicates that clients are not reauthenticating before their sessions expire.
+This may indicate misconfigured clients, network issues preventing reauthentication, or a `maxTimeBeforeReauth` value that is too short for the workload.
 
 For the full list of proxy metrics, see the monitoring section of the {ProxyGuide}.
