@@ -61,8 +61,16 @@
                 <artifactId>license-maven-plugin</artifactId>
                 <configuration>
                     <!-- All source in this module is forked from Apache Kafka and carries ASF
-                         copyright headers, not Kroxylicious headers. Skip the header check. -->
-                    <skip>true</skip>
+                         copyright headers. Override the project-wide Kroxylicious header with
+                         the ASF header. Update this when modifications are made to the source. -->
+                    <licenseSets>
+                        <licenseSet>
+                            <header>${project.basedir}/etc/asf-license.txt</header>
+                            <excludes>
+                                <exclude>pom.xml</exclude>
+                            </excludes>
+                        </licenseSet>
+                    </licenseSets>
                 </configuration>
             </plugin>
             <plugin>
