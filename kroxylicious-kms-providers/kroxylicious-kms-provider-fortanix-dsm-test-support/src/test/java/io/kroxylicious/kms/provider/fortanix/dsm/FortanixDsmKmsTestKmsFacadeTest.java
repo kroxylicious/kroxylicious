@@ -26,6 +26,7 @@ import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.testing.kms.TestKekManager;
 import io.kroxylicious.testing.kms.TestKekManager.AlreadyExistsException;
 import io.kroxylicious.testing.kms.fortanix.FortanixDsmKmsTestKmsFacade;
+import io.kroxylicious.testing.kms.fortanix.FortanixDsmKmsTestKmsFacadeFactory;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.delete;
@@ -255,6 +256,18 @@ class FortanixDsmKmsTestKmsFacadeTest {
     void classAndConfig() {
         assertThat(facade.getKmsServiceClass()).isEqualTo(FortanixDsmKmsService.class);
         assertThat(facade.getKmsServiceConfig()).isInstanceOf(Config.class);
+    }
+
+    @Test
+    void factoryBuildsFacade() {
+        // Given
+        var factory = new FortanixDsmKmsTestKmsFacadeFactory();
+
+        // When
+        var built = factory.build();
+
+        // Then
+        assertThat(built).isInstanceOf(FortanixDsmKmsTestKmsFacade.class);
     }
 
 }
