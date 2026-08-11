@@ -59,10 +59,13 @@
             <plugin>
                 <groupId>com.mycila</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <configuration>
+                <configuration combine.self="override">
                     <!-- All source in this module is forked from Apache Kafka and carries ASF
                          copyright headers. Override the project-wide Kroxylicious header with
-                         the ASF header. Update this when modifications are made to the source. -->
+                         the ASF header. combine.self="override" prevents the parent's Kroxylicious
+                         licenseSet from merging in at module scope.
+                         Update this when modifications are made to the source. -->
+                    <strictCheck>true</strictCheck>
                     <licenseSets>
                         <licenseSet>
                             <header>${project.basedir}/etc/asf-license.txt</header>

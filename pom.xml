@@ -703,6 +703,11 @@
                                     <exclude>**/*.password</exclude>
                                     <!-- JSON-based formats that cannot carry a license header -->
                                     <exclude>**/*.excalidraw</exclude>
+                                    <!-- Forked Kafka source retains ASF headers; the module-level
+                                         check enforces the ASF template. Paths are root-relative because
+                                         this exclusion only needs to work during the root-level scan. -->
+                                    <exclude>kroxylicious-kafka-message-generator/src/**</exclude>
+                                    <exclude>kroxylicious-kafka-message-generator/etc/**</exclude>
 
                                 </excludes>
                             </licenseSet>
