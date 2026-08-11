@@ -703,8 +703,7 @@
                                     <exclude>**/*.password</exclude>
                                     <!-- JSON-based formats that cannot carry a license header -->
                                     <exclude>**/*.excalidraw</exclude>
-                                    <!-- Forked from Apache Kafka; retains original ASF copyright headers -->
-                                    <exclude>**/kroxylicious-kafka-message-generator/src/**</exclude>
+
                                 </excludes>
                             </licenseSet>
                         </licenseSets>
