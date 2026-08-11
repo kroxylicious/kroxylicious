@@ -64,7 +64,7 @@ import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
+import io.kroxylicious.proxy.internal.routing.RoutingHandler;
 import io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.router.Router;
@@ -432,7 +432,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.initConnection(channel, endpointBinding, new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
-        verify(channelPipeline).addLast(eq("routerDispatchHandler"), isA(RouterDispatchHandler.class));
+        verify(channelPipeline).addLast(eq("routerDispatchHandler"), isA(RoutingHandler.class));
         verify(channelPipeline).addLast(eq("routingTerminalHandler"), isA(RoutingTerminalHandler.class));
     }
 
