@@ -24,7 +24,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Per-request implementation of {@link RouterContext}. Created by
- * {@link RouterDispatchHandler} for each incoming client request.
+ * {@link RoutingHandler} for each incoming request at any routing level.
  */
 class RouterContextImpl implements RouterContext {
 

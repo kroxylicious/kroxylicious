@@ -49,7 +49,6 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -988,7 +987,7 @@ public class ClientConnectionStateMachine {
 
     /**
      * Forward a message to the backend connection for the named route.
-     * Used by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * Used by {@link io.kroxylicious.proxy.internal.routing.RoutingHandler}
      * for both static and dynamic routing paths.
      * @param routeName the name of the route identifying the target upstream
      * @param msg the message to forward to the route's backend connection
@@ -1019,7 +1018,7 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Signals that a {@link RouterDispatchHandler} is active on this connection's pipeline.
+     * Signals that a {@link io.kroxylicious.proxy.internal.routing.RoutingHandler} is active on this connection's pipeline.
      * When active, responses bearing routing-range correlation IDs are not counted
      * against the client in-flight limit (because they are synthetic, not client requests).
      */
@@ -1038,7 +1037,7 @@ public class ClientConnectionStateMachine {
 
     /**
      * Signals that a dynamically-routed client request has been fully handled.
-     * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * Called by {@link io.kroxylicious.proxy.internal.routing.RoutingHandler}
      * when the router's {@code onRequest} future completes and the response has been
      * delivered to the client. Decrements the in-flight request count to maintain the
      * 1:1 invariant even during fan-out routing.

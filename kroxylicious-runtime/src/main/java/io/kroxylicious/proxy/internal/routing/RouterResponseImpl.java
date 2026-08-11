@@ -24,8 +24,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * <p>Instances are created by {@link RouterContextImpl} via the builder methods
  * ({@code respondWith}, {@code respondWithError}, {@code respondWithoutReply}).
- * {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler} switches on
- * the subtypes to determine how to deliver the result to the client.</p>
+ * {@link RoutingHandler} switches on the subtypes to determine how to deliver
+ * the result to the client.</p>
  */
 sealed interface RouterResponseImpl extends RouterResponse
         permits RouterResponseImpl.RespondWith,

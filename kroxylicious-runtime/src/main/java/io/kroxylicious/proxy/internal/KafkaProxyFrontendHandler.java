@@ -58,10 +58,9 @@ import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
-import io.kroxylicious.proxy.internal.routing.NestedRoutingHandler;
 import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
+import io.kroxylicious.proxy.internal.routing.RoutingHandler;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -289,7 +288,7 @@ public class KafkaProxyFrontendHandler
         var filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
         var allRouteFilters = new ArrayList<FilterAndInvoker>();
 
-        // Install route filters for top-level routes first, inserting NestedRoutingHandlers
+        // Install route filters for top-level routes first, inserting nested RoutingHandlers
         // after each router-targeting route's filters, then install nested route filters.
         for (var entry : dr.routeDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             String routeName = entry.getKey();
@@ -299,7 +298,7 @@ public class KafkaProxyFrontendHandler
                 installNestedRoutingHandler(pipeline, dr, rd.routerName(), routeName);
             }
         }
-        // Install filters for nested routes (qualified names), inserting NestedRoutingHandlers
+        // Install filters for nested routes (qualified names), inserting nested RoutingHandlers
         // after each router-targeting nested route's filters to support arbitrary nesting depth.
         for (var entry : dr.allRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             String qualifiedName = entry.getKey();
@@ -345,18 +344,18 @@ public class KafkaProxyFrontendHandler
             }
         }
         NodeIdMapping nestedNodeIdMapping = NodeIdMapping.build(nestedRoutes);
-        var rdh = (RouterDispatchHandler) pipeline.get("routerDispatchHandler");
+        var topLevel = (RoutingHandler) pipeline.get("routerDispatchHandler");
         String handlerName = "nestedRoutingHandler-" + activationRoute;
         pipeline.addBefore("routingTerminalHandler", handlerName,
-                new NestedRoutingHandler(
+                RoutingHandler.nested(
                         activationRoute,
                         nestedRouterName,
                         clientConnectionStateMachine.clusterName(),
                         routerChainFactory,
                         nestedRoutes,
                         nestedNodeIdMapping,
-                        rdh.correlationIdAllocator(),
-                        rdh.routerNodeAddresses(),
+                        topLevel.correlationIdAllocator(),
+                        topLevel.routerNodeAddresses(),
                         clientConnectionStateMachine.sessionId(),
                         clientConnectionStateMachine.authenticatedSubject(),
                         clientConnectionStateMachine.endpointBinding() instanceof BrokerEndpointBinding beb ? beb.nodeId() : null));

@@ -45,7 +45,8 @@ import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
+import io.kroxylicious.proxy.internal.routing.RouteDispatcher;
+import io.kroxylicious.proxy.internal.routing.RoutingHandler;
 import io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -288,15 +289,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 dp.setRouterDecodingRequirements(decodedKeys);
 
                 var sharedAddresses = sharedNodeAddressCache.computeIfAbsent(dr, k -> new ConcurrentHashMap<>());
-                var dispatchHandler = new RouterDispatchHandler(
+                var routingHandler = RoutingHandler.topLevel(
                         router, dr.routeDescriptors(), staticRoutes, sharedAddresses, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(),
                         dr.nodeIdMapping(), binding.nodeId());
                 clientConnectionStateMachine.setRouterActive();
                 clientConnectionStateMachine.setUpstreamAddressResolver(
-                        virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)
+                        virtualNodeId -> routingHandler.resolveRouterNodeAddress(virtualNodeId)
                                 .or(() -> endpointReconciler.upstreamAddress(
                                         clientConnectionStateMachine.endpointGateway(), virtualNodeId)));
-                pipeline.addLast("routerDispatchHandler", dispatchHandler);
+                pipeline.addLast("routerDispatchHandler", routingHandler);
                 pipeline.addLast("routingTerminalHandler", new RoutingTerminalHandler(clientConnectionStateMachine));
             }
             case DirectRouting ignored -> pipeline.addLast("filterChainCompletionHandler",
@@ -327,7 +328,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 }
             }
         }
-        decodedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_APIS);
+        decodedKeys.addAll(RouteDispatcher.NODE_ID_TRANSLATION_APIS);
         return decodedKeys;
     }
 

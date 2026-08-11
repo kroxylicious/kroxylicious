@@ -13,9 +13,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
  * Abstraction over the dispatch capabilities that {@link RouterContextImpl} needs.
- * {@link RouterDispatchHandler} implements this for the top-level router;
- * nested routing levels provide their own implementation with different
- * routes and {@link NodeIdMapping}.
+ * {@link RouteDispatcher} implements this, parameterised by route prefix for
+ * both top-level and nested routing.
  */
 interface RouterDispatch {
 
