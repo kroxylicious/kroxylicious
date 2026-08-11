@@ -23,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.it.testplugins.ProduceCountingFilter;
+import io.kroxylicious.it.testplugins.ProduceCountingFilterFactory;
 import io.kroxylicious.it.testplugins.RequestCountingFilter;
 import io.kroxylicious.it.testplugins.RequestCountingFilterFactory;
 import io.kroxylicious.it.testplugins.router.ClientIdRouterFactory;
@@ -266,6 +268,76 @@ class NestedRouteWithFiltersIT {
         assertThat(RequestCountingFilter.countFor(outerCtr, ApiKeys.PRODUCE))
                 .as("inner route's filter (same def name, different instance) should have counted independently")
                 .isEqualTo(4);
+    }
+
+    /**
+     * Verifies that the DecodePredicate accounts for nested router filter decode
+     * requirements. The inner route uses a ProduceRequestFilter (narrow decode scope:
+     * only Produce) with no filter on the outer route. If the DecodePredicate only
+     * considered top-level filters, Produce requests would arrive undecoded at the
+     * inner filter and it would never fire.
+     */
+    @Test
+    void innerRouterFilterWithSpecificDecodeRequirementsShouldWork(
+                                                                   @Name("clusterB") Topic topicOnB,
+                                                                   @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB) {
+        // Given
+        String topic = topicOnB.name();
+        String innerCtr = "decode-inner-" + topic;
+
+        var targetA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var targetB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+
+        var innerProduceFilter = new NamedFilterDefinitionBuilder(
+                "produce-counter", ProduceCountingFilterFactory.class.getName())
+                .withConfig("counterId", innerCtr)
+                .build();
+
+        // Inner router: routes dynamically to "backend" with a ProduceRequestFilter (narrow decode)
+        var innerRoute = new RouteDefinition("backend", 0, List.of("produce-counter"), new RouteTarget("cluster-b", null));
+        var innerConfig = new DynamicProduceRouterFactory.Config("backend");
+        var innerRouter = new RouterDefinition("inner",
+                DynamicProduceRouterFactory.class.getName(), innerConfig, List.of(innerRoute));
+
+        // Outer router: single route targeting inner router, NO filters on this route
+        var nestedRoute = new RouteDefinition("to-inner", 0, List.of(), new RouteTarget(null, "inner"));
+        var outerConfig = new DynamicProduceRouterFactory.Config("to-inner");
+        var outerRouter = new RouterDefinition("outer",
+                DynamicProduceRouterFactory.class.getName(), outerConfig, List.of(nestedRoute));
+
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, "outer"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
+                .build();
+
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(targetA, targetB)
+                .addToFilterDefinitions(innerProduceFilter)
+                .addToRouterDefinitions(outerRouter, innerRouter)
+                .addToVirtualClusters(vc);
+
+        // When
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer(Map.of(
+                        "enable.idempotence", false,
+                        "retries", 0,
+                        "batch.size", 0,
+                        "linger.ms", 0))) {
+
+            for (int i = 0; i < 3; i++) {
+                assertThat(producer.send(new ProducerRecord<>(topic, "key-" + i, "value-" + i)))
+                        .succeedsWithin(Duration.ofSeconds(10));
+            }
+        }
+
+        // Then
+        assertThat(consumeFrom(verifyB, topic))
+                .extracting(ConsumerRecord::key)
+                .containsExactly("key-0", "key-1", "key-2");
+        assertThat(ProduceCountingFilter.countFor(innerCtr))
+                .as("inner ProduceRequestFilter should fire for each produce through nested route")
+                .isEqualTo(3);
     }
 
     private static void createTopicOnCluster(KafkaCluster cluster, String topicName) {
