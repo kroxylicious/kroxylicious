@@ -360,12 +360,12 @@ public record Configuration(
         if (topRouter == null) {
             return Map.of();
         }
-        Map<String, RouteDescriptor> all = new LinkedHashMap<>();
         Map<String, RouteDescriptor> topLevel = resolveRouterRoutes(topRouter, filterDefinitionsByName, clustersByName);
-        all.putAll(topLevel);
+        Map<String, RouteDescriptor> all = new LinkedHashMap<>(topLevel);
         for (var entry : topLevel.entrySet()) {
             if (entry.getValue().targetsRouter()) {
-                collectNestedRouteDescriptors(entry.getValue().routerName(), routersByName,
+                collectNestedRouteDescriptors(routersByName.get(entry.getValue().routerName()),
+                        entry.getValue().routerName(), routersByName,
                         filterDefinitionsByName, clustersByName, all);
             }
         }
@@ -373,22 +373,23 @@ public record Configuration(
     }
 
     private void collectNestedRouteDescriptors(
+                                               RouterDefinition router,
                                                String routerName,
                                                Map<String, RouterDefinition> routersByName,
                                                Map<String, NamedFilterDefinition> filterDefinitionsByName,
                                                Map<String, ClusterDefinition> clustersByName,
                                                Map<String, RouteDescriptor> collector) {
-        RouterDefinition rd = routersByName.get(routerName);
-        if (rd == null) {
+        if (router == null) {
             return;
         }
-        Map<String, RouteDescriptor> routerRoutes = resolveRouterRoutes(rd, filterDefinitionsByName, clustersByName);
+        Map<String, RouteDescriptor> routerRoutes = resolveRouterRoutes(router, filterDefinitionsByName, clustersByName);
         for (var entry : routerRoutes.entrySet()) {
             String qualifiedName = routerName + "/" + entry.getKey();
             collector.put(qualifiedName, entry.getValue());
             RouteDescriptor desc = entry.getValue();
             if (desc.targetsRouter()) {
-                collectNestedRouteDescriptors(desc.routerName(), routersByName,
+                collectNestedRouteDescriptors(routersByName.get(desc.routerName()),
+                        desc.routerName(), routersByName,
                         filterDefinitionsByName, clustersByName, collector);
             }
         }

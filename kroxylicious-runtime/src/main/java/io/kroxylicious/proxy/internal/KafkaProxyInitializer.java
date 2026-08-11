@@ -285,12 +285,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             case DynamicRouting dr -> {
                 Router router = virtualCluster.createRouter();
                 Map<ApiKeys, String> staticRoutes = router.staticRoutes();
-                Set<ApiKeys> decodedKeys = computeDecodedKeysForRouter(staticRoutes, dr.routeDescriptors());
+                Set<ApiKeys> decodedKeys = computeDecodedKeysForRouter(staticRoutes, dr.topLevelRouteDescriptors());
                 dp.setRouterDecodingRequirements(decodedKeys);
 
                 var sharedAddresses = sharedNodeAddressCache.computeIfAbsent(dr, k -> new ConcurrentHashMap<>());
                 var routingHandler = RoutingHandler.topLevel(
-                        router, dr.routeDescriptors(), staticRoutes, sharedAddresses, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(),
+                        router, dr.topLevelRouteDescriptors(), staticRoutes, sharedAddresses, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(),
                         dr.nodeIdMapping(), binding.nodeId());
                 clientConnectionStateMachine.setRouterActive();
                 clientConnectionStateMachine.setUpstreamAddressResolver(

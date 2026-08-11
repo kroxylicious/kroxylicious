@@ -28,6 +28,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -70,8 +71,8 @@ public class RouteDispatcher implements RouterDispatch {
     private final Map<Integer, HostPort> routerNodeAddresses;
     private final String virtualClusterName;
 
-    final Map<Integer, PendingResponse> pendingResponses = new HashMap<>();
-    final Map<Integer, String> pendingStaticRoutes = new HashMap<>();
+    private final Map<Integer, PendingResponse> pendingResponses = new HashMap<>();
+    private final Map<Integer, String> pendingStaticRoutes = new HashMap<>();
 
     @Nullable
     private ChannelHandlerContext ctx;
@@ -260,6 +261,31 @@ public class RouteDispatcher implements RouterDispatch {
     }
 
     // --- Lifecycle ---
+
+    @VisibleForTesting
+    boolean hasPendingResponses() {
+        return !pendingResponses.isEmpty();
+    }
+
+    @VisibleForTesting
+    void addPendingResponse(int correlationId, PendingResponse pending) {
+        pendingResponses.put(correlationId, pending);
+    }
+
+    @VisibleForTesting
+    PendingResponse getPendingResponse(int correlationId) {
+        return pendingResponses.get(correlationId);
+    }
+
+    @VisibleForTesting
+    int pendingResponseCount() {
+        return pendingResponses.size();
+    }
+
+    @VisibleForTesting
+    void addPendingStaticRoute(int correlationId, String route) {
+        pendingStaticRoutes.put(correlationId, route);
+    }
 
     void failAllPending(String sessionId) {
         int abandoned = pendingResponses.size();

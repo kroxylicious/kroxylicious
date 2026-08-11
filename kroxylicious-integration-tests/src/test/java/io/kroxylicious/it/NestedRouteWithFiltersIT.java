@@ -8,9 +8,6 @@ package io.kroxylicious.it;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.StreamSupport;
 
 import org.apache.kafka.clients.admin.Admin;
@@ -46,6 +43,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -68,7 +66,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
-class NestedRouteFilterIT {
+class NestedRouteWithFiltersIT {
 
     private static final Features ROUTING_ENABLED = Features.builder().enable(Feature.ROUTING).build();
 
@@ -108,7 +106,7 @@ class NestedRouteFilterIT {
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
                 .withTarget(new RouteTarget(null, "outer"))
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
                 .build();
 
         return baseConfigurationBuilder()
@@ -122,8 +120,7 @@ class NestedRouteFilterIT {
     void directRouteShouldBypassNestedRouter(
                                              @Name("clusterA") Topic topicOnA,
                                              @Name("clusterA") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-a") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyA,
-                                             @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB)
-            throws ExecutionException, InterruptedException, TimeoutException {
+                                             @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB) {
         // Given
         String topic = topicOnA.name();
         createTopicOnCluster(clusterB, topic);
@@ -163,8 +160,7 @@ class NestedRouteFilterIT {
     void nestedRouteShouldFireBothOuterAndInnerFilters(
                                                        @Name("clusterB") Topic topicOnB,
                                                        @Name("clusterA") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-a") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyA,
-                                                       @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB)
-            throws ExecutionException, InterruptedException, TimeoutException {
+                                                       @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB) {
         // Given
         String topic = topicOnB.name();
         createTopicOnCluster(clusterA, topic);
@@ -203,8 +199,7 @@ class NestedRouteFilterIT {
     @Test
     void sameFilterNameOnDifferentRoutersShouldCountIndependently(
                                                                   @Name("clusterB") Topic topicOnB,
-                                                                  @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB)
-            throws ExecutionException, InterruptedException, TimeoutException {
+                                                                  @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB) {
         // Given: both outer and inner routes use the same filter definition name ("shared-counter")
         // but with different counter IDs, verifying response routing correctness
         String topic = topicOnB.name();
@@ -238,7 +233,7 @@ class NestedRouteFilterIT {
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
                 .withTarget(new RouteTarget(null, "outer"))
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
                 .build();
 
         var config = baseConfigurationBuilder()
@@ -273,9 +268,10 @@ class NestedRouteFilterIT {
                 .isEqualTo(4);
     }
 
-    private static void createTopicOnCluster(KafkaCluster cluster, String topicName) throws ExecutionException, InterruptedException, TimeoutException {
+    private static void createTopicOnCluster(KafkaCluster cluster, String topicName) {
         try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
-            admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
+            assertThat(admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all())
+                    .succeedsWithin(Duration.ofSeconds(10));
         }
     }
 

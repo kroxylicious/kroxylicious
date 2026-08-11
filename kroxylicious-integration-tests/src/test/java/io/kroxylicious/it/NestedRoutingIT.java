@@ -9,12 +9,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.StreamSupport;
 
 import org.apache.kafka.clients.admin.Admin;
@@ -47,6 +44,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -94,7 +92,7 @@ class NestedRoutingIT {
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
                 .withTarget(new RouteTarget(null, "outer"))
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
                 .build();
 
         return baseConfigurationBuilder()
@@ -107,8 +105,7 @@ class NestedRoutingIT {
     void shouldRouteProduceThroughNestedRouterToClusterA(
                                                          @Name("clusterA") Topic topicOnA,
                                                          @Name("clusterA") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-a") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyA,
-                                                         @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB)
-            throws ExecutionException, InterruptedException, TimeoutException {
+                                                         @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB) {
         // Given
         String topic = topicOnA.name();
         createTopicOnCluster(clusterB, topic);
@@ -140,8 +137,7 @@ class NestedRoutingIT {
     void shouldRouteProduceThroughNestedRouterToClusterB(
                                                          @Name("clusterB") Topic topicOnB,
                                                          @Name("clusterA") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-a") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyA,
-                                                         @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB)
-            throws ExecutionException, InterruptedException, TimeoutException {
+                                                         @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB) {
         // Given
         String topic = topicOnB.name();
         createTopicOnCluster(clusterA, topic);
@@ -199,7 +195,7 @@ class NestedRoutingIT {
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
                 .withTarget(new RouteTarget(null, "outer"))
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
                 .build();
 
         return baseConfigurationBuilder()
@@ -212,8 +208,7 @@ class NestedRoutingIT {
     void shouldRouteProduceThroughDeeplyNestedRoutersToClusterA(
                                                                 @Name("clusterA") Topic topicOnA,
                                                                 @Name("clusterA") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-a") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyA,
-                                                                @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB)
-            throws ExecutionException, InterruptedException, TimeoutException {
+                                                                @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB) {
         // Given
         String topic = topicOnA.name();
         createTopicOnCluster(clusterB, topic);
@@ -245,8 +240,7 @@ class NestedRoutingIT {
     void shouldRouteProduceThroughDeeplyNestedRoutersToClusterB(
                                                                 @Name("clusterB") Topic topicOnB,
                                                                 @Name("clusterA") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-a") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyA,
-                                                                @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB)
-            throws ExecutionException, InterruptedException, TimeoutException {
+                                                                @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB) {
         // Given
         String topic = topicOnB.name();
         createTopicOnCluster(clusterA, topic);
@@ -326,45 +320,40 @@ class NestedRoutingIT {
         int messagesPerProducer = 3;
 
         // When
-        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
-            ExecutorService executor = Executors.newFixedThreadPool(producersPerCluster * 2);
-            try {
-                List<Future<?>> futures = new ArrayList<>();
-                for (int p = 0; p < producersPerCluster; p++) {
-                    int idx = p;
-                    futures.add(executor.submit(() -> {
-                        try (var producer = tester.producer(Map.of(
-                                "client.id", "app-a",
-                                "enable.idempotence", false,
-                                "retries", 0,
-                                "batch.size", 0,
-                                "linger.ms", 0))) {
-                            for (int i = 0; i < messagesPerProducer; i++) {
-                                producer.send(new ProducerRecord<>(topic, "a-" + idx + "-" + i, "v")).get(30, TimeUnit.SECONDS);
-                            }
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var executor = Executors.newFixedThreadPool(producersPerCluster * 2)) {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int p = 0; p < producersPerCluster; p++) {
+                int idx = p;
+                futures.add(executor.submit(() -> {
+                    try (var producer = tester.producer(Map.of(
+                            "client.id", "app-a",
+                            "enable.idempotence", false,
+                            "retries", 0,
+                            "batch.size", 0,
+                            "linger.ms", 0))) {
+                        for (int i = 0; i < messagesPerProducer; i++) {
+                            producer.send(new ProducerRecord<>(topic, "a-" + idx + "-" + i, "v")).get(30, TimeUnit.SECONDS);
                         }
-                        return null;
-                    }));
-                    futures.add(executor.submit(() -> {
-                        try (var producer = tester.producer(Map.of(
-                                "client.id", "app-b",
-                                "enable.idempotence", false,
-                                "retries", 0,
-                                "batch.size", 0,
-                                "linger.ms", 0))) {
-                            for (int i = 0; i < messagesPerProducer; i++) {
-                                producer.send(new ProducerRecord<>(topic, "b-" + idx + "-" + i, "v")).get(30, TimeUnit.SECONDS);
-                            }
+                    }
+                    return null;
+                }));
+                futures.add(executor.submit(() -> {
+                    try (var producer = tester.producer(Map.of(
+                            "client.id", "app-b",
+                            "enable.idempotence", false,
+                            "retries", 0,
+                            "batch.size", 0,
+                            "linger.ms", 0))) {
+                        for (int i = 0; i < messagesPerProducer; i++) {
+                            producer.send(new ProducerRecord<>(topic, "b-" + idx + "-" + i, "v")).get(30, TimeUnit.SECONDS);
                         }
-                        return null;
-                    }));
-                }
-                for (var f : futures) {
-                    f.get(60, TimeUnit.SECONDS);
-                }
+                    }
+                    return null;
+                }));
             }
-            finally {
-                executor.shutdownNow();
+            for (var f : futures) {
+                assertThat(f).succeedsWithin(Duration.ofSeconds(60));
             }
         }
 
@@ -377,9 +366,10 @@ class NestedRoutingIT {
         assertThat(recordsB).extracting(ConsumerRecord::key).allSatisfy(k -> assertThat(k).startsWith("b-"));
     }
 
-    private static void createTopicOnCluster(KafkaCluster cluster, String topicName) throws ExecutionException, InterruptedException, TimeoutException {
+    private static void createTopicOnCluster(KafkaCluster cluster, String topicName) {
         try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
-            admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
+            assertThat(admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all())
+                    .succeedsWithin(Duration.ofSeconds(10));
         }
     }
 
