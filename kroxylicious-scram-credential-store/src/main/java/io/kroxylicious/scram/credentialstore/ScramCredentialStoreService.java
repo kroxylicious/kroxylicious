@@ -40,6 +40,8 @@ public interface ScramCredentialStoreService<C> extends AutoCloseable {
     /**
      * Builds a credential store.
      * {@link #initialize(Object)} must have been called before this method is invoked.
+     * Implementations may return the same instance on each call or distinct instances;
+     * callers must not depend on either behaviour.
      *
      * @return the credential store
      */
