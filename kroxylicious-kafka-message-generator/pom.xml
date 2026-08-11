@@ -57,6 +57,15 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <configuration>
+                    <!-- All source in this module is forked from Apache Kafka and carries ASF
+                         copyright headers, not Kroxylicious headers. Skip the header check. -->
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
