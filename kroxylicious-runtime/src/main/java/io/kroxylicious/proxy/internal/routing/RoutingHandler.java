@@ -411,6 +411,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 ctx.channel().close();
             }
             else {
+                // TODO (#4157): design proposal 070 specifies completing the future exceptionally
+                // when a nested router calls andCloseConnection()
                 LOGGER.atWarn()
                         .addKeyValue("virtualCluster", virtualClusterName)
                         .addKeyValue("sessionId", sessionId)

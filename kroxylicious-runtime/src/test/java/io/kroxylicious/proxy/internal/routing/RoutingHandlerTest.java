@@ -517,7 +517,7 @@ class RoutingHandlerTest {
 
         // Then
         assertThat(future).isCompletedExceptionally();
-        assertThat(handler.dispatcher().pendingResponses).isEmpty();
+        assertThat(handler.dispatcher().hasPendingResponses()).isFalse();
     }
 
     // ========================================================================

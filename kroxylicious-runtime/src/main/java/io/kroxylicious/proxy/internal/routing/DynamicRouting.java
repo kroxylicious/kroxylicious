@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -26,7 +25,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  */
 public record DynamicRouting(
                              String routerName,
-                             Map<String, RouteDescriptor> routeDescriptors,
+                             Map<String, RouteDescriptor> topLevelRouteDescriptors,
                              Map<String, RouteDescriptor> allRouteDescriptors,
                              NodeIdMapping nodeIdMapping,
                              RouterChainFactory routerChainFactory,
@@ -37,25 +36,25 @@ public record DynamicRouting(
      * Production constructor: computes the {@link NodeIdMapping} from the top-level route descriptors.
      *
      * @param routerName the name of the top-level router
-     * @param routeDescriptors the top-level router's route descriptors (local names)
+     * @param topLevelRouteDescriptors the top-level router's route descriptors (local names)
      * @param allRouteDescriptors all route descriptors including nested routers (qualified names: {@code routerName/routeName})
      * @param routerChainFactory the router chain factory
      * @param routeClusterModels upstream cluster models for all cluster-targeting routes (qualified names)
      */
-    public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors,
+    public DynamicRouting(String routerName, Map<String, RouteDescriptor> topLevelRouteDescriptors,
                           Map<String, RouteDescriptor> allRouteDescriptors,
                           RouterChainFactory routerChainFactory, Map<String, UpstreamClusterModel> routeClusterModels) {
-        this(routerName, routeDescriptors, allRouteDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, routeClusterModels);
+        this(routerName, topLevelRouteDescriptors, allRouteDescriptors, buildNodeIdMapping(topLevelRouteDescriptors), routerChainFactory, routeClusterModels);
     }
 
     /**
      * Test-only constructor: uses an empty cluster model map. {@code allRouteDescriptors}
-     * defaults to the provided {@code routeDescriptors} (i.e. no nested routes).
+     * defaults to the provided {@code topLevelRouteDescriptors} (i.e. no nested routes).
      * Production code should supply fully-built {@link UpstreamClusterModel} instances.
      */
     @VisibleForTesting
-    public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors, RouterChainFactory routerChainFactory) {
-        this(routerName, routeDescriptors, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, Map.of());
+    public DynamicRouting(String routerName, Map<String, RouteDescriptor> topLevelRouteDescriptors, RouterChainFactory routerChainFactory) {
+        this(routerName, topLevelRouteDescriptors, topLevelRouteDescriptors, buildNodeIdMapping(topLevelRouteDescriptors), routerChainFactory, Map.of());
     }
 
     /**
@@ -63,12 +62,12 @@ public record DynamicRouting(
      */
     public DynamicRouting {
         Objects.requireNonNull(routerName, "routerName");
-        Objects.requireNonNull(routeDescriptors, "routeDescriptors");
+        Objects.requireNonNull(topLevelRouteDescriptors, "topLevelRouteDescriptors");
         Objects.requireNonNull(allRouteDescriptors, "allRouteDescriptors");
         Objects.requireNonNull(nodeIdMapping, "nodeIdMapping");
         Objects.requireNonNull(routerChainFactory, "routerChainFactory");
         Objects.requireNonNull(routeClusterModels, "routeClusterModels");
-        routeDescriptors = Map.copyOf(routeDescriptors);
+        topLevelRouteDescriptors = Map.copyOf(topLevelRouteDescriptors);
         allRouteDescriptors = Map.copyOf(allRouteDescriptors);
         routeClusterModels = Map.copyOf(routeClusterModels);
     }
@@ -114,7 +113,7 @@ public record DynamicRouting(
     public UpstreamClusterModel upstreamClusterFor(String routeName) {
         UpstreamClusterModel upstreamClusterModel = routeClusterModels.get(routeName);
         if (upstreamClusterModel == null) {
-            RouteDescriptor routeDescriptor = routeDescriptors.get(routeName);
+            RouteDescriptor routeDescriptor = topLevelRouteDescriptors.get(routeName);
             if (routeDescriptor == null) {
                 throw new NoUpstreamClusterForRouteException("route " + routeName + " does not exist");
             }
@@ -128,18 +127,10 @@ public record DynamicRouting(
         return upstreamClusterModel;
     }
 
-    private static NodeIdMapping buildNodeIdMapping(Map<String, RouteDescriptor> routeDescriptors) {
-        Objects.requireNonNull(routeDescriptors, "routeDescriptors");
-        if (routeDescriptors.isEmpty()) {
+    private static NodeIdMapping buildNodeIdMapping(Map<String, RouteDescriptor> topLevelRouteDescriptors) {
+        if (topLevelRouteDescriptors.isEmpty()) {
             throw new IllegalArgumentException("DynamicRouting requires at least one route descriptor");
         }
-        if (routeDescriptors.size() == 1) {
-            return new IdentityNodeIdMapping(routeDescriptors.keySet().iterator().next());
-        }
-        var routeIds = HashMap.<String, Integer> newHashMap(routeDescriptors.size());
-        for (var entry : routeDescriptors.entrySet()) {
-            routeIds.put(entry.getKey(), entry.getValue().id());
-        }
-        return new BijectiveNodeIdMapping(routeIds, routeIds.size());
+        return NodeIdMapping.build(topLevelRouteDescriptors);
     }
 }

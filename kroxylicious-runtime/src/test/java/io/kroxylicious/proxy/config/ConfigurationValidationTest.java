@@ -210,8 +210,8 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
-        assertThat(((DynamicRouting) model.routing()).routeDescriptors()).containsKey("route1");
-        RouteDescriptor rd = ((DynamicRouting) model.routing()).routeDescriptors().get("route1");
+        assertThat(((DynamicRouting) model.routing()).topLevelRouteDescriptors()).containsKey("route1");
+        RouteDescriptor rd = ((DynamicRouting) model.routing()).topLevelRouteDescriptors().get("route1");
         assertThat(rd.name()).isEqualTo("route1");
         assertThat(rd.id()).isZero();
         assertThat(rd.targetsCluster()).isTrue();
@@ -235,7 +235,7 @@ class ConfigurationValidationTest {
 
         assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
         var dr = (DynamicRouting) model.routing();
-        assertThat(dr.routeDescriptors()).containsKeys("r1", "r2");
+        assertThat(dr.topLevelRouteDescriptors()).containsKeys("r1", "r2");
     }
 
     @Test
@@ -253,7 +253,7 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
-        assertThat(((DynamicRouting) model.routing()).routeDescriptors()).hasSize(2).containsKeys("r1", "r2");
+        assertThat(((DynamicRouting) model.routing()).topLevelRouteDescriptors()).hasSize(2).containsKeys("r1", "r2");
     }
 
     @Test
@@ -270,7 +270,7 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
-        RouteDescriptor rd = ((DynamicRouting) model.routing()).routeDescriptors().get("r1");
+        RouteDescriptor rd = ((DynamicRouting) model.routing()).topLevelRouteDescriptors().get("r1");
         assertThat(rd.filters()).hasSize(1);
         assertThat(rd.filters().get(0).name()).isEqualTo("f1");
     }
@@ -348,7 +348,7 @@ class ConfigurationValidationTest {
         assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
         var dr = (DynamicRouting) model.routing();
         assertThat(dr.routerName()).isEqualTo("myrouter");
-        assertThat(dr.routeDescriptors()).containsKey("r1");
+        assertThat(dr.topLevelRouteDescriptors()).containsKey("r1");
     }
 
     @Test
@@ -469,9 +469,9 @@ class ConfigurationValidationTest {
         var dr = (DynamicRouting) config.virtualClusterModel(noOpRouterPfr()).get(0).routing();
 
         // Then
-        assertThat(dr.routeDescriptors()).containsOnlyKeys("outer-r");
-        assertThat(dr.routeDescriptors().get("outer-r").targetsRouter()).isTrue();
-        assertThat(dr.routeDescriptors().get("outer-r").routerName()).isEqualTo("inner");
+        assertThat(dr.topLevelRouteDescriptors()).containsOnlyKeys("outer-r");
+        assertThat(dr.topLevelRouteDescriptors().get("outer-r").targetsRouter()).isTrue();
+        assertThat(dr.topLevelRouteDescriptors().get("outer-r").routerName()).isEqualTo("inner");
         assertThat(dr.allRouteDescriptors()).containsOnlyKeys("outer-r", "inner/inner-r");
         assertThat(dr.allRouteDescriptors().get("inner/inner-r").targetsCluster()).isTrue();
     }
@@ -496,10 +496,10 @@ class ConfigurationValidationTest {
         var dr = (DynamicRouting) config.virtualClusterModel(noOpRouterPfr()).get(0).routing();
 
         // Then
-        assertThat(dr.routeDescriptors()).containsOnlyKeys("r1", "r2");
-        assertThat(dr.routeDescriptors().get("r1").targetsRouter()).isTrue();
-        assertThat(dr.routeDescriptors().get("r1").routerName()).isEqualTo("inner");
-        assertThat(dr.routeDescriptors().get("r2").targetsCluster()).isTrue();
+        assertThat(dr.topLevelRouteDescriptors()).containsOnlyKeys("r1", "r2");
+        assertThat(dr.topLevelRouteDescriptors().get("r1").targetsRouter()).isTrue();
+        assertThat(dr.topLevelRouteDescriptors().get("r1").routerName()).isEqualTo("inner");
+        assertThat(dr.topLevelRouteDescriptors().get("r2").targetsCluster()).isTrue();
         assertThat(dr.allRouteDescriptors()).containsOnlyKeys("r1", "r2", "inner/ir");
         assertThat(dr.allRouteDescriptors().get("inner/ir").targetsCluster()).isTrue();
     }

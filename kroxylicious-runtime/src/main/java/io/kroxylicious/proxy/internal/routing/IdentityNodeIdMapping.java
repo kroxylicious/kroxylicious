@@ -12,7 +12,7 @@ package io.kroxylicious.proxy.internal.routing;
  *
  * @param routeName the name of the single route served by this mapping
  */
-public record IdentityNodeIdMapping(String routeName) implements NodeIdMapping {
+record IdentityNodeIdMapping(String routeName) implements NodeIdMapping {
 
     @Override
     public int toVirtual(String route, int targetNodeId) {

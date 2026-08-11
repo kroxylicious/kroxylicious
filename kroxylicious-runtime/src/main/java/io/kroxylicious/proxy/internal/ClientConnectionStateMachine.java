@@ -968,7 +968,7 @@ public class ClientConnectionStateMachine {
         // Server connections are opened lazily in forwardToRoute().
         if (endpointBinding instanceof BrokerEndpointBinding beb) {
             var routeAndNode = dr.nodeIdMapping().fromVirtual(beb.nodeId());
-            RouteDescriptor owningDesc = dr.routeDescriptors().get(routeAndNode.route());
+            RouteDescriptor owningDesc = dr.topLevelRouteDescriptors().get(routeAndNode.route());
             if (owningDesc != null && owningDesc.targetsCluster()) {
                 routeTargets.put(routeAndNode.route(), beb.upstreamTarget());
             }

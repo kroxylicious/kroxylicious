@@ -290,7 +290,7 @@ public class KafkaProxyFrontendHandler
 
         // Install route filters for top-level routes first, inserting nested RoutingHandlers
         // after each router-targeting route's filters, then install nested route filters.
-        for (var entry : dr.routeDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+        for (var entry : dr.topLevelRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             String routeName = entry.getKey();
             RouteDescriptor rd = entry.getValue();
             allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, routeName));
