@@ -356,6 +356,7 @@ public class KafkaProxyFrontendHandler
                         nestedRoutes,
                         nestedNodeIdMapping,
                         rdh.correlationIdAllocator(),
+                        rdh.routerNodeAddresses(),
                         clientConnectionStateMachine.sessionId(),
                         clientConnectionStateMachine.authenticatedSubject(),
                         clientConnectionStateMachine.endpointBinding() instanceof BrokerEndpointBinding beb ? beb.nodeId() : null));

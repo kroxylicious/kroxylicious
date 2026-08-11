@@ -199,6 +199,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Route
         return correlationIdAllocator;
     }
 
+    public Map<Integer, HostPort> routerNodeAddresses() {
+        return routerNodeAddresses;
+    }
+
     /**
      * Returns the upstream address for the given virtual node ID, as learned from the most
      * recent internal METADATA response. Returns empty if the address has not been cached yet.
@@ -427,6 +431,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Route
                     NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), pendingResponse.nodeIdMapping(), pendingResponse.route());
                     cacheNodeAddressesIfMetadata(frame.body());
                     pendingResponse.future().complete(frame.body());
+                    frame.release();
                     LOGGER.atTrace()
                             .addKeyValue("virtualCluster", virtualClusterName)
                             .addKeyValue("sessionId", ccsm.sessionId())
@@ -439,6 +444,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Route
                             .addKeyValue("sessionId", ccsm.sessionId())
                             .addKeyValue("routingCorrelationId", correlationId)
                             .log("Received response with no pending routing future");
+                    frame.release();
                     ctx.channel().close().addListener(logFailure(LOGGER, "close after response with no pending routing future"));
                 }
                 promise.setSuccess();
