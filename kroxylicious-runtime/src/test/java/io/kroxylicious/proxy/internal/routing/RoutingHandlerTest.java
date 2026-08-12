@@ -979,4 +979,57 @@ class RoutingHandlerTest {
         // Then
         assertThat(channel.pipeline().get(RoutingHandler.class)).isNull();
     }
+
+    @Test
+    void nested_shouldPropagateTargetVirtualNodeIdToRouterContext() {
+        // Given
+        var handler = nestedHandler(Map.of("r-a", clusterRoute("r-a", 0), "r-b", clusterRoute("r-b", 1)));
+        channel = new EmbeddedChannel(handler);
+        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of());
+        var ctxCaptor = org.mockito.ArgumentCaptor.forClass(io.kroxylicious.proxy.router.RouterContext.class);
+        when(router.onRequest(any(), anyShort(), any(), any(), ctxCaptor.capture()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithoutReply(false)));
+
+        var frame = fetchFrame(CORRELATION_ID, ACTIVATION_ROUTE);
+        frame.setTargetVirtualNodeId(1);
+
+        // When
+        channel.writeInbound(frame);
+        channel.runPendingTasks();
+
+        // Then
+        var ctx = ctxCaptor.getValue();
+        assertThat(ctx.virtualNode()).isPresent();
+        assertThat(ctx.virtualNode().get()).isInstanceOfSatisfying(VirtualNodeImpl.class,
+                vn -> assertThat(vn.virtualNodeId()).isEqualTo(1));
+    }
+
+    @Test
+    void nested_shouldFallBackToEndpointNodeIdWhenFrameHasNoTargetVirtualNodeId() {
+        // Given
+        var nestedRoutes = Map.of("inner-r", clusterRoute("inner-r", 0));
+        NodeIdMapping mapping = new IdentityNodeIdMapping(nestedRoutes.keySet().iterator().next());
+        var handler = RoutingHandler.nested(ACTIVATION_ROUTE, NESTED_ROUTER_NAME, VIRTUAL_CLUSTER,
+                routerChainFactory, nestedRoutes, mapping, correlationIdAllocator,
+                new ConcurrentHashMap<>(), SESSION_ID, Subject.anonymous(), 42);
+        channel = new EmbeddedChannel(handler);
+        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of());
+        var ctxCaptor = org.mockito.ArgumentCaptor.forClass(io.kroxylicious.proxy.router.RouterContext.class);
+        when(router.onRequest(any(), anyShort(), any(), any(), ctxCaptor.capture()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithoutReply(false)));
+
+        // When: frame has no targetVirtualNodeId set
+        channel.writeInbound(fetchFrame(CORRELATION_ID, ACTIVATION_ROUTE));
+        channel.runPendingTasks();
+
+        // Then: should fall back to the endpoint nodeId (42)
+        var ctx = ctxCaptor.getValue();
+        assertThat(ctx.virtualNode()).isPresent();
+        assertThat(ctx.virtualNode().get()).isInstanceOfSatisfying(VirtualNodeImpl.class,
+                vn -> assertThat(vn.virtualNodeId()).isEqualTo(42));
+    }
 }

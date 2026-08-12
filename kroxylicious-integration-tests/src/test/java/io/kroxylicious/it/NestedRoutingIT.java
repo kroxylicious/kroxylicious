@@ -27,7 +27,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.it.testplugins.router.ClientIdRouterFactory;
+import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.it.testplugins.router.DynamicProduceRouterFactory;
+import io.kroxylicious.it.testplugins.router.NodeTargetingProduceRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;
@@ -364,6 +366,61 @@ class NestedRoutingIT {
         assertThat(recordsA).extracting(ConsumerRecord::key).allSatisfy(k -> assertThat(k).startsWith("a-"));
         assertThat(recordsB).hasSize(producersPerCluster * messagesPerProducer);
         assertThat(recordsB).extracting(ConsumerRecord::key).allSatisfy(k -> assertThat(k).startsWith("b-"));
+    }
+
+    // --- virtualNode propagation across nesting boundaries ---
+
+    @Test
+    void shouldPropagateNodeForIdFromOuterRouterToInnerRouterVirtualNode(
+                                                                         @Name("clusterA") Topic topicOnA,
+                                                                         @Name("clusterA") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyA) {
+        // Given: outer router calls nodeForId(0) for all dynamic requests;
+        // inner router (ContextCapturingRouterFactory) captures ctx.virtualNode() and forwards via anyNode
+        String topic = topicOnA.name();
+        var targetA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var innerRoute = new RouteDefinition("backend", 0, List.of(), new RouteTarget("cluster-a", null));
+        var innerRouter = new RouterDefinition("inner",
+                ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config("backend"),
+                List.of(innerRoute));
+        var outerRoute = new RouteDefinition("to-inner", 0, List.of(), new RouteTarget(null, "inner"));
+        var outerRouter = new RouterDefinition("outer",
+                NodeTargetingProduceRouterFactory.class.getName(),
+                new NodeTargetingProduceRouterFactory.Config("to-inner", 0),
+                List.of(outerRoute));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, "outer"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
+                .build();
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(targetA)
+                .addToRouterDefinitions(outerRouter, innerRouter)
+                .addToVirtualClusters(vc);
+
+        ContextCapturingRouterFactory.reset();
+
+        // When
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer(Map.of(
+                        "enable.idempotence", false,
+                        "retries", 0,
+                        "batch.size", 0,
+                        "linger.ms", 0))) {
+            assertThat(producer.send(new ProducerRecord<>(topic, "key", "value")))
+                    .succeedsWithin(Duration.ofSeconds(10));
+        }
+
+        // Then: message reached clusterA
+        assertThat(consumeFrom(verifyA, topic))
+                .extracting(ConsumerRecord::key)
+                .containsExactly("key");
+        // And: inner router saw a non-empty virtualNode (propagated from outer's nodeForId)
+        var capture = ContextCapturingRouterFactory.lastCapture.get();
+        assertThat(capture).isNotNull();
+        assertThat(capture.virtualNode())
+                .as("inner router should see virtualNode propagated from outer router's nodeForId()")
+                .isPresent();
     }
 
     private static void createTopicOnCluster(KafkaCluster cluster, String topicName) {

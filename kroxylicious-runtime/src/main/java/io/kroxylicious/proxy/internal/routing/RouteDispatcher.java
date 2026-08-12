@@ -206,9 +206,7 @@ public class RouteDispatcher implements RouterDispatch {
         int routingCorrelationId = correlationIdAllocator.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
         frame.setRouteName(qualifiedRoute);
-        if (rd.targetsCluster()) {
-            frame.setTargetVirtualNodeId(targetNodeId);
-        }
+        frame.setTargetVirtualNodeId(targetNodeId);
 
         if (!frame.hasResponse()) {
             fireChannelRead(frame);
