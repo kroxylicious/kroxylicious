@@ -296,7 +296,11 @@ public class RoutingHandler extends ChannelDuplexHandler {
             sequence = responseSequencer.allocateSequence();
         }
 
-        var routingContext = new RouterContextImpl(frame, dispatcher, sessionId, subject, nodeId);
+        Integer effectiveNodeId = nodeId;
+        if (activationRoute != null && frame.targetVirtualNodeId() != Frame.NO_TARGET_VIRTUAL_NODE_ID) {
+            effectiveNodeId = frame.targetVirtualNodeId();
+        }
+        var routingContext = new RouterContextImpl(frame, dispatcher, sessionId, subject, effectiveNodeId);
 
         if (ccsm != null && frame instanceof InternalRequestFrame<?> oobFrame) {
             Objects.requireNonNull(responseSequencer).skip(sequence);

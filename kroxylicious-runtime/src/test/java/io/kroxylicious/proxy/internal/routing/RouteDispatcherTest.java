@@ -34,7 +34,6 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -203,7 +202,7 @@ class RouteDispatcherTest {
     }
 
     @Test
-    void shouldNotSetTargetNodeIdForRouterRoute() {
+    void shouldSetTargetNodeIdForRouterRoute() {
         // Given
         when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
         var dispatcher = createDispatcher(Map.of("nested", routerRoute("nested", 0, "deeply-nested")), ROUTER_NAME + "/");
@@ -214,7 +213,7 @@ class RouteDispatcherTest {
         // Then
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.targetVirtualNodeId()).isEqualTo(Frame.NO_TARGET_VIRTUAL_NODE_ID);
+        assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
         assertThat(fired.routeName()).isEqualTo(ROUTER_NAME + "/nested");
     }
 
