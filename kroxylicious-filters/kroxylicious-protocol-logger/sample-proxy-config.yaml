@@ -6,7 +6,9 @@
 
 # Sample config to smoke-test the ProtocolLogger filter.
 # Start Kafka on localhost:9092, then run the proxy with this config.
-# The proxy listens on localhost:9192 and logs every protocol message at INFO.
+# The proxy listens on localhost:9192 and logs every protocol message at DEBUG.
+# The logging backend must also be enabled at DEBUG for
+# io.kroxylicious.filter.protocollogger.ProtocolLoggerFilter, or no output appears.
 ---
 management:
   endpoints:

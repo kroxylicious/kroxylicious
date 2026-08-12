@@ -16,8 +16,16 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.event.Level;
+import org.slf4j.event.LoggingEvent;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
+import io.github.sambarker.logsquelcher.CapturedLogs;
+import io.github.sambarker.logsquelcher.LogSquelcherExtension;
 
 import io.kroxylicious.filter.protocollogger.ProtocolLogger;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
@@ -32,8 +40,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
+@ExtendWith(LogSquelcherExtension.class)
 class ProtocolLoggerFilterIT {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     @Test
@@ -71,13 +81,13 @@ class ProtocolLoggerFilterIT {
         }
     }
 
-    /** Verifies apiKeyNames config is accepted and traffic is unaffected; gating behaviour covered by unit tests. */
     @Test
-    void filterAcceptsApiKeyGatingConfig(@BrokerCluster KafkaCluster cluster, Topic topic) {
+    void apiKeyGatingEmitsOnlyConfiguredKeys(@BrokerCluster KafkaCluster cluster, Topic topic, CapturedLogs capturedLogs) {
         // Given
+        var loggerName = "it.apiKeyGating";
         var filterDef = new NamedFilterDefinitionBuilder(
                 "protocol-logger", ProtocolLogger.class.getName())
-                .withConfig("apiKeyNames", List.of("METADATA"))
+                .withConfig("apiKeyNames", List.of("METADATA"), "loggerName", loggerName)
                 .build();
         var proxyConfig = proxy(cluster);
         proxyConfig.addToFilterDefinitions(filterDef);
@@ -95,7 +105,6 @@ class ProtocolLoggerFilterIT {
 
             consumer.subscribe(List.of(topic.name()));
 
-            // Then
             var records = consumer.poll(TIMEOUT).records(topic.name());
             assertThat(records)
                     .hasSize(1)
@@ -103,15 +112,25 @@ class ProtocolLoggerFilterIT {
                     .extracting(ConsumerRecord::value)
                     .isEqualTo("gated");
         }
+
+        // Then
+        assertThat(eventsFor(capturedLogs, loggerName, Level.DEBUG))
+                .isNotEmpty()
+                .extracting(e -> extractApiKey(e.getMessage()))
+                .containsOnly("METADATA");
     }
 
-    /** Verifies logLevel config is accepted and traffic is unaffected; level gating covered by unit tests. */
+    // Log level gating cannot be tested at IT level because LogSquelcher (the
+    // project-wide test SLF4J provider) enables all levels. The predicate-level
+    // unit tests cover this with NOPLogger.
+
     @Test
-    void filterAcceptsLogLevelConfig(@BrokerCluster KafkaCluster cluster, Topic topic) {
+    void realClientNegotiatedVersionsProduceValidEntries(@BrokerCluster KafkaCluster cluster, Topic topic, CapturedLogs capturedLogs) {
         // Given
+        var loggerName = "it.realClientVersions";
         var filterDef = new NamedFilterDefinitionBuilder(
                 "protocol-logger", ProtocolLogger.class.getName())
-                .withConfig("logLevel", "TRACE")
+                .withConfig("loggerName", loggerName)
                 .build();
         var proxyConfig = proxy(cluster);
         proxyConfig.addToFilterDefinitions(filterDef);
@@ -121,22 +140,68 @@ class ProtocolLoggerFilterIT {
         try (var tester = kroxyliciousTester(proxyConfig);
                 var producer = tester.producer();
                 var consumer = tester.consumer(Serdes.String(), Serdes.String(),
-                        Map.of(ConsumerConfig.GROUP_ID_CONFIG, "level-group",
+                        Map.of(ConsumerConfig.GROUP_ID_CONFIG, "real-version-group",
                                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
 
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "level-test")))
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
                     .succeedsWithin(TIMEOUT);
 
             consumer.subscribe(List.of(topic.name()));
 
-            // Then
             var records = consumer.poll(TIMEOUT).records(topic.name());
             assertThat(records)
                     .hasSize(1)
                     .first()
                     .extracting(ConsumerRecord::value)
-                    .isEqualTo("level-test");
+                    .isEqualTo("v1");
         }
+
+        // Then
+        var events = eventsFor(capturedLogs, loggerName, Level.DEBUG);
+
+        assertThat(events)
+                .isNotEmpty()
+                .extracting(e -> extractApiKey(e.getMessage()))
+                .containsAnyOf("METADATA", "PRODUCE", "FETCH")
+                .hasSizeGreaterThan(1);
+
+        assertThat(events)
+                .allSatisfy(event -> {
+                    var entry = parseJson(event.getMessage());
+                    var header = entry.get("header");
+                    assertThat(header).isNotNull();
+                    assertThat(header.get("apiKey").asText()).isNotEmpty();
+                    assertThat(header.get("apiVersion").isInt()).isTrue();
+                    assertThat(entry.has("payload")).isTrue();
+                });
+
+        assertThat(events)
+                .filteredOn(e -> parseJson(e.getMessage()).path("header").path("type").asText().equals("RESPONSE"))
+                .isNotEmpty()
+                .allSatisfy(event -> {
+                    var header = parseJson(event.getMessage()).get("header");
+                    assertThat(header.get("apiKey").asText()).isNotEmpty();
+                    assertThat(header.get("apiVersion").isInt()).isTrue();
+                });
     }
 
+    private static List<LoggingEvent> eventsFor(CapturedLogs capturedLogs, String loggerName, Level level) {
+        return capturedLogs.logged().stream()
+                .filter(e -> loggerName.equals(e.getLoggerName()))
+                .filter(e -> level == e.getLevel())
+                .toList();
+    }
+
+    private static String extractApiKey(String message) {
+        return parseJson(message).path("header").path("apiKey").asText();
+    }
+
+    private static JsonNode parseJson(String message) {
+        try {
+            return MAPPER.readTree(message);
+        }
+        catch (JsonProcessingException e) {
+            throw new AssertionError("Log message is not valid JSON: " + message, e);
+        }
+    }
 }

@@ -16,6 +16,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.event.Level;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -80,16 +82,13 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
     }
 
     String buildRequestLogMessage(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request) {
-        return "REQUEST  " + apiKey + " v" + apiVersion
-                + "  corr=" + header.correlationId()
-                + "  client=" + header.clientId()
-                + "\n" + formatter.formatRequest(apiKey, apiVersion, request);
+        ObjectNode entry = formatter.formatRequest(apiKey, apiVersion, header, request);
+        return MessageFormatter.prettyPrint(entry);
     }
 
     String buildResponseLogMessage(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response) {
-        return "RESPONSE " + apiKey + " v" + apiVersion
-                + "  corr=" + header.correlationId()
-                + "\n" + formatter.formatResponse(apiKey, apiVersion, response);
+        ObjectNode entry = formatter.formatResponse(apiKey, apiVersion, header, response);
+        return MessageFormatter.prettyPrint(entry);
     }
 
 }

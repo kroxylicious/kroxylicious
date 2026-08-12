@@ -10,6 +10,7 @@ import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -67,9 +68,10 @@ public class ProtocolLogger implements FilterFactory<ProtocolLogger.Config, Prot
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
-        Set<String> apiKeyNames = (config != null && config.apiKeyNames() != null) ? config.apiKeyNames() : Set.of();
-        Level logLevel = (config != null && config.logLevel() != null) ? config.logLevel() : DEFAULT_LOG_LEVEL;
-        String loggerName = (config != null && config.loggerName() != null) ? config.loggerName() : ProtocolLoggerFilter.class.getName();
+        Optional<Config> maybeConfig = Optional.ofNullable(config);
+        Set<String> apiKeyNames = maybeConfig.map(Config::apiKeyNames).orElse(Set.of());
+        Level logLevel = maybeConfig.map(Config::logLevel).orElse(DEFAULT_LOG_LEVEL);
+        String loggerName = maybeConfig.map(Config::loggerName).orElse(ProtocolLoggerFilter.class.getName());
 
         Set<String> resolvedNames = apiKeyNames.stream()
                 .map(ProtocolLogger::resolveApiKeyName)

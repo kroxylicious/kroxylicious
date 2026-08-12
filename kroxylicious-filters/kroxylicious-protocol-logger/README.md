@@ -118,11 +118,20 @@ This is deliberately not configurable.
 If you have a use case that requires logging these bodies, raise an issue.
 
 For these API keys, the converter is never called — the body is structurally withheld, not redacted after the fact.
-The envelope is still emitted so the handshake remains visible; only the body is replaced with a marker:
+The header is still emitted so the handshake remains visible; only the payload is replaced with a null and the `payloadWithheld` field explains why:
 
-```
-REQUEST  SASL_AUTHENTICATE v2  corr=2147483642  client=producer-1
-<body withheld: credential-bearing API>
+```json
+{
+  "header" : {
+    "type" : "REQUEST",
+    "apiKey" : "SASL_AUTHENTICATE",
+    "apiVersion" : 2,
+    "correlationId" : 2147483642,
+    "clientId" : "producer-1"
+  },
+  "payload" : null,
+  "payloadWithheld" : "credential-bearing API"
+}
 ```
 
 Record payloads (the content of Produce and Fetch messages) are not logged in readable form.
@@ -131,63 +140,111 @@ so the binary payload never appears in the output.
 
 ## Output format
 
-Each log entry has two parts: a human-readable envelope line, then the JSON body.
+Each log entry is a single JSON object with a `header` and a `payload`.
 
 **Request:**
-```
-REQUEST  METADATA v13  corr=1  client=producer-1
+```json
 {
-  "topics" : [ {
-    "topicId" : "AAAAAAAAAAAAAAAAAAAAAA",
-    "name" : "test-logging"
-  } ],
-  "allowAutoTopicCreation" : true,
-  "includeTopicAuthorizedOperations" : false
+  "header" : {
+    "type" : "REQUEST",
+    "apiKey" : "METADATA",
+    "apiVersion" : 13,
+    "correlationId" : 1,
+    "clientId" : "producer-1"
+  },
+  "payload" : {
+    "topics" : [ {
+      "topicId" : "AAAAAAAAAAAAAAAAAAAAAA",
+      "name" : "test-logging"
+    } ],
+    "allowAutoTopicCreation" : true,
+    "includeTopicAuthorizedOperations" : false
+  }
 }
 ```
 
 **Response:**
-```
-RESPONSE METADATA v13  corr=1
+```json
 {
-  "throttleTimeMs" : 0,
-  "brokers" : [ {
-    "nodeId" : 1,
-    "host" : "localhost",
-    "port" : 9194,
-    "rack" : null
-  } ],
-  "clusterId" : "MkU3OEVBNTcwNTJENDM2Qk",
-  "controllerId" : 1,
-  "topics" : [ {
-    "errorCode" : 0,
-    "name" : "test-logging",
-    "topicId" : "n0bi9KA7TQSi6Bdf1Qb1Qg",
-    "isInternal" : false,
-    "partitions" : [ {
-      "errorCode" : 0,
-      "partitionIndex" : 0,
-      "leaderId" : 1,
-      "leaderEpoch" : 0,
-      "replicaNodes" : [ 1 ],
-      "isrNodes" : [ 1 ],
-      "offlineReplicas" : [ ]
+  "header" : {
+    "type" : "RESPONSE",
+    "apiKey" : "METADATA",
+    "apiVersion" : 13,
+    "correlationId" : 1
+  },
+  "payload" : {
+    "throttleTimeMs" : 0,
+    "brokers" : [ {
+      "nodeId" : 1,
+      "host" : "localhost",
+      "port" : 9194,
+      "rack" : null
     } ],
-    "topicAuthorizedOperations" : -2147483648
-  } ],
-  "errorCode" : 0
+    "clusterId" : "MkU3OEVBNTcwNTJENDM2Qk",
+    "controllerId" : 1,
+    "topics" : [ {
+      "errorCode" : 0,
+      "name" : "test-logging",
+      "topicId" : "n0bi9KA7TQSi6Bdf1Qb1Qg",
+      "isInternal" : false,
+      "partitions" : [ {
+        "errorCode" : 0,
+        "partitionIndex" : 0,
+        "leaderId" : 1,
+        "leaderEpoch" : 0,
+        "replicaNodes" : [ 1 ],
+        "isrNodes" : [ 1 ],
+        "offlineReplicas" : [ ]
+      } ],
+      "topicAuthorizedOperations" : -2147483648
+    } ],
+    "errorCode" : 0
+  }
 }
 ```
 
-Structured key-values are appended by the logging framework after the body.
+Note that `clientId` appears only on requests — it does not exist on the wire for responses.
+Responses omit the key entirely rather than emitting null.
+
+Structured key-values are appended by the logging framework after the JSON body.
 These include `apiKey`, `apiVersion`, `clientCorrelationId`, `clientId`, `direction`, and `sessionId`.
+
+## Piping to jq
+
+Each log entry is JSON, but a log **line** is not — the logging backend's timestamp, level, and logger name prefix surround it.
+Piping raw log output to `jq` will fail unless you either strip the prefix or use a message-only appender.
+
+To get machine-parseable output, add a message-only appender to your `log4j2.yaml`:
+
+```yaml
+Configuration:
+  Appenders:
+    Console:
+      - name: PROTOCOL_TRACE
+        PatternLayout:
+          pattern: "%m%n"
+  Loggers:
+    Logger:
+      - name: io.kroxylicious.filter.protocollogger.ProtocolLoggerFilter
+        level: DEBUG
+        additivity: false
+        AppenderRef:
+          - ref: PROTOCOL_TRACE
+```
+
+With that appender, each line is a complete JSON object and `jq` works directly:
+
+```sh
+# select METADATA entries (both request and response)
+jq -c 'select(.header.apiKey == "METADATA")' < proxy-trace.log
+```
 
 ## Pairing requests and responses
 
-Use the `sessionId` structured key-value together with the correlation ID (`clientCorrelationId`).
+Use the `sessionId` structured key-value together with `.header.correlationId`.
 Correlation IDs are only unique within a single connection, so `sessionId` is required to pair correctly across concurrent connections.
 
-`sessionId` is deliberately not in the human-readable envelope — it is proxy-internal state, not part of the protocol trace.
+`sessionId` is deliberately not in the JSON entry — it is proxy-internal state, not part of the protocol trace.
 It appears only in the structured key-values.
 
 Correlation IDs in the output are not necessarily client correlation IDs.

@@ -8,6 +8,7 @@ package io.kroxylicious.filter.protocollogger;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.AlterUserScramCredentialsRequestData;
@@ -18,9 +19,12 @@ import org.apache.kafka.common.message.DescribeDelegationTokenRequestData;
 import org.apache.kafka.common.message.DescribeDelegationTokenResponseData;
 import org.apache.kafka.common.message.ExpireDelegationTokenRequestData;
 import org.apache.kafka.common.message.ExpireDelegationTokenResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
 import org.apache.kafka.common.message.RenewDelegationTokenResponseData;
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -31,11 +35,15 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class MessageFormatterTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private final MessageFormatter formatter = new MessageFormatter();
 
     @ParameterizedTest
@@ -47,9 +55,16 @@ class MessageFormatterTest {
             "ALTER_USER_SCRAM_CREDENTIALS",
             "DESCRIBE_DELEGATION_TOKEN"
     })
-    void credentialBearingRequestShowsWithheldMarker(ApiKeys apiKey) {
-        String output = formatter.formatRequest(apiKey, (short) 0, requestMessageFor(apiKey));
-        assertThat(output).isEqualTo(MessageFormatter.BODY_WITHHELD_MESSAGE);
+    void credentialBearingRequestHasNullPayloadAndWithheldFlag(ApiKeys apiKey) {
+        // Given
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c");
+
+        // When
+        ObjectNode entry = formatter.formatRequest(apiKey, (short) 0, header, requestMessageFor(apiKey));
+
+        // Then
+        assertThat(entry.get("payload").isNull()).isTrue();
+        assertThat(entry.get("payloadWithheld").asText()).isEqualTo(MessageFormatter.PAYLOAD_WITHHELD_REASON);
     }
 
     @ParameterizedTest
@@ -61,9 +76,16 @@ class MessageFormatterTest {
             "ALTER_USER_SCRAM_CREDENTIALS",
             "DESCRIBE_DELEGATION_TOKEN"
     })
-    void credentialBearingResponseShowsWithheldMarker(ApiKeys apiKey) {
-        String output = formatter.formatResponse(apiKey, (short) 0, responseMessageFor(apiKey));
-        assertThat(output).isEqualTo(MessageFormatter.BODY_WITHHELD_MESSAGE);
+    void credentialBearingResponseHasNullPayloadAndWithheldFlag(ApiKeys apiKey) {
+        // Given
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
+
+        // When
+        ObjectNode entry = formatter.formatResponse(apiKey, (short) 0, header, responseMessageFor(apiKey));
+
+        // Then
+        assertThat(entry.get("payload").isNull()).isTrue();
+        assertThat(entry.get("payloadWithheld").asText()).isEqualTo(MessageFormatter.PAYLOAD_WITHHELD_REASON);
     }
 
     static Stream<Arguments> credentialBearingRequestsWithSecrets() {
@@ -105,11 +127,18 @@ class MessageFormatterTest {
     @ParameterizedTest
     @MethodSource("credentialBearingRequestsWithSecrets")
     void credentialBearingRequestDoesNotLeakSecret(ApiKeys apiKey, ApiMessage message, String secret) {
-        String output = formatter.formatRequest(apiKey, (short) 0, message);
+        // Given
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c");
+
+        // When
+        ObjectNode entry = formatter.formatRequest(apiKey, (short) 0, header, message);
+
+        // Then
+        assertThat(entry.get("payload").isNull()).isTrue();
+        assertThat(entry.get("payloadWithheld").asText()).isEqualTo(MessageFormatter.PAYLOAD_WITHHELD_REASON);
         if (secret != null) {
-            assertThat(output).doesNotContain(secret);
+            assertThat(entry.toString()).doesNotContain(secret);
         }
-        assertThat(output).isEqualTo(MessageFormatter.BODY_WITHHELD_MESSAGE);
     }
 
     static Stream<Arguments> credentialBearingResponsesWithSecrets() {
@@ -149,23 +178,114 @@ class MessageFormatterTest {
     @ParameterizedTest
     @MethodSource("credentialBearingResponsesWithSecrets")
     void credentialBearingResponseDoesNotLeakSecret(ApiKeys apiKey, ApiMessage message, String secret) {
-        String output = formatter.formatResponse(apiKey, (short) 0, message);
+        // Given
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
+
+        // When
+        ObjectNode entry = formatter.formatResponse(apiKey, (short) 0, header, message);
+
+        // Then
+        assertThat(entry.get("payload").isNull()).isTrue();
+        assertThat(entry.get("payloadWithheld").asText()).isEqualTo(MessageFormatter.PAYLOAD_WITHHELD_REASON);
         if (secret != null) {
-            assertThat(output).doesNotContain(secret);
+            assertThat(entry.toString()).doesNotContain(secret);
         }
-        assertThat(output).isEqualTo(MessageFormatter.BODY_WITHHELD_MESSAGE);
     }
 
     @Test
-    void nonCredentialResponseIsFormattedAsJson() {
+    void nonCredentialRequestHasPayloadWithContent() {
         // Given
-        MetadataResponseData response = new MetadataResponseData();
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("producer-1");
 
         // When
-        String output = formatter.formatResponse(ApiKeys.METADATA, (short) 12, response);
+        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData());
 
         // Then
-        assertThat(output).startsWith("{").contains("\"brokers\"");
+        assertThat(entry.has("payloadWithheld")).isFalse();
+        assertThat(entry.get("payload").isNull()).isFalse();
+        assertThat(entry.get("payload").has("topics")).isTrue();
+    }
+
+    @Test
+    void nonCredentialResponseHasPayloadWithContent() {
+        // Given
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
+
+        // When
+        ObjectNode entry = formatter.formatResponse(ApiKeys.METADATA, (short) 12, header, new MetadataResponseData());
+
+        // Then
+        assertThat(entry.has("payloadWithheld")).isFalse();
+        assertThat(entry.get("payload").isNull()).isFalse();
+        assertThat(entry.get("payload").has("brokers")).isTrue();
+    }
+
+    @Test
+    void requestHeaderHasExpectedFields() {
+        // Given
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(7).setClientId("my-client");
+
+        // When
+        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData());
+
+        // Then
+        assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
+                .containsEntry("type", "REQUEST")
+                .containsEntry("apiKey", "METADATA")
+                .containsEntry("apiVersion", 13)
+                .containsEntry("correlationId", 7)
+                .containsEntry("clientId", "my-client")
+                .doesNotContainKey("sessionId");
+    }
+
+    @Test
+    void responseHeaderHasExpectedFields() {
+        // Given
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(7);
+
+        // When
+        ObjectNode entry = formatter.formatResponse(ApiKeys.METADATA, (short) 13, header, new MetadataResponseData());
+
+        // Then
+        assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
+                .containsEntry("type", "RESPONSE")
+                .containsEntry("apiKey", "METADATA")
+                .containsEntry("apiVersion", 13)
+                .containsEntry("correlationId", 7)
+                .doesNotContainKey("clientId")
+                .doesNotContainKey("sessionId");
+    }
+
+    @Test
+    void requestAndResponseHeadersShareKeySetExceptClientId() {
+        // Given
+        RequestHeaderData reqHeader = new RequestHeaderData().setCorrelationId(1).setClientId("c");
+        ResponseHeaderData resHeader = new ResponseHeaderData().setCorrelationId(1);
+
+        // When
+        ObjectNode reqEntry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, reqHeader, new MetadataRequestData());
+        ObjectNode resEntry = formatter.formatResponse(ApiKeys.METADATA, (short) 13, resHeader, new MetadataResponseData());
+
+        // Then
+        assertThat(MAPPER.convertValue(reqEntry.get("header"), Map.class))
+                .containsOnlyKeys("type", "apiKey", "apiVersion", "correlationId", "clientId");
+        assertThat(MAPPER.convertValue(resEntry.get("header"), Map.class))
+                .containsOnlyKeys("type", "apiKey", "apiVersion", "correlationId");
+    }
+
+    @Test
+    void entryIsValidJson() {
+        // Given
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c");
+
+        // When
+        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData());
+        String json = MessageFormatter.prettyPrint(entry);
+
+        // Then
+        assertThat(json).startsWith("{");
+        assertThat(entry.has("header")).isTrue();
+        assertThat(entry.has("payload")).isTrue();
     }
 
     private static ApiMessage requestMessageFor(ApiKeys apiKey) {
