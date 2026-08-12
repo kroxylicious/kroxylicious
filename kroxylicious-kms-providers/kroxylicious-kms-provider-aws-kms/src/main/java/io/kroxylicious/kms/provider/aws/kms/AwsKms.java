@@ -218,12 +218,14 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
         return awsUrl;
     }
 
-    private CompletionStage<HttpRequest> createRequest(Object request, String target) {
+    @VisibleForTesting
+    CompletionStage<HttpRequest> createRequest(Object request, String target) {
         var body = getBody(request).getBytes(UTF_8);
 
         return credentialsProvider.getCredentials()
                 .thenApply(c -> AwsV4SigningHttpRequestBuilder.newBuilder(c, region, "kms", Instant.now())
                         .uri(getAwsUrl())
+                        .timeout(timeout)
                         .header(CONTENT_TYPE_HEADER, APPLICATION_X_AMZ_JSON_1_1)
                         .header(X_AMZ_TARGET_HEADER, target)
                         .POST(HttpRequest.BodyPublishers.ofByteArray(body))

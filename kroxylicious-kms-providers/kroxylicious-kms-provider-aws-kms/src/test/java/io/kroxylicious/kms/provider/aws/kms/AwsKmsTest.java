@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.aws.kms;
 
 import java.net.URI;
+import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
@@ -23,6 +24,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
+import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.KmsException;
@@ -73,6 +75,24 @@ class AwsKmsTest {
     void afterEach() {
         Optional.ofNullable(awsKmsService).ifPresent(AwsKmsService::close);
         server.resetAll();
+    }
+
+    @Test
+    void appliesConnectTimeout() {
+        // given/when
+        var connectTimeout = kms.getHttpClient().connectTimeout();
+        // then
+        assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
+    }
+
+    @Test
+    void appliesRequestTimeout() {
+        // given
+        var request = kms.createRequest(new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + "alias"), "TrentService.DescribeKey");
+        // when
+        HttpRequest builtRequest = request.toCompletableFuture().join();
+        // then
+        assertThat(builtRequest.timeout()).hasValue(Duration.ofSeconds(20));
     }
 
     @Test
