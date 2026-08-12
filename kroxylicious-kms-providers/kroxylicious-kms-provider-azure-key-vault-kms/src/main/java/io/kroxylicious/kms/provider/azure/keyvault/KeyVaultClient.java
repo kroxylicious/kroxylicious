@@ -38,6 +38,8 @@ public class KeyVaultClient implements AutoCloseable {
      * The version of the Azure Key Vault REST API used by this client.
      */
     public static final String API_VERSION = "7.4";
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(20L);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20L);
     private final BearerTokenService service;
     private final HttpClient client;
     private final AzureKeyVaultConfig config;
@@ -57,7 +59,7 @@ public class KeyVaultClient implements AutoCloseable {
         HttpClient.Builder builder = HttpClient.newBuilder();
         var tlsConfigurator = new TlsHttpClientConfigurator(config.tls());
         tlsConfigurator.apply(builder);
-        this.client = builder.version(HttpClient.Version.HTTP_1_1).followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(10L)).build();
+        this.client = builder.version(HttpClient.Version.HTTP_1_1).followRedirects(HttpClient.Redirect.NEVER).connectTimeout(CONNECT_TIMEOUT).build();
     }
 
     /**
@@ -112,9 +114,14 @@ public class KeyVaultClient implements AutoCloseable {
                 });
     }
 
-    private HttpRequest getKeyRequest(String vaultName, String keyName, BearerToken bearerToken) {
+    HttpClient getHttpClient() {
+        return client;
+    }
+
+    HttpRequest getKeyRequest(String vaultName, String keyName, BearerToken bearerToken) {
         String getKey = config.keyVaultUrl(vaultName) + "/keys/" + keyName + "?api-version=" + API_VERSION;
         return HttpRequest.newBuilder()
+                .timeout(REQUEST_TIMEOUT)
                 .header("Authorization", "Bearer " + bearerToken.token())
                 .uri(URI.create(getKey)).GET().build();
     }
@@ -147,13 +154,14 @@ public class KeyVaultClient implements AutoCloseable {
                 });
     }
 
-    private HttpRequest wrapOrUnwrapKeyRequest(WrappingKey wrappingKey, byte[] bytes, BearerToken bearerToken, String operation) {
+    HttpRequest wrapOrUnwrapKeyRequest(WrappingKey wrappingKey, byte[] bytes, BearerToken bearerToken, String operation) {
         String wrapKey = config.keyVaultUrl(wrappingKey.vaultName()) + "/keys/" + wrappingKey.keyName() + "/" + wrappingKey.keyVersion() + "/" + operation
                 + "?api-version=" + API_VERSION;
         WrapOrUnwrapRequest value = WrapOrUnwrapRequest.from(wrappingKey.supportedKeyType().getWrapAlgorithm(), bytes);
         try {
             byte[] bodyBytes = mapper.writer().writeValueAsBytes(value);
             return HttpRequest.newBuilder()
+                    .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + bearerToken.token())
                     .uri(URI.create(wrapKey)).POST(HttpRequest.BodyPublishers.ofByteArray(bodyBytes)).build();
