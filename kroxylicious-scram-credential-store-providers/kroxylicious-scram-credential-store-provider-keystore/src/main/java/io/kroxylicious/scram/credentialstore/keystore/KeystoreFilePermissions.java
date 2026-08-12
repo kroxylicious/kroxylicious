@@ -12,7 +12,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.security.KeyStoreException;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -61,31 +60,6 @@ final class KeystoreFilePermissions {
         }
         catch (IOException e) {
             throw new CredentialServiceUnavailableException(
-                    "Failed to check permissions on KeyStore file: " + path, e);
-        }
-    }
-
-    static void check(Path path) throws KeyStoreException {
-        if (!Files.exists(path)) {
-            return;
-        }
-        PosixFileAttributeView posixView = Files.getFileAttributeView(path, PosixFileAttributeView.class);
-        if (posixView == null) {
-            return;
-        }
-        try {
-            Set<PosixFilePermission> perms = posixView.readAttributes().permissions();
-            Set<PosixFilePermission> insecure = getInsecurePermissions();
-            Set<PosixFilePermission> found = EnumSet.copyOf(insecure);
-            found.retainAll(perms);
-            if (!found.isEmpty()) {
-                throw new KeyStoreException(
-                        "KeyStore file " + path + " has insecure permissions: " + PosixFilePermissions.toString(perms) +
-                                ". Remove group and world access (e.g. chmod 600).");
-            }
-        }
-        catch (IOException e) {
-            throw new KeyStoreException(
                     "Failed to check permissions on KeyStore file: " + path, e);
         }
     }

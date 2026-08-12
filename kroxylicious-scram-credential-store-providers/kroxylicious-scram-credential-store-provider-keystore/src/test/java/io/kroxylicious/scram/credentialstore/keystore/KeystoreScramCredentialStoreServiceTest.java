@@ -8,6 +8,8 @@ package io.kroxylicious.scram.credentialstore.keystore;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,10 +44,8 @@ class KeystoreScramCredentialStoreServiceTest {
                 STORE_PASSWORD,
                 "alice", "alice-secret");
 
-        if (java.nio.file.Files.getFileAttributeView(keystorePath,
-                java.nio.file.attribute.PosixFileAttributeView.class) != null) {
-            java.nio.file.Files.setPosixFilePermissions(keystorePath,
-                    java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
+        if (Files.getFileAttributeView(keystorePath, PosixFileAttributeView.class) != null) {
+            Files.setPosixFilePermissions(keystorePath, PosixFilePermissions.fromString("rw-------"));
         }
 
         config = new KeystoreScramCredentialStoreConfig(

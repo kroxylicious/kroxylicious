@@ -105,11 +105,10 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
      * @param keyStore the loaded KeyStore
      * @param keyPassword the password for individual keys
      * @return map of username to credential
-     * @throws CredentialServiceUnavailableException if extraction fails
+     * @throws CredentialServiceUnavailableException if extraction fails or any entry is malformed
      */
     private Map<String, ScramCredential> extractCredentials(KeyStore keyStore, char[] keyPassword) throws CredentialServiceUnavailableException {
         Map<String, ScramCredential> credentials = new HashMap<>();
-        int skippedEntries = 0;
 
         try {
             Enumeration<String> aliases = keyStore.aliases();
@@ -118,53 +117,37 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
 
                 if (!keyStore.isKeyEntry(alias)) {
                     LOGGER.atDebug().addKeyValue("alias", alias).log("Skipping non-key entry");
-                    skippedEntries++;
                     continue;
                 }
 
+                KeyStore.Entry entry;
                 try {
-                    KeyStore.Entry entry = keyStore.getEntry(alias, new KeyStore.PasswordProtection(keyPassword));
-
-                    if (!(entry instanceof KeyStore.SecretKeyEntry secretKeyEntry)) {
-                        LOGGER.atDebug().addKeyValue("alias", alias).log("Skipping non-SecretKey entry");
-                        skippedEntries++;
-                        continue;
-                    }
-
-                    SecretKey secretKey = secretKeyEntry.getSecretKey();
-                    byte[] credentialBytes = secretKey.getEncoded();
-
-                    ScramCredential credential = serializer.deserialize(credentialBytes, alias);
-                    credentials.put(credential.username(), credential);
-
-                    LOGGER.atDebug().addKeyValue("username", credential.username()).log("Loaded credential");
+                    entry = keyStore.getEntry(alias, new KeyStore.PasswordProtection(keyPassword));
                 }
                 catch (UnrecoverableEntryException e) {
-                    LOGGER.atWarn()
-                            .addKeyValue("alias", alias)
-                            .setCause(LOGGER.isDebugEnabled() ? e : null)
-                            .addKeyValue("error", e.getMessage())
-                            .log(LOGGER.isDebugEnabled()
-                                    ? "Failed to recover entry - incorrect password?"
-                                    : "Failed to recover entry - incorrect password? Increase log level to DEBUG for stacktrace");
-                    skippedEntries++;
+                    throw new CredentialServiceUnavailableException(
+                            "Failed to recover KeyStore entry for alias '" + alias + "' - incorrect key password?", e);
+                }
+
+                if (!(entry instanceof KeyStore.SecretKeyEntry secretKeyEntry)) {
+                    LOGGER.atDebug().addKeyValue("alias", alias).log("Skipping non-SecretKey entry");
+                    continue;
+                }
+
+                SecretKey secretKey = secretKeyEntry.getSecretKey();
+                byte[] credentialBytes = secretKey.getEncoded();
+
+                ScramCredential credential;
+                try {
+                    credential = serializer.deserialize(credentialBytes, alias);
                 }
                 catch (IllegalArgumentException e) {
-                    LOGGER.atWarn()
-                            .addKeyValue("alias", alias)
-                            .setCause(LOGGER.isDebugEnabled() ? e : null)
-                            .addKeyValue("error", e.getMessage())
-                            .log(LOGGER.isDebugEnabled()
-                                    ? "Failed to deserialize credential"
-                                    : "Failed to deserialize credential, increase log level to DEBUG for stacktrace");
-                    skippedEntries++;
+                    throw new CredentialServiceUnavailableException(
+                            "Malformed credential in KeyStore entry for alias '" + alias + "'", e);
                 }
-            }
 
-            if (skippedEntries > 0) {
-                LOGGER.atInfo()
-                        .addKeyValue("skippedEntries", skippedEntries)
-                        .log("Skipped KeyStore entries (non-SecretKey or invalid credentials)");
+                credentials.put(credential.username(), credential);
+                LOGGER.atDebug().addKeyValue("username", credential.username()).log("Loaded credential");
             }
 
             return Collections.unmodifiableMap(credentials);

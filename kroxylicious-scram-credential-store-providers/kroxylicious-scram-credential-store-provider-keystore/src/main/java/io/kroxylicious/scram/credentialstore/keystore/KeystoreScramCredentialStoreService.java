@@ -22,7 +22,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * {@link javax.crypto.SecretKey} entries where:
  * </p>
  * <ul>
- *     <li>The alias is the username</li>
+ *     <li>The alias is the lowercase hex SHA-256 hash of the username (UTF-8 encoded)</li>
  *     <li>The key bytes contain JSON-serialized {@link io.kroxylicious.scram.credentialstore.ScramCredential} data</li>
  * </ul>
  *

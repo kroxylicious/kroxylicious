@@ -5,62 +5,27 @@
  */
 
 /**
- * Pluggable SASL credential store API.
+ * Java KeyStore-backed implementation of the SCRAM credential store SPI.
  * <p>
- * This package provides an abstraction for SCRAM credential storage, allowing
- * SASL termination filters to authenticate clients against various backing stores
- * such as files, databases, LDAP directories, or external identity providers.
+ * This package provides {@link io.kroxylicious.scram.credentialstore.keystore.KeystoreScramCredentialStoreService},
+ * a {@link io.kroxylicious.scram.credentialstore.ScramCredentialStoreService} plugin that loads
+ * SCRAM credentials from a Java KeyStore file (JKS or PKCS12) at startup for fast, synchronous
+ * lookups during SASL authentication.
  * </p>
  *
- * <h2>Core Interfaces</h2>
+ * <h2>KeyStore Format</h2>
+ * <p>
+ * Credentials are stored as {@link javax.crypto.SecretKey} entries. Each entry:
+ * </p>
  * <ul>
- *     <li>{@link io.kroxylicious.scram.credentialstore.ScramCredentialStoreService} -
- *         Service interface for discovering and initialising credential stores</li>
- *     <li>{@link io.kroxylicious.scram.credentialstore.ScramCredentialStore} -
- *         Store interface for looking up credentials</li>
+ *     <li>Uses the SHA-256 hex-encoded hash of the username as its alias</li>
+ *     <li>Contains JSON-serialized {@link io.kroxylicious.scram.credentialstore.ScramCredential}
+ *         data as the key bytes</li>
  * </ul>
- *
- * <h2>Data Types</h2>
- * <ul>
- *     <li>{@link io.kroxylicious.scram.credentialstore.ScramCredential} -
- *         Immutable SCRAM credential with validation</li>
- * </ul>
- *
- * <h2>Exception Handling</h2>
- * <ul>
- *     <li>{@link io.kroxylicious.scram.credentialstore.CredentialLookupException} -
- *         Base exception for lookup failures</li>
- *     <li>{@link io.kroxylicious.scram.credentialstore.CredentialServiceUnavailableException} -
- *         Service is unavailable</li>
- *     <li>{@link io.kroxylicious.scram.credentialstore.CredentialServiceTimeoutException} -
- *         Operation timed out</li>
- * </ul>
- *
- * <h2>Usage Example</h2>
- * <pre>{@code
- * // Initialise service
- * ScramCredentialStoreService<MyConfig> service = ...;
- * service.initialize(config);
- *
- * // Build credential store
- * ScramCredentialStore store = service.buildCredentialStore();
- *
- * // Look up credential asynchronously
- * CompletionStage<ScramCredential> stage = store.lookupCredential("alice");
- * stage.thenAccept(credential -> {
- *     if (credential != null) {
- *         // Authenticate using credential
- *     } else {
- *         // User not found
- *     }
- * }).exceptionally(error -> {
- *     // Handle service failure
- *     return null;
- * });
- *
- * // Clean up
- * service.close();
- * }</pre>
+ * <p>
+ * Using a hash of the username as the alias prevents leaking usernames if the
+ * KeyStore file is inspected directly.
+ * </p>
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)

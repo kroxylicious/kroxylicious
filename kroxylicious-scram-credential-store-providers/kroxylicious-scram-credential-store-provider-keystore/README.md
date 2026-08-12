@@ -37,7 +37,8 @@ credentialStoreConfig:
 ## KeyStore Format
 
 The KeyStore must contain `SecretKey` entries where:
-- **Alias**: The username
+- **Alias**: The lowercase hex SHA-256 hash of the username (UTF-8 encoded). Using a hash prevents
+  leaking usernames if the KeyStore is inspected directly.
 - **Key bytes**: JSON-serialised `ScramCredential` data
 
 ### Credential JSON Format
@@ -54,23 +55,6 @@ The KeyStore must contain `SecretKey` entries where:
 ```
 
 ## Generating Credentials
-
-### Using Java Code
-
-```java
-import io.kroxylicious.scram.credentialstore.keystore.TestCredentialGenerator;
-
-Path keystorePath = Paths.get("credentials.jks");
-String password = "keystore-password";
-
-var generator = new TestCredentialGenerator();
-generator.generateKeyStore(
-    keystorePath,
-    password,
-    "alice", "alice-secret",
-    "bob", "bob-secret"
-);
-```
 
 ### Using Kafka's SCRAM Tools
 

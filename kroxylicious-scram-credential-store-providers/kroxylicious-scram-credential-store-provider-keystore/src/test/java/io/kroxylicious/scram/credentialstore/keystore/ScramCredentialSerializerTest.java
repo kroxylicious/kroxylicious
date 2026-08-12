@@ -8,8 +8,6 @@ package io.kroxylicious.scram.credentialstore.keystore;
 
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.kroxylicious.scram.credentialstore.ScramCredential;
 import io.kroxylicious.scram.credentialstore.ScramHashAlgorithm;
 
@@ -20,7 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ScramCredentialSerializerTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private final ScramCredentialSerializer serializer = new ScramCredentialSerializer();
 
     @Test

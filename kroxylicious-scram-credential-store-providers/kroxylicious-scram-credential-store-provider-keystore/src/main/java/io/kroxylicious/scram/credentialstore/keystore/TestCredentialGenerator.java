@@ -27,7 +27,11 @@ import io.kroxylicious.scram.credentialstore.ScramHashAlgorithm;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
- * Utility for generating test keystores with SCRAM credentials.
+ * Utility for generating KeyStore files populated with SCRAM credentials, for use in tests.
+ * <p>
+ * This class lives in {@code src/main} so it can be used by tests in other modules
+ * (e.g. integration tests) that depend on this module.
+ * </p>
  */
 public class TestCredentialGenerator {
 
@@ -52,8 +56,9 @@ public class TestCredentialGenerator {
 
     /**
      * Generates a PKCS12 keystore containing SCRAM-SHA-256 credentials.
+     * The key password is the same as the store password.
      * @param outputPath path to write the keystore file
-     * @param storePassword password for the keystore
+     * @param storePassword password for the keystore and each individual key entry
      * @param users alternating username/password pairs
      * @throws Exception if keystore generation fails
      */
@@ -63,13 +68,14 @@ public class TestCredentialGenerator {
                                  String storePassword,
                                  String... users)
             throws Exception {
-        generateKeyStore(outputPath, storePassword, ScramMechanism.SCRAM_SHA_256, users);
+        generateKeyStore(outputPath, storePassword, storePassword, ScramMechanism.SCRAM_SHA_256, users);
     }
 
     /**
      * Generates a PKCS12 keystore containing SCRAM credentials for the given mechanism.
      * @param outputPath path to write the keystore file
      * @param storePassword password for the keystore
+     * @param keyPassword password for each individual key entry
      * @param mechanism the SCRAM mechanism to use
      * @param users alternating username/password pairs
      * @throws Exception if keystore generation fails
@@ -78,6 +84,7 @@ public class TestCredentialGenerator {
     public void generateKeyStore(
                                  Path outputPath,
                                  String storePassword,
+                                 String keyPassword,
                                  ScramMechanism mechanism,
                                  String... users)
             throws Exception {
@@ -99,7 +106,7 @@ public class TestCredentialGenerator {
 
             SecretKey secretKey = new SecretKeySpec(credentialBytes, "AES");
             KeyStore.SecretKeyEntry entry = new KeyStore.SecretKeyEntry(secretKey);
-            KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(storePassword.toCharArray());
+            KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(keyPassword.toCharArray());
 
             keyStore.setEntry(hashUsername(username), entry, protection);
         }
