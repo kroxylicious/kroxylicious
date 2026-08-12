@@ -29,6 +29,7 @@ import io.kroxylicious.scram.credentialstore.CredentialServiceUnavailableExcepti
 import io.kroxylicious.scram.credentialstore.ScramCredential;
 import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -125,6 +126,7 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
         }
     }
 
+    @Nullable
     private ScramCredential extractCredential(KeyStore keyStore, String alias, char[] keyPassword)
             throws KeyStoreException, NoSuchAlgorithmException, CredentialServiceUnavailableException {
         if (!keyStore.isKeyEntry(alias)) {
