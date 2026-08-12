@@ -181,8 +181,8 @@ class ScramCredentialSerializerTest {
                 ScramHashAlgorithm.SHA_256);
 
         // Then - should be equal
-        assertThat(credential1).isEqualTo(credential2);
-        assertThat(credential1).hasSameHashCodeAs(credential2);
+        assertThat(credential1).isEqualTo(credential2)
+                .hasSameHashCodeAs(credential2);
     }
 
     @Test
