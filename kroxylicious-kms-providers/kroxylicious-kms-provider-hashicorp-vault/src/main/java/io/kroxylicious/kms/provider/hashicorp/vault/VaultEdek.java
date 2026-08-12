@@ -21,6 +21,10 @@ import java.util.Objects;
  */
 public record VaultEdek(String kekRef,
                         @SuppressWarnings("ArrayRecordComponent") byte[] edek) { // byte[] retained: deep equality via explicit equals/hashCode below; treated as immutable by convention
+    /**
+     * Validates the record components.
+     * @throws IllegalArgumentException if {@code kekRef} or {@code edek} are empty.
+     */
     public VaultEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
