@@ -25,6 +25,13 @@ public class VaultKmsService implements KmsService<Config, String, VaultEdek> {
     @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
     private volatile @Nullable Config config;
 
+    /**
+     * Creates the HashiCorp Vault KMS service.
+     */
+    public VaultKmsService() {
+        // Intentionally empty
+    }
+
     @Override
     public void initialize(Config config) {
         Objects.requireNonNull(config);
