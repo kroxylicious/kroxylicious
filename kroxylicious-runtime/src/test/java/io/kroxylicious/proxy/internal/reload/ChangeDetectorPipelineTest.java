@@ -10,9 +10,13 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.RouteDefinition;
+import io.kroxylicious.proxy.config.RouteTarget;
+import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
@@ -24,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Cross-detector integration tests for the change-detection pipeline. Each individual
- * detector is unit-tested in its own file; this class verifies that running both detectors
+ * detector is unit-tested in its own file; this class verifies that running the detectors
  * over the same configuration and merging their results produces a well-formed
  * {@link ChangeResult} — specifically, that the pairwise-disjointness invariant
  * enforced by {@link ChangeResult#merge(ChangeResult)} holds across realistic scenarios
@@ -34,6 +38,7 @@ class ChangeDetectorPipelineTest {
 
     private final VirtualClusterChangeDetector vccDetector = new VirtualClusterChangeDetector();
     private final FilterChangeDetector filterDetector = new FilterChangeDetector();
+    private final RoutingGraphChangeDetector routingDetector = new RoutingGraphChangeDetector();
 
     @Test
     void clusterWithBothGatewayAndFilterChangeAppearsOnceInModify() {
@@ -216,6 +221,40 @@ class ChangeDetectorPipelineTest {
 
         var merged = vccResult.merge(filterResult);
         assertThat(merged.clustersToModify()).containsExactlyInAnyOrder("gateway-changed", "filter-changed");
+        assertThat(merged.clustersToAdd()).isEmpty();
+        assertThat(merged.clustersToRemove()).isEmpty();
+    }
+
+    @Test
+    void clusterChangedAcrossAllDetectorsAppearsOnceInModify() {
+        // Given
+        var oldFilter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.FakeFilter", "config-v1");
+        var newFilter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.FakeFilter", "config-v2");
+        var clusterDefinition = new ClusterDefinition("upstream", "kafka:9092", null);
+        var route = new RouteDefinition("route-a", 0, List.of("filter-a"), new RouteTarget("upstream", null));
+        var oldRouter = new RouterDefinition("router-a", "io.kroxylicious.test.FakeRouter", "config-v1", List.of(route));
+        var newRouter = new RouterDefinition("router-a", "io.kroxylicious.test.FakeRouter", "config-v2", List.of(route));
+        var oldVc = new VirtualCluster("cluster", null, new RouteTarget(null, "router-a"),
+                List.of(gateway("default", 9192)), false, false, List.of(), null, null, null);
+        var newVc = new VirtualCluster("cluster", null, new RouteTarget(null, "router-a"),
+                List.of(gateway("default", 9192)), true, false, List.of(), null, null, null);
+        var oldConfig = new Configuration(null, List.of(clusterDefinition), List.of(oldFilter), null, List.of(oldRouter),
+                List.of(oldVc), null, false, Optional.empty(), null, null);
+        var newConfig = new Configuration(null, List.of(clusterDefinition), List.of(newFilter), null, List.of(newRouter),
+                List.of(newVc), null, false, Optional.empty(), null, null);
+        var context = new ConfigurationChangeContext(oldConfig, newConfig);
+
+        // When
+        var vccResult = vccDetector.detect(context);
+        var filterResult = filterDetector.detect(context);
+        var routingResult = routingDetector.detect(context);
+        var merged = vccResult.merge(filterResult).merge(routingResult);
+
+        // Then
+        assertThat(vccResult.clustersToModify()).containsExactly("cluster");
+        assertThat(filterResult.clustersToModify()).containsExactly("cluster");
+        assertThat(routingResult.clustersToModify()).containsExactly("cluster");
+        assertThat(merged.clustersToModify()).containsExactly("cluster");
         assertThat(merged.clustersToAdd()).isEmpty();
         assertThat(merged.clustersToRemove()).isEmpty();
     }

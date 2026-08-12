@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
@@ -26,19 +27,29 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
+import io.kroxylicious.it.testplugins.router.InvocationCountingRouterFactory;
 import io.kroxylicious.proxy.KafkaProxy;
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.RouteDefinition;
+import io.kroxylicious.proxy.config.RouteTarget;
+import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.internal.config.Feature;
+import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.reload.ReconfigureError;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
@@ -71,6 +82,10 @@ class HotReloadIT extends BaseIT {
     private static final String VC_BASELINE_NAME = "vc-baseline";
     private static final String VC_OUTGOING_NAME = "vc-outgoing";
     private static final String VC_INCOMING_NAME = "vc-incoming";
+    private static final String MULTI_FACET_VC_NAME = "vc-multi-facet";
+    private static final String MULTI_FACET_CLUSTER_NAME = "multi-facet-cluster";
+    private static final String MULTI_FACET_ROUTER_NAME = "multi-facet-router";
+    private static final String MULTI_FACET_FILTER_NAME = "route-counter";
 
     private static final String SNI_BASE_DOMAIN = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".hotreload");
     private static final String VC_BASELINE_BOOTSTRAP = "bootstrap-baseline" + SNI_BASE_DOMAIN + ":0";
@@ -83,6 +98,7 @@ class HotReloadIT extends BaseIT {
     private static final Duration RECONFIGURE_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration PRODUCE_CONSUME_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration REJECTION_TIMEOUT = Duration.ofSeconds(5);
+    private static final Features ROUTING_ENABLED = Features.builder().enable(Feature.ROUTING).build();
 
     /**
      * Identifies a non-baseline VC slot used by the tests. {@link #buildConfig} takes a
@@ -101,6 +117,68 @@ class HotReloadIT extends BaseIT {
             this.name = name;
             this.bootstrap = bootstrap;
             this.brokerPattern = brokerPattern;
+        }
+    }
+
+    @AfterEach
+    void resetInvocationCounts() {
+        InvocationCountingRouterFactory.assertAllClosedAndResetCounts();
+        InvocationCountingFilterFactory.assertAllClosedAndResetCounts();
+    }
+
+    @Test
+    void shouldApplyChangesAcrossDetectorsInSingleReload(@BrokerCluster KafkaCluster cluster) throws Exception {
+        // Given
+        UUID oldRouterId = UUID.randomUUID();
+        UUID newRouterId = UUID.randomUUID();
+        UUID oldFilterId = UUID.randomUUID();
+        UUID newFilterId = UUID.randomUUID();
+
+        var clusterDefinition = new ClusterDefinition(MULTI_FACET_CLUSTER_NAME, cluster.getBootstrapServers(), null);
+        var oldVirtualCluster = multiFacetVirtualCluster(0);
+        var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDefinition)
+                .addToFilterDefinitions(invocationCounterDefinition(oldFilterId))
+                .addToRouterDefinitions(multiFacetRouterDefinition(oldRouterId, "old-route"))
+                .addToVirtualClusters(oldVirtualCluster);
+
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder)
+                .setFeatures(ROUTING_ENABLED)
+                .createDefaultKroxyliciousTester()) {
+            String topic = tester.createTopic(MULTI_FACET_VC_NAME);
+            int port = boundPort(tester, MULTI_FACET_VC_NAME);
+            var newVirtualCluster = new VirtualClusterBuilder(multiFacetVirtualCluster(port)).withLogNetwork(true).build();
+            var afterConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                    .addToClusterDefinitions(clusterDefinition)
+                    .addToFilterDefinitions(invocationCounterDefinition(newFilterId))
+                    .addToRouterDefinitions(multiFacetRouterDefinition(newRouterId, "new-route"))
+                    .addToVirtualClusters(newVirtualCluster)
+                    .build();
+
+            // When
+            var reconfigureResult = tester.reconfigure(afterConfig);
+
+            // Then
+            assertThat(reconfigureResult)
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(result -> assertThat(result.hasErrors())
+                            .as("one reload changing a virtual cluster, router, route, and referenced filter should succeed")
+                            .isFalse());
+
+            assertThat(InvocationCountingRouterFactory.closeCountFor(oldRouterId))
+                    .as("the old router should be closed exactly once")
+                    .isEqualTo(1);
+            assertThat(InvocationCountingRouterFactory.initializationCountFor(newRouterId))
+                    .as("the replacement router should be initialized exactly once")
+                    .isEqualTo(1);
+            assertThat(InvocationCountingFilterFactory.closeCountFor(oldFilterId))
+                    .as("the old route filter should be closed exactly once")
+                    .isEqualTo(1);
+            assertThat(InvocationCountingFilterFactory.initializationCountFor(newFilterId))
+                    .as("the replacement route filter should be initialized exactly once")
+                    .isEqualTo(1);
+
+            assertProduceConsumeRoundTrip(tester, MULTI_FACET_VC_NAME, topic, "after-multi-facet-reconfigure");
         }
     }
 
@@ -619,6 +697,27 @@ class HotReloadIT extends BaseIT {
             builder.addToVirtualClusters(vc);
         }
         return builder;
+    }
+
+    private static VirtualCluster multiFacetVirtualCluster(int port) {
+        return new VirtualClusterBuilder()
+                .withName(MULTI_FACET_VC_NAME)
+                .withTarget(new RouteTarget(null, MULTI_FACET_ROUTER_NAME))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", port)).build())
+                .build();
+    }
+
+    private static RouterDefinition multiFacetRouterDefinition(UUID configId, String routeName) {
+        var route = new RouteDefinition(routeName, 0, List.of(MULTI_FACET_FILTER_NAME),
+                new RouteTarget(MULTI_FACET_CLUSTER_NAME, null));
+        var config = new InvocationCountingRouterFactory.Config(configId, routeName);
+        return new RouterDefinition(MULTI_FACET_ROUTER_NAME, InvocationCountingRouterFactory.class.getName(), config, List.of(route));
+    }
+
+    private static NamedFilterDefinition invocationCounterDefinition(UUID configId) {
+        return new NamedFilterDefinitionBuilder(MULTI_FACET_FILTER_NAME, InvocationCountingFilterFactory.class.getSimpleName())
+                .withConfig("configInstanceId", configId)
+                .build();
     }
 
     private static VirtualCluster portVc(KafkaCluster cluster, String name) {
