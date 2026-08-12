@@ -6,12 +6,18 @@
 
 package io.kroxylicious.scram.credentialstore.keystore;
 
+import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.security.KeyPairGenerator;
 import java.security.KeyStore;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.util.concurrent.CompletionStage;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -197,6 +203,55 @@ class KeystoreScramCredentialStoreTest {
         assertRejectsPermission("rw--w----");
     }
 
+    @Test
+    void shouldSkipTrustedCertificateEntries() throws Exception {
+        // Given - a keystore that also has a trusted certificate entry (non-key entry)
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+        try (FileInputStream fis = new FileInputStream(keystorePath.toFile())) {
+            ks.load(fis, STORE_PASSWORD.toCharArray());
+        }
+        ks.setCertificateEntry("trusted-ca", loadTestCertificate());
+        try (FileOutputStream fos = new FileOutputStream(keystorePath.toFile())) {
+            ks.store(fos, STORE_PASSWORD.toCharArray());
+        }
+        KeystoreFilePermissions.setOwnerOnly(keystorePath);
+
+        // When
+        KeystoreScramCredentialStore loaded = new KeystoreScramCredentialStore(config);
+
+        // Then - credential entries are still accessible; certificate entry was silently skipped
+        assertThat(loaded.lookupCredential("alice").toCompletableFuture().join()).isNotNull();
+        assertThat(loaded.lookupCredential("bob").toCompletableFuture().join()).isNotNull();
+    }
+
+    @Test
+    void shouldSkipPrivateKeyEntries() throws Exception {
+        // Given - a keystore that also has a private key entry (key entry, but not a SecretKeyEntry)
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+        try (FileInputStream fis = new FileInputStream(keystorePath.toFile())) {
+            ks.load(fis, STORE_PASSWORD.toCharArray());
+        }
+        Certificate cert = loadTestCertificate();
+        var kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(1024);
+        var kp = kpg.generateKeyPair();
+        ks.setEntry(
+                "private-key-entry",
+                new KeyStore.PrivateKeyEntry(kp.getPrivate(), new Certificate[]{ cert }),
+                new KeyStore.PasswordProtection(STORE_PASSWORD.toCharArray()));
+        try (FileOutputStream fos = new FileOutputStream(keystorePath.toFile())) {
+            ks.store(fos, STORE_PASSWORD.toCharArray());
+        }
+        KeystoreFilePermissions.setOwnerOnly(keystorePath);
+
+        // When
+        KeystoreScramCredentialStore loaded = new KeystoreScramCredentialStore(config);
+
+        // Then - credential entries are still accessible; private key entry was silently skipped
+        assertThat(loaded.lookupCredential("alice").toCompletableFuture().join()).isNotNull();
+        assertThat(loaded.lookupCredential("bob").toCompletableFuture().join()).isNotNull();
+    }
+
     private void assertRejectsPermission(String permString) throws Exception {
         assumePosixPermissions();
         Files.setPosixFilePermissions(keystorePath, PosixFilePermissions.fromString(permString));
@@ -210,6 +265,32 @@ class KeystoreScramCredentialStoreTest {
         org.junit.jupiter.api.Assumptions.assumeTrue(
                 Files.getFileAttributeView(keystorePath, PosixFileAttributeView.class) != null,
                 "POSIX file permissions not supported on this platform");
+    }
+
+    // Self-signed test certificate (CN=localhost), used only to populate non-credential keystore entries.
+    private static final String TEST_CERT_PEM = """
+            -----BEGIN CERTIFICATE-----
+            MIICzDCCAbSgAwIBAgIJAPnSacXpIgPLMA0GCSqGSIb3DQEBDAUAMBQxEjAQBgNV
+            BAMTCWxvY2FsaG9zdDAeFw0yMzA2MjIxNDAyNDBaFw0zMzA0MzAxNDAyNDBaMBQx
+            EjAQBgNVBAMTCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
+            ggEBAJrZWdUMnO7X6v7yyBprtmISUTmnMuuFU2G83FQXSRSZiF18xB6nHyF7cZoP
+            uBBBsJkBF+NHyGnK3QHsP1ZAgsd3IUxKZxChDY4ELHQEnJ08y0E8vMO5D8X2EIlP
+            YwN9T+ReZfPp39SGuNc4pmpO29kGDxtIaEjVsCM6Sy32vayWn+7j2QkJvMlIt52w
+            ev3aFNSfnI6lUMopgji5HibW0Wg+tUdbzQVTHpbsZjUSx07WUyZiKh9bCj78jOCU
+            xeyvce7wKmW8OryWHSV1L96ATVCaa7j8dMl2WVcL5NdsrbzG48c4qoNGQlNuXP3k
+            1Fak+B8HQuAy64KtgU7puRiIsE8CAwEAAaMhMB8wHQYDVR0OBBYEFGK4jT23mUpt
+            SDF83zfem+JglvIRMA0GCSqGSIb3DQEBDAUAA4IBAQAlcTRvYNVOH4LCU9K42GEQ
+            kTtli4uTeHNEDUX/GVnGqxIjofPCg2pTBLPkYQmKCnElaHqdKJOG8snw2NiFD0sN
+            K1T+JPHvAnAVN0OVFBKZMTqK4sDm9bYzN1hCUKc4cWj9l/YXQ6uHFXSDxhek+qvI
+            4yF/fSDBuYhf4w0Uyr4rmpC0dV+hdPFooFkdqprlkyI7ntCbqzzXMDuqKW7UyTN8
+            GiY5W+u1+slIINm5o2UwzC2FpBRkWDwd/hxMHdcL6txYUDQF+Xy9xRKv9JIeOaXg
+            0M91ZTBSxfxr2cn41AulsTENc6vKvz8Zhd8XSZWHlsGVRTQSAV3ibz+KF+mAYeRG
+            -----END CERTIFICATE-----
+            """;
+
+    private static Certificate loadTestCertificate() throws Exception {
+        return CertificateFactory.getInstance("X.509")
+                .generateCertificate(new ByteArrayInputStream(TEST_CERT_PEM.getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test

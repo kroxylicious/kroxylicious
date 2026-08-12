@@ -186,6 +186,21 @@ class ScramCredentialSerializerTest {
     }
 
     @Test
+    void shouldRejectUnknownHashAlgorithm() {
+        // Given
+        String json = """
+                {"version":1,"username":"alice","salt":"AQIDBAU=","iterations":4096,
+                 "serverKey":"ChQeKDI=","storedKey":"CxUfKTM=","hashAlgorithm":"UNKNOWN-ALGO"}
+                """;
+
+        // When/Then
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        assertThatThrownBy(() -> serializer.deserialize(bytes, "test-alias"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid credential for alias: test-alias");
+    }
+
+    @Test
     void shouldImplementEqualsCorrectlyWithDifferentArrays() {
         // Given - two credentials with different salt
         ScramCredential credential1 = new ScramCredential(
