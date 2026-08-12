@@ -8,6 +8,7 @@ package io.kroxylicious.kms.provider.azure.auth;
 
 import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -22,6 +23,7 @@ import org.assertj.core.api.ThrowableAssertAlternative;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -120,6 +122,34 @@ class OauthClientCredentialsTokenServiceTest {
                         assertThat(request.getBodyAsString()).isEqualTo(
                                 "grant_type=client_credentials&client_id=" + CLIENT_ID + "&client_secret=" + CLIENT_SECRET + "&scope=" + scope);
                     });
+        }
+    }
+
+    @Test
+    void appliesConnectTimeout() {
+        // given
+        try (OauthClientCredentialsTokenService service = new OauthClientCredentialsTokenService(
+                new Oauth2ClientCredentialsConfig(URI.create(server.baseUrl()), TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET),
+                        URI.create("https://vault.azure.net/.default"), null),
+                Clock.systemUTC())) {
+            // when
+            var connectTimeout = service.getHttpClient().connectTimeout();
+            // then
+            assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
+        }
+    }
+
+    @Test
+    void appliesRequestTimeout() {
+        // given
+        try (OauthClientCredentialsTokenService service = new OauthClientCredentialsTokenService(
+                new Oauth2ClientCredentialsConfig(URI.create(server.baseUrl()), TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET),
+                        URI.create("https://vault.azure.net/.default"), null),
+                Clock.systemUTC())) {
+            // when
+            HttpRequest request = service.getHttpRequest();
+            // then
+            assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
         }
     }
 

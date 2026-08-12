@@ -50,6 +50,9 @@ import static java.time.temporal.ChronoUnit.SECONDS;
  */
 public class ManagedIdentityAccessTokenService implements BearerTokenService {
 
+    private static final Duration CONNECT_TIMEOUT = Duration.of(20, SECONDS);
+    private static final Duration REQUEST_TIMEOUT = Duration.of(20, SECONDS);
+
     private final ManagedIdentityCredentialsConfig managedIdentityCredentialsConfig;
     private final Clock clock;
     private static final Logger LOGGER = LoggerFactory.getLogger(ManagedIdentityAccessTokenService.class);
@@ -71,15 +74,19 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
         this.clock = clock;
         HttpClient.Builder builder = HttpClient.newBuilder();
         httpClient = builder
-                .connectTimeout(Duration.of(10, SECONDS))
+                .connectTimeout(CONNECT_TIMEOUT)
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
     }
 
-    @Override
-    public CompletionStage<BearerToken> getBearerToken() {
-        HttpRequest request = HttpRequest.newBuilder()
+    HttpClient getHttpClient() {
+        return httpClient;
+    }
+
+    HttpRequest getHttpRequest() {
+        return HttpRequest.newBuilder()
+                .timeout(REQUEST_TIMEOUT)
                 .uri(URI.create(
                         managedIdentityCredentialsConfig.identityServiceURL()
                                 + "/metadata/identity/oauth2/token?api-version=2018-02-01&resource="
@@ -87,6 +94,11 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
                 .header("Metadata", "true")
                 .GET()
                 .build();
+    }
+
+    @Override
+    public CompletionStage<BearerToken> getBearerToken() {
+        HttpRequest request = getHttpRequest();
         Instant messageSend = clock.instant();
         CompletableFuture<HttpResponse<String>> responseCompletableFuture = httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
         CompletableFuture<AccessTokenResponse> future = responseCompletableFuture.thenApply(ManagedIdentityAccessTokenService::getAccessTokenResponse);
