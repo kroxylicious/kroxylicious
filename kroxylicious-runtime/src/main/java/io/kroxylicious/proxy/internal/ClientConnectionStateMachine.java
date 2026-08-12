@@ -1014,7 +1014,7 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Signals that a {@link RouterDispatchHandler} is active on this connection's pipeline.
+     * Signals that a {@link io.kroxylicious.proxy.internal.routing.RoutingHandler} is active on this connection's pipeline.
      * When active, responses bearing routing-range correlation IDs are not counted
      * against the client in-flight limit (because they are synthetic, not client requests).
      */
