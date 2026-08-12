@@ -32,7 +32,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * credentialStoreConfig:
  *   file: /path/to/credentials.jks
  *   storePassword:
- *     password: "keystore-password"
+ *     passwordFile: /etc/kroxylicious/keystore-password.txt
  *   storeType: PKCS12
  * }</pre>
  *

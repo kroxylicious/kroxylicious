@@ -14,6 +14,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -86,12 +87,16 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
 
             char[] storePassword = config.storePassword().getProvidedPassword().toCharArray();
             char[] keyPassword = config.effectiveKeyPassword().getProvidedPassword().toCharArray();
-
-            try (FileInputStream fis = new FileInputStream(config.file())) {
-                keyStore.load(fis, storePassword);
+            try {
+                try (FileInputStream fis = new FileInputStream(config.file())) {
+                    keyStore.load(fis, storePassword);
+                }
+                return extractCredentials(keyStore, keyPassword);
             }
-
-            return extractCredentials(keyStore, keyPassword);
+            finally {
+                Arrays.fill(storePassword, '\0');
+                Arrays.fill(keyPassword, '\0');
+            }
         }
         catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
             throw new CredentialServiceUnavailableException(
