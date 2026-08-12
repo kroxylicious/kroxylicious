@@ -115,18 +115,28 @@ public class PodIdentityCredentialsProvider extends AbstractRefreshingCredential
                 .build();
     }
 
+    @VisibleForTesting
+    HttpClient getHttpClient() {
+        return client;
+    }
+
     @Override
     protected CompletionStage<PodIdentityCredentials> fetchCredentials() {
         var token = readAuthorizationToken();
-        var request = HttpRequest.newBuilder()
+        var request = createCredentialsRequest(token);
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+                .thenApply(this::parseCredentialsResponse);
+    }
+
+    @VisibleForTesting
+    HttpRequest createCredentialsRequest(String token) {
+        return HttpRequest.newBuilder()
                 .uri(credentialsFullUri)
                 .header("Authorization", token)
                 .header("Accept", "application/json")
                 .timeout(HTTP_REQUEST_TIMEOUT)
                 .GET()
                 .build();
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-                .thenApply(this::parseCredentialsResponse);
     }
 
     @Override

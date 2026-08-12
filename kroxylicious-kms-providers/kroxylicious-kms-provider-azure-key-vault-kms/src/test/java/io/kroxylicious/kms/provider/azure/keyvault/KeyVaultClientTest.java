@@ -137,34 +137,34 @@ class KeyVaultClientTest {
 
     @Test
     void appliesConnectTimeout() {
-        // given
+        // Given
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
-            // when
+            // When
             var connectTimeout = keyVaultClient.getHttpClient().connectTimeout();
-            // then
+            // Then
             assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
         }
     }
 
     @Test
     void appliesRequestTimeoutToGetKeyRequest() {
-        // given
+        // Given
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
-            // when
+            // When
             HttpRequest request = keyVaultClient.getKeyRequest(VAULT_NAME, KEY_NAME, BEARER_TOKEN);
-            // then
+            // Then
             assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
         }
     }
 
     @Test
     void appliesRequestTimeoutToWrapOrUnwrapKeyRequest() {
-        // given
+        // Given
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
-            // when
+            // When
             HttpRequest request = keyVaultClient.wrapOrUnwrapKeyRequest(wrappingKey, DEK_BYTES, BEARER_TOKEN, "wrapkey");
-            // then
+            // Then
             assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
         }
     }

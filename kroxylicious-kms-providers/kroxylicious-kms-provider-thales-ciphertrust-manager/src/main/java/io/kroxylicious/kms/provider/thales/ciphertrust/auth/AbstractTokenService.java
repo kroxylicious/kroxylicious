@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthResponse;
 import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * Abstract base class for CipherTrust Manager authentication token services.
@@ -90,6 +91,7 @@ abstract class AbstractTokenService implements BearerTokenService {
                 .build();
     }
 
+    @VisibleForTesting
     HttpClient getHttpClient() {
         return client;
     }
@@ -140,6 +142,7 @@ abstract class AbstractTokenService implements BearerTokenService {
         }
     }
 
+    @VisibleForTesting
     HttpRequest buildAuthenticationRequest(AuthRequest authRequest) throws JsonProcessingException {
         String requestBody = OBJECT_MAPPER.writeValueAsString(authRequest);
         return HttpRequest.newBuilder()

@@ -7,7 +7,6 @@
 package io.kroxylicious.kms.provider.aws.kms;
 
 import java.net.URI;
-import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
@@ -79,19 +78,18 @@ class AwsKmsTest {
 
     @Test
     void appliesConnectTimeout() {
-        // given/when
+        // When
         var connectTimeout = kms.getHttpClient().connectTimeout();
-        // then
+        // Then
         assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
     }
 
     @Test
     void appliesRequestTimeout() {
-        // given
-        var request = kms.createRequest(new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + "alias"), "TrentService.DescribeKey");
-        // when
-        HttpRequest builtRequest = request.toCompletableFuture().join();
-        // then
+        // When
+        var builtRequest = kms.createRequest(new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + "alias"), "TrentService.DescribeKey")
+                .toCompletableFuture().join();
+        // Then
         assertThat(builtRequest.timeout()).hasValue(Duration.ofSeconds(20));
     }
 

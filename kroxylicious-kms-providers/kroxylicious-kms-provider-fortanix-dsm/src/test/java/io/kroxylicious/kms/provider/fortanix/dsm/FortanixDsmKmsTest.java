@@ -104,17 +104,17 @@ class FortanixDsmKmsTest {
 
     @Test
     void appliesConnectTimeout() {
-        // given/when
+        // When
         var connectTimeout = kms.getHttpClient().connectTimeout();
-        // then
+        // Then
         assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
     }
 
     @Test
     void appliesRequestTimeout() {
-        // given/when
+        // When
         var request = kms.createRequestBuilder(new SecurityObjectDescriptor(null, "alias", null), KEYS_INFO_ENDPOINT).build();
-        // then
+        // Then
         assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
     }
 

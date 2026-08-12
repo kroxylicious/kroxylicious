@@ -127,28 +127,28 @@ class OauthClientCredentialsTokenServiceTest {
 
     @Test
     void appliesConnectTimeout() {
-        // given
+        // Given
         try (OauthClientCredentialsTokenService service = new OauthClientCredentialsTokenService(
                 new Oauth2ClientCredentialsConfig(URI.create(server.baseUrl()), TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET),
                         URI.create("https://vault.azure.net/.default"), null),
                 Clock.systemUTC())) {
-            // when
+            // When
             var connectTimeout = service.getHttpClient().connectTimeout();
-            // then
+            // Then
             assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
         }
     }
 
     @Test
     void appliesRequestTimeout() {
-        // given
+        // Given
         try (OauthClientCredentialsTokenService service = new OauthClientCredentialsTokenService(
                 new Oauth2ClientCredentialsConfig(URI.create(server.baseUrl()), TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET),
                         URI.create("https://vault.azure.net/.default"), null),
                 Clock.systemUTC())) {
-            // when
+            // When
             HttpRequest request = service.getHttpRequest();
-            // then
+            // Then
             assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
         }
     }

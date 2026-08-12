@@ -175,6 +175,11 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
                 .build();
     }
 
+    @VisibleForTesting
+    HttpClient getHttpClient() {
+        return client;
+    }
+
     @Override
     protected CompletionStage<AssumedRoleCredentials> fetchCredentials() {
         var token = readWebIdentityToken();
@@ -220,7 +225,8 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
         }
     }
 
-    private HttpRequest createAssumeRoleRequest(String webIdentityToken) {
+    @VisibleForTesting
+    HttpRequest createAssumeRoleRequest(String webIdentityToken) {
         var form = new StringBuilder()
                 .append("Action=").append(STS_ACTION)
                 .append("&Version=").append(STS_API_VERSION)

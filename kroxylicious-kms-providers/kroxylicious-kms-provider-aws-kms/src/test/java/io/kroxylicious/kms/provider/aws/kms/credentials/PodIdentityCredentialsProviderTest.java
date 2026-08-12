@@ -108,6 +108,30 @@ class PodIdentityCredentialsProviderTest {
     }
 
     @Test
+    void appliesConnectTimeout() {
+        // Given
+        var cfg = config(credentialsUri, tokenFile);
+        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, SYSTEM_CLOCK)) {
+            // When
+            var connectTimeout = provider.getHttpClient().connectTimeout();
+            // Then
+            assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
+        }
+    }
+
+    @Test
+    void appliesRequestTimeout() {
+        // Given
+        var cfg = config(credentialsUri, tokenFile);
+        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, SYSTEM_CLOCK)) {
+            // When
+            var request = provider.createCredentialsRequest("bearer-token-value");
+            // Then
+            assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
+        }
+    }
+
+    @Test
     void resolvesUriFromEnv() {
         var cfg = config(null, tokenFile);
         var env = envOf(Map.of(PodIdentityCredentialsProvider.ENV_FULL_URI, credentialsUri.toString()));

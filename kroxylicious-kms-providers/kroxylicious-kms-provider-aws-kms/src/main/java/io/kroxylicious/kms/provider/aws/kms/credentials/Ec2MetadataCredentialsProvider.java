@@ -101,6 +101,11 @@ public class Ec2MetadataCredentialsProvider extends AbstractRefreshingCredential
                 .build();
     }
 
+    @VisibleForTesting
+    HttpClient getHttpClient() {
+        return client;
+    }
+
     @Override
     protected CompletionStage<SecurityCredentials> fetchCredentials() {
         return getToken()
@@ -140,7 +145,8 @@ public class Ec2MetadataCredentialsProvider extends AbstractRefreshingCredential
                 .thenApply(Ec2MetadataCredentialsProvider::checkResponseStatus);
     }
 
-    private HttpRequest createTokenRequest() {
+    @VisibleForTesting
+    HttpRequest createTokenRequest() {
         return HttpRequest.newBuilder()
                 .uri(getMetadataEndpoint().resolve(TOKEN_RETRIEVAL_ENDPOINT))
                 .header(AWS_METADATA_TOKEN_TTL_SECONDS_HEADER, AWS_TOKEN_EXPIRATION_SECONDS)

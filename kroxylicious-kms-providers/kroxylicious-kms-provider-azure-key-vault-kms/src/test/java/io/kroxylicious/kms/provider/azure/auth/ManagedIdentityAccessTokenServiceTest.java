@@ -114,24 +114,24 @@ class ManagedIdentityAccessTokenServiceTest {
 
     @Test
     void appliesConnectTimeout() {
-        // given
+        // Given
         try (ManagedIdentityAccessTokenService service = new ManagedIdentityAccessTokenService(
                 new ManagedIdentityCredentialsConfig(TARGET_RESOURCE, URI.create(server.baseUrl())), Clock.systemUTC())) {
-            // when
+            // When
             var connectTimeout = service.getHttpClient().connectTimeout();
-            // then
+            // Then
             assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
         }
     }
 
     @Test
     void appliesRequestTimeout() {
-        // given
+        // Given
         try (ManagedIdentityAccessTokenService service = new ManagedIdentityAccessTokenService(
                 new ManagedIdentityCredentialsConfig(TARGET_RESOURCE, URI.create(server.baseUrl())), Clock.systemUTC())) {
-            // when
+            // When
             HttpRequest request = service.getHttpRequest();
-            // then
+            // Then
             assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
         }
     }

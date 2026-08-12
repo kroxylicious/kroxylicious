@@ -126,17 +126,17 @@ class ClientCertificateTokenServiceTest {
 
     @Test
     void appliesConnectTimeout() {
-        // given/when
+        // When
         var connectTimeout = service.getHttpClient().connectTimeout();
-        // then
+        // Then
         assertThat(connectTimeout).hasValue(TEST_TIMEOUT);
     }
 
     @Test
     void appliesRequestTimeout() throws JsonProcessingException {
-        // given/when
+        // When
         var request = service.buildAuthenticationRequest(AuthRequest.withClientCredential(TEST_CLIENT_ID));
-        // then
+        // Then
         assertThat(request.timeout()).hasValue(TEST_TIMEOUT);
     }
 
