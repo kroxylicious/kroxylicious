@@ -62,8 +62,8 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
     private static final TypeReference<StsErrorEnvelope> ERROR_TYPE_REF = new TypeReference<>() {
     };
 
-    private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(10);
-    private static final Duration HTTP_CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(20);
+    private static final Duration HTTP_CONNECT_TIMEOUT = Duration.ofSeconds(20);
     private static final String STS_API_VERSION = "2011-06-15";
     private static final String STS_ACTION = "AssumeRoleWithWebIdentity";
     private static final int MAX_SESSION_NAME_LENGTH = 64;
