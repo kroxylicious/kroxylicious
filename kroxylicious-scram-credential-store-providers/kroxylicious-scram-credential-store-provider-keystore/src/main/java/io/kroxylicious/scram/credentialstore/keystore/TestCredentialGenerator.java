@@ -63,7 +63,10 @@ public class TestCredentialGenerator {
      * @param outputPath path to write the keystore file
      * @param storePassword password for the keystore and each individual key entry
      * @param users alternating username/password pairs
-     * @throws Exception if keystore generation fails
+     * @throws KeyStoreException if the keystore type is not available
+     * @throws NoSuchAlgorithmException if the SCRAM algorithm is not available
+     * @throws CertificateException if a certificate in the keystore could not be loaded
+     * @throws IOException if the keystore file cannot be written
      */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted test configuration")
     public void generateKeyStore(
@@ -81,7 +84,10 @@ public class TestCredentialGenerator {
      * @param keyPassword password for each individual key entry
      * @param mechanism the SCRAM mechanism to use
      * @param users alternating username/password pairs
-     * @throws Exception if keystore generation fails
+     * @throws KeyStoreException if the keystore type is not available
+     * @throws NoSuchAlgorithmException if the SCRAM algorithm is not available
+     * @throws CertificateException if a certificate in the keystore could not be loaded
+     * @throws IOException if the keystore file cannot be written
      */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted test configuration")
     public void generateKeyStore(
