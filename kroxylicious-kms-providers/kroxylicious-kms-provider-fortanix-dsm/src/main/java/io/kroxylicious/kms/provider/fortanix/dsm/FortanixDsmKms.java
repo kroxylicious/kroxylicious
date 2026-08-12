@@ -12,6 +12,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -57,6 +58,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * It uses its <a href="https://support.fortanix.com/apidocs/">REST API</a>.
  */
 public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
+
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -187,10 +190,12 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         return fortanixDsmUrl;
     }
 
-    private HttpRequest.Builder createRequestBuilder(Object request, String path) {
+    @VisibleForTesting
+    HttpRequest.Builder createRequestBuilder(Object request, String path) {
         var body = getBody(request).getBytes(UTF_8);
 
         return HttpRequest.newBuilder()
+                .timeout(REQUEST_TIMEOUT)
                 .uri(getEndpointUrl().resolve(path))
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")

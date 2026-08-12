@@ -32,6 +32,7 @@ import io.kroxylicious.kms.provider.fortanix.dsm.config.ApiKeySessionProviderCon
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.EncryptResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectDescriptor;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.session.Session;
 import io.kroxylicious.kms.provider.fortanix.dsm.session.SessionProvider;
@@ -99,6 +100,22 @@ class FortanixDsmKmsTest {
     void afterEach() {
         Optional.ofNullable(kmsService).ifPresent(KmsService::close);
         server.resetAll();
+    }
+
+    @Test
+    void appliesConnectTimeout() {
+        // given/when
+        var connectTimeout = kms.getHttpClient().connectTimeout();
+        // then
+        assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
+    }
+
+    @Test
+    void appliesRequestTimeout() {
+        // given/when
+        var request = kms.createRequestBuilder(new SecurityObjectDescriptor(null, "alias", null), KEYS_INFO_ENDPOINT).build();
+        // then
+        assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
     }
 
     @Test

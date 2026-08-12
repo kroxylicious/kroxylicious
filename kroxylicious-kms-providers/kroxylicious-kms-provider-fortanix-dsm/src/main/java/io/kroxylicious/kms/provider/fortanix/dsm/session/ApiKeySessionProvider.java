@@ -76,7 +76,7 @@ public class ApiKeySessionProvider implements SessionProvider {
 
     private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<SessionAuthResponse>() {
     };
-    private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(20);
     private static final double DEFAULT_CREDENTIALS_LIFETIME_FACTOR = 0.80;
     static final String SESSION_AUTH_ENDPOINT = "/sys/v1/session/auth";
     static final String SESSION_TERMINATE_ENDPOINT = "/sys/v1/session/terminate";
