@@ -6,12 +6,15 @@
 
 package io.kroxylicious.scram.credentialstore.keystore;
 
+import java.nio.charset.StandardCharsets;
+
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.scram.credentialstore.ScramCredential;
 import io.kroxylicious.scram.credentialstore.ScramHashAlgorithm;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for JSON serialization and deserialization of ScramCredential.
@@ -21,7 +24,7 @@ class ScramCredentialSerializerTest {
     private final ScramCredentialSerializer serializer = new ScramCredentialSerializer();
 
     @Test
-    void shouldIncludeVersionFieldInSerializedJson() throws Exception {
+    void shouldIncludeVersionFieldInSerializedJson() {
         // Given
         ScramCredential original = new ScramCredential(
                 "alice",
@@ -33,17 +36,18 @@ class ScramCredentialSerializerTest {
 
         // When
         byte[] serialized = serializer.serialize(original);
-        String json = new String(serialized, java.nio.charset.StandardCharsets.UTF_8);
+        String json = new String(serialized, StandardCharsets.UTF_8);
 
         // Then
-        assertThat(json).contains("\"version\":" + ScramCredentialSerializer.CURRENT_VERSION);
-        assertThat(json).contains("\"username\":\"alice\"");
-        assertThat(json).contains("\"iterations\":4096");
-        assertThat(json).contains("\"hashAlgorithm\":\"SHA-256\"");
+        assertThat(json)
+                .contains("\"version\":" + ScramCredentialSerializer.CURRENT_VERSION)
+                .contains("\"username\":\"alice\"")
+                .contains("\"iterations\":4096")
+                .contains("\"hashAlgorithm\":\"SHA-256\"");
     }
 
     @Test
-    void shouldRoundTripCredentialViaSerializer() throws Exception {
+    void shouldRoundTripCredentialViaSerializer() {
         // Given
         ScramCredential original = new ScramCredential(
                 "bob",
@@ -98,8 +102,8 @@ class ScramCredentialSerializerTest {
                 """;
 
         // When/Then
-        org.assertj.core.api.Assertions.assertThatThrownBy(
-                () -> serializer.deserialize(json.getBytes(java.nio.charset.StandardCharsets.UTF_8), "test"))
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        assertThatThrownBy(() -> serializer.deserialize(bytes, "test"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported credential version 99");
     }
@@ -178,7 +182,7 @@ class ScramCredentialSerializerTest {
 
         // Then - should be equal
         assertThat(credential1).isEqualTo(credential2);
-        assertThat(credential1.hashCode()).isEqualTo(credential2.hashCode());
+        assertThat(credential1).hasSameHashCodeAs(credential2);
     }
 
     @Test

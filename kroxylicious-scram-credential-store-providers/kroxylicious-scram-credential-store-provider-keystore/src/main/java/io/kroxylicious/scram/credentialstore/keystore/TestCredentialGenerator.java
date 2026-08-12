@@ -7,12 +7,15 @@
 package io.kroxylicious.scram.credentialstore.keystore;
 
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.cert.CertificateException;
 import java.util.HexFormat;
 
 import javax.crypto.SecretKey;
@@ -67,7 +70,7 @@ public class TestCredentialGenerator {
                                  Path outputPath,
                                  String storePassword,
                                  String... users)
-            throws Exception {
+            throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         generateKeyStore(outputPath, storePassword, storePassword, ScramMechanism.SCRAM_SHA_256, users);
     }
 
@@ -87,7 +90,7 @@ public class TestCredentialGenerator {
                                  String keyPassword,
                                  ScramMechanism mechanism,
                                  String... users)
-            throws Exception {
+            throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         if (users.length % 2 != 0) {
             throw new IllegalArgumentException("users must contain alternating username/password pairs");
         }

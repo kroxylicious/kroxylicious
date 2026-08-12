@@ -32,6 +32,7 @@ public class ScramCredentialSerializer {
      * Creates a new {@code ScramCredentialSerializer}.
      */
     public ScramCredentialSerializer() {
+        // Default constructor - uses the shared static ObjectMapper
     }
 
     /**
@@ -134,16 +135,16 @@ public class ScramCredentialSerializer {
             if (this == o) {
                 return true;
             }
-            if (!(o instanceof VersionedCredential that)) {
-                return false;
+            if (o instanceof VersionedCredential(var otherVersion, var otherUsername, var otherSalt, var otherIterations, var otherServerKey, var otherStoredKey, var otherHashAlgorithm)) {
+                return version == otherVersion
+                        && iterations == otherIterations
+                        && Objects.equals(username, otherUsername)
+                        && Arrays.equals(salt, otherSalt)
+                        && Arrays.equals(serverKey, otherServerKey)
+                        && Arrays.equals(storedKey, otherStoredKey)
+                        && Objects.equals(hashAlgorithm, otherHashAlgorithm);
             }
-            return version == that.version
-                    && iterations == that.iterations
-                    && Objects.equals(username, that.username)
-                    && Arrays.equals(salt, that.salt)
-                    && Arrays.equals(serverKey, that.serverKey)
-                    && Arrays.equals(storedKey, that.storedKey)
-                    && Objects.equals(hashAlgorithm, that.hashAlgorithm);
+            return false;
         }
 
         @Override

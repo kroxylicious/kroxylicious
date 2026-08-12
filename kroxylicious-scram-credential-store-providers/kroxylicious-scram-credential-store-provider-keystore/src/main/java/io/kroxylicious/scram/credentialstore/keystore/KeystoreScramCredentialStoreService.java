@@ -57,6 +57,7 @@ public class KeystoreScramCredentialStoreService implements ScramCredentialStore
      * Creates a new {@code KeystoreScramCredentialStoreService}.
      */
     public KeystoreScramCredentialStoreService() {
+        // Default no-arg constructor required by the plugin framework
     }
 
     @Override
