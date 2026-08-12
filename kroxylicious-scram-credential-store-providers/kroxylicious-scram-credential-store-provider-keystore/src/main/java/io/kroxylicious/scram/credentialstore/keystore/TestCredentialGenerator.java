@@ -35,14 +35,28 @@ public class TestCredentialGenerator {
     private static final int SALT_LENGTH = 20;
     private final SecureRandom secureRandom;
 
+    /**
+     * Creates a generator using a default {@link SecureRandom}.
+     */
     public TestCredentialGenerator() {
         this(new SecureRandom());
     }
 
+    /**
+     * Creates a generator using the given {@link SecureRandom}.
+     * @param secureRandom the source of randomness
+     */
     public TestCredentialGenerator(SecureRandom secureRandom) {
         this.secureRandom = secureRandom;
     }
 
+    /**
+     * Generates a PKCS12 keystore containing SCRAM-SHA-256 credentials.
+     * @param outputPath path to write the keystore file
+     * @param storePassword password for the keystore
+     * @param users alternating username/password pairs
+     * @throws Exception if keystore generation fails
+     */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted test configuration")
     public void generateKeyStore(
                                  Path outputPath,
@@ -52,6 +66,14 @@ public class TestCredentialGenerator {
         generateKeyStore(outputPath, storePassword, ScramMechanism.SCRAM_SHA_256, users);
     }
 
+    /**
+     * Generates a PKCS12 keystore containing SCRAM credentials for the given mechanism.
+     * @param outputPath path to write the keystore file
+     * @param storePassword password for the keystore
+     * @param mechanism the SCRAM mechanism to use
+     * @param users alternating username/password pairs
+     * @throws Exception if keystore generation fails
+     */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted test configuration")
     public void generateKeyStore(
                                  Path outputPath,
@@ -88,6 +110,13 @@ public class TestCredentialGenerator {
         KeystoreFilePermissions.setOwnerOnly(outputPath);
     }
 
+    /**
+     * Generates a single SCRAM credential for the given user.
+     * @param username the username
+     * @param password the password
+     * @param mechanism the SCRAM mechanism to use
+     * @return the generated credential
+     */
     public ScramCredential generateScramCredential(
                                                    String username,
                                                    String password,

@@ -29,6 +29,12 @@ public class ScramCredentialSerializer {
     static final int CURRENT_VERSION = 1;
 
     /**
+     * Creates a new {@code ScramCredentialSerializer}.
+     */
+    public ScramCredentialSerializer() {
+    }
+
+    /**
      * Serialize a SCRAM credential to JSON bytes.
      *
      * @param credential the credential to serialize

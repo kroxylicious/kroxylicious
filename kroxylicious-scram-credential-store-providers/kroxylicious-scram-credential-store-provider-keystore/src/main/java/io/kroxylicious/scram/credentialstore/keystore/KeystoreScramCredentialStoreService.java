@@ -53,6 +53,12 @@ public class KeystoreScramCredentialStoreService implements ScramCredentialStore
     private boolean initialized = false;
     private boolean closed = false;
 
+    /**
+     * Creates a new {@code KeystoreScramCredentialStoreService}.
+     */
+    public KeystoreScramCredentialStoreService() {
+    }
+
     @Override
     public void initialize(KeystoreScramCredentialStoreConfig config) {
         if (initialized) {
