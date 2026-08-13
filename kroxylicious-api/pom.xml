@@ -119,13 +119,12 @@
                             <header>${project.basedir}/../etc/license.txt</header>
                             <excludes>
                                 <exclude>pom.xml</exclude>
-                                <exclude>etc/**</exclude>
                                 <exclude>src/main/java/io/kroxylicious/kafka/**</exclude>
                                 <exclude>src/test/java/io/kroxylicious/kafka/**</exclude>
                             </excludes>
                         </licenseSet>
                         <licenseSet>
-                            <header>${project.basedir}/etc/asf-license.txt</header>
+                            <header>${project.basedir}/../etc/asf-license.txt</header>
                             <includes>
                                 <include>src/main/java/io/kroxylicious/kafka/**</include>
                                 <include>src/test/java/io/kroxylicious/kafka/**</include>

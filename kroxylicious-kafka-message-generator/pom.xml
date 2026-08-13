@@ -73,7 +73,7 @@
                     <strictCheck>true</strictCheck>
                     <licenseSets>
                         <licenseSet>
-                            <header>${project.basedir}/etc/asf-license.txt</header>
+                            <header>${project.basedir}/../etc/asf-license.txt</header>
                             <excludes>
                                 <exclude>pom.xml</exclude>
                             </excludes>
