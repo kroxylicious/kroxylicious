@@ -373,6 +373,9 @@ public class KafkaProxyFrontendHandler
                 .createFilters(filterContext);
         filterAndInvokers.addAll(filterChain);
 
+        // EagerMetadataLearner is only applicable to direct-routing VCs. MetadataDiscoveryBrokerEndpointBinding
+        // returns restrictUpstreamToMetadataDiscovery()=true for any VC type with per-node ports, but its
+        // upstreamTarget() throws for dynamic routing — so the routing type must be checked explicitly here.
         if (clientConnectionStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()
                 && clientConnectionStateMachine.virtualCluster().routing() instanceof DirectRouting) {
             filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
