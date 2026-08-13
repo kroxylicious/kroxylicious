@@ -1539,6 +1539,8 @@
                 <sonar.host.url>https://sonarcloud.io</sonar.host.url>
                 <sonar.projectName>Proxy Runtime</sonar.projectName>
                 <sonar.projectKey>kroxylicious_kroxylicious</sonar.projectKey>
+                <!-- Forked Kafka source retains Kafka's original code; exclude from Sonar analysis. -->
+                <sonar.exclusions>**/io/kroxylicious/kafka/**</sonar.exclusions>
                 <!--
                     JBang entry-point files use //DEPS and //SOURCES directives that Sonar flags as
                     commented-out code (S125), and a ///usr/bin/env shebang that Sonar flags as a
