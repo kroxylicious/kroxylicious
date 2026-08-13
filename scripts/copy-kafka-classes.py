@@ -16,14 +16,13 @@ Arguments:
                       checked out at tag 4.3.0
                       (commit a9ce3221537b8653448750697915607dc7936cf3).
 
-The target directory is always:
-    kroxylicious-api/src/main/java/io/kroxylicious/kafka/
+The target directories are:
+    kroxylicious-api/src/main/java/io/kroxylicious/kafka/   (production)
+    kroxylicious-api/src/test/java/io/kroxylicious/kafka/   (tests)
 
 relative to the root of this (Kroxylicious) repository.
 
 Package mapping: org.apache.kafka.* -> io.kroxylicious.kafka.* (prefix swap only).
-The single exception is org.apache.kafka.common.utils.internals.*, which is flattened
-to io.kroxylicious.kafka.common.utils.* (the internals subpackage is not reproduced).
 
 The file list and import-rewrite rules encode the specific decisions made for
 this initial copy (see issue #4578 / proposal 116).  They are intentionally
@@ -47,8 +46,18 @@ def _kafka_clients(kafka_root):
                         "clients", "src", "main", "java", "org", "apache", "kafka")
 
 
+def _kafka_clients_test(kafka_root):
+    return os.path.join(kafka_root,
+                        "clients", "src", "test", "java", "org", "apache", "kafka")
+
+
 def _target_base(repo_root):
     return os.path.join(repo_root, "kroxylicious-api", "src", "main", "java",
+                        "io", "kroxylicious", "kafka")
+
+
+def _target_test_base(repo_root):
+    return os.path.join(repo_root, "kroxylicious-api", "src", "test", "java",
                         "io", "kroxylicious", "kafka")
 
 
@@ -57,9 +66,8 @@ def _target_base(repo_root):
 # (kafka_path_relative_to_clients/src/main/java/org/apache/kafka,
 #  target_path_relative_to_io/kroxylicious/kafka)
 #
-# For most files the source and target relative paths are identical — the only
+# For all files the source and target relative paths are identical — the only
 # thing that changes is the package prefix (org.apache.kafka -> io.kroxylicious.kafka).
-# Exceptions: utils.internals/* sources land under common/utils/ (no internals subpackage).
 # ---------------------------------------------------------------------------
 
 FILES = [
@@ -157,18 +165,16 @@ FILES = [
     # because they pull in ConfigDef/ConfigException/OperatingSystem which are out of scope.
     ("common/utils/Utils.java", "common/utils/Utils.java"),
 
-    # --- common/utils (from utils.internals in Kafka 4.3.0) ---
-    # Kafka 4.3.0 moved these from common.utils to common.utils.internals (KAFKA-20128).
-    # We flatten them directly into io.kroxylicious.kafka.common.utils (no internals subpackage).
-    ("common/utils/internals/AbstractIterator.java",      "common/utils/AbstractIterator.java"),
-    ("common/utils/internals/BufferSupplier.java",         "common/utils/BufferSupplier.java"),
-    ("common/utils/internals/ByteBufferInputStream.java",  "common/utils/ByteBufferInputStream.java"),
-    ("common/utils/internals/ByteBufferOutputStream.java", "common/utils/ByteBufferOutputStream.java"),
-    ("common/utils/internals/ByteUtils.java",              "common/utils/ByteUtils.java"),
-    ("common/utils/internals/Checksums.java",              "common/utils/Checksums.java"),
-    ("common/utils/internals/ChunkedBytesStream.java",     "common/utils/ChunkedBytesStream.java"),
-    ("common/utils/internals/CloseableIterator.java",      "common/utils/CloseableIterator.java"),
-    ("common/utils/internals/Crc32C.java",                 "common/utils/Crc32C.java"),
+    # --- common/utils (additional classes) ---
+    ("common/utils/AbstractIterator.java",      "common/utils/AbstractIterator.java"),
+    ("common/utils/BufferSupplier.java",        "common/utils/BufferSupplier.java"),
+    ("common/utils/ByteBufferInputStream.java", "common/utils/ByteBufferInputStream.java"),
+    ("common/utils/ByteBufferOutputStream.java","common/utils/ByteBufferOutputStream.java"),
+    ("common/utils/ByteUtils.java",             "common/utils/ByteUtils.java"),
+    ("common/utils/Checksums.java",             "common/utils/Checksums.java"),
+    ("common/utils/ChunkedBytesStream.java",    "common/utils/ChunkedBytesStream.java"),
+    ("common/utils/CloseableIterator.java",     "common/utils/CloseableIterator.java"),
+    ("common/utils/Crc32C.java",               "common/utils/Crc32C.java"),
 
     # --- common/compress ---
     ("common/compress/Compression.java",         "common/compress/Compression.java"),
@@ -180,6 +186,62 @@ FILES = [
     ("common/compress/NoCompression.java",       "common/compress/NoCompression.java"),
     ("common/compress/SnappyCompression.java",   "common/compress/SnappyCompression.java"),
     ("common/compress/ZstdCompression.java",     "common/compress/ZstdCompression.java"),
+]
+
+
+# ---------------------------------------------------------------------------
+# Test file list
+# (kafka_path_relative_to_clients/src/test/java/org/apache/kafka,
+#  target_path_relative_to_io/kroxylicious/kafka)
+#
+# Inclusion criteria: test only imports classes we have copied into
+# io.kroxylicious.kafka.*.  Tests that depend on MemoryRecordsBuilder,
+# generated message.* types, or server-side classes are deferred to PR3
+# alongside their production counterparts.
+#
+# Excluded (deferred to PR3 — depend on MemoryRecordsBuilder / generated types):
+#   ByteBufferLogInputStreamTest, DefaultRecordBatchTest, MemoryRecordsTest,
+#   MemoryRecordsBuilderTest, ControlRecordUtilsTest, EndTransactionMarkerTest
+# Excluded (out of scope — depend on non-copied classes):
+#   GzipCompressionTest (ConfigDef/ConfigException),
+#   MultiRecordsSendTest (ByteBufferSend),
+#   ControlRecordTypeTest (ControlRecordTypeSchema, a generated type)
+# ---------------------------------------------------------------------------
+
+TEST_FILES = [
+    # --- common/compress ---
+    ("common/compress/Lz4CompressionTest.java",  "common/compress/Lz4CompressionTest.java"),
+    ("common/compress/NoCompressionTest.java",   "common/compress/NoCompressionTest.java"),
+    ("common/compress/SnappyCompressionTest.java","common/compress/SnappyCompressionTest.java"),
+    ("common/compress/ZstdCompressionTest.java", "common/compress/ZstdCompressionTest.java"),
+
+    # --- common/protocol ---
+    ("common/protocol/ByteBufferAccessorTest.java", "common/protocol/ByteBufferAccessorTest.java"),
+    ("common/protocol/MessageUtilTest.java",        "common/protocol/MessageUtilTest.java"),
+
+    # --- common/protocol/types ---
+    ("common/protocol/types/RawTaggedFieldWriterTest.java", "common/protocol/types/RawTaggedFieldWriterTest.java"),
+    ("common/protocol/types/StructTest.java",               "common/protocol/types/StructTest.java"),
+    ("common/protocol/types/TypeTest.java",                 "common/protocol/types/TypeTest.java"),
+
+    # --- common/record/internal ---
+    # AbstractLegacyRecordBatchTest deferred to PR3: all tests build records via
+    # MemoryRecords.withRecords() which depends on MemoryRecordsBuilder.
+    ("common/record/internal/CompressionRatioEstimatorTest.java", "common/record/internal/CompressionRatioEstimatorTest.java"),
+    ("common/record/internal/LegacyRecordTest.java",              "common/record/internal/LegacyRecordTest.java"),
+    ("common/record/internal/SimpleLegacyRecordTest.java",        "common/record/internal/SimpleLegacyRecordTest.java"),
+
+    # --- common/utils ---
+    ("common/utils/AbstractIteratorTest.java",      "common/utils/AbstractIteratorTest.java"),
+    ("common/utils/ByteBufferInputStreamTest.java", "common/utils/ByteBufferInputStreamTest.java"),
+    ("common/utils/ByteBufferOutputStreamTest.java","common/utils/ByteBufferOutputStreamTest.java"),
+    ("common/utils/ByteUtilsTest.java",             "common/utils/ByteUtilsTest.java"),
+    ("common/utils/ChecksumsTest.java",             "common/utils/ChecksumsTest.java"),
+    ("common/utils/ChunkedBytesStreamTest.java",    "common/utils/ChunkedBytesStreamTest.java"),
+    ("common/utils/Crc32CTest.java",                "common/utils/Crc32CTest.java"),
+
+    # --- common ---
+    ("common/UuidTest.java", "common/UuidTest.java"),
 ]
 
 
@@ -212,8 +274,19 @@ PACKAGE_REWRITES = [
 # Imports of classes that remain in org.apache.kafka.* (generated message.* types
 # in the 4 deferred files) are left untouched; those files are not in the copy list.
 IMPORT_PREFIXES = [
-    # utils.internals -> flatten to common.utils (no internals subpackage)
+    # utils.internals — guard against any stray references (e.g. if a file imports something
+    # from a future utils.internals split) — maps to the flat utils namespace we use.
     ("org.apache.kafka.common.utils.internals.",           "io.kroxylicious.kafka.common.utils."),
+    # utils classes copied individually alongside Utils.java
+    ("org.apache.kafka.common.utils.AbstractIterator",     "io.kroxylicious.kafka.common.utils.AbstractIterator"),
+    ("org.apache.kafka.common.utils.BufferSupplier",       "io.kroxylicious.kafka.common.utils.BufferSupplier"),
+    ("org.apache.kafka.common.utils.ByteBufferInputStream","io.kroxylicious.kafka.common.utils.ByteBufferInputStream"),
+    ("org.apache.kafka.common.utils.ByteBufferOutputStream","io.kroxylicious.kafka.common.utils.ByteBufferOutputStream"),
+    ("org.apache.kafka.common.utils.ByteUtils",            "io.kroxylicious.kafka.common.utils.ByteUtils"),
+    ("org.apache.kafka.common.utils.Checksums",            "io.kroxylicious.kafka.common.utils.Checksums"),
+    ("org.apache.kafka.common.utils.ChunkedBytesStream",   "io.kroxylicious.kafka.common.utils.ChunkedBytesStream"),
+    ("org.apache.kafka.common.utils.CloseableIterator",    "io.kroxylicious.kafka.common.utils.CloseableIterator"),
+    ("org.apache.kafka.common.utils.Crc32C",               "io.kroxylicious.kafka.common.utils.Crc32C"),
     # compress
     ("org.apache.kafka.common.compress.",                  "io.kroxylicious.kafka.common.compress."),
     # Utils — copied partially (config/file-IO methods omitted, see FILES comment)
@@ -289,41 +362,58 @@ def main():
 
     kafka_root = os.path.abspath(sys.argv[1])
     kafka_clients = _kafka_clients(kafka_root)
+    kafka_clients_test = _kafka_clients_test(kafka_root)
     repo_root = _repo_root()
     target_base = _target_base(repo_root)
+    target_test_base = _target_test_base(repo_root)
 
     if not os.path.isdir(kafka_clients):
         print(f"error: {kafka_clients} does not exist", file=sys.stderr)
         print(f"       Is '{kafka_root}' the root of a Kafka checkout?", file=sys.stderr)
         sys.exit(1)
 
-    errors = []
-    for kafka_rel, target_rel in FILES:
-        src = os.path.join(kafka_clients, kafka_rel)
-        dst = os.path.join(target_base, target_rel)
+    def copy_files(file_list, src_base, dst_base, label):
+        errors = []
+        skipped = []
+        for kafka_rel, target_rel in file_list:
+            src = os.path.join(src_base, kafka_rel)
+            dst = os.path.join(dst_base, target_rel)
 
-        if not os.path.exists(src):
-            errors.append(f"MISSING SOURCE: {src}")
-            continue
+            if os.path.exists(dst):
+                print(f" SKIP {target_rel}  (already exists)")
+                skipped.append(target_rel)
+                continue
 
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
+            if not os.path.exists(src):
+                errors.append(f"MISSING SOURCE: {src}")
+                continue
 
-        with open(src, "r", encoding="utf-8") as f:
-            original = f.read()
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
 
-        transformed = _transform(original)
+            with open(src, "r", encoding="utf-8") as f:
+                original = f.read()
 
-        with open(dst, "w", encoding="utf-8") as f:
-            f.write(transformed)
+            transformed = _transform(original)
 
-        # Sanity check: flag any old package declaration that survived
-        for old_pkg, _ in PACKAGE_REWRITES:
-            if old_pkg in transformed:
-                errors.append(f"UNREWRITTEN PACKAGE in {target_rel}: still contains '{old_pkg}'")
+            with open(dst, "w", encoding="utf-8") as f:
+                f.write(transformed)
 
-        print(f"  OK  {target_rel}")
+            # Sanity check: flag any old package declaration that survived
+            for old_pkg, _ in PACKAGE_REWRITES:
+                if old_pkg in transformed:
+                    errors.append(f"UNREWRITTEN PACKAGE in {target_rel}: still contains '{old_pkg}'")
 
-    print(f"\nCopied {len(FILES) - len(errors)} / {len(FILES)} files.")
+            print(f"  OK  {target_rel}")
+
+        copied = len(file_list) - len(errors) - len(skipped)
+        print(f"\n{label}: copied {copied}, skipped {len(skipped)}, errors {len(errors)}  (of {len(file_list)} total).")
+        return errors
+
+    print("Production sources:")
+    errors = copy_files(FILES, kafka_clients, target_base, "Production sources")
+    print("\nTest sources:")
+    errors += copy_files(TEST_FILES, kafka_clients_test, target_test_base, "Test sources")
+
     if errors:
         print("\nERRORS:", file=sys.stderr)
         for e in errors:
