@@ -18,7 +18,19 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the SyncGroup API, requiring {@link GroupResource#READ}
+ * on the consumer group.
+ */
 public class SyncGroupEnforcement extends ApiEnforcement<SyncGroupRequestData, SyncGroupResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public SyncGroupEnforcement() {
+        // Intentionally empty
+    }
+
     @Override
     short minSupportedVersion() {
         return 0;

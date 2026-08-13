@@ -20,9 +20,21 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Enforces authorization of the InitProducerId API, requiring {@link TransactionalIdResource#WRITE}
+ * on the transactional id when the request names one.
+ */
 public class InitProducerIdEnforcement extends ApiEnforcement<InitProducerIdRequestData, InitProducerIdResponseData> {
 
+    /** The first API version supporting participation in two-phase commit (KIP-939). */
     public static final short MIN_VERSION_SUPPORTING_2PC = 6;
+
+    /**
+     * Creates the enforcement.
+     */
+    public InitProducerIdEnforcement() {
+        // Intentionally empty
+    }
 
     @Override
     short minSupportedVersion() {

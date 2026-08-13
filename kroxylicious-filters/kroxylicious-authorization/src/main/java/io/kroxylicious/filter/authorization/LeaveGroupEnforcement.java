@@ -18,7 +18,19 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the LeaveGroup API, requiring {@link GroupResource#READ}
+ * on the consumer group.
+ */
 public class LeaveGroupEnforcement extends ApiEnforcement<LeaveGroupRequestData, LeaveGroupResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public LeaveGroupEnforcement() {
+        // Intentionally empty
+    }
+
     @Override
     short minSupportedVersion() {
         return 0;
