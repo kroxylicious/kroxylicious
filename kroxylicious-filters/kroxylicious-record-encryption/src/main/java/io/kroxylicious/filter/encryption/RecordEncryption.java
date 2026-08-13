@@ -67,6 +67,13 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 @Plugin(configType = RecordEncryptionConfig.class)
 public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionConfig, SharedEncryptionContext<K, E>> {
 
+    /**
+     * Creates a new factory instance, invoked by the plugin framework.
+     */
+    public RecordEncryption() {
+        // nothing to initialise: state is created in initialize(FilterFactoryContext, RecordEncryptionConfig)
+    }
+
     static final ScheduledExecutorService RETRY_POOL = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread retryThread = new Thread(r, "kmsRetry");
         retryThread.setDaemon(true);

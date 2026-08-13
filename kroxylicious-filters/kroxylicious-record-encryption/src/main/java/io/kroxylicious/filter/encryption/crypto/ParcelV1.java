@@ -24,11 +24,17 @@ import io.kroxylicious.filter.encryption.config.RecordField;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Version 1 of the parcel schema.
+ */
 public class ParcelV1 implements Parcel {
 
+    /** The singleton instance of this parcel. */
     public static final ParcelV1 INSTANCE = new ParcelV1();
 
+    /** The length marker used to represent a null record value or header value. */
     public static final int NULL_MARKER = -1;
+    /** The length marker used to represent a record field which is not included in the parcel. */
     public static final int ABSENT_MARKER = -2;
 
     private static final Header[] ABSENT_HEADERS = new Header[0];

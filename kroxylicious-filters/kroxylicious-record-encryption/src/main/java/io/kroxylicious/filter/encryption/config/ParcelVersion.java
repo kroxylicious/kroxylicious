@@ -10,5 +10,6 @@ package io.kroxylicious.filter.encryption.config;
  * The version of the parcel schema used to persist information in the parcel.
  */
 public enum ParcelVersion {
+    /** Version 1 of the parcel schema. */
     V1
 }

@@ -24,13 +24,34 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * What gets included depends on the {@link RecordField}s.
  */
 public interface Parcel extends PersistedIdentifiable<ParcelVersion> {
+    /**
+     * Returns the number of bytes required by {@link #writeParcel(Set, Record, ByteBuffer)}
+     * to serialize the parcel for the given record.
+     * @param recordFields the fields of the record included in the parcel.
+     * @param kafkaRecord the record.
+     * @return the number of bytes required to serialize the parcel.
+     */
     int sizeOfParcel(@NonNull Set<RecordField> recordFields,
                      @NonNull Record kafkaRecord);
 
+    /**
+     * Serializes the parcel for the given record to the given buffer, which should have at least
+     * {@link #sizeOfParcel(Set, Record)} bytes {@linkplain ByteBuffer#remaining() remaining}.
+     * @param recordFields the fields of the record included in the parcel.
+     * @param kafkaRecord the record.
+     * @param parcel the buffer to serialize the parcel to.
+     */
     void writeParcel(@NonNull Set<RecordField> recordFields,
                      @NonNull Record kafkaRecord,
                      @NonNull ByteBuffer parcel);
 
+    /**
+     * Reads a previously-serialized parcel from the given buffer, passing the deserialized record
+     * value and headers to the given consumer.
+     * @param parcel the buffer to read the parcel from.
+     * @param encryptedRecord the encrypted record from which the parcel was decrypted.
+     * @param consumer the consumer of the deserialized record value and headers.
+     */
     void readParcel(@NonNull ByteBuffer parcel,
                     @NonNull Record encryptedRecord,
                     @NonNull BiConsumer<ByteBuffer, Header[]> consumer);

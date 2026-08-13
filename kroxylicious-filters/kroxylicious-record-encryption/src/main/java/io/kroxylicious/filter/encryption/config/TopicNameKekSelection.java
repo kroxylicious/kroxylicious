@@ -20,6 +20,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <K> the type of key
  */
 public record TopicNameKekSelection<K>(@NonNull Map<String, K> topicNameToKekId, @NonNull Set<String> unresolvedTopicNames) {
+    /**
+     * Creates a topic name KEK selection.
+     * @throws NullPointerException if either component is null.
+     * @throws IllegalArgumentException if any value of {@code topicNameToKekId} is null.
+     */
     public TopicNameKekSelection {
         Objects.requireNonNull(topicNameToKekId);
         List<Map.Entry<String, K>> entriesWithNullValue = topicNameToKekId.entrySet().stream().filter(e -> e.getValue() == null).toList();

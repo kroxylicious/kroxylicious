@@ -11,6 +11,10 @@ import java.util.Random;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * A {@link BackoffStrategy} which increases the delay exponentially with the number of
+ * failures, adding a random jitter, up to a maximum delay.
+ */
 public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
 
     @NonNull
@@ -20,6 +24,14 @@ public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
     private final double multiplier;
     private final Random random;
 
+    /**
+     * Creates an exponential jitter backoff strategy.
+     * @param initialDelay the delay for the first retry, must be greater than zero.
+     * @param maximumDelay the upper bound on the computed delay, must be greater than zero.
+     * @param multiplier the factor by which the delay grows with each failure, must be greater than one.
+     * @param random the source of randomness used to compute the jitter.
+     * @throws IllegalArgumentException if any argument is outside its permitted range.
+     */
     public ExponentialJitterBackoffStrategy(@NonNull Duration initialDelay,
                                             @NonNull Duration maximumDelay,
                                             double multiplier,
