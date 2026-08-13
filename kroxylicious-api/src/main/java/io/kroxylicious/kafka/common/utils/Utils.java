@@ -743,7 +743,7 @@ public final class Utils {
      *
      * @param srcBuf Source buffer where data is read from
      * @param bytesToRead Number of bytes to read
-     * @return Destination buffer or null if bytesToRead is < 0
+     * @return Destination buffer or null if bytesToRead is {@code < 0}
      *
      * @see ByteBuffer#slice()
      */

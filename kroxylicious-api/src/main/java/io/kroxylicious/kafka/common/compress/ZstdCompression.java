@@ -99,7 +99,7 @@ public class ZstdCompression implements Compression {
 
     /**
      * Size of intermediate buffer which contains uncompressed data.
-     * This size should be <= ZSTD_BLOCKSIZE_MAX
+     * This size should be {@code <=} ZSTD_BLOCKSIZE_MAX
      * see: https://github.com/facebook/zstd/blob/189653a9c10c9f4224a5413a6d6a69dd01d7c3bd/lib/zstd.h#L854
      */
     @Override

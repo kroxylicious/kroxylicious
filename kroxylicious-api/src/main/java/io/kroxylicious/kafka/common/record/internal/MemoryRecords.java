@@ -16,6 +16,7 @@
  */
 package io.kroxylicious.kafka.common.record.internal;
 
+import io.kroxylicious.kafka.common.errors.CorruptRecordException;
 import io.kroxylicious.kafka.common.network.TransferableChannel;
 import io.kroxylicious.kafka.common.utils.Utils;
 import io.kroxylicious.kafka.common.utils.AbstractIterator;
