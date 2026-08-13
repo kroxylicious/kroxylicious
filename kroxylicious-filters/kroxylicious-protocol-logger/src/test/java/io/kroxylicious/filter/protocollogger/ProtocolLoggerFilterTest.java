@@ -37,7 +37,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
-import org.slf4j.event.LoggingEvent;
 import org.slf4j.helpers.NOPLogger;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -46,6 +45,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.sambarker.logsquelcher.CapturedLogs;
 import io.github.sambarker.logsquelcher.LogSquelcherExtension;
+import io.github.sambarker.logsquelcher.LoggingEventAssert;
 
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -334,12 +334,12 @@ class ProtocolLoggerFilterTest {
     }
 
     @Test
-    void onRequestEmitsOneEntryAtConfiguredLevel(CapturedLogs capturedLogs) throws JsonProcessingException {
+    void customLoggerNameEmitsUnderThatName(CapturedLogs capturedLogs) {
         // Given
-        String loggerName = "test.onRequestEmitsOneEntry";
+        String customName = "test.custom.logger";
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.of(ApiKeys.METADATA), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(loggerName));
+                LoggerFactory.getLogger(customName));
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
         MetadataRequestData request = new MetadataRequestData();
         MockFilterContext context = MockFilterContext.builder(header, request).build();
@@ -348,8 +348,31 @@ class ProtocolLoggerFilterTest {
         f.onRequest(ApiKeys.METADATA, (short) 13, header, request, context).toCompletableFuture().join();
 
         // Then
-        List<LoggingEvent> events = eventsFor(capturedLogs, loggerName, Level.DEBUG);
-        assertThat(events).hasSize(1);
+        var allEvents = capturedLogs.logged();
+        assertThat(allEvents)
+                .filteredOn(e -> customName.equals(e.getLoggerName()))
+                .hasSize(1)
+                .first()
+                .satisfies(e -> assertThat(e.getLoggerName()).isEqualTo(customName));
+        assertThat(capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG)).isEmpty();
+    }
+
+    @Test
+    void onRequestEmitsOneEntryAtConfiguredLevel(CapturedLogs capturedLogs) throws JsonProcessingException {
+        // Given
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.of(ApiKeys.METADATA), new MessageFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
+        MetadataRequestData request = new MetadataRequestData();
+        MockFilterContext context = MockFilterContext.builder(header, request).build();
+
+        // When
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, request, context).toCompletableFuture().join();
+
+        // Then
+        var events = capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG);
+        LoggingEventAssert.assertThat(events).hasSize(1);
         JsonNode entry = MAPPER.readTree(events.get(0).getMessage());
         assertThat(entry.path("header").path("apiKey").asText()).isEqualTo("METADATA");
     }
@@ -357,10 +380,9 @@ class ProtocolLoggerFilterTest {
     @Test
     void onResponseEmitsOneEntryAtConfiguredLevel(CapturedLogs capturedLogs) throws JsonProcessingException {
         // Given
-        String loggerName = "test.onResponseEmitsOneEntry";
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.of(ApiKeys.METADATA), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(loggerName));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
         ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
         MetadataResponseData response = new MetadataResponseData();
         MockFilterContext context = MockFilterContext.builder(header, response).build();
@@ -369,8 +391,8 @@ class ProtocolLoggerFilterTest {
         f.onResponse(ApiKeys.METADATA, (short) 13, header, response, context).toCompletableFuture().join();
 
         // Then
-        List<LoggingEvent> events = eventsFor(capturedLogs, loggerName, Level.DEBUG);
-        assertThat(events).hasSize(1);
+        var events = capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG);
+        LoggingEventAssert.assertThat(events).hasSize(1);
         JsonNode entry = MAPPER.readTree(events.get(0).getMessage());
         assertThat(entry.path("header").path("apiKey").asText()).isEqualTo("METADATA");
     }
@@ -378,11 +400,10 @@ class ProtocolLoggerFilterTest {
     @Test
     void credentialBearingRequestEmitsWithheldEntryWithoutPlantedSecret(CapturedLogs capturedLogs) throws JsonProcessingException {
         // Given
-        String loggerName = "test.credentialWithheld";
         String plantedSecret = "PLANTED_SASL_SECRET_VALUE";
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.allOf(ApiKeys.class), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(loggerName));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(5).setClientId("c1");
         SaslAuthenticateRequestData request = new SaslAuthenticateRequestData()
                 .setAuthBytes(plantedSecret.getBytes(StandardCharsets.UTF_8));
@@ -392,8 +413,8 @@ class ProtocolLoggerFilterTest {
         f.onRequest(ApiKeys.SASL_AUTHENTICATE, (short) 2, header, request, context).toCompletableFuture().join();
 
         // Then
-        List<LoggingEvent> events = eventsFor(capturedLogs, loggerName, Level.DEBUG);
-        assertThat(events).hasSize(1);
+        var events = capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG);
+        LoggingEventAssert.assertThat(events).hasSize(1);
         String message = events.get(0).getMessage();
         assertThat(message).doesNotContain(plantedSecret);
         JsonNode entry = MAPPER.readTree(message);
@@ -405,11 +426,10 @@ class ProtocolLoggerFilterTest {
     @Test
     void credentialBearingResponseEmitsWithheldEntryWithoutPlantedSecret(CapturedLogs capturedLogs) throws JsonProcessingException {
         // Given
-        String loggerName = "test.credentialWithheldResponse";
         String plantedSecret = "PLANTED_DELEGATION_HMAC_SECRET";
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.allOf(ApiKeys.class), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(loggerName));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
         ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(7);
         CreateDelegationTokenResponseData response = new CreateDelegationTokenResponseData()
                 .setHmac(plantedSecret.getBytes(StandardCharsets.UTF_8));
@@ -419,21 +439,14 @@ class ProtocolLoggerFilterTest {
         f.onResponse(ApiKeys.CREATE_DELEGATION_TOKEN, (short) 3, header, response, context).toCompletableFuture().join();
 
         // Then
-        List<LoggingEvent> events = eventsFor(capturedLogs, loggerName, Level.DEBUG);
-        assertThat(events).hasSize(1);
+        var events = capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG);
+        LoggingEventAssert.assertThat(events).hasSize(1);
         String message = events.get(0).getMessage();
         assertThat(message).doesNotContain(plantedSecret);
         JsonNode entry = MAPPER.readTree(message);
         assertThat(entry.path("header").path("apiKey").asText()).isEqualTo("CREATE_DELEGATION_TOKEN");
         assertThat(entry.path("payload").isNull()).isTrue();
         assertThat(entry.path("payloadWithheld").asText()).isEqualTo(MessageFormatter.PAYLOAD_WITHHELD_REASON);
-    }
-
-    private static List<LoggingEvent> eventsFor(CapturedLogs capturedLogs, String loggerName, Level level) {
-        return capturedLogs.logged().stream()
-                .filter(e -> loggerName.equals(e.getLoggerName()))
-                .filter(e -> level == e.getLevel())
-                .toList();
     }
 
 }

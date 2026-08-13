@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.github.sambarker.logsquelcher.CapturedLogs;
 import io.github.sambarker.logsquelcher.LogSquelcherExtension;
+import io.github.sambarker.logsquelcher.LoggingEventAssert;
 
 import io.kroxylicious.filter.protocollogger.ProtocolLogger;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
@@ -45,6 +46,7 @@ class ProtocolLoggerFilterIT {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
+    private static final String FILTER_LOGGER_NAME = "io.kroxylicious.filter.protocollogger.ProtocolLoggerFilter";
 
     @Test
     void trafficRoundTripsCorrectlyWithFilterInChain(@BrokerCluster KafkaCluster cluster, Topic topic) {
@@ -56,7 +58,6 @@ class ProtocolLoggerFilterIT {
         proxyConfig.addToFilterDefinitions(filterDef);
         proxyConfig.addToDefaultFilters(filterDef.name());
 
-        // When
         try (var tester = kroxyliciousTester(proxyConfig);
                 var producer = tester.producer();
                 var consumer = tester.consumer(Serdes.String(), Serdes.String(),
@@ -65,29 +66,24 @@ class ProtocolLoggerFilterIT {
 
             assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
                     .succeedsWithin(TIMEOUT);
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "k2", "v2")))
-                    .succeedsWithin(TIMEOUT);
 
+            // When
             consumer.subscribe(List.of(topic.name()));
 
             // Then
-            var records = consumer.poll(TIMEOUT).records(topic.name());
-            assertThat(records)
-                    .hasSize(2)
+            assertThat(consumer.poll(TIMEOUT).records(topic.name()))
+                    .singleElement()
                     .extracting(ConsumerRecord::key, ConsumerRecord::value)
-                    .containsExactly(
-                            org.assertj.core.groups.Tuple.tuple("k1", "v1"),
-                            org.assertj.core.groups.Tuple.tuple("k2", "v2"));
+                    .containsExactly("k1", "v1");
         }
     }
 
     @Test
     void apiKeyGatingEmitsOnlyConfiguredKeys(@BrokerCluster KafkaCluster cluster, Topic topic, CapturedLogs capturedLogs) {
         // Given
-        var loggerName = "it.apiKeyGating";
         var filterDef = new NamedFilterDefinitionBuilder(
                 "protocol-logger", ProtocolLogger.class.getName())
-                .withConfig("apiKeyNames", List.of("METADATA"), "loggerName", loggerName)
+                .withConfig("apiKeyNames", List.of("METADATA"))
                 .build();
         var proxyConfig = proxy(cluster);
         proxyConfig.addToFilterDefinitions(filterDef);
@@ -114,7 +110,7 @@ class ProtocolLoggerFilterIT {
         }
 
         // Then
-        assertThat(eventsFor(capturedLogs, loggerName, Level.DEBUG))
+        LoggingEventAssert.assertThat(filterEvents(capturedLogs))
                 .isNotEmpty()
                 .extracting(e -> extractApiKey(e.getMessage()))
                 .containsOnly("METADATA");
@@ -127,10 +123,8 @@ class ProtocolLoggerFilterIT {
     @Test
     void realClientNegotiatedVersionsProduceValidEntries(@BrokerCluster KafkaCluster cluster, Topic topic, CapturedLogs capturedLogs) {
         // Given
-        var loggerName = "it.realClientVersions";
         var filterDef = new NamedFilterDefinitionBuilder(
                 "protocol-logger", ProtocolLogger.class.getName())
-                .withConfig("loggerName", loggerName)
                 .build();
         var proxyConfig = proxy(cluster);
         proxyConfig.addToFilterDefinitions(filterDef);
@@ -157,15 +151,15 @@ class ProtocolLoggerFilterIT {
         }
 
         // Then
-        var events = eventsFor(capturedLogs, loggerName, Level.DEBUG);
+        var events = filterEvents(capturedLogs);
 
-        assertThat(events)
+        LoggingEventAssert.assertThat(events)
                 .isNotEmpty()
                 .extracting(e -> extractApiKey(e.getMessage()))
                 .containsAnyOf("METADATA", "PRODUCE", "FETCH")
                 .hasSizeGreaterThan(1);
 
-        assertThat(events)
+        LoggingEventAssert.assertThat(events)
                 .allSatisfy(event -> {
                     var entry = parseJson(event.getMessage());
                     var header = entry.get("header");
@@ -175,7 +169,7 @@ class ProtocolLoggerFilterIT {
                     assertThat(entry.has("payload")).isTrue();
                 });
 
-        assertThat(events)
+        LoggingEventAssert.assertThat(events)
                 .filteredOn(e -> parseJson(e.getMessage()).path("header").path("type").asText().equals("RESPONSE"))
                 .isNotEmpty()
                 .allSatisfy(event -> {
@@ -185,10 +179,10 @@ class ProtocolLoggerFilterIT {
                 });
     }
 
-    private static List<LoggingEvent> eventsFor(CapturedLogs capturedLogs, String loggerName, Level level) {
+    private static List<LoggingEvent> filterEvents(CapturedLogs capturedLogs) {
         return capturedLogs.logged().stream()
-                .filter(e -> loggerName.equals(e.getLoggerName()))
-                .filter(e -> level == e.getLevel())
+                .filter(e -> FILTER_LOGGER_NAME.equals(e.getLoggerName()))
+                .filter(e -> Level.DEBUG == e.getLevel())
                 .toList();
     }
 

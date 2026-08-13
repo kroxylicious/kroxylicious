@@ -232,7 +232,7 @@ Configuration:
           - ref: PROTOCOL_TRACE
 ```
 
-With that appender, each line is a complete JSON object and `jq` works directly:
+With that appender, each entry is a multi-line pretty-printed JSON object — `jq` reads the stream directly, but line-oriented tools (`grep`, `wc -l`, line-based log shippers) will not see one entry per line:
 
 ```sh
 # select METADATA entries (both request and response)
