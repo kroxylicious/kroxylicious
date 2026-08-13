@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.kafka.common.utils;
+package io.kroxylicious.kafka.common.utils;
 
 import org.junit.jupiter.api.Test;
 

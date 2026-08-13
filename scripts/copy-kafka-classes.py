@@ -256,6 +256,7 @@ TEST_FILES = [
 # before header, record.internal before record, protocol.types before protocol).
 PACKAGE_REWRITES = [
     ("package org.apache.kafka.common.utils.internals;",  "package io.kroxylicious.kafka.common.utils;"),
+    ("package org.apache.kafka.common.utils;",            "package io.kroxylicious.kafka.common.utils;"),
     ("package org.apache.kafka.common.compress;",         "package io.kroxylicious.kafka.common.compress;"),
     ("package org.apache.kafka.common.protocol.types;",   "package io.kroxylicious.kafka.common.protocol.types;"),
     ("package org.apache.kafka.common.protocol;",         "package io.kroxylicious.kafka.common.protocol;"),
