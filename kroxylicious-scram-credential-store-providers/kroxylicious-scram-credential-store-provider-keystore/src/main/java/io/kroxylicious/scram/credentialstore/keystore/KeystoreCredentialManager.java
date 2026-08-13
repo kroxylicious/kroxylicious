@@ -93,11 +93,11 @@ public class KeystoreCredentialManager {
      *
      * @param password password to validate
      * @param parameterName parameter name for error message
-     * @throws IllegalArgumentException if password is too short
+     * @throws CredentialValidationException if password is too short
      */
     private void validatePasswordLength(String password, String parameterName) {
         if (password.length() < MIN_PASSWORD_LENGTH) {
-            throw new IllegalArgumentException(
+            throw new CredentialValidationException(
                     parameterName + " must be at least " + MIN_PASSWORD_LENGTH + " characters long. " +
                             "NIST recommends 12-15 characters minimum for service credentials. " +
                             "Consider using a passphrase (e.g., \"coffee-sunrise-laptop-2026\") " +
@@ -107,10 +107,10 @@ public class KeystoreCredentialManager {
 
     private static void validateUsername(String username) {
         if (username == null || username.isEmpty()) {
-            throw new IllegalArgumentException("Username must not be null or empty");
+            throw new CredentialValidationException("Username must not be null or empty");
         }
         if (username.length() > MAX_USERNAME_LENGTH) {
-            throw new IllegalArgumentException("Username must not exceed " + MAX_USERNAME_LENGTH + " characters");
+            throw new CredentialValidationException("Username must not exceed " + MAX_USERNAME_LENGTH + " characters");
         }
     }
 
@@ -194,7 +194,6 @@ public class KeystoreCredentialManager {
                         int iterations)
             throws KeyStoreException {
         validateUsername(username);
-        validatePasswordLength(storePassword, "KeyStore password");
         validatePasswordLength(password, "User password");
 
         try {
@@ -232,8 +231,6 @@ public class KeystoreCredentialManager {
                            String storePassword,
                            String username)
             throws KeyStoreException {
-        validatePasswordLength(storePassword, "KeyStore password");
-
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
 
@@ -297,7 +294,6 @@ public class KeystoreCredentialManager {
                                int iterations)
             throws KeyStoreException {
         validateUsername(username);
-        validatePasswordLength(storePassword, "KeyStore password");
         validatePasswordLength(newPassword, "New password");
 
         // Verify user exists before attempting update
@@ -327,8 +323,6 @@ public class KeystoreCredentialManager {
                                   Path keystorePath,
                                   String storePassword)
             throws KeyStoreException {
-        validatePasswordLength(storePassword, "KeyStore password");
-
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
             ScramCredentialSerializer serializer = new ScramCredentialSerializer();
@@ -380,8 +374,6 @@ public class KeystoreCredentialManager {
                                                     Path keystorePath,
                                                     String storePassword)
             throws KeyStoreException {
-        validatePasswordLength(storePassword, "KeyStore password");
-
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
             ScramCredentialSerializer serializer = new ScramCredentialSerializer();
@@ -430,7 +422,7 @@ public class KeystoreCredentialManager {
         validatePasswordLength(storePassword, "KeyStore password");
 
         if (users.length % 2 != 0) {
-            throw new IllegalArgumentException("users must contain alternating username/password pairs");
+            throw new CredentialValidationException("users must contain alternating username/password pairs");
         }
 
         // Validate all user passwords upfront
@@ -485,7 +477,7 @@ public class KeystoreCredentialManager {
                                  String... users)
             throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         if (users.length % 2 != 0) {
-            throw new IllegalArgumentException("users must contain alternating username/password pairs");
+            throw new CredentialValidationException("users must contain alternating username/password pairs");
         }
 
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
@@ -564,7 +556,7 @@ public class KeystoreCredentialManager {
                                                    ScramMechanism mechanism,
                                                    int iterations) {
         if (iterations < ScramCredential.MINIMUM_ITERATIONS) {
-            throw new IllegalArgumentException(
+            throw new CredentialValidationException(
                     "Iteration count must be at least " + ScramCredential.MINIMUM_ITERATIONS);
         }
 
@@ -590,7 +582,7 @@ public class KeystoreCredentialManager {
                     hashAlgorithm);
         }
         catch (Exception e) {
-            throw new IllegalArgumentException("Failed to generate SCRAM credential", e);
+            throw new CredentialValidationException("Failed to generate SCRAM credential", e);
         }
     }
 
@@ -616,6 +608,13 @@ public class KeystoreCredentialManager {
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
         try (FileInputStream fis = new FileInputStream(keystorePath.toFile())) {
             keyStore.load(fis, storePassword.toCharArray());
+        }
+        catch (IOException e) {
+            if (e.getCause() instanceof java.security.UnrecoverableKeyException) {
+                throw new KeyStoreException("Failed to open KeyStore at " + keystorePath
+                        + ": the most likely cause is an incorrect KeyStore password", e);
+            }
+            throw e;
         }
         return keyStore;
     }

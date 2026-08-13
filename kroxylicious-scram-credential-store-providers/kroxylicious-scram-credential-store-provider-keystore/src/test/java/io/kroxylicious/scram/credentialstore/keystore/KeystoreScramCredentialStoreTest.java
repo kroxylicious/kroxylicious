@@ -54,7 +54,7 @@ class KeystoreScramCredentialStoreTest {
         keystorePath = tempDir.resolve("test-credentials.jks");
 
         // Generate test keystore with two users
-        var generator = new TestCredentialGenerator();
+        var generator = new KeystoreCredentialManager();
         generator.generateKeyStore(
                 keystorePath,
                 STORE_PASSWORD,
@@ -156,7 +156,7 @@ class KeystoreScramCredentialStoreTest {
     @Test
     void shouldHandleEmptyKeyStore() throws Exception {
         Path emptyKeystorePath = tempDir.resolve("empty.jks");
-        var generator = new TestCredentialGenerator();
+        var generator = new KeystoreCredentialManager();
         generator.generateKeyStore(emptyKeystorePath, STORE_PASSWORD);
         if (Files.getFileAttributeView(emptyKeystorePath, PosixFileAttributeView.class) != null) {
             Files.setPosixFilePermissions(emptyKeystorePath, PosixFilePermissions.fromString("rw-------"));
@@ -298,7 +298,7 @@ class KeystoreScramCredentialStoreTest {
         // Given
         String keyPassword = "different-key-password";
         Path keystoreWithSeparateKeyPassword = tempDir.resolve("separate-key-pw.p12");
-        var generator = new TestCredentialGenerator();
+        var generator = new KeystoreCredentialManager();
         generator.generateKeyStore(keystoreWithSeparateKeyPassword,
                 STORE_PASSWORD, keyPassword,
                 org.apache.kafka.common.security.scram.internals.ScramMechanism.SCRAM_SHA_256,
@@ -322,7 +322,7 @@ class KeystoreScramCredentialStoreTest {
         // Given
         String keyPassword = "correct-key-password";
         Path keystoreWithKeyPassword = tempDir.resolve("key-pw.p12");
-        var generator = new TestCredentialGenerator();
+        var generator = new KeystoreCredentialManager();
         generator.generateKeyStore(keystoreWithKeyPassword,
                 STORE_PASSWORD, keyPassword,
                 org.apache.kafka.common.security.scram.internals.ScramMechanism.SCRAM_SHA_256,
@@ -349,7 +349,7 @@ class KeystoreScramCredentialStoreTest {
         ks.load(null, STORE_PASSWORD.toCharArray());
         byte[] garbage = new byte[]{ 1, 2, 3, 4, 5 };
         ks.setEntry(
-                TestCredentialGenerator.hashUsername("alice"),
+                KeystoreCredentialManager.hashUsername("alice"),
                 new KeyStore.SecretKeyEntry(new SecretKeySpec(garbage, "AES")),
                 new KeyStore.PasswordProtection(STORE_PASSWORD.toCharArray()));
         try (FileOutputStream fos = new FileOutputStream(malformedKeystorePath.toFile())) {

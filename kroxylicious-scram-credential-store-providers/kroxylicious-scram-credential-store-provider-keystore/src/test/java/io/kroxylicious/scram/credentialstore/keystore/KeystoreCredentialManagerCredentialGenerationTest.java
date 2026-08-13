@@ -28,9 +28,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
 /**
- * Tests for TestCredentialGenerator.
+ * Tests for {@link KeystoreCredentialManager} credential generation.
  */
-class TestCredentialGeneratorTest {
+class KeystoreCredentialManagerCredentialGenerationTest {
 
     private static final String KEYSTORE_PASSWORD = "test-keystore-password-123";
 
@@ -47,7 +47,7 @@ class TestCredentialGeneratorTest {
             return null;
         }).when(mockRandom).nextBytes(any());
 
-        var generator = new TestCredentialGenerator(mockRandom);
+        var generator = new KeystoreCredentialManager(mockRandom);
 
         // When - generate credential with known inputs
         String username = "alice";
@@ -87,7 +87,7 @@ class TestCredentialGeneratorTest {
             return null;
         }).when(mockRandom).nextBytes(any());
 
-        var generator = new TestCredentialGenerator(mockRandom);
+        var generator = new KeystoreCredentialManager(mockRandom);
 
         // When - generate same credential twice
         ScramCredential cred1 = generator.generateScramCredential(
@@ -117,7 +117,7 @@ class TestCredentialGeneratorTest {
             return null;
         }).when(mockRandom).nextBytes(any());
 
-        var generator = new TestCredentialGenerator(mockRandom);
+        var generator = new KeystoreCredentialManager(mockRandom);
 
         // When - generate credentials with different passwords
         ScramCredential cred1 = generator.generateScramCredential(
@@ -139,7 +139,7 @@ class TestCredentialGeneratorTest {
     void shouldRoundTripCredentialsThroughKeyStore(@TempDir Path tempDir) throws Exception {
         // Given - generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("test.jks");
-        var generator = new TestCredentialGenerator();
+        var generator = new KeystoreCredentialManager();
 
         String username1 = "alice";
         String password1 = "alice-secret-password-123";
@@ -196,7 +196,7 @@ class TestCredentialGeneratorTest {
     @Test
     void shouldGenerateValidScramSha512Credentials() {
         // Given
-        var generator = new TestCredentialGenerator();
+        var generator = new KeystoreCredentialManager();
 
         // When - generate SHA-512 credential
         ScramCredential credential = generator.generateScramCredential(

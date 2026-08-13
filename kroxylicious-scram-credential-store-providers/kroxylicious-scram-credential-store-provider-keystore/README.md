@@ -56,6 +56,46 @@ The KeyStore must contain `SecretKey` entries where:
 
 ## Generating Credentials
 
+### Using the Credential Tool
+
+The module includes a CLI tool for managing credentials in KeyStore files.
+
+#### Building the Distribution
+
+```bash
+mvn -pl kroxylicious-scram-credential-store-providers/kroxylicious-scram-credential-store-provider-keystore \
+    package -Pdist
+```
+
+The distribution archive is created under `target/` in tar.gz, zip, and exploded directory formats.
+
+#### Running the Tool
+
+From the exploded distribution directory:
+
+```bash
+# Show usage
+bin/keystore-credential-tool-start.sh --help
+
+# Create a new KeyStore
+bin/keystore-credential-tool-start.sh create -k credentials.p12
+
+# Add a user (prompts for passwords interactively)
+bin/keystore-credential-tool-start.sh add-user -k credentials.p12 -u alice
+
+# List users
+bin/keystore-credential-tool-start.sh list-users -k credentials.p12
+
+# Update a user's password
+bin/keystore-credential-tool-start.sh update-password -k credentials.p12 -u alice
+
+# Remove a user
+bin/keystore-credential-tool-start.sh remove-user -k credentials.p12 -u alice
+```
+
+By default, passwords are read interactively from the console.
+Use `--unlock-insecure-options` to enable command-line password arguments (`-p`, `-w`), but note this is **not recommended** as passwords become visible in process listings and shell history.
+
 ### Using Kafka's SCRAM Tools
 
 You can also generate SCRAM credentials using Kafka's built-in tools and manually create the KeyStore:

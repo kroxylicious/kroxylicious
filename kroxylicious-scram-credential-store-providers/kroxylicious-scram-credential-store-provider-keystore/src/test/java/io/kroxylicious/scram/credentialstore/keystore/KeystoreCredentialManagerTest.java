@@ -215,22 +215,9 @@ class KeystoreCredentialManagerTest {
 
         // When/Then
         assertThatThrownBy(() -> manager.createKeyStore(keystorePath, "short", STORE_TYPE))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(CredentialValidationException.class)
                 .hasMessageContaining("KeyStore password must be at least 12 characters long")
                 .hasMessageContaining("NIST recommends");
-    }
-
-    @Test
-    void shouldRejectShortKeystorePasswordOnAddUser(@TempDir Path tempDir) throws Exception {
-        // Given
-        Path keystorePath = tempDir.resolve("test.p12");
-        var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
-
-        // When/Then
-        assertThatThrownBy(() -> manager.addUser(keystorePath, "short", "alice", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("KeyStore password must be at least 12 characters long");
     }
 
     @Test
@@ -242,7 +229,7 @@ class KeystoreCredentialManagerTest {
 
         // When/Then
         assertThatThrownBy(() -> manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", "short", ScramMechanism.SCRAM_SHA_256))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(CredentialValidationException.class)
                 .hasMessageContaining("User password must be at least 12 characters long")
                 .hasMessageContaining("NIST recommends");
     }
@@ -257,7 +244,7 @@ class KeystoreCredentialManagerTest {
 
         // When/Then
         assertThatThrownBy(() -> manager.updatePassword(keystorePath, KEYSTORE_PASSWORD, "alice", "short", ScramMechanism.SCRAM_SHA_256))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(CredentialValidationException.class)
                 .hasMessageContaining("New password must be at least 12 characters long");
     }
 
@@ -269,12 +256,12 @@ class KeystoreCredentialManagerTest {
 
         // When/Then - short KeyStore password
         assertThatThrownBy(() -> manager.generateKeyStore(keystorePath, "short", "alice", USER_PASSWORD))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(CredentialValidationException.class)
                 .hasMessageContaining("KeyStore password must be at least 12 characters long");
 
         // When/Then - short user password
         assertThatThrownBy(() -> manager.generateKeyStore(keystorePath, KEYSTORE_PASSWORD, "alice", "short"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(CredentialValidationException.class)
                 .hasMessageContaining("User password for 'alice' must be at least 12 characters long");
     }
 

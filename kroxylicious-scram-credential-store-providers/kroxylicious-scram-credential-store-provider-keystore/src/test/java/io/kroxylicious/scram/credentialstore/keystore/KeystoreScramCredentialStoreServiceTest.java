@@ -38,7 +38,7 @@ class KeystoreScramCredentialStoreServiceTest {
     void setUp() throws Exception {
         keystorePath = tempDir.resolve("test-credentials.jks");
 
-        var generator = new TestCredentialGenerator();
+        var generator = new KeystoreCredentialManager();
         generator.generateKeyStore(
                 keystorePath,
                 STORE_PASSWORD,
