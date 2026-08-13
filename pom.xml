@@ -728,10 +728,11 @@
                                     <!-- Forked Kafka source retains ASF headers; the module-level
                                          check enforces the ASF template. Paths are root-relative because
                                          this exclusion only needs to work during the root-level scan. -->
+                                    <exclude>etc/asf-license.txt</exclude>
                                     <exclude>kroxylicious-kafka-message-generator/src/**</exclude>
                                     <exclude>kroxylicious-kafka-message-generator/etc/**</exclude>
                                     <exclude>kroxylicious-api/src/main/java/io/kroxylicious/kafka/**</exclude>
-                                    <exclude>kroxylicious-api/etc/**</exclude>
+                                    <exclude>kroxylicious-api/src/test/java/io/kroxylicious/kafka/**</exclude>
 
                                 </excludes>
                             </licenseSet>
