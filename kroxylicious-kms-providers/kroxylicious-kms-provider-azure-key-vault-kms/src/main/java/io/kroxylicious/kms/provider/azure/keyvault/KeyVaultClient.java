@@ -26,6 +26,7 @@ import io.kroxylicious.kms.provider.azure.auth.BearerToken;
 import io.kroxylicious.kms.provider.azure.auth.BearerTokenService;
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
 import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
 /**
@@ -114,10 +115,12 @@ public class KeyVaultClient implements AutoCloseable {
                 });
     }
 
+    @VisibleForTesting
     HttpClient getHttpClient() {
         return client;
     }
 
+    @VisibleForTesting
     HttpRequest getKeyRequest(String vaultName, String keyName, BearerToken bearerToken) {
         String getKey = config.keyVaultUrl(vaultName) + "/keys/" + keyName + "?api-version=" + API_VERSION;
         return HttpRequest.newBuilder()
@@ -154,6 +157,7 @@ public class KeyVaultClient implements AutoCloseable {
                 });
     }
 
+    @VisibleForTesting
     HttpRequest wrapOrUnwrapKeyRequest(WrappingKey wrappingKey, byte[] bytes, BearerToken bearerToken, String operation) {
         String wrapKey = config.keyVaultUrl(wrappingKey.vaultName()) + "/keys/" + wrappingKey.keyName() + "/" + wrappingKey.keyVersion() + "/" + operation
                 + "?api-version=" + API_VERSION;

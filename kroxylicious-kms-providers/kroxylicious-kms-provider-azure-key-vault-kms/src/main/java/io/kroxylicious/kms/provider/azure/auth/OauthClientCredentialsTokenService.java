@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kroxylicious.kms.provider.azure.MalformedResponseBodyException;
 import io.kroxylicious.kms.provider.azure.UnexpectedHttpStatusCodeException;
 import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
@@ -89,6 +90,7 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
                 .build();
     }
 
+    @VisibleForTesting
     HttpClient getHttpClient() {
         return httpClient;
     }
@@ -108,6 +110,7 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
         // httpclient only closable in JDK21, use reflection?
     }
 
+    @VisibleForTesting
     HttpRequest getHttpRequest() {
         Map<String, String> formData = new LinkedHashMap<>();
 

@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kroxylicious.kms.provider.azure.MalformedResponseBodyException;
 import io.kroxylicious.kms.provider.azure.UnexpectedHttpStatusCodeException;
 import io.kroxylicious.kms.provider.azure.config.auth.ManagedIdentityCredentialsConfig;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
 
@@ -80,10 +81,12 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
                 .build();
     }
 
+    @VisibleForTesting
     HttpClient getHttpClient() {
         return httpClient;
     }
 
+    @VisibleForTesting
     HttpRequest getHttpRequest() {
         return HttpRequest.newBuilder()
                 .timeout(REQUEST_TIMEOUT)
