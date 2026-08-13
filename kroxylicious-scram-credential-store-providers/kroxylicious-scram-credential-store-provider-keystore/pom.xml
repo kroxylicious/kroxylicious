@@ -88,6 +88,7 @@
                 <!-- https://junit-pioneer.org/docs/environment-variables/#warnings-for-reflective-access -->
                 <configuration>
                     <argLine>
+                        -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
                         @{jacoco.argline}
                         --add-opens java.base/java.util=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
