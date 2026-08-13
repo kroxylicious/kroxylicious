@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.matching.StringValuePattern;
 
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthResponse;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -121,6 +122,22 @@ class ClientCertificateTokenServiceTest {
         assertThatThrownBy(() -> new ClientCertificateTokenService(VALID_ENDPOINT, TEST_CLIENT_ID, TEST_TIMEOUT, null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("tlsConfigurator cannot be null");
+    }
+
+    @Test
+    void appliesConnectTimeout() {
+        // When
+        var connectTimeout = service.getHttpClient().connectTimeout();
+        // Then
+        assertThat(connectTimeout).hasValue(TEST_TIMEOUT);
+    }
+
+    @Test
+    void appliesRequestTimeout() throws JsonProcessingException {
+        // When
+        var request = service.buildAuthenticationRequest(AuthRequest.withClientCredential(TEST_CLIENT_ID));
+        // Then
+        assertThat(request.timeout()).hasValue(TEST_TIMEOUT);
     }
 
     @Test

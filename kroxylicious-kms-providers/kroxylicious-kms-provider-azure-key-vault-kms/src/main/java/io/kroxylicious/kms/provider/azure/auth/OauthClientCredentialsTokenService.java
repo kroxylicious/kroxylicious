@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kroxylicious.kms.provider.azure.MalformedResponseBodyException;
 import io.kroxylicious.kms.provider.azure.UnexpectedHttpStatusCodeException;
 import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
@@ -57,6 +58,9 @@ import static java.time.temporal.ChronoUnit.SECONDS;
  */
 public class OauthClientCredentialsTokenService implements BearerTokenService {
 
+    private static final Duration CONNECT_TIMEOUT = Duration.of(20, SECONDS);
+    private static final Duration REQUEST_TIMEOUT = Duration.of(20, SECONDS);
+
     private final Oauth2ClientCredentialsConfig oauth2ClientCredentialsConfig;
     private final Clock clock;
     private static final Logger LOGGER = LoggerFactory.getLogger(OauthClientCredentialsTokenService.class);
@@ -80,10 +84,15 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
         var tlsConfigurator = new TlsHttpClientConfigurator(oauth2ClientCredentialsConfig.tls());
         tlsConfigurator.apply(builder);
         httpClient = builder
-                .connectTimeout(Duration.of(10, SECONDS))
+                .connectTimeout(CONNECT_TIMEOUT)
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
+    }
+
+    @VisibleForTesting
+    HttpClient getHttpClient() {
+        return httpClient;
     }
 
     @Override
@@ -101,7 +110,8 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
         // httpclient only closable in JDK21, use reflection?
     }
 
-    private HttpRequest getHttpRequest() {
+    @VisibleForTesting
+    HttpRequest getHttpRequest() {
         Map<String, String> formData = new LinkedHashMap<>();
 
         formData.put("grant_type", "client_credentials");
@@ -117,6 +127,7 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
         String tokenUrl = oauth2ClientCredentialsConfig.oauthEndpoint() + "/" + oauth2ClientCredentialsConfig.tenantId() + "/oauth2/v2.0/token";
 
         return HttpRequest.newBuilder()
+                .timeout(REQUEST_TIMEOUT)
                 .uri(URI.create(tokenUrl))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(formBody))
