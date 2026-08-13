@@ -22,6 +22,7 @@
       <includes>
         <include>run-java.sh</include>
         <include>kroxylicious-start.sh</include>
+        <include>scram-credential-tool.sh</include>
       </includes>
     </fileSet>
     <fileSet>

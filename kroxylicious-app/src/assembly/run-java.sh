@@ -576,7 +576,7 @@ run() {
   load_env $(script_dir)
 
   local args
-  pushd ${JAVA_APP_DIR}
+  pushd ${JAVA_APP_DIR} > /dev/null
   if [ -n "${JAVA_MAIN_CLASS:-}" ] ; then
      args="${JAVA_MAIN_CLASS}"
   elif [ -n "${JAVA_APP_JAR:-}" ]; then
@@ -595,7 +595,7 @@ run() {
   # supported anyway.
 
   # kroxy customization: return to user dir so configuration path can be relative
-  popd
+  popd > /dev/null
   exec $(exec_args) java $(java_options) -cp "$(classpath)" ${args} "$@"
 }
 
