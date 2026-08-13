@@ -38,6 +38,9 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.NettySettings"
 })
 public final class BuilderConfig {
+    /**
+     * The package into which Sundrio generates the builder support classes.
+     */
     public static final String TARGET_CONFIG_PACKAGE = "io.kroxylicious.proxy.config.model";
 
     private BuilderConfig() {
