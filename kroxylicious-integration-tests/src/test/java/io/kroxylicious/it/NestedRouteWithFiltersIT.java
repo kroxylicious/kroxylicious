@@ -202,32 +202,23 @@ class NestedRouteWithFiltersIT {
     void sameFilterNameOnDifferentRoutersShouldCountIndependently(
                                                                   @Name("clusterB") Topic topicOnB,
                                                                   @Name("clusterB") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "verify-b") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<String, String> verifyB) {
-        // Given: both outer and inner routes use the same filter definition name ("shared-counter")
-        // but with different counter IDs, verifying response routing correctness
+        // Given
         String topic = topicOnB.name();
-        String outerCtr = "shared-outer-" + topic;
-        String innerCtr = "shared-inner-" + topic;
+        String counterId = "shared-" + topic;
 
-        var targetA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
         var targetB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
 
         var sharedFilter = new NamedFilterDefinitionBuilder(
                 "shared-counter", RequestCountingFilterFactory.class.getName())
-                .withConfig("counterId", outerCtr)
-                .build();
-        var innerFilter = new NamedFilterDefinitionBuilder(
-                "inner-only-counter", RequestCountingFilterFactory.class.getName())
-                .withConfig("counterId", innerCtr)
+                .withConfig("counterId", counterId)
                 .build();
 
-        // Inner router with "shared-counter" filter (same filter def name as outer, but separate instance)
         var innerRoute = new RouteDefinition("backend", 0, List.of("shared-counter"), new RouteTarget("cluster-b", null));
         var innerConfig = new DynamicProduceRouterFactory.Config("backend");
         var innerRouter = new RouterDefinition("inner",
                 DynamicProduceRouterFactory.class.getName(), innerConfig, List.of(innerRoute));
 
-        // Outer router with "inner-only-counter" on the nested route
-        var nestedRoute = new RouteDefinition("nested", 0, List.of("inner-only-counter"), new RouteTarget(null, "inner"));
+        var nestedRoute = new RouteDefinition("nested", 0, List.of("shared-counter"), new RouteTarget(null, "inner"));
         var outerConfig = new DynamicProduceRouterFactory.Config("nested");
         var outerRouter = new RouterDefinition("outer",
                 DynamicProduceRouterFactory.class.getName(), outerConfig, List.of(nestedRoute));
@@ -239,8 +230,8 @@ class NestedRouteWithFiltersIT {
                 .build();
 
         var config = baseConfigurationBuilder()
-                .addToClusterDefinitions(targetA, targetB)
-                .addToFilterDefinitions(sharedFilter, innerFilter)
+                .addToClusterDefinitions(targetB)
+                .addToFilterDefinitions(sharedFilter)
                 .addToRouterDefinitions(outerRouter, innerRouter)
                 .addToVirtualClusters(vc);
 
@@ -252,7 +243,7 @@ class NestedRouteWithFiltersIT {
                         "batch.size", 0,
                         "linger.ms", 0))) {
 
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 3; i++) {
                 assertThat(producer.send(new ProducerRecord<>(topic, "key-" + i, "value-" + i)))
                         .succeedsWithin(Duration.ofSeconds(10));
             }
@@ -261,13 +252,10 @@ class NestedRouteWithFiltersIT {
         // Then
         assertThat(consumeFrom(verifyB, topic))
                 .extracting(ConsumerRecord::key)
-                .containsExactly("key-0", "key-1", "key-2", "key-3");
-        assertThat(RequestCountingFilter.countFor(innerCtr, ApiKeys.PRODUCE))
-                .as("outer route's filter should have counted")
-                .isEqualTo(4);
-        assertThat(RequestCountingFilter.countFor(outerCtr, ApiKeys.PRODUCE))
-                .as("inner route's filter (same def name, different instance) should have counted independently")
-                .isEqualTo(4);
+                .containsExactly("key-0", "key-1", "key-2");
+        assertThat(RequestCountingFilter.countFor(counterId, ApiKeys.PRODUCE))
+                .as("filter fires once at each nesting level: 3 requests × 2 levels = 6")
+                .isEqualTo(6);
     }
 
     /**
