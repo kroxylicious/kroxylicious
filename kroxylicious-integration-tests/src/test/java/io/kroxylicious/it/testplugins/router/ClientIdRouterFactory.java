@@ -23,8 +23,10 @@ import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.topology.VirtualNode;
 
 /**
- * Routes requests to a route determined by the Kafka client ID from the
- * request header. All requests are dynamically routed (no static routes).
+ * Routes requests based on the Kafka client ID in the first request header seen
+ * on a given connection. The resolved route is sticky for the lifetime of the
+ * {@link Router} instance (one per connection), matching Kafka's connection-level
+ * client-ID semantics. All requests are dynamically routed (no static routes).
  * Used as the inner level in nested routing tests.
  */
 @Plugin(configType = ClientIdRouterFactory.Config.class)
@@ -64,6 +66,8 @@ public class ClientIdRouterFactory
                         .thenApply(response -> routerContext.respondWith(response).build());
             }
 
+            // Sticky: resolved once on the first request and reused for the
+            // lifetime of this Router instance (one per connection).
             private String resolveRoute(RequestHeaderData header) {
                 if (resolvedRoute == null) {
                     resolvedRoute = config.clientIdRoutes()
