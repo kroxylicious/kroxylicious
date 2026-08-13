@@ -403,11 +403,11 @@ public class KeystoreCredentialManager {
      * Generate a KeyStore containing SCRAM credentials with specified mechanism.
      * <p>
      * Convenience method for creating a KeyStore with multiple users in one operation.
-     * Primarily useful for testing. The store password is also used as the key password.
+     * Primarily useful for testing.
      * </p>
      *
      * @param outputPath path where the KeyStore will be written
-     * @param storePassword password for the KeyStore
+     * @param storePassword password for the KeyStore and each individual key entry
      * @param mechanism the SCRAM mechanism to use
      * @param users array of username/password pairs (alternating username, password)
      * @throws KeyStoreException if the keystore type is not available
@@ -415,6 +415,7 @@ public class KeystoreCredentialManager {
      * @throws CertificateException if a certificate in the keystore could not be loaded
      * @throws IOException if the keystore file cannot be written
      */
+    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public void generateKeyStore(
                                  Path outputPath,
                                  String storePassword,
@@ -431,34 +432,6 @@ public class KeystoreCredentialManager {
             validatePasswordLength(users[i], "User password for '" + users[i - 1] + "'");
         }
 
-        generateKeyStore(outputPath, storePassword, storePassword, mechanism, users);
-    }
-
-    /**
-     * Generate a KeyStore containing SCRAM credentials with separate key password.
-     *
-     * @param outputPath path where the KeyStore will be written
-     * @param storePassword password for the KeyStore
-     * @param keyPassword password for each individual key entry
-     * @param mechanism the SCRAM mechanism to use
-     * @param users array of username/password pairs (alternating username, password)
-     * @throws KeyStoreException if the keystore type is not available
-     * @throws NoSuchAlgorithmException if the SCRAM algorithm is not available
-     * @throws CertificateException if a certificate in the keystore could not be loaded
-     * @throws IOException if the keystore file cannot be written
-     */
-    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
-    public void generateKeyStore(
-                                 Path outputPath,
-                                 String storePassword,
-                                 String keyPassword,
-                                 ScramMechanism mechanism,
-                                 String... users)
-            throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
-        if (users.length % 2 != 0) {
-            throw new CredentialValidationException("users must contain alternating username/password pairs");
-        }
-
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         keyStore.load(null, storePassword.toCharArray());
 
@@ -473,7 +446,7 @@ public class KeystoreCredentialManager {
 
             SecretKey secretKey = new SecretKeySpec(credentialBytes, "AES");
             KeyStore.SecretKeyEntry entry = new KeyStore.SecretKeyEntry(secretKey);
-            KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(keyPassword.toCharArray());
+            KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(storePassword.toCharArray());
 
             keyStore.setEntry(hashUsername(username), entry, protection);
         }

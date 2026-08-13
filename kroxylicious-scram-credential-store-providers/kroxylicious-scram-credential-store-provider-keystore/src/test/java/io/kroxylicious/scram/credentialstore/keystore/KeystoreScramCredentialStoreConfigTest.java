@@ -21,21 +21,21 @@ class KeystoreScramCredentialStoreConfigTest {
 
     @Test
     void shouldRejectNullFile() {
-        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig(null, DUMMY_PASSWORD, null, null))
+        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig(null, DUMMY_PASSWORD, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("file must not be null");
     }
 
     @Test
     void shouldRejectEmptyFile() {
-        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig("", DUMMY_PASSWORD, null, null))
+        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig("", DUMMY_PASSWORD, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("file must not be empty");
     }
 
     @Test
     void shouldRejectNullStorePassword() {
-        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig("keystore.p12", null, null, null))
+        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig("keystore.p12", null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("storePassword must not be null");
     }
@@ -43,7 +43,7 @@ class KeystoreScramCredentialStoreConfigTest {
     @Test
     void shouldUseDefaultKeyStoreTypeWhenStoreTypeIsNull() {
         // Given
-        var config = new KeystoreScramCredentialStoreConfig("keystore.p12", DUMMY_PASSWORD, null, null);
+        var config = new KeystoreScramCredentialStoreConfig("keystore.p12", DUMMY_PASSWORD, null);
 
         // When
         String type = config.effectiveStoreType();
