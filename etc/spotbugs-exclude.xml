@@ -49,4 +49,9 @@
         <Class name="io.kroxylicious.proxy.config.model.VisitorListener" />
         <Bug pattern="USO_UNSAFE_OBJECT_SYNCHRONIZATION" />
     </Match>
+    <!-- Forked Kafka source in io.kroxylicious.kafka.* retains Kafka's original code and
+         is not subject to Kroxylicious SpotBugs rules. -->
+    <Match>
+        <Class name="~io\.kroxylicious\.kafka\..*"/>
+    </Match>
 </FindBugsFilter>

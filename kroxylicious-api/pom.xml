@@ -144,8 +144,9 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- Forked ASF source (io.kroxylicious.kafka.*) keeps Kafka's original formatting;
-                 exclude it from formatter and impsort regardless of which goal/profile is active. -->
+            <!-- Forked ASF source (io.kroxylicious.kafka.*) keeps Kafka's original formatting
+                 and Javadoc; exclude it from formatter, impsort, and javadoc checks regardless
+                 of which goal/profile is active. -->
             <plugin>
                 <groupId>net.revelc.code.formatter</groupId>
                 <artifactId>formatter-maven-plugin</artifactId>
@@ -162,6 +163,13 @@
                     <excludes>
                         <exclude>io/kroxylicious/kafka/**</exclude>
                     </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <excludePackageNames>io.kroxylicious.kafka:io.kroxylicious.kafka.*</excludePackageNames>
                 </configuration>
             </plugin>
             <!-- This actually shouldn't be needed, as the plug-in itself adds that directory as a source directory;
