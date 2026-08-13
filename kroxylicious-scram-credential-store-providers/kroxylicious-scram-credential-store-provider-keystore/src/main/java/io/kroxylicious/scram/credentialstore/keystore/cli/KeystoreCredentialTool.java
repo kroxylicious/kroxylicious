@@ -55,6 +55,10 @@ import picocli.CommandLine.ParentCommand;
 })
 public class KeystoreCredentialTool implements Callable<Integer> {
 
+    /** Creates a new instance; called by picocli. */
+    public KeystoreCredentialTool() {
+    }
+
     @CommandLine.Spec
     CommandLine.Model.CommandSpec spec;
 

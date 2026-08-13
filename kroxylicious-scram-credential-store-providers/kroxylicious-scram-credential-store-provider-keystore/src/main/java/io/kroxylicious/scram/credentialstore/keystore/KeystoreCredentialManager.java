@@ -170,6 +170,20 @@ public class KeystoreCredentialManager {
         addUser(keystorePath, storePassword, username, password, mechanism, DEFAULT_ITERATIONS);
     }
 
+    /**
+     * Add a user to an existing KeyStore with an explicit iteration count.
+     * <p>
+     * If the user already exists, their credential will be replaced.
+     * </p>
+     *
+     * @param keystorePath path to the KeyStore file
+     * @param storePassword KeyStore password
+     * @param username username to add
+     * @param password plaintext password for the user
+     * @param mechanism SCRAM mechanism (SCRAM-SHA-256 or SCRAM-SHA-512)
+     * @param iterations SCRAM iteration count
+     * @throws KeyStoreException if the operation fails
+     */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public void addUser(
                         Path keystorePath,
@@ -260,6 +274,20 @@ public class KeystoreCredentialManager {
         updatePassword(keystorePath, storePassword, username, newPassword, mechanism, DEFAULT_ITERATIONS);
     }
 
+    /**
+     * Update a user's password with an explicit iteration count.
+     * <p>
+     * This is implemented as a remove followed by an add operation.
+     * </p>
+     *
+     * @param keystorePath path to the KeyStore file
+     * @param storePassword KeyStore password
+     * @param username username to update
+     * @param newPassword new plaintext password
+     * @param mechanism SCRAM mechanism
+     * @param iterations SCRAM iteration count
+     * @throws KeyStoreException if the operation fails
+     */
     public void updatePassword(
                                Path keystorePath,
                                String storePassword,
@@ -325,6 +353,13 @@ public class KeystoreCredentialManager {
         }
     }
 
+    /**
+     * Credential metadata for a user stored in the KeyStore.
+     *
+     * @param username the username
+     * @param mechanism the SCRAM mechanism (e.g. SCRAM-SHA-256)
+     * @param iterations the SCRAM iteration count
+     */
     public record UserCredentialInfo(String username, String mechanism, int iterations) implements Comparable<UserCredentialInfo> {
         @Override
         public int compareTo(UserCredentialInfo other) {
@@ -332,6 +367,14 @@ public class KeystoreCredentialManager {
         }
     }
 
+    /**
+     * List all credentials stored in the KeyStore.
+     *
+     * @param keystorePath path to the KeyStore file
+     * @param storePassword KeyStore password
+     * @return list of credential metadata, sorted by username
+     * @throws KeyStoreException if the operation fails
+     */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public List<UserCredentialInfo> listCredentials(
                                                     Path keystorePath,
@@ -506,6 +549,15 @@ public class KeystoreCredentialManager {
         return generateScramCredential(username, password, mechanism, DEFAULT_ITERATIONS);
     }
 
+    /**
+     * Generate a SCRAM credential with an explicit iteration count.
+     *
+     * @param username the username
+     * @param password plaintext password
+     * @param mechanism SCRAM mechanism
+     * @param iterations SCRAM iteration count
+     * @return the generated credential
+     */
     public ScramCredential generateScramCredential(
                                                    String username,
                                                    String password,
