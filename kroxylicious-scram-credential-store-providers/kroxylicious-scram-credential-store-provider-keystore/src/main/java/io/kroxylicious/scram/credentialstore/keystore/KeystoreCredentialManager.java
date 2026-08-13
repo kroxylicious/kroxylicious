@@ -403,56 +403,35 @@ public class KeystoreCredentialManager {
      * Generate a KeyStore containing SCRAM credentials with specified mechanism.
      * <p>
      * Convenience method for creating a KeyStore with multiple users in one operation.
-     * Primarily useful for testing.
+     * Primarily useful for testing. The store password is also used as the key password.
      * </p>
      *
      * @param outputPath path where the KeyStore will be written
      * @param storePassword password for the KeyStore
      * @param mechanism the SCRAM mechanism to use
      * @param users array of username/password pairs (alternating username, password)
-     * @throws Exception if generation fails
+     * @throws KeyStoreException if the keystore type is not available
+     * @throws NoSuchAlgorithmException if the SCRAM algorithm is not available
+     * @throws CertificateException if a certificate in the keystore could not be loaded
+     * @throws IOException if the keystore file cannot be written
      */
-    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public void generateKeyStore(
                                  Path outputPath,
                                  String storePassword,
                                  ScramMechanism mechanism,
                                  String... users)
-            throws Exception {
+            throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         validatePasswordLength(storePassword, "KeyStore password");
 
         if (users.length % 2 != 0) {
             throw new CredentialValidationException("users must contain alternating username/password pairs");
         }
 
-        // Validate all user passwords upfront
         for (int i = 1; i < users.length; i += 2) {
             validatePasswordLength(users[i], "User password for '" + users[i - 1] + "'");
         }
 
-        KeyStore keyStore = KeyStore.getInstance("PKCS12");
-        keyStore.load(null, storePassword.toCharArray());
-
-        for (int i = 0; i < users.length; i += 2) {
-            String username = users[i];
-            String password = users[i + 1];
-
-            ScramCredential credential = generateScramCredential(username, password, mechanism);
-
-            ScramCredentialSerializer serializer = new ScramCredentialSerializer();
-            byte[] credentialBytes = serializer.serialize(credential);
-
-            SecretKey secretKey = new SecretKeySpec(credentialBytes, "AES");
-            KeyStore.SecretKeyEntry entry = new KeyStore.SecretKeyEntry(secretKey);
-            KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(storePassword.toCharArray());
-
-            keyStore.setEntry(hashUsername(username), entry, protection);
-        }
-
-        try (FileOutputStream fos = new FileOutputStream(outputPath.toFile())) {
-            keyStore.store(fos, storePassword.toCharArray());
-        }
-        KeystoreFilePermissions.setOwnerOnly(outputPath);
+        generateKeyStore(outputPath, storePassword, storePassword, mechanism, users);
     }
 
     /**
@@ -503,27 +482,6 @@ public class KeystoreCredentialManager {
             keyStore.store(fos, storePassword.toCharArray());
         }
         KeystoreFilePermissions.setOwnerOnly(outputPath);
-    }
-
-    /**
-     * Generate a KeyStore containing SCRAM-SHA-256 credentials.
-     * <p>
-     * Convenience method for creating a KeyStore with multiple users in one operation.
-     * Primarily useful for testing.
-     * </p>
-     *
-     * @param outputPath path where the KeyStore will be written
-     * @param storePassword password for the KeyStore
-     * @param users array of username/password pairs (alternating username, password)
-     * @throws Exception if generation fails
-     */
-    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
-    public void generateKeyStore(
-                                 Path outputPath,
-                                 String storePassword,
-                                 String... users)
-            throws Exception {
-        generateKeyStore(outputPath, storePassword, ScramMechanism.SCRAM_SHA_256, users);
     }
 
     /**

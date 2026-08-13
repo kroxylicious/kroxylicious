@@ -255,12 +255,12 @@ class KeystoreCredentialManagerTest {
         var manager = new KeystoreCredentialManager();
 
         // When/Then - short KeyStore password
-        assertThatThrownBy(() -> manager.generateKeyStore(keystorePath, "short", "alice", USER_PASSWORD))
+        assertThatThrownBy(() -> manager.generateKeyStore(keystorePath, "short", ScramMechanism.SCRAM_SHA_256, "alice", USER_PASSWORD))
                 .isInstanceOf(CredentialValidationException.class)
                 .hasMessageContaining("KeyStore password must be at least 12 characters long");
 
         // When/Then - short user password
-        assertThatThrownBy(() -> manager.generateKeyStore(keystorePath, KEYSTORE_PASSWORD, "alice", "short"))
+        assertThatThrownBy(() -> manager.generateKeyStore(keystorePath, KEYSTORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, "alice", "short"))
                 .isInstanceOf(CredentialValidationException.class)
                 .hasMessageContaining("User password for 'alice' must be at least 12 characters long");
     }

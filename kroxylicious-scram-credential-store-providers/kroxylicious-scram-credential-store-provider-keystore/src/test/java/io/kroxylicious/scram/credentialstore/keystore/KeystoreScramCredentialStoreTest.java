@@ -22,6 +22,7 @@ import java.util.concurrent.CompletionStage;
 
 import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,11 +56,7 @@ class KeystoreScramCredentialStoreTest {
 
         // Generate test keystore with two users
         var generator = new KeystoreCredentialManager();
-        generator.generateKeyStore(
-                keystorePath,
-                STORE_PASSWORD,
-                "alice", ALICE_PASSWORD,
-                "bob", BOB_PASSWORD);
+        generator.generateKeyStore(keystorePath, STORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, "alice", ALICE_PASSWORD, "bob", BOB_PASSWORD);
 
         if (Files.getFileAttributeView(keystorePath, PosixFileAttributeView.class) != null) {
             Files.setPosixFilePermissions(keystorePath, PosixFilePermissions.fromString("rw-------"));
@@ -157,7 +154,7 @@ class KeystoreScramCredentialStoreTest {
     void shouldHandleEmptyKeyStore() throws Exception {
         Path emptyKeystorePath = tempDir.resolve("empty.jks");
         var generator = new KeystoreCredentialManager();
-        generator.generateKeyStore(emptyKeystorePath, STORE_PASSWORD);
+        generator.generateKeyStore(emptyKeystorePath, STORE_PASSWORD, ScramMechanism.SCRAM_SHA_256);
         if (Files.getFileAttributeView(emptyKeystorePath, PosixFileAttributeView.class) != null) {
             Files.setPosixFilePermissions(emptyKeystorePath, PosixFilePermissions.fromString("rw-------"));
         }

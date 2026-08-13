@@ -146,11 +146,7 @@ class KeystoreCredentialManagerCredentialGenerationTest {
         String username2 = "bob";
         String password2 = "bob-secret-password-456";
 
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                username1, password1,
-                username2, password2);
+        generator.generateKeyStore(keystorePath, KEYSTORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, username1, password1, username2, password2);
 
         // When - load KeyStore and extract credentials
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
