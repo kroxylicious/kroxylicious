@@ -16,9 +16,6 @@
  */
 package io.kroxylicious.kafka.common.utils;
 
-// TODO #4578: replace with io.kroxylicious.kafka.common.utils.Bytes once that class is copied
-import org.apache.kafka.common.utils.Bytes;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.EOFException;
@@ -40,32 +37,6 @@ public final class ByteUtils {
     public static final ByteBuffer EMPTY_BUF = ByteBuffer.wrap(new byte[0]);
 
     private ByteUtils() {}
-
-    /**
-     * Increment the underlying byte array by adding 1.
-     *
-     * @param input - The byte array to increment
-     * @return A new copy of the incremented byte array
-     * @throws IndexOutOfBoundsException if incrementing causes the underlying input byte array to overflow
-     */
-    public static Bytes increment(Bytes input) throws IndexOutOfBoundsException {
-        byte[] inputArr = input.get();
-        byte[] ret = new byte[inputArr.length];
-        int carry = 1;
-        for (int i = inputArr.length - 1; i >= 0; i--) {
-            if (inputArr[i] == (byte) 0xFF && carry == 1) {
-                ret[i] = (byte) 0x00;
-            } else {
-                ret[i] = (byte) (inputArr[i] + carry);
-                carry = 0;
-            }
-        }
-        if (carry == 0) {
-            return Bytes.wrap(ret);
-        } else {
-            throw new IndexOutOfBoundsException();
-        }
-    }
 
     /**
      * A byte array comparator based on lexicographic ordering.

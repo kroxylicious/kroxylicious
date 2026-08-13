@@ -19,7 +19,6 @@ package io.kroxylicious.kafka.common.record.internal;
 import io.kroxylicious.kafka.common.KafkaException;
 import io.kroxylicious.kafka.common.errors.CorruptRecordException;
 import io.kroxylicious.kafka.common.record.TimestampType;
-// TODO #4578: replace with io.kroxylicious.kafka.common.utils.Utils once that class is copied
 import io.kroxylicious.kafka.common.utils.Utils;
 import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.kafka.common.utils.ByteUtils;
@@ -30,8 +29,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 
-// TODO #4578: replace with io.kroxylicious.kafka.common.utils.Utils once that class is copied
-import static org.apache.kafka.common.utils.Utils.wrapNullable;
+import static io.kroxylicious.kafka.common.utils.Utils.wrapNullable;
 
 /**
  * This class represents the serialized key and value along with the associated CRC and other fields
