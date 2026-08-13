@@ -4,6 +4,10 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+/**
+ * KMS service implementation backed by a remote instance of
+ * <a href="https://developer.hashicorp.com/vault">HashiCorp Vault</a>.
+ */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)

@@ -75,6 +75,11 @@ public class OauthBearerValidationFilter
     private boolean validateAuthentication = true;
     private @Nullable String authorizationId;
 
+    /**
+     * Creates a filter instance.
+     * @param executorService the executor used to schedule delayed responses to failed authentication attempts
+     * @param sharedContext the state shared between all the filter instances created by the same factory
+     */
     public OauthBearerValidationFilter(ScheduledExecutorService executorService, SharedOauthBearerValidationContext sharedContext) {
         this.executorService = executorService;
         this.strategy = sharedContext.backoffStrategy();

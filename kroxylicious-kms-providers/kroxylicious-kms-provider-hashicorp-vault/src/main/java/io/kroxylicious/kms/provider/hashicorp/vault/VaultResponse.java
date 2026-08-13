@@ -11,15 +11,34 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Envelope of a response from the <a href="https://developer.hashicorp.com/vault/api-docs">Vault API</a>.
+ *
+ * @param data the payload of the response.
+ * @param <D> the type of the response payload.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record VaultResponse<D>(D data) {
 
+    /**
+     * Validates the record components.
+     */
     public VaultResponse {
         Objects.requireNonNull(data);
     }
 
+    /**
+     * Payload of a response from the Vault
+     * <a href="https://developer.hashicorp.com/vault/api-docs/secret/transit#read-key">read key</a> API.
+     *
+     * @param name the name of the key.
+     * @param latestVersion the latest version of the key.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ReadKeyData(String name, @JsonProperty("latest_version") int latestVersion) {
+        /**
+         * Validates the record components.
+         */
         public ReadKeyData {
             Objects.requireNonNull(name);
         }

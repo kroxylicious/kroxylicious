@@ -8,6 +8,7 @@ package io.kroxylicious.kms.provider.azure.auth;
 
 import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -108,6 +109,30 @@ class ManagedIdentityAccessTokenServiceTest {
                                 "/metadata/identity/oauth2/token?api-version=2018-02-01&resource=" + URLEncoder.encode(TARGET_RESOURCE, StandardCharsets.UTF_8));
                         assertThat(request.getHeader("Metadata")).isEqualTo("true");
                     });
+        }
+    }
+
+    @Test
+    void appliesConnectTimeout() {
+        // Given
+        try (ManagedIdentityAccessTokenService service = new ManagedIdentityAccessTokenService(
+                new ManagedIdentityCredentialsConfig(TARGET_RESOURCE, URI.create(server.baseUrl())), Clock.systemUTC())) {
+            // When
+            var connectTimeout = service.getHttpClient().connectTimeout();
+            // Then
+            assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
+        }
+    }
+
+    @Test
+    void appliesRequestTimeout() {
+        // Given
+        try (ManagedIdentityAccessTokenService service = new ManagedIdentityAccessTokenService(
+                new ManagedIdentityCredentialsConfig(TARGET_RESOURCE, URI.create(server.baseUrl())), Clock.systemUTC())) {
+            // When
+            HttpRequest request = service.getHttpRequest();
+            // Then
+            assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
         }
     }
 
