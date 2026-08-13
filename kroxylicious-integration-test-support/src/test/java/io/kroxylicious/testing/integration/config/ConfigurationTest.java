@@ -785,6 +785,37 @@ class ConfigurationTest {
                 .doesNotThrowAnyException();
     }
 
+    @Test
+    void shouldRejectCyclicNestedRouters() {
+        // Given
+        var cluster = new ClusterDefinition("some-cluster", "broker:9092", null);
+        var routeToB = new RouteDefinition("to-b", 0, List.of(), new RouteTarget(null, "router-b"));
+        var routerA = new RouterDefinition("router-a", "SomeFactory", null, List.of(routeToB));
+        var routeToA = new RouteDefinition("to-a", 0, List.of(), new RouteTarget(null, "router-a"));
+        var routerB = new RouterDefinition("router-b", "SomeFactory", null, List.of(routeToA));
+        var gateway = new VirtualClusterGateway("gw",
+                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty());
+        var vc = new VirtualCluster("vc1", null, new RouteTarget(null, "router-a"),
+                List.of(gateway), false, false, null, null, null, null);
+
+        // When / Then
+        assertThatThrownBy(() -> new Configuration(
+                null,
+                List.of(cluster),
+                null,
+                null,
+                List.of(routerA, routerB),
+                List.of(vc),
+                null,
+                false,
+                Optional.empty(),
+                null,
+                null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("cycle");
+    }
+
     @NonNull
     private static VirtualCluster buildVirtualCluster(String virtualClusterName, String targetBootstrap, @Nullable List<String> filterNames) {
         return new VirtualCluster(virtualClusterName, new TargetCluster(targetBootstrap, Optional.empty()),
