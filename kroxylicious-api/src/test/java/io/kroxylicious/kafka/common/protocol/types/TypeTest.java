@@ -48,7 +48,7 @@ public class TypeTest {
         assertNull(Type.NULLABLE_RECORDS.read(buffer));
     }
 
-    @Disabled("MemoryRecords.withRecords() requires MemoryRecordsBuilder — re-enable in PR3")
+    @Disabled("MemoryRecords.withRecords() requires MemoryRecordsBuilder, which depends on generated message types — re-enable when MemoryRecordsBuilder is copied and the message generator is wired up")
     @Test
     public void testRecordsSerde() {
         // PR3: MemoryRecords records = MemoryRecords.withRecords(Compression.NONE,
@@ -80,7 +80,7 @@ public class TypeTest {
         assertNull(Type.COMPACT_NULLABLE_RECORDS.read(buffer));
     }
 
-    @Disabled("MemoryRecords.withRecords() requires MemoryRecordsBuilder — re-enable in PR3")
+    @Disabled("MemoryRecords.withRecords() requires MemoryRecordsBuilder, which depends on generated message types — re-enable when MemoryRecordsBuilder is copied and the message generator is wired up")
     @Test
     public void testCompactRecordsSerde() {
         // PR3: MemoryRecords records = MemoryRecords.withRecords(Compression.NONE,
