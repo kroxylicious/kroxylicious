@@ -32,10 +32,10 @@
       </includes>
     </fileSet>
     <fileSet>
-      <directory>${project.basedir}/src/main/resources/</directory>
+      <directory>${project.basedir}/../../kroxylicious-app/src/assembly</directory>
       <outputDirectory>/config/</outputDirectory>
       <includes>
-        <include>log4j2.yaml</include>
+        <include>log4j2-tools.yaml</include>
       </includes>
     </fileSet>
   </fileSets>

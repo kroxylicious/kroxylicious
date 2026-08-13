@@ -46,6 +46,13 @@
         <include>log4j2.yaml</include>
       </includes>
     </fileSet>
+    <fileSet>
+      <directory>${project.basedir}/src/assembly</directory>
+      <outputDirectory>/config/</outputDirectory>
+      <includes>
+        <include>log4j2-tools.yaml</include>
+      </includes>
+    </fileSet>
       <fileSet>
           <directory>${project.build.directory}/libs/native/</directory>
           <outputDirectory>libs/native/</outputDirectory>

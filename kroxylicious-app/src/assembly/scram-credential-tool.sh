@@ -16,10 +16,11 @@ script_dir() {
 }
 
 if [ "${CREDENTIAL_TOOL_LOGGING_OPTIONS+set}" != set ]; then
-  CREDENTIAL_TOOL_LOGGING_OPTIONS="-Dlog4j2.configurationFile=$(script_dir)/../config/log4j2.yaml"
+  CREDENTIAL_TOOL_LOGGING_OPTIONS="-Dlog4j2.configurationFile=$(script_dir)/../config/log4j2-tools.yaml"
 fi
 
 export JAVA_OPTIONS="${CREDENTIAL_TOOL_LOGGING_OPTIONS:-} ${JAVA_OPTIONS:-}"
+export DEBUG_OUTPUT=/dev/null
 export HIDE_CMD_LINE=1
 JAVA_CLASSPATH="$(script_dir)/../libs/*"
 export JAVA_CLASSPATH
