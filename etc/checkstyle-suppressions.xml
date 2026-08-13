@@ -14,6 +14,11 @@
     <!-- Generated classes which we do not edit -->
     <suppress checks=".*"
               files="io[/\\]kroxylicious[/\\]proxy[/\\].*(Builder|Editable|Fluent|Nested|Visitor|Visitable).*\.java"/>
+
+    <!-- Forked Apache Kafka source (issue #4578 / proposal 116). These files retain their
+         original ASF copyright headers and do not conform to Kroxylicious coding conventions. -->
+    <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]kafka[/\\].*\.java"/>
     <suppress checks=".*"
               files="io[/\\]kroxylicious[/\\]kubernetes[/\\]api[/\\].*\.java"/>
     <suppress checks=".*"

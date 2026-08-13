@@ -44,6 +44,25 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
         </dependency>
+        <!-- Compression libraries are runtime-scope transitives of kafka-clients but compile-scope
+             direct deps of the copied io.kroxylicious.kafka.common.compress package. -->
+        <dependency>
+            <groupId>at.yawk.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+        </dependency>
+        <!-- TODO #4578: review scope; slf4j-api is needed for Kafka classes copied into io.kroxylicious namespace -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
 
         <!-- third party dependencies - test -->
         <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-slf4j-impl -->
@@ -52,10 +71,12 @@
             <artifactId>log4j-slf4j2-impl</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Required for MessageUtil.jsonNodeTo* methods used by *DataJsonConverter classes.
+             Whether this belongs in kroxylicious-api or a separate module is an open question;
+             see issue #4578 / proposal 116 discussion. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
@@ -86,6 +107,34 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <configuration combine.self="override">
+                    <!-- All source under io.kroxylicious.kafka.* is copied from Apache Kafka and
+                         carries ASF copyright headers. The first licenseSet enforces the Kroxylicious
+                         header on everything else; the second enforces the ASF header on the copied tree. -->
+                    <strictCheck>true</strictCheck>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>${project.basedir}/../etc/license.txt</header>
+                            <excludes>
+                                <exclude>pom.xml</exclude>
+                                <exclude>etc/**</exclude>
+                                <exclude>src/main/java/io/kroxylicious/kafka/**</exclude>
+                                <exclude>src/test/java/io/kroxylicious/kafka/**</exclude>
+                            </excludes>
+                        </licenseSet>
+                        <licenseSet>
+                            <header>${project.basedir}/etc/asf-license.txt</header>
+                            <includes>
+                                <include>src/main/java/io/kroxylicious/kafka/**</include>
+                                <include>src/test/java/io/kroxylicious/kafka/**</include>
+                            </includes>
+                        </licenseSet>
+                    </licenseSets>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
@@ -94,6 +143,26 @@
                         <phase>generate-sources</phase>
                     </execution>
                 </executions>
+            </plugin>
+            <!-- Forked ASF source (io.kroxylicious.kafka.*) keeps Kafka's original formatting;
+                 exclude it from formatter and impsort regardless of which goal/profile is active. -->
+            <plugin>
+                <groupId>net.revelc.code.formatter</groupId>
+                <artifactId>formatter-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>io/kroxylicious/kafka/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>net.revelc.code</groupId>
+                <artifactId>impsort-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>io/kroxylicious/kafka/**</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
             <!-- This actually shouldn't be needed, as the plug-in itself adds that directory as a source directory;
                  Unfortunately, Eclipse/M2E doesn't reliably pick it up without this helper plug-in -->
