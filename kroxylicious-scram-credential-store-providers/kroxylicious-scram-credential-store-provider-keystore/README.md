@@ -12,7 +12,7 @@ This module provides a production-ready credential store that loads SCRAM creden
 - **Java KeyStore integration** - Uses standard JKS or PKCS12 KeyStore formats
 - **Secure credential storage** - Never stores plaintext passwords
 - **Fast lookups** - In-memory cache for sub-millisecond credential retrieval
-- **Password-protected** - KeyStore and individual keys protected by passwords
+- **Password-protected** - KeyStore protected by password
 
 ## Configuration
 
@@ -30,8 +30,7 @@ credentialStoreConfig:
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `file` | string | Yes | - | Path to the KeyStore file |
-| `storePassword` | PasswordProvider | Yes | - | Password for the KeyStore |
-| `keyPassword` | PasswordProvider | No | Same as storePassword | Password for individual keys |
+| `storePassword` | PasswordProvider | Yes | - | Password for the KeyStore and its entries |
 | `storeType` | string | No | Platform default | KeyStore type (e.g., "PKCS12", "JKS") |
 
 ## KeyStore Format
@@ -62,35 +61,36 @@ The module includes a CLI tool for managing credentials in KeyStore files.
 
 #### Building the Distribution
 
+The credential tool is bundled into the main proxy distribution. Build it with:
+
 ```bash
-mvn -pl kroxylicious-scram-credential-store-providers/kroxylicious-scram-credential-store-provider-keystore \
-    package -Pdist
+mvn package -Pdist -DskipTests
 ```
 
-The distribution archive is created under `target/` in tar.gz, zip, and exploded directory formats.
+The distribution archive is created under `kroxylicious-app/target/` in tar.gz, zip, and exploded directory formats.
 
 #### Running the Tool
 
-From the exploded distribution directory:
+From the exploded proxy distribution directory:
 
 ```bash
 # Show usage
-bin/keystore-credential-tool-start.sh --help
+bin/scram-credential-tool.sh --help
 
 # Create a new KeyStore
-bin/keystore-credential-tool-start.sh create -k credentials.p12
+bin/scram-credential-tool.sh create -k credentials.p12
 
 # Add a user (prompts for passwords interactively)
-bin/keystore-credential-tool-start.sh add-user -k credentials.p12 -u alice
+bin/scram-credential-tool.sh add-user -k credentials.p12 -u alice
 
 # List users
-bin/keystore-credential-tool-start.sh list-users -k credentials.p12
+bin/scram-credential-tool.sh list-users -k credentials.p12
 
 # Update a user's password
-bin/keystore-credential-tool-start.sh update-password -k credentials.p12 -u alice
+bin/scram-credential-tool.sh update-password -k credentials.p12 -u alice
 
 # Remove a user
-bin/keystore-credential-tool-start.sh remove-user -k credentials.p12 -u alice
+bin/scram-credential-tool.sh remove-user -k credentials.p12 -u alice
 ```
 
 By default, passwords are read interactively from the console.
@@ -120,7 +120,7 @@ Then extract the generated credentials and store them in the KeyStore format des
 ### Credential Security
 
 - **No plaintext passwords**: Only salted, hashed credentials are stored
-- **Sufficient iterations**: Default 4096 iterations (higher is more secure but slower)
+- **Sufficient iterations**: Default 10000 iterations (higher is more secure but slower)
 - **Secure generation**: Use cryptographically random salts
 
 ### Operational Security
@@ -169,7 +169,7 @@ filters:
 
 ### "Failed to recover key for alias"
 
-- **Check key password**: If keyPassword differs from storePassword, ensure it's correct
+- **Check password**: Verify the store password is correct
 - **Check alias**: Verify username aliases match those in the KeyStore
 
 ### "Invalid credential for alias"

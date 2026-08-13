@@ -17,11 +17,11 @@
   </formats>
   <fileSets>
     <fileSet>
-      <directory>${project.basedir}/src/assembly</directory>
+      <directory>${project.basedir}/../../kroxylicious-app/src/assembly</directory>
       <outputDirectory>/bin/</outputDirectory>
       <includes>
         <include>run-java.sh</include>
-        <include>keystore-credential-tool-start.sh</include>
+        <include>scram-credential-tool.sh</include>
       </includes>
     </fileSet>
     <fileSet>
