@@ -43,7 +43,10 @@ public class JwsSignatureValidationConfig {
 
     /**
      * Construct JwsSignatureValidationConfig
+     * @param trustedJsonWebKeySet the set of trusted JSON Web Keys used to verify signatures.
      * @param nullableAlgorithms Array of {@link AlgorithmIdentifiers}.
+     * @param nullableHeaderOptions options controlling which record header carries the JWS and whether it is required.
+     * @param nullableContentOptions options controlling whether the JWS payload is detached.
      */
     @JsonCreator
     public JwsSignatureValidationConfig(@JsonProperty(value = "trustedJsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet trustedJsonWebKeySet,
@@ -58,18 +61,34 @@ public class JwsSignatureValidationConfig {
         this.contentOptions = nullableContentOptions != null ? nullableContentOptions : JwsSignatureBytebufValidator.JwsContentOptions.DEFAULT;
     }
 
+    /**
+     * Returns the set of trusted JSON Web Keys used to verify signatures.
+     * @return the set of trusted JSON Web Keys used to verify signatures.
+     */
     public JsonWebKeySet getJsonWebKeySet() {
         return trustedJsonWebKeySet;
     }
 
+    /**
+     * Returns the allowed/denied JWS algorithms.
+     * @return the allowed/denied JWS algorithms.
+     */
     public AllowDeny<String> getAlgorithms() {
         return algorithms;
     }
 
+    /**
+     * Returns the options controlling which record header carries the JWS and whether it is required.
+     * @return options controlling which record header carries the JWS and whether it is required.
+     */
     public JwsSignatureBytebufValidator.JwsHeaderOptions getHeaderOptions() {
         return headerOptions;
     }
 
+    /**
+     * Returns the options controlling whether the JWS payload is detached.
+     * @return options controlling whether the JWS payload is detached.
+     */
     public JwsSignatureBytebufValidator.JwsContentOptions getContentOptions() {
         return contentOptions;
     }
@@ -150,7 +169,13 @@ public class JwsSignatureValidationConfig {
                 '}';
     }
 
+    /**
+     * A Jackson deserializer that builds a {@link JsonWebKeySet} from its JSON serialization.
+     */
     public static class JsonWebKeySetDeserializer extends StdDeserializer<JsonWebKeySet> {
+        /**
+         * Creates a new deserializer instance, invoked by Jackson.
+         */
         public JsonWebKeySetDeserializer() {
             this(null);
         }
