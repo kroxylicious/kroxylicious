@@ -1254,6 +1254,13 @@
                                         <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
                                         </ignoredUnusedDeclaredDependency>
                                     </ignoredUnusedDeclaredDependencies>
+                                    <ignoredNonTestScopedDependencies>
+                                        <!-- JsonNode (jackson-databind) extends TreeNode (jackson-core), so
+                                             the compiler requires jackson-core on the production classpath even
+                                             though no production source imports it directly. -->
+                                        <ignoredNonTestScopedDependency>com.fasterxml.jackson.core:jackson-core
+                                        </ignoredNonTestScopedDependency>
+                                    </ignoredNonTestScopedDependencies>
                                     <ignoredDependencies>
                                         <!-- Kroxylicious junit extension requires this to be on the classpath -->
                                         <ignoredUnusedDeclaredDependency>org.apache.kafka:kafka_2.13
