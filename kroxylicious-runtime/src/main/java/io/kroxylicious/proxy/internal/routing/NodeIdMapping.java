@@ -25,6 +25,10 @@ public sealed interface NodeIdMapping permits BijectiveNodeIdMapping, IdentityNo
      * Builds a {@link NodeIdMapping} from the given route descriptors.
      * Returns an {@link IdentityNodeIdMapping} for single-route cases,
      * or a {@link BijectiveNodeIdMapping} for multiple routes.
+     *
+     * @param routeDescriptors the route descriptors keyed by route name; must not be empty
+     * @return the appropriate mapping for the number of routes
+     * @throws IllegalArgumentException if {@code routeDescriptors} is empty
      */
     static NodeIdMapping build(Map<String, RouteDescriptor> routeDescriptors) {
         if (routeDescriptors.isEmpty()) {

@@ -127,6 +127,18 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * Creates a top-level routing handler that sits at the end of the VC-level filter chain.
      * Uses a {@link ResponseSequencer} for response ordering and interacts with
      * {@link ClientConnectionStateMachine} for connection lifecycle.
+     *
+     * @param router the router plugin instance for this connection
+     * @param routes all route descriptors for this virtual cluster (top-level and nested, qualified names)
+     * @param staticRoutes map from API key to the single route that always handles that key,
+     *        used to bypass the router for requests that don't need dynamic routing
+     * @param sharedNodeAddresses node addresses shared across routes (e.g. from a prior metadata response),
+     *        used to route node-specific requests without an additional metadata round-trip
+     * @param ccsm the connection state machine; provides session ID, subject, and connection lifecycle hooks
+     * @param virtualClusterName the virtual cluster name, used for logging
+     * @param nodeIdMapping the virtual-to-target node ID mapping for the top-level routing level
+     * @param nodeId the virtual node ID of the gateway port that accepted this connection,
+     *        or {@code null} if the gateway does not identify a specific node
      */
     public static RoutingHandler topLevel(Router router,
                                           Map<String, RouteDescriptor> routes,
@@ -149,6 +161,23 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * Creates a nested routing handler that intercepts frames matching the given
      * activation route. No response sequencing — the outer level handles ordering.
      * Ignores router close-connection requests.
+     *
+     * @param activationRoute the qualified route name (e.g. {@code "outerRouter/routeName"})
+     *        that this handler intercepts; frames with a different route name pass through
+     * @param nestedRouterName the name of the nested router, used to build the route prefix
+     *        ({@code "routerName/"}) for qualified route names at this level
+     * @param virtualClusterName the virtual cluster name, used for logging
+     * @param routerChainFactory factory for creating the nested router and its filter chain
+     * @param nestedRoutes the route descriptors for this nested router level (qualified names)
+     * @param nestedNodeIdMapping the virtual-to-target node ID mapping for this nested level
+     * @param correlationIdAllocator allocates upstream correlation IDs, shared with the top-level
+     *        handler so all in-flight requests on this connection use a single ID space
+     * @param routerNodeAddresses node addresses known at this nesting level, populated from
+     *        metadata responses received through this handler
+     * @param sessionId the proxy session ID, used for logging and diagnostics
+     * @param subject the authenticated subject for this connection
+     * @param nodeId the virtual node ID passed from the enclosing routing level,
+     *        or {@code null} if not available at this nesting depth
      */
     // all parameters are genuinely needed: identity, routing config, protocol infrastructure, session, auth, network
     @SuppressWarnings("java:S107")
