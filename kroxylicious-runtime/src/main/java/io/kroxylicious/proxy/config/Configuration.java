@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.config;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -361,12 +360,11 @@ public record Configuration(
             return Map.of();
         }
         Map<String, RouteDescriptor> topLevel = resolveRouterRoutes(topRouter, filterDefinitionsByName, clustersByName);
-        Map<String, RouteDescriptor> all = new LinkedHashMap<>(topLevel);
+        Map<String, RouteDescriptor> all = new HashMap<>(topLevel);
         for (var entry : topLevel.entrySet()) {
             if (entry.getValue().targetsRouter()) {
                 collectNestedRouteDescriptors(routersByName.get(entry.getValue().routerName()),
-                        entry.getValue().routerName(), routersByName,
-                        filterDefinitionsByName, clustersByName, all);
+                        routersByName, filterDefinitionsByName, clustersByName, all);
             }
         }
         return all;
@@ -374,23 +372,19 @@ public record Configuration(
 
     private void collectNestedRouteDescriptors(
                                                RouterDefinition router,
-                                               String routerName,
                                                Map<String, RouterDefinition> routersByName,
                                                Map<String, NamedFilterDefinition> filterDefinitionsByName,
                                                Map<String, ClusterDefinition> clustersByName,
                                                Map<String, RouteDescriptor> collector) {
-        if (router == null) {
-            return;
-        }
+        Objects.requireNonNull(router, "router");
         Map<String, RouteDescriptor> routerRoutes = resolveRouterRoutes(router, filterDefinitionsByName, clustersByName);
         for (var entry : routerRoutes.entrySet()) {
-            String qualifiedName = routerName + "/" + entry.getKey();
+            String qualifiedName = router.name() + "/" + entry.getKey();
             collector.put(qualifiedName, entry.getValue());
             RouteDescriptor desc = entry.getValue();
             if (desc.targetsRouter()) {
                 collectNestedRouteDescriptors(routersByName.get(desc.routerName()),
-                        desc.routerName(), routersByName,
-                        filterDefinitionsByName, clustersByName, collector);
+                        routersByName, filterDefinitionsByName, clustersByName, collector);
             }
         }
     }
