@@ -50,12 +50,6 @@ on:
         description: 'The URI of the website repository, starting with everything after the @, e.g. github.com/kroxylicious/kroxylicious.github.io.git'
         required: false
         default: 'github.com/kroxylicious/kroxylicious.github.io.git'
-      skip-tests:
-        description: 'Whether to skip the tests before pushing the tag'
-        type: boolean
-        required: false
-        default: false
-
 jobs:
   stage-release:
     runs-on: ubuntu-latest
@@ -107,16 +101,6 @@ jobs:
           gpg-private-key: ${{ secrets.KROXYLICIOUS_RELEASE_PRIVATE_KEY }} # Value of the GPG private key to import
           overwrite-settings: 'true'
 
-      - name: Setup Minikube
-        uses: ./.github/actions/common/setup-minikube
-        with:
-          githubToken: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
-
-      - name: 'Verify no existing release note exist for tag'
-        env:
-          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by transition-github-release-note-state.sh
-        run: ./scripts/transition-github-release-note-state.sh -v ${{ github.event.inputs.release-version }} -a
-
       - name: 'Prepare Release Environment'
         run: |
           echo "WORK_BRANCH=release-work-${{ github.event.inputs.release-version }}-${{github.run_id}}" >> $GITHUB_ENV
@@ -150,8 +134,7 @@ jobs:
                                      -b ${{ github.event.inputs.branch }} \
                                      -w ${{ env.WORK_BRANCH }} \
                                      -l ${{ env.RELCAND_ID_LABEL }} \
-                                     -c "${{ github.server_url }}/${{ github.repository }}" \
-                                     ${{ github.event.inputs.skip-tests == 'true' && '-s' || '' }}
+                                     -c "${{ github.server_url }}/${{ github.repository }}"
           # Deployment id is the id known to Central Publishing Portal
           echo "DEPLOYMENT_ID=$(cat DEPLOYMENT.ID)" >> $GITHUB_ENV
 
@@ -159,11 +142,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          RELEASE_SHA=$(git rev-parse "v${{ github.event.inputs.release-version }}^{}")
+          # The release branch (rel) was pushed by stage-release.sh and carries exactly the
+          # release commit.  We use it as the docker.yaml trigger ref (a branch name is required)
+          # and as the anchor for the commit-<sha> image tags built by that workflow.
+          RELEASE_SHA=$(git rev-parse "origin/${WORK_BRANCH}-rel")
 
           # Capture time before dispatch so the poll can ignore runs from prior staging attempts
           DISPATCH_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          gh workflow run docker.yaml --ref "v${{ github.event.inputs.release-version }}"
+          gh workflow run docker.yaml --ref "${WORK_BRANCH}-rel"
 
           # Poll until the triggered run appears (dispatch registration can take a few seconds)
           RUN_ID=""
@@ -180,11 +166,14 @@ jobs:
           fi
           gh run watch "${RUN_ID}" --exit-status
           echo "DOCKER_RUN_ID=${RUN_ID}" >> $GITHUB_ENV
+          echo "RELEASE_SHA=${RELEASE_SHA}" >> $GITHUB_ENV
 
       - name: 'Build release state'
         run: |
           VERSION="${{ github.event.inputs.release-version }}"
-          SHA_TAG="commit-$(git rev-parse --short "v${VERSION}^{}")"
+          # RELEASE_SHA is the pre-merge release commit; it is also what docker.yaml tagged
+          # images with (GITHUB_SHA on the release branch == this commit).
+          SHA_TAG="commit-$(git rev-parse --short "${RELEASE_SHA}")"
           REGISTRY="${{ vars.REGISTRY_SERVER }}"
           ORG="${{ vars.REGISTRY_ORGANISATION }}"
           PROXY="${REGISTRY}/${ORG}/${{ vars.PROXY_IMAGE_NAME }}"
@@ -196,6 +185,7 @@ jobs:
             --arg releaseVersion "${VERSION}" \
             --arg developmentVersion "${{ github.event.inputs.development-version }}" \
             --arg workBranch "${{ env.WORK_BRANCH }}" \
+            --arg releaseCommitSha "${RELEASE_SHA}" \
             --arg imageWorkflowRunId "${{ env.DOCKER_RUN_ID }}" \
             --arg proxyAmd64Ref "${PROXY}:${SHA_TAG}-amd64" \
             --arg proxyArm64Ref "${PROXY}:${SHA_TAG}-arm64" \
@@ -208,6 +198,7 @@ jobs:
               releaseVersion: $releaseVersion,
               developmentVersion: $developmentVersion,
               workBranch: $workBranch,
+              releaseCommitSha: $releaseCommitSha,
               imageWorkflowRunId: $imageWorkflowRunId,
               stagedArtifacts: {
                 proxy: {
@@ -242,6 +233,33 @@ jobs:
         with:
           name: RELEASE_STATE.json
           path: RELEASE_STATE.json
+
+      - name: 'Archive release notes (used by the promote workflow)'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: RELEASE_NOTES
+          path: .releaseNotes/release-notes_01
+
+      - name: 'Collect release assets'
+        run: |
+          VERSION="${{ github.event.inputs.release-version }}"
+          mkdir release-assets
+
+          copy_dist() {
+            local prefix="$1"
+            cp "${prefix}.tar.gz" "${prefix}.tar.gz.asc" "${prefix}.zip" "${prefix}.zip.asc" release-assets/
+          }
+
+          copy_dist "kroxylicious-app/target/kroxylicious-app-${VERSION}-bin"
+          copy_dist "kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-${VERSION}"
+          copy_dist "kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-${VERSION}"
+          cp "kroxylicious-api/target/japicmp/japicmp.html" "release-assets/${VERSION}-compatability.html"
+
+      - name: 'Archive release assets (used by the promote workflow)'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: RELEASE_ASSETS
+          path: release-assets/
 
       - name: 'Stage release docs'
         if: ${{ success() }}
