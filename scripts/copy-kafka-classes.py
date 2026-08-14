@@ -100,12 +100,10 @@ FILES = [
     # UnalignedFileRecords, RemoteLogInputStream, package-info.
     # DefaultRecordBatch and AbstractLegacyRecordBatch require surgical removal of
     # inner classes that reference FileLogInputStream (see issue #4578).
-    # ControlRecordType: ControlRecordTypeSchema import kept as org.apache.kafka.* (TODO, see issue #4644).
     # ControlRecordUtils / EndTransactionMarker / MemoryRecordsBuilder: deferred to PR3.
     # They depend on io.kroxylicious.kafka.common.message.* types produced by the message generator,
     # which is not available until PR3 (issue #4644).
     ("common/record/internal/AbstractLegacyRecordBatch.java", "common/record/internal/AbstractLegacyRecordBatch.java"),
-    ("common/record/internal/ControlRecordType.java",         "common/record/internal/ControlRecordType.java"),
     ("common/record/internal/AbstractRecordBatch.java",        "common/record/internal/AbstractRecordBatch.java"),
     ("common/record/internal/AbstractRecords.java",            "common/record/internal/AbstractRecords.java"),
     ("common/record/internal/BaseRecords.java",                "common/record/internal/BaseRecords.java"),
@@ -201,8 +199,7 @@ FILES = [
 #   MemoryRecordsBuilderTest, ControlRecordUtilsTest, EndTransactionMarkerTest
 # Excluded (out of scope — depend on non-copied classes):
 #   GzipCompressionTest (ConfigDef/ConfigException),
-#   MultiRecordsSendTest (ByteBufferSend),
-#   ControlRecordTypeTest (ControlRecordTypeSchema, a generated type)
+#   MultiRecordsSendTest (ByteBufferSend)
 # ---------------------------------------------------------------------------
 
 TEST_FILES = [
@@ -291,7 +288,7 @@ IMPORT_PREFIXES = [
     # protocol.types before protocol
     ("org.apache.kafka.common.protocol.types.",            "io.kroxylicious.kafka.common.protocol.types."),
     ("org.apache.kafka.common.protocol.",                  "io.kroxylicious.kafka.common.protocol."),
-    # record.internal before record (covers ControlRecordType, MemoryRecordsBuilder, etc.)
+    # record.internal before record (covers MemoryRecordsBuilder, etc.)
     ("org.apache.kafka.common.record.internal.",           "io.kroxylicious.kafka.common.record.internal."),
     ("org.apache.kafka.common.record.TimestampType",       "io.kroxylicious.kafka.common.record.TimestampType"),
     # Handles any pre-4.3.0 style import of CompressionType at its old (non-internal) path
