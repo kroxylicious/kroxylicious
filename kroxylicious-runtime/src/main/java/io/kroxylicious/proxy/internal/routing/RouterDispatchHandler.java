@@ -44,6 +44,8 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
 /**
  * Sits at the end of the VC-level filter chain (instead of
  * {@link io.kroxylicious.proxy.internal.FilterChainCompletionHandler}) when a
@@ -285,7 +287,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                         .setCause(error)
                         .log("Router returned failed future");
                 oobFrame.promise().completeExceptionally(error);
-                ctx.channel().close();
+                ctx.channel().close().addListener(logFailure(LOGGER, "close after router returned failed future for OOB request"));
                 return;
             }
             if (!(result instanceof RouterResponseImpl rri)) {
@@ -298,7 +300,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                         .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
                         .log("Router returned unrecognised RouterResponse type; closing connection");
                 oobFrame.promise().completeExceptionally(cause);
-                ctx.channel().close();
+                ctx.channel().close().addListener(logFailure(LOGGER, "close after unrecognised router response type for OOB request"));
                 return;
             }
             if (rri instanceof RouterResponseImpl.RespondWith rw) {
@@ -315,7 +317,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                         : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
                 oobFrame.promise().completeExceptionally(cause);
                 if (rri.closeConnection()) {
-                    ctx.channel().close();
+                    ctx.channel().close().addListener(logFailure(LOGGER, "close requested by router for OOB request"));
                 }
             }
         }
@@ -335,7 +337,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                     .setCause(error)
                     .log("Router returned failed future");
             Objects.requireNonNull(responseSequencer).skip(sequence);
-            ctx.channel().close();
+            ctx.channel().close().addListener(logFailure(LOGGER, "close after router returned failed future"));
             return;
         }
         if (!(result instanceof RouterResponseImpl rri)) {
@@ -346,7 +348,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                     .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
                     .log("Router returned unrecognised RouterResponse type; closing connection");
             Objects.requireNonNull(responseSequencer).skip(sequence);
-            ctx.channel().close();
+            ctx.channel().close().addListener(logFailure(LOGGER, "close after unrecognised router response type"));
             return;
         }
         deliverResponse(ctx, rri, apiKey, apiVersion, correlationId, sequence);
@@ -384,7 +386,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
             }
         }
         if (rri.closeConnection()) {
-            ctx.channel().close();
+            ctx.channel().close().addListener(logFailure(LOGGER, "close requested by router after response delivery"));
         }
         ccsm.onRoutedRequestComplete();
     }
@@ -411,7 +413,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                             .addKeyValue("sessionId", ccsm.sessionId())
                             .addKeyValue("routingCorrelationId", correlationId)
                             .log("Received response with no pending routing future");
-                    ctx.channel().close();
+                    ctx.channel().close().addListener(logFailure(LOGGER, "close after response with no pending routing future"));
                 }
                 promise.setSuccess();
                 return;

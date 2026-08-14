@@ -21,6 +21,8 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
 /**
  * Netty handler for the upstream (server-facing) side of the proxy. Feeds channel lifecycle,
  * writability and read events from the connection to the Kafka broker into the
@@ -230,7 +232,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
             else {
                 // The outboundChannel can be open without being active during protocol negotiation.
                 // Ensure it gets closed.
-                outboundChannel.close();
+                outboundChannel.close().addListener(logFailure(LOGGER, "close inactive outbound channel"));
             }
         }
     }
