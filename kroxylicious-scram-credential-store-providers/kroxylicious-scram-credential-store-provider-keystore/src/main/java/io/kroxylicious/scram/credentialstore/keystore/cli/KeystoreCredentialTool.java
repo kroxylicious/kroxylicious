@@ -177,7 +177,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            try {
+            return executeCommand(() -> {
                 String keystorePassword = getPassword(
                         password,
                         parent.unlockInsecureOptions,
@@ -189,20 +189,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
                 manager.createKeyStore(keystorePath, keystorePassword, storeType);
                 spec.commandLine().getOut().println("KeyStore created successfully: " + keystorePath);
-                return 0;
-            }
-            catch (CredentialValidationException e) {
-                printError(spec.commandLine().getErr(), e.getMessage());
-                return 1;
-            }
-            catch (IllegalStateException e) {
-                printError(spec.commandLine().getErr(), e.getMessage());
-                return 2;
-            }
-            catch (KeyStoreException e) {
-                printError(spec.commandLine().getErr(), formatError("Failed to create KeyStore", e));
-                return 1;
-            }
+            }, "Failed to create KeyStore", spec.commandLine().getErr());
         }
     }
 
@@ -242,7 +229,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            try {
+            return executeCommand(() -> {
                 String keystorePassword = getPassword(
                         storePassword,
                         parent.unlockInsecureOptions,
@@ -262,20 +249,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
                 manager.addUser(keystorePath, keystorePassword, username, password, mechanism.toScramMechanism(), iterations);
                 spec.commandLine().getOut().println("User '" + username + "' added successfully");
-                return 0;
-            }
-            catch (CredentialValidationException e) {
-                printError(spec.commandLine().getErr(), e.getMessage());
-                return 1;
-            }
-            catch (IllegalStateException e) {
-                printError(spec.commandLine().getErr(), e.getMessage());
-                return 2;
-            }
-            catch (KeyStoreException e) {
-                printError(spec.commandLine().getErr(), formatError("Failed to add user", e));
-                return 1;
-            }
+            }, "Failed to add user", spec.commandLine().getErr());
         }
     }
 
@@ -303,7 +277,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            try {
+            return executeCommand(() -> {
                 String keystorePassword = getPassword(
                         password,
                         parent.unlockInsecureOptions,
@@ -315,20 +289,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
                 manager.removeUser(keystorePath, keystorePassword, username);
                 spec.commandLine().getOut().println("User '" + username + "' removed successfully");
-                return 0;
-            }
-            catch (CredentialValidationException e) {
-                printError(spec.commandLine().getErr(), e.getMessage());
-                return 1;
-            }
-            catch (IllegalStateException e) {
-                printError(spec.commandLine().getErr(), e.getMessage());
-                return 2;
-            }
-            catch (KeyStoreException e) {
-                printError(spec.commandLine().getErr(), formatError("Failed to remove user", e));
-                return 1;
-            }
+            }, "Failed to remove user", spec.commandLine().getErr());
         }
     }
 
@@ -368,7 +329,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            try {
+            return executeCommand(() -> {
                 String keystorePassword = getPassword(
                         storePassword,
                         parent.unlockInsecureOptions,
@@ -388,20 +349,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
                 manager.updatePassword(keystorePath, keystorePassword, username, password, mechanism.toScramMechanism(), iterations);
                 spec.commandLine().getOut().println("Password for user '" + username + "' updated successfully");
-                return 0;
-            }
-            catch (CredentialValidationException e) {
-                printError(spec.commandLine().getErr(), e.getMessage());
-                return 1;
-            }
-            catch (IllegalStateException e) {
-                printError(spec.commandLine().getErr(), e.getMessage());
-                return 2;
-            }
-            catch (KeyStoreException e) {
-                printError(spec.commandLine().getErr(), formatError("Failed to update password", e));
-                return 1;
-            }
+            }, "Failed to update password", spec.commandLine().getErr());
         }
     }
 
@@ -425,7 +373,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            try {
+            return executeCommand(() -> {
                 String keystorePassword = getPassword(
                         password,
                         parent.unlockInsecureOptions,
@@ -446,20 +394,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                         spec.commandLine().getOut().println("  " + info.username() + "  " + info.mechanism() + "  iterations=" + info.iterations());
                     }
                 }
-                return 0;
-            }
-            catch (CredentialValidationException e) {
-                printError(spec.commandLine().getErr(), e.getMessage());
-                return 1;
-            }
-            catch (IllegalStateException e) {
-                printError(spec.commandLine().getErr(), e.getMessage());
-                return 2;
-            }
-            catch (KeyStoreException e) {
-                printError(spec.commandLine().getErr(), formatError("Failed to list users", e));
-                return 1;
-            }
+            }, "Failed to list users", spec.commandLine().getErr());
         }
     }
 
@@ -475,6 +410,41 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 case SCRAM_SHA_256 -> ScramMechanism.SCRAM_SHA_256;
                 case SCRAM_SHA_512 -> ScramMechanism.SCRAM_SHA_512;
             };
+        }
+    }
+
+    /**
+     * Action that may throw {@link KeyStoreException}.
+     */
+    @FunctionalInterface
+    interface CommandAction {
+        void execute() throws KeyStoreException;
+    }
+
+    /**
+     * Execute a command action with standardised error handling.
+     *
+     * @param action the action to execute
+     * @param errorContext context string for KeyStoreException messages (e.g. "Failed to create KeyStore")
+     * @param err the error stream
+     * @return exit code: 0 for success, 1 for validation/keystore errors, 2 for input errors
+     */
+    static int executeCommand(CommandAction action, String errorContext, java.io.PrintWriter err) {
+        try {
+            action.execute();
+            return 0;
+        }
+        catch (CredentialValidationException e) {
+            printError(err, e.getMessage());
+            return 1;
+        }
+        catch (IllegalStateException e) {
+            printError(err, e.getMessage());
+            return 2;
+        }
+        catch (KeyStoreException e) {
+            printError(err, formatError(errorContext, e));
+            return 1;
         }
     }
 
