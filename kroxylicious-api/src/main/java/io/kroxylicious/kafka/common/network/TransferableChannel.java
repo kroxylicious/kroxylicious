@@ -18,6 +18,7 @@ package io.kroxylicious.kafka.common.network;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.nio.channels.GatheringByteChannel;
 
 /**
  * Extends GatheringByteChannel with the minimal set of methods required by the Send interface. Supporting TLS and
@@ -25,7 +26,7 @@ import java.nio.channels.FileChannel;
  * 
  * @see SslTransportLayer
  */
-public interface TransferableChannel extends java.nio.channels.GatheringByteChannel {
+public interface TransferableChannel extends GatheringByteChannel {
 
     /**
      * @return true if there are any pending writes. false if the implementation directly write all data to output.
