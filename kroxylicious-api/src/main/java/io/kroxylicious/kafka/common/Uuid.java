@@ -72,11 +72,11 @@ public class Uuid implements Comparable<Uuid> {
     /**
      * Static factory to retrieve a type 4 (pseudo randomly generated) UUID.
      * <p>
-     * This will not generate a UUID equal to 0, 1, or one whose string representation contains a dash ("-").
+     * This will not generate a UUID equal to 0, 1, or one whose string representation starts with a dash ("-").
      */
     public static Uuid randomUuid() {
         Uuid uuid = unsafeRandomUuid();
-        while (RESERVED.contains(uuid) || uuid.toString().contains("-")) {
+        while (RESERVED.contains(uuid) || uuid.toString().startsWith("-")) {
             uuid = unsafeRandomUuid();
         }
         return uuid;
@@ -175,7 +175,11 @@ public class Uuid implements Comparable<Uuid> {
      */
     public static Uuid[] toArray(List<Uuid> list) {
         if (list == null) return null;
-        return list.toArray(new Uuid[0]);
+        Uuid[] array = new Uuid[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            array[i] = list.get(i);
+        }
+        return array;
     }
 
     /**
@@ -186,6 +190,8 @@ public class Uuid implements Comparable<Uuid> {
      */
     public static List<Uuid> toList(Uuid[] array) {
         if (array == null) return null;
-        return new ArrayList<>(Arrays.asList(array));
+        List<Uuid> list = new ArrayList<>(array.length);
+        list.addAll(Arrays.asList(array));
+        return list;
     }
 }
