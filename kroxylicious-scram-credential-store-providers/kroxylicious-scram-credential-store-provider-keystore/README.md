@@ -9,7 +9,7 @@ This module provides a production-ready credential store that loads SCRAM creden
 ## Features
 
 - **SCRAM-SHA-256 and SCRAM-SHA-512 support** - Stores salted, hashed credentials
-- **Java KeyStore integration** - Uses standard JKS or PKCS12 KeyStore formats
+- **Java KeyStore integration** - Uses PKCS12 KeyStore format
 - **Secure credential storage** - Never stores plaintext passwords
 - **Fast lookups** - In-memory cache for sub-millisecond credential retrieval
 - **Password-protected** - KeyStore protected by password
@@ -22,7 +22,6 @@ credentialStoreConfig:
   file: /path/to/credentials.p12
   storePassword:
     passwordFile: /etc/kroxylicious/keystore-password.txt
-  storeType: PKCS12
 ```
 
 ### Configuration Parameters
@@ -31,7 +30,6 @@ credentialStoreConfig:
 |-----------|------|----------|---------|-------------|
 | `file` | string | Yes | - | Path to the KeyStore file |
 | `storePassword` | PasswordProvider | Yes | - | Password for the KeyStore and its entries |
-| `storeType` | string | No | Platform default | KeyStore type (e.g., "PKCS12") |
 
 ## KeyStore Format
 
@@ -115,7 +113,7 @@ Then extract the generated credentials and store them in the KeyStore format des
 
 - **File permissions**: Restrict KeyStore file to 600 (owner read/write only)
 - **Strong passwords**: Use strong, randomly generated passwords via `PasswordProvider`
-- **Prefer PKCS12**: Modern PKCS12 format is more secure than legacy JKS
+- **PKCS12 format**: Uses the modern PKCS12 KeyStore format
 
 ### Credential Security
 
@@ -156,7 +154,6 @@ filters:
             file: /etc/kroxylicious/credentials.p12
             storePassword:
               file: /etc/kroxylicious/keystore-password.txt
-            storeType: PKCS12
 ```
 
 ## Troubleshooting
@@ -165,7 +162,6 @@ filters:
 
 - **Check file path**: Ensure the file exists and is readable
 - **Check password**: Verify storePassword is correct
-- **Check format**: Ensure storeType matches actual KeyStore type
 
 ### "Failed to recover key for alias"
 

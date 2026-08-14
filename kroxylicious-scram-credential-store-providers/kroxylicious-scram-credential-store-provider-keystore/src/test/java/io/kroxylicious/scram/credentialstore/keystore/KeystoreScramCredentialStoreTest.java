@@ -55,7 +55,7 @@ class KeystoreScramCredentialStoreTest {
         keystorePath = tempDir.resolve("test-credentials.p12");
 
         // Generate test keystore with two users
-        var generator = new KeystoreCredentialManager();
+        var generator = new TestCredentialGenerator();
         generator.generateKeyStore(keystorePath, STORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, "alice", ALICE_PASSWORD, "bob", BOB_PASSWORD);
 
         if (Files.getFileAttributeView(keystorePath, PosixFileAttributeView.class) != null) {
@@ -147,7 +147,7 @@ class KeystoreScramCredentialStoreTest {
     @Test
     void shouldHandleEmptyKeyStore() throws Exception {
         Path emptyKeystorePath = tempDir.resolve("empty.p12");
-        var generator = new KeystoreCredentialManager();
+        var generator = new TestCredentialGenerator();
         generator.generateKeyStore(emptyKeystorePath, STORE_PASSWORD, ScramMechanism.SCRAM_SHA_256);
         if (Files.getFileAttributeView(emptyKeystorePath, PosixFileAttributeView.class) != null) {
             Files.setPosixFilePermissions(emptyKeystorePath, PosixFilePermissions.fromString("rw-------"));

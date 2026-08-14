@@ -39,7 +39,7 @@ class KeystoreScramCredentialStoreServiceTest {
     void setUp() throws Exception {
         keystorePath = tempDir.resolve("test-credentials.p12");
 
-        var generator = new KeystoreCredentialManager();
+        var generator = new TestCredentialGenerator();
         generator.generateKeyStore(keystorePath, STORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, "alice", "alice-secret");
 
         if (Files.getFileAttributeView(keystorePath, PosixFileAttributeView.class) != null) {

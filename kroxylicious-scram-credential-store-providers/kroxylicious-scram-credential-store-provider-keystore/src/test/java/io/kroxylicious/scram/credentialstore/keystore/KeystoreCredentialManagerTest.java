@@ -258,23 +258,6 @@ class KeystoreCredentialManagerTest {
     }
 
     @Test
-    void shouldRejectShortPasswordInGenerateKeyStore(@TempDir Path tempDir) {
-        // Given
-        Path keystorePath = tempDir.resolve("test.p12");
-        var manager = new KeystoreCredentialManager();
-
-        // When/Then - short KeyStore password
-        assertThatThrownBy(() -> manager.generateKeyStore(keystorePath, "short", ScramMechanism.SCRAM_SHA_256, "alice", USER_PASSWORD))
-                .isInstanceOf(CredentialValidationException.class)
-                .hasMessageContaining("KeyStore password must be at least 12 characters long");
-
-        // When/Then - short user password
-        assertThatThrownBy(() -> manager.generateKeyStore(keystorePath, KEYSTORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, "alice", "short"))
-                .isInstanceOf(CredentialValidationException.class)
-                .hasMessageContaining("User password for 'alice' must be at least 12 characters long");
-    }
-
-    @Test
     void shouldAcceptMinimumLengthPassword(@TempDir Path tempDir) throws Exception {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
@@ -452,17 +435,17 @@ class KeystoreCredentialManagerTest {
         assertThat(credentials).isEmpty();
     }
 
-    // generateKeyStore validation tests
+    // TestCredentialGenerator validation tests
 
     @Test
     void shouldRejectOddNumberOfUsersInGenerateKeyStore(@TempDir Path tempDir) {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
-        var manager = new KeystoreCredentialManager();
+        var generator = new TestCredentialGenerator();
 
         // When/Then
-        assertThatThrownBy(() -> manager.generateKeyStore(keystorePath, KEYSTORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, "alice", USER_PASSWORD, "bob"))
-                .isInstanceOf(CredentialValidationException.class)
+        assertThatThrownBy(() -> generator.generateKeyStore(keystorePath, KEYSTORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, "alice", USER_PASSWORD, "bob"))
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("alternating username/password pairs");
     }
 
