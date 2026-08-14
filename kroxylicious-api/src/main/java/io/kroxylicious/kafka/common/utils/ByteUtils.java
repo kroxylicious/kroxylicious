@@ -23,8 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Comparator;
 
 /**
  * This classes exposes low-level methods for reading/writing from byte streams or buffers.
@@ -37,40 +35,6 @@ public final class ByteUtils {
     public static final ByteBuffer EMPTY_BUF = ByteBuffer.wrap(new byte[0]);
 
     private ByteUtils() {}
-
-    /**
-     * A byte array comparator based on lexicographic ordering.
-     */
-    public static final ByteArrayComparator BYTES_LEXICO_COMPARATOR = new LexicographicByteArrayComparator();
-
-    public interface ByteArrayComparator extends Comparator<byte[]> {
-
-        int compare(final byte[] buffer1, int offset1, int length1,
-                    final byte[] buffer2, int offset2, int length2);
-    }
-
-    public static class LexicographicByteArrayComparator implements ByteArrayComparator {
-
-        @Override
-        public int compare(byte[] buffer1, byte[] buffer2) {
-            return compare(buffer1, 0, buffer1.length, buffer2, 0, buffer2.length);
-        }
-
-        public int compare(final byte[] buffer1, int offset1, int length1,
-                           final byte[] buffer2, int offset2, int length2) {
-
-            // short circuit equal case
-            if (buffer1 == buffer2 &&
-                    offset1 == offset2 &&
-                    length1 == length2) {
-                return 0;
-            }
-
-            int end1 = offset1 + length1;
-            int end2 = offset2 + length2;
-            return Arrays.compareUnsigned(buffer1, offset1, end1, buffer2, offset2, end2);
-        }
-    }
 
     /**
      * Read an unsigned integer from the current position in the buffer, incrementing the position by 4 bytes
