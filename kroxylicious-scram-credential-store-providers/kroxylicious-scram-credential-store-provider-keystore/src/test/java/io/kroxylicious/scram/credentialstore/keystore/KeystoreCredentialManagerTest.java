@@ -199,9 +199,6 @@ class KeystoreCredentialManagerTest {
         // When/Then
         assertThatThrownBy(() -> manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
                 .isInstanceOf(KeyStoreException.class)
-                .hasMessageContaining("Failed to add user")
-                .hasCauseInstanceOf(KeyStoreException.class)
-                .cause()
                 .hasMessageContaining("KeyStore file not found");
     }
 

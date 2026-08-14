@@ -7,8 +7,10 @@
 package io.kroxylicious.scram.credentialstore.keystore;
 
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -68,6 +70,34 @@ final class KeystoreFilePermissions {
         PosixFileAttributeView posixView = Files.getFileAttributeView(path, PosixFileAttributeView.class);
         if (posixView != null) {
             Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
+        }
+    }
+
+    /**
+     * Ensure that a file exists with owner-only permissions before it is written to.
+     * On POSIX systems, creates the file atomically with {@code rw-------} permissions if it does not exist,
+     * or sets those permissions on an existing file. On non-POSIX systems this is a no-op.
+     */
+    static void ensureOwnerOnlyBeforeWrite(Path path) throws IOException {
+        Path parent = path.getParent();
+        PosixFileAttributeView posixView = Files.getFileAttributeView(
+                parent != null ? parent : path, PosixFileAttributeView.class);
+        if (posixView == null) {
+            return;
+        }
+
+        if (Files.exists(path)) {
+            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
+        }
+        else {
+            Set<PosixFilePermission> ownerOnly = PosixFilePermissions.fromString("rw-------");
+            FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(ownerOnly);
+            try {
+                Files.createFile(path, attr);
+            }
+            catch (FileAlreadyExistsException e) {
+                Files.setPosixFilePermissions(path, ownerOnly);
+            }
         }
     }
 

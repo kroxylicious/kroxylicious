@@ -6,7 +6,6 @@
 
 package io.kroxylicious.scram.credentialstore.keystore;
 
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -19,7 +18,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HexFormat;
 import java.util.List;
@@ -136,10 +134,10 @@ public class KeystoreCredentialManager {
             KeyStore keyStore = KeyStore.getInstance(storeType);
             keyStore.load(null, storePassword.toCharArray());
 
+            KeystoreFilePermissions.ensureOwnerOnlyBeforeWrite(keystorePath);
             try (FileOutputStream fos = new FileOutputStream(keystorePath.toFile())) {
                 keyStore.store(fos, storePassword.toCharArray());
             }
-            KeystoreFilePermissions.setOwnerOnly(keystorePath);
         }
         catch (IOException | NoSuchAlgorithmException | CertificateException e) {
             throw new KeyStoreException("Failed to create KeyStore at " + keystorePath, e);
@@ -212,7 +210,7 @@ public class KeystoreCredentialManager {
 
             saveKeyStore(keyStore, keystorePath, storePassword);
         }
-        catch (Exception e) {
+        catch (IOException | NoSuchAlgorithmException | CertificateException e) {
             throw new KeyStoreException("Failed to add user '" + username + "' to KeyStore", e);
         }
     }
@@ -315,36 +313,17 @@ public class KeystoreCredentialManager {
      *
      * @param keystorePath path to the KeyStore file
      * @param storePassword KeyStore password
-     * @return list of usernames (aliases) in the KeyStore
+     * @return list of usernames (aliases) in the KeyStore, sorted alphabetically
      * @throws KeyStoreException if the operation fails
      */
-    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public List<String> listUsers(
                                   Path keystorePath,
                                   String storePassword)
             throws KeyStoreException {
-        try {
-            KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
-            ScramCredentialSerializer serializer = new ScramCredentialSerializer();
-            KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(storePassword.toCharArray());
-
-            List<String> users = new ArrayList<>();
-            Enumeration<String> aliases = keyStore.aliases();
-            while (aliases.hasMoreElements()) {
-                String alias = aliases.nextElement();
-                if (keyStore.isKeyEntry(alias)) {
-                    KeyStore.SecretKeyEntry entry = (KeyStore.SecretKeyEntry) keyStore.getEntry(alias, protection);
-                    ScramCredential credential = serializer.deserialize(entry.getSecretKey().getEncoded(), alias);
-                    users.add(credential.username());
-                }
-            }
-
-            Collections.sort(users);
-            return users;
-        }
-        catch (IOException | NoSuchAlgorithmException | CertificateException | java.security.UnrecoverableEntryException e) {
-            throw new KeyStoreException("Failed to list users from KeyStore", e);
-        }
+        return loadAllCredentials(keystorePath, storePassword).stream()
+                .map(ScramCredential::username)
+                .sorted()
+                .toList();
     }
 
     /**
@@ -369,33 +348,45 @@ public class KeystoreCredentialManager {
      * @return list of credential metadata, sorted by username
      * @throws KeyStoreException if the operation fails
      */
-    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public List<UserCredentialInfo> listCredentials(
                                                     Path keystorePath,
                                                     String storePassword)
+            throws KeyStoreException {
+        return loadAllCredentials(keystorePath, storePassword).stream()
+                .map(c -> new UserCredentialInfo(
+                        c.username(),
+                        c.hashAlgorithm() == ScramHashAlgorithm.SHA_256 ? "SCRAM-SHA-256" : "SCRAM-SHA-512",
+                        c.iterations()))
+                .sorted()
+                .toList();
+    }
+
+    /**
+     * Load and deserialize all SCRAM credentials from a KeyStore.
+     */
+    @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
+    private List<ScramCredential> loadAllCredentials(
+                                                     Path keystorePath,
+                                                     String storePassword)
             throws KeyStoreException {
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
             ScramCredentialSerializer serializer = new ScramCredentialSerializer();
             KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(storePassword.toCharArray());
 
-            List<UserCredentialInfo> credentials = new ArrayList<>();
+            List<ScramCredential> credentials = new ArrayList<>();
             Enumeration<String> aliases = keyStore.aliases();
             while (aliases.hasMoreElements()) {
                 String alias = aliases.nextElement();
                 if (keyStore.isKeyEntry(alias)) {
                     KeyStore.SecretKeyEntry entry = (KeyStore.SecretKeyEntry) keyStore.getEntry(alias, protection);
-                    ScramCredential credential = serializer.deserialize(entry.getSecretKey().getEncoded(), alias);
-                    String mechanism = credential.hashAlgorithm() == ScramHashAlgorithm.SHA_256 ? "SCRAM-SHA-256" : "SCRAM-SHA-512";
-                    credentials.add(new UserCredentialInfo(credential.username(), mechanism, credential.iterations()));
+                    credentials.add(serializer.deserialize(entry.getSecretKey().getEncoded(), alias));
                 }
             }
-
-            Collections.sort(credentials);
             return credentials;
         }
         catch (IOException | NoSuchAlgorithmException | CertificateException | java.security.UnrecoverableEntryException e) {
-            throw new KeyStoreException("Failed to list credentials from KeyStore", e);
+            throw new KeyStoreException("Failed to load credentials from KeyStore", e);
         }
     }
 
@@ -451,10 +442,10 @@ public class KeystoreCredentialManager {
             keyStore.setEntry(hashUsername(username), entry, protection);
         }
 
+        KeystoreFilePermissions.ensureOwnerOnlyBeforeWrite(outputPath);
         try (FileOutputStream fos = new FileOutputStream(outputPath.toFile())) {
             keyStore.store(fos, storePassword.toCharArray());
         }
-        KeystoreFilePermissions.setOwnerOnly(outputPath);
     }
 
     /**
@@ -518,7 +509,7 @@ public class KeystoreCredentialManager {
     }
 
     /**
-     * Load a KeyStore from disk.
+     * Load a KeyStore from disk, auto-detecting the store type.
      */
     private KeyStore loadKeyStore(
                                   Path keystorePath,
@@ -536,9 +527,8 @@ public class KeystoreCredentialManager {
             throw new KeyStoreException(e.getMessage(), e);
         }
 
-        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-        try (FileInputStream fis = new FileInputStream(keystorePath.toFile())) {
-            keyStore.load(fis, storePassword.toCharArray());
+        try {
+            return KeyStore.getInstance(keystorePath.toFile(), storePassword.toCharArray());
         }
         catch (IOException e) {
             if (e.getCause() instanceof java.security.UnrecoverableKeyException) {
@@ -547,7 +537,6 @@ public class KeystoreCredentialManager {
             }
             throw e;
         }
-        return keyStore;
     }
 
     /**

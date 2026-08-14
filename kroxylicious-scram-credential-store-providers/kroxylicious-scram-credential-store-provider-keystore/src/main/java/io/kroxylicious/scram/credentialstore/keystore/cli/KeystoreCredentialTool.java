@@ -168,10 +168,10 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-t", "--type" }, description = "Optiona KeyStore type (default: ${DEFAULT-VALUE})", defaultValue = "PKCS12")
+        @Option(names = { "-t", "--type" }, description = "Optional KeyStore type (default: ${DEFAULT-VALUE})", defaultValue = "PKCS12")
         String storeType;
 
-        @Option(names = { "-p", "--password" }, description = "Optional store password; requires --unlock-insecure-options."
+        @Option(names = { "-p", "--password" }, description = "Optional store password; requires --unlock-insecure-options. "
                 + "When omitted the store password will be prompted for interactively.")
         String password;
 
@@ -236,7 +236,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 + "When omitted the store password will be prompted for interactively.")
         String storePassword;
 
-        @Option(names = { "-w", "--user-password" }, description = "Optional user's password; requires --unlock-insecure-options."
+        @Option(names = { "-w", "--user-password" }, description = "Optional user's password; requires --unlock-insecure-options. "
                 + "When omitted the user password will be prompted for interactively.")
         String userPassword;
 
