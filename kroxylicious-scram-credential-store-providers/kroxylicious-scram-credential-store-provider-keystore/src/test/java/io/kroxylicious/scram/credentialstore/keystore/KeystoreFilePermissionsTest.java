@@ -119,6 +119,28 @@ class KeystoreFilePermissionsTest {
                 .isEqualTo(PosixFilePermissions.fromString("rw-------"));
     }
 
+    @Test
+    void checkForCredentialStoreShouldReturnWithoutErrorWhenFileDoesNotExist(@TempDir Path tempDir) {
+        // Given
+        Path nonExistentFile = tempDir.resolve("does-not-exist.p12");
+
+        // When/Then
+        assertThatCode(() -> KeystoreFilePermissions.checkForCredentialStore(nonExistentFile))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void checkForCredentialStoreShouldAllowOwnerOnlyFileInStrictMode(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path file = createFile(tempDir);
+        assumePosixPermissions(file);
+        Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+
+        // When/Then
+        assertThatCode(() -> KeystoreFilePermissions.checkForCredentialStore(file))
+                .doesNotThrowAnyException();
+    }
+
     private static Path createFile(Path dir) throws IOException {
         return Files.createTempFile(dir, "keystore-perm-test", ".tmp");
     }

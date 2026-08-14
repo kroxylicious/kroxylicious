@@ -294,6 +294,90 @@ class KeystoreCredentialManagerTest {
         assertThat(users).containsExactly("alice");
     }
 
+    // Username validation tests
+
+    @Test
+    void shouldRejectNullUsername(@TempDir Path tempDir) throws Exception {
+        // Given
+        Path keystorePath = tempDir.resolve("test.p12");
+        var manager = new KeystoreCredentialManager();
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+
+        // When/Then
+        assertThatThrownBy(() -> manager.addUser(keystorePath, KEYSTORE_PASSWORD, null, USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
+                .isInstanceOf(CredentialValidationException.class)
+                .hasMessageContaining("must not be null or empty");
+    }
+
+    @Test
+    void shouldRejectEmptyUsername(@TempDir Path tempDir) throws Exception {
+        // Given
+        Path keystorePath = tempDir.resolve("test.p12");
+        var manager = new KeystoreCredentialManager();
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+
+        // When/Then
+        assertThatThrownBy(() -> manager.addUser(keystorePath, KEYSTORE_PASSWORD, "", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
+                .isInstanceOf(CredentialValidationException.class)
+                .hasMessageContaining("must not be null or empty");
+    }
+
+    @Test
+    void shouldRejectOversizedUsername(@TempDir Path tempDir) throws Exception {
+        // Given
+        Path keystorePath = tempDir.resolve("test.p12");
+        var manager = new KeystoreCredentialManager();
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        String longUsername = "a".repeat(256);
+
+        // When/Then
+        assertThatThrownBy(() -> manager.addUser(keystorePath, KEYSTORE_PASSWORD, longUsername, USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
+                .isInstanceOf(CredentialValidationException.class)
+                .hasMessageContaining("must not exceed 255 characters");
+    }
+
+    @Test
+    void shouldAcceptMaxLengthUsername(@TempDir Path tempDir) throws Exception {
+        // Given
+        Path keystorePath = tempDir.resolve("test.p12");
+        var manager = new KeystoreCredentialManager();
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        String maxUsername = "a".repeat(255);
+
+        // When
+        manager.addUser(keystorePath, KEYSTORE_PASSWORD, maxUsername, USER_PASSWORD, ScramMechanism.SCRAM_SHA_256);
+
+        // Then
+        List<String> users = manager.listUsers(keystorePath, KEYSTORE_PASSWORD);
+        assertThat(users).containsExactly(maxUsername);
+    }
+
+    @Test
+    void shouldRejectNullUsernameOnUpdate(@TempDir Path tempDir) throws Exception {
+        // Given
+        Path keystorePath = tempDir.resolve("test.p12");
+        var manager = new KeystoreCredentialManager();
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+
+        // When/Then
+        assertThatThrownBy(() -> manager.updatePassword(keystorePath, KEYSTORE_PASSWORD, null, USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
+                .isInstanceOf(CredentialValidationException.class)
+                .hasMessageContaining("must not be null or empty");
+    }
+
+    @Test
+    void shouldRejectEmptyUsernameOnUpdate(@TempDir Path tempDir) throws Exception {
+        // Given
+        Path keystorePath = tempDir.resolve("test.p12");
+        var manager = new KeystoreCredentialManager();
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+
+        // When/Then
+        assertThatThrownBy(() -> manager.updatePassword(keystorePath, KEYSTORE_PASSWORD, "", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
+                .isInstanceOf(CredentialValidationException.class)
+                .hasMessageContaining("must not be null or empty");
+    }
+
     @Test
     void shouldAcceptPasswordWithoutSpecialCharacters(@TempDir Path tempDir) throws Exception {
         // Given
@@ -308,5 +392,76 @@ class KeystoreCredentialManagerTest {
         // Then
         List<String> users = manager.listUsers(keystorePath, passphrasePassword);
         assertThat(users).containsExactly("alice");
+    }
+
+    // listCredentials tests
+
+    @Test
+    void shouldListCredentialsWithMechanismAndIterations(@TempDir Path tempDir) throws Exception {
+        // Given
+        Path keystorePath = tempDir.resolve("test.p12");
+        var manager = new KeystoreCredentialManager();
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256);
+        manager.addUser(keystorePath, KEYSTORE_PASSWORD, "bob", USER_PASSWORD, ScramMechanism.SCRAM_SHA_512, 8192);
+
+        // When
+        List<KeystoreCredentialManager.UserCredentialInfo> credentials = manager.listCredentials(keystorePath, KEYSTORE_PASSWORD);
+
+        // Then
+        assertThat(credentials).hasSize(2);
+        assertThat(credentials).extracting(KeystoreCredentialManager.UserCredentialInfo::username)
+                .containsExactly("alice", "bob");
+        assertThat(credentials).anySatisfy(c -> {
+            assertThat(c.username()).isEqualTo("alice");
+            assertThat(c.mechanism()).isEqualTo("SCRAM-SHA-256");
+            assertThat(c.iterations()).isEqualTo(10000);
+        });
+        assertThat(credentials).anySatisfy(c -> {
+            assertThat(c.username()).isEqualTo("bob");
+            assertThat(c.mechanism()).isEqualTo("SCRAM-SHA-512");
+            assertThat(c.iterations()).isEqualTo(8192);
+        });
+    }
+
+    @Test
+    void shouldReturnEmptyCredentialsWhenNoUsers(@TempDir Path tempDir) throws Exception {
+        // Given
+        Path keystorePath = tempDir.resolve("test.p12");
+        var manager = new KeystoreCredentialManager();
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+
+        // When
+        List<KeystoreCredentialManager.UserCredentialInfo> credentials = manager.listCredentials(keystorePath, KEYSTORE_PASSWORD);
+
+        // Then
+        assertThat(credentials).isEmpty();
+    }
+
+    // generateKeyStore validation tests
+
+    @Test
+    void shouldRejectOddNumberOfUsersInGenerateKeyStore(@TempDir Path tempDir) {
+        // Given
+        Path keystorePath = tempDir.resolve("test.p12");
+        var manager = new KeystoreCredentialManager();
+
+        // When/Then
+        assertThatThrownBy(() -> manager.generateKeyStore(keystorePath, KEYSTORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, "alice", USER_PASSWORD, "bob"))
+                .isInstanceOf(CredentialValidationException.class)
+                .hasMessageContaining("alternating username/password pairs");
+    }
+
+    // generateScramCredential validation tests
+
+    @Test
+    void shouldRejectIterationsBelowMinimum() {
+        // Given
+        var manager = new KeystoreCredentialManager();
+
+        // When/Then
+        assertThatThrownBy(() -> manager.generateScramCredential("alice", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256, 100))
+                .isInstanceOf(CredentialValidationException.class)
+                .hasMessageContaining("Iteration count must be at least");
     }
 }
