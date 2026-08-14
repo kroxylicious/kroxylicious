@@ -27,11 +27,25 @@ import static org.apache.kafka.common.requests.FindCoordinatorRequest.Coordinato
 import static org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType.TRANSACTION;
 import static org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType.forId;
 
+/**
+ * Enforces authorization of the FindCoordinator API, requiring {@link GroupResource#DESCRIBE}
+ * or {@link TransactionalIdResource#DESCRIBE} on each coordinator key, depending on the
+ * type of coordinator being looked up.
+ */
 public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRequestData, FindCoordinatorResponseData> {
 
+    /** The first API version whose request can look up multiple coordinator keys in a single request. */
     public static final int MIN_API_VERSION_USING_BATCHING = 4;
+    /** The first API version whose request specifies the type of coordinator being looked up. Earlier versions could only look up group coordinators. */
     public static final int MIN_API_VERSION_WITH_KEY = 1;
     private static final Set<Byte> AUTHORIZABLE = Set.of(TRANSACTION.id(), GROUP.id());
+
+    /**
+     * Creates the enforcement.
+     */
+    public FindCoordinatorEnforcement() {
+        // Intentionally empty
+    }
 
     @Override
     short minSupportedVersion() {
@@ -43,6 +57,11 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
         return 6;
     }
 
+    /**
+     * Indicates whether the request identified by the given header uses batched coordinator keys.
+     * @param header The request header.
+     * @return true if the request API version supports looking up multiple coordinator keys.
+     */
     public static boolean usesBatching(RequestHeaderData header) {
         return header.requestApiVersion() >= MIN_API_VERSION_USING_BATCHING;
     }

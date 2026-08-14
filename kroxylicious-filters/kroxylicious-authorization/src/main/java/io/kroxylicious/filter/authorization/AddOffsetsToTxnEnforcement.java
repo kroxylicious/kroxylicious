@@ -19,7 +19,18 @@ import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the AddOffsetsToTxn API, requiring {@link TransactionalIdResource#WRITE}
+ * on the transactional id and {@link GroupResource#READ} on the consumer group.
+ */
 public class AddOffsetsToTxnEnforcement extends ApiEnforcement<AddOffsetsToTxnRequestData, AddOffsetsToTxnResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public AddOffsetsToTxnEnforcement() {
+        // Intentionally empty
+    }
 
     @Override
     short minSupportedVersion() {

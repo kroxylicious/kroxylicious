@@ -43,16 +43,31 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.apache.kafka.common.record.RecordBatch.NO_PARTITION_LEADER_EPOCH;
 
+/**
+ * Enforces authorization of the OffsetFetch API, requiring {@link GroupResource#DESCRIBE}
+ * on each consumer group and {@link TopicResource#DESCRIBE} on each topic named in the request.
+ */
 public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestData, OffsetFetchResponseData> {
-    /*
+    /**
      * At api version 8 the OffsetFetch API was evolved significantly,
      * introducing an OffsetFetchRequestGroup list at the top level, so that
      * offsets for multiple groups can be retrieved with a single RPC.
      */
     public static final short FIRST_VERSION_USING_GROUP_BATCHING = 8;
+    /**
+     * The first API version whose response has a top-level error code and whose request
+     * can use a null topics list to identify "all topics" consumed by the group.
+     */
     public static final short TOP_LEVEL_ERROR_AND_NULL_TOPICS_MIN_VERSION = 2;
     private static final long INVALID_OFFSET = -1L;
     private static final String NO_METADATA = "";
+
+    /**
+     * Creates the enforcement.
+     */
+    public OffsetFetchEnforcement() {
+        // Intentionally empty
+    }
 
     // lowest version supported by proxy
     @Override

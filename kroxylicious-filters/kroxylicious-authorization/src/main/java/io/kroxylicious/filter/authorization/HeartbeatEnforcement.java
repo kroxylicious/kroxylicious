@@ -18,7 +18,19 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the Heartbeat API, requiring {@link GroupResource#READ}
+ * on the consumer group.
+ */
 public class HeartbeatEnforcement extends ApiEnforcement<HeartbeatRequestData, HeartbeatResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public HeartbeatEnforcement() {
+        // Intentionally empty
+    }
+
     @Override
     short minSupportedVersion() {
         return 0;

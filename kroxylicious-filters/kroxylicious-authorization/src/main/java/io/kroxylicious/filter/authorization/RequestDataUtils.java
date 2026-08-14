@@ -14,6 +14,9 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.Records;
 import org.apache.kafka.common.requests.ProduceRequest;
 
+/**
+ * Utility methods for working with Kafka {@code *RequestData} classes.
+ */
 public class RequestDataUtils {
 
     /**
