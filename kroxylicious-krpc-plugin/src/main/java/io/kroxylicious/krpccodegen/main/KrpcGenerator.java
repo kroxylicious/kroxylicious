@@ -59,7 +59,7 @@ import freemarker.template.TemplateExceptionHandler;
 import freemarker.template.Version;
 
 /**
- * Code generator driven by Apache Kafka message specifications definitions.
+ * Code generator driven by Apache Kafka message specification definitions.
  */
 public class KrpcGenerator {
 
@@ -122,7 +122,7 @@ public class KrpcGenerator {
         }
 
         /**
-         * configures the directory contain the Apache Free Maker template.
+         * configures the directory containing the Apache FreeMarker templates.
          * @param templateDir template directory.
          * @return this
          */
@@ -164,7 +164,7 @@ public class KrpcGenerator {
         }
 
         /**
-         * The location of the project's source files (usually <code>src/main/java</code>.
+         * The location of the project's source files (usually <code>src/main/java</code>).
          * When in skipOutputIfSourceExists mode, before generating an output file to
          * the output directory, it checks whether the equivalent file already exist
          * in sourceDir. If so, output is skipped.
@@ -179,8 +179,8 @@ public class KrpcGenerator {
 
         /**
          * configures the pattern used to form the output file name.
-         * This understands two pattern {@code ${messageSpecName}} and {@code ${templateName}}
-         * which if present will be replaced by the message specification name the template
+         * This understands two patterns {@code ${messageSpecName}} and {@code ${templateName}}
+         * which if present will be replaced by the message specification name and the template
          * name respectively.
          *
          * @param outputFilePattern output filename pattern.
@@ -303,9 +303,9 @@ public class KrpcGenerator {
     }
 
     /**
-     * Constructs a generator in single mode. The generator passes a list of all
-     * message specifications to the template which is used to produce a single
-     * output file.
+     * Constructs a generator in single mode. The generator passes each message
+     * specification to the template in turn, as the {@code inputSpec} variable,
+     * producing a distinct output file for each message specification.
      * @return the builder
      */
     public static Builder single() {
@@ -313,8 +313,9 @@ public class KrpcGenerator {
     }
 
     /**
-     * Constructs a generator in multi-mode. The generator each message specification
-     * to the generator in turn, each of which produces a distinct output file.
+     * Constructs a generator in multi-mode. The generator passes a list of all
+     * message specifications to the template, as the {@code inputSpecs} variable,
+     * which is used to produce a single output file per template.
      * @return the builder
      */
     public static Builder multi() {

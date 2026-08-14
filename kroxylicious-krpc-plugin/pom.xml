@@ -28,7 +28,6 @@
         <maven-plugin-annotations.version>3.15.2</maven-plugin-annotations.version>
         <plexus-build-api.version>1.2.0</plexus-build-api.version>
         <graalvm.version>25.2.4</graalvm.version>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <dependencies>
