@@ -41,11 +41,10 @@ class KeystoreCredentialToolTest {
     @Test
     void getPasswordShouldThrowWhenOptionProvidedWithoutUnlock() {
         // Given
-        var out = new PrintWriter(new StringWriter());
         var err = new PrintWriter(new StringWriter());
 
         // When/Then
-        assertThatThrownBy(() -> KeystoreCredentialTool.getPassword("secret", false, "Password", false, out, err))
+        assertThatThrownBy(() -> KeystoreCredentialTool.getPassword("secret", false, "Password", false, err))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Password options are disabled by default for security")
                 .hasMessageContaining("--unlock-insecure-options");
@@ -54,11 +53,10 @@ class KeystoreCredentialToolTest {
     @Test
     void getPasswordShouldReturnValueWhenOptionProvidedWithUnlock() {
         // Given
-        var out = new PrintWriter(new StringWriter());
         var err = new PrintWriter(new StringWriter());
 
         // When
-        String result = KeystoreCredentialTool.getPassword("my-secret-password", true, "Password", false, out, err);
+        String result = KeystoreCredentialTool.getPassword("my-secret-password", true, "Password", false, err);
 
         // Then
         assertThat(result).isEqualTo("my-secret-password");
@@ -67,12 +65,11 @@ class KeystoreCredentialToolTest {
     @Test
     void getPasswordShouldPrintSecurityWarningWhenUnlocked() {
         // Given
-        var outWriter = new StringWriter();
         var errWriter = new StringWriter();
 
         // When
         KeystoreCredentialTool.getPassword("my-secret-password", true, "Password", false,
-                new PrintWriter(outWriter), new PrintWriter(errWriter, true));
+                new PrintWriter(errWriter, true));
 
         // Then
         assertThat(errWriter.toString())
@@ -86,7 +83,6 @@ class KeystoreCredentialToolTest {
     @Test
     void getPasswordShouldThrowWhenConsoleReturnsNull() {
         // Given
-        var out = new PrintWriter(new StringWriter());
         var err = new PrintWriter(new StringWriter());
 
         try (MockedStatic<KeystoreCredentialTool> mocked = mockStatic(KeystoreCredentialTool.class, CALLS_REAL_METHODS)) {
@@ -94,7 +90,7 @@ class KeystoreCredentialToolTest {
                     .thenReturn(null);
 
             // When/Then
-            assertThatThrownBy(() -> KeystoreCredentialTool.getPassword(null, false, "Password", false, out, err))
+            assertThatThrownBy(() -> KeystoreCredentialTool.getPassword(null, false, "Password", false, err))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Cannot read password interactively")
                     .hasMessageContaining("no console available");
@@ -104,7 +100,6 @@ class KeystoreCredentialToolTest {
     @Test
     void getPasswordShouldReturnInteractivePasswordWithoutConfirmation() {
         // Given
-        var out = new PrintWriter(new StringWriter());
         var err = new PrintWriter(new StringWriter());
 
         try (MockedStatic<KeystoreCredentialTool> mocked = mockStatic(KeystoreCredentialTool.class, CALLS_REAL_METHODS)) {
@@ -112,7 +107,7 @@ class KeystoreCredentialToolTest {
                     .thenReturn("interactive-password");
 
             // When
-            String result = KeystoreCredentialTool.getPassword(null, false, "Password", false, out, err);
+            String result = KeystoreCredentialTool.getPassword(null, false, "Password", false, err);
 
             // Then
             assertThat(result).isEqualTo("interactive-password");
@@ -122,7 +117,6 @@ class KeystoreCredentialToolTest {
     @Test
     void getPasswordShouldReturnInteractivePasswordWhenConfirmationMatches() {
         // Given
-        var out = new PrintWriter(new StringWriter());
         var err = new PrintWriter(new StringWriter());
 
         try (MockedStatic<KeystoreCredentialTool> mocked = mockStatic(KeystoreCredentialTool.class, CALLS_REAL_METHODS)) {
@@ -130,7 +124,7 @@ class KeystoreCredentialToolTest {
                     .thenReturn("matching-password");
 
             // When
-            String result = KeystoreCredentialTool.getPassword(null, false, "Password", true, out, err);
+            String result = KeystoreCredentialTool.getPassword(null, false, "Password", true, err);
 
             // Then
             assertThat(result).isEqualTo("matching-password");
@@ -140,7 +134,6 @@ class KeystoreCredentialToolTest {
     @Test
     void getPasswordShouldThrowWhenConfirmationDoesNotMatch() {
         // Given
-        var out = new PrintWriter(new StringWriter());
         var err = new PrintWriter(new StringWriter());
 
         try (MockedStatic<KeystoreCredentialTool> mocked = mockStatic(KeystoreCredentialTool.class, CALLS_REAL_METHODS)) {
@@ -148,7 +141,7 @@ class KeystoreCredentialToolTest {
                     .thenReturn("first-password", "different-password");
 
             // When/Then
-            assertThatThrownBy(() -> KeystoreCredentialTool.getPassword(null, false, "Password", true, out, err))
+            assertThatThrownBy(() -> KeystoreCredentialTool.getPassword(null, false, "Password", true, err))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Passwords do not match");
         }

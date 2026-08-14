@@ -12,6 +12,8 @@ import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import picocli.CommandLine;
 
@@ -48,7 +50,7 @@ class KeystoreCredentialToolIT {
     }
 
     @Test
-    void shouldAddUserAndListUsers(@TempDir Path tempDir) throws Exception {
+    void shouldAddUserAndListUsers(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
         // Create keystore first
@@ -239,8 +241,9 @@ class KeystoreCredentialToolIT {
                 .contains("KeyStore file not found");
     }
 
-    @Test
-    void shouldSupportScramSha256Mechanism(@TempDir Path tempDir) {
+    @ParameterizedTest
+    @ValueSource(strings = { "SCRAM_SHA_256", "SCRAM_SHA_512" })
+    void shouldSupportScramMechanism(String mechanism, @TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
         executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
@@ -250,24 +253,7 @@ class KeystoreCredentialToolIT {
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "password-secure",
-                "-m", "SCRAM_SHA_256");
-
-        assertThat(addResult.exitCode()).isZero();
-        assertThat(addResult.stdout()).contains("User 'alice' added successfully");
-    }
-
-    @Test
-    void shouldSupportScramSha512Mechanism(@TempDir Path tempDir) {
-        Path keystorePath = tempDir.resolve("credentials.p12");
-
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
-
-        var addResult = executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
-                "-p", KEYSTORE_PASSWORD,
-                "-u", "alice",
-                "-w", "password-secure",
-                "-m", "SCRAM_SHA_512");
+                "-m", mechanism);
 
         assertThat(addResult.exitCode()).isZero();
         assertThat(addResult.stdout()).contains("User 'alice' added successfully");

@@ -57,8 +57,11 @@ import picocli.CommandLine.ParentCommand;
 })
 public class KeystoreCredentialTool implements Callable<Integer> {
 
+    private static final String KEYSTORE_PASSWORD_PROMPT = "KeyStore password";
+
     /** Creates a new instance; called by picocli. */
     public KeystoreCredentialTool() {
+        // required by picocli
     }
 
     @CommandLine.Spec
@@ -99,7 +102,6 @@ public class KeystoreCredentialTool implements Callable<Integer> {
      * @param unlocked whether insecure options are unlocked
      * @param prompt the console prompt
      * @param confirm if true and reading interactively, prompt a second time to confirm
-     * @param out the output stream for messages
      * @param err the error stream for warnings
      * @return the password
      * @throws IllegalStateException if password option used without unlock, console not available, or confirmation mismatch
@@ -109,7 +111,6 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                               boolean unlocked,
                               String prompt,
                               boolean confirm,
-                              java.io.PrintWriter out,
                               java.io.PrintWriter err) {
         if (optionValue != null) {
             if (!unlocked) {
@@ -181,9 +182,8 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 String keystorePassword = getPassword(
                         password,
                         parent.unlockInsecureOptions,
-                        "KeyStore password",
+                        KEYSTORE_PASSWORD_PROMPT,
                         true,
-                        spec.commandLine().getOut(),
                         spec.commandLine().getErr());
 
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
@@ -233,9 +233,8 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 String keystorePassword = getPassword(
                         storePassword,
                         parent.unlockInsecureOptions,
-                        "KeyStore password",
+                        KEYSTORE_PASSWORD_PROMPT,
                         false,
-                        spec.commandLine().getOut(),
                         spec.commandLine().getErr());
 
                 String password = getPassword(
@@ -243,7 +242,6 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                         parent.unlockInsecureOptions,
                         "Password for user '" + username + "'",
                         true,
-                        spec.commandLine().getOut(),
                         spec.commandLine().getErr());
 
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
@@ -281,9 +279,8 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 String keystorePassword = getPassword(
                         password,
                         parent.unlockInsecureOptions,
-                        "KeyStore password",
+                        KEYSTORE_PASSWORD_PROMPT,
                         false,
-                        spec.commandLine().getOut(),
                         spec.commandLine().getErr());
 
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
@@ -333,9 +330,8 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 String keystorePassword = getPassword(
                         storePassword,
                         parent.unlockInsecureOptions,
-                        "KeyStore password",
+                        KEYSTORE_PASSWORD_PROMPT,
                         false,
-                        spec.commandLine().getOut(),
                         spec.commandLine().getErr());
 
                 String password = getPassword(
@@ -343,7 +339,6 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                         parent.unlockInsecureOptions,
                         "New password for user '" + username + "'",
                         true,
-                        spec.commandLine().getOut(),
                         spec.commandLine().getErr());
 
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
@@ -377,9 +372,8 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 String keystorePassword = getPassword(
                         password,
                         parent.unlockInsecureOptions,
-                        "KeyStore password",
+                        KEYSTORE_PASSWORD_PROMPT,
                         false,
-                        spec.commandLine().getOut(),
                         spec.commandLine().getErr());
 
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();

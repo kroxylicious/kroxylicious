@@ -38,6 +38,8 @@ final class KeystoreFilePermissions {
             PosixFilePermission.GROUP_WRITE,
             PosixFilePermission.OTHERS_READ, PosixFilePermission.OTHERS_WRITE);
 
+    private static final Set<PosixFilePermission> OWNER_ONLY_PERMISSIONS = Set.copyOf(PosixFilePermissions.fromString("rw-------"));
+
     private KeystoreFilePermissions() {
     }
 
@@ -69,7 +71,7 @@ final class KeystoreFilePermissions {
     static void setOwnerOnly(Path path) throws IOException {
         PosixFileAttributeView posixView = Files.getFileAttributeView(path, PosixFileAttributeView.class);
         if (posixView != null) {
-            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
+            Files.setPosixFilePermissions(path, OWNER_ONLY_PERMISSIONS);
         }
     }
 
@@ -109,13 +111,12 @@ final class KeystoreFilePermissions {
             }
         }
         else {
-            Set<PosixFilePermission> ownerOnly = PosixFilePermissions.fromString("rw-------");
-            FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(ownerOnly);
+            FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(OWNER_ONLY_PERMISSIONS);
             try {
                 Files.createFile(path, attr);
             }
             catch (FileAlreadyExistsException e) {
-                Files.setPosixFilePermissions(path, ownerOnly);
+                Files.setPosixFilePermissions(path, OWNER_ONLY_PERMISSIONS);
             }
         }
     }
