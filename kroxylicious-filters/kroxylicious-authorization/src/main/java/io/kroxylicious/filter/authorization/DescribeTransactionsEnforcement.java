@@ -27,7 +27,19 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
+/**
+ * Enforces authorization of the DescribeTransactions API, requiring {@link TransactionalIdResource#DESCRIBE}
+ * on each transactional id named in the request and {@link TopicResource#DESCRIBE} on the topics
+ * referenced by the response.
+ */
 public class DescribeTransactionsEnforcement extends ApiEnforcement<DescribeTransactionsRequestData, DescribeTransactionsResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public DescribeTransactionsEnforcement() {
+        // Intentionally empty
+    }
 
     private static final TopicDataCollection EMPTY_TOPICS = new TopicDataCollection();
 

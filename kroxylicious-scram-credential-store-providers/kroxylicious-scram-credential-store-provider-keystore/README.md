@@ -9,20 +9,19 @@ This module provides a production-ready credential store that loads SCRAM creden
 ## Features
 
 - **SCRAM-SHA-256 and SCRAM-SHA-512 support** - Stores salted, hashed credentials
-- **Java KeyStore integration** - Uses standard JKS or PKCS12 KeyStore formats
+- **Java KeyStore integration** - Uses PKCS12 KeyStore format
 - **Secure credential storage** - Never stores plaintext passwords
 - **Fast lookups** - In-memory cache for sub-millisecond credential retrieval
-- **Password-protected** - KeyStore and individual keys protected by passwords
+- **Password-protected** - KeyStore protected by password
 
 ## Configuration
 
 ```yaml
 credentialStore: KeystoreScramCredentialStore
 credentialStoreConfig:
-  file: /path/to/credentials.jks
+  file: /path/to/credentials.p12
   storePassword:
     passwordFile: /etc/kroxylicious/keystore-password.txt
-  storeType: PKCS12
 ```
 
 ### Configuration Parameters
@@ -30,9 +29,7 @@ credentialStoreConfig:
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `file` | string | Yes | - | Path to the KeyStore file |
-| `storePassword` | PasswordProvider | Yes | - | Password for the KeyStore |
-| `keyPassword` | PasswordProvider | No | Same as storePassword | Password for individual keys |
-| `storeType` | string | No | Platform default | KeyStore type (e.g., "PKCS12", "JKS") |
+| `storePassword` | PasswordProvider | Yes | - | Password for the KeyStore and its entries |
 
 ## KeyStore Format
 
@@ -56,6 +53,47 @@ The KeyStore must contain `SecretKey` entries where:
 
 ## Generating Credentials
 
+### Using the Credential Tool
+
+The module includes a CLI tool for managing credentials in KeyStore files.
+
+#### Building the Distribution
+
+The credential tool is bundled into the main proxy distribution. Build it with:
+
+```bash
+mvn package -Pdist -DskipTests
+```
+
+The distribution archive is created under `kroxylicious-app/target/` in tar.gz, zip, and exploded directory formats.
+
+#### Running the Tool
+
+From the exploded proxy distribution directory:
+
+```bash
+# Show usage
+bin/scram-credential-tool.sh --help
+
+# Create a new KeyStore
+bin/scram-credential-tool.sh create -k credentials.p12
+
+# Add a user (prompts for passwords interactively)
+bin/scram-credential-tool.sh add-user -k credentials.p12 -u alice
+
+# List users
+bin/scram-credential-tool.sh list-users -k credentials.p12
+
+# Update a user's password
+bin/scram-credential-tool.sh update-password -k credentials.p12 -u alice
+
+# Remove a user
+bin/scram-credential-tool.sh remove-user -k credentials.p12 -u alice
+```
+
+By default, passwords are read interactively from the console.
+Use `--unlock-insecure-options` to enable command-line password arguments (`-p`, `-w`), but note this is **not recommended** as passwords become visible in process listings and shell history.
+
 ### Using Kafka's SCRAM Tools
 
 You can also generate SCRAM credentials using Kafka's built-in tools and manually create the KeyStore:
@@ -75,12 +113,12 @@ Then extract the generated credentials and store them in the KeyStore format des
 
 - **File permissions**: Restrict KeyStore file to 600 (owner read/write only)
 - **Strong passwords**: Use strong, randomly generated passwords via `PasswordProvider`
-- **Prefer PKCS12**: Modern PKCS12 format is more secure than legacy JKS
+- **PKCS12 format**: Uses the modern PKCS12 KeyStore format
 
 ### Credential Security
 
 - **No plaintext passwords**: Only salted, hashed credentials are stored
-- **Sufficient iterations**: Default 4096 iterations (higher is more secure but slower)
+- **Sufficient iterations**: Default 10000 iterations (higher is more secure but slower)
 - **Secure generation**: Use cryptographically random salts
 
 ### Operational Security
@@ -116,7 +154,6 @@ filters:
             file: /etc/kroxylicious/credentials.p12
             storePassword:
               file: /etc/kroxylicious/keystore-password.txt
-            storeType: PKCS12
 ```
 
 ## Troubleshooting
@@ -125,11 +162,10 @@ filters:
 
 - **Check file path**: Ensure the file exists and is readable
 - **Check password**: Verify storePassword is correct
-- **Check format**: Ensure storeType matches actual KeyStore type
 
 ### "Failed to recover key for alias"
 
-- **Check key password**: If keyPassword differs from storePassword, ensure it's correct
+- **Check password**: Verify the store password is correct
 - **Check alias**: Verify username aliases match those in the KeyStore
 
 ### "Invalid credential for alias"

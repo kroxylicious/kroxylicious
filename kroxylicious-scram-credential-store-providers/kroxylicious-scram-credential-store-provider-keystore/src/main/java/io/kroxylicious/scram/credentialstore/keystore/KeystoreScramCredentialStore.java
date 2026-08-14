@@ -83,19 +83,17 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
     private Map<String, ScramCredential> loadKeyStore(KeystoreScramCredentialStoreConfig config) throws CredentialServiceUnavailableException {
         KeystoreFilePermissions.checkForCredentialStore(Path.of(config.file()));
         try {
-            KeyStore keyStore = KeyStore.getInstance(config.effectiveStoreType());
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
 
             char[] storePassword = config.storePassword().getProvidedPassword().toCharArray();
-            char[] keyPassword = config.effectiveKeyPassword().getProvidedPassword().toCharArray();
             try {
                 try (FileInputStream fis = new FileInputStream(config.file())) {
                     keyStore.load(fis, storePassword);
                 }
-                return extractCredentials(keyStore, keyPassword);
+                return extractCredentials(keyStore, storePassword);
             }
             finally {
                 Arrays.fill(storePassword, '\0');
-                Arrays.fill(keyPassword, '\0');
             }
         }
         catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
@@ -108,17 +106,17 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
      * Extract all SCRAM credentials from the KeyStore.
      *
      * @param keyStore the loaded KeyStore
-     * @param keyPassword the password for individual keys
+     * @param storePassword the password for the KeyStore and its entries
      * @return map of username to credential
      * @throws CredentialServiceUnavailableException if extraction fails or any entry is malformed
      */
-    private Map<String, ScramCredential> extractCredentials(KeyStore keyStore, char[] keyPassword) throws CredentialServiceUnavailableException {
+    private Map<String, ScramCredential> extractCredentials(KeyStore keyStore, char[] storePassword) throws CredentialServiceUnavailableException {
         Map<String, ScramCredential> credentials = new HashMap<>();
         try {
             Enumeration<String> aliases = keyStore.aliases();
             while (aliases.hasMoreElements()) {
                 String alias = aliases.nextElement();
-                ScramCredential credential = extractCredential(keyStore, alias, keyPassword);
+                ScramCredential credential = extractCredential(keyStore, alias, storePassword);
                 if (credential != null) {
                     credentials.put(credential.username(), credential);
                     LOGGER.atDebug().addKeyValue("username", credential.username()).log("Loaded credential");
@@ -132,13 +130,13 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
     }
 
     @Nullable
-    private ScramCredential extractCredential(KeyStore keyStore, String alias, char[] keyPassword)
+    private ScramCredential extractCredential(KeyStore keyStore, String alias, char[] storePassword)
             throws KeyStoreException, NoSuchAlgorithmException, CredentialServiceUnavailableException {
         if (!keyStore.isKeyEntry(alias)) {
             LOGGER.atDebug().addKeyValue(ALIAS_LOG_KEY, alias).log("Skipping non-key entry");
             return null;
         }
-        KeyStore.Entry entry = getKeystoreEntry(keyStore, alias, keyPassword);
+        KeyStore.Entry entry = getKeystoreEntry(keyStore, alias, storePassword);
         if (!(entry instanceof KeyStore.SecretKeyEntry secretKeyEntry)) {
             LOGGER.atDebug().addKeyValue(ALIAS_LOG_KEY, alias).log("Skipping non-SecretKey entry");
             return null;
@@ -146,14 +144,14 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
         return deserializeCredential(secretKeyEntry, alias);
     }
 
-    private KeyStore.Entry getKeystoreEntry(KeyStore keyStore, String alias, char[] keyPassword)
+    private KeyStore.Entry getKeystoreEntry(KeyStore keyStore, String alias, char[] storePassword)
             throws KeyStoreException, NoSuchAlgorithmException, CredentialServiceUnavailableException {
         try {
-            return keyStore.getEntry(alias, new KeyStore.PasswordProtection(keyPassword));
+            return keyStore.getEntry(alias, new KeyStore.PasswordProtection(storePassword));
         }
         catch (UnrecoverableEntryException e) {
             throw new CredentialServiceUnavailableException(
-                    "Failed to recover KeyStore entry for alias '" + alias + "' - incorrect key password?", e);
+                    "Failed to recover KeyStore entry for alias '" + alias + "' - incorrect store password?", e);
         }
     }
 

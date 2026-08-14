@@ -108,11 +108,22 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEnforcement());
     }
 
+    /**
+     * Indicates whether this filter is able to enforce authorization for the given API at all.
+     * @param apiKey The API key.
+     * @return true if the filter supports some version range of the given API.
+     */
     @VisibleForTesting
     public static boolean isApiSupported(ApiKeys apiKey) {
         return apiEnforcement.containsKey(apiKey);
     }
 
+    /**
+     * Indicates whether this filter is able to enforce authorization for the given version of the given API.
+     * @param apiKey The API key.
+     * @param apiVersion The API version.
+     * @return true if the filter supports the given version of the given API.
+     */
     @VisibleForTesting
     public static boolean isApiVersionSupported(ApiKeys apiKey, short apiVersion) {
         var enforcement = apiEnforcement.get(apiKey);
@@ -123,6 +134,11 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 && apiVersion <= enforcement.maxSupportedVersion();
     }
 
+    /**
+     * Returns the minimum version of the given API for which this filter is able to enforce authorization.
+     * @param apiKey The API key.
+     * @return The inclusive minimum supported version, or -1 if the API is not supported at all.
+     */
     @VisibleForTesting
     public static short minSupportedApiVersion(ApiKeys apiKey) {
         var enforcement = apiEnforcement.get(apiKey);
@@ -132,6 +148,11 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         return enforcement.minSupportedVersion();
     }
 
+    /**
+     * Returns the maximum version of the given API for which this filter is able to enforce authorization.
+     * @param apiKey The API key.
+     * @return The inclusive maximum supported version, or -1 if the API is not supported at all.
+     */
     @VisibleForTesting
     public static short maxSupportedApiVersion(ApiKeys apiKey) {
         var enforcement = apiEnforcement.get(apiKey);
@@ -151,6 +172,10 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     private short useMetadataVersion = -1;
     private final Authorizer authorizer;
 
+    /**
+     * Creates the filter.
+     * @param authorizer The authorizer used to make the access decisions which this filter enforces.
+     */
     public AuthorizationFilter(Authorizer authorizer) {
         this.authorizer = authorizer;
         this.inflightState = new HashMap<>(10);
@@ -358,6 +383,11 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         return useMetadataVersion;
     }
 
+    /**
+     * Adjusts the broker's ApiVersions response so that it only advertises the APIs,
+     * and the version ranges of those APIs, for which this filter is able to enforce authorization.
+     * @param response The ApiVersions response to adjust.
+     */
     public void adjustResponse(ApiVersionsResponseData response) {
         var toRemove = new ArrayList<ApiVersionsResponseData.ApiVersion>();
         ApiVersionsResponseData.ApiVersionCollection apiVersions = response.apiKeys();
