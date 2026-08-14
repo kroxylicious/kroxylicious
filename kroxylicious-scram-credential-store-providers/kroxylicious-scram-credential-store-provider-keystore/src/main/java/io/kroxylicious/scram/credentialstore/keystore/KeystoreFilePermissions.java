@@ -75,8 +75,17 @@ final class KeystoreFilePermissions {
 
     /**
      * Ensure that a file exists with owner-only permissions before it is written to.
-     * On POSIX systems, creates the file atomically with {@code rw-------} permissions if it does not exist,
-     * or sets those permissions on an existing file. On non-POSIX systems this is a no-op.
+     * On POSIX systems, creates the file atomically with {@code rw-------} permissions if it does not exist.
+     * If the file already exists, its permissions are checked and an {@link IOException} is thrown if they
+     * are too wide — silently tightening permissions would hide a potential credential exposure.
+     * On non-POSIX systems this is a no-op.
+     *
+     * <p>This method always uses strict owner-only checking and does not consult the
+     * {@value #PERMISSION_CHECK_ENV_VAR} environment variable. That variable exists to relax
+     * <em>runtime</em> permission checks for the proxy, where the kubelet may mount secret volumes
+     * with group-readable permissions that are outside the operator's control. This method is used
+     * by the CLI tool which operates on local files before they are uploaded as Kubernetes secrets,
+     * so strict owner-only permissions are always appropriate.</p>
      */
     static void ensureOwnerOnlyBeforeWrite(Path path) throws IOException {
         Path parent = path.getParent();
@@ -87,7 +96,17 @@ final class KeystoreFilePermissions {
         }
 
         if (Files.exists(path)) {
-            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
+            Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
+            Set<PosixFilePermission> found = EnumSet.copyOf(STRICT_INSECURE_PERMISSIONS);
+            found.retainAll(perms);
+            if (!found.isEmpty()) {
+                throw new IOException(
+                        "Keystore file " + path + " has insecure permissions: " + PosixFilePermissions.toString(perms)
+                                + ". It is possible that existing credentials in this file have been read or modified by an unauthorized party."
+                                + " Consult your organization's security procedures before continuing — you may need to report this."
+                                + " If you accept the risk to continue using the existing credentials,"
+                                + " change the file permissions (e.g. with chmod) and retry.");
+            }
         }
         else {
             Set<PosixFilePermission> ownerOnly = PosixFilePermissions.fromString("rw-------");
