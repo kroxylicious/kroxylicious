@@ -1,0 +1,219 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-choosing-sasl-mechanism-{context}']
+= Choosing a SASL mechanism
+
+[role="_abstract"]
+When configuring SASL authentication, the choice of mechanism affects the security properties, infrastructure requirements, and operational characteristics of your deployment.
+This section compares the PLAIN, SCRAM, and OAUTHBEARER mechanisms across several security and operational dimensions to help you make an informed choice.
+
+The choice of SASL mechanism is independent of the choice of xref:con-choosing-authentication-approach-{context}[authentication approach] (Passthrough, Inspection, Termination, or OAuthBearer Validation).
+However, some authentication approaches constrain the available mechanisms.
+For example, SASL Termination currently supports only the `OAUTHBEARER` mechanism.
+
+== Mechanism overview
+
+PLAIN::
+The client sends a username and password in plain text within the SASL exchange.
+The security of the credentials depends entirely on the TLS layer protecting the connection.
+PLAIN is defined in https://tools.ietf.org/html/rfc4616[RFC 4616].
+
+SCRAM-SHA-256 and SCRAM-SHA-512::
+The Salted Challenge Response Authentication Mechanism (SCRAM) authenticates the client using a challenge-response protocol.
+The client proves knowledge of the password without transmitting it.
+SCRAM is defined in https://datatracker.ietf.org/doc/html/rfc5802[RFC 5802], with the SHA-256 variant specified in https://datatracker.ietf.org/doc/html/rfc7677[RFC 7677].
+
+OAUTHBEARER::
+The client presents an OAuth 2.0 bearer token (typically a JWT) obtained from an authorization server.
+Bearer tokens are typically short-lived, limiting the window of exploitation if a token is intercepted.
+The broker or proxy validates the token using public keys retrieved from a JWKS endpoint, without requiring the client to send a password.
+OAUTHBEARER is defined in https://datatracker.ietf.org/doc/html/rfc7628[RFC 7628].
+
+== Security considerations
+
+=== Protection against TLS termination and middlebox compromise
+
+*Threat:* An attacker controls or has access to a TLS-terminating component such as a reverse proxy, API gateway, load balancer, or network monitoring appliance.
+
+PLAIN:: The plain-text password is visible to any component that terminates TLS before the authentication server.
+An attacker with access to such a component can capture credentials directly.
+
+SCRAM:: The password is never transmitted, even within the TLS session.
+The SASL exchange contains only nonces and HMAC proofs, so an attacker with access to a TLS-terminating middlebox cannot extract the password from the SASL messages.
+
+OAUTHBEARER:: The bearer token is transmitted within the TLS session, similar to PLAIN.
+However, bearer tokens are typically short-lived, which limits the window during which a captured token can be replayed.
+The user's underlying credentials (such as a username and password used to obtain the token from the authorization server) are not exposed.
+
+=== Protection against rogue servers and man-in-the-middle attacks
+
+*Threat:* An attacker impersonates the broker or interposes between the client and broker, for example by using a compromised internal CA or a malicious proxy certificate.
+
+PLAIN:: No protection at the SASL layer.
+The client sends the password to whatever server terminates TLS.
+Correctly configured TLS (with proper certificate validation and trusted CAs) is an adequate mitigation of this risk, because TLS itself verifies the identity of the server before any credentials are sent.
+
+SCRAM (without channel binding)::
+SCRAM provides _mutual authentication_: the server must prove possession of the user's `ServerKey` before authentication completes.
+This prevents a rogue server that does not possess the correct `ServerKey` from completing the SCRAM handshake.
++
+The SCRAM standard defines channel binding variants (such as `SCRAM-SHA-256-PLUS`) that can detect a TLS-terminating man-in-the-middle.
+However, *Apache Kafka does not support SCRAM channel binding variants*.
+Without channel binding, a man-in-the-middle that proxies the full SCRAM exchange between the genuine client and genuine server is not detected.
+
+OAUTHBEARER:: The token is sent to whatever server terminates TLS.
+The token does not reveal the user's underlying credentials, and the short lifetime of an individual token limits the impact of a single interception.
+However, if the rogue server remains undetected, it can capture successive tokens over time and maintain ongoing access.
+
+=== Cross-service token replay
+
+*Threat:* An attacker obtains a valid bearer token (for example, from application logs, a compromised service, or a TLS-terminating middlebox) and presents it to a different service to gain unauthorized access.
+
+PLAIN:: Not applicable.
+Passwords are not scoped to a particular service, so a stolen password grants access to any service where the same credentials are accepted.
+
+SCRAM:: Not applicable.
+SCRAM credentials are service-specific by design: the derived keys are computed with a salt chosen by the server, so credentials stolen from one service cannot be replayed against another.
+
+OAUTHBEARER:: Bearer tokens can include an `aud` (audience) claim that identifies the intended recipient.
+If the broker or proxy is configured to validate the audience, it rejects tokens that were issued for a different service.
++
+To protect against cross-service replay, configure a unique audience value for your Kafka deployment and ensure that both the authorization server and the broker or proxy enforce it.
+Tokens issued without an audience claim, or with an overly broad audience, can be replayed against any service that accepts them.
+
+=== Protection against credential database theft
+
+*Threat:* An attacker gains access to the authentication credential store on the broker.
+
+PLAIN:: The broker must be able to verify the plain-text password.
+In principle, a server could store passwords using a strong hashing algorithm, but Apache Kafka currently stores PLAIN credentials as a plain-text username/password mapping in the broker configuration.
+An attacker who gains access to the broker configuration obtains all passwords directly.
+
+SCRAM:: The broker stores derived keys (`StoredKey` and `ServerKey`) computed using PBKDF2.
+An attacker who obtains these derived keys cannot directly authenticate as the client — `StoredKey` is a one-way hash of `ClientKey`, so producing a valid authentication proof requires an offline attack to reverse the hash.
+The attacker can, however, impersonate the _server_ using `ServerKey`.
+Crucially, the original password cannot be recovered from the stored keys, which prevents credential-stuffing attacks against other services where the user may have reused the same password.
+
+OAUTHBEARER:: The broker does not store user passwords.
+It stores only the public keys (via JWKS) used to verify token signatures.
+Theft of the JWKS public keys does not allow an attacker to generate valid tokens or recover user credentials.
+The credential store is maintained by the authorization server, not the broker.
+
+=== Resistance to offline cracking of stolen credentials
+
+*Threat:* An attacker who has stolen the credential store subjects it to offline brute-force or dictionary attacks using GPUs or ASICs.
+
+PLAIN:: In principle, because the broker receives the raw password, the broker could use state-of-the-art memory-hard hashing algorithms such as Argon2id, bcrypt, or scrypt.
+However, Apache Kafka currently stores PLAIN credentials in plain text, so this advantage does not apply in practice — there is nothing to crack.
+
+SCRAM:: The SCRAM protocol (https://datatracker.ietf.org/doc/html/rfc5802[RFC 5802] / https://datatracker.ietf.org/doc/html/rfc7677[RFC 7677]) mandates PBKDF2 for key derivation.
+PBKDF2 lacks memory hardness, which makes GPU-based offline cracking significantly faster compared to memory-hard algorithms.
+While the PBKDF2 iteration count can be increased to raise the cost of cracking, this also increases the cost of legitimate authentication.
+
+OAUTHBEARER:: Not applicable at the broker level, because the broker does not store passwords.
+Resistance to offline cracking depends entirely on the authorization server's credential storage practices.
+
+== Operational considerations
+
+=== External identity provider compatibility
+
+PLAIN:: Because the broker receives the raw password, it can forward the password to any external authentication backend such as LDAP, Active Directory, or PAM.
+This makes PLAIN the most flexible mechanism for integration with legacy or third-party identity infrastructure.
+
+SCRAM:: SCRAM requires the broker to store SCRAM-specific derived keys (`StoredKey`, `ServerKey`, salt, and iteration count).
+External identity directories such as LDAP or Active Directory do not natively store SCRAM derivation keys, making integration with these backends difficult.
+
+OAUTHBEARER:: Designed for integration with external identity providers.
+The authorization server handles user authentication and can integrate with LDAP, Active Directory, social identity providers, multi-factor authentication, and other enterprise identity infrastructure.
+The Kafka broker or proxy only needs to validate the resulting tokens.
+
+=== Authentication latency
+
+Kafka is a connection-oriented protocol, so authentication occurs once per connection.
+Because connections are typically long-lived, authentication latency is amortized over the life of the connection and is not normally a paramount concern.
+
+PLAIN:: Requires one round trip: the client sends credentials, and the server responds with success or failure.
+
+SCRAM:: Requires two round trips for the challenge-response exchange (`client-first` -> `server-first` -> `client-final` -> `server-final`).
+Over high-latency network links, this doubles the authentication negotiation time compared to PLAIN.
+
+OAUTHBEARER:: Requires one round trip between the client and broker.
+However, the client must first obtain a token from the authorization server, which adds latency before the Kafka connection is established.
+Token caching and refresh strategies can amortize this cost across multiple connections.
+
+=== Infrastructure requirements
+
+PLAIN:: No additional infrastructure beyond the broker (or whatever backend the broker delegates authentication to).
+
+SCRAM:: No additional infrastructure beyond the broker.
+Credential management (creating and updating SCRAM credentials) is handled through Kafka's built-in tooling.
+
+OAUTHBEARER:: Requires an OAuth 2.0 authorization server and a JWKS endpoint for token validation.
+The availability of authentication depends on these services being reachable.
+
+=== Implementation and parser complexity
+
+PLAIN:: Trivially parsed (`\0username\0password`), minimizing the parser bug surface area.
+
+SCRAM:: Requires cryptographic hashing, HMACs, nonce tracking, and a multi-step state machine.
+The SCRAM standard mandates SASLprep normalization of usernames and passwords, but Apache Kafka does not currently implement SASLprep.
+Incorrect implementations can introduce timing attacks or normalization bypasses.
+
+OAUTHBEARER:: Requires JWT parsing, signature verification against JWKS, and validation of standard claims (expiry, audience, issuer).
+Client libraries must handle token acquisition and refresh.
+
+== Summary comparison
+
+The following table summarizes how each mechanism addresses common threat vectors and operational considerations.
+
+.Comparison of SASL mechanisms
+[cols="3,2,2,2"]
+|===
+|Consideration |PLAIN |SCRAM |OAUTHBEARER
+
+|*TLS termination or middlebox intercepts credentials*
+|Password exposed in plain text
+|Password never transmitted; only HMAC proofs cross the wire
+|Bearer token exposed, but short-lived and does not reveal the user's password
+
+|*Rogue server or man-in-the-middle*
+|No SASL-layer protection; correctly configured TLS mitigates this risk
+|Mutual authentication prevents rogue servers without the correct `ServerKey`; however, Kafka does not support channel binding, so a proxying man-in-the-middle is not detected
+|Token sent to any server; short token lifetime limits impact of a single interception, but a persistent rogue server can capture successive tokens
+
+|*Cross-service token replay*
+|Not applicable; stolen passwords work against any service that accepts them
+|Not applicable; SCRAM credentials are service-specific by design
+|Audience (`aud`) claim validation rejects tokens issued for a different service; configure a unique audience for your Kafka deployment
+
+|*Credential database theft*
+|Kafka stores PLAIN credentials in plain text; all passwords exposed directly
+|Derived keys do not allow direct client impersonation; original password cannot be recovered, preventing credential reuse attacks
+|No passwords stored at the broker; only public keys for token verification
+
+|*Offline cracking of stolen credentials*
+|Not applicable; Kafka currently stores PLAIN credentials in plain text
+|PBKDF2 only (mandated by SCRAM protocol); lacks memory hardness, more vulnerable to GPU-based cracking
+|Not applicable at the broker; depends on the authorization server
+
+|*External identity provider integration*
+|High compatibility; raw password can be forwarded to LDAP, Active Directory, or PAM
+|Low compatibility; requires SCRAM-specific credential storage
+|High compatibility; designed for OAuth 2.0 and OpenID Connect identity providers
+
+|*Authentication latency*
+|1 round trip
+|2 round trips
+|1 round trip (plus prior token acquisition from authorization server)
+
+|*Infrastructure requirements*
+|None beyond the broker
+|None beyond the broker
+|OAuth 2.0 authorization server and JWKS endpoint
+|===
