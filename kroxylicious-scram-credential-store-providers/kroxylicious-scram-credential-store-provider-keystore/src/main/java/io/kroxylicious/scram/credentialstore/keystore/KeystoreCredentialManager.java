@@ -8,7 +8,9 @@ package io.kroxylicious.scram.credentialstore.keystore;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
@@ -115,13 +117,13 @@ public class KeystoreCredentialManager {
     /**
      * Create a new KeyStore file.
      * <p>
-     * If the file already exists, it will be overwritten.
+     * The file must not already exist.
      * </p>
      *
      * @param keystorePath path where the KeyStore will be created
      * @param storePassword password for the KeyStore
      * @param storeType KeyStore type (e.g., "PKCS12", "JKS")
-     * @throws KeyStoreException if KeyStore creation fails
+     * @throws KeyStoreException if KeyStore creation fails or the file already exists
      */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public void createKeyStore(
@@ -134,10 +136,13 @@ public class KeystoreCredentialManager {
             KeyStore keyStore = KeyStore.getInstance(storeType);
             keyStore.load(null, storePassword.toCharArray());
 
-            KeystoreFilePermissions.ensureOwnerOnlyBeforeWrite(keystorePath);
-            try (FileOutputStream fos = new FileOutputStream(keystorePath.toFile())) {
-                keyStore.store(fos, storePassword.toCharArray());
+            KeystoreFilePermissions.createExclusively(keystorePath);
+            try (OutputStream os = Files.newOutputStream(keystorePath)) {
+                keyStore.store(os, storePassword.toCharArray());
             }
+        }
+        catch (FileAlreadyExistsException e) {
+            throw new KeyStoreException("KeyStore file already exists: " + keystorePath, e);
         }
         catch (IOException | NoSuchAlgorithmException | CertificateException e) {
             throw new KeyStoreException("Failed to create KeyStore at " + keystorePath, e);

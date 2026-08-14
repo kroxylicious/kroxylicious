@@ -121,6 +121,28 @@ final class KeystoreFilePermissions {
         }
     }
 
+    /**
+     * Atomically create a new file with owner-only permissions, failing if it already exists.
+     * On POSIX systems the file is created with {@code rw-------} permissions.
+     * On non-POSIX systems the file is created without explicit permission control.
+     *
+     * @param path path to the file to create
+     * @throws FileAlreadyExistsException if the file already exists
+     * @throws IOException if the file cannot be created
+     */
+    static void createExclusively(Path path) throws IOException {
+        Path parent = path.getParent();
+        PosixFileAttributeView posixView = Files.getFileAttributeView(
+                parent != null ? parent : path, PosixFileAttributeView.class);
+        if (posixView != null) {
+            FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(OWNER_ONLY_PERMISSIONS);
+            Files.createFile(path, attr);
+        }
+        else {
+            Files.createFile(path);
+        }
+    }
+
     private static Set<PosixFilePermission> getInsecurePermissions() {
         String envValue = System.getenv(PERMISSION_CHECK_ENV_VAR);
         if ("0640".equals(envValue)) {

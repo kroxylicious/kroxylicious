@@ -191,6 +191,19 @@ class KeystoreCredentialManagerTest {
     }
 
     @Test
+    void shouldRejectCreateWhenFileAlreadyExists(@TempDir Path tempDir) throws Exception {
+        // Given
+        Path keystorePath = tempDir.resolve("test.p12");
+        var manager = new KeystoreCredentialManager();
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+
+        // When/Then
+        assertThatThrownBy(() -> manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE))
+                .isInstanceOf(KeyStoreException.class)
+                .hasMessageContaining("KeyStore file already exists");
+    }
+
+    @Test
     void shouldThrowWhenKeyStoreFileNotFound(@TempDir Path tempDir) {
         // Given
         Path keystorePath = tempDir.resolve("nonexistent.p12");
@@ -409,19 +422,21 @@ class KeystoreCredentialManagerTest {
         List<KeystoreCredentialManager.UserCredentialInfo> credentials = manager.listCredentials(keystorePath, KEYSTORE_PASSWORD);
 
         // Then
-        assertThat(credentials).hasSize(2);
-        assertThat(credentials).extracting(KeystoreCredentialManager.UserCredentialInfo::username)
+        assertThat(credentials)
+                .hasSize(2)
+                .extracting(KeystoreCredentialManager.UserCredentialInfo::username)
                 .containsExactly("alice", "bob");
-        assertThat(credentials).anySatisfy(c -> {
-            assertThat(c.username()).isEqualTo("alice");
-            assertThat(c.mechanism()).isEqualTo("SCRAM-SHA-256");
-            assertThat(c.iterations()).isEqualTo(10000);
-        });
-        assertThat(credentials).anySatisfy(c -> {
-            assertThat(c.username()).isEqualTo("bob");
-            assertThat(c.mechanism()).isEqualTo("SCRAM-SHA-512");
-            assertThat(c.iterations()).isEqualTo(8192);
-        });
+        assertThat(credentials)
+                .anySatisfy(c -> {
+                    assertThat(c.username()).isEqualTo("alice");
+                    assertThat(c.mechanism()).isEqualTo("SCRAM-SHA-256");
+                    assertThat(c.iterations()).isEqualTo(10000);
+                })
+                .anySatisfy(c -> {
+                    assertThat(c.username()).isEqualTo("bob");
+                    assertThat(c.mechanism()).isEqualTo("SCRAM-SHA-512");
+                    assertThat(c.iterations()).isEqualTo(8192);
+                });
     }
 
     @Test
