@@ -162,6 +162,25 @@ Credential management (creating and updating SCRAM credentials) is handled throu
 OAUTHBEARER:: Requires an OAuth 2.0 authorization server and a JWKS endpoint for token validation.
 The availability of authentication depends on these services being reachable.
 
+=== Reauthentication and credential rotation
+
+Kafka supports reauthentication on long-lived connections (https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate[KIP-368]).
+When reauthentication is enabled, the broker tells the client when its session expires, and the client initiates a fresh SASL handshake on the existing connection before the session lifetime elapses.
+
+OAUTHBEARER:: The session lifetime is derived from the token's expiry time.
+When reauthentication occurs, the client obtains a fresh token from the authorization server, so reauthentication also rotates the credential.
+If an earlier token was compromised, the new handshake uses a different token, limiting the window of exposure.
+
+SCRAM:: The Kafka SCRAM implementation does not set a credential lifetime.
+Reauthentication occurs only if the broker's `connections.max.reauth.ms` is configured, and the client re-sends the same password-derived proof.
+Because the underlying password does not change during reauthentication, credential rotation does not occur.
+An exception is SCRAM authentication using delegation tokens: the delegation token's expiry time is used as the credential lifetime, and reauthentication behaves similarly to OAUTHBEARER.
+
+PLAIN:: Like SCRAM, no credential lifetime is set.
+Reauthentication is driven solely by `connections.max.reauth.ms`, and the client re-sends the same username and password.
+No credential rotation occurs.
+
+
 === Implementation and parser complexity
 
 PLAIN:: Trivially parsed (`\0username\0password`), minimizing the parser bug surface area.
@@ -172,6 +191,24 @@ Incorrect implementations can introduce timing attacks or normalization bypasses
 
 OAUTHBEARER:: Requires JWT parsing, signature verification against JWKS, and validation of standard claims (expiry, audience, issuer).
 Client libraries must handle token acquisition and refresh.
+
+== When to use each mechanism
+
+Use PLAIN when::
+* You need to integrate with an external identity provider such as LDAP, Active Directory, or PAM, because the server receives the raw password and can forward it to any authentication backend.
+* You want the simplest possible SASL configuration with minimal client and server complexity.
+* You accept that credentials are only protected by the TLS layer and that credential rotation requires out-of-band password changes.
+
+Use SCRAM when::
+* You want to protect credentials against TLS-terminating middleboxes or compromised TLS endpoints, because the password is never transmitted.
+* You do not need to integrate with external identity providers that lack SCRAM-specific credential storage.
+* You want protection against credential database theft, where the stored derived keys cannot be directly used to impersonate a client.
+
+Use OAUTHBEARER when::
+* You have (or are willing to deploy) an OAuth 2.0 authorization server and JWKS endpoint.
+* You want automatic credential rotation through short-lived tokens, so that compromised credentials expire without manual intervention.
+* You need to integrate with enterprise identity infrastructure such as OpenID Connect, multi-factor authentication, or federated identity.
+* You want reauthentication to rotate the credential, not just re-verify the same one.
 
 == Summary comparison
 
@@ -206,6 +243,11 @@ The following table summarizes how each mechanism addresses common threat vector
 |None; Kafka stores PLAIN credentials in plain text
 |Moderate; PBKDF2 requires offline cracking but lacks memory hardness
 |Not applicable; server does not store passwords
+
+|*Reauthentication and credential rotation*
+|No credential rotation; reauthentication re-sends the same password and is driven solely by `connections.max.reauth.ms`
+|No credential rotation; reauthentication re-sends the same password-derived proof and is driven solely by `connections.max.reauth.ms`
+|Credential rotation on every reauthentication; the client obtains a fresh token, so compromised tokens expire naturally
 
 |*External identity provider integration*
 |High compatibility; raw password can be forwarded to LDAP, Active Directory, or PAM
