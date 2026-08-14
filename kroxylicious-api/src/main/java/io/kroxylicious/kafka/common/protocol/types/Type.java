@@ -19,7 +19,6 @@ package io.kroxylicious.kafka.common.protocol.types;
 import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.record.internal.BaseRecords;
 import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
-// TODO #4578: replace with io.kroxylicious.kafka.common.utils.Utils once that class is copied
 import io.kroxylicious.kafka.common.utils.Utils;
 import io.kroxylicious.kafka.common.utils.ByteUtils;
 

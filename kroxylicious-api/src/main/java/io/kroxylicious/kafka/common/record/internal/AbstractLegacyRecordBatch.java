@@ -22,7 +22,6 @@ import io.kroxylicious.kafka.common.compress.Compression;
 import io.kroxylicious.kafka.common.errors.CorruptRecordException;
 import io.kroxylicious.kafka.common.header.Header;
 import io.kroxylicious.kafka.common.record.TimestampType;
-// TODO #4578: replace with io.kroxylicious.kafka.common.utils.Utils once that class is copied
 import io.kroxylicious.kafka.common.utils.Utils;
 import io.kroxylicious.kafka.common.utils.AbstractIterator;
 import io.kroxylicious.kafka.common.utils.BufferSupplier;

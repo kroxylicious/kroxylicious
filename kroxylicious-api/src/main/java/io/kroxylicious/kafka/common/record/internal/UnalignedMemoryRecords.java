@@ -17,7 +17,6 @@
 package io.kroxylicious.kafka.common.record.internal;
 
 import io.kroxylicious.kafka.common.network.TransferableChannel;
-// TODO #4578: replace with io.kroxylicious.kafka.common.utils.Utils once that class is copied
 import io.kroxylicious.kafka.common.utils.Utils;
 
 import java.io.IOException;
