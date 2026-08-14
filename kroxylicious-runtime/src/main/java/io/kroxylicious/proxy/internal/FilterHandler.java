@@ -176,6 +176,9 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
+    // FutureReturnValueIgnored: `promise` is supplied by the caller and is notified with
+    // the outcome of the write, so the returned future carries no additional information.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void handleOpaqueResponseWrite(ChannelHandlerContext ctx, Object msg, ChannelPromise promise, OpaqueResponseFrame orf) {
         writeFuture = writeFuture.whenComplete((a, b) -> {
             if (ctx.channel().isOpen()) {
@@ -419,10 +422,10 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
         inboundChannel.config().setAutoRead(false);
-        promiseFactory.wrapWithTimeLimit(future,
+        return promiseFactory.wrapWithTimeLimit(future,
                 () -> "Deferred work for filter '%s' did not complete processing within %s ms %s %s".formatted(filterDescriptor(), timeoutMs,
-                        decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey()));
-        return future.thenApplyAsync(filterResult -> filterResult, ctx.executor());
+                        decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey()))
+                .thenApplyAsync(filterResult -> filterResult, ctx.executor());
     }
 
     /**
@@ -539,7 +542,9 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     // identity check: invariant that the filter forwarded the exact frame body/header instances (in-place mutation contract), not copies
-    @SuppressWarnings("ReferenceEquality")
+    // FutureReturnValueIgnored: `promise` is supplied by the caller and is notified with
+    // the outcome of the write, so the returned future carries no additional information.
+    @SuppressWarnings({ "ReferenceEquality", "FutureReturnValueIgnored" })
     private void handleUpstreamResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message, @NonNull ChannelPromise promise) {
         if (decodedFrame.body() != message) {
             throw new AssertionError();

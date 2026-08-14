@@ -49,8 +49,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
+import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
@@ -1376,5 +1379,77 @@ class FilterHandlerTest extends FilterHarness {
                         "mechanism", "unknown",
                         "outcome", "failure")
                 .counter().count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void opaqueResponseWriteFailurePropagatesToCallerPromise() {
+        // Given
+        var cause = new RuntimeException("simulated write failure");
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
+        buildChannel(filter);
+        channel.pipeline().addFirst("failWrites", new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+                ReferenceCountUtil.release(msg);
+                promise.setFailure(cause);
+            }
+        });
+
+        // When
+        ByteBuf buffer = Unpooled.buffer();
+        var frame = new OpaqueResponseFrame(ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), buffer, 55, buffer.readableBytes());
+        ChannelFuture future = channel.writeOneOutbound(frame);
+
+        // Then
+        assertThat(future.isDone()).isTrue();
+        assertThat(future.cause()).isSameAs(cause);
+    }
+
+    @Test
+    void upstreamResponseWriteFailurePropagatesToCallerPromise() {
+        // Given
+        var cause = new RuntimeException("simulated write failure");
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
+        buildChannel(filter);
+        channel.pipeline().addFirst("failWrites", new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+                ReferenceCountUtil.release(msg);
+                promise.setFailure(cause);
+            }
+        });
+
+        // When
+        var responseData = new ApiVersionsResponseData();
+        var header = new ResponseHeaderData().setCorrelationId(42);
+        var frame = new DecodedResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, responseData);
+        ChannelFuture future = channel.writeOneOutbound(frame);
+
+        // Then
+        assertThat(future.isDone()).isTrue();
+        assertThat(future.cause()).isSameAs(cause);
+    }
+
+    @Test
+    void shortCircuitResponseWriteFailureReachesExceptionCaught() {
+        // Given
+        var cause = new RuntimeException("simulated write failure");
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder()
+                .shortCircuitResponse(new ApiVersionsResponseData())
+                .completed();
+        buildChannel(filter);
+        channel.pipeline().addFirst("failWrites", new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+                ReferenceCountUtil.release(msg);
+                promise.setFailure(cause);
+            }
+        });
+
+        // When
+        var when = assertThatThrownBy(() -> writeRequest(new ApiVersionsRequestData()));
+
+        // Then
+        when.isSameAs(cause);
     }
 }
