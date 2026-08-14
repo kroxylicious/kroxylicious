@@ -391,6 +391,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         ccsm.onRoutedRequestComplete();
     }
 
+    // FutureReturnValueIgnored: `promise` is supplied by the caller and is notified with
+    // the outcome of the write, so the returned future carries no additional information.
+    @SuppressWarnings("FutureReturnValueIgnored")
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof DecodedResponseFrame<?> frame) {
