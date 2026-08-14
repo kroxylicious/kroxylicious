@@ -22,6 +22,7 @@ import java.util.concurrent.CompletionStage;
 
 import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,15 +52,11 @@ class KeystoreScramCredentialStoreTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        keystorePath = tempDir.resolve("test-credentials.jks");
+        keystorePath = tempDir.resolve("test-credentials.p12");
 
         // Generate test keystore with two users
         var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                STORE_PASSWORD,
-                "alice", ALICE_PASSWORD,
-                "bob", BOB_PASSWORD);
+        generator.generateKeyStore(keystorePath, STORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, "alice", ALICE_PASSWORD, "bob", BOB_PASSWORD);
 
         if (Files.getFileAttributeView(keystorePath, PosixFileAttributeView.class) != null) {
             Files.setPosixFilePermissions(keystorePath, PosixFilePermissions.fromString("rw-------"));
@@ -67,9 +64,7 @@ class KeystoreScramCredentialStoreTest {
 
         config = new KeystoreScramCredentialStoreConfig(
                 keystorePath.toString(),
-                new InlinePassword(STORE_PASSWORD),
-                null,
-                "PKCS12");
+                new InlinePassword(STORE_PASSWORD));
 
         store = new KeystoreScramCredentialStore(config);
     }
@@ -130,10 +125,8 @@ class KeystoreScramCredentialStoreTest {
     @Test
     void shouldThrowExceptionForNonExistentKeyStore() {
         KeystoreScramCredentialStoreConfig badConfig = new KeystoreScramCredentialStoreConfig(
-                "/non/existent/keystore.jks",
-                new InlinePassword(STORE_PASSWORD),
-                null,
-                "PKCS12");
+                "/non/existent/keystore.p12",
+                new InlinePassword(STORE_PASSWORD));
 
         assertThatThrownBy(() -> new KeystoreScramCredentialStore(badConfig))
                 .isInstanceOf(CredentialServiceUnavailableException.class)
@@ -144,9 +137,7 @@ class KeystoreScramCredentialStoreTest {
     void shouldThrowExceptionForInvalidPassword() {
         KeystoreScramCredentialStoreConfig badConfig = new KeystoreScramCredentialStoreConfig(
                 keystorePath.toString(),
-                new InlinePassword("wrong-password"),
-                null,
-                "PKCS12");
+                new InlinePassword("wrong-password"));
 
         assertThatThrownBy(() -> new KeystoreScramCredentialStore(badConfig))
                 .isInstanceOf(CredentialServiceUnavailableException.class)
@@ -155,18 +146,16 @@ class KeystoreScramCredentialStoreTest {
 
     @Test
     void shouldHandleEmptyKeyStore() throws Exception {
-        Path emptyKeystorePath = tempDir.resolve("empty.jks");
+        Path emptyKeystorePath = tempDir.resolve("empty.p12");
         var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(emptyKeystorePath, STORE_PASSWORD);
+        generator.generateKeyStore(emptyKeystorePath, STORE_PASSWORD, ScramMechanism.SCRAM_SHA_256);
         if (Files.getFileAttributeView(emptyKeystorePath, PosixFileAttributeView.class) != null) {
             Files.setPosixFilePermissions(emptyKeystorePath, PosixFilePermissions.fromString("rw-------"));
         }
 
         KeystoreScramCredentialStoreConfig emptyConfig = new KeystoreScramCredentialStoreConfig(
                 emptyKeystorePath.toString(),
-                new InlinePassword(STORE_PASSWORD),
-                null,
-                "PKCS12");
+                new InlinePassword(STORE_PASSWORD));
 
         KeystoreScramCredentialStore emptyStore = new KeystoreScramCredentialStore(emptyConfig);
         ScramCredential credential = emptyStore.lookupCredential("anyone").toCompletableFuture().join();
@@ -294,54 +283,6 @@ class KeystoreScramCredentialStoreTest {
     }
 
     @Test
-    void shouldUseSeparateKeyPasswordWhenProvided() throws Exception {
-        // Given
-        String keyPassword = "different-key-password";
-        Path keystoreWithSeparateKeyPassword = tempDir.resolve("separate-key-pw.p12");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(keystoreWithSeparateKeyPassword,
-                STORE_PASSWORD, keyPassword,
-                org.apache.kafka.common.security.scram.internals.ScramMechanism.SCRAM_SHA_256,
-                "alice", ALICE_PASSWORD);
-        if (Files.getFileAttributeView(keystoreWithSeparateKeyPassword, PosixFileAttributeView.class) != null) {
-            Files.setPosixFilePermissions(keystoreWithSeparateKeyPassword, PosixFilePermissions.fromString("rw-------"));
-        }
-        KeystoreScramCredentialStoreConfig configWithKeyPassword = new KeystoreScramCredentialStoreConfig(
-                keystoreWithSeparateKeyPassword.toString(),
-                new InlinePassword(STORE_PASSWORD),
-                new InlinePassword(keyPassword),
-                "PKCS12");
-
-        // When/Then
-        assertThatCode(() -> new KeystoreScramCredentialStore(configWithKeyPassword))
-                .doesNotThrowAnyException();
-    }
-
-    @Test
-    void shouldFailIfKeyPasswordIsWrong() throws Exception {
-        // Given
-        String keyPassword = "correct-key-password";
-        Path keystoreWithKeyPassword = tempDir.resolve("key-pw.p12");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(keystoreWithKeyPassword,
-                STORE_PASSWORD, keyPassword,
-                org.apache.kafka.common.security.scram.internals.ScramMechanism.SCRAM_SHA_256,
-                "alice", ALICE_PASSWORD);
-        if (Files.getFileAttributeView(keystoreWithKeyPassword, PosixFileAttributeView.class) != null) {
-            Files.setPosixFilePermissions(keystoreWithKeyPassword, PosixFilePermissions.fromString("rw-------"));
-        }
-        KeystoreScramCredentialStoreConfig configWithWrongKeyPassword = new KeystoreScramCredentialStoreConfig(
-                keystoreWithKeyPassword.toString(),
-                new InlinePassword(STORE_PASSWORD),
-                new InlinePassword("wrong-key-password"),
-                "PKCS12");
-
-        // When/Then
-        assertThatThrownBy(() -> new KeystoreScramCredentialStore(configWithWrongKeyPassword))
-                .isInstanceOf(CredentialServiceUnavailableException.class);
-    }
-
-    @Test
     void shouldFailIfEntryIsMalformed() throws Exception {
         // Given - a keystore with a SecretKey entry containing garbage (not valid JSON)
         Path malformedKeystorePath = tempDir.resolve("malformed.p12");
@@ -349,7 +290,7 @@ class KeystoreScramCredentialStoreTest {
         ks.load(null, STORE_PASSWORD.toCharArray());
         byte[] garbage = new byte[]{ 1, 2, 3, 4, 5 };
         ks.setEntry(
-                TestCredentialGenerator.hashUsername("alice"),
+                KeystoreCredentialManager.hashUsername("alice"),
                 new KeyStore.SecretKeyEntry(new SecretKeySpec(garbage, "AES")),
                 new KeyStore.PasswordProtection(STORE_PASSWORD.toCharArray()));
         try (FileOutputStream fos = new FileOutputStream(malformedKeystorePath.toFile())) {
@@ -360,9 +301,7 @@ class KeystoreScramCredentialStoreTest {
         }
         KeystoreScramCredentialStoreConfig malformedConfig = new KeystoreScramCredentialStoreConfig(
                 malformedKeystorePath.toString(),
-                new InlinePassword(STORE_PASSWORD),
-                null,
-                "PKCS12");
+                new InlinePassword(STORE_PASSWORD));
 
         // When/Then
         assertThatThrownBy(() -> new KeystoreScramCredentialStore(malformedConfig))
