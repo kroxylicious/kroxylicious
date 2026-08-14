@@ -138,7 +138,7 @@ class KeystoreCredentialManagerCredentialGenerationTest {
     @Test
     void shouldRoundTripCredentialsThroughKeyStore(@TempDir Path tempDir) throws Exception {
         // Given - generate KeyStore with test credentials
-        Path keystorePath = tempDir.resolve("test.jks");
+        Path keystorePath = tempDir.resolve("test.p12");
         var generator = new KeystoreCredentialManager();
 
         String username1 = "alice";

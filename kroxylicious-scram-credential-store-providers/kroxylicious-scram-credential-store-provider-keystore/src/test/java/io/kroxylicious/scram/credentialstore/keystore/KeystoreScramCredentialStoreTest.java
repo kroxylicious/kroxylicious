@@ -52,7 +52,7 @@ class KeystoreScramCredentialStoreTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        keystorePath = tempDir.resolve("test-credentials.jks");
+        keystorePath = tempDir.resolve("test-credentials.p12");
 
         // Generate test keystore with two users
         var generator = new KeystoreCredentialManager();
@@ -125,7 +125,7 @@ class KeystoreScramCredentialStoreTest {
     @Test
     void shouldThrowExceptionForNonExistentKeyStore() {
         KeystoreScramCredentialStoreConfig badConfig = new KeystoreScramCredentialStoreConfig(
-                "/non/existent/keystore.jks",
+                "/non/existent/keystore.p12",
                 new InlinePassword(STORE_PASSWORD));
 
         assertThatThrownBy(() -> new KeystoreScramCredentialStore(badConfig))
@@ -146,7 +146,7 @@ class KeystoreScramCredentialStoreTest {
 
     @Test
     void shouldHandleEmptyKeyStore() throws Exception {
-        Path emptyKeystorePath = tempDir.resolve("empty.jks");
+        Path emptyKeystorePath = tempDir.resolve("empty.p12");
         var generator = new KeystoreCredentialManager();
         generator.generateKeyStore(emptyKeystorePath, STORE_PASSWORD, ScramMechanism.SCRAM_SHA_256);
         if (Files.getFileAttributeView(emptyKeystorePath, PosixFileAttributeView.class) != null) {

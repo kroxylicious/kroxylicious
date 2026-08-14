@@ -19,7 +19,7 @@ This module provides a production-ready credential store that loads SCRAM creden
 ```yaml
 credentialStore: KeystoreScramCredentialStore
 credentialStoreConfig:
-  file: /path/to/credentials.jks
+  file: /path/to/credentials.p12
   storePassword:
     passwordFile: /etc/kroxylicious/keystore-password.txt
   storeType: PKCS12
@@ -31,7 +31,7 @@ credentialStoreConfig:
 |-----------|------|----------|---------|-------------|
 | `file` | string | Yes | - | Path to the KeyStore file |
 | `storePassword` | PasswordProvider | Yes | - | Password for the KeyStore and its entries |
-| `storeType` | string | No | Platform default | KeyStore type (e.g., "PKCS12", "JKS") |
+| `storeType` | string | No | Platform default | KeyStore type (e.g., "PKCS12") |
 
 ## KeyStore Format
 
