@@ -5,13 +5,12 @@
  */
 
 /**
- * A filter that closes client connections after a configurable expiration age, with optional
- * jitter, causing clients to reconnect and be rebalanced across the available proxy instances.
+ * Contains the protocol logger filter.
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)
-package io.kroxylicious.filter.connectionexpiration;
+package io.kroxylicious.filter.protocollogger;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
 import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;

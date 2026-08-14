@@ -30,10 +30,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <pre>{@code
  * credentialStore: KeystoreScramCredentialStore
  * credentialStoreConfig:
- *   file: /path/to/credentials.jks
+ *   file: /path/to/credentials.p12
  *   storePassword:
  *     passwordFile: /etc/kroxylicious/keystore-password.txt
- *   storeType: PKCS12
  * }</pre>
  *
  * <h2>Lifecycle</h2>

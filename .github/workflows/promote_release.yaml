@@ -104,15 +104,40 @@ jobs:
           echo "RELCAND_ID=${RELCAND_ID}" >> $GITHUB_ENV
 
       - name: Download release state artefact
-        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          run_id: ${{ env.RELCAND_ID }}
+          run-id: ${{ env.RELCAND_ID }}
           name: RELEASE_STATE.json
+          github-token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
 
-      - name: 'Extract deployment id from the release state'
+      - name: Download release notes
+        if: ${{ inputs.command == 'promote-release' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          run-id: ${{ env.RELCAND_ID }}
+          name: RELEASE_NOTES
+          path: .releaseNotes
+          github-token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: Download release assets
+        if: ${{ inputs.command == 'promote-release' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          run-id: ${{ env.RELCAND_ID }}
+          name: RELEASE_ASSETS
+          path: release-assets
+          github-token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: 'Extract release metadata from the release state'
         run: |
           DEPLOYMENT_ID=$(jq --exit-status --raw-output '.deploymentId' RELEASE_STATE.json)
           echo "DEPLOYMENT_ID=${DEPLOYMENT_ID}" >> $GITHUB_ENV
+          RELEASE_VERSION=$(jq --exit-status --raw-output '.releaseVersion' RELEASE_STATE.json)
+          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
+          WORK_BRANCH=$(jq --exit-status --raw-output '.workBranch' RELEASE_STATE.json)
+          echo "WORK_BRANCH=${WORK_BRANCH}" >> $GITHUB_ENV
+          RELEASE_COMMIT_SHA=$(jq --exit-status --raw-output '.releaseCommitSha' RELEASE_STATE.json)
+          echo "RELEASE_COMMIT_SHA=${RELEASE_COMMIT_SHA}" >> $GITHUB_ENV
 
       - name: 'Stop workflow if PR is not approved'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && inputs.command == 'promote-release' }}
@@ -142,15 +167,14 @@ jobs:
             exit -1
           fi
 
-      - name: 'Get release version from the branch of PR'
+      - name: 'Validate release version from the release state'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          # This knows the commit that precedes PR_BRANCH will carry the tag.
-          TAG=$(git name-rev --no-undefined --tags --name-only  origin/${PR_BRANCH}^)
-          if [[ ! "${TAG}" =~ ^v ]]; then
-            gh issue comment  ${{ github.event.issue.number }} --body "The release tag '${TAG}' is not in the expected form."
+          if [[ ! "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            gh issue comment ${{ github.event.issue.number }} --body "The release version '${RELEASE_VERSION}' from RELEASE_STATE.json is not in the expected form."
             exit -1
           fi
-          echo "RELEASE_VERSION=$(echo ${TAG} | sed -e 's/^v//')" >> $GITHUB_ENV
 
       - name: 'Get heads'
         run: |
@@ -211,17 +235,33 @@ jobs:
                  -f "description=Release to Maven Central is complete" \
                  -f "context=maven-central"
 
-      - name: 'Transition release notes to desired state'
-        env:
-          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by transition-github-release-note-state.sh
-        run: ./scripts/transition-github-release-note-state.sh -s  ${{ inputs.command == 'promote-release' && 'release' || 'drop' }} -v ${{ env.RELEASE_VERSION }}
-
       - name: 'Merge PR'
         if: ${{ inputs.command == 'promote-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          gh pr merge --delete-branch --rebase ${{ inputs.release-pr-issue-number }}
+          gh pr merge --delete-branch --merge ${{ inputs.release-pr-issue-number }}
+          # --merge (not --rebase) so the commit SHA the published images are tagged with
+          # is reachable on main.
+          git tag "v${RELEASE_VERSION}" "${RELEASE_COMMIT_SHA}"
+          git push origin "v${RELEASE_VERSION}"
+
+      - name: 'Create GitHub release'
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh release create "v${RELEASE_VERSION}" \
+            --title "Kroxylicious ${RELEASE_VERSION}" \
+            --notes-file .releaseNotes/release-notes_01 \
+            release-assets/*
+
+      - name: 'Delete release branch'
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          git push origin --delete "${WORK_BRANCH}-rel" || echo "Branch ${WORK_BRANCH}-rel not found (already deleted?)"
 
       - name: Login to container registry
         if: ${{ vars.REGISTRY_SERVER != '' }}
@@ -257,6 +297,7 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           gh pr close --comment "Release dropped" --delete-branch ${{ inputs.release-pr-issue-number }}
+          git push origin --delete "${WORK_BRANCH}-rel" || echo "Branch ${WORK_BRANCH}-rel not found (already deleted?)"
 
       - name: 'Delete staging container images'
         if: ${{ inputs.command == 'drop-release' && vars.REGISTRY_SERVER != '' }}

@@ -222,6 +222,12 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-protocol-logger</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-kafka-message-tools</artifactId>
                 <version>${project.version}</version>
             </dependency>
