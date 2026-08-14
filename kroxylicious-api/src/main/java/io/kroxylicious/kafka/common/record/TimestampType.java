@@ -17,14 +17,11 @@
 
 package io.kroxylicious.kafka.common.record;
 
-import io.kroxylicious.kafka.common.annotation.InterfaceAudience;
-
 import java.util.NoSuchElementException;
 
 /**
  * The timestamp type of the records.
  */
-@InterfaceAudience.Public
 public enum TimestampType {
     NO_TIMESTAMP_TYPE(-1, "NoTimestampType"), CREATE_TIME(0, "CreateTime"), LOG_APPEND_TIME(1, "LogAppendTime");
 

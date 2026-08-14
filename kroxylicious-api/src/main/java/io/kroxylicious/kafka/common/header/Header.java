@@ -17,12 +17,9 @@
 
 package io.kroxylicious.kafka.common.header;
 
-import io.kroxylicious.kafka.common.annotation.InterfaceAudience;
-
 /**
  * A header is a key-value pair.
  */
-@InterfaceAudience.Public
 public interface Header {
 
     /**

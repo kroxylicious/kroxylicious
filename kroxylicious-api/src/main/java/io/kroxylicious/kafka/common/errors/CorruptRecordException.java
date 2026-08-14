@@ -18,13 +18,11 @@
 package io.kroxylicious.kafka.common.errors;
 
 import io.kroxylicious.kafka.common.KafkaException;
-import io.kroxylicious.kafka.common.annotation.InterfaceAudience;
 
 /**
  * This exception indicates a record has failed its internal CRC check, this generally indicates network or disk
  * corruption.
  */
-@InterfaceAudience.Public
 public class CorruptRecordException extends KafkaException {
 
     private static final long serialVersionUID = 1L;

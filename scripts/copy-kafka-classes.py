@@ -147,9 +147,6 @@ FILES = [
     ("common/errors/CorruptRecordException.java",        "common/errors/CorruptRecordException.java"),
     ("common/errors/InvalidConfigurationException.java", "common/errors/InvalidConfigurationException.java"),
 
-    # --- common/annotation ---
-    ("common/annotation/InterfaceAudience.java", "common/annotation/InterfaceAudience.java"),
-
     # --- common/header ---
     ("common/header/Header.java",                 "common/header/Header.java"),
     ("common/header/internals/RecordHeader.java", "common/header/internals/RecordHeader.java"),
@@ -263,7 +260,6 @@ PACKAGE_REWRITES = [
     ("package org.apache.kafka.common.record.internal;",  "package io.kroxylicious.kafka.common.record.internal;"),
     ("package org.apache.kafka.common.record;",           "package io.kroxylicious.kafka.common.record;"),
     ("package org.apache.kafka.common.errors;",           "package io.kroxylicious.kafka.common.errors;"),
-    ("package org.apache.kafka.common.annotation;",       "package io.kroxylicious.kafka.common.annotation;"),
     ("package org.apache.kafka.common.header.internals;", "package io.kroxylicious.kafka.common.header.internals;"),
     ("package org.apache.kafka.common.header;",           "package io.kroxylicious.kafka.common.header;"),
     ("package org.apache.kafka.common.network;",          "package io.kroxylicious.kafka.common.network;"),
@@ -306,8 +302,6 @@ IMPORT_PREFIXES = [
     ("org.apache.kafka.common.errors.InvalidConfigurationException",
                                                            "io.kroxylicious.kafka.common.errors.InvalidConfigurationException"),
     ("org.apache.kafka.common.errors.ApiException",        "io.kroxylicious.kafka.common.errors.ApiException"),
-    # annotation
-    ("org.apache.kafka.common.annotation.",                "io.kroxylicious.kafka.common.annotation."),
     # header.internals before header
     ("org.apache.kafka.common.header.internals.",          "io.kroxylicious.kafka.common.header.internals."),
     ("org.apache.kafka.common.header.",                    "io.kroxylicious.kafka.common.header."),

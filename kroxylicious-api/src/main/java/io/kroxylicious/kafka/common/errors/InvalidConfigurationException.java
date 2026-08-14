@@ -17,9 +17,6 @@
 
 package io.kroxylicious.kafka.common.errors;
 
-import io.kroxylicious.kafka.common.annotation.InterfaceAudience;
-
-@InterfaceAudience.Public
 public class InvalidConfigurationException extends ApiException {
 
     private static final long serialVersionUID = 1L;

@@ -17,12 +17,9 @@
 
 package io.kroxylicious.kafka.common;
 
-import io.kroxylicious.kafka.common.annotation.InterfaceAudience;
-
 /**
  * The base class of all other Kafka exceptions
  */
-@InterfaceAudience.Public
 public class KafkaException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;

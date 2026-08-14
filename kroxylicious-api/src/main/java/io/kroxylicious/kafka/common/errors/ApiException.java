@@ -18,13 +18,11 @@
 package io.kroxylicious.kafka.common.errors;
 
 import io.kroxylicious.kafka.common.KafkaException;
-import io.kroxylicious.kafka.common.annotation.InterfaceAudience;
 
 /**
  * Any API exception that is part of the public protocol and should be a subclass of this class and be part of this
  * package.
  */
-@InterfaceAudience.Public
 public class ApiException extends KafkaException {
 
     private static final long serialVersionUID = 1L;

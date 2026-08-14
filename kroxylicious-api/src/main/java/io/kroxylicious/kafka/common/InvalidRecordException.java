@@ -16,10 +16,8 @@
  */
 package io.kroxylicious.kafka.common;
 
-import io.kroxylicious.kafka.common.annotation.InterfaceAudience;
 import io.kroxylicious.kafka.common.errors.InvalidConfigurationException;
 
-@InterfaceAudience.Public
 public class InvalidRecordException extends InvalidConfigurationException {
 
     private static final long serialVersionUID = 1;
