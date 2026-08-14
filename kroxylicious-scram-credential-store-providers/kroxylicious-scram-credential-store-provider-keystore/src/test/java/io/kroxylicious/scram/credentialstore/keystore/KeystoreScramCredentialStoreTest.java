@@ -64,8 +64,7 @@ class KeystoreScramCredentialStoreTest {
 
         config = new KeystoreScramCredentialStoreConfig(
                 keystorePath.toString(),
-                new InlinePassword(STORE_PASSWORD),
-                "PKCS12");
+                new InlinePassword(STORE_PASSWORD));
 
         store = new KeystoreScramCredentialStore(config);
     }
@@ -127,8 +126,7 @@ class KeystoreScramCredentialStoreTest {
     void shouldThrowExceptionForNonExistentKeyStore() {
         KeystoreScramCredentialStoreConfig badConfig = new KeystoreScramCredentialStoreConfig(
                 "/non/existent/keystore.jks",
-                new InlinePassword(STORE_PASSWORD),
-                "PKCS12");
+                new InlinePassword(STORE_PASSWORD));
 
         assertThatThrownBy(() -> new KeystoreScramCredentialStore(badConfig))
                 .isInstanceOf(CredentialServiceUnavailableException.class)
@@ -139,8 +137,7 @@ class KeystoreScramCredentialStoreTest {
     void shouldThrowExceptionForInvalidPassword() {
         KeystoreScramCredentialStoreConfig badConfig = new KeystoreScramCredentialStoreConfig(
                 keystorePath.toString(),
-                new InlinePassword("wrong-password"),
-                "PKCS12");
+                new InlinePassword("wrong-password"));
 
         assertThatThrownBy(() -> new KeystoreScramCredentialStore(badConfig))
                 .isInstanceOf(CredentialServiceUnavailableException.class)
@@ -158,8 +155,7 @@ class KeystoreScramCredentialStoreTest {
 
         KeystoreScramCredentialStoreConfig emptyConfig = new KeystoreScramCredentialStoreConfig(
                 emptyKeystorePath.toString(),
-                new InlinePassword(STORE_PASSWORD),
-                "PKCS12");
+                new InlinePassword(STORE_PASSWORD));
 
         KeystoreScramCredentialStore emptyStore = new KeystoreScramCredentialStore(emptyConfig);
         ScramCredential credential = emptyStore.lookupCredential("anyone").toCompletableFuture().join();
@@ -305,8 +301,7 @@ class KeystoreScramCredentialStoreTest {
         }
         KeystoreScramCredentialStoreConfig malformedConfig = new KeystoreScramCredentialStoreConfig(
                 malformedKeystorePath.toString(),
-                new InlinePassword(STORE_PASSWORD),
-                "PKCS12");
+                new InlinePassword(STORE_PASSWORD));
 
         // When/Then
         assertThatThrownBy(() -> new KeystoreScramCredentialStore(malformedConfig))

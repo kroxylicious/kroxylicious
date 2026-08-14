@@ -122,18 +122,16 @@ public class KeystoreCredentialManager {
      *
      * @param keystorePath path where the KeyStore will be created
      * @param storePassword password for the KeyStore
-     * @param storeType KeyStore type (e.g., "PKCS12", "JKS")
      * @throws KeyStoreException if KeyStore creation fails or the file already exists
      */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public void createKeyStore(
                                Path keystorePath,
-                               String storePassword,
-                               String storeType)
+                               String storePassword)
             throws KeyStoreException {
         validatePasswordLength(storePassword, "KeyStore password");
         try {
-            KeyStore keyStore = KeyStore.getInstance(storeType);
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
             keyStore.load(null, storePassword.toCharArray());
 
             KeystoreFilePermissions.createExclusively(keystorePath);

@@ -25,7 +25,6 @@ class KeystoreCredentialManagerTest {
 
     private static final String KEYSTORE_PASSWORD = "test-keystore-password-123";
     private static final String USER_PASSWORD = "user-password-secret-456";
-    private static final String STORE_TYPE = "PKCS12";
 
     @Test
     void shouldCreateEmptyKeyStore(@TempDir Path tempDir) throws Exception {
@@ -34,10 +33,10 @@ class KeystoreCredentialManagerTest {
         var manager = new KeystoreCredentialManager();
 
         // When
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // Then
-        KeyStore keyStore = KeyStore.getInstance(STORE_TYPE);
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
         try (var fis = java.nio.file.Files.newInputStream(keystorePath)) {
             keyStore.load(fis, KEYSTORE_PASSWORD.toCharArray());
         }
@@ -50,7 +49,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When
         manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256);
@@ -65,7 +64,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When
         manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256);
@@ -82,7 +81,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256);
         manager.addUser(keystorePath, KEYSTORE_PASSWORD, "bob", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -99,7 +98,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When/Then
         assertThatThrownBy(() -> manager.removeUser(keystorePath, KEYSTORE_PASSWORD, "alice"))
@@ -112,7 +111,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", "old-password-123", ScramMechanism.SCRAM_SHA_256);
 
         // When
@@ -123,7 +122,7 @@ class KeystoreCredentialManagerTest {
         assertThat(users).containsExactly("alice");
 
         // And - credential was updated (different salt means different keys)
-        KeyStore keyStore = KeyStore.getInstance(STORE_TYPE);
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
         try (var fis = java.nio.file.Files.newInputStream(keystorePath)) {
             keyStore.load(fis, KEYSTORE_PASSWORD.toCharArray());
         }
@@ -135,7 +134,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When/Then
         assertThatThrownBy(() -> manager.updatePassword(keystorePath, KEYSTORE_PASSWORD, "alice", "new-password-456", ScramMechanism.SCRAM_SHA_256))
@@ -148,7 +147,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When - add users in non-alphabetical order
         manager.addUser(keystorePath, KEYSTORE_PASSWORD, "zebra", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256);
@@ -165,7 +164,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When
         List<String> users = manager.listUsers(keystorePath, KEYSTORE_PASSWORD);
@@ -179,7 +178,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", "old-password-123", ScramMechanism.SCRAM_SHA_256);
 
         // When - add same user again with different password
@@ -195,10 +194,10 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When/Then
-        assertThatThrownBy(() -> manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE))
+        assertThatThrownBy(() -> manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD))
                 .isInstanceOf(KeyStoreException.class)
                 .hasMessageContaining("KeyStore file already exists");
     }
@@ -224,7 +223,7 @@ class KeystoreCredentialManagerTest {
         var manager = new KeystoreCredentialManager();
 
         // When/Then
-        assertThatThrownBy(() -> manager.createKeyStore(keystorePath, "short", STORE_TYPE))
+        assertThatThrownBy(() -> manager.createKeyStore(keystorePath, "short"))
                 .isInstanceOf(CredentialValidationException.class)
                 .hasMessageContaining("KeyStore password must be at least 12 characters long")
                 .hasMessageContaining("NIST recommends");
@@ -235,7 +234,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When/Then
         assertThatThrownBy(() -> manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", "short", ScramMechanism.SCRAM_SHA_256))
@@ -249,7 +248,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         // When/Then
@@ -283,7 +282,7 @@ class KeystoreCredentialManagerTest {
         String minimumPassword = "twelve-chars"; // exactly 12 characters
 
         // When
-        manager.createKeyStore(keystorePath, minimumPassword, STORE_TYPE);
+        manager.createKeyStore(keystorePath, minimumPassword);
         manager.addUser(keystorePath, minimumPassword, "alice", minimumPassword, ScramMechanism.SCRAM_SHA_256);
 
         // Then
@@ -299,7 +298,7 @@ class KeystoreCredentialManagerTest {
         String longPassword = "this-is-a-very-long-password-passphrase-for-maximum-security-123";
 
         // When
-        manager.createKeyStore(keystorePath, longPassword, STORE_TYPE);
+        manager.createKeyStore(keystorePath, longPassword);
         manager.addUser(keystorePath, longPassword, "alice", longPassword, ScramMechanism.SCRAM_SHA_256);
 
         // Then
@@ -314,7 +313,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When/Then
         assertThatThrownBy(() -> manager.addUser(keystorePath, KEYSTORE_PASSWORD, null, USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
@@ -327,7 +326,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When/Then
         assertThatThrownBy(() -> manager.addUser(keystorePath, KEYSTORE_PASSWORD, "", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
@@ -340,7 +339,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         String longUsername = "a".repeat(256);
 
         // When/Then
@@ -354,7 +353,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         String maxUsername = "a".repeat(255);
 
         // When
@@ -370,7 +369,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When/Then
         assertThatThrownBy(() -> manager.updatePassword(keystorePath, KEYSTORE_PASSWORD, null, USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
@@ -383,7 +382,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When/Then
         assertThatThrownBy(() -> manager.updatePassword(keystorePath, KEYSTORE_PASSWORD, "", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
@@ -399,7 +398,7 @@ class KeystoreCredentialManagerTest {
         String passphrasePassword = "coffee sunrise laptop"; // 21 chars, no special characters
 
         // When - this should work (no composition rules)
-        manager.createKeyStore(keystorePath, passphrasePassword, STORE_TYPE);
+        manager.createKeyStore(keystorePath, passphrasePassword);
         manager.addUser(keystorePath, passphrasePassword, "alice", passphrasePassword, ScramMechanism.SCRAM_SHA_256);
 
         // Then
@@ -414,7 +413,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256);
         manager.addUser(keystorePath, KEYSTORE_PASSWORD, "bob", USER_PASSWORD, ScramMechanism.SCRAM_SHA_512, 8192);
 
@@ -444,7 +443,7 @@ class KeystoreCredentialManagerTest {
         // Given
         Path keystorePath = tempDir.resolve("test.p12");
         var manager = new KeystoreCredentialManager();
-        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD, STORE_TYPE);
+        manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
 
         // When
         List<KeystoreCredentialManager.UserCredentialInfo> credentials = manager.listCredentials(keystorePath, KEYSTORE_PASSWORD);

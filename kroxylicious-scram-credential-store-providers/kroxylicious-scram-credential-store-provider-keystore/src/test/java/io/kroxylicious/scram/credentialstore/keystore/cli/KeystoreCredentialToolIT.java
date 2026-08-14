@@ -33,8 +33,7 @@ class KeystoreCredentialToolIT {
         // Create keystore
         var createResult = executeCommand("--unlock-insecure-options", "create",
                 "-k", keystorePath.toString(),
-                "-p", KEYSTORE_PASSWORD,
-                "-t", "PKCS12");
+                "-p", KEYSTORE_PASSWORD);
 
         assertThat(createResult.exitCode()).isZero();
         assertThat(createResult.stdout()).contains("KeyStore created successfully");

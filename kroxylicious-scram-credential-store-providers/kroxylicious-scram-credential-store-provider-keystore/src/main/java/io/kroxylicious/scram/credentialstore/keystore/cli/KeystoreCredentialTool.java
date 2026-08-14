@@ -32,7 +32,7 @@ import picocli.CommandLine.ParentCommand;
  * </p>
  * <pre>{@code
  * # Create a new KeyStore
- * keystore-credential-tool create -k credentials.p12 -p password -t PKCS12
+ * keystore-credential-tool create -k credentials.p12 -p password
  *
  * # Add a user
  * keystore-credential-tool add-user -k credentials.p12 -p password -u alice -w alice-secret
@@ -169,9 +169,6 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-t", "--type" }, description = "Optional KeyStore type (default: ${DEFAULT-VALUE})", defaultValue = "PKCS12")
-        String storeType;
-
         @Option(names = { "-p", "--password" }, description = "Optional store password; requires --unlock-insecure-options. "
                 + "When omitted the store password will be prompted for interactively.")
         String password;
@@ -187,7 +184,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                         spec.commandLine().getErr());
 
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
-                manager.createKeyStore(keystorePath, keystorePassword, storeType);
+                manager.createKeyStore(keystorePath, keystorePassword);
                 spec.commandLine().getOut().println("KeyStore created successfully: " + keystorePath);
             }, "Failed to create KeyStore", spec.commandLine().getErr());
         }

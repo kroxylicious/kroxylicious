@@ -48,8 +48,7 @@ class KeystoreScramCredentialStoreServiceTest {
 
         config = new KeystoreScramCredentialStoreConfig(
                 keystorePath.toString(),
-                new InlinePassword(STORE_PASSWORD),
-                "PKCS12");
+                new InlinePassword(STORE_PASSWORD));
 
         service = new KeystoreScramCredentialStoreService();
     }

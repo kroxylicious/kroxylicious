@@ -83,7 +83,7 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
     private Map<String, ScramCredential> loadKeyStore(KeystoreScramCredentialStoreConfig config) throws CredentialServiceUnavailableException {
         KeystoreFilePermissions.checkForCredentialStore(Path.of(config.file()));
         try {
-            KeyStore keyStore = KeyStore.getInstance(config.effectiveStoreType());
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
 
             char[] storePassword = config.storePassword().getProvidedPassword().toCharArray();
             try {

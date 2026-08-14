@@ -6,13 +6,10 @@
 
 package io.kroxylicious.scram.credentialstore.keystore;
 
-import java.security.KeyStore;
-
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KeystoreScramCredentialStoreConfigTest {
@@ -21,34 +18,22 @@ class KeystoreScramCredentialStoreConfigTest {
 
     @Test
     void shouldRejectNullFile() {
-        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig(null, DUMMY_PASSWORD, null))
+        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig(null, DUMMY_PASSWORD))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("file must not be null");
     }
 
     @Test
     void shouldRejectEmptyFile() {
-        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig("", DUMMY_PASSWORD, null))
+        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig("", DUMMY_PASSWORD))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("file must not be empty");
     }
 
     @Test
     void shouldRejectNullStorePassword() {
-        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig("keystore.p12", null, null))
+        assertThatThrownBy(() -> new KeystoreScramCredentialStoreConfig("keystore.p12", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("storePassword must not be null");
-    }
-
-    @Test
-    void shouldUseDefaultKeyStoreTypeWhenStoreTypeIsNull() {
-        // Given
-        var config = new KeystoreScramCredentialStoreConfig("keystore.p12", DUMMY_PASSWORD, null);
-
-        // When
-        String type = config.effectiveStoreType();
-
-        // Then
-        assertThat(type).isEqualTo(KeyStore.getDefaultType());
     }
 }

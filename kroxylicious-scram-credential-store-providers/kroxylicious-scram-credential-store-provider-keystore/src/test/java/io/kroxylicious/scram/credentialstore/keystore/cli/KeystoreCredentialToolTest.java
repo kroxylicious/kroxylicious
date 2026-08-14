@@ -166,7 +166,7 @@ class KeystoreCredentialToolTest {
     @Test
     void createCommandShouldReturnExitCode1OnKeystoreException() {
         try (MockedConstruction<KeystoreCredentialManager> ignored = mockConstruction(KeystoreCredentialManager.class, (mock, context) -> {
-            doThrow(new KeyStoreException("simulated error")).when(mock).createKeyStore(any(), anyString(), anyString());
+            doThrow(new KeyStoreException("simulated error")).when(mock).createKeyStore(any(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "create",
@@ -184,7 +184,7 @@ class KeystoreCredentialToolTest {
     @Test
     void createCommandShouldReturnExitCode1OnCredentialValidationException() {
         try (MockedConstruction<KeystoreCredentialManager> ignored = mockConstruction(KeystoreCredentialManager.class, (mock, context) -> {
-            doThrow(new CredentialValidationException("Password too short")).when(mock).createKeyStore(any(), anyString(), anyString());
+            doThrow(new CredentialValidationException("Password too short")).when(mock).createKeyStore(any(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "create",
@@ -299,7 +299,7 @@ class KeystoreCredentialToolTest {
         try (MockedConstruction<KeystoreCredentialManager> ignored = mockConstruction(KeystoreCredentialManager.class, (mock, context) -> {
             var rootCause = new IOException("disk full");
             var intermediateCause = new RuntimeException("write failed", rootCause);
-            doThrow(new KeyStoreException("store error", intermediateCause)).when(mock).createKeyStore(any(), anyString(), anyString());
+            doThrow(new KeyStoreException("store error", intermediateCause)).when(mock).createKeyStore(any(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "create",
@@ -319,7 +319,7 @@ class KeystoreCredentialToolTest {
     @Test
     void commandShouldFormatExceptionWithNullMessage() {
         try (MockedConstruction<KeystoreCredentialManager> ignored = mockConstruction(KeystoreCredentialManager.class, (mock, context) -> {
-            doThrow(new KeyStoreException((String) null)).when(mock).createKeyStore(any(), anyString(), anyString());
+            doThrow(new KeyStoreException((String) null)).when(mock).createKeyStore(any(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "create",
@@ -337,7 +337,7 @@ class KeystoreCredentialToolTest {
         try (MockedConstruction<KeystoreCredentialManager> ignored = mockConstruction(KeystoreCredentialManager.class, (mock, context) -> {
             var deepCause = new RuntimeException("deep cause");
             var causeWithNullMsg = new RuntimeException((String) null, deepCause);
-            doThrow(new KeyStoreException("top level", causeWithNullMsg)).when(mock).createKeyStore(any(), anyString(), anyString());
+            doThrow(new KeyStoreException("top level", causeWithNullMsg)).when(mock).createKeyStore(any(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "create",
