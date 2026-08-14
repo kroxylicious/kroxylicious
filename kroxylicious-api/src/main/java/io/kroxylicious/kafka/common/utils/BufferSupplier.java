@@ -29,7 +29,7 @@ import java.util.Map;
  * batches, allocating a potentially large buffer (64 KB for LZ4) will dominate the cost of decompressing and
  * iterating over the records in the batch.
  */
-public abstract class BufferSupplier {
+public abstract class BufferSupplier implements AutoCloseable {
 
     public static final BufferSupplier NO_CACHING = new BufferSupplier() {
         @Override
