@@ -17,6 +17,9 @@ The choice of SASL mechanism is independent of the choice of xref:con-choosing-a
 However, some authentication approaches constrain the available mechanisms.
 For example, SASL Termination currently supports only the `OAUTHBEARER` mechanism.
 
+This section uses _server_ to refer to whichever component performs SASL authentication — either the Kafka broker or the Kroxylicious proxy, depending on your authentication approach.
+Where a point applies specifically to Apache Kafka brokers or to the proxy, the more specific term is used.
+
 == Mechanism overview
 
 PLAIN::
@@ -32,7 +35,7 @@ SCRAM is defined in https://datatracker.ietf.org/doc/html/rfc5802[RFC 5802], wit
 OAUTHBEARER::
 The client presents an OAuth 2.0 bearer token (typically a JWT) obtained from an authorization server.
 Bearer tokens are typically short-lived, limiting the window of exploitation if a token is intercepted.
-The broker or proxy validates the token using public keys retrieved from a JWKS endpoint, without requiring the client to send a password.
+The server validates the token using public keys retrieved from a JWKS endpoint, without requiring the client to send a password.
 OAUTHBEARER is defined in https://datatracker.ietf.org/doc/html/rfc7628[RFC 7628].
 
 == Security considerations
@@ -53,7 +56,7 @@ The user's underlying credentials (such as a username and password used to obtai
 
 === Protection against rogue servers and man-in-the-middle attacks
 
-*Threat:* An attacker impersonates the broker or interposes between the client and broker, for example by using a compromised internal CA or a malicious proxy certificate.
+*Threat:* An attacker impersonates the server or interposes between the client and server, for example by using a compromised internal CA or a malicious proxy certificate.
 
 PLAIN:: No protection at the SASL layer.
 The client sends the password to whatever server terminates TLS.
@@ -82,76 +85,78 @@ SCRAM:: Not applicable.
 SCRAM credentials are service-specific by design: the derived keys are computed with a salt chosen by the server, so credentials stolen from one service cannot be replayed against another.
 
 OAUTHBEARER:: Bearer tokens can include an `aud` (audience) claim that identifies the intended recipient.
-If the broker or proxy is configured to validate the audience, it rejects tokens that were issued for a different service.
+If the server is configured to validate the audience, it rejects tokens that were issued for a different service.
 +
-To protect against cross-service replay, configure a unique audience value for your Kafka deployment and ensure that both the authorization server and the broker or proxy enforce it.
+To protect against cross-service replay, configure a unique audience value for your Kafka deployment and ensure that both the authorization server and the server enforce it.
 Tokens issued without an audience claim, or with an overly broad audience, can be replayed against any service that accepts them.
 
 === Protection against credential database theft
 
-*Threat:* An attacker gains access to the authentication credential store on the broker.
+*Threat:* An attacker gains access to the authentication credential store on the server.
 
-PLAIN:: The broker must be able to verify the plain-text password.
+PLAIN:: The server must be able to verify the plain-text password.
 In principle, a server could store passwords using a strong hashing algorithm, but Apache Kafka currently stores PLAIN credentials as a plain-text username/password mapping in the broker configuration.
 An attacker who gains access to the broker configuration obtains all passwords directly.
 
-SCRAM:: The broker stores derived keys (`StoredKey` and `ServerKey`) computed using PBKDF2.
+SCRAM:: The server stores derived keys (`StoredKey` and `ServerKey`) computed using PBKDF2.
 An attacker who obtains these derived keys cannot directly authenticate as the client — `StoredKey` is a one-way hash of `ClientKey`, so producing a valid authentication proof requires an offline attack to reverse the hash.
 The attacker can, however, impersonate the _server_ using `ServerKey`.
 Crucially, the original password cannot be recovered from the stored keys, which prevents credential-stuffing attacks against other services where the user may have reused the same password.
 
-OAUTHBEARER:: The broker does not store user passwords.
+OAUTHBEARER:: The server does not store user passwords.
 It stores only the public keys (via JWKS) used to verify token signatures.
 Theft of the JWKS public keys does not allow an attacker to generate valid tokens or recover user credentials.
-The credential store is maintained by the authorization server, not the broker.
+The credential store is maintained by the authorization server, not the server.
 
-=== Resistance to offline cracking of stolen credentials
+=== Resistance to password recovery from stolen credentials
 
-*Threat:* An attacker who has stolen the credential store subjects it to offline brute-force or dictionary attacks using GPUs or ASICs.
+*Threat:* An attacker who has stolen the credential store attempts to recover user passwords, either directly or through offline brute-force and dictionary attacks.
 
-PLAIN:: In principle, because the broker receives the raw password, the broker could use state-of-the-art memory-hard hashing algorithms such as Argon2id, bcrypt, or scrypt.
-However, Apache Kafka currently stores PLAIN credentials in plain text, so this advantage does not apply in practice — there is nothing to crack.
+PLAIN:: *None.*
+Apache Kafka currently stores PLAIN credentials in plain text, so an attacker who obtains the credential store has immediate access to all passwords with no cracking required.
 
-SCRAM:: The SCRAM protocol (https://datatracker.ietf.org/doc/html/rfc5802[RFC 5802] / https://datatracker.ietf.org/doc/html/rfc7677[RFC 7677]) mandates PBKDF2 for key derivation.
-PBKDF2 lacks memory hardness, which makes GPU-based offline cracking significantly faster compared to memory-hard algorithms.
-While the PBKDF2 iteration count can be increased to raise the cost of cracking, this also increases the cost of legitimate authentication.
+SCRAM:: *Moderate.*
+The SCRAM protocol (https://datatracker.ietf.org/doc/html/rfc5802[RFC 5802] / https://datatracker.ietf.org/doc/html/rfc7677[RFC 7677]) mandates PBKDF2 for key derivation, so an attacker must perform an offline brute-force or dictionary attack to recover passwords.
+However, PBKDF2 lacks memory hardness, which makes GPU-based cracking significantly faster compared to memory-hard algorithms such as Argon2id or bcrypt.
+The PBKDF2 iteration count can be increased to raise the cost of cracking, but this also increases the cost of legitimate authentication.
 
-OAUTHBEARER:: Not applicable at the broker level, because the broker does not store passwords.
-Resistance to offline cracking depends entirely on the authorization server's credential storage practices.
+OAUTHBEARER:: *Not applicable.*
+The server does not store passwords; it stores only the public keys used to verify token signatures.
+Resistance to password recovery depends entirely on the authorization server's credential storage practices.
 
 == Operational considerations
 
 === External identity provider compatibility
 
-PLAIN:: Because the broker receives the raw password, it can forward the password to any external authentication backend such as LDAP, Active Directory, or PAM.
+PLAIN:: Because the server receives the raw password, it can forward the password to any external authentication backend such as LDAP, Active Directory, or PAM.
 This makes PLAIN the most flexible mechanism for integration with legacy or third-party identity infrastructure.
 
-SCRAM:: SCRAM requires the broker to store SCRAM-specific derived keys (`StoredKey`, `ServerKey`, salt, and iteration count).
+SCRAM:: SCRAM requires the server to store SCRAM-specific derived keys (`StoredKey`, `ServerKey`, salt, and iteration count).
 External identity directories such as LDAP or Active Directory do not natively store SCRAM derivation keys, making integration with these backends difficult.
 
 OAUTHBEARER:: Designed for integration with external identity providers.
 The authorization server handles user authentication and can integrate with LDAP, Active Directory, social identity providers, multi-factor authentication, and other enterprise identity infrastructure.
-The Kafka broker or proxy only needs to validate the resulting tokens.
+The server only needs to validate the resulting tokens.
 
 === Authentication latency
 
-Kafka is a connection-oriented protocol, so authentication occurs once per connection.
-Because connections are typically long-lived, authentication latency is amortized over the life of the connection and is not normally a paramount concern.
+Kafka uses long-lived connections, with authentication at connection establishment and occasional reauthentication.
+The additional latency from extra authentication round trips is small in this context and is not normally a paramount concern.
 
 PLAIN:: Requires one round trip: the client sends credentials, and the server responds with success or failure.
 
 SCRAM:: Requires two round trips for the challenge-response exchange (`client-first` -> `server-first` -> `client-final` -> `server-final`).
 Over high-latency network links, this doubles the authentication negotiation time compared to PLAIN.
 
-OAUTHBEARER:: Requires one round trip between the client and broker.
+OAUTHBEARER:: Requires one round trip between the client and server.
 However, the client must first obtain a token from the authorization server, which adds latency before the Kafka connection is established.
 Token caching and refresh strategies can amortize this cost across multiple connections.
 
 === Infrastructure requirements
 
-PLAIN:: No additional infrastructure beyond the broker (or whatever backend the broker delegates authentication to).
+PLAIN:: No additional infrastructure beyond the server (or whatever backend the server delegates authentication to).
 
-SCRAM:: No additional infrastructure beyond the broker.
+SCRAM:: No additional infrastructure beyond the server.
 Credential management (creating and updating SCRAM credentials) is handled through Kafka's built-in tooling.
 
 OAUTHBEARER:: Requires an OAuth 2.0 authorization server and a JWKS endpoint for token validation.
@@ -195,12 +200,12 @@ The following table summarizes how each mechanism addresses common threat vector
 |*Credential database theft*
 |Kafka stores PLAIN credentials in plain text; all passwords exposed directly
 |Derived keys do not allow direct client impersonation; original password cannot be recovered, preventing credential reuse attacks
-|No passwords stored at the broker; only public keys for token verification
+|No passwords stored on the server; only public keys for token verification
 
-|*Offline cracking of stolen credentials*
-|Not applicable; Kafka currently stores PLAIN credentials in plain text
-|PBKDF2 only (mandated by SCRAM protocol); lacks memory hardness, more vulnerable to GPU-based cracking
-|Not applicable at the broker; depends on the authorization server
+|*Resistance to password recovery*
+|None; Kafka stores PLAIN credentials in plain text
+|Moderate; PBKDF2 requires offline cracking but lacks memory hardness
+|Not applicable; server does not store passwords
 
 |*External identity provider integration*
 |High compatibility; raw password can be forwarded to LDAP, Active Directory, or PAM
@@ -213,7 +218,7 @@ The following table summarizes how each mechanism addresses common threat vector
 |1 round trip (plus prior token acquisition from authorization server)
 
 |*Infrastructure requirements*
-|None beyond the broker
-|None beyond the broker
+|None beyond the server
+|None beyond the server
 |OAuth 2.0 authorization server and JWKS endpoint
 |===
