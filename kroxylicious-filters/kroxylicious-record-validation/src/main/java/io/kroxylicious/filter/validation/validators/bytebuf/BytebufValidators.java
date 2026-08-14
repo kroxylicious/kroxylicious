@@ -95,6 +95,10 @@ public class BytebufValidators {
      * WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
      * </p>
      *
+     * @param trustedJsonWebKeySet the set of trusted JSON Web Keys used to verify signatures
+     * @param algorithms the allowed/denied JWS algorithms
+     * @param headerOptions options controlling which record header carries the JWS and whether it is required
+     * @param contentOptions options controlling whether the JWS payload is detached
      * @return validator
      */
     public static BytebufValidator jwsSignatureValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> algorithms,

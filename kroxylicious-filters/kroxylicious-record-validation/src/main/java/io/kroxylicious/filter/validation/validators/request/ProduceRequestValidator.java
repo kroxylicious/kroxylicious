@@ -25,7 +25,18 @@ public interface ProduceRequestValidator {
      */
     CompletionStage<ProduceRequestValidationResult> validateRequest(List<NamedTopicProduceData> namedTopicProduceDataList);
 
+    /**
+     * The produce data for a topic, together with the topic's name (which may be absent
+     * from the {@link ProduceRequestData.TopicProduceData} itself in produce requests that
+     * identify topics by id).
+     *
+     * @param topicName the name of the topic
+     * @param data the produce data for the topic
+     */
     record NamedTopicProduceData(String topicName, ProduceRequestData.TopicProduceData data) {
+        /**
+         * Requires a non-null, non-empty topic name and non-null produce data.
+         */
         public NamedTopicProduceData {
             Objects.requireNonNull(topicName);
             Objects.requireNonNull(data);

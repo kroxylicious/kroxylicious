@@ -21,7 +21,7 @@ import io.kroxylicious.krpccodegen.main.KrpcGenerator;
 
 /**
  * Abstract Maven plugin capable of generating java source from Apache Kafka message
- * specifications definitions.
+ * specification definitions.
  */
 abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
 
@@ -113,7 +113,11 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
         }
     }
 
-    // visible for testing
+    /**
+     * The Maven project this mojo is executing within. Visible for testing.
+     *
+     * @return the Maven project.
+     */
     public MavenProject project() {
         return project;
     }
