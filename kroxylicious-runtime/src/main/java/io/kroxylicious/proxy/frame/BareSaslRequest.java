@@ -17,6 +17,11 @@ public class BareSaslRequest implements RequestFrame {
     private final byte[] bytes;
     private final boolean decodeResponse;
 
+    /**
+     * Constructs a bare SASL request.
+     * @param bytes The SASL token bytes.
+     * @param decodeResponse Whether the response to this request should be decoded.
+     */
     public BareSaslRequest(byte[] bytes, boolean decodeResponse) {
         this.bytes = bytes;
         this.decodeResponse = decodeResponse;
@@ -57,6 +62,10 @@ public class BareSaslRequest implements RequestFrame {
         return decodeResponse;
     }
 
+    /**
+     * The SASL token bytes carried by this request.
+     * @return The SASL token bytes.
+     */
     public byte[] bytes() {
         return bytes;
     }

@@ -11,6 +11,11 @@ package io.kroxylicious.proxy.config;
  * Typically, these represent errors by the plugin author or user, such as not applying plugin annotations correctly.
  */
 public class PluginDiscoveryException extends RuntimeException {
+    /**
+     * Creates the exception.
+     *
+     * @param message detail message
+     */
     public PluginDiscoveryException(String message) {
         super(message);
     }

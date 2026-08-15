@@ -50,6 +50,11 @@ public final class Features {
         return featureToEnabled.getOrDefault(feature, feature.enabledByDefault());
     }
 
+    /**
+     * Returns the default feature set, with every feature at its default enablement.
+     *
+     * @return the default features
+     */
     public static Features defaultFeatures() {
         return DEFAULT_FEATURES;
     }
@@ -62,18 +67,44 @@ public final class Features {
         return stream(Feature.values()).flatMap(feature -> feature.maybeWarning(isEnabled(feature)).stream()).toList();
     }
 
+    /**
+     * Creates a new builder with no features explicitly enabled.
+     *
+     * @return a new builder
+     */
     public static FeaturesBuilder builder() {
         return new FeaturesBuilder();
     }
 
+    /**
+     * Builder of {@link Features} instances.
+     */
     public static class FeaturesBuilder {
         private final Map<Feature, Boolean> features = new EnumMap<>(Feature.class);
 
+        /**
+         * Creates a builder with no features explicitly enabled.
+         */
+        public FeaturesBuilder() {
+            // Intentionally empty
+        }
+
+        /**
+         * Enables the given feature.
+         *
+         * @param feature feature to enable
+         * @return this builder
+         */
         public FeaturesBuilder enable(Feature feature) {
             features.put(feature, true);
             return this;
         }
 
+        /**
+         * Builds the features.
+         *
+         * @return the built {@link Features} instance
+         */
         public Features build() {
             if (features.isEmpty()) {
                 return Features.defaultFeatures();

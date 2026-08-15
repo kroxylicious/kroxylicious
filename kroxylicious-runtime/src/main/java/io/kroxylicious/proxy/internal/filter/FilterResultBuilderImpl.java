@@ -18,6 +18,13 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Base implementation of {@link FilterResultBuilder} holding the state (header, message,
+ * close-connection and drop flags) common to request and response filter result builders.
+ *
+ * @param <H> the header type accepted by {@link #forward(ApiMessage, ApiMessage)}
+ * @param <R> the type of filter result being built
+ */
 public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends FilterResult>
         implements FilterResultBuilder<H, R>, CloseOrTerminalStage<R> {
     private @Nullable ApiMessage message;
@@ -25,6 +32,9 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends Fi
     private boolean closeConnection;
     private boolean drop;
 
+    /**
+     * Creates an empty builder.
+     */
     protected FilterResultBuilderImpl() {
     }
 
@@ -37,6 +47,12 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends Fi
         return this;
     }
 
+    /**
+     * Validates the arguments passed to {@link #forward(ApiMessage, ApiMessage)}.
+     *
+     * @param header the header to be forwarded
+     * @param message the message to be forwarded
+     */
     protected void validateForward(H header, ApiMessage message) {
         if (header == null) {
             throw new IllegalArgumentException("header may not be null");
@@ -72,6 +88,11 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends Fi
         return this;
     }
 
+    /**
+     * Indicates whether {@link #drop()} was invoked on this builder.
+     *
+     * @return true if the message is to be dropped
+     */
     public boolean isDrop() {
         return drop;
     }

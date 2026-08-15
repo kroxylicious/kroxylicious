@@ -18,6 +18,7 @@ import io.netty.util.concurrent.Future;
  */
 public abstract class NetworkBindingOperation<U> {
 
+    /** Indicates whether the port is to be used for TLS. */
     protected final boolean tls;
 
     /**

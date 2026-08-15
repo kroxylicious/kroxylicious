@@ -38,6 +38,13 @@ import io.kroxylicious.proxy.frame.ByteBufAccessor;
 public class BodyDecoder {
 
     /**
+    * Not instantiable: all members are static.
+    */
+    private BodyDecoder() {
+        // Prevent construction
+    }
+
+    /**
     * Decodes Kafka request Readable into an ApiMessage
     * @param apiKey the api key of the message
     * @param apiVersion the api version of the message

@@ -24,6 +24,11 @@ import java.util.Objects;
  */
 public record ReconfigureError(String humanReadableIdentifier, Throwable cause) {
 
+    /**
+     * Validates that both components are non-null.
+     *
+     * @throws NullPointerException if {@code humanReadableIdentifier} or {@code cause} is {@code null}
+     */
     public ReconfigureError {
         Objects.requireNonNull(humanReadableIdentifier, "humanReadableIdentifier");
         Objects.requireNonNull(cause, "cause");
