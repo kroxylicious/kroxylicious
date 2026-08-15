@@ -31,7 +31,6 @@
         <fabric8-client.version>7.4.0</fabric8-client.version>
         <lombok.version>1.18.46</lombok.version>
         <errorprone.skip>true</errorprone.skip>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <dependencyManagement>
@@ -287,9 +286,20 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
-                    <!-- disable for packages containing the sundrio generated classes -->
-                    <excludePackageNames>io.kroxylicious.proxy.config:io.kroxylicious.proxy.config.admin
+                    <!-- Exclude the fabric8/sundrio generated CRD classes from the javadoc; only
+                         the CRD YAMLs themselves are public API, not the derived Java classes. -->
+                    <excludePackageNames>io.kroxylicious.kubernetes.api.v1alpha1:io.kroxylicious.kubernetes.api.v1alpha1.*:io.kroxylicious.kubernetes.filter.api.v1alpha1:io.kroxylicious.kubernetes.filter.api.v1alpha1.*
                     </excludePackageNames>
+                    <sourceFileExcludes>
+                        <!-- sundrio generates these into the same package as the hand-written classes -->
+                        <sourceFileExclude>**/*Builder.java</sourceFileExclude>
+                        <sourceFileExclude>**/*Fluent.java</sourceFileExclude>
+                    </sourceFileExcludes>
+                    <!-- The generated builders cannot carry doc comments but are referenced
+                         from the hand-written classes' signatures, so the missing-comment lint
+                         cannot be satisfied. All other doclint groups still produce warnings
+                         that break the build. -->
+                    <doclint>all,-missing</doclint>
                 </configuration>
             </plugin>
         </plugins>
