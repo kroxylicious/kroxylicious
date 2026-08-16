@@ -56,7 +56,7 @@ The user's underlying credentials (such as a username and password used to obtai
 
 === Protection against rogue servers and man-in-the-middle attacks
 
-*Threat:* An attacker impersonates the server or interposes between the client and server, for example by using a compromised internal CA or a malicious proxy certificate.
+*Threat:* An attacker impersonates the server or interposes between the client and server, for example, by using a compromised internal CA or a malicious proxy certificate.
 
 PLAIN:: No protection at the SASL layer.
 The client sends the password to whatever server terminates TLS.
@@ -150,7 +150,7 @@ Over high-latency network links, this doubles the authentication negotiation tim
 
 OAUTHBEARER:: Requires one round trip between the client and server.
 However, the client must first obtain a token from the authorization server, which adds latency before the Kafka connection is established.
-Token caching and refresh strategies can amortize this cost across multiple connections.
+Token caching and refresh strategies can spread this cost across multiple connections.
 
 === Infrastructure requirements
 
