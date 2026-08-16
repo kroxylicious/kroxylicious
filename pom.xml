@@ -85,7 +85,7 @@
         <awaitility.version>4.3.0</awaitility.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <azure.security.keyvault.keys.version>4.11.1</azure.security.keyvault.keys.version>
-        <lowkey.version>7.3.48</lowkey.version>
+        <lowkey.version>7.3.74</lowkey.version>
         <bouncycastle.version>1.85</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.2</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.2</wiremock.version>
@@ -775,7 +775,7 @@
                         <dependency>
                             <groupId>com.puppycrawl.tools</groupId>
                             <artifactId>checkstyle</artifactId>
-                            <version>13.9.0</version>
+                            <version>13.10.0</version>
                         </dependency>
                     </dependencies>
                     <configuration>
@@ -1024,7 +1024,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-help-plugin</artifactId>
-                    <version>3.5.1</version>
+                    <version>3.5.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.sonarsource.scanner.maven</groupId>
