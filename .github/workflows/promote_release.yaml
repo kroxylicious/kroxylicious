@@ -138,6 +138,8 @@ jobs:
           echo "WORK_BRANCH=${WORK_BRANCH}" >> $GITHUB_ENV
           RELEASE_COMMIT_SHA=$(jq --exit-status --raw-output '.releaseCommitSha' RELEASE_STATE.json)
           echo "RELEASE_COMMIT_SHA=${RELEASE_COMMIT_SHA}" >> $GITHUB_ENV
+          WEBSITE_REPOSITORY=$(jq --exit-status --raw-output '.websiteRepository' RELEASE_STATE.json)
+          echo "WEBSITE_REPOSITORY=${WEBSITE_REPOSITORY}" >> $GITHUB_ENV
 
       - name: 'Stop workflow if PR is not approved'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && inputs.command == 'promote-release' }}
@@ -290,6 +292,25 @@ jobs:
           while IFS= read -r manifest; do
             tag_release "${manifest}" "${manifest%:*}"
           done < <(jq -r "${MANIFEST_IMAGE_SELECTOR}" RELEASE_STATE.json)
+
+      - name: 'Set up Java'
+        if: ${{ inputs.command == 'promote-release' }}
+        uses: ./.github/actions/common/setup-java
+        with:
+          javaVersion: '21'
+          javaDistro: 'temurin'
+
+      - name: 'Publish release docs'
+        # Placed after every other step that reads RELEASE_STATE.json / release-assets
+        # from disk: stage-docs.sh does `git stash --all` without a matching pop, which
+        # would otherwise sweep those untracked files out of the working tree.
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-docs.sh
+        run: |
+          ./scripts/stage-docs.sh -v "${RELEASE_VERSION}" \
+                                  -b "prepare-v${RELEASE_VERSION}-release-docs-${{ github.run_id }}" \
+                                  -u "https://user:${GH_TOKEN}@${WEBSITE_REPOSITORY}"
 
       - name: 'Drop PR'
         if: ${{ inputs.command == 'drop-release' }}

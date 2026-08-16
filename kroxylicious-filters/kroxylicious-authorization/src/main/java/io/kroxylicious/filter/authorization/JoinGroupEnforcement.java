@@ -18,7 +18,19 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the JoinGroup API, requiring {@link GroupResource#READ}
+ * on the consumer group.
+ */
 public class JoinGroupEnforcement extends ApiEnforcement<JoinGroupRequestData, JoinGroupResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public JoinGroupEnforcement() {
+        // Intentionally empty
+    }
+
     @Override
     short minSupportedVersion() {
         return 0;

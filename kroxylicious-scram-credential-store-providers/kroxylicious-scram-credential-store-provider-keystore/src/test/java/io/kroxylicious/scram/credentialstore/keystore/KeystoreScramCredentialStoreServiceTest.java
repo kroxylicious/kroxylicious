@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
 
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,13 +37,10 @@ class KeystoreScramCredentialStoreServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        keystorePath = tempDir.resolve("test-credentials.jks");
+        keystorePath = tempDir.resolve("test-credentials.p12");
 
         var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                STORE_PASSWORD,
-                "alice", "alice-secret");
+        generator.generateKeyStore(keystorePath, STORE_PASSWORD, ScramMechanism.SCRAM_SHA_256, "alice", "alice-secret");
 
         if (Files.getFileAttributeView(keystorePath, PosixFileAttributeView.class) != null) {
             Files.setPosixFilePermissions(keystorePath, PosixFilePermissions.fromString("rw-------"));
@@ -50,9 +48,7 @@ class KeystoreScramCredentialStoreServiceTest {
 
         config = new KeystoreScramCredentialStoreConfig(
                 keystorePath.toString(),
-                new InlinePassword(STORE_PASSWORD),
-                null,
-                "PKCS12");
+                new InlinePassword(STORE_PASSWORD));
 
         service = new KeystoreScramCredentialStoreService();
     }

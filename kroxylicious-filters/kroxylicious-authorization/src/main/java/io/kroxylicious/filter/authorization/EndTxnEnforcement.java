@@ -19,7 +19,19 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the EndTxn API, requiring {@link TransactionalIdResource#WRITE}
+ * on the transactional id.
+ */
 public class EndTxnEnforcement extends ApiEnforcement<EndTxnRequestData, EndTxnResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public EndTxnEnforcement() {
+        // Intentionally empty
+    }
+
     @Override
     short minSupportedVersion() {
         return 0;

@@ -23,7 +23,19 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the DescribeGroups API, requiring {@link GroupResource#DESCRIBE}
+ * on each consumer group named in the request.
+ */
 public class DescribeGroupsEnforcement extends ApiEnforcement<DescribeGroupsRequestData, DescribeGroupsResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public DescribeGroupsEnforcement() {
+        // Intentionally empty
+    }
+
     @Override
     short minSupportedVersion() {
         return 0;
