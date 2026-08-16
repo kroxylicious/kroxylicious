@@ -53,7 +53,9 @@ import static org.mockito.Mockito.when;
  * <p>
  * The test runs increasing batches in parallel and checks that the means
  * of the three scenarios (success, unknown user, wrong password) converge
- * — i.e. the relative spread between them shrinks below a tight threshold.
+ * — i.e. the relative spread between them shrinks below a tight threshold
+ * — and that their standard deviations are within a bounded ratio of each
+ * other (no scenario has a distinctively different noise profile).
  * If there were a real timing difference the means would diverge, not converge.
  */
 class ScramTimingTest {
@@ -67,7 +69,7 @@ class ScramTimingTest {
     private static final int BATCH_SIZE = 50;
     private static final int MAX_BATCHES = 20;
     private static final double MEAN_CONVERGENCE_THRESHOLD = 0.001;
-    private static final double STDDEV_MAX_MS = 0.5;
+    private static final double STDDEV_RATIO_MAX = 3.0;
 
     @BeforeAll
     static void registerProviders() {
@@ -134,11 +136,11 @@ class ScramTimingTest {
                         unknownUserTimes.mean(),
                         wrongPasswordTimes.mean());
 
-                boolean stdDevsLow = successTimes.stdDev() < STDDEV_MAX_MS
-                        && unknownUserTimes.stdDev() < STDDEV_MAX_MS
-                        && wrongPasswordTimes.stdDev() < STDDEV_MAX_MS;
+                double maxStdDev = Math.max(successTimes.stdDev(), Math.max(unknownUserTimes.stdDev(), wrongPasswordTimes.stdDev()));
+                double minStdDev = Math.min(successTimes.stdDev(), Math.min(unknownUserTimes.stdDev(), wrongPasswordTimes.stdDev()));
+                boolean stdDevsConsistent = minStdDev > 0 && (maxStdDev / minStdDev) < STDDEV_RATIO_MAX;
 
-                if (meanSpread < MEAN_CONVERGENCE_THRESHOLD && stdDevsLow) {
+                if (meanSpread < MEAN_CONVERGENCE_THRESHOLD && stdDevsConsistent) {
                     converged = true;
                     break;
                 }
@@ -146,9 +148,9 @@ class ScramTimingTest {
 
             // Then
             assertThat(converged)
-                    .as("means should converge (<%.1f%% spread) and std devs should be low (<%.0fms) within %d iterations " +
+                    .as("means should converge (<%.1f%% spread) and std dev ratio should be low (<%.1fx) within %d iterations " +
                             "(success: mean=%.1fms stddev=%.2fms, unknown: mean=%.1fms stddev=%.2fms, wrongPw: mean=%.1fms stddev=%.2fms)",
-                            MEAN_CONVERGENCE_THRESHOLD * 100, STDDEV_MAX_MS,
+                            MEAN_CONVERGENCE_THRESHOLD * 100, STDDEV_RATIO_MAX,
                             successTimes.count(),
                             successTimes.mean(), successTimes.stdDev(),
                             unknownUserTimes.mean(), unknownUserTimes.stdDev(),
