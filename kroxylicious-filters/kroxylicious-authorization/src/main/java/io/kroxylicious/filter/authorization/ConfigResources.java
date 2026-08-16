@@ -24,6 +24,14 @@ public class ConfigResources {
         // Prevent construction
     }
 
+    /**
+     * Filters a stream, retaining only the elements which refer to config resources of the given type.
+     * @param stream The stream to filter.
+     * @param idByteFunction A function returning the config resource type id of an element of the stream.
+     * @param type The config resource type to retain.
+     * @return The filtered stream.
+     * @param <T> The type of the stream elements.
+     */
     public static <T> Stream<T> filter(Stream<T> stream, Function<T, Byte> idByteFunction, ConfigResource.Type type) {
         Objects.requireNonNull(stream);
         Objects.requireNonNull(idByteFunction);

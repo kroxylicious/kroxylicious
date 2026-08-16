@@ -20,7 +20,19 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the DeleteGroups API, requiring {@link GroupResource#DELETE}
+ * on each consumer group named in the request.
+ */
 public class DeleteGroupsEnforcement extends ApiEnforcement<DeleteGroupsRequestData, DeleteGroupsResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public DeleteGroupsEnforcement() {
+        // Intentionally empty
+    }
+
     @Override
     short minSupportedVersion() {
         return 0;

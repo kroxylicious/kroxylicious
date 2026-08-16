@@ -23,7 +23,19 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 import static io.kroxylicious.filter.authorization.GroupResource.DESCRIBE;
 
+/**
+ * Enforces authorization of the ListGroups API, filtering the response so that it only
+ * lists consumer groups for which the client has {@link GroupResource#DESCRIBE}.
+ */
 public class ListGroupsEnforcement extends ApiEnforcement<ListGroupsRequestData, ListGroupsResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public ListGroupsEnforcement() {
+        // Intentionally empty
+    }
+
     @Override
     short minSupportedVersion() {
         return 0;
