@@ -23,7 +23,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.errors.UnsupportedSaslMechanismException;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.Test;
@@ -35,8 +34,6 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.kroxylicious.filter.sasl.termination.SaslTermination;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
-import io.kroxylicious.it.testplugins.ProtocolCounter;
-import io.kroxylicious.it.testplugins.ProtocolCounterFilter;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.scram.credentialstore.keystore.KeystoreScramCredentialStoreService;
 import io.kroxylicious.scram.credentialstore.keystore.TestCredentialGenerator;
@@ -78,6 +75,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         // Configure SASL termination filter
@@ -133,6 +131,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
@@ -165,6 +164,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
@@ -197,6 +197,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
@@ -230,6 +231,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         Duration maxTimeBeforeReauth = Duration.ofSeconds(2);
@@ -278,8 +280,7 @@ class SaslTerminationScramIT extends BaseIT {
                                 "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
-                                        "storePassword", Map.of("password", KEYSTORE_PASSWORD),
-                                        "storeType", "PKCS12"))),
+                                        "storePassword", Map.of("password", KEYSTORE_PASSWORD)))),
                         "maxTimeBeforeReauth", maxTimeBeforeReauth.toSeconds() + "s")
                 .build();
     }
@@ -353,6 +354,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
@@ -385,6 +387,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
@@ -413,9 +416,8 @@ class SaslTerminationScramIT extends BaseIT {
     }
 
     @Test
-    void shouldDescribeExistingUserScramCredentials(
-                                                    Topic topic,
-                                                    @TempDir Path tempDir)
+    void shouldRejectDescribeUserScramCredentials(
+                                                  @TempDir Path tempDir)
             throws Exception {
 
         // Given
@@ -424,72 +426,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
-                TEST_USERNAME, TEST_PASSWORD);
-
-        var saslTermination = createSaslTerminationFilter(keystorePath);
-        var counter = new NamedFilterDefinitionBuilder(
-                ProtocolCounter.class.getName(),
-                ProtocolCounter.class.getName())
-                .withConfig(
-                        "countRequests", Set.of(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS),
-                        "countResponses", Set.of())
-                .build();
-        var config = proxy(cluster)
-                .addToFilterDefinitions(saslTermination, counter)
-                .addToDefaultFilters(saslTermination.name(), counter.name());
-
-        var clientConfigs = createScramClientConfigs(TEST_USERNAME, TEST_PASSWORD);
-
-        try (var tester = kroxyliciousTester(config);
-                var admin = tester.admin(clientConfigs)) {
-
-            // When
-            var result = admin.describeUserScramCredentials(List.of(TEST_USERNAME));
-
-            // Then — response from filter's own credential store
-            var description = result.description(TEST_USERNAME);
-            assertThat(description).succeedsWithin(10, TimeUnit.SECONDS)
-                    .satisfies(desc -> {
-                        assertThat(desc.credentialInfos()).singleElement()
-                                .satisfies(info -> {
-                                    assertThat(info.mechanism())
-                                            .isEqualTo(org.apache.kafka.clients.admin.ScramMechanism.SCRAM_SHA_256);
-                                    assertThat(info.iterations()).isEqualTo(10000);
-                                });
-                    });
-
-            // Then — request was short-circuited, never forwarded past SaslTermination
-            try (var producer = tester.producer(clientConfigs)) {
-                assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
-                        .succeedsWithin(Duration.ofSeconds(5));
-            }
-            var consumerConfigs = new HashMap<>(clientConfigs);
-            consumerConfigs.put(GROUP_ID_CONFIG, "describe-test-group");
-            consumerConfigs.put(AUTO_OFFSET_RESET_CONFIG, "earliest");
-            try (var consumer = tester.consumer(consumerConfigs)) {
-                consumer.subscribe(Set.of(topic.name()));
-                var records = consumer.poll(Duration.ofSeconds(10));
-                assertThat(records).hasSize(1);
-                var record = records.records(topic.name()).iterator().next();
-                var countHeader = record.headers().lastHeader(
-                        ProtocolCounterFilter.requestCountHeaderKey(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS));
-                assertThat(countHeader).isNotNull();
-                assertThat(ProtocolCounterFilter.fromBytes(countHeader.value())).isZero();
-            }
-        }
-    }
-
-    @Test
-    void shouldDescribeNonExistentUserWithEmptyCredentials(
-                                                           @TempDir Path tempDir)
-            throws Exception {
-
-        // Given
-        Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
@@ -502,14 +439,10 @@ class SaslTerminationScramIT extends BaseIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(clientConfigs)) {
 
-            // When
-            var result = admin.describeUserScramCredentials(List.of("unknown-user"));
-
-            // Then
-            assertThat(result.description("unknown-user"))
+            // When/Then
+            assertThat(admin.describeUserScramCredentials(List.of(TEST_USERNAME)).all())
                     .failsWithin(10, TimeUnit.SECONDS)
-                    .withThrowableOfType(ExecutionException.class)
-                    .withCauseInstanceOf(org.apache.kafka.common.errors.ResourceNotFoundException.class);
+                    .withThrowableOfType(ExecutionException.class);
         }
     }
 
@@ -524,6 +457,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
@@ -560,6 +494,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
@@ -590,6 +525,7 @@ class SaslTerminationScramIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
@@ -621,8 +557,7 @@ class SaslTerminationScramIT extends BaseIT {
                                 "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
-                                        "storePassword", Map.of("password", KEYSTORE_PASSWORD),
-                                        "storeType", "PKCS12"))))
+                                        "storePassword", Map.of("password", KEYSTORE_PASSWORD)))))
                 .build();
     }
 

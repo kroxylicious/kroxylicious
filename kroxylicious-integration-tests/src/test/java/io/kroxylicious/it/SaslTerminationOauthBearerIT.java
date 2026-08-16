@@ -36,6 +36,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.security.oauthbearer.internals.secured.VerificationKeyResolverFactory;
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.jose4j.jwk.PublicJsonWebKey;
 import org.jose4j.jws.AlgorithmIdentifiers;
@@ -386,6 +387,7 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
+                ScramMechanism.SCRAM_SHA_256,
                 TEST_USERNAME, TEST_PASSWORD);
 
         var saslTermination = createMultiMechanismFilter(keystorePath, KEYSTORE_PASSWORD);
@@ -455,8 +457,7 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
                                 "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
-                                        "storePassword", Map.of("password", keystorePassword),
-                                        "storeType", "PKCS12")),
+                                        "storePassword", Map.of("password", keystorePassword))),
                         Map.of("mechanism", "OAUTHBEARER",
                                 "jwksEndpointUrl", JWKS_ENDPOINT_URL,
                                 "expectedAudience", EXPECTED_AUDIENCE,

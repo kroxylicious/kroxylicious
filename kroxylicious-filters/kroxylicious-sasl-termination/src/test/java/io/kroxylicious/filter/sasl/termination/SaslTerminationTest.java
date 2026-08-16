@@ -25,7 +25,6 @@ import javax.security.sasl.SaslException;
 
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
@@ -580,7 +579,7 @@ class SaslTerminationTest {
     @EnumSource(value = ApiKeys.class, names = {
             "CREATE_DELEGATION_TOKEN", "RENEW_DELEGATION_TOKEN",
             "EXPIRE_DELEGATION_TOKEN", "DESCRIBE_DELEGATION_TOKEN",
-            "ALTER_USER_SCRAM_CREDENTIALS"
+            "ALTER_USER_SCRAM_CREDENTIALS", "DESCRIBE_USER_SCRAM_CREDENTIALS"
     })
     void shouldRejectUnsupportedApiRequests(ApiKeys apiKey) {
         // Given
@@ -631,8 +630,7 @@ class SaslTerminationTest {
                 .toList();
         assertThat(remainingApiKeys).containsExactly(
                 ApiKeys.PRODUCE.id,
-                ApiKeys.FETCH.id,
-                ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS.id);
+                ApiKeys.FETCH.id);
     }
 
     @Test
@@ -656,54 +654,6 @@ class SaslTerminationTest {
                 .map(ApiVersionsResponseData.ApiVersion::apiKey)
                 .toList();
         assertThat(remainingKeys).containsExactly(ApiKeys.PRODUCE.id);
-    }
-
-    @Test
-    void shouldDescribeExistingUser() {
-        // Given
-        var credentialStore = mock(ScramCredentialStore.class);
-        var credential = mock(io.kroxylicious.scram.credentialstore.ScramCredential.class);
-        when(credential.iterations()).thenReturn(10000);
-        when(credentialStore.lookupCredential("alice"))
-                .thenReturn(CompletableFuture.completedFuture(credential));
-
-        var context = testContext(Set.of("SCRAM-SHA-256"), Map.of(ScramMechanism.SCRAM_SHA_256, credentialStore), List.of());
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
-
-        var request = new DescribeUserScramCredentialsRequestData();
-        request.users().add(new DescribeUserScramCredentialsRequestData.UserName().setName("alice"));
-
-        var filterContext = mockFilterContextForShortCircuitResponse();
-
-        // When
-        filter.onRequest(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, (short) 0,
-                new RequestHeaderData(), request, filterContext);
-
-        // Then
-        verify(credentialStore).lookupCredential("alice");
-    }
-
-    @Test
-    void shouldDescribeNonExistentUser() {
-        // Given
-        var credentialStore = mock(ScramCredentialStore.class);
-        when(credentialStore.lookupCredential("unknown"))
-                .thenReturn(CompletableFuture.completedFuture(null));
-
-        var context = testContext(Set.of("SCRAM-SHA-256"), Map.of(ScramMechanism.SCRAM_SHA_256, credentialStore), List.of());
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
-
-        var request = new DescribeUserScramCredentialsRequestData();
-        request.users().add(new DescribeUserScramCredentialsRequestData.UserName().setName("unknown"));
-
-        var filterContext = mockFilterContextForShortCircuitResponse();
-
-        // When
-        filter.onRequest(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, (short) 0,
-                new RequestHeaderData(), request, filterContext);
-
-        // Then
-        verify(credentialStore).lookupCredential("unknown");
     }
 
     @Test
