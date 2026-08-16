@@ -39,7 +39,7 @@ Be aware that in this mode the proxy cannot log which client is making requests,
 
 Use SASL Passthrough Inspection when:
 
-* You need the proxy to know the client's identity (for example, to use the authorization filter or entity isolation filter).
+* You need the proxy to know the client's identity (for example, to use the `Authorization` filter or `EntityIsolation` filter).
 * You want the broker to remain the authority for authentication decisions.
 
 Because the broker remains the authentication authority and sees the same client identity as if the client had connected without the proxy, broker-side features that depend on client identity — such as authorization (ACLs), audit logging, and quotas — continue to work without any changes to your existing broker configuration.
