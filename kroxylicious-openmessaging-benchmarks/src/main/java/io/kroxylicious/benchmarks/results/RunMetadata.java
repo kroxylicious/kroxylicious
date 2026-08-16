@@ -61,17 +61,36 @@ public class RunMetadata {
                                Integer producersPerTopic, Integer consumerPerSubscription,
                                String namespace, String proxyPodName) {
 
-        /** An empty context that writes no probe-specific fields. */
+        /**
+         * An empty context that writes no probe-specific fields.
+         *
+         * @return a context with all fields unset
+         */
         public static ProbeContext empty() {
             return new ProbeContext(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
 
-        /** Create a context with probe identifiers but no phase timing or workload parameters. */
+        /**
+         * Create a context with probe identifiers but no phase timing or workload parameters.
+         *
+         * @param scenario   the benchmark scenario name (e.g. {@code baseline}, {@code proxy-no-filters})
+         * @param workload   the OMB workload name (e.g. {@code 1topic-1kb})
+         * @param targetRate the target producer rate in msg/sec for this probe
+         * @return a context holding only the given probe identifiers
+         */
         public static ProbeContext of(String scenario, String workload, Integer targetRate) {
             return new ProbeContext(scenario, workload, targetRate, null, null, null, null, null, null, null, null, null, null, null);
         }
 
-        /** Return a copy of this context with benchmark phase durations and timestamps added. */
+        /**
+         * Return a copy of this context with benchmark phase durations and timestamps added.
+         *
+         * @param warmupDurationMinutes warmup phase duration in minutes, or {@code null} if not recorded
+         * @param testDurationMinutes   measurement phase duration in minutes, or {@code null} if not recorded
+         * @param benchmarkStartedAt    ISO-8601 UTC timestamp when the benchmark job started, or {@code null} if not recorded
+         * @param benchmarkCompletedAt  ISO-8601 UTC timestamp when the benchmark job completed, or {@code null} if not recorded
+         * @return a copy of this context with the given phase information
+         */
         public ProbeContext withPhases(Integer warmupDurationMinutes, Integer testDurationMinutes,
                                        String benchmarkStartedAt, String benchmarkCompletedAt) {
             return new ProbeContext(scenario, workload, targetRate,
@@ -81,7 +100,16 @@ public class RunMetadata {
                     namespace, proxyPodName);
         }
 
-        /** Return a copy of this context with workload shape parameters added. */
+        /**
+         * Return a copy of this context with workload shape parameters added.
+         *
+         * @param topics                  number of topics in the workload, or {@code null} if not recorded
+         * @param partitionsPerTopic      number of partitions per topic, or {@code null} if not recorded
+         * @param messageSize             message payload size in bytes, or {@code null} if not recorded
+         * @param producersPerTopic       number of producers per topic, or {@code null} if not recorded
+         * @param consumerPerSubscription number of consumers per subscription, or {@code null} if not recorded
+         * @return a copy of this context with the given workload shape
+         */
         public ProbeContext withWorkload(Integer topics, Integer partitionsPerTopic, Integer messageSize,
                                          Integer producersPerTopic, Integer consumerPerSubscription) {
             return new ProbeContext(scenario, workload, targetRate,
@@ -91,7 +119,13 @@ public class RunMetadata {
                     namespace, proxyPodName);
         }
 
-        /** Return a copy of this context with the proxy pod coordinates added. */
+        /**
+         * Return a copy of this context with the proxy pod coordinates added.
+         *
+         * @param namespace    Kubernetes namespace containing the proxy pod, or {@code null} to skip proxy info
+         * @param proxyPodName name of the proxy pod to query for resource limits, or {@code null} to skip proxy info
+         * @return a copy of this context with the given proxy pod coordinates
+         */
         public ProbeContext withProxy(String namespace, String proxyPodName) {
             return new ProbeContext(scenario, workload, targetRate,
                     warmupDurationMinutes, testDurationMinutes,
