@@ -28,6 +28,9 @@ include::_modules/authentication/con-sasl-{guide}-modes.adoc[leveloffset=+1]
 // choosing an authentication approach
 include::_modules/authentication/con-choosing-{guide}-approach.adoc[leveloffset=+1]
 
+// choosing a SASL mechanism
+include::_modules/authentication/con-choosing-sasl-mechanism.adoc[leveloffset=+1]
+
 // understanding subjects and subject builders
 include::_modules/authentication/con-subjects-and-subject-builders.adoc[leveloffset=+1]
 

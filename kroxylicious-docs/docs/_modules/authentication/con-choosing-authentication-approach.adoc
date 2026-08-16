@@ -31,14 +31,18 @@ Use SASL Passthrough (the default) when:
 * Your filters do not require an authenticated subject (for example, you are using only record encryption or record validation).
 * You want the simplest possible configuration.
 
+Because the broker still authenticates the client and sees the same identity as if the client had connected without the proxy, broker-side features that depend on client identity — such as authorization (ACLs), audit logging, and quotas — continue to work without any changes to your existing broker configuration.
+
 Be aware that in this mode the proxy cannot log which client is making requests, and identity-aware filters cannot function.
 
 == SASL Passthrough Inspection
 
 Use SASL Passthrough Inspection when:
 
-* You need the proxy to know the client's identity (for example, to use the authorization filter or entity isolation filter).
+* You need the proxy to know the client's identity (for example, to use the `Authorization` filter or `EntityIsolation` filter).
 * You want the broker to remain the authority for authentication decisions.
+
+Because the broker remains the authentication authority and sees the same client identity as if the client had connected without the proxy, broker-side features that depend on client identity — such as authorization (ACLs), audit logging, and quotas — continue to work without any changes to your existing broker configuration.
 
 Consider the following:
 
@@ -66,6 +70,15 @@ Use SASL Termination when:
 * You want the proxy to be the sole authority for client authentication, fully decoupling it from the broker.
 * You need to ensure that only authenticated clients' application requests are forwarded to the broker.
 * Your Kafka clients authenticate using OAuth 2.0 bearer tokens (the `OAUTHBEARER` SASL mechanism), which is the only mechanism currently supported.
+
+Authenticating clients at the proxy means that every broker feature which depends on client identity needs to be reconsidered:
+
+* *Authorization:* The broker sees application requests as coming from the proxy, not from the original client.
+  You can move authorization responsibility to the proxy using the `Authorization` filter, or you can update your broker's authorization configuration so that the proxy's identity is authorized appropriately.
+* *Audit logging:* Broker-side audit logs record the proxy's identity, not the original client's identity.
+  If you need client-level audit trails, you need to rely on proxy-side logging.
+* *Quotas:* Broker-side quotas apply to the proxy's identity, not to individual clients.
+  If you need per-client quota enforcement, you need to implement it at the proxy level.
 
 Consider the following:
 
