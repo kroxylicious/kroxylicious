@@ -11,8 +11,8 @@ import java.io.UncheckedIOException;
 import java.util.Objects;
 import java.util.Properties;
 
-import io.skodjob.testframe.enums.InstallType;
-import io.skodjob.testframe.environment.TestEnvironmentVariables;
+import io.skodjob.kubetest4j.enums.InstallType;
+import io.skodjob.kubetest4j.environment.TestEnvironmentVariables;
 
 /**
  * The type Environment.
