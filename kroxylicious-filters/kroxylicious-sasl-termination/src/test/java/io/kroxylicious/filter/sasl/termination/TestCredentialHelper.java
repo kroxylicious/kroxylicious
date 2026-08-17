@@ -19,7 +19,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * Test helper for generating SCRAM credentials.
  */
-public class TestCredentialHelper {
+class TestCredentialHelper {
 
     private static final int DEFAULT_ITERATIONS = 4096;
     private static final int SALT_LENGTH = 20;

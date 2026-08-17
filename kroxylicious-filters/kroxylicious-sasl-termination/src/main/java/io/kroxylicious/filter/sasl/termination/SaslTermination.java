@@ -85,7 +85,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      *
      * @param oauthCallbackHandler initialized callback handler for OAUTHBEARER, null if not configured
      * @param oauthMaxAuthBytes maximum auth payload size for OAUTHBEARER
-     * @param scramCredentialStores map of SCRAM mechanism type byte to credential store
+     * @param scramCredentialStores map of SCRAM mechanism to credential store
      * @param scramPhantomIterations map of SCRAM mechanism to phantom user iteration count
      * @param supportedMechanisms set of configured mechanism names
      * @param maxTimeBeforeReauth maximum session lifetime, null if disabled

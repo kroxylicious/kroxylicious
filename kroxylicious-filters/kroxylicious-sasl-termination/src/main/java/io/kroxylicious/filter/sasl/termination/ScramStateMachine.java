@@ -122,7 +122,8 @@ class ScramStateMachine implements MechanismStateMachine {
                 // Log but don't throw - dispose must be idempotent and safe
                 LOGGER.atDebug()
                         .setCause(e)
-                        .log("Error disposing {} SASL server", mechanismName());
+                        .addKeyValue("mechanism", mechanismName())
+                        .log("Error disposing SASL server");
             }
             finally {
                 saslServer = null;
