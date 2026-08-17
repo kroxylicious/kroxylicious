@@ -118,6 +118,7 @@ jobs:
           POMS_VERSION=$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)
           echo "release_version=${POMS_VERSION}" >> $GITHUB_OUTPUT
           echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+          echo "output_tarballs=${{ inputs.output-tarballs }}" >> $GITHUB_OUTPUT
           SHA_TAG="commit-$(git rev-parse --short "${GITHUB_SHA}")"
 
           if [[ "${{ inputs.output-tarballs }}" == "true" ]]; then
@@ -222,7 +223,7 @@ jobs:
             package
 
       - name: Build and maybe push amd64 proxy image
-        if: ${{ inputs.output-tarballs != true }}
+        if: steps.build_configuration.outputs.output_tarballs != 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ./kroxylicious-app
@@ -241,7 +242,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-amd64
 
       - name: Export amd64 proxy image as tarball
-        if: ${{ inputs.output-tarballs == true }}
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ./kroxylicious-app
@@ -261,7 +262,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-amd64
 
       - name: Build and maybe push operator image
-        if: ${{ inputs.output-tarballs != true }}
+        if: steps.build_configuration.outputs.output_tarballs != 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ./kroxylicious-kubernetes/kroxylicious-operator
@@ -280,7 +281,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd,scope=operator
 
       - name: Export operator image as tarball
-        if: ${{ inputs.output-tarballs == true }}
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ./kroxylicious-kubernetes/kroxylicious-operator
@@ -300,7 +301,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd,scope=operator
 
       - name: Build and maybe push Admission webhook image
-        if: ${{ inputs.output-tarballs != true }}
+        if: steps.build_configuration.outputs.output_tarballs != 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ./kroxylicious-kubernetes/kroxylicious-admission
@@ -319,7 +320,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd,scope=admission
 
       - name: Export Admission webhook image as tarball
-        if: ${{ inputs.output-tarballs == true }}
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ./kroxylicious-kubernetes/kroxylicious-admission
@@ -339,7 +340,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd,scope=admission
 
       - name: Gzip image tarballs
-        if: ${{ inputs.output-tarballs == true }}
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
         run: |
           gzip /tmp/kroxylicious-proxy.img.tar
           gzip /tmp/kroxylicious-operator.img.tar
@@ -417,7 +418,7 @@ jobs:
           done
 
       - name: Archive proxy image tarball
-        if: ${{ inputs.output-tarballs == true }}
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: kroxylicious-proxy
@@ -425,7 +426,7 @@ jobs:
           retention-days: 1
 
       - name: Archive operator image tarball
-        if: ${{ inputs.output-tarballs == true }}
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: kroxylicious-operator
@@ -433,7 +434,7 @@ jobs:
           retention-days: 1
 
       - name: Archive admission webhook image tarball
-        if: ${{ inputs.output-tarballs == true }}
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: kroxylicious-admission-webhook
