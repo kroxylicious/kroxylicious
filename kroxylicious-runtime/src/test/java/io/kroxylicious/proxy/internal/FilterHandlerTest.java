@@ -1382,6 +1382,72 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
+    void internalResponsePassedThroughNonRecipientFilterThatFailsClosesChannel() {
+        // Given
+        ApiVersionsResponseFilter failingFilter = (apiVersion, header, response, context) -> CompletableFuture.failedStage(new RuntimeException("filter failed"));
+        buildChannel(failingFilter);
+        var dummyRecipient = (ApiVersionsResponseFilter) (apiVersion, header, response, context) -> null;
+        var responseData = new ApiVersionsResponseData();
+        var responseHeader = new ResponseHeaderData().setCorrelationId(42);
+        var frame = new InternalResponseFrame<>(dummyRecipient, ApiKeys.API_VERSIONS.latestVersion(), 42,
+                responseHeader, responseData, new CompletableFuture<>());
+
+        // When
+        channel.writeOneOutbound(frame);
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void internalRequestFrameThroughFailingFilterClosesChannel() {
+        // Given
+        ApiVersionsRequestFilter failingFilter = (apiVersion, header, request, context) -> CompletableFuture.failedStage(new RuntimeException("filter failed"));
+        buildChannel(failingFilter);
+        var dummyRecipient = (ApiVersionsRequestFilter) (apiVersion, header, request, context) -> null;
+
+        // When
+        writeInternalRequest(new ApiVersionsRequestData(), dummyRecipient);
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void deferredRequestFilterCompletesExceptionallyClosesChannel() {
+        // Given
+        var filterFuture = new CompletableFuture<RequestFilterResult>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
+        buildChannel(filter);
+        writeRequest(new ApiVersionsRequestData());
+
+        // When
+        filterFuture.completeExceptionally(new RuntimeException("filter failed"));
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void deferredResponseFilterCompletesExceptionallyClosesChannel() {
+        // Given
+        var filterFuture = new CompletableFuture<ResponseFilterResult>();
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> filterFuture;
+        buildChannel(filter);
+        writeResponse(new ApiVersionsResponseData());
+
+        // When
+        filterFuture.completeExceptionally(new RuntimeException("filter failed"));
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
     void opaqueResponseWriteFailurePropagatesToCallerPromise() {
         // Given
         var cause = new RuntimeException("simulated write failure");

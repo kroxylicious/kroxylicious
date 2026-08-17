@@ -628,6 +628,10 @@ public class ClientConnectionStateMachine {
      * @param timeout maximum time to wait for in-flight responses before force-closing
      * @return future that completes when this connection has reached {@link Closed}
      */
+    // FutureReturnValueIgnored: the failure is handled inside the callback; both branches
+    // complete `promise` (exceptionally or successfully), and the derived stage can only fail
+    // if the callback itself throws.
+    @SuppressWarnings("FutureReturnValueIgnored")
     CompletableFuture<Void> drain(Duration timeout) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         // registerConnection can add this CCSM before Netty fires channelActive, so
