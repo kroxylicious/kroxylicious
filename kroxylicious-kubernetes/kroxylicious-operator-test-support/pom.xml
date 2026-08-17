@@ -26,9 +26,6 @@
         resources easier.
     </description>
 
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
 
     <dependencyManagement>
         <dependencies>
