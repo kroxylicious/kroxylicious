@@ -797,6 +797,7 @@ class SaslTerminationTest {
         verify(handler).evaluateRound(any());
     }
 
+    @SuppressWarnings("java:S2093") // The recommended try-with-resources for `executor` actually results in deadlock; it's closed with the eventLoop anyway
     @Test
     void fixedAuthDelayShouldCompleteOnProvidedExecutor() throws Exception {
         // Given

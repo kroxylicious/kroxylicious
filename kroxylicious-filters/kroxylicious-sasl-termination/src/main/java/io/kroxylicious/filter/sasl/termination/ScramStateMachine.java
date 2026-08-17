@@ -15,6 +15,7 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
 import javax.crypto.Mac;
@@ -59,7 +60,6 @@ class ScramStateMachine implements MechanismStateMachine {
 
     static final int MAX_USERNAME_LENGTH = 255;
     private static final int PHANTOM_SALT_LENGTH = 20;
-    private static final int PHANTOM_NUM_SERVER_NONCE_BYTES = 24;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String LOG_KEY_USERNAME = "username";
 
@@ -148,7 +148,7 @@ class ScramStateMachine implements MechanismStateMachine {
                         return processWithCredential(authBytes, credential);
                     })
                     .exceptionally(throwable -> {
-                        Throwable cause = throwable instanceof java.util.concurrent.CompletionException ce ? ce.getCause() : throwable;
+                        Throwable cause = throwable instanceof CompletionException ce ? ce.getCause() : throwable;
                         Exception exception = cause instanceof Exception e ? e : new RuntimeException(cause);
                         return RoundResult.failure(new byte[0], exception);
                     });
@@ -239,9 +239,7 @@ class ScramStateMachine implements MechanismStateMachine {
 
         byte[] salt = derivePhantomSalt(Objects.requireNonNull(extractedUsername));
 
-        byte[] serverNonceBytes = new byte[PHANTOM_NUM_SERVER_NONCE_BYTES];
-        SECURE_RANDOM.nextBytes(serverNonceBytes);
-        String serverNonce = Base64.getEncoder().encodeToString(serverNonceBytes);
+        String serverNonce = ScramFormatter.secureRandomString(SECURE_RANDOM);
 
         String serverFirstMessage = "r=" + clientNonce + serverNonce
                 + ",s=" + Base64.getEncoder().encodeToString(salt)
