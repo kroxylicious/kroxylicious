@@ -16,7 +16,12 @@ import io.kroxylicious.scram.credentialstore.ScramCredentialStoreService;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Shared configuration interface for SCRAM mechanism variants.
+ * Configuration for a SCRAM SASL mechanism ({@code SCRAM-SHA-256} or {@code SCRAM-SHA-512})
+ * within the {@link SaslTermination} filter.
+ * <p>
+ * Each instance binds a SCRAM mechanism to a {@link ScramCredentialStoreService} that provides
+ * the stored credentials used to authenticate clients.
+ * </p>
  *
  * @param mechanismName the SASL mechanism name (e.g. {@code SCRAM-SHA-256})
  * @param credentialStore plugin name for the credential store service
@@ -52,6 +57,8 @@ public record ScramMechanismConfig(
 
     /**
      * Returns the configured phantom iterations, or the default (10000) if not set.
+     *
+     * @return the effective phantom iteration count
      */
     int effectivePhantomIterations() {
         return phantomIterations != null ? phantomIterations : DEFAULT_PHANTOM_ITERATIONS;
