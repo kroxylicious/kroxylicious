@@ -79,6 +79,10 @@ on:
         description: 'Extra comma-separated image tags alongside the commit-SHA tag (e.g. "0.23.0-SNAPSHOT"). Leave empty for SHA-only.'
         required: false
         default: ''
+      output-tarballs:
+        description: 'Export amd64 images as Docker-format gzip tarballs and upload them as GitHub Actions artifacts for use by system tests. Mutually exclusive with push-images.'
+        type: boolean
+        default: false
 
 jobs:
   build:
