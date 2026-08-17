@@ -34,6 +34,7 @@ import org.apache.kafka.common.security.scram.internals.ScramMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.scram.credentialstore.ScramCredential;
 import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
 
@@ -62,10 +63,11 @@ class ScramStateMachine implements MechanismStateMachine {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String LOG_KEY_USERNAME = "username";
 
-    private final String mechanismName;
+    private final ScramMechanism mechanism;
     private final ScramCredentialStore credentialStore;
     private final int phantomIterations;
     private final byte[] phantomSaltKey;
+    private final FilterDispatchExecutor filterDispatchExecutor;
 
     // Set during the first round when the credential lookup finds the user
     @Nullable
@@ -84,17 +86,19 @@ class ScramStateMachine implements MechanismStateMachine {
      * @param mechanism the SCRAM mechanism (SHA-256 or SHA-512)
      * @param credentialStore the credential store for looking up user credentials
      * @param phantomIterations PBKDF2 iteration count for phantom user challenges
+     * @param filterDispatchExecutor executor for returning to the filter dispatch thread after async credential lookup
      */
-    ScramStateMachine(ScramMechanism mechanism, ScramCredentialStore credentialStore, int phantomIterations) {
-        this.mechanismName = mechanism.mechanismName();
+    ScramStateMachine(ScramMechanism mechanism, ScramCredentialStore credentialStore, int phantomIterations, FilterDispatchExecutor filterDispatchExecutor) {
+        this.mechanism = Objects.requireNonNull(mechanism);
         this.credentialStore = Objects.requireNonNull(credentialStore);
         this.phantomIterations = phantomIterations;
         this.phantomSaltKey = credentialStore.phantomSaltKey();
+        this.filterDispatchExecutor = Objects.requireNonNull(filterDispatchExecutor);
     }
 
     @Override
     public String mechanismName() {
-        return mechanismName;
+        return mechanism.mechanismName();
     }
 
     @Override
@@ -136,7 +140,7 @@ class ScramStateMachine implements MechanismStateMachine {
             ClientFirst clientFirst = parseClientFirst(authBytes);
             extractedUsername = clientFirst.username();
 
-            return credentialStore.lookupCredential(extractedUsername)
+            return filterDispatchExecutor.completeOnFilterDispatchThread(credentialStore.lookupCredential(extractedUsername))
                     .thenCompose(credential -> {
                         if (credential == null) {
                             return generatePhantomChallenge(clientFirst.nonce());
@@ -170,7 +174,7 @@ class ScramStateMachine implements MechanismStateMachine {
             };
 
             saslServer = Sasl.createSaslServer(
-                    mechanismName,
+                    mechanismName(),
                     "kafka",
                     null,
                     Map.<String, String> of(),
@@ -249,7 +253,7 @@ class ScramStateMachine implements MechanismStateMachine {
 
     private byte[] derivePhantomSalt(String username) {
         try {
-            String hmacAlgorithm = mechanismName.contains("512") ? "HmacSHA512" : "HmacSHA256";
+            String hmacAlgorithm = mechanism.macAlgorithm();
             Mac mac = Mac.getInstance(hmacAlgorithm);
             mac.init(new SecretKeySpec(phantomSaltKey, hmacAlgorithm));
             return Arrays.copyOf(mac.doFinal(username.getBytes(StandardCharsets.UTF_8)), PHANTOM_SALT_LENGTH);

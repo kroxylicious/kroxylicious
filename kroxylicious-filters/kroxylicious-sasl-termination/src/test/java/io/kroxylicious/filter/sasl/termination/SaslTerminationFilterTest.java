@@ -15,8 +15,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.security.sasl.SaslException;
@@ -48,8 +46,12 @@ import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
+import io.netty.channel.DefaultEventLoop;
+
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
+import io.kroxylicious.proxy.internal.NettyFilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
@@ -489,7 +491,9 @@ class SaslTerminationFilterTest {
 
         Duration fixedDelay = Duration.ofMillis(200);
 
-        try (var executor = Executors.newSingleThreadScheduledExecutor()) {
+        var eventLoop = new DefaultEventLoop();
+        try {
+            var executor = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
             var context = new SaslTermination.SaslTerminationContext(
                     null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Map.of(), Set.of("OAUTHBEARER"), List.of(),
                     null, Clock.systemUTC(), fixedDelay,
@@ -513,6 +517,9 @@ class SaslTerminationFilterTest {
             assertThat(timer).isNotNull();
             assertThat(timer.totalTime(TimeUnit.MILLISECONDS))
                     .isLessThan((double) fixedDelay.toMillis());
+        }
+        finally {
+            eventLoop.shutdownGracefully().sync();
         }
     }
 
@@ -822,7 +829,7 @@ class SaslTerminationFilterTest {
                 Set.of("OAUTHBEARER"), List.of(),
                 null, Clock.systemUTC(), Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
-        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        return new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
     }
 
     private static SaslTerminationFilter createFilterWithZeroDelay() {
@@ -830,7 +837,7 @@ class SaslTerminationFilterTest {
                 null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Map.of(), Set.of("OAUTHBEARER"), List.of(),
                 null, Clock.systemUTC(), Duration.ZERO,
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
-        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        return new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
     }
 
     private static SaslTerminationFilter createFilterWithZeroDelayAndClock(Clock clock) {
@@ -838,7 +845,7 @@ class SaslTerminationFilterTest {
                 null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Map.of(), Set.of("OAUTHBEARER"), List.of(),
                 null, clock, Duration.ZERO,
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
-        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        return new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
     }
 
     private static SaslTerminationFilter createFilterWithMaxReauth(@Nullable Duration maxReauth) {
@@ -846,7 +853,7 @@ class SaslTerminationFilterTest {
                 null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Map.of(), Set.of("OAUTHBEARER"), List.of(),
                 maxReauth, FIXED_CLOCK, Duration.ZERO,
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
-        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        return new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
     }
 
     private static SaslTerminationFilter createFilterWithScram() {
@@ -859,7 +866,7 @@ class SaslTerminationFilterTest {
                 Set.of("SCRAM-SHA-256"), List.of(),
                 null, Clock.systemUTC(), Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
-        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        return new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
     }
 
     private static SaslTerminationFilter createFilterWithScram512() {
@@ -872,7 +879,7 @@ class SaslTerminationFilterTest {
                 Set.of("SCRAM-SHA-512"), List.of(),
                 null, Clock.systemUTC(), Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
-        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        return new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
     }
 
     private static SaslTerminationFilter createFilterWithClock(Clock clock) {
@@ -882,7 +889,7 @@ class SaslTerminationFilterTest {
                 Set.of("OAUTHBEARER"), List.of(),
                 null, clock, Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
-        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        return new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
     }
 
     @SuppressWarnings("unchecked")

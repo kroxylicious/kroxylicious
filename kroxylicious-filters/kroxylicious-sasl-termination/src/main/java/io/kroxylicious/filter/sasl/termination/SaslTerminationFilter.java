@@ -15,7 +15,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.errors.InvalidRequestException;
@@ -43,6 +42,7 @@ import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -93,7 +93,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
             ApiKeys.ALTER_USER_SCRAM_CREDENTIALS.id,
             ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS.id);
 
-    private final ScheduledExecutorService executorService;
+    private final FilterDispatchExecutor executorService;
     private final SaslTermination.SaslTerminationContext context;
     private final Clock clock;
     private final long maxTimeBeforeReauthMs;
@@ -108,10 +108,10 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     /**
      * Constructs the filter.
      *
-     * @param executorService the executor for scheduling delayed responses
+     * @param executorService the filter dispatch executor, used for scheduling delayed responses and ensuring thread safety
      * @param context the SASL termination context
      */
-    SaslTerminationFilter(ScheduledExecutorService executorService, SaslTermination.SaslTerminationContext context) {
+    SaslTerminationFilter(FilterDispatchExecutor executorService, SaslTermination.SaslTerminationContext context) {
         this.executorService = executorService;
         this.context = context;
         this.clock = context.clock();
@@ -262,10 +262,12 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                     context.oauthMaxAuthBytes());
             case ScramMechanismConfig.MECHANISM_NAME_SCRAM_SHA_256 -> new ScramStateMachine(ScramMechanism.SCRAM_SHA_256,
                     context.scramCredentialStores().get(ScramMechanism.SCRAM_SHA_256),
-                    context.scramPhantomIterations().get(ScramMechanism.SCRAM_SHA_256));
+                    context.scramPhantomIterations().get(ScramMechanism.SCRAM_SHA_256),
+                    executorService);
             case ScramMechanismConfig.MECHANISM_NAME_SCRAM_SHA_512 -> new ScramStateMachine(ScramMechanism.SCRAM_SHA_512,
                     context.scramCredentialStores().get(ScramMechanism.SCRAM_SHA_512),
-                    context.scramPhantomIterations().get(ScramMechanism.SCRAM_SHA_512));
+                    context.scramPhantomIterations().get(ScramMechanism.SCRAM_SHA_512),
+                    executorService);
             default -> throw new IllegalStateException("No state machine for configured mechanism: " + mechanism);
         };
     }

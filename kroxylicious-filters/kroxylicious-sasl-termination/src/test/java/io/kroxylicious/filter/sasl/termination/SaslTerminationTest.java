@@ -16,8 +16,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -36,8 +34,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.netty.channel.DefaultEventLoop;
+
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
+import io.kroxylicious.proxy.internal.NettyFilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
@@ -558,7 +560,7 @@ class SaslTerminationTest {
     void shouldRejectSaslHandshakeWithUnsupportedApiVersion() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
 
         var filterContext = mockFilterContextForErrorResponse();
         short unsupportedVersion = (short) (ApiKeys.SASL_HANDSHAKE.latestVersion() + 1);
@@ -575,7 +577,7 @@ class SaslTerminationTest {
     void shouldRejectSaslAuthenticateWithUnsupportedApiVersion() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
 
         var filterContext = mockFilterContextForErrorResponse();
         short unsupportedVersion = (short) (ApiKeys.SASL_AUTHENTICATE.latestVersion() + 1);
@@ -592,7 +594,7 @@ class SaslTerminationTest {
     void shouldHandleRequestReturnsTrueInRequiringHandshakeState() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
 
         // When/Then
         assertThat(filter.shouldHandleRequest(ApiKeys.PRODUCE, (short) 0)).isTrue();
@@ -602,7 +604,7 @@ class SaslTerminationTest {
     void shouldHandleRequestReturnsFalseWhenAuthenticatedWithNoExpiry() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
 
         var start = State.start();
         var handler = mock(MechanismStateMachine.class);
@@ -623,7 +625,7 @@ class SaslTerminationTest {
     void shouldHandleRequestReturnsTrueWhenAuthenticatedWithExpiry() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
 
         var start = State.start();
         var handler = mock(MechanismStateMachine.class);
@@ -645,7 +647,7 @@ class SaslTerminationTest {
     void shouldRejectUnsupportedApiRequests(ApiKeys apiKey) {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
         var handler = mock(MechanismStateMachine.class);
         var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
@@ -664,7 +666,7 @@ class SaslTerminationTest {
     void shouldRemoveDelegationTokenApisFromApiVersionsResponse() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
 
         var apiKeys = new ArrayList<>(List.of(
                 new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.PRODUCE.id),
@@ -698,7 +700,7 @@ class SaslTerminationTest {
     void shouldHandleApiVersionsResponseWithNoTargetApis() {
         // Given
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
 
         var response = new ApiVersionsResponseData();
         response.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.PRODUCE.id));
@@ -725,7 +727,7 @@ class SaslTerminationTest {
         when(handler.mechanismName()).thenReturn("SCRAM-SHA-256");
         when(handler.maxAuthBytes()).thenReturn(maxAuthBytes);
         var context = testContext(Set.of("OAUTHBEARER"), Map.of(), List.of());
-        var filter = new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
 
         var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating);
@@ -750,7 +752,7 @@ class SaslTerminationTest {
         when(handler.mechanismName()).thenReturn("OAUTHBEARER");
         when(handler.maxAuthBytes()).thenReturn(maxAuthBytes);
         var context = testContext(Set.of("OAUTHBEARER"), Map.of(), List.of());
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
 
         var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating);
@@ -776,9 +778,9 @@ class SaslTerminationTest {
         when(handler.maxAuthBytes()).thenReturn(maxAuthBytes);
         when(handler.evaluateRound(any())).thenReturn(
                 CompletableFuture.completedFuture(
-                        RoundResult.failure(new byte[0], new javax.security.sasl.SaslException("test"))));
+                        RoundResult.failure(new byte[0], new SaslException("test"))));
         var context = testContext();
-        var filter = new SaslTerminationFilter(mock(java.util.concurrent.ScheduledExecutorService.class), context);
+        var filter = new SaslTerminationFilter(mock(FilterDispatchExecutor.class), context);
 
         var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating);
@@ -798,8 +800,10 @@ class SaslTerminationTest {
     @Test
     void fixedAuthDelayShouldCompleteOnProvidedExecutor() throws Exception {
         // Given
-        var executorThreadName = "test-filter-dispatch";
-        try (var executor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, executorThreadName))) {
+        var eventLoop = new DefaultEventLoop();
+        try {
+            var executor = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
+            var eventLoopThread = eventLoop.submit(Thread::currentThread).get(5, TimeUnit.SECONDS);
             var context = new SaslTermination.SaslTerminationContext(
                     null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Map.of(), Set.of("OAUTHBEARER"), List.of(), null, Clock.systemUTC(),
                     Duration.ofMillis(100), SaslTermination.DEFAULT_SUBJECT_BUILDER);
@@ -819,17 +823,20 @@ class SaslTerminationTest {
             var filterContext = mockFilterContextForShortCircuitWithClose();
 
             // When
-            var completingThread = new AtomicReference<String>();
+            var completingThread = new AtomicReference<Thread>();
             filter.onRequest(ApiKeys.SASL_AUTHENTICATE, (short) 0,
                     new RequestHeaderData(), request, filterContext)
                     .thenApply(result -> {
-                        completingThread.set(Thread.currentThread().getName());
+                        completingThread.set(Thread.currentThread());
                         return result;
                     })
                     .toCompletableFuture().get(5, TimeUnit.SECONDS);
 
             // Then
-            assertThat(completingThread.get()).isEqualTo(executorThreadName);
+            assertThat(completingThread.get()).isEqualTo(eventLoopThread);
+        }
+        finally {
+            eventLoop.shutdownGracefully().sync();
         }
     }
 

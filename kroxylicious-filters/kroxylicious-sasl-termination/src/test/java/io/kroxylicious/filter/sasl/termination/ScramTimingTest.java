@@ -17,7 +17,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.NameCallback;
@@ -39,9 +38,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import io.netty.channel.DefaultEventLoop;
+
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
+import io.kroxylicious.proxy.internal.NettyFilterDispatchExecutor;
 import io.kroxylicious.scram.credentialstore.ScramCredential;
 import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
 
@@ -82,8 +85,8 @@ class ScramTimingTest {
     }
 
     @AfterAll
-    static void shutdownExecutor() {
-        TIMING_EXECUTOR.shutdownNow();
+    static void shutdownExecutor() throws Exception {
+        TIMING_EVENT_LOOP.shutdownGracefully().sync();
     }
 
     @Test
@@ -277,7 +280,8 @@ class ScramTimingTest {
     }
 
     private static final byte[] TEST_PHANTOM_SALT_KEY = new byte[32];
-    private static final ScheduledExecutorService TIMING_EXECUTOR = Executors.newSingleThreadScheduledExecutor();
+    private static final DefaultEventLoop TIMING_EVENT_LOOP = new DefaultEventLoop();
+    private static final FilterDispatchExecutor TIMING_EXECUTOR = NettyFilterDispatchExecutor.eventLoopExecutor(TIMING_EVENT_LOOP);
 
     private static ScramCredentialStore testCredentialStore(ScramCredential credential) {
         return new ScramCredentialStore() {

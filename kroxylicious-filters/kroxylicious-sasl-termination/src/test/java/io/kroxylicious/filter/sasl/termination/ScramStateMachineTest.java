@@ -30,6 +30,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.scram.credentialstore.CredentialLookupException;
 import io.kroxylicious.scram.credentialstore.CredentialServiceUnavailableException;
 import io.kroxylicious.scram.credentialstore.ScramCredential;
@@ -37,6 +38,7 @@ import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -49,6 +51,7 @@ class ScramStateMachineTest {
 
     private ScramStateMachine handler;
     private ScramCredentialStore credentialStore;
+    private FilterDispatchExecutor filterDispatchExecutor;
 
     @BeforeAll
     static void registerProviders() {
@@ -56,11 +59,14 @@ class ScramStateMachineTest {
         ScramSaslClientProvider.initialize();
     }
 
+    @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
         credentialStore = mock(ScramCredentialStore.class);
         when(credentialStore.phantomSaltKey()).thenReturn(new byte[32]);
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_256, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS);
+        filterDispatchExecutor = mock(FilterDispatchExecutor.class);
+        when(filterDispatchExecutor.completeOnFilterDispatchThread(any(CompletionStage.class))).thenAnswer(inv -> inv.getArgument(0));
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_256, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor);
     }
 
     @AfterEach
@@ -77,7 +83,7 @@ class ScramStateMachineTest {
 
     @Test
     void shouldReturnCorrectMechanismNameForSha512() {
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS);
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor);
         assertThat(handler.mechanismName()).isEqualTo("SCRAM-SHA-512");
     }
 
@@ -314,7 +320,7 @@ class ScramStateMachineTest {
     @Test
     void shouldGeneratePhantomChallengeForSha512() throws Exception {
         // Given
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS);
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor);
         when(credentialStore.lookupCredential("alice"))
                 .thenReturn(CompletableFuture.completedFuture(null));
         byte[] clientFirstMessage = "n,,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
@@ -395,7 +401,7 @@ class ScramStateMachineTest {
     @Test
     void shouldCompleteFullAuthenticationWithSha512() throws Exception {
         // Given
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS);
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor);
         ScramCredential credential = generateCredential(TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_512);
         when(credentialStore.lookupCredential(TEST_USERNAME))
                 .thenReturn(CompletableFuture.completedFuture(credential));
