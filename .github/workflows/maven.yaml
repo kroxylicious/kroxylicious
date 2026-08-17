@@ -119,11 +119,31 @@ jobs:
           repository: ${{ github.repository }}
           runId: ${{ github.run_id }}
 
+  compute_pom_version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+      - name: 'Check out repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
+      - name: 'Cache Maven packages'
+        uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Determine project version'
+        id: version
+        run: echo "version=$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
+
   build_container_images:
+    needs: compute_pom_version
     uses: ./.github/workflows/build-kroxylicious-container-images.yaml
     with:
       push-images: ${{ github.event_name == 'push' }}
       multi-arch: ${{ github.event_name == 'push' }}
-      tag-pom-version: ${{ github.event_name == 'push' }}
+      additional-tags: ${{ github.event_name == 'push' && needs.compute_pom_version.outputs.version || '' }}
     secrets:
       REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}

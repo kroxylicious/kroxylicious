@@ -62,10 +62,6 @@ on:
         description: 'Export amd64 images as Docker-format gzip tarballs and upload them as GitHub Actions artifacts for use by system tests. Mutually exclusive with push-images.'
         type: boolean
         default: false
-      tag-pom-version:
-        description: 'Also tag pushed images with the project POM version (e.g. "0.24.0-SNAPSHOT"). Only meaningful when push-images=true.'
-        type: boolean
-        default: false
     secrets:
       REGISTRY_TOKEN:
         required: false
@@ -155,13 +151,10 @@ jobs:
             echo "proxy_amd64_tag=${PROXY_IMAGE}:${SHA_TAG}-amd64" >> $GITHUB_OUTPUT
             echo "proxy_arm64_tag=${PROXY_IMAGE}:${SHA_TAG}-arm64" >> $GITHUB_OUTPUT
 
-            # All builds get a commit SHA tag. Branch-push CI builds also add
-            # the POM version (x.y.z-SNAPSHOT); staging dispatches do not.
-            # Callers may also pass arbitrary additional-tags.
+            # All builds get a commit SHA tag. Callers may also pass arbitrary
+            # additional-tags (e.g. maven.yaml adds the POM version on pushes
+            # to main/release; staging dispatches pass none).
             TAG_SUFFIXES=("${SHA_TAG}")
-            if [[ "${{ inputs.tag-pom-version }}" == "true" ]]; then
-              TAG_SUFFIXES+=("${POMS_VERSION}")
-            fi
             if [[ -n "${ADDITIONAL_TAGS}" ]]; then
               IFS=',' read -ra EXTRA_TAGS <<< "${ADDITIONAL_TAGS}"
               for extra_tag in "${EXTRA_TAGS[@]}"; do
