@@ -45,17 +45,16 @@ import org.mockito.ArgumentCaptor;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-
 import io.netty.channel.DefaultEventLoop;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
-import io.kroxylicious.proxy.internal.NettyFilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
+import io.kroxylicious.proxy.internal.NettyFilterDispatchExecutor;
 import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
