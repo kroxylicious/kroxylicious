@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 
 import javax.crypto.SecretKey;
@@ -67,6 +68,13 @@ public class TestCredentialGenerator {
 
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         keyStore.load(null, storePassword.toCharArray());
+
+        byte[] phantomKeyBytes = new byte[32];
+        new SecureRandom().nextBytes(phantomKeyBytes);
+        SecretKey phantomKey = new SecretKeySpec(phantomKeyBytes, "HmacSHA256");
+        keyStore.setEntry(KeystoreCredentialManager.PHANTOM_SALT_KEY_ALIAS,
+                new KeyStore.SecretKeyEntry(phantomKey),
+                new KeyStore.PasswordProtection(storePassword.toCharArray()));
 
         for (int i = 0; i < users.length; i += 2) {
             String username = users[i];

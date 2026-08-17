@@ -81,4 +81,18 @@ public interface ScramCredentialStore {
      * @throws NullPointerException if username is null
      */
     CompletionStage<ScramCredential> lookupCredential(String username);
+
+    /**
+     * Returns the key used to derive deterministic phantom salts for non-existent users.
+     * <p>
+     * The phantom salt key is used with HMAC to generate realistic-looking salts
+     * in authentication challenges for users that do not exist, preventing
+     * user enumeration via salt comparison. The key must be stable across proxy
+     * restarts and shared across all proxy instances.
+     * The returned array is a defensive copy and may be modified by the caller.
+     * </p>
+     *
+     * @return a copy of the phantom salt key bytes
+     */
+    byte[] phantomSaltKey();
 }
