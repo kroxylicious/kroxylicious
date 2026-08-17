@@ -36,7 +36,7 @@ import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.scram.credentialstore.keystore.KeystoreScramCredentialStoreService;
-import io.kroxylicious.scram.credentialstore.keystore.TestCredentialGenerator;
+import io.kroxylicious.scram.credentialstore.keystore.KeystoreCredentialManager;
 import io.kroxylicious.testing.filter.assertj.KafkaAssertions;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -71,12 +71,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         // Configure SASL termination filter
         var saslTermination = createSaslTerminationFilter(keystorePath);
@@ -127,12 +124,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
         var config = proxy(cluster)
@@ -160,12 +154,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
         var config = proxy(cluster)
@@ -193,12 +184,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
         var config = proxy(cluster)
@@ -227,12 +215,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         Duration maxTimeBeforeReauth = Duration.ofSeconds(2);
         var saslTermination = createSaslTerminationFilterWithReauth(keystorePath, maxTimeBeforeReauth);
@@ -304,12 +289,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Generate KeyStore with test credentials for SHA-512
         Path keystorePath = tempDir.resolve("credentials-512.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_512,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_512);
 
         // Configure SASL termination filter with SHA-512
         var saslTermination = createSaslTerminationFilter(keystorePath, "SCRAM-SHA-512");
@@ -350,12 +332,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given — credential stored as SHA-256, client uses SHA-512
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
         var config = proxy(cluster)
@@ -383,12 +362,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given — proxy only supports SCRAM-SHA-256, client requests PLAIN
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
         var config = proxy(cluster)
@@ -422,12 +398,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
         var config = proxy(cluster)
@@ -453,12 +426,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
         var config = proxy(cluster)
@@ -490,12 +460,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
         var config = proxy(cluster)
@@ -521,12 +488,9 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         var saslTermination = createSaslTerminationFilter(keystorePath);
         var config = proxy(cluster)

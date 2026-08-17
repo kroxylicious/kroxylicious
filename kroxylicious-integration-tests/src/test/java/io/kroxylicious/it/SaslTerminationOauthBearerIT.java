@@ -56,7 +56,7 @@ import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.scram.credentialstore.keystore.KeystoreScramCredentialStoreService;
-import io.kroxylicious.scram.credentialstore.keystore.TestCredentialGenerator;
+import io.kroxylicious.scram.credentialstore.keystore.KeystoreCredentialManager;
 import io.kroxylicious.testing.filter.assertj.KafkaAssertions;
 import io.kroxylicious.testing.filter.jws.JwsTestUtils;
 import io.kroxylicious.testing.integration.Request;
@@ -383,12 +383,9 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var generator = new TestCredentialGenerator();
-        generator.generateKeyStore(
-                keystorePath,
-                KEYSTORE_PASSWORD,
-                ScramMechanism.SCRAM_SHA_256,
-                TEST_USERNAME, TEST_PASSWORD);
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         var saslTermination = createMultiMechanismFilter(keystorePath, KEYSTORE_PASSWORD);
         var config = proxy(cluster)
