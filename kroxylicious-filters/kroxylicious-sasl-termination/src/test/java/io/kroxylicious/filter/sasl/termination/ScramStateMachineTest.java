@@ -7,17 +7,28 @@
 package io.kroxylicious.filter.sasl.termination;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.NameCallback;
+import javax.security.auth.callback.PasswordCallback;
+import javax.security.sasl.Sasl;
+import javax.security.sasl.SaslClient;
 import javax.security.sasl.SaslException;
 
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
+import org.apache.kafka.common.security.scram.internals.ScramSaslClientProvider;
 import org.apache.kafka.common.security.scram.internals.ScramSaslServerProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.scram.credentialstore.CredentialLookupException;
 import io.kroxylicious.scram.credentialstore.CredentialServiceUnavailableException;
@@ -42,6 +53,7 @@ class ScramStateMachineTest {
     @BeforeAll
     static void registerProviders() {
         ScramSaslServerProvider.initialize();
+        ScramSaslClientProvider.initialize();
     }
 
     @BeforeEach
@@ -108,13 +120,11 @@ class ScramStateMachineTest {
         assertThat(((RoundResult.Failure) result).exception().getMessage()).isEqualTo("Authentication failed");
     }
 
-    @Test
-    void shouldFailForMalformedMessage() throws Exception {
-        // Given
-        byte[] invalidMessage = "not-a-valid-scram-message".getBytes(StandardCharsets.UTF_8);
-
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("malformedMessages")
+    void shouldFailForMalformedMessage(String description, byte[] message) throws Exception {
         // When
-        RoundResult result = handler.evaluateRound(invalidMessage)
+        RoundResult result = handler.evaluateRound(message)
                 .toCompletableFuture().get();
 
         // Then
@@ -122,32 +132,11 @@ class ScramStateMachineTest {
         assertThat(((RoundResult.Failure) result).exception()).isInstanceOf(SaslException.class);
     }
 
-    @Test
-    void shouldFailForEmptyMessage() throws Exception {
-        // Given
-        byte[] emptyMessage = new byte[0];
-
-        // When
-        RoundResult result = handler.evaluateRound(emptyMessage)
-                .toCompletableFuture().get();
-
-        // Then
-        assertThat(result).isInstanceOf(RoundResult.Failure.class);
-        assertThat(((RoundResult.Failure) result).exception()).isInstanceOf(SaslException.class);
-    }
-
-    @Test
-    void shouldFailForMessageWithoutUsername() throws Exception {
-        // Given
-        byte[] invalidMessage = "n,,r=clientnonce".getBytes(StandardCharsets.UTF_8);
-
-        // When
-        RoundResult result = handler.evaluateRound(invalidMessage)
-                .toCompletableFuture().get();
-
-        // Then
-        assertThat(result).isInstanceOf(RoundResult.Failure.class);
-        assertThat(((RoundResult.Failure) result).exception()).isInstanceOf(SaslException.class);
+    static Stream<Arguments> malformedMessages() {
+        return Stream.of(
+                Arguments.of("not a valid SCRAM message", "not-a-valid-scram-message".getBytes(StandardCharsets.UTF_8)),
+                Arguments.of("empty message", new byte[0]),
+                Arguments.of("missing username", "n,,r=clientnonce".getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test
@@ -268,6 +257,50 @@ class ScramStateMachineTest {
         assertThat(result).isInstanceOf(RoundResult.Challenge.class);
         assertThat(result.responseBytes()).isNotEmpty();
         verify(credentialStore).lookupCredential(TEST_USERNAME);
+    }
+
+    @Test
+    void shouldCompleteFullAuthenticationWithValidCredentials() throws Exception {
+        // Given
+        ScramCredential credential = generateCredential(TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
+        when(credentialStore.lookupCredential(TEST_USERNAME))
+                .thenReturn(CompletableFuture.completedFuture(credential));
+
+        SaslClient client = Sasl.createSaslClient(
+                new String[]{ "SCRAM-SHA-256" },
+                null,
+                "kafka",
+                null,
+                Map.of(),
+                callbacks -> {
+                    for (Callback cb : callbacks) {
+                        if (cb instanceof NameCallback nc) {
+                            nc.setName(TEST_USERNAME);
+                        }
+                        else if (cb instanceof PasswordCallback pc) {
+                            pc.setPassword(TEST_PASSWORD.toCharArray());
+                        }
+                    }
+                });
+
+        // When — first round
+        byte[] clientFirst = client.evaluateChallenge(new byte[0]);
+        RoundResult firstResult = handler.evaluateRound(clientFirst)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(firstResult).isInstanceOf(RoundResult.Challenge.class);
+
+        // When — second round
+        byte[] clientFinal = client.evaluateChallenge(firstResult.responseBytes());
+        RoundResult secondResult = handler.evaluateRound(clientFinal)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(secondResult).isInstanceOf(RoundResult.Success.class);
+        assertThat(((RoundResult.Success) secondResult).authorizationId()).isEqualTo(TEST_USERNAME);
+
+        client.dispose();
     }
 
     @Test

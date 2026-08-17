@@ -85,7 +85,28 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
     }
 
     @SuppressWarnings("ArrayRecordComponent")
-    private record LoadResult(Map<String, ScramCredential> credentials, @Nullable byte[] phantomSaltKey) {}
+    private record LoadResult(Map<String, ScramCredential> credentials, @Nullable byte[] phantomSaltKey) {
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof LoadResult that)) {
+                return false;
+            }
+            return Objects.equals(credentials, that.credentials) && Arrays.equals(phantomSaltKey, that.phantomSaltKey);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Objects.hashCode(credentials) + Arrays.hashCode(phantomSaltKey);
+        }
+
+        @Override
+        public String toString() {
+            return "LoadResult[credentials=" + credentials + ", phantomSaltKey=***]";
+        }
+    }
 
     /**
      * Load the KeyStore and extract all SCRAM credentials.
