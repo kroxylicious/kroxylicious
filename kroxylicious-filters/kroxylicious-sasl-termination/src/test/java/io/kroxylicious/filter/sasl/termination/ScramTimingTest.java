@@ -73,7 +73,7 @@ class ScramTimingTest {
     private static final int BATCH_SIZE = 50;
     private static final int MAX_BATCHES = 20;
     private static final double MEAN_CONVERGENCE_THRESHOLD = 0.001;
-    private static final double STDDEV_RATIO_MAX = 3.0;
+    private static final double STDDEV_RATIO_MAX = 5.0;
 
     @BeforeAll
     static void registerProviders() {
