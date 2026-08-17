@@ -488,16 +488,22 @@ class SaslTerminationTest {
 
     @Test
     void shouldRejectNullCredentialStore() {
+        // Given
+        var storeConfig = new Object();
+
         // When/Then
-        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", null, new Object()))
+        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", null, storeConfig))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("credentialStore must not be null or empty");
     }
 
     @Test
     void shouldRejectEmptyCredentialStore() {
+        // Given
+        var storeConfig = new Object();
+
         // When/Then
-        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", "", new Object()))
+        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", "", storeConfig))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("credentialStore must not be null or empty");
     }
