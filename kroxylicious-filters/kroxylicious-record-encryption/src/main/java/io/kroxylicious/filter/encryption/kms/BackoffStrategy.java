@@ -8,6 +8,10 @@ package io.kroxylicious.filter.encryption.kms;
 
 import java.time.Duration;
 
+/**
+ * A strategy for computing how long to delay the next attempt at an action,
+ * based on the number of previous consecutive failures.
+ */
 public interface BackoffStrategy {
 
     /**

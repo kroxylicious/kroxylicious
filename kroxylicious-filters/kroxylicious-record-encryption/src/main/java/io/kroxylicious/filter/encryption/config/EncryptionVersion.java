@@ -16,7 +16,9 @@ package io.kroxylicious.filter.encryption.config;
  */
 public enum EncryptionVersion {
 
+    /** Version 1, used by pre-release versions of the filter. No longer supported. */
     V1_UNSUPPORTED,
+    /** Version 2, the initial supported encryption version. */
     V2;
 
 }

@@ -49,9 +49,16 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class WrapperV2 implements Wrapper {
 
+    /** The resolver of the ciphers supported by this wrapper. */
     public final CipherSpecResolver cipherSpecResolver;
+    /** The resolver of the AADs supported by this wrapper. */
     public final AadResolver aadResolver;
 
+    /**
+     * Creates a wrapper.
+     * @param cipherSpecResolver the resolver of the ciphers supported by this wrapper.
+     * @param aadResolver the resolver of the AADs supported by this wrapper.
+     */
     public WrapperV2(CipherSpecResolver cipherSpecResolver,
                      AadResolver aadResolver) {
         this.cipherSpecResolver = cipherSpecResolver;

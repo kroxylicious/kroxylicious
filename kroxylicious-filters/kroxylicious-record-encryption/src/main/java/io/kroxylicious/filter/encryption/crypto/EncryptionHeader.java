@@ -6,6 +6,9 @@
 
 package io.kroxylicious.filter.encryption.crypto;
 
+/**
+ * Holds the name of the record header used to identify encrypted records.
+ */
 public class EncryptionHeader {
 
     /**

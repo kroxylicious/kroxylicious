@@ -18,8 +18,12 @@ import javax.crypto.spec.GCMParameterSpec;
 
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 
+/**
+ * A {@link CipherManager} for the AES cipher in GCM mode.
+ */
 public class Aes implements CipherManager {
 
+    /** AES in GCM mode using a 256-bit key and a 128-bit authentication tag. */
     public static final Aes AES_256_GCM_128 = new Aes("AES/GCM/NoPadding", 256, (byte) 0, CipherSpec.AES_256_GCM_128);
 
     private static final int IV_SIZE_BYTES = 12;

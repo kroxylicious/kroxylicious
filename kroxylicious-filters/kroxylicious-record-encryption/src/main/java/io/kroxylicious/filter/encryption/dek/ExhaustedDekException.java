@@ -12,6 +12,10 @@ package io.kroxylicious.filter.encryption.dek;
  * In theory this should never be thrown in practice.
  */
 public class ExhaustedDekException extends DekException {
+    /**
+     * Creates an exception with the given message.
+     * @param msg the detail message.
+     */
     public ExhaustedDekException(String msg) {
         super(msg);
     }

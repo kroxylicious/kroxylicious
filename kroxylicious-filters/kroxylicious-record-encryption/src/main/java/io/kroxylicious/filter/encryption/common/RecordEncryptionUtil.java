@@ -19,11 +19,20 @@ import org.apache.kafka.common.utils.CloseableIterator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Utility methods shared between the encryption and decryption paths.
+ */
 public class RecordEncryptionUtil {
 
     private RecordEncryptionUtil() {
     }
 
+    /**
+     * Joins the given completion stages into a single completion stage which completes with the list of their results.
+     * @param stages the completion stages to join.
+     * @param <T> the result type of the completion stages.
+     * @return a completion stage that completes with the list of the results of the given stages.
+     */
     @SuppressWarnings("unchecked")
     public static <T> CompletionStage<List<T>> join(List<? extends CompletionStage<T>> stages) {
         CompletableFuture<T>[] futures = stages.stream().map(CompletionStage::toCompletableFuture).toArray(CompletableFuture[]::new);
@@ -31,6 +40,11 @@ public class RecordEncryptionUtil {
                 .thenApply(ignored -> Stream.of(futures).map(CompletableFuture::join).toList());
     }
 
+    /**
+     * Counts the records in all the batches of the given memory records.
+     * @param records the memory records.
+     * @return the total number of records.
+     */
     public static int totalRecordsInBatches(@NonNull MemoryRecords records) {
         int totalRecords = 0;
         for (MutableRecordBatch batch : records.batches()) {

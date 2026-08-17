@@ -18,10 +18,19 @@ import io.kroxylicious.filter.encryption.common.EncryptionException;
  * records in a batch for some reason.
  */
 public class RequestNotSatisfiable extends EncryptionException {
+    /**
+     * Creates an exception with the given message.
+     * @param message the detail message.
+     */
     public RequestNotSatisfiable(String message) {
         super(message);
     }
 
+    /**
+     * Creates an exception with the given message and client-facing exception.
+     * @param message the detail message.
+     * @param apiException the exception to be sent to the client.
+     */
     public RequestNotSatisfiable(String message, ApiException apiException) {
         super(message, apiException);
     }

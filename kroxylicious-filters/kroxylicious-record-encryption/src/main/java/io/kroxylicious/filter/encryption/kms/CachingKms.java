@@ -57,6 +57,19 @@ public class CachingKms<K, E> implements Kms<K, E> {
         notFoundAliasCache = Caffeine.newBuilder().expireAfterWrite(notFoundAliasExpireAfterWrite).build();
     }
 
+    /**
+     * Wraps the given KMS with caching of resolved aliases and decrypted DEKs.
+     * @param delegate the KMS to be wrapped.
+     * @param decryptDekCacheMaxSize the maximum number of decrypted DEKs to cache.
+     * @param decryptDekExpireAfterAccess how long after last access a decrypted DEK is removed from the cache.
+     * @param resolveAliasCacheMaxSize the maximum number of resolved aliases to cache.
+     * @param resolveAliasExpireAfterWrite how long after being cached a resolved alias is removed from the cache.
+     * @param resolveAliasRefreshAfterWrite how long after being cached a resolved alias becomes eligible for a refresh.
+     * @param notFoundAliasExpireAfterWrite how long an unresolvable alias is remembered before the delegate is asked to resolve it again.
+     * @param <A> The type of Key Encryption Key id.
+     * @param <B> The type of encrypted Data Encryption Key.
+     * @return a caching KMS wrapping the delegate.
+     */
     @NonNull
     public static <A, B> Kms<A, B> wrap(Kms<A, B> delegate,
                                         long decryptDekCacheMaxSize,
