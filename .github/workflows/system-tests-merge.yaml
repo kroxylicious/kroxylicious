@@ -92,6 +92,13 @@ jobs:
     steps:
       # StepSecurity harden-runner cannot be used here because of the limitation of running it on containers
       # https://github.com/step-security/harden-runner/blob/main/docs/limitations.md
+      - name: 'Test for Slack secret'
+        env:
+          KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+        run: |
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+      - name: 'Check out repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: 'Check all matrix builds'
         env:
           GH_TOKEN: ${{ github.token }}
