@@ -410,6 +410,98 @@ class ScramStateMachineTest {
     }
 
     @Test
+    void shouldReturnMaxAuthBytesOf4096() {
+        assertThat(handler.maxAuthBytes()).isEqualTo(4 * 1024);
+    }
+
+    @Test
+    void shouldCompleteFullAuthenticationWithSha512() throws Exception {
+        // Given
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS);
+        ScramCredential credential = generateCredential(TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_512);
+        when(credentialStore.lookupCredential(TEST_USERNAME))
+                .thenReturn(CompletableFuture.completedFuture(credential));
+
+        SaslClient client = Sasl.createSaslClient(
+                new String[]{ "SCRAM-SHA-512" },
+                null,
+                "kafka",
+                null,
+                Map.of(),
+                callbacks -> {
+                    for (Callback cb : callbacks) {
+                        if (cb instanceof NameCallback nc) {
+                            nc.setName(TEST_USERNAME);
+                        }
+                        else if (cb instanceof PasswordCallback pc) {
+                            pc.setPassword(TEST_PASSWORD.toCharArray());
+                        }
+                    }
+                });
+
+        // When — first round
+        byte[] clientFirst = client.evaluateChallenge(new byte[0]);
+        RoundResult firstResult = handler.evaluateRound(clientFirst)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(firstResult).isInstanceOf(RoundResult.Challenge.class);
+
+        // When — second round
+        byte[] clientFinal = client.evaluateChallenge(firstResult.responseBytes());
+        RoundResult secondResult = handler.evaluateRound(clientFinal)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(secondResult).isInstanceOf(RoundResult.Success.class);
+        assertThat(((RoundResult.Success) secondResult).authorizationId()).isEqualTo(TEST_USERNAME);
+
+        client.dispose();
+    }
+
+    @Test
+    void shouldFailWhenCredentialAlgorithmMismatchesMechanism() throws Exception {
+        // Given — SHA-256 state machine with a credential generated for SHA-512
+        ScramCredential sha512Credential = generateCredential(TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_512);
+        when(credentialStore.lookupCredential(TEST_USERNAME))
+                .thenReturn(CompletableFuture.completedFuture(sha512Credential));
+
+        SaslClient client = Sasl.createSaslClient(
+                new String[]{ "SCRAM-SHA-256" },
+                null,
+                "kafka",
+                null,
+                Map.of(),
+                callbacks -> {
+                    for (Callback cb : callbacks) {
+                        if (cb instanceof NameCallback nc) {
+                            nc.setName(TEST_USERNAME);
+                        }
+                        else if (cb instanceof PasswordCallback pc) {
+                            pc.setPassword(TEST_PASSWORD.toCharArray());
+                        }
+                    }
+                });
+
+        // When — first round succeeds (mismatch not yet detectable)
+        byte[] clientFirst = client.evaluateChallenge(new byte[0]);
+        RoundResult firstResult = handler.evaluateRound(clientFirst)
+                .toCompletableFuture().get();
+        assertThat(firstResult).isInstanceOf(RoundResult.Challenge.class);
+
+        // When — second round fails due to cryptographic mismatch
+        byte[] clientFinal = client.evaluateChallenge(firstResult.responseBytes());
+        RoundResult secondResult = handler.evaluateRound(clientFinal)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(secondResult).isInstanceOf(RoundResult.Failure.class);
+        assertThat(((RoundResult.Failure) secondResult).exception()).isInstanceOf(SaslException.class);
+
+        client.dispose();
+    }
+
+    @Test
     void shouldFailOnInvalidSecondRoundWithValidCredential() throws Exception {
         // Given
         ScramCredential credential = generateCredential(TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);

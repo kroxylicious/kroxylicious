@@ -45,6 +45,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.scram.credentialstore.ScramCredential;
 import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
 
 import static io.kroxylicious.filter.sasl.termination.SaslTermination.ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG;
@@ -515,6 +516,42 @@ class SaslTerminationTest {
         assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", "store", null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("credentialStoreConfig must not be null");
+    }
+
+    @Test
+    void shouldRejectPhantomIterationsBelowMinimum() {
+        // Given
+        var storeConfig = new Object();
+
+        // When/Then
+        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", "store", storeConfig, ScramCredential.MINIMUM_ITERATIONS - 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("phantomIterations must be at least");
+    }
+
+    @Test
+    void shouldAcceptPhantomIterationsAtMinimum() {
+        // Given/When/Then
+        var config = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object(), ScramCredential.MINIMUM_ITERATIONS);
+        assertThat(config.phantomIterations()).isEqualTo(ScramCredential.MINIMUM_ITERATIONS);
+    }
+
+    @Test
+    void shouldUseDefaultPhantomIterationsWhenNull() {
+        // Given
+        var config = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object(), null);
+
+        // When/Then
+        assertThat(config.effectivePhantomIterations()).isEqualTo(ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS);
+    }
+
+    @Test
+    void shouldUseConfiguredPhantomIterationsWhenSet() {
+        // Given
+        var config = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object(), 20_000);
+
+        // When/Then
+        assertThat(config.effectivePhantomIterations()).isEqualTo(20_000);
     }
 
     @Test
