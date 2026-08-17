@@ -149,6 +149,10 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
+    // FutureReturnValueIgnored: the returned stage's failure path is handled by the filter chain
+    // built in configureResponseFilterChain, which terminates in an exceptionally() that closes
+    // the connection.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void handleInternalResponseWrite(ChannelPromise promise, InternalResponseFrame<?> decodedFrame) {
         // jump the queue, let responses to asynchronous requests flow back to their sender
         if (decodedFrame.isRecipient(filterAndInvoker.filter())) {
@@ -229,7 +233,10 @@ public class FilterHandler extends ChannelDuplexHandler {
      */
     @Override
     // identity check: Netty's shared Unpooled.EMPTY_BUFFER close-on-flush signal; ByteBuf.equals compares content
-    @SuppressWarnings("ReferenceEquality")
+    // FutureReturnValueIgnored: the returned stage's failure path is handled by the filter chain
+    // built in configureRequestFilterChain, which terminates in an exceptionally() that closes
+    // the connection.
+    @SuppressWarnings({ "ReferenceEquality", "FutureReturnValueIgnored" })
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         switch (msg) {
             case InternalRequestFrame<?> decodedFrame -> handleDecodedRequest(decodedFrame); // jump the queue, internal request must flow!
@@ -433,6 +440,10 @@ public class FilterHandler extends ChannelDuplexHandler {
      * Unlike {@link #deferredRequestCompleted}, no immediate flush is needed here
      * because responses always flow through the normal write path with its own flush handling.
      */
+    // FutureReturnValueIgnored: these are flush-only callbacks whose throwables are intentionally
+    // ignored; a failed writeFuture has already been reported through that write's own promise
+    // and from there to exceptionCaught, so the throwable here would be duplicate information.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void deferredResponseCompleted(ResponseFilterResult ignored, Throwable throwable) {
         inboundChannel.config().setAutoRead(true);
         // Ensure proper ordering of flushes to prevent race conditions
@@ -464,6 +475,10 @@ public class FilterHandler extends ChannelDuplexHandler {
      * If no writes occurred, flush is a no-op (harmless). This belt-and-suspenders approach
      * prevents race conditions between async writes and flush timing.
      */
+    // FutureReturnValueIgnored: flush-only callback; a failed writeFuture has already been
+    // reported through that write's own promise and from there to exceptionCaught, so the
+    // throwable here would be duplicate information.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void deferredRequestCompleted(RequestFilterResult ignored, Throwable throwable) {
         inboundChannel.config().setAutoRead(true);
         // Ensure proper ordering of flushes to prevent race conditions
@@ -558,6 +573,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         ctx.write(decodedFrame, promise);
     }
 
+    // FutureReturnValueIgnored: ctx.voidPromise() is a VoidChannelPromise; by Netty's design,
+    // failures on a void-promise write are delivered to the pipeline's exceptionCaught rather
+    // than to a listener. Void promises are used deliberately on this hot data path to avoid
+    // per-write promise allocation. Covered by shortCircuitResponseWriteFailureReachesExceptionCaught.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void handleShortCircuitResponse(DecodedRequestFrame<?> decodedRequestFrame, ResponseHeaderData header, ApiMessage message) {
         if (message.apiKey() != decodedRequestFrame.apiKeyId()) {
             throw new AssertionError(

@@ -146,6 +146,13 @@ public class ApiKeySessionProvider implements SessionProvider {
         return witness.minimalCompletionStage();
     }
 
+    // FutureReturnValueIgnored: (1) the ScheduledFuture from schedule() is not needed for
+    // cancellation because close() calls executorService.shutdownNow() which cancels pending
+    // tasks; no caller is blocked on it. (2) the derived stage from thenApply is discarded
+    // because if the refresh fails, refreshedCredFuture completes exceptionally, thenApply
+    // short-circuits, and the cause is redundant — propagateResultToFuture has already invoked
+    // onRefreshFailure, which logs the failure and schedules a backoff retry.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void scheduleCredentialRefresh(long delayMs) {
         LOGGER.atDebug()
                 .addKeyValue("delayMs", delayMs)
@@ -186,6 +193,10 @@ public class ApiKeySessionProvider implements SessionProvider {
         return false;
     }
 
+    // FutureReturnValueIgnored: the failure is handled inside the callback;
+    // whenComplete(propagateResultToFuture) propagates both outcomes to the caller's future,
+    // and the derived stage can only fail if the callback itself throws.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void refreshCredential(CompletableFuture<Session> future) {
         var sessionRequest = createSessionAuthRequest();
         client.sendAsync(sessionRequest, HttpResponse.BodyHandlers.ofByteArray())
