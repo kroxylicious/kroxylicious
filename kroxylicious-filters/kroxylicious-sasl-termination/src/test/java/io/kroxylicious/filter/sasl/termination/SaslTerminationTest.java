@@ -61,13 +61,6 @@ import static org.mockito.Mockito.when;
  */
 class SaslTerminationTest {
 
-    private static final URI JWKS_URL = URI.create("https://idp.example.com/.well-known/jwks.json");
-
-    private static OauthBearerMechanismConfig oauthConfig() {
-        return new OauthBearerMechanismConfig(JWKS_URL, "kafka", "https://idp.example.com",
-                null, null, null, null, null, null);
-    }
-
     private static SaslTermination.SaslTerminationContext testContext() {
         return testContext(Set.of("SCRAM-SHA-256"), Map.of(), List.of());
     }
@@ -494,6 +487,30 @@ class SaslTerminationTest {
     }
 
     @Test
+    void shouldRejectNullCredentialStore() {
+        // When/Then
+        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", null, new Object()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("credentialStore must not be null or empty");
+    }
+
+    @Test
+    void shouldRejectEmptyCredentialStore() {
+        // When/Then
+        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", "", new Object()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("credentialStore must not be null or empty");
+    }
+
+    @Test
+    void shouldRejectNullCredentialStoreConfig() {
+        // When/Then
+        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", "store", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("credentialStoreConfig must not be null");
+    }
+
+    @Test
     void shouldRejectSaslHandshakeWithUnsupportedApiVersion() {
         // Given
         var context = testContext();
@@ -774,20 +791,6 @@ class SaslTerminationTest {
 
     private static void setFilterState(SaslTerminationFilter filter, State state) {
         filter.forceState(state);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static FilterContext mockFilterContextForShortCircuitResponse() {
-        var filterContext = mock(FilterContext.class);
-        var builder = mock(RequestFilterResultBuilder.class);
-        var closeOrTerminal = mock(CloseOrTerminalStage.class);
-        var result = mock(RequestFilterResult.class);
-
-        when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
-        when(builder.shortCircuitResponse(any())).thenReturn(closeOrTerminal);
-        when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
-
-        return filterContext;
     }
 
     @SuppressWarnings("unchecked")

@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import javax.security.sasl.SaslException;
+
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.apache.kafka.common.security.scram.internals.ScramSaslServerProvider;
 import org.junit.jupiter.api.AfterEach;
@@ -23,6 +25,7 @@ import io.kroxylicious.scram.credentialstore.ScramCredential;
 import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -79,9 +82,10 @@ class ScramStateMachineTest {
         // Then
         assertThat(result).isInstanceOf(RoundResult.Challenge.class);
         String serverFirstMessage = new String(result.responseBytes(), StandardCharsets.UTF_8);
-        assertThat(serverFirstMessage).startsWith("r=fyko+d2lbbFgONRv9qkxdawL");
-        assertThat(serverFirstMessage).contains(",s=");
-        assertThat(serverFirstMessage).contains(",i=");
+        assertThat(serverFirstMessage)
+                .startsWith("r=fyko+d2lbbFgONRv9qkxdawL")
+                .contains(",s=")
+                .contains(",i=");
         verify(credentialStore).lookupCredential(TEST_USERNAME);
     }
 
@@ -229,7 +233,7 @@ class ScramStateMachineTest {
     void shouldDisposeIdempotently() {
         // When/Then
         handler.dispose();
-        handler.dispose();
+        assertThatNoException().isThrownBy(() -> handler.dispose());
     }
 
     @Test
@@ -248,6 +252,43 @@ class ScramStateMachineTest {
         assertThat(result).isInstanceOf(RoundResult.Challenge.class);
         assertThat(result.responseBytes()).isNotEmpty();
         verify(credentialStore).lookupCredential(TEST_USERNAME);
+    }
+
+    @Test
+    void shouldGeneratePhantomChallengeForSha512() throws Exception {
+        // Given
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore);
+        when(credentialStore.lookupCredential("alice"))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        byte[] clientFirstMessage = "n,,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+
+        // When
+        RoundResult result = handler.evaluateRound(clientFirstMessage)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(result).isInstanceOf(RoundResult.Challenge.class);
+        String serverFirstMessage = new String(result.responseBytes(), StandardCharsets.UTF_8);
+        assertThat(serverFirstMessage).startsWith("r=fyko+d2lbbFgONRv9qkxdawL");
+    }
+
+    @Test
+    void shouldFailOnInvalidSecondRoundWithValidCredential() throws Exception {
+        // Given
+        ScramCredential credential = generateCredential(TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
+        when(credentialStore.lookupCredential(TEST_USERNAME))
+                .thenReturn(CompletableFuture.completedFuture(credential));
+        byte[] clientFirstMessage = "n,,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+        handler.evaluateRound(clientFirstMessage).toCompletableFuture().get();
+
+        // When
+        byte[] invalidClientFinal = "c=biws,r=invalid,p=invalid".getBytes(StandardCharsets.UTF_8);
+        RoundResult result = handler.evaluateRound(invalidClientFinal)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(result).isInstanceOf(RoundResult.Failure.class);
+        assertThat(((RoundResult.Failure) result).exception()).isInstanceOf(SaslException.class);
     }
 
     private ScramCredential generateCredential(

@@ -692,6 +692,24 @@ class SaslTerminationFilterTest {
     }
 
     @Test
+    void shouldHandshakeWithScramSha512() throws Exception {
+        // Given
+        var filter = createFilterWithScram512();
+        var captor = ArgumentCaptor.forClass(ApiMessage.class);
+        var filterContext = mockShortCircuitFilterContext(captor);
+
+        // When
+        filter.onRequest(ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_HANDSHAKE.latestVersion(),
+                new RequestHeaderData(),
+                new SaslHandshakeRequestData().setMechanism("SCRAM-SHA-512"),
+                filterContext).toCompletableFuture().get();
+
+        // Then
+        var response = (SaslHandshakeResponseData) captor.getValue();
+        assertThat(response.errorCode()).isEqualTo(Errors.NONE.code());
+    }
+
+    @Test
     void shouldRejectAlterScramCredentialsWithCorrectMessage() throws Exception {
         // Given
         var filter = createFilterWithScram();
@@ -837,6 +855,17 @@ class SaslTerminationFilterTest {
                 null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES,
                 Map.of(ScramMechanism.SCRAM_SHA_256, credentialStore),
                 Set.of("SCRAM-SHA-256"), List.of(),
+                null, Clock.systemUTC(), Duration.ofMillis(200),
+                SaslTermination.DEFAULT_SUBJECT_BUILDER);
+        return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
+    }
+
+    private static SaslTerminationFilter createFilterWithScram512() {
+        var credentialStore = mock(ScramCredentialStore.class);
+        var context = new SaslTermination.SaslTerminationContext(
+                null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES,
+                Map.of(ScramMechanism.SCRAM_SHA_512, credentialStore),
+                Set.of("SCRAM-SHA-512"), List.of(),
                 null, Clock.systemUTC(), Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         return new SaslTerminationFilter(mock(ScheduledExecutorService.class), context);
