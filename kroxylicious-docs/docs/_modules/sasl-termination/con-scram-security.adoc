@@ -1,0 +1,47 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-authentication-sasl-termination.adoc
+
+[id='con-scram-security-{context}']
+= SCRAM security considerations
+
+[role="_abstract"]
+This section describes the security measures that the `SaslTermination` filter applies when handling SCRAM-SHA-256 and SCRAM-SHA-512 authentication.
+
+== Credential storage
+
+The SCRAM credential store does not contain plaintext passwords.
+When a user is added using the SCRAM credential tool, the password is processed through PBKDF2 key derivation to produce two derived keys: `StoredKey` and `ServerKey`.
+Only these derived keys and the associated salt and iteration count are stored.
+
+The PBKDF2 iteration count controls the computational cost of deriving keys from a password.
+Higher values increase resistance to brute-force attacks against the credential store, but also increase the CPU cost of each authentication.
+The default is 10000, and the minimum is 4096.
+
+== Username enumeration protection
+
+The filter protects against username enumeration attacks by generating synthetic SCRAM challenges for unknown usernames.
+These _phantom challenges_ are constructed so that an attacker cannot distinguish between a response for a valid user and a response for a non-existent user.
+
+To maintain this protection, the `phantomIterations` configuration property should match the iteration count used when creating real credentials.
+If the iteration counts differ, an attacker could potentially distinguish real challenges from phantom challenges based on the time taken to compute the server's response.
+
+== Timing side-channel mitigation
+
+The `fixedAuthDelay` property (configured at the `SaslTermination` filter level, not per mechanism) applies a fixed delay to each authentication round.
+This ensures that authentication responses take a consistent amount of time regardless of whether the user exists, the password is correct, or any other condition.
+The default delay is 200 milliseconds.
+
+If connection latency is a higher priority than timing attack mitigation, the delay can be set to `0s` to disable it entirely.
+The value can also be tuned to a lower delay, but if it is configured low enough that authentication processing frequently exceeds the fixed delay, the timing attack mitigation is lost.
+The `kroxylicious_filter_sasl_termination_auth_duration_seconds` metric records the real authentication latency exclusive of the fixed delay, and the filter logs a warning when authentication processing exceeds it.
+Use these to inform any tuning.
+See xref:con-authentication-metrics-{context}[] and xref:con-authentication-logging-{context}[] for details.

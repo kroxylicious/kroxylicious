@@ -16,7 +16,7 @@
 [role="_abstract"]
 If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
 
-Here is a complete example of a `filterDefinitions` entry configured for SASL Termination:
+Here is a complete example of a `filterDefinitions` entry configured for SASL Termination with both `OAUTHBEARER` and `SCRAM-SHA-256` mechanisms:
 
 [source, yaml]
 ----
@@ -29,6 +29,12 @@ filterDefinitions:
           jwksEndpointUrl: https://idp.example.com/.well-known/jwks.json
           expectedAudience: kafka
           expectedIssuer: https://idp.example.com
+        - mechanism: SCRAM-SHA-256
+          credentialStore: KeystoreScramCredentialStore
+          credentialStoreConfig:
+            file: /etc/kroxylicious/scram-credentials.p12
+            storePassword:
+              passwordFile: /etc/kroxylicious/keystore-password.txt
       maxTimeBeforeReauth: 1h
       fixedAuthDelay: 200ms
       subjectBuilder: <class name>
@@ -36,7 +42,7 @@ filterDefinitions:
 ----
 where:
 
-* `mechanisms` (required) configures the list of SASL mechanisms that the filter supports.
+* `mechanisms` (required) configures the enabled SASL mechanisms that the filter supports.
 Each entry specifies a `mechanism` name and mechanism-specific configuration.
 `OAUTHBEARER`, `SCRAM-SHA-256`, and `SCRAM-SHA-512` are supported.
 * `maxTimeBeforeReauth` specifies the maximum session lifetime before the client must reauthenticate (https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate[KIP-368]).
@@ -65,5 +71,27 @@ The following properties are optional:
 * `jwksEndpointRefresh` specifies the interval between refreshes of the JWKS cache used to verify JWT signatures.
 * `jwksEndpointRetryBackoff` specifies the initial delay between attempts to retrieve the JWKS from the external authentication provider.
 * `jwksEndpointRetryBackoffMax` specifies the maximum delay between JWKS retrieval attempts.
+
+== SCRAM-SHA-256 and SCRAM-SHA-512 mechanism configuration
+
+The `SCRAM-SHA-256` and `SCRAM-SHA-512` mechanisms validate client credentials against a pluggable credential store.
+
+* `credentialStore` (required) specifies the name of a plugin implementing `ScramCredentialStoreService`.
+The built-in KeyStore credential store is named `KeystoreScramCredentialStore`.
+* `credentialStoreConfig` (required) provides configuration for the credential store plugin.
+The structure depends on the credential store implementation.
+
+=== KeyStore credential store configuration
+
+The `KeystoreScramCredentialStore` credential store loads SCRAM credentials from a PKCS#12 KeyStore file.
+Use the SCRAM credential tool to create and populate the KeyStore.
+See <<proc-managing-scram-credentials-{context}>> for instructions.
+
+* `file` (required) specifies the path to the PKCS#12 KeyStore file.
+* `storePassword` (required) specifies the password used to access the KeyStore, using a `PasswordProvider`:
+** `passwordFile` specifies the path to a file containing the password.
+This is the recommended approach for production deployments.
+** `password` specifies the password inline.
+This is not recommended for production use.
 
 For more information about configuring proxy, see the {ProxyGuide}.
