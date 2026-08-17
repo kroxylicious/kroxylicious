@@ -28,7 +28,9 @@ import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
 
 import org.apache.kafka.common.security.scram.ScramCredentialCallback;
+import org.apache.kafka.common.security.scram.internals.ScramFormatter;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
+import org.apache.kafka.common.security.scram.internals.ScramMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,12 +127,13 @@ class ScramStateMachine implements MechanismStateMachine {
 
     private CompletionStage<RoundResult> handleFirstRound(byte[] authBytes) {
         try {
-            extractedUsername = extractUsername(authBytes);
+            ClientFirst clientFirst = parseClientFirst(authBytes);
+            extractedUsername = clientFirst.username();
 
             return credentialStore.lookupCredential(extractedUsername)
                     .thenCompose(credential -> {
                         if (credential == null) {
-                            return generatePhantomChallenge(authBytes);
+                            return generatePhantomChallenge(clientFirst.nonce());
                         }
                         return processWithCredential(authBytes, credential);
                     })
@@ -215,13 +218,11 @@ class ScramStateMachine implements MechanismStateMachine {
         }
     }
 
-    private CompletionStage<RoundResult> generatePhantomChallenge(byte[] clientFirstMessage) {
+    private CompletionStage<RoundResult> generatePhantomChallenge(String clientNonce) {
         phantomUser = true;
         LOGGER.atDebug()
                 .addKeyValue(LOG_KEY_USERNAME, extractedUsername)
                 .log("User not found in credential store, generating phantom challenge");
-
-        String clientNonce = extractClientNonce(clientFirstMessage);
 
         byte[] salt = derivePhantomSalt(Objects.requireNonNull(extractedUsername));
 
@@ -249,47 +250,27 @@ class ScramStateMachine implements MechanismStateMachine {
         }
     }
 
-    private static String extractClientNonce(byte[] clientFirstMessage) {
-        String message = new String(clientFirstMessage, StandardCharsets.UTF_8);
-        int nonceStart = message.indexOf("r=");
-        if (nonceStart == -1) {
-            throw new IllegalArgumentException("Invalid SCRAM message: no nonce field");
-        }
-        nonceStart += 2;
-        int nonceEnd = message.indexOf(',', nonceStart);
-        return nonceEnd == -1 ? message.substring(nonceStart) : message.substring(nonceStart, nonceEnd);
-    }
+    record ClientFirst(String username, String nonce) {}
 
-    private static String extractUsername(byte[] clientFirstMessage) {
-        String message = new String(clientFirstMessage, StandardCharsets.UTF_8);
+    // Both the phantom and real-user paths share this single parsing entry point, which delegates
+    // to the same Kafka SCRAM classes that Kafka's ScramSaslServer uses internally. This is critical
+    // for anti-enumeration: if the proxy were more lenient than Kafka, an attacker could craft input
+    // that the proxy accepts (phantom challenge returned) but Kafka rejects (error returned),
+    // revealing whether a user exists.
+    static ClientFirst parseClientFirst(byte[] clientFirstMessage) throws SaslException {
+        ScramMessages.ClientFirstMessage parsed = new ScramMessages.ClientFirstMessage(clientFirstMessage);
 
-        // RFC 5802 section 5.1: the m= attribute is reserved for mandatory extensions
-        // and its presence MUST cause authentication failure
-        int bareStart = message.indexOf(",,");
-        if (bareStart >= 0 && message.startsWith("m=", bareStart + 2)) {
-            throw new IllegalArgumentException("Invalid SCRAM message: mandatory extensions (m=) are not supported");
-        }
-
-        int usernameStart = message.indexOf("n=");
-        if (usernameStart == -1) {
-            throw new IllegalArgumentException("Invalid SCRAM message: no username field");
-        }
-
-        usernameStart += 2;
-        int usernameEnd = message.indexOf(',', usernameStart);
-        if (usernameEnd == -1) {
-            throw new IllegalArgumentException("Invalid SCRAM message: malformed username field");
-        }
-
-        String username = message.substring(usernameStart, usernameEnd);
-        if (username.isEmpty()) {
-            throw new IllegalArgumentException("Invalid SCRAM message: empty username");
-        }
+        String username = ScramFormatter.username(parsed.saslName());
         if (username.length() > MAX_USERNAME_LENGTH) {
-            throw new IllegalArgumentException("Invalid SCRAM message: username exceeds maximum length of " + MAX_USERNAME_LENGTH + " characters");
+            throw new SaslException("Invalid SCRAM message: username exceeds maximum length of " + MAX_USERNAME_LENGTH + " characters");
         }
 
-        return username;
+        String authzid = parsed.authorizationId();
+        if (!authzid.isEmpty() && !authzid.equals(username)) {
+            throw new SaslException("Authentication failed: authorization id differs from username");
+        }
+
+        return new ClientFirst(username, parsed.nonce());
     }
 
     private static org.apache.kafka.common.security.scram.ScramCredential convertCredential(

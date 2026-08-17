@@ -119,7 +119,7 @@ class ScramStateMachineTest {
 
         // Then
         assertThat(result).isInstanceOf(RoundResult.Failure.class);
-        assertThat(((RoundResult.Failure) result).exception().getMessage()).contains("Invalid SCRAM message");
+        assertThat(((RoundResult.Failure) result).exception()).isInstanceOf(SaslException.class);
     }
 
     @Test
@@ -133,7 +133,7 @@ class ScramStateMachineTest {
 
         // Then
         assertThat(result).isInstanceOf(RoundResult.Failure.class);
-        assertThat(((RoundResult.Failure) result).exception().getMessage()).contains("Invalid SCRAM message");
+        assertThat(((RoundResult.Failure) result).exception()).isInstanceOf(SaslException.class);
     }
 
     @Test
@@ -147,21 +147,22 @@ class ScramStateMachineTest {
 
         // Then
         assertThat(result).isInstanceOf(RoundResult.Failure.class);
-        assertThat(((RoundResult.Failure) result).exception().getMessage()).contains("Invalid SCRAM message");
+        assertThat(((RoundResult.Failure) result).exception()).isInstanceOf(SaslException.class);
     }
 
     @Test
-    void shouldFailForMessageWithMandatoryExtension() throws Exception {
+    void shouldAcceptMandatoryExtensionConsistentWithKafka() throws Exception {
         // Given
-        byte[] invalidMessage = "n,,m=someext,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+        when(credentialStore.lookupCredential(TEST_USERNAME))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        byte[] clientFirstMessage = "n,,m=someext,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
 
         // When
-        RoundResult result = handler.evaluateRound(invalidMessage)
+        RoundResult result = handler.evaluateRound(clientFirstMessage)
                 .toCompletableFuture().get();
 
-        // Then
-        assertThat(result).isInstanceOf(RoundResult.Failure.class);
-        assertThat(((RoundResult.Failure) result).exception().getMessage()).contains("mandatory extensions");
+        // Then — Kafka's ScramSaslServer accepts m= extensions, so we must too for consistency
+        assertThat(result).isInstanceOf(RoundResult.Challenge.class);
     }
 
     @Test
@@ -285,6 +286,94 @@ class ScramStateMachineTest {
         assertThat(result).isInstanceOf(RoundResult.Challenge.class);
         String serverFirstMessage = new String(result.responseBytes(), StandardCharsets.UTF_8);
         assertThat(serverFirstMessage).startsWith("r=fyko+d2lbbFgONRv9qkxdawL");
+    }
+
+    @Test
+    void shouldDecodeEncodedUsername() throws Exception {
+        // Given
+        when(credentialStore.lookupCredential("alice,bob"))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        byte[] clientFirstMessage = "n,,n=alice=2Cbob,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+
+        // When
+        handler.evaluateRound(clientFirstMessage)
+                .toCompletableFuture().get();
+
+        // Then
+        verify(credentialStore).lookupCredential("alice,bob");
+    }
+
+    @Test
+    void shouldDecodeEqualsInUsername() throws Exception {
+        // Given
+        when(credentialStore.lookupCredential("alice=bob"))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        byte[] clientFirstMessage = "n,,n=alice=3Dbob,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+
+        // When
+        handler.evaluateRound(clientFirstMessage)
+                .toCompletableFuture().get();
+
+        // Then
+        verify(credentialStore).lookupCredential("alice=bob");
+    }
+
+    @Test
+    void shouldRejectAuthzidDifferentFromUsername() throws Exception {
+        // Given
+        byte[] clientFirstMessage = "n,a=eve,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+
+        // When
+        RoundResult result = handler.evaluateRound(clientFirstMessage)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(result).isInstanceOf(RoundResult.Failure.class);
+        assertThat(((RoundResult.Failure) result).exception()).isInstanceOf(SaslException.class);
+        assertThat(((RoundResult.Failure) result).exception().getMessage()).contains("authorization id");
+    }
+
+    @Test
+    void shouldAcceptAuthzidMatchingUsername() throws Exception {
+        // Given
+        when(credentialStore.lookupCredential(TEST_USERNAME))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        byte[] clientFirstMessage = "n,a=alice,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+
+        // When
+        RoundResult result = handler.evaluateRound(clientFirstMessage)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(result).isInstanceOf(RoundResult.Challenge.class);
+        verify(credentialStore).lookupCredential(TEST_USERNAME);
+    }
+
+    @Test
+    void shouldRejectNonceWithControlCharacters() throws Exception {
+        // Given
+        byte[] clientFirstMessage = ("n,,n=alice,r=nonce" + "\u0001" + "bad").getBytes(StandardCharsets.UTF_8);
+
+        // When
+        RoundResult result = handler.evaluateRound(clientFirstMessage)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(result).isInstanceOf(RoundResult.Failure.class);
+        assertThat(((RoundResult.Failure) result).exception()).isInstanceOf(SaslException.class);
+    }
+
+    @Test
+    void shouldRejectInvalidSaslNameEncoding() throws Exception {
+        // Given
+        byte[] clientFirstMessage = "n,,n=alice=2Dbob,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+
+        // When
+        RoundResult result = handler.evaluateRound(clientFirstMessage)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(result).isInstanceOf(RoundResult.Failure.class);
     }
 
     @Test
