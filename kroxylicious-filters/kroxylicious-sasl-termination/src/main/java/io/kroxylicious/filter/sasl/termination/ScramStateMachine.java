@@ -46,6 +46,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * the SCRAM protocol exchange. It asynchronously fetches credentials from
  * the credential store on first use, then handles subsequent rounds synchronously.
  * </p>
+ * <h2>Thread Safety</h2>
+ * <p>
+ * Not thread-safe. Each instance is used for a single connection
+ * on that connection's event loop thread.
+ * </p>
  */
 class ScramStateMachine implements MechanismStateMachine {
 
@@ -53,7 +58,7 @@ class ScramStateMachine implements MechanismStateMachine {
 
     static final int MAX_USERNAME_LENGTH = 255;
     private static final int PHANTOM_SALT_LENGTH = 20;
-    private static final int PHANTON_NUM_SERVER_NONCE_BYTES = 24;
+    private static final int PHANTOM_NUM_SERVER_NONCE_BYTES = 24;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String LOG_KEY_USERNAME = "username";
 
@@ -209,10 +214,13 @@ class ScramStateMachine implements MechanismStateMachine {
             }
         }
         catch (SaslException e) {
-            LOGGER.atError()
+            LOGGER.atWarn()
                     .addKeyValue(LOG_KEY_USERNAME, extractedUsername)
-                    .setCause(e)
-                    .log("Could not evaluate a SASL response");
+                    .addKeyValue("error", e.getMessage())
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .log(LOGGER.isDebugEnabled()
+                            ? "Could not evaluate a SASL response"
+                            : "Could not evaluate a SASL response, increase log level to DEBUG for stacktrace");
             return CompletableFuture.completedFuture(
                     RoundResult.failure(new byte[0], e));
         }
@@ -226,7 +234,7 @@ class ScramStateMachine implements MechanismStateMachine {
 
         byte[] salt = derivePhantomSalt(Objects.requireNonNull(extractedUsername));
 
-        byte[] serverNonceBytes = new byte[PHANTON_NUM_SERVER_NONCE_BYTES];
+        byte[] serverNonceBytes = new byte[PHANTOM_NUM_SERVER_NONCE_BYTES];
         SECURE_RANDOM.nextBytes(serverNonceBytes);
         String serverNonce = Base64.getEncoder().encodeToString(serverNonceBytes);
 

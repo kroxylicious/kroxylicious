@@ -32,7 +32,9 @@ public record ScramMechanismConfig(
 
     public static final String MECHANISM_NAME_SCRAM_SHA_256 = "SCRAM-SHA-256";
     public static final String MECHANISM_NAME_SCRAM_SHA_512 = "SCRAM-SHA-512";
-    static final int DEFAULT_PHANTOM_ITERATIONS = 10000;
+    // Matches KeystoreCredentialManager.DEFAULT_ITERATIONS so phantom challenges are
+    // indistinguishable from real ones when using the default keystore credential store.
+    static final int DEFAULT_PHANTOM_ITERATIONS = 10_000;
 
     /** Validates that credential store settings are present. */
     public ScramMechanismConfig {
