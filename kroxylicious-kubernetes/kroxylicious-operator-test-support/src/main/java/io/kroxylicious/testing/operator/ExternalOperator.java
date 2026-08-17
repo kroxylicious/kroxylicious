@@ -37,6 +37,7 @@ public class ExternalOperator {
      * patches the status subresource. Re-fetching avoids 409 Conflict errors when
      * the resourceVersion has advanced since any earlier fetch.
      *
+     * @param <T>           the resource type
      * @param type          resource class
      * @param name          resource name
      * @param statusMutator sets status on the fresh resource and returns it

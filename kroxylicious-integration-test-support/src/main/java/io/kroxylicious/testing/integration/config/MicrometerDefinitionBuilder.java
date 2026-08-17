@@ -14,7 +14,16 @@ import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookService;
 
+/**
+ * Builder for {@link MicrometerDefinition}s, resolving the configuration type from the
+ * named micrometer configuration hook plugin.
+ */
 public class MicrometerDefinitionBuilder extends AbstractDefinitionBuilder<MicrometerDefinition> {
+    /**
+     * Creates a MicrometerDefinitionBuilder.
+     *
+     * @param type the name of the micrometer configuration hook plugin
+     */
     public MicrometerDefinitionBuilder(String type) {
         super(type);
     }

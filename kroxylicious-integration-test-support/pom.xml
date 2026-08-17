@@ -25,7 +25,6 @@
 
     <properties>
         <errorprone.skip>true</errorprone.skip>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <dependencies>
@@ -298,7 +297,11 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
                     <!-- disable for packages containing the sundrio generated classes -->
-                    <excludePackageNames>io.kroxylicious.proxy.config:io.kroxylicious.proxy.config.admin</excludePackageNames>
+                    <excludePackageNames>io.kroxylicious.proxy.config:io.kroxylicious.proxy.config.*</excludePackageNames>
+                    <!-- disable for the antlr generated classes, which share a package with hand-written code -->
+                    <sourceFileExcludes>
+                        <sourceFileExclude>**/tester/PrometheusMetric*.java</sourceFileExclude>
+                    </sourceFileExcludes>
                 </configuration>
             </plugin>
             <plugin>
