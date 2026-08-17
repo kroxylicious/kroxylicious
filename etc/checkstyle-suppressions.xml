@@ -26,6 +26,11 @@
     <suppress checks=".*"
               files="generated-sources/antlr4/.*"/>
 
+    <!-- Kafka *Data classes generated from the protocol JSON specs; forked-generator
+         output that does not follow Kroxylicious style conventions and is not edited. -->
+    <suppress checks=".*"
+              files="generated-sources/kafka-messages/.*"/>
+
     <!-- Exclude structured logging checks from test code (src/test) -->
     <suppress checks="RegexpSinglelineJava"
               message="Use fluent API with addKeyValue"

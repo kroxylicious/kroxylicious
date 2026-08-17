@@ -95,6 +95,48 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Generate io.kroxylicious.kafka.common.message.*Data classes from the Kafka
+                 protocol JSON specs on every build. The forked generator is a plugin-scoped
+                 dependency so it stays off this module's own dependency graph. Declared after
+                 unpack-message-specs so it runs after the specs are unpacked within the
+                 generate-sources phase. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-message-classes</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>io.kroxylicious.kafka.message.MessageGenerator</mainClass>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <arguments>
+                                <argument>-p</argument>
+                                <argument>io.kroxylicious.kafka.common.message</argument>
+                                <argument>-i</argument>
+                                <argument>${project.build.directory}/message-specs/common/message</argument>
+                                <argument>-o</argument>
+                                <argument>${project.build.directory}/generated-sources/kafka-messages</argument>
+                                <argument>-t</argument>
+                                <argument>ApiMessageTypeGenerator</argument>
+                                <argument>-m</argument>
+                                <argument>MessageDataGenerator</argument>
+                                <argument>JsonConverterGenerator</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>io.kroxylicious</groupId>
+                        <artifactId>kroxylicious-kafka-message-generator</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
             <!-- This actually shouldn't be needed, as the plug-in itself adds that directory as a source directory;
                  Unfortunately, Eclipse/M2E doesn't reliably pick it up without this helper plug-in -->
             <plugin>
@@ -110,6 +152,7 @@
                         <configuration>
                             <sources>
                                 <source>${project.build.directory}/generated-sources/krpc</source>
+                                <source>${project.build.directory}/generated-sources/kafka-messages</source>
                             </sources>
                         </configuration>
                     </execution>
