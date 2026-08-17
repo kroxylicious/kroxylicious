@@ -110,6 +110,11 @@ jobs:
         env:
           ADDITIONAL_TAGS: ${{ inputs.additional-tags }}
         run: |
+          if [[ "${{ inputs.output-tarballs }}" == "true" && "${{ inputs.push-images }}" == "true" ]]; then
+            echo "::error::output-tarballs and push-images are mutually exclusive; set at most one to true." >&2
+            exit 1
+          fi
+
           POMS_VERSION=$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)
           echo "release_version=${POMS_VERSION}" >> $GITHUB_OUTPUT
           echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
