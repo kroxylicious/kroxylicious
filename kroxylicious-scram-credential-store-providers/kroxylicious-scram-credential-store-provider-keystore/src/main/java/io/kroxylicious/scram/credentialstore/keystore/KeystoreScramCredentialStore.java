@@ -91,10 +91,10 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
             if (this == o) {
                 return true;
             }
-            if (!(o instanceof LoadResult that)) {
+            if (!(o instanceof LoadResult(Map<String, ScramCredential> thatCredentials, byte[] thatPhantomSaltKey))) {
                 return false;
             }
-            return Objects.equals(credentials, that.credentials) && Arrays.equals(phantomSaltKey, that.phantomSaltKey);
+            return Objects.equals(credentials, thatCredentials) && Arrays.equals(phantomSaltKey, thatPhantomSaltKey);
         }
 
         @Override

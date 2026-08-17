@@ -154,19 +154,27 @@ class ScramStateMachineTest {
         assertThat(result).isInstanceOf(RoundResult.Challenge.class);
     }
 
-    @Test
-    void shouldExtractUsernameCorrectly() throws Exception {
+    @ParameterizedTest(name = "saslName={0} expectedUsername={1}")
+    @MethodSource("usernameDecodingCases")
+    void shouldExtractAndDecodeUsername(String saslName, String expectedUsername) throws Exception {
         // Given
-        when(credentialStore.lookupCredential("bob"))
+        when(credentialStore.lookupCredential(expectedUsername))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        byte[] clientFirstMessage = "n,,n=bob,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+        byte[] clientFirstMessage = ("n,,n=" + saslName + ",r=fyko+d2lbbFgONRv9qkxdawL").getBytes(StandardCharsets.UTF_8);
 
         // When
         handler.evaluateRound(clientFirstMessage)
                 .toCompletableFuture().get();
 
         // Then
-        verify(credentialStore).lookupCredential("bob");
+        verify(credentialStore).lookupCredential(expectedUsername);
+    }
+
+    static Stream<Arguments> usernameDecodingCases() {
+        return Stream.of(
+                Arguments.of("bob", "bob"),
+                Arguments.of("alice=2Cbob", "alice,bob"),
+                Arguments.of("alice=3Dbob", "alice=bob"));
     }
 
     @Test
@@ -319,36 +327,6 @@ class ScramStateMachineTest {
         assertThat(result).isInstanceOf(RoundResult.Challenge.class);
         String serverFirstMessage = new String(result.responseBytes(), StandardCharsets.UTF_8);
         assertThat(serverFirstMessage).startsWith("r=fyko+d2lbbFgONRv9qkxdawL");
-    }
-
-    @Test
-    void shouldDecodeEncodedUsername() throws Exception {
-        // Given
-        when(credentialStore.lookupCredential("alice,bob"))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        byte[] clientFirstMessage = "n,,n=alice=2Cbob,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
-
-        // When
-        handler.evaluateRound(clientFirstMessage)
-                .toCompletableFuture().get();
-
-        // Then
-        verify(credentialStore).lookupCredential("alice,bob");
-    }
-
-    @Test
-    void shouldDecodeEqualsInUsername() throws Exception {
-        // Given
-        when(credentialStore.lookupCredential("alice=bob"))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        byte[] clientFirstMessage = "n,,n=alice=3Dbob,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
-
-        // When
-        handler.evaluateRound(clientFirstMessage)
-                .toCompletableFuture().get();
-
-        // Then
-        verify(credentialStore).lookupCredential("alice=bob");
     }
 
     @Test
