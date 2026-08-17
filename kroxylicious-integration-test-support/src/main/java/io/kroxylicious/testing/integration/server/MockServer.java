@@ -56,6 +56,7 @@ public final class MockServer implements AutoCloseable {
 
     /**
      * Set the response to be served by the MockServer if the request matches.
+     * @param requestMatcher matcher selecting the requests to respond to
      * @param response the response (nullable)
      */
     public void addMockResponse(Matcher<Request> requestMatcher, ResponsePayload response) {
@@ -64,6 +65,10 @@ public final class MockServer implements AutoCloseable {
         serverHandler.addMockResponse(requestMatcher, Action.respond(response.message(), response.responseApiVersion()));
     }
 
+    /**
+     * Instructs the MockServer to drop (not respond to) requests matching the matcher.
+     * @param requestMatcher matcher selecting the requests to drop
+     */
     public void dropWhen(Matcher<Request> requestMatcher) {
         Objects.requireNonNull(requestMatcher);
         serverHandler.addMockResponse(requestMatcher, Action.drop());
@@ -195,6 +200,11 @@ public final class MockServer implements AutoCloseable {
         serverHandler.clear();
     }
 
+    /**
+     * Asserts that every registered mock response has been invoked at least once.
+     *
+     * @throws AssertionError if any mock response was never invoked
+     */
     public void assertAllMockInteractionsInvoked() {
         this.serverHandler.assertAllMockInteractionsInvoked();
     }

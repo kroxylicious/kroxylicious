@@ -55,6 +55,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 public final class KafkaClient implements AutoCloseable {
 
+    /**
+     * A client SSL context that trusts all server certificates. For use in tests only.
+     */
     public static final SslContext TRUST_ALL_CLIENT_SSL_CONTEXT = buildTrustAllSslContext();
     private final String host;
     private final int port;
@@ -67,6 +70,12 @@ public final class KafkaClient implements AutoCloseable {
     private final CorrelationManager correlationManager;
     private final KafkaClientHandler kafkaClientHandler;
 
+    /**
+     * create empty kafkaClient without TLS
+     *
+     * @param host host to connect to
+     * @param port port to connect to
+     */
     public KafkaClient(String host, int port) {
         this(host, port, null);
     }
@@ -132,6 +141,12 @@ public final class KafkaClient implements AutoCloseable {
                 .thenApply(KafkaClient::toResponse);
     }
 
+    /**
+     * Sends the request as per {@link #get(Request)} and blocks awaiting the response.
+     *
+     * @param request request to send to kafka
+     * @return the response from the kafka broker
+     */
     public Response getSync(Request request) {
         try {
             return get(request).get(10, TimeUnit.SECONDS);
@@ -176,6 +191,11 @@ public final class KafkaClient implements AutoCloseable {
         }
     }
 
+    /**
+     * Whether the client's channel is connected and open.
+     *
+     * @return true if the channel is open, false otherwise
+     */
     public boolean isOpen() {
         CompletableFuture<Channel> channelCompletableFuture = connected.get();
         if (channelCompletableFuture == null) {

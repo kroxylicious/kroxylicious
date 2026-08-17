@@ -54,11 +54,24 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 public class ApiMessageSampleGenerator {
 
+    /**
+     * An API key together with the API version a sample message was generated for.
+     *
+     * @param keys the API key
+     * @param apiVersion the API version
+     */
     public record ApiAndVersion(ApiKeys keys, short apiVersion) {
 
     }
 
+    /**
+     * Lower bound (inclusive) of the randomised numeric values used to populate sample messages.
+     */
     public static final int RANGE_MIN = 0;
+
+    /**
+     * Upper bound (exclusive) of the randomised numeric values used to populate sample messages.
+     */
     public static final int RANGE_MAX = 1024;
 
     private ApiMessageSampleGenerator() {

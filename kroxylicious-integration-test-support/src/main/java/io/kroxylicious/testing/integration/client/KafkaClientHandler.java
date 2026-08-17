@@ -23,6 +23,13 @@ import io.kroxylicious.testing.integration.codec.RequestFrame;
 public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClientHandler.class);
 
+    /**
+     * Creates a KafkaClientHandler
+     */
+    public KafkaClientHandler() {
+        // explicit default constructor for javadoc
+    }
+
     private final Deque<RequestFrame> queue = new ConcurrentLinkedDeque<>();
     private ChannelHandlerContext ctx;
 

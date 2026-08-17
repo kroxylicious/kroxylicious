@@ -13,9 +13,19 @@ import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterFactory;
 
+/**
+ * Builder for {@link NamedFilterDefinition}s, resolving the configuration type from the
+ * named filter factory plugin.
+ */
 public class NamedFilterDefinitionBuilder extends AbstractDefinitionBuilder<NamedFilterDefinition> {
     private final String name;
 
+    /**
+     * Creates a NamedFilterDefinitionBuilder.
+     *
+     * @param name the name to give the filter definition
+     * @param type the name of the filter factory plugin
+     */
     public NamedFilterDefinitionBuilder(String name, String type) {
         super(type);
         this.name = name;
@@ -27,6 +37,11 @@ public class NamedFilterDefinitionBuilder extends AbstractDefinitionBuilder<Name
         return new NamedFilterDefinition(name, type, mapper.convertValue(config, configType));
     }
 
+    /**
+     * The name that will be given to the built filter definition.
+     *
+     * @return the filter definition name
+     */
     public String name() {
         return name;
     }

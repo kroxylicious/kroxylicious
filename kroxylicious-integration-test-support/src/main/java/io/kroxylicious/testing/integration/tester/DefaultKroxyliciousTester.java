@@ -53,6 +53,11 @@ import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 
+/**
+ * Default implementation of {@link KroxyliciousTester}. Runs a Kroxylicious server
+ * from a given configuration and manages the lifecycle of the Kafka clients handed
+ * out to tests.
+ */
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
 
