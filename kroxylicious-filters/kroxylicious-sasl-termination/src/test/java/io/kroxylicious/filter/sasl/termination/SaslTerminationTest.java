@@ -73,6 +73,7 @@ class SaslTerminationTest {
                 null,
                 OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES,
                 scramStores,
+                Map.of(),
                 supportedMechanisms,
                 closeables,
                 null,
@@ -158,8 +159,8 @@ class SaslTerminationTest {
     @Test
     void shouldRejectDuplicateMechanisms() {
         // Given
-        var config1 = new ScramMechanismConfig("SCRAM-SHA-256", "store1", new Object());
-        var config2 = new ScramMechanismConfig("SCRAM-SHA-256", "store2", new Object());
+        var config1 = new ScramMechanismConfig("SCRAM-SHA-256", "store1", new Object(), null);
+        var config2 = new ScramMechanismConfig("SCRAM-SHA-256", "store2", new Object(), null);
         List<MechanismConfig> mechanisms = List.of(config1, config2);
 
         // When/Then
@@ -171,7 +172,7 @@ class SaslTerminationTest {
     @Test
     void shouldAcceptMultipleDistinctMechanisms() {
         // Given
-        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object());
+        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object(), null);
         var oauth = new OauthBearerMechanismConfig(
                 URI.create("https://example.com/jwks"), "aud", "iss",
                 null, null, null, null, null,
@@ -459,7 +460,7 @@ class SaslTerminationTest {
     @Test
     void effectiveFixedAuthDelayShouldDefaultTo200ms() {
         // Given
-        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object());
+        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object(), null);
         var config = new SaslTerminationConfig(List.of(scram), null, null, null, null);
 
         // When/Then
@@ -469,7 +470,7 @@ class SaslTerminationTest {
     @Test
     void effectiveFixedAuthDelayShouldUseConfiguredValue() {
         // Given
-        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object());
+        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object(), null);
         var config = new SaslTerminationConfig(List.of(scram), null, Duration.ofMillis(500), null, null);
 
         // When/Then
@@ -479,7 +480,7 @@ class SaslTerminationTest {
     @Test
     void effectiveFixedAuthDelayShouldSupportZeroToDisable() {
         // Given
-        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object());
+        var scram = new ScramMechanismConfig("SCRAM-SHA-256", "store", new Object(), null);
         var config = new SaslTerminationConfig(List.of(scram), null, Duration.ZERO, null, null);
 
         // When/Then
@@ -492,7 +493,7 @@ class SaslTerminationTest {
         var storeConfig = new Object();
 
         // When/Then
-        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", null, storeConfig))
+        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", null, storeConfig, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("credentialStore must not be null or empty");
     }
@@ -503,7 +504,7 @@ class SaslTerminationTest {
         var storeConfig = new Object();
 
         // When/Then
-        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", "", storeConfig))
+        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", "", storeConfig, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("credentialStore must not be null or empty");
     }
@@ -511,7 +512,7 @@ class SaslTerminationTest {
     @Test
     void shouldRejectNullCredentialStoreConfig() {
         // When/Then
-        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", "store", null))
+        assertThatThrownBy(() -> new ScramMechanismConfig("SCRAM-SHA-256", "store", null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("credentialStoreConfig must not be null");
     }
@@ -763,7 +764,7 @@ class SaslTerminationTest {
         var executorThreadName = "test-filter-dispatch";
         try (var executor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, executorThreadName))) {
             var context = new SaslTermination.SaslTerminationContext(
-                    null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Set.of("OAUTHBEARER"), List.of(), null, Clock.systemUTC(),
+                    null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, Map.of(), Map.of(), Set.of("OAUTHBEARER"), List.of(), null, Clock.systemUTC(),
                     Duration.ofMillis(100), SaslTermination.DEFAULT_SUBJECT_BUILDER);
             var filter = new SaslTerminationFilter(executor, context);
 

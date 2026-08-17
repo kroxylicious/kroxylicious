@@ -86,6 +86,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      * @param oauthCallbackHandler initialized callback handler for OAUTHBEARER, null if not configured
      * @param oauthMaxAuthBytes maximum auth payload size for OAUTHBEARER
      * @param scramCredentialStores map of SCRAM mechanism type byte to credential store
+     * @param scramPhantomIterations map of SCRAM mechanism to phantom user iteration count
      * @param supportedMechanisms set of configured mechanism names
      * @param maxTimeBeforeReauth maximum session lifetime, null if disabled
      * @param clock clock for session expiry computation
@@ -97,6 +98,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
                                          @Nullable OAuthBearerValidatorCallbackHandler oauthCallbackHandler,
                                          int oauthMaxAuthBytes,
                                          Map<ScramMechanism, ScramCredentialStore> scramCredentialStores,
+                                         Map<ScramMechanism, Integer> scramPhantomIterations,
                                          Set<String> supportedMechanisms,
                                          List<AutoCloseable> closeables,
                                          @Nullable Duration maxTimeBeforeReauth,
@@ -151,6 +153,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         OAuthBearerValidatorCallbackHandler oauthCallbackHandler = null;
         int oauthMaxAuthBytes = OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES;
         Map<ScramMechanism, ScramCredentialStore> scramCredentialStores = new EnumMap<>(ScramMechanism.class);
+        Map<ScramMechanism, Integer> scramPhantomIterations = new EnumMap<>(ScramMechanism.class);
         Set<String> supportedMechanisms = new LinkedHashSet<>();
         Duration fixedAuthDelay = config.effectiveFixedAuthDelay();
 
@@ -167,9 +170,9 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
                     ScramCredentialStoreService<Object> service = initScramCredentialStoreService(scramConfig, context);
                     closeables.add(service);
                     ScramCredentialStore store = service.buildCredentialStore();
-                    scramCredentialStores.put(
-                            ScramMechanism.forMechanismName(mechanismConfig.mechanismName()),
-                            store);
+                    ScramMechanism mechanism = ScramMechanism.forMechanismName(mechanismConfig.mechanismName());
+                    scramCredentialStores.put(mechanism, store);
+                    scramPhantomIterations.put(mechanism, scramConfig.effectivePhantomIterations());
                 }
             }
         }
@@ -186,6 +189,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         return new SaslTerminationContext(oauthCallbackHandler,
                 oauthMaxAuthBytes,
                 scramCredentialStores,
+                scramPhantomIterations,
                 supportedMechanisms,
                 closeables,
                 config.maxTimeBeforeReauth(),

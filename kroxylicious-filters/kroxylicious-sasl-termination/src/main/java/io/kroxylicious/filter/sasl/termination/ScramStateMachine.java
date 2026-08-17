@@ -7,7 +7,7 @@
 package io.kroxylicious.filter.sasl.termination;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -17,6 +17,8 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.NameCallback;
@@ -49,13 +51,14 @@ class ScramStateMachine implements MechanismStateMachine {
 
     static final int MAX_USERNAME_LENGTH = 255;
     private static final int PHANTOM_SALT_LENGTH = 20;
-    private static final int PHANTOM_ITERATIONS = 10000;
     private static final int PHANTON_NUM_SERVER_NONCE_BYTES = 24;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String LOG_KEY_USERNAME = "username";
 
     private final String mechanismName;
     private final ScramCredentialStore credentialStore;
+    private final int phantomIterations;
+    private final byte[] phantomSaltKey;
 
     // Set during the first round when the credential lookup finds the user
     @Nullable
@@ -73,10 +76,13 @@ class ScramStateMachine implements MechanismStateMachine {
      *
      * @param mechanism the SCRAM mechanism (SHA-256 or SHA-512)
      * @param credentialStore the credential store for looking up user credentials
+     * @param phantomIterations PBKDF2 iteration count for phantom user challenges
      */
-    ScramStateMachine(ScramMechanism mechanism, ScramCredentialStore credentialStore) {
+    ScramStateMachine(ScramMechanism mechanism, ScramCredentialStore credentialStore, int phantomIterations) {
         this.mechanismName = mechanism.mechanismName();
         this.credentialStore = Objects.requireNonNull(credentialStore);
+        this.phantomIterations = phantomIterations;
+        this.phantomSaltKey = credentialStore.phantomSaltKey();
     }
 
     @Override
@@ -217,17 +223,7 @@ class ScramStateMachine implements MechanismStateMachine {
 
         String clientNonce = extractClientNonce(clientFirstMessage);
 
-        // Deterministic salt derived from username so repeated probes get the same salt
-        byte[] salt;
-        try {
-            String algorithm = mechanismName.contains("512") ? "SHA-512" : "SHA-256";
-            MessageDigest md = MessageDigest.getInstance(algorithm);
-            salt = Arrays.copyOf(md.digest(Objects.requireNonNull(extractedUsername).getBytes(StandardCharsets.UTF_8)), PHANTOM_SALT_LENGTH);
-        }
-        catch (NoSuchAlgorithmException e) {
-            salt = new byte[PHANTOM_SALT_LENGTH];
-            SECURE_RANDOM.nextBytes(salt);
-        }
+        byte[] salt = derivePhantomSalt(Objects.requireNonNull(extractedUsername));
 
         byte[] serverNonceBytes = new byte[PHANTON_NUM_SERVER_NONCE_BYTES];
         SECURE_RANDOM.nextBytes(serverNonceBytes);
@@ -235,10 +231,22 @@ class ScramStateMachine implements MechanismStateMachine {
 
         String serverFirstMessage = "r=" + clientNonce + serverNonce
                 + ",s=" + Base64.getEncoder().encodeToString(salt)
-                + ",i=" + PHANTOM_ITERATIONS;
+                + ",i=" + phantomIterations;
 
         return CompletableFuture.completedFuture(
                 RoundResult.challenge(serverFirstMessage.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private byte[] derivePhantomSalt(String username) {
+        try {
+            String hmacAlgorithm = mechanismName.contains("512") ? "HmacSHA512" : "HmacSHA256";
+            Mac mac = Mac.getInstance(hmacAlgorithm);
+            mac.init(new SecretKeySpec(phantomSaltKey, hmacAlgorithm));
+            return Arrays.copyOf(mac.doFinal(username.getBytes(StandardCharsets.UTF_8)), PHANTOM_SALT_LENGTH);
+        }
+        catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new IllegalStateException("Failed to compute HMAC for phantom salt", e);
+        }
     }
 
     private static String extractClientNonce(byte[] clientFirstMessage) {
@@ -254,6 +262,13 @@ class ScramStateMachine implements MechanismStateMachine {
 
     private static String extractUsername(byte[] clientFirstMessage) {
         String message = new String(clientFirstMessage, StandardCharsets.UTF_8);
+
+        // RFC 5802 section 5.1: the m= attribute is reserved for mandatory extensions
+        // and its presence MUST cause authentication failure
+        int bareStart = message.indexOf(",,");
+        if (bareStart >= 0 && message.startsWith("m=", bareStart + 2)) {
+            throw new IllegalArgumentException("Invalid SCRAM message: mandatory extensions (m=) are not supported");
+        }
 
         int usernameStart = message.indexOf("n=");
         if (usernameStart == -1) {

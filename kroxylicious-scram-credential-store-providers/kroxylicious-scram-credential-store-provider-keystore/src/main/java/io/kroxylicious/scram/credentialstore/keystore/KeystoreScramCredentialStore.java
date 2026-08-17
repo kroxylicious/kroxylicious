@@ -48,6 +48,7 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
 
     private final Map<String, ScramCredential> credentialCache;
     private final ScramCredentialSerializer serializer;
+    private final byte[] phantomSaltKey;
 
     /**
      * Create a new KeyStore-based credential store.
@@ -57,7 +58,13 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
      */
     public KeystoreScramCredentialStore(KeystoreScramCredentialStoreConfig config) throws CredentialServiceUnavailableException {
         this.serializer = new ScramCredentialSerializer();
-        this.credentialCache = loadKeyStore(config);
+        var loaded = loadKeyStore(config);
+        this.credentialCache = loaded.credentials;
+        if (loaded.phantomSaltKey == null) {
+            throw new CredentialServiceUnavailableException(
+                    "KeyStore at " + config.file() + " does not contain a phantom salt key. Recreate the KeyStore using the CLI tool.");
+        }
+        this.phantomSaltKey = loaded.phantomSaltKey;
         LOGGER.atInfo()
                 .addKeyValue("count", credentialCache.size())
                 .addKeyValue("file", config.file())
@@ -72,15 +79,23 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
         return CompletableFuture.completedFuture(credential);
     }
 
+    @Override
+    public byte[] phantomSaltKey() {
+        return phantomSaltKey.clone();
+    }
+
+    @SuppressWarnings("ArrayRecordComponent")
+    private record LoadResult(Map<String, ScramCredential> credentials, @Nullable byte[] phantomSaltKey) {}
+
     /**
      * Load the KeyStore and extract all SCRAM credentials.
      *
      * @param config the configuration
-     * @return map of username to credential
+     * @return loaded credentials and phantom salt key
      * @throws CredentialServiceUnavailableException if loading fails
      */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
-    private Map<String, ScramCredential> loadKeyStore(KeystoreScramCredentialStoreConfig config) throws CredentialServiceUnavailableException {
+    private LoadResult loadKeyStore(KeystoreScramCredentialStoreConfig config) throws CredentialServiceUnavailableException {
         KeystoreFilePermissions.checkForCredentialStore(Path.of(config.file()));
         try {
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
@@ -90,7 +105,7 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
                 try (FileInputStream fis = new FileInputStream(config.file())) {
                     keyStore.load(fis, storePassword);
                 }
-                return extractCredentials(keyStore, storePassword);
+                return extractCredentialsAndKey(keyStore, storePassword);
             }
             finally {
                 Arrays.fill(storePassword, '\0');
@@ -103,30 +118,41 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
     }
 
     /**
-     * Extract all SCRAM credentials from the KeyStore.
-     *
-     * @param keyStore the loaded KeyStore
-     * @param storePassword the password for the KeyStore and its entries
-     * @return map of username to credential
-     * @throws CredentialServiceUnavailableException if extraction fails or any entry is malformed
+     * Extract all SCRAM credentials and the phantom salt key from the KeyStore.
      */
-    private Map<String, ScramCredential> extractCredentials(KeyStore keyStore, char[] storePassword) throws CredentialServiceUnavailableException {
+    private LoadResult extractCredentialsAndKey(KeyStore keyStore, char[] storePassword) throws CredentialServiceUnavailableException {
         Map<String, ScramCredential> credentials = new HashMap<>();
+        byte[] phantomKey = null;
         try {
             Enumeration<String> aliases = keyStore.aliases();
             while (aliases.hasMoreElements()) {
                 String alias = aliases.nextElement();
+                if (KeystoreCredentialManager.PHANTOM_SALT_KEY_ALIAS.equals(alias)) {
+                    phantomKey = extractPhantomSaltKey(keyStore, alias, storePassword);
+                    continue;
+                }
                 ScramCredential credential = extractCredential(keyStore, alias, storePassword);
                 if (credential != null) {
                     credentials.put(credential.username(), credential);
                     LOGGER.atDebug().addKeyValue("username", credential.username()).log("Loaded credential");
                 }
             }
-            return Collections.unmodifiableMap(credentials);
+            return new LoadResult(Collections.unmodifiableMap(credentials), phantomKey);
         }
         catch (KeyStoreException | NoSuchAlgorithmException e) {
             throw new CredentialServiceUnavailableException("Failed to extract credentials from KeyStore", e);
         }
+    }
+
+    @Nullable
+    private byte[] extractPhantomSaltKey(KeyStore keyStore, String alias, char[] storePassword)
+            throws KeyStoreException, NoSuchAlgorithmException, CredentialServiceUnavailableException {
+        KeyStore.Entry entry = getKeystoreEntry(keyStore, alias, storePassword);
+        if (entry instanceof KeyStore.SecretKeyEntry secretKeyEntry) {
+            return secretKeyEntry.getSecretKey().getEncoded();
+        }
+        LOGGER.atWarn().addKeyValue(ALIAS_LOG_KEY, alias).log("Phantom salt key entry is not a SecretKeyEntry");
+        return null;
     }
 
     @Nullable

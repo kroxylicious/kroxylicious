@@ -261,9 +261,11 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
             case OauthBearerMechanismConfig.MECHANISM_NAME -> new OauthBearerStateMachine(Objects.requireNonNull(context.oauthCallbackHandler()),
                     context.oauthMaxAuthBytes());
             case ScramMechanismConfig.MECHANISM_NAME_SCRAM_SHA_256 -> new ScramStateMachine(ScramMechanism.SCRAM_SHA_256,
-                    context.scramCredentialStores().get(ScramMechanism.SCRAM_SHA_256));
+                    context.scramCredentialStores().get(ScramMechanism.SCRAM_SHA_256),
+                    context.scramPhantomIterations().get(ScramMechanism.SCRAM_SHA_256));
             case ScramMechanismConfig.MECHANISM_NAME_SCRAM_SHA_512 -> new ScramStateMachine(ScramMechanism.SCRAM_SHA_512,
-                    context.scramCredentialStores().get(ScramMechanism.SCRAM_SHA_512));
+                    context.scramCredentialStores().get(ScramMechanism.SCRAM_SHA_512),
+                    context.scramPhantomIterations().get(ScramMechanism.SCRAM_SHA_512));
             default -> throw new IllegalStateException("No state machine for configured mechanism: " + mechanism);
         };
     }

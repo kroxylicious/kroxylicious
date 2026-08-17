@@ -47,7 +47,8 @@ class ScramStateMachineTest {
     @BeforeEach
     void setUp() {
         credentialStore = mock(ScramCredentialStore.class);
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_256, credentialStore);
+        when(credentialStore.phantomSaltKey()).thenReturn(new byte[32]);
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_256, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS);
     }
 
     @AfterEach
@@ -64,7 +65,7 @@ class ScramStateMachineTest {
 
     @Test
     void shouldReturnCorrectMechanismNameForSha512() {
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore);
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS);
         assertThat(handler.mechanismName()).isEqualTo("SCRAM-SHA-512");
     }
 
@@ -147,6 +148,20 @@ class ScramStateMachineTest {
         // Then
         assertThat(result).isInstanceOf(RoundResult.Failure.class);
         assertThat(((RoundResult.Failure) result).exception().getMessage()).contains("Invalid SCRAM message");
+    }
+
+    @Test
+    void shouldFailForMessageWithMandatoryExtension() throws Exception {
+        // Given
+        byte[] invalidMessage = "n,,m=someext,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
+
+        // When
+        RoundResult result = handler.evaluateRound(invalidMessage)
+                .toCompletableFuture().get();
+
+        // Then
+        assertThat(result).isInstanceOf(RoundResult.Failure.class);
+        assertThat(((RoundResult.Failure) result).exception().getMessage()).contains("mandatory extensions");
     }
 
     @Test
@@ -257,7 +272,7 @@ class ScramStateMachineTest {
     @Test
     void shouldGeneratePhantomChallengeForSha512() throws Exception {
         // Given
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore);
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS);
         when(credentialStore.lookupCredential("alice"))
                 .thenReturn(CompletableFuture.completedFuture(null));
         byte[] clientFirstMessage = "n,,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
