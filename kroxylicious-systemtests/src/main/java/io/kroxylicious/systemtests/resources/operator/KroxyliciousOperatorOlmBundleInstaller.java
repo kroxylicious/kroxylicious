@@ -24,14 +24,14 @@ import io.fabric8.openshift.api.model.operatorhub.v1.OperatorGroupBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionConfigBuilder;
-import io.skodjob.testframe.TestFrameConstants;
-import io.skodjob.testframe.installation.InstallationMethod;
-import io.skodjob.testframe.olm.OperatorSdkRun;
-import io.skodjob.testframe.olm.OperatorSdkRunBuilder;
-import io.skodjob.testframe.resources.KubeResourceManager;
-import io.skodjob.testframe.utils.PodUtils;
-import io.skodjob.testframe.utils.TestFrameUtils;
-import io.skodjob.testframe.wait.Wait;
+import io.skodjob.kubetest4j.KubeTestConstants;
+import io.skodjob.kubetest4j.installation.InstallationMethod;
+import io.skodjob.kubetest4j.olm.OperatorSdkRun;
+import io.skodjob.kubetest4j.olm.OperatorSdkRunBuilder;
+import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.skodjob.kubetest4j.utils.KubeTestUtils;
+import io.skodjob.kubetest4j.utils.PodUtils;
+import io.skodjob.kubetest4j.wait.Wait;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -162,8 +162,8 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
         // @formatter:on
 
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(subscription);
-        return Wait.untilAsync(operatorName + " is ready", TestFrameConstants.GLOBAL_POLL_INTERVAL_1_SEC,
-                TestFrameConstants.GLOBAL_TIMEOUT, () -> isOperatorReady(operatorNamespace));
+        return Wait.untilAsync(operatorName + " is ready", KubeTestConstants.GLOBAL_POLL_INTERVAL_1_SEC,
+                KubeTestConstants.GLOBAL_TIMEOUT, () -> isOperatorReady(operatorNamespace));
     }
 
     private CompletableFuture<Void> install(String operatorName, String operatorNamespace, String bundleImageRef) {
@@ -176,10 +176,10 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
                 .withNamespace(operatorNamespace)
                 .build();
 
-        return Wait.untilAsync(operatorName + " is ready", TestFrameConstants.GLOBAL_POLL_INTERVAL_1_SEC,
-                TestFrameConstants.GLOBAL_TIMEOUT, () -> {
+        return Wait.untilAsync(operatorName + " is ready", KubeTestConstants.GLOBAL_POLL_INTERVAL_1_SEC,
+                KubeTestConstants.GLOBAL_TIMEOUT, () -> {
                     NamespaceUtils.createNamespaceAndPrepare(operatorNamespace);
-                    TestFrameUtils.runUntilPass(3, osr::run);
+                    KubeTestUtils.runUntilPass(3, osr::run);
                     return isOperatorReady(operatorNamespace);
                 });
     }
