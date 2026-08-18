@@ -47,6 +47,25 @@ class ResilientKmsTest {
     public static final DekPair<Long> DEK_PAIR = new DekPair<>(2L, SECRET_KEY);
 
     @Test
+    void scheduleOperationThrowingSynchronouslyCompletesReturnedStageExceptionally() {
+        // Given
+        var cause = new IllegalStateException("sync throw");
+        Kms<Long, Long> kms = mock(Kms.class);
+        when(kms.resolveAlias(any())).thenAnswer(inv -> {
+            throw cause;
+        });
+        BackoffStrategy strategy = mock(BackoffStrategy.class);
+        when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, getMockExecutor(), strategy, 1);
+
+        // When
+        CompletionStage<Long> stage = resilientKms.resolveAlias("abc");
+
+        // Then — must fail within a bounded time (never hang)
+        assertThat(stage).failsWithin(1, TimeUnit.SECONDS);
+    }
+
+    @Test
     void testResolveAlias() {
         // given
         Kms<Long, Long> kms = mock(Kms.class);
