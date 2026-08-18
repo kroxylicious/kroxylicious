@@ -16,6 +16,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.event.Level;
 
+import io.github.sambarker.logsquelcher.EffectiveLogLevel;
+
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
@@ -25,6 +27,7 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class ProtocolLoggerTest {
 
+    private static final String DEDICATED_LOGGER = "protocolLogger";
     private final ProtocolLogger factory = new ProtocolLogger();
 
     @Test
@@ -53,9 +56,10 @@ class ProtocolLoggerTest {
     }
 
     @Test
+    @EffectiveLogLevel(loggerName = DEDICATED_LOGGER, level = Level.DEBUG)
     void createFilterWithEmptyApiKeyNamesHandlesAllKeys() {
         // Given
-        ProtocolLogger.Config config = new ProtocolLogger.Config(Set.of(), Level.DEBUG, ProtocolLoggerFilter.class.getName());
+        ProtocolLogger.Config config = new ProtocolLogger.Config(Set.of(), Level.DEBUG, DEDICATED_LOGGER);
 
         // When
         RequestFilter filter = (RequestFilter) factory.createFilter(null, config);
@@ -66,9 +70,10 @@ class ProtocolLoggerTest {
     }
 
     @Test
+    @EffectiveLogLevel(loggerName = DEDICATED_LOGGER, level = Level.DEBUG)
     void createFilterWithPopulatedApiKeyNamesHandlesOnlyThoseKeys() {
         // Given
-        ProtocolLogger.Config config = new ProtocolLogger.Config(Set.of("METADATA"), Level.DEBUG, ProtocolLoggerFilter.class.getName());
+        ProtocolLogger.Config config = new ProtocolLogger.Config(Set.of("METADATA"), Level.DEBUG, DEDICATED_LOGGER);
 
         // When
         RequestFilter filter = (RequestFilter) factory.createFilter(null, config);
