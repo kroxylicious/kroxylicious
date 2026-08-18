@@ -54,16 +54,7 @@
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.4</junit.version>
         <kafka.version>4.2.0</kafka.version>
-        <!-- Version of the Kafka protocol message JSON specs the forked generator consumes, and
-             the version the vendored io.kroxylicious.kafka.common.* support classes were copied
-             from. Decoupled from kafka.version so the generated/copied protocol surface can track
-             a different Kafka release than the kafka-clients we depend on. See
-             tools/kafka-vendoring/README.md. -->
         <kafka.message-spec.version>4.3.0</kafka.message-spec.version>
-        <!-- Native compression codecs. These are transitive (runtime) dependencies of kafka-clients;
-             the vendored io.kroxylicious.kafka.common.compress.* classes reference them at compile
-             time, so kroxylicious-api pulls them at compile scope. Keep the versions aligned with
-             what kafka-clients ${kafka.version} resolves. See tools/kafka-vendoring/README.md. -->
         <zstd-jni.version>1.5.6-10</zstd-jni.version>
         <lz4-java.version>1.10.1</lz4-java.version>
         <snappy-java.version>1.1.10.7</snappy-java.version>
@@ -741,13 +732,8 @@
                                          this exclusion only needs to work during the root-level scan. -->
                                     <exclude>kroxylicious-kafka-message-generator/src/**</exclude>
                                     <exclude>kroxylicious-kafka-message-generator/etc/**</exclude>
-                                    <!-- Vendored Kafka support classes (see tools/kafka-vendoring)
-                                         also retain ASF headers; kroxylicious-api's own module-level
-                                         check enforces the ASF template for this path. -->
                                     <exclude>kroxylicious-api/src/main/java/io/kroxylicious/kafka/common/**</exclude>
                                     <exclude>kroxylicious-api/etc/asf-license.txt</exclude>
-                                    <!-- pip requires # comments; mycila's default .txt style wraps
-                                         the header in ==== banner lines pip cannot parse. -->
                                     <exclude>tools/kafka-vendoring/requirements.txt</exclude>
 
                                 </excludes>
