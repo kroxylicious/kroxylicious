@@ -58,12 +58,12 @@
              the version the vendored io.kroxylicious.kafka.common.* support classes were copied
              from. Decoupled from kafka.version so the generated/copied protocol surface can track
              a different Kafka release than the kafka-clients we depend on. See
-             kroxylicious-api/etc/kafka-support/README.md. -->
+             tools/kafka-vendoring/README.md. -->
         <kafka.message-spec.version>4.3.0</kafka.message-spec.version>
         <!-- Native compression codecs. These are transitive (runtime) dependencies of kafka-clients;
              the vendored io.kroxylicious.kafka.common.compress.* classes reference them at compile
              time, so kroxylicious-api pulls them at compile scope. Keep the versions aligned with
-             what kafka-clients ${kafka.version} resolves. See kroxylicious-api/etc/kafka-support/README.md. -->
+             what kafka-clients ${kafka.version} resolves. See tools/kafka-vendoring/README.md. -->
         <zstd-jni.version>1.5.6-10</zstd-jni.version>
         <lz4-java.version>1.10.1</lz4-java.version>
         <snappy-java.version>1.1.10.7</snappy-java.version>

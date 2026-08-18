@@ -51,7 +51,7 @@
     </Match>
     <!--
         Kafka protocol support classes vendored verbatim into io.kroxylicious.kafka.common.* (see
-        kroxylicious-api/etc/kafka-support) and the *Data/*JsonConverter message classes generated
+        tools/kafka-vendoring) and the *Data/*JsonConverter message classes generated
         from the protocol JSON specs. This code is copied/generated from Apache Kafka, not
         hand-maintained, so it is excluded from SpotBugs analysis.
         -->

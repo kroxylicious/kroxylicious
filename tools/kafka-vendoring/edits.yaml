@@ -1,0 +1,61 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Declarative content-based edits applied by apply-edits.py to freshly copied Kafka files, cutting
+# the server-side/config/file edges that would otherwise drag org.apache.kafka packages we
+# deliberately do not vendor into the copy-closure. Matching is by content (signature regex + brace
+# balancing), so it survives line-number drift between Kafka releases; if a target can no longer be
+# found, apply-edits.py fails loudly, which is the correct signal for a human to re-review the edit
+# against the new source. See README.md for the "what is cut and why" narrative.
+#
+# Schema, per entry:
+#   file:         path relative to the copy root (org/apache/kafka/common/...)
+#   stripImports: regex patterns; any import line matching one is dropped
+#   removeBlocks: declarations to remove entirely (leading annotations + brace-balanced body)
+#     signature:  regex matching the declaration header
+#     label:      human-readable name used in "SURGERY MISS" error messages
+#     count:      how many matches to remove, in order found (default 1)
+
+- file: record/internal/CompressionType.java
+  stripImports:
+    - '\.config\.ConfigDef'
+    - '\.config\.ConfigException'
+    - '\.config\.ConfigDef\.Range\.between'
+  removeBlocks:
+    - signature: 'public\s+ConfigDef\.Validator\s+levelValidator\s*\(\s*\)'
+      label: CompressionType.levelValidator
+      count: 4 # base declaration + 3 enum-constant overrides
+
+- file: utils/Utils.java
+  # Only the config-machinery methods pull org.apache.kafka.common.config into the closure. The
+  # nio.file methods are pure JDK (kept); TransferableChannel/tryWriteTo are genuine records API
+  # (kept, TransferableChannel is copied faithfully).
+  stripImports:
+    - '\.config\.ConfigDef'
+    - '\.config\.ConfigException'
+  removeBlocks:
+    - signature: 'public static Map<String, Object> propsToMap\('
+      label: Utils.propsToMap
+    - signature: 'public static Map<String, Object> castToStringObjectMap\('
+      label: Utils.castToStringObjectMap
+    - signature: 'public static void ensureConcreteSubclass\('
+      label: Utils.ensureConcreteSubclass
+    - signature: 'public static ConfigDef mergeConfigs\('
+      label: Utils.mergeConfigs
+
+- file: record/internal/DefaultRecordBatch.java
+  stripImports:
+    - 'record\.internal\.FileLogInputStream'
+    - 'record\.internal\.FileRecords'
+  removeBlocks:
+    - signature: 'static class DefaultFileChannelRecordBatch extends FileLogInputStream'
+      label: DefaultRecordBatch.DefaultFileChannelRecordBatch
+
+- file: record/internal/AbstractLegacyRecordBatch.java
+  stripImports:
+    - 'record\.internal\.FileLogInputStream'
+    - 'record\.internal\.FileRecords'
+  removeBlocks:
+    - signature: 'static class LegacyFileChannelRecordBatch extends FileLogInputStream'
+      label: AbstractLegacyRecordBatch.LegacyFileChannelRecordBatch

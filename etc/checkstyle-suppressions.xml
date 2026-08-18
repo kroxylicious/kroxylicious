@@ -32,7 +32,7 @@
               files="generated-sources/kafka-messages/.*"/>
 
     <!-- Kafka protocol support classes vendored verbatim into io.kroxylicious.kafka.common.*
-         (see kroxylicious-api/etc/kafka-support). Copied from Apache Kafka and relocated by tooling,
+         (see tools/kafka-vendoring). Copied from Apache Kafka and relocated by tooling,
          not hand-maintained, so they do not follow Kroxylicious style conventions. -->
     <suppress checks=".*"
               files="io[/\\]kroxylicious[/\\]kafka[/\\]common[/\\].*\.java"/>

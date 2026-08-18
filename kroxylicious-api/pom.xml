@@ -48,7 +48,7 @@
              classes. jackson-databind backs the generated *JsonConverter classes; slf4j-api and the
              native codecs back the vendored compress/record code. kafka-clients brings the codecs
              transitively at runtime only, so they are declared here to lift them onto the compile
-             classpath. See kroxylicious-api/etc/kafka-support/README.md. -->
+             classpath. See tools/kafka-vendoring/README.md. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

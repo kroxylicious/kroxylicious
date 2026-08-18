@@ -22,7 +22,7 @@
 
 This directory holds the tooling that (re)produces the *second* half. It is a
 **reproducible process, not a one-off hand copy**: given a clean Apache Kafka
-checkout at the pinned tag, `refresh.sh` regenerates the entire committed vendored
+checkout at the pinned tag, `vendor.sh` regenerates the entire committed vendored
 tree deterministically.
 
 ## Pinned source
@@ -35,73 +35,72 @@ tree deterministically.
 The spec/source version is deliberately **decoupled** from `kafka.version` (the
 `kafka-clients` we depend on, currently `4.2.0`): the vendored/generated protocol
 surface can track a different Kafka release than the client jar. When bumping,
-change `kafka.message-spec.version` and re-run `refresh.sh` against a matching
+change `kafka.message-spec.version` and re-run `vendor.sh` against a matching
 checkout.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `refresh.sh` | Orchestrator. `refresh.sh <path-to-apache-kafka-checkout>` re-vendors the whole tree. |
-| `closure.txt` | The frozen, package-relative list of Kafka `common/**` files to copy (the closure — see below). |
-| `surgery.py` | Content-based edits that cut the server/config edges we do not vendor. |
+| `vendor.sh` | Orchestrator. `vendor.sh <path-to-apache-kafka-checkout>` re-vendors the whole tree. |
+| `vendored-files.txt` | The frozen, package-relative list of Kafka `common/**` files to copy (the closure — see below). |
+| `edits.yaml` | Declarative content-based edits that cut the server/config edges we do not vendor. |
+| `apply-edits.py` | Generic engine that applies `edits.yaml` against the freshly copied files. |
+| `requirements.txt` | Pinned Python dependency (`PyYAML`) needed to parse `edits.yaml`. |
 | `rewrite.yml` | OpenRewrite recipe relocating `org.apache.kafka.common.*` → `io.kroxylicious.kafka.common.*`. |
+| `rewrite-pom.xml` | Throwaway pom used to invoke the OpenRewrite recipe against the staging copy. |
 
-## How `refresh.sh` works
+## How `vendor.sh` works
 
-1. **Copy** the `closure.txt` files from `<kafka>/clients/src/main/java/org/apache/kafka/common`.
-2. **Surgery** (`surgery.py`) on 4 files to remove the file/server/config edges we
-   don't take (see below). Matching is by signature + brace-balancing, so it
-   survives line-number drift between Kafka releases; it fails loudly ("SURGERY
-   MISS") rather than silently no-op if a target moves.
-3. **Relocate** packages with OpenRewrite `ChangePackage` (`rewrite.yml`). This
-   rewrites package declarations, imports and fully-qualified references, and moves
-   the files onto the new package path. OpenRewrite honours `.gitignore`, so the
-   staging area is its own throwaway git repo. `rewrite:run` forks the lifecycle
-   through `compile`; the staged sources are not expected to compile there (they
-   still name `org.apache.kafka`, and native codec libs are off the throwaway
-   classpath), so compilation is made non-fatal — `ChangePackage` is textual and
-   needs no type attribution.
-4. **Sync** the result into `src/main/java`, wiping only the previously-vendored
-   (non-`message`) tree first.
+1. **Copy** the `vendored-files.txt` files from
+   `<kafka>/clients/src/main/java/org/apache/kafka/common`.
+2. **Edit** (`apply-edits.py` from `edits.yaml`) to cut the server/config edges
+   we don't vendor (see below) — fails loudly if a target has moved rather than
+   silently no-op-ing.
+3. **Relocate** packages to `io.kroxylicious.kafka.common.*` with OpenRewrite.
+4. **Sync** the result into `kroxylicious-api/src/main/java`, wiping only the
+   previously-vendored tree first.
+5. **Format** by running `mvn -pl kroxylicious-api -am process-sources`, so the
+   build's `formatter-maven-plugin`/`impsort-maven-plugin` are applied. The raw
+   vendored output is not what gets committed.
 
 ```console
-$ ./refresh.sh /path/to/apache/kafka
+$ ./vendor.sh /path/to/apache/kafka
 ==> copying 93 files from …/clients/src/main/java/org/apache/kafka/common
-==> applying surgery
+==> applying edits (edits.yaml)
 ==> relocating packages with OpenRewrite (org.apache.kafka.common -> io.kroxylicious.kafka.common)
 ==> syncing into …/kroxylicious-api/src/main/java/io/kroxylicious/kafka/common
+==> formatting (mvn -pl kroxylicious-api -am process-sources)
 ==> done: 93 support files vendored
 ```
 
-After running, rebuild the module (`mvn -pl kroxylicious-api -am verify`) and commit
-the changed tree.
+After running, rebuild and verify the module (`mvn -pl kroxylicious-api -am verify`)
+and commit the changed tree.
 
-## How the closure was computed
+## Deriving the file list
 
-`closure.txt` is a **compiler-driven** closure. `javac` is used as the oracle with
-`kafka-clients` off the classpath, so every Kafka symbol must resolve either from a
-copied file or be flagged as an edge to cut. Starting from the generated message
-classes, the hub packages (`compress`, `record`, `record/internal`, `header`,
-`header/internals`) are seeded wholesale — minus the four file/server classes — and
-the compiler fixpoint then pulls in the `protocol` / `utils` / `errors` leaves.
-Seeding the hubs wholesale works around two `javac` blind spots:
+`vendored-files.txt` was derived by compiling the generated message classes with
+`kafka-clients` off the classpath: each "cannot find symbol" error names a file to
+add and copy in, repeating until it compiles cleanly. Two things needed manual
+handling on top of that iteration:
 
-- `record/internal/Record.java` is silently shadowed by the JDK's `java.lang.Record`
-  (it never errors "missing"); and
-- the compression impls (`GzipCompression`, …) are only referenced reflectively via
-  a factory, so an import-closure misses them.
+- **Two `javac` blind spots** meant missing-symbol errors alone would under-copy, so
+  `compress`, `record`, `record/internal`, `header` and `header/internals` were
+  copied wholesale up front instead — minus the four file/server classes.
+  `record/internal/Record.java` is silently shadowed by the JDK's `java.lang.Record`
+  (it never errors "missing"), and the compression impls (`GzipCompression`, …) are
+  only referenced reflectively via a factory, so an import-driven closure misses them.
+- **Kafka's `errors` package** has ~130 classes; only the 5 actually reachable
+  (`ApiException`, `RetriableException`, `CorruptRecordException`,
+  `InvalidConfigurationException`, `UnsupportedVersionException`) were kept, rather
+  than copying the whole hierarchy.
 
-The result is a self-contained surface that compiles with **no** `org.apache.kafka.*`
-references. Only `errors` is trimmed to the 5 classes actually reachable
-(`ApiException`, `RetriableException`, `CorruptRecordException`,
-`InvalidConfigurationException`, `UnsupportedVersionException`) rather than Kafka's
-full ~130-class hierarchy.
+The result compiles with **no** `org.apache.kafka.*` references remaining.
 
-## Surgery — what is cut and why
+## Edits — what is cut and why
 
-Four files are edited to drop server-side / broker-config edges that are out of
-scope for the proxy's protocol surface:
+Four files are edited (see `edits.yaml`) to drop server-side / broker-config edges
+that are out of scope for the proxy's protocol surface:
 
 | File | Cut |
 |---|---|
