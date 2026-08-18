@@ -97,8 +97,6 @@ jobs:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
           echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
-      - name: 'Check out repository'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: 'Check all matrix builds'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -117,7 +115,7 @@ jobs:
           exit 1
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./.github/actions/common/slack-notification
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
