@@ -121,7 +121,7 @@ jobs:
           retention-days: 14
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./kroxylicious/.github/actions/common/slack-notification
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
@@ -153,7 +153,7 @@ jobs:
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./kroxylicious/.github/actions/common/slack-notification
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
