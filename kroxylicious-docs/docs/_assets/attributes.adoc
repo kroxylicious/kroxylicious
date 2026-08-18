@@ -194,3 +194,7 @@ ifndef::DocRoot[:DocRoot: ..]
 :ConnectionExpirationGuideUrl: {DocRoot}/connection-expiration-guide/
 :ConnectionExpirationGuideText: Connection Expiration guide
 :ConnectionExpirationGuide: link:{ConnectionExpirationGuideUrl}[{ConnectionExpirationGuideText}]
+
+:ProtocolLoggerGuideUrl: {DocRoot}/protocol-logger-guide/
+:ProtocolLoggerGuideText: Protocol Logger guide
+:ProtocolLoggerGuide: link:{ProtocolLoggerGuideUrl}[{ProtocolLoggerGuideText}]
