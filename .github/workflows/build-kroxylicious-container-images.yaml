@@ -104,10 +104,10 @@ jobs:
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
 
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
 
-      - name: Cache Maven packages
-        uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Cache Maven packages'
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: Determine Build Configuration
         id: build_configuration
@@ -420,6 +420,14 @@ jobs:
               "${{ steps.build_configuration.outputs.proxy_amd64_tag }}" \
               "${{ steps.build_configuration.outputs.proxy_arm64_tag }}"
           done
+
+      - name: Slack Notification on Failure
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
+        uses: $/.github/actions/common/slack-notification
+        with:
+          name: kroxylicious-proxy
+          path: /tmp/kroxylicious-proxy.img.tar.gz
+          retention-days: 1
 
       - name: Archive proxy image tarball
         if: steps.build_configuration.outputs.output_tarballs == 'true'

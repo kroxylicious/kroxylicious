@@ -35,12 +35,12 @@ on:
 
 jobs:
   build_artifacts:
-    uses: ./.github/workflows/build-kroxylicious-artifacts.yaml
+    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
 
   # First we run the tests that are independent of the KAFKA_CLIENT selected
   run_external_kafka_client_and_operator_system_tests:
     needs: build_artifacts
-    uses: ./.github/workflows/run-system-tests.yaml
+    uses: $/.github/workflows/run-system-tests.yaml
     with:
       groups: 'externalKafkaClients,operator'
 
@@ -70,7 +70,7 @@ jobs:
   # Then we run the tests that with the KAFKA_CLIENT selected
   run_system_tests:
     needs: discover_system_test_clients
-    uses: ./.github/workflows/run-system-tests.yaml
+    uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
       KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}

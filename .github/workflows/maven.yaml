@@ -59,12 +59,12 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
         with:
           javaVersion: ${{ matrix.java.version }}
           javaDistro: ${{ matrix.java.distro }}
       - name: Setup Minikube
-        uses: ./.github/actions/common/setup-minikube
+        uses: $/.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Test for unpublished reference release (japicmp)'
@@ -72,7 +72,7 @@ jobs:
           REFERENCE_RELEASE=$(mvn --quiet --projects kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
           echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Unit test all modules'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -131,16 +131,16 @@ jobs:
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Determine project version'
         id: version
         run: echo "version=$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
 
   build_container_images:
     needs: compute_pom_version
-    uses: ./.github/workflows/build-kroxylicious-container-images.yaml
+    uses: $/.github/workflows/build-kroxylicious-container-images.yaml
     with:
       push-images: ${{ github.event_name == 'push' }}
       multi-arch: ${{ github.event_name == 'push' }}
