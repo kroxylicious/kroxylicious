@@ -346,10 +346,10 @@ class RecordEncryptionFilterIT {
                 var producer2 = tester.producer();
                 var consumer = tester.consumer()) {
 
-            producer1.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 1));
-            producer1.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 2));
+            producer1.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 1)).get(5, TimeUnit.SECONDS);
+            producer1.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 2)).get(5, TimeUnit.SECONDS);
             producer1.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 3)).get(5, TimeUnit.SECONDS);
-            producer2.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 4));
+            producer2.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 4)).get(5, TimeUnit.SECONDS);
             producer2.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 5)).get(5, TimeUnit.SECONDS);
 
             consumer.subscribe(List.of(topic.name()));
@@ -433,10 +433,12 @@ class RecordEncryptionFilterIT {
                                 "request.timeout.ms", 300,
                                 "client.id", clientId))) {
             final AtomicReference<Exception> responseException = new AtomicReference<>();
-            producer.send(new ProducerRecord<>(topic.name(), 0, "", messageOne), (metadata, exception) -> {
+            var futureOne = producer.send(new ProducerRecord<>(topic.name(), 0, "", messageOne), (metadata, exception) -> {
             });
-            producer.send(new ProducerRecord<>(topic.name(), 0, "", messageTwo), (metadata, exception) -> responseException.set(exception));
+            var futureTwo = producer.send(new ProducerRecord<>(topic.name(), 0, "", messageTwo), (metadata, exception) -> responseException.set(exception));
             await().until(() -> responseException.get() != null);
+            assertThat(futureOne).failsWithin(5, TimeUnit.SECONDS);
+            assertThat(futureTwo).failsWithin(5, TimeUnit.SECONDS);
             assertMetricHasCount(clientId, "connection-close-total", 0);
             assertThat(responseException).hasValueSatisfying(
                     actualException -> assertThat(actualException)
@@ -668,7 +670,8 @@ class RecordEncryptionFilterIT {
 
     @Test
     void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(@TopicNameMethodSource Topic encryptedTopic,
-                                                            @TopicNameMethodSource Topic plainTopic) {
+                                                            @TopicNameMethodSource Topic plainTopic)
+            throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(encryptedTopic.name());
 
@@ -681,9 +684,11 @@ class RecordEncryptionFilterIT {
                 var producer = tester.producer(Map.of(ProducerConfig.LINGER_MS_CONFIG, 1000, ProducerConfig.BATCH_SIZE_CONFIG, 2));
                 var consumer = tester.consumer()) {
 
-            producer.send(new ProducerRecord<>(encryptedTopic.name(), HELLO_SECRET));
-            producer.send(new ProducerRecord<>(plainTopic.name(), HELLO_WORLD));
+            var f1 = producer.send(new ProducerRecord<>(encryptedTopic.name(), HELLO_SECRET));
+            var f2 = producer.send(new ProducerRecord<>(plainTopic.name(), HELLO_WORLD));
             producer.flush();
+            f1.get(5, TimeUnit.SECONDS);
+            f2.get(5, TimeUnit.SECONDS);
 
             consumer.subscribe(List.of(encryptedTopic.name(), plainTopic.name()));
             var records = consumer.poll(Duration.ofSeconds(2));
@@ -743,10 +748,12 @@ class RecordEncryptionFilterIT {
                 var proxyProducer = tester.producer();
                 var proxyConsumer = tester.consumer()) {
 
-            proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "a", "a1"));
+            var fa1 = proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "a", "a1"));
             // Send two messages for key "b", the first will be eligible for compaction
-            proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "b", "b1"));
+            var fb1 = proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "b", "b1"));
             proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "b", "b2")).get(5, TimeUnit.SECONDS);
+            fa1.get(5, TimeUnit.SECONDS);
+            fb1.get(5, TimeUnit.SECONDS);
 
             // Sleep for segment.ms so that the broker will begin a new segment when the next produce is received.
             // The records in the first segment will become eligible for compaction.
@@ -791,7 +798,8 @@ class RecordEncryptionFilterIT {
 
     @Test
     void checkMetricsIncrementedOnEncryptedAndPlainTopic(@TopicNameMethodSource Topic encryptedTopic,
-                                                         @TopicNameMethodSource Topic plainTopic) {
+                                                         @TopicNameMethodSource Topic plainTopic)
+            throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(encryptedTopic.name());
 
@@ -811,9 +819,11 @@ class RecordEncryptionFilterIT {
                 var managementClient = tester.getManagementClient();
                 var producer = tester.producer()) {
 
-            producer.send(new ProducerRecord<>(encryptedTopic.name(), HELLO_SECRET));
-            producer.send(new ProducerRecord<>(plainTopic.name(), HELLO_WORLD));
+            var f1 = producer.send(new ProducerRecord<>(encryptedTopic.name(), HELLO_SECRET));
+            var f2 = producer.send(new ProducerRecord<>(plainTopic.name(), HELLO_WORLD));
             producer.flush();
+            f1.get(5, TimeUnit.SECONDS);
+            f2.get(5, TimeUnit.SECONDS);
 
             var metricList = managementClient.scrapeMetrics();
 

@@ -198,7 +198,7 @@ public abstract class FilterHarness {
 
     protected OpaqueRequestFrame writeArbitraryOpaqueRequest(ByteBuf buffer) {
         OpaqueRequestFrame frame = new OpaqueRequestFrame(buffer, ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), 55, false, buffer.readableBytes(), false);
-        channel.writeOneInbound(frame);
+        assertNull(channel.writeOneInbound(frame).cause());
         return frame;
     }
 
@@ -214,7 +214,7 @@ public abstract class FilterHarness {
 
     protected OpaqueResponseFrame writeArbitraryOpaqueResponse(ByteBuf buffer) {
         OpaqueResponseFrame frame = new OpaqueResponseFrame(ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), buffer, 55, buffer.readableBytes());
-        channel.writeOneOutbound(frame);
+        assertNull(channel.writeOneOutbound(frame).cause());
         return frame;
     }
 

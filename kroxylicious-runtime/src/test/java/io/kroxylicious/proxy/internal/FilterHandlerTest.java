@@ -1111,8 +1111,9 @@ class FilterHandlerTest extends FilterHarness {
 
     private Thread obtainEventLoop() {
         var eventLoopThreadFuture = new CompletableFuture<Thread>();
-        channel.eventLoop().submit(() -> eventLoopThreadFuture.complete(Thread.currentThread()));
+        var submitFuture = channel.eventLoop().submit(() -> eventLoopThreadFuture.complete(Thread.currentThread()));
         channel.runPendingTasks();
+        assertThat(submitFuture.isSuccess()).isTrue();
         assertThat(eventLoopThreadFuture).isCompleted();
         return eventLoopThreadFuture.getNow(null);
     }
@@ -1393,7 +1394,7 @@ class FilterHandlerTest extends FilterHarness {
                 responseHeader, responseData, new CompletableFuture<>());
 
         // When
-        channel.writeOneOutbound(frame);
+        assertThat(channel.writeOneOutbound(frame).cause()).isNull();
         channel.runPendingTasks();
 
         // Then

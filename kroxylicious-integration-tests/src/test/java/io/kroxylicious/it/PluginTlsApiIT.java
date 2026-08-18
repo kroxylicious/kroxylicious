@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -68,7 +69,8 @@ class PluginTlsApiIT extends AbstractTlsIT {
     @MethodSource("subjectBuilderServiceConfigs")
     void clientTlsContextPlainTcp(
                                   MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
-                                  Topic topic) {
+                                  Topic topic)
+            throws Exception {
         assertClientTlsContext(
                 buildGatewayTls(TlsClientAuth.NONE, null),
                 subjectBuilderServiceConfig,
@@ -86,7 +88,8 @@ class PluginTlsApiIT extends AbstractTlsIT {
     @MethodSource("subjectBuilderServiceConfigs")
     void clientTlsContextMutualTls(
                                    MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
-                                   Topic topic) {
+                                   Topic topic)
+            throws Exception {
         var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
 
         assertClientTlsContext(
@@ -110,7 +113,8 @@ class PluginTlsApiIT extends AbstractTlsIT {
     @MethodSource("subjectBuilderServiceConfigs")
     void clientTlsContextUnilateralTls(
                                        MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
-                                       Topic topic) {
+                                       Topic topic)
+            throws Exception {
         var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
 
         assertClientTlsContext(
@@ -163,7 +167,8 @@ class PluginTlsApiIT extends AbstractTlsIT {
                                         boolean expectHeaderKeyClientTlsPresent,
                                         String expectedAuthenticatedSubject,
                                         @Nullable String expectedClientPrincipalName,
-                                        @Nullable String expectedProxyPrincipalName) {
+                                        @Nullable String expectedProxyPrincipalName)
+            throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
 
         // @formatter:off
@@ -187,7 +192,7 @@ class PluginTlsApiIT extends AbstractTlsIT {
         try (var tester = kroxyliciousTester(builder)) {
 
             try (Producer<String, String> producer = tester.producer(demoCluster, clientConfigs)) {
-                producer.send(new ProducerRecord<>(topic.name(), "hello", "world"));
+                producer.send(new ProducerRecord<>(topic.name(), "hello", "world")).get(5, TimeUnit.SECONDS);
                 producer.flush();
             }
 

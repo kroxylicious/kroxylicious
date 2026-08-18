@@ -250,7 +250,7 @@ class RouteFilterHandlerTest {
         opaqueFrame.setRouteName(ROUTE_A);
 
         // When
-        channel.writeOneInbound(opaqueFrame);
+        assertThat(channel.writeOneInbound(opaqueFrame).cause()).isNull();
 
         // Then
         assertThat((Object) channel.readInbound()).isSameAs(opaqueFrame);

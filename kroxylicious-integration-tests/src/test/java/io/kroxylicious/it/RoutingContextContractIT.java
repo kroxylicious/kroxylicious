@@ -385,6 +385,7 @@ class RoutingContextContractIT {
     }
 
     @Test
+    @SuppressWarnings("FutureReturnValueIgnored") // acks=0 fire-and-forget: send() returns before broker acknowledgement; see producer config in the try block below
     void respondWithoutReplyCompletesFireAndForgetProduce(KafkaCluster cluster, Topic topic) {
         // Given: router calls respondWithoutReply() for acks=0 PRODUCE; all other keys pass through
         var produceHandled = new CompletableFuture<Void>();
