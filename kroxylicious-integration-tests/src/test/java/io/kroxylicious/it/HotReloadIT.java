@@ -24,6 +24,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -683,6 +685,68 @@ class HotReloadIT extends BaseIT {
                                 .value().isEqualTo(1.0);
                     });
         }
+    }
+
+    /*
+     * This test differs from shouldModifyPortAddressedVcWithSamePort in that it is the original
+     * producer client that is used to send additional messages after the virtual cluster is reconfigured.
+     * This tests the path where the virtual cluster has to drop the connection and the producer client
+     * is able to reconnect. we infer that has happened by observing the producer metrics.
+     */
+    @Test
+    void shouldDrainActiveConnectionWhenVcIsReconfigured(@BrokerCluster KafkaCluster cluster) {
+        var startingConfig = portConfig(portVc(cluster, "vc-active-conn"));
+
+        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+
+            String topic = tester.createTopic("vc-active-conn");
+            int port = boundPort(tester, "vc-active-conn");
+
+            // Given
+            try (var producer = tester.producer("vc-active-conn", Map.of(ProducerConfig.LINGER_MS_CONFIG, 0))) {
+                assertThat(producer.send(new ProducerRecord<>(topic, "before-key", "before-value")))
+                        .succeedsWithin(PRODUCE_CONSUME_TIMEOUT);
+                double connectionsBefore = connectionCreationTotal(producer);
+
+                // When
+                var afterConfig = portConfig(portVcWithLogNetwork(cluster, "vc-active-conn", port, true));
+                assertThat(tester.reconfigure(afterConfig))
+                        .succeedsWithin(RECONFIGURE_TIMEOUT)
+                        .satisfies(rr -> assertThat(rr.hasErrors())
+                                .as("ReconfigureResult should have no errors for logNetwork change")
+                                .isFalse());
+
+                // Then
+                assertThat(producer.send(new ProducerRecord<>(topic, "after-key", "after-value")))
+                        .succeedsWithin(PRODUCE_CONSUME_TIMEOUT);
+
+                assertThat(connectionCreationTotal(producer))
+                        .as("drain should have caused the producer to create at least one new connection")
+                        .isGreaterThan(connectionsBefore);
+
+                try (var consumer = tester.consumer("vc-active-conn", Map.of(
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                        ConsumerConfig.GROUP_ID_CONFIG, "active-conn-test"))) {
+                    consumer.subscribe(List.of(topic));
+                    var records = consumer.poll(PRODUCE_CONSUME_TIMEOUT);
+                    assertThat(records.iterator())
+                            .toIterable()
+                            .extracting(ConsumerRecord::key)
+                            .containsExactly("before-key", "after-key");
+                }
+            }
+        }
+    }
+
+    private static double connectionCreationTotal(Producer<String, String> producer) {
+        return producer.metrics().entrySet().stream()
+                .filter(e -> e.getKey().name().equals("connection-creation-total")
+                        && e.getKey().group().equals("producer-metrics"))
+                .mapToDouble(e -> (double) e.getValue().metricValue())
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("connection-creation-total metric not found"));
     }
 
     private static ConfigurationBuilder portConfigBuilderWithMetrics(VirtualCluster... vcs) {
