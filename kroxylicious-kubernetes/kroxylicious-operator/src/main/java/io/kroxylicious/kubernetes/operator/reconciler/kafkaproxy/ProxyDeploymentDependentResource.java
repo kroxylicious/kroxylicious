@@ -198,6 +198,7 @@ public class ProxyDeploymentDependentResource
                 .editOrNewSpec()
                     .withNewSecurityContext()
                         .withRunAsNonRoot(true)
+                        .withFsGroup(185L)
                         .withNewSeccompProfile()
                             .withType("RuntimeDefault")
                         .endSeccompProfile()
@@ -251,6 +252,14 @@ public class ProxyDeploymentDependentResource
                     .withReadOnlyRootFilesystem(true)
                 .endSecurityContext()
                 .withTerminationMessagePolicy("FallbackToLogsOnError")
+                // Kubernetes mounts secret volumes with 0640 permissions (set via defaultMode
+                // in MountedResourceConfigProvider). The keystore credential store checks file
+                // permissions and rejects group-readable files by default. This env var relaxes
+                // the check to allow 0640, matching the volume's defaultMode.
+                .addNewEnv()
+                    .withName("KROXYLICIOUS_DANGEROUSLY_CHANGE_PERMISSION_CHECK")
+                    .withValue("0640")
+                .endEnv()
                 .withArgs("--config", ProxyDeploymentDependentResource.CONFIG_PATH_IN_CONTAINER)
                 // volume mount
                 .addNewVolumeMount()

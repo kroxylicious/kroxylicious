@@ -20,7 +20,7 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 public class MountedResourceConfigProvider implements SecureConfigProvider {
 
     static final MountedResourceConfigProvider SECRET_PROVIDER = new MountedResourceConfigProvider("", "secrets",
-            (vb, resourceName) -> vb.withNewSecret().withSecretName(resourceName).endSecret());
+            (vb, resourceName) -> vb.withNewSecret().withSecretName(resourceName).withDefaultMode(0640).endSecret());
     static final MountedResourceConfigProvider CONFIGMAP_PROVIDER = new MountedResourceConfigProvider("", "configmaps",
             (vb, resourceName) -> vb.withNewConfigMap().withName(resourceName).endConfigMap());
 
