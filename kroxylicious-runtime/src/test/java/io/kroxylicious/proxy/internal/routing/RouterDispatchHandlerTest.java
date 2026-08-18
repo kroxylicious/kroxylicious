@@ -678,7 +678,7 @@ class RouterDispatchHandlerTest {
         assertThat(future.toCompletableFuture()).isNotDone();
 
         // When
-        channel.close();
+        channel.close().syncUninterruptibly();
 
         // Then
         assertThat(future.toCompletableFuture()).isCompletedExceptionally();

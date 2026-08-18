@@ -485,7 +485,7 @@ class ServerConnectionStateMachineTest {
         assertThat(channel.pipeline().get("ssl")).isNotNull();
         verify(ccsm, never()).onServerConnectionException(any());
 
-        channel.close();
+        channel.close().syncUninterruptibly();
     }
 
     // === Connection counter tests ===

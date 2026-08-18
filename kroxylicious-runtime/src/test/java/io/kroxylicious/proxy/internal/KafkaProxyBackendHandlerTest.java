@@ -108,8 +108,8 @@ class KafkaProxyBackendHandlerTest {
         // When
         outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener((ChannelFutureListener) future -> {
             flushed.set(true);
-            future.channel().close();
-        });
+            future.channel().close().syncUninterruptibly();
+        }).syncUninterruptibly();
 
         // Then
         await().untilTrue(flushed);
