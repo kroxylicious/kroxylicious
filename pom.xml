@@ -54,6 +54,19 @@
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.4</junit.version>
         <kafka.version>4.2.0</kafka.version>
+        <!-- Version of the Kafka protocol message JSON specs the forked generator consumes, and
+             the version the vendored io.kroxylicious.kafka.common.* support classes were copied
+             from. Decoupled from kafka.version so the generated/copied protocol surface can track
+             a different Kafka release than the kafka-clients we depend on. See
+             kroxylicious-api/etc/kafka-support/README.md. -->
+        <kafka.message-spec.version>4.3.0</kafka.message-spec.version>
+        <!-- Native compression codecs. These are transitive (runtime) dependencies of kafka-clients;
+             the vendored io.kroxylicious.kafka.common.compress.* classes reference them at compile
+             time, so kroxylicious-api pulls them at compile scope. Keep the versions aligned with
+             what kafka-clients ${kafka.version} resolves. See kroxylicious-api/etc/kafka-support/README.md. -->
+        <zstd-jni.version>1.5.6-10</zstd-jni.version>
+        <lz4-java.version>1.10.1</lz4-java.version>
+        <snappy-java.version>1.1.10.7</snappy-java.version>
         <kroxy.extension.version>0.16.0</kroxy.extension.version>
         <log4j.version>2.26.1</log4j.version>
         <caffeine.version>3.2.4</caffeine.version>
@@ -259,6 +272,22 @@
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka-clients</artifactId>
                 <version>${kafka.version}</version>
+            </dependency>
+            <!-- Native compression codecs used by the vendored kafka-common compress classes. -->
+            <dependency>
+                <groupId>com.github.luben</groupId>
+                <artifactId>zstd-jni</artifactId>
+                <version>${zstd-jni.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>at.yawk.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>${lz4-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+                <version>${snappy-java.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.kafka</groupId>
@@ -1105,7 +1134,7 @@
                                 <artifactItem>
                                     <groupId>org.apache.kafka</groupId>
                                     <artifactId>kafka-clients</artifactId>
-                                    <version>${kafka.version}</version>
+                                    <version>${kafka.message-spec.version}</version>
                                     <overWrite>false</overWrite>
                                     <includes>common/message/*.json</includes>
                                     <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
@@ -1462,7 +1491,7 @@
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
                                 <!-- The following <arg> cannot be split over multiple lines :-( -->
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-sources/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka/common)/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
