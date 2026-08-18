@@ -4,6 +4,7 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
+
 # Re-vendors the non-generated Kafka protocol support classes into
 # kroxylicious-api/src/main/java/io/kroxylicious/kafka/common/**.
 #
@@ -41,10 +42,11 @@ trap 'rm -rf "$STAGE" "$VENV"' EXIT
 COPY_ROOT="$STAGE/src/main/java/org/apache/kafka/common"
 mkdir -p "$COPY_ROOT"
 
-echo "==> copying $(grep -vc '^#\|^$' "$HERE/vendored-files.txt") files from $SRC_ROOT"
+echo "==> copying $(grep -c '\.java$' "$HERE/vendored-files.txt") files from $SRC_ROOT"
 while IFS= read -r rel; do
-  [ -z "$rel" ] && continue
-  [[ "$rel" == \#* ]] && continue
+  # vendored-files.txt carries a license header and description before the file list; skip
+  # anything that isn't a file entry rather than relying on a particular comment style.
+  [[ "$rel" == *.java ]] || continue
   mkdir -p "$COPY_ROOT/$(dirname "$rel")"
   cp "$SRC_ROOT/$rel" "$COPY_ROOT/$rel"
 done < "$HERE/vendored-files.txt"

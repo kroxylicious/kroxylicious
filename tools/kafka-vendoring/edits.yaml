@@ -1,7 +1,9 @@
+#
 # Copyright Kroxylicious Authors.
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
+
 # Declarative content-based edits applied by apply-edits.py to freshly copied Kafka files, cutting
 # the server-side/config/file edges that would otherwise drag org.apache.kafka packages we
 # deliberately do not vendor into the copy-closure. Matching is by content (signature regex + brace

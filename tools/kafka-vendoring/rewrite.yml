@@ -3,7 +3,8 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-# OpenRewrite recipe used by refresh.sh to relocate the vendored Kafka support classes from
+
+# OpenRewrite recipe used by vendor.sh to relocate the vendored Kafka support classes from
 # org.apache.kafka.common.* to io.kroxylicious.kafka.common.*. The FindSourceFiles precondition
 # path-scopes the rewrite to freshly-copied files sitting under an org/apache/kafka/** path, so it
 # never touches a module's own org.apache.kafka.* usage. ChangePackage rewrites package decls,

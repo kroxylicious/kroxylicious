@@ -183,6 +183,38 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- The vendored io.kroxylicious.kafka.common.* support classes (see
+                 tools/kafka-vendoring) are copied verbatim from Apache Kafka and carry ASF
+                 copyright headers; give them their own licenseSet with the ASF header instead of
+                 the parent's Kroxylicious header. combine.self="override" prevents the parent's
+                 licenseSet from merging in at module scope, so the Kroxylicious set below has to
+                 be restated. Mirrors kroxylicious-kafka-message-generator/pom.xml, which is fully
+                 forked and so needs no second (Kroxylicious) licenseSet. -->
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <configuration combine.self="override">
+                    <strictCheck>true</strictCheck>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>${rootdir}/etc/license.txt</header>
+                            <excludes>
+                                <exclude>src/main/java/io/kroxylicious/kafka/common/**</exclude>
+                                <!-- The raw ASF header document itself; a header file is never
+                                     checked against itself, but that's per-licenseSet, so with two
+                                     sets it still needs excluding from this one explicitly. -->
+                                <exclude>etc/asf-license.txt</exclude>
+                            </excludes>
+                        </licenseSet>
+                        <licenseSet>
+                            <header>${project.basedir}/etc/asf-license.txt</header>
+                            <includes>
+                                <include>src/main/java/io/kroxylicious/kafka/common/**</include>
+                            </includes>
+                        </licenseSet>
+                    </licenseSets>
+                </configuration>
+            </plugin>
             <!-- The vendored (io.kroxylicious.kafka.common.*) and generated (…​.common.message.*)
                  Kafka protocol classes carry Kafka's own Javadoc, which does not satisfy this
                  project's doclint/failOnWarnings gate and is not something we publish API docs for.

@@ -741,6 +741,14 @@
                                          this exclusion only needs to work during the root-level scan. -->
                                     <exclude>kroxylicious-kafka-message-generator/src/**</exclude>
                                     <exclude>kroxylicious-kafka-message-generator/etc/**</exclude>
+                                    <!-- Vendored Kafka support classes (see tools/kafka-vendoring)
+                                         also retain ASF headers; kroxylicious-api's own module-level
+                                         check enforces the ASF template for this path. -->
+                                    <exclude>kroxylicious-api/src/main/java/io/kroxylicious/kafka/common/**</exclude>
+                                    <exclude>kroxylicious-api/etc/asf-license.txt</exclude>
+                                    <!-- pip requires # comments; mycila's default .txt style wraps
+                                         the header in ==== banner lines pip cannot parse. -->
+                                    <exclude>tools/kafka-vendoring/requirements.txt</exclude>
 
                                 </excludes>
                             </licenseSet>
