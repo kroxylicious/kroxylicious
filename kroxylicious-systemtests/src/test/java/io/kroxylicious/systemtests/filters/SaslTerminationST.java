@@ -23,6 +23,7 @@ import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -37,7 +38,6 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
-import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.scram.credentialstore.keystore.KeystoreCredentialManager;
@@ -50,14 +50,13 @@ import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
+import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
-import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
-import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -162,7 +161,8 @@ class SaslTerminationST extends AbstractSystemTests {
         String bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
 
         // When
-        createTopicWithScramAuth(namespace, topicName, bootstrap, 1, 1, ADMIN_USER, ADMIN_PASSWORD);
+        String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
+        KafkaSteps.createTopic(namespace, topicName, kafkaBootstrap, 1, 1);
 
         Map<String, String> aliceProps = scramSaslProps(ALICE_USER, ALICE_PASSWORD);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, aliceProps);
@@ -179,6 +179,8 @@ class SaslTerminationST extends AbstractSystemTests {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
+    @Disabled("Blocked by KAFKA-20184: Kafka 4.1+ eagerly loads jose4j via DefaultJwtValidator"
+            + " during OAUTHBEARER client login, but the Strimzi test-clients image does not bundle jose4j")
     @Test
     void testOauthBearerAuthentication(String namespace) {
         // kcat does not support OAUTHBEARER authentication
@@ -207,15 +209,17 @@ class SaslTerminationST extends AbstractSystemTests {
 
         Map<String, String> oauthProps = oauthSaslProps(tokenUrl);
         Map<String, String> allowedUrlsSystemProps = Map.of(
-                "org.apache.kafka.sasl.oauthbearer.allowed.urls", tokenUrl);
+                "org.apache.kafka.sasl.oauthbearer.allowed.urls", tokenUrl + "," + jwksUrl);
 
         // When
-        createTopicWithOAuthAuth(namespace, topicName, bootstrap, 1, 1, tokenUrl);
+        String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
+        KafkaSteps.createTopic(namespace, topicName, kafkaBootstrap, 1, 1);
 
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, oauthProps);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, oauthProps, allowedUrlsSystemProps);
 
         // Then
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), oauthProps);
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), oauthProps,
+                allowedUrlsSystemProps);
         LOGGER.atInfo()
                 .addKeyValue("received", result)
                 .log("Consumed messages");
@@ -246,58 +250,6 @@ class SaslTerminationST extends AbstractSystemTests {
                 "sasl.oauthbearer.token.endpoint.url", tokenEndpointUrl,
                 "sasl.oauthbearer.client.credentials.client.id", OAUTH_CLIENT_ID,
                 "sasl.oauthbearer.client.credentials.client.secret", OAUTH_CLIENT_SECRET));
-    }
-
-    private void createTopicWithScramAuth(String namespace, String topicName, String bootstrap,
-                                          int partitions, int replicas, String username, String password) {
-        LOGGER.atDebug()
-                .addKeyValue("topicName", topicName)
-                .log("Creating topic with SCRAM-SHA-256 auth");
-        String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
-        List<String> args = List.of("topic", "create",
-                "--bootstrap-server=" + bootstrap,
-                "--topic=" + topicName,
-                "--topic-partitions=" + partitions,
-                "--topic-rep-factor=" + replicas);
-
-        String additionalConfig = CommonClientConfigs.SECURITY_PROTOCOL_CONFIG + "=SASL_PLAINTEXT\n" +
-                SaslConfigs.SASL_MECHANISM + "=SCRAM-SHA-256\n" +
-                SaslConfigs.SASL_JAAS_CONFIG + "=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" +
-                username + "\" password=\"" + password + "\";";
-
-        Job adminClientJob = TestClientsJobTemplates.authenticationAdminClientJob(name, args, additionalConfig).build();
-        kubeClient().getClient().batch().v1().jobs().inNamespace(namespace).resource(adminClientJob).create();
-        String podName = KafkaUtils.getPodNameByLabel(namespace, "app", name, Duration.ofSeconds(30));
-        DeploymentUtils.waitForPodRunSucceeded(namespace, podName, Duration.ofMinutes(5));
-    }
-
-    private void createTopicWithOAuthAuth(String namespace, String topicName, String bootstrap,
-                                          int partitions, int replicas, String tokenEndpointUrl) {
-        LOGGER.atDebug()
-                .addKeyValue("topicName", topicName)
-                .log("Creating topic with OAUTHBEARER auth");
-        String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
-        List<String> args = List.of("topic", "create",
-                "--bootstrap-server=" + bootstrap,
-                "--topic=" + topicName,
-                "--topic-partitions=" + partitions,
-                "--topic-rep-factor=" + replicas);
-
-        String additionalConfig = CommonClientConfigs.SECURITY_PROTOCOL_CONFIG + "=SASL_PLAINTEXT\n" +
-                SaslConfigs.SASL_MECHANISM + "=OAUTHBEARER\n" +
-                SaslConfigs.SASL_JAAS_CONFIG + "=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;\n" +
-                SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS + "=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler\n" +
-                "sasl.oauthbearer.token.endpoint.url=" + tokenEndpointUrl + "\n" +
-                "sasl.oauthbearer.client.credentials.client.id=" + OAUTH_CLIENT_ID + "\n" +
-                "sasl.oauthbearer.client.credentials.client.secret=" + OAUTH_CLIENT_SECRET;
-
-        Map<String, String> allowedUrlsSystemProps = Map.of(
-                "org.apache.kafka.sasl.oauthbearer.allowed.urls", tokenEndpointUrl);
-
-        Job adminClientJob = TestClientsJobTemplates.authenticationAdminClientJob(name, args, additionalConfig, allowedUrlsSystemProps).build();
-        kubeClient().getClient().batch().v1().jobs().inNamespace(namespace).resource(adminClientJob).create();
-        String podName = KafkaUtils.getPodNameByLabel(namespace, "app", name, Duration.ofSeconds(30));
-        DeploymentUtils.waitForPodRunSucceeded(namespace, podName, Duration.ofMinutes(5));
     }
 
     private void createKeystoreSecret(String namespace, String secretName, String dataKey, Path keystorePath) {

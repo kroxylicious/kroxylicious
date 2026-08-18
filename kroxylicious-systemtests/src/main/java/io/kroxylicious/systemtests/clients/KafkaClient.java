@@ -191,6 +191,12 @@ public interface KafkaClient {
     ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
             throws KubeClusterException;
 
+    default ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                       Map<String, String> additionalConfig, Map<String, String> javaSystemProperties)
+            throws KubeClusterException {
+        return produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, additionalConfig);
+    }
+
     /**
      * Consume messages.
      *
@@ -219,6 +225,12 @@ public interface KafkaClient {
     List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
                                          String consumerGroup)
             throws KubeClusterException;
+
+    default List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
+                                                 String consumerGroup, Map<String, String> javaSystemProperties)
+            throws KubeClusterException {
+        return consumeMessages(topicName, bootstrap, numOfMessages, timeout, additionalConfig, consumerGroup);
+    }
 
     /**
      * Extracts version from Docker image string.
