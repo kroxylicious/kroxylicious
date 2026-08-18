@@ -30,7 +30,7 @@ filterDefinitions:
           expectedAudience: kafka
           expectedIssuer: https://idp.example.com
         - mechanism: SCRAM-SHA-256
-          credentialStore: KeystoreScramCredentialStore
+          credentialStore: KeystoreScramCredentialStoreService
           credentialStoreConfig:
             file: /etc/kroxylicious/scram-credentials.p12
             storePassword:
@@ -77,13 +77,13 @@ The following properties are optional:
 The `SCRAM-SHA-256` and `SCRAM-SHA-512` mechanisms validate client credentials against a pluggable credential store.
 
 * `credentialStore` (required) specifies the name of a plugin implementing `ScramCredentialStoreService`.
-The built-in KeyStore credential store is named `KeystoreScramCredentialStore`.
+The built-in KeyStore credential store is named `KeystoreScramCredentialStoreService`.
 * `credentialStoreConfig` (required) provides configuration for the credential store plugin.
 The structure depends on the credential store implementation.
 
 === KeyStore credential store configuration
 
-The `KeystoreScramCredentialStore` credential store loads SCRAM credentials from a PKCS#12 KeyStore file.
+The `KeystoreScramCredentialStoreService` credential store loads SCRAM credentials from a PKCS#12 KeyStore file.
 Use the SCRAM credential tool to create and populate the KeyStore.
 See <<proc-managing-scram-credentials-{context}>> for instructions.
 
