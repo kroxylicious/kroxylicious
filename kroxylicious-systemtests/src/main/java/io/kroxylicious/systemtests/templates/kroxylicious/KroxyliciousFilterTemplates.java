@@ -32,7 +32,9 @@ import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.entityisolation.EntityIsolation;
 import io.kroxylicious.filter.sasl.inspection.Config;
 import io.kroxylicious.filter.sasl.inspection.SaslInspection;
+import io.kroxylicious.filter.sasl.termination.SaslTermination;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.scram.credentialstore.keystore.KeystoreScramCredentialStoreService;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -190,5 +192,58 @@ public final class KroxyliciousFilterTemplates {
         return OBJECT_MAPPER
                 .convertValue(entityIsolationConfig, new TypeReference<>() {
                 });
+    }
+
+    /**
+     * Kroxylicious SASL termination filter builder for SCRAM mechanisms.
+     *
+     * @param namespace the namespace
+     * @param mechanism the SCRAM mechanism name (e.g. "SCRAM-SHA-256")
+     * @param keystoreSecretName the name of the K8s Secret containing the keystore binary
+     * @param keystoreKey the data key within the keystore secret
+     * @param passwordSecretName the name of the K8s Secret containing the keystore password
+     * @param passwordKey the data key within the password secret
+     * @return the kafka protocol filter builder
+     */
+    public static KafkaProtocolFilterBuilder kroxyliciousSaslTerminationScramFilter(String namespace, String filterName, String mechanism,
+                                                                                    String keystoreSecretName, String keystoreKey,
+                                                                                    String passwordSecretName, String passwordKey) {
+        return baseFilterDeployment(namespace, filterName)
+                .withNewSpec()
+                .withType(SaslTermination.class.getSimpleName())
+                .withConfigTemplate(Map.of(
+                        "mechanisms", java.util.List.of(
+                                Map.of(
+                                        "mechanism", mechanism,
+                                        "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
+                                        "credentialStoreConfig", Map.of(
+                                                "file", "${secret:" + keystoreSecretName + ":" + keystoreKey + "}",
+                                                "storePassword", Map.of(
+                                                        "passwordFile", "${secret:" + passwordSecretName + ":" + passwordKey + "}"))))))
+                .endSpec();
+    }
+
+    /**
+     * Kroxylicious SASL termination filter builder for OAUTHBEARER mechanism.
+     *
+     * @param namespace the namespace
+     * @param jwksEndpointUrl the JWKS endpoint URL
+     * @param expectedAudience the expected JWT audience claim
+     * @param expectedIssuer the expected JWT issuer claim
+     * @return the kafka protocol filter builder
+     */
+    public static KafkaProtocolFilterBuilder kroxyliciousSaslTerminationOauthFilter(String namespace, String filterName, String jwksEndpointUrl,
+                                                                                    String expectedAudience, String expectedIssuer) {
+        return baseFilterDeployment(namespace, filterName)
+                .withNewSpec()
+                .withType(SaslTermination.class.getSimpleName())
+                .withConfigTemplate(Map.of(
+                        "mechanisms", java.util.List.of(
+                                Map.of(
+                                        "mechanism", "OAUTHBEARER",
+                                        "jwksEndpointUrl", jwksEndpointUrl,
+                                        "expectedAudience", expectedAudience,
+                                        "expectedIssuer", expectedIssuer))))
+                .endSpec();
     }
 }
