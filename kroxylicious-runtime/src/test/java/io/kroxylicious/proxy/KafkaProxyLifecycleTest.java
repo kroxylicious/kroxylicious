@@ -429,4 +429,30 @@ class KafkaProxyLifecycleTest {
                 .cause()
                 .isInstanceOf(PluginConfigurationException.class);
     }
+
+    @Test
+    void closeWaitsForShutdownToComplete() {
+        // Given
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
+        var startupFuture = proxy.startup();
+        assertThat(startupFuture).isNotDone();
+
+        // When: close() must block until shutdown completes
+        proxy.close();
+
+        // Then: startup future is done before close() returned — proving close() did not return early
+        assertThat(startupFuture).isDone();
+    }
+
+    @Test
+    void closeTwiceDoesNotThrow() {
+        // Given
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
+        proxy.startup();
+        proxy.close();
+
+        // When: close() is called again (e.g. try-with-resources after an explicit shutdown)
+        // Then: must not throw — close() is idempotent
+        assertThatCode(proxy::close).doesNotThrowAnyException();
+    }
 }

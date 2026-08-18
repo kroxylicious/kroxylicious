@@ -309,7 +309,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 var internalResponse = new InternalResponseFrame<>(
                         oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
                 internalResponse.setRouteName(oobFrame.routeName());
-                ctx.channel().writeAndFlush(internalResponse);
+                ctx.channel().writeAndFlush(internalResponse).addListener(f -> {
+                    if (!f.isSuccess()) {
+                        oobFrame.promise().completeExceptionally(f.cause());
+                    }
+                });
             }
             else {
                 Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
@@ -437,20 +441,31 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         return executeOnEventLoop(() -> doSendToAny(route, header, request, sessionId, clientCorrelationId));
     }
 
+    // FutureReturnValueIgnored: a synchronous throw from work.get() is now caught and
+    // propagated to `bridge`, so the submitted task cannot complete exceptionally and the
+    // whenComplete callback completes `bridge` in both branches.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private <T> CompletionStage<T> executeOnEventLoop(Supplier<CompletableFuture<T>> work) {
         var executor = Objects.requireNonNull(ctx, "sendRequest called before handlerAdded").executor();
         if (executor.inEventLoop()) {
             return work.get();
         }
         CompletableFuture<T> bridge = new CompletableFuture<>();
-        executor.execute(() -> work.get().whenComplete((r, e) -> {
-            if (e != null) {
+        executor.execute(() -> {
+            try {
+                work.get().whenComplete((r, e) -> {
+                    if (e != null) {
+                        bridge.completeExceptionally(e);
+                    }
+                    else {
+                        bridge.complete(r);
+                    }
+                });
+            }
+            catch (Exception e) {
                 bridge.completeExceptionally(e);
             }
-            else {
-                bridge.complete(r);
-            }
-        }));
+        });
         return bridge;
     }
 

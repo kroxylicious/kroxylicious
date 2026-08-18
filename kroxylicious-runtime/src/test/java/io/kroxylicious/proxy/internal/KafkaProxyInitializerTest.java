@@ -130,6 +130,7 @@ class KafkaProxyInitializerTest {
         when(channel.eventLoop()).thenReturn(eventLoop);
         when(channel.localAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 9099));
         when(channel.closeFuture()).thenReturn(mock(ChannelFuture.class));
+        when(channel.close()).thenReturn(mock(ChannelFuture.class));
 
         when(acceptingSocketChannel.localAddress()).thenReturn(localhost);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
