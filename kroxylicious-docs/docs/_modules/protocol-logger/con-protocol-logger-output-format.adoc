@@ -1,0 +1,119 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// index.adoc
+
+[id='con-protocol-logger-output-format-{context}']
+= Output format
+
+[role="_abstract"]
+Each log entry is a single JSON object with a `header` and a `payload`.
+The payload is rendered using Apache Kafka's generated JSON converters, so the structure follows the exact wire format of the negotiated API version.
+
+An example request entry:
+
+[source,json]
+----
+{
+  "header" : {
+    "type" : "REQUEST",
+    "apiKey" : "METADATA",
+    "apiVersion" : 13,
+    "correlationId" : 1,
+    "clientId" : "producer-1"
+  },
+  "payload" : {
+    "topics" : [ {
+      "topicId" : "AAAAAAAAAAAAAAAAAAAAAA",
+      "name" : "my-topic"
+    } ],
+    "allowAutoTopicCreation" : true,
+    "includeTopicAuthorizedOperations" : false
+  }
+}
+----
+
+An example response entry:
+
+[source,json]
+----
+{
+  "header" : {
+    "type" : "RESPONSE",
+    "apiKey" : "METADATA",
+    "apiVersion" : 13,
+    "correlationId" : 1
+  },
+  "payload" : {
+    "throttleTimeMs" : 0,
+    "brokers" : [ {
+      "nodeId" : 1,
+      "host" : "localhost",
+      "port" : 9194,
+      "rack" : null
+    } ],
+    "clusterId" : "MkU3OEVBNTcwNTJENDM2Qk",
+    "controllerId" : 1,
+    "topics" : [ ],
+    "errorCode" : 0
+  }
+}
+----
+
+Note that `clientId` appears only on requests — it does not exist on the wire for responses, and responses omit the key entirely rather than emitting null.
+
+Structured key-values are appended by the logging framework after the JSON body.
+These include `apiKey`, `apiVersion`, `clientCorrelationId`, `direction`, and `sessionId`, plus `clientId` on requests only.
+
+== Machine-parseable output
+
+Each log entry is JSON, but a log *line* is not — the logging backend's timestamp, level, and logger name prefix surround it.
+Piping raw log output to `jq` fails unless you either strip the prefix or use a message-only appender.
+
+To get machine-parseable output, add a message-only appender to your `log4j2.yaml`:
+
+[source,yaml]
+----
+Configuration:
+  Appenders:
+    Console:
+      - name: PROTOCOL_TRACE
+        PatternLayout:
+          pattern: "%m%n"
+  Loggers:
+    Logger:
+      - name: io.kroxylicious.filter.protocollogger.ProtocolLoggerFilter # or your configured loggerName
+        level: DEBUG
+        additivity: false
+        AppenderRef:
+          - ref: PROTOCOL_TRACE
+----
+
+With that appender, each entry is a multi-line pretty-printed JSON object — `jq` reads the stream directly, but line-oriented tools such as `grep` do not see one entry per line:
+
+[source,shell]
+----
+# select METADATA entries (both request and response)
+jq -c 'select(.header.apiKey == "METADATA")' < proxy-trace.log
+----
+
+== Pairing requests and responses
+
+Use the `sessionId` structured key-value together with `.header.correlationId`.
+Correlation IDs are only unique within a single connection, so `sessionId` is required to pair correctly across concurrent connections.
+
+`sessionId` is deliberately not in the JSON entry — it is proxy-internal state, not part of the protocol trace.
+It appears only in the structured key-values.
+
+Correlation IDs in the output are not necessarily client correlation IDs.
+Filters can dispatch out-of-band requests upstream, which carry synthetic negative correlation IDs.
+Depending on its position in the filter chain, this filter may observe such requests and cannot reliably tell them apart from client traffic, so pairing may produce entries with no counterpart.
+
+Latency can be derived from the log timestamps of matched request and response pairs.
