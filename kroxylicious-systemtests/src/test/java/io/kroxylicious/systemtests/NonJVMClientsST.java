@@ -104,20 +104,14 @@ class NonJVMClientsST extends AbstractSystemTests {
     @ParameterizedTest(name = "testClientsProducer{0}Consumer{1}")
     @MethodSource("clientCombinations")
     void produceConsumeMessagesWithClients(KafkaClient producer, KafkaClient consumer, String namespace) {
-        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
         final int numberOfMessages = 2;
 
-        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'")
-                .addArgument(MESSAGE).addArgument(topicName).log();
         producer.inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
-        LOGGER.atInfo().log("Then the messages are consumed");
         List<ConsumerRecord> result = consumer.inNamespace(namespace)
                 .consumeMessages(topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
                 .extracting(ConsumerRecord::getPayload)

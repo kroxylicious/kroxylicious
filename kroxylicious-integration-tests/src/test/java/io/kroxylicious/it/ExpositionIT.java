@@ -43,8 +43,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.it.net.PassthroughProxy;
@@ -86,7 +84,6 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
  */
 @ExtendWith(KafkaClusterExtension.class)
 class ExpositionIT extends BaseIT {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ExpositionIT.class);
 
     private static final String TOPIC = "my-test-topic";
     public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
@@ -602,13 +599,10 @@ class ExpositionIT extends BaseIT {
                     n -> n.size() == cluster.getNumOfBrokers());
         }
 
-        LOGGER.debug("Bootstrap discovered broker nodes {}", originalNodes);
-
         // Now, iterate across the learnt broker endpoints, connecting the client to each in turn verifying that the
         // client discovers the remainder of the cluster. Note the Kroxylicious restart on each iteration, this
         // ensures it has zero-state.
         originalNodes.forEach(node -> {
-            LOGGER.debug("Testing connection to {}", node);
             var brokerAddress = toAddress(node);
             var brokerConfig = new HashMap<String, Object>(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, brokerAddress));
             brokerConfig.putAll(clientSecurityProtocolConfig);

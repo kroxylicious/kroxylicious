@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.systemtests.clients.KafkaClients;
-import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.ComponentType;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
@@ -56,17 +55,11 @@ class MetricsST extends AbstractSystemTests {
     void kroxyliciousMessageTotals(String namespace) {
         int numberOfRecords = 1;
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfRecords).addArgument(RECORD_VALUE).addArgument(topicName)
-                .log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, RECORD_VALUE, numberOfRecords);
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfRecords, Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+        KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfRecords, Duration.ofMinutes(2));
         kroxyliciousCollector.collectMetricsFromPods();
-        LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
 
         var parsedMetrics = convertToSimpleMetrics(kroxyliciousCollector);
 
@@ -119,17 +112,11 @@ class MetricsST extends AbstractSystemTests {
     void kroxyliciousMessageSize(String namespace) {
         int numberOfMessages = 1;
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(RECORD_VALUE).addArgument(topicName)
-                .log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, RECORD_VALUE, numberOfMessages);
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+        KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         kroxyliciousCollector.collectMetricsFromPods();
-        LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
 
         int recordValueSize = RECORD_VALUE.getBytes(StandardCharsets.UTF_8).length;
         var parsedMetrics = convertToSimpleMetrics(kroxyliciousCollector);

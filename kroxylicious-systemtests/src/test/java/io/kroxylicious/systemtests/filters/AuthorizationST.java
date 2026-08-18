@@ -125,20 +125,15 @@ class AuthorizationST extends AbstractSystemTests {
         aclRules.add(generateAllowAclRule(user, topicName));
 
         // start Kroxylicious
-        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         deployPortIdentifiesNodeWithAuthorizationFilter(usernamePasswords, aclRules);
         bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
 
         Map<String, String> additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, user, usernamePasswords.get(user));
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, additionalKafkaProps);
 
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), additionalKafkaProps);
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
                 .extracting(ConsumerRecord::getPayload)
@@ -160,15 +155,12 @@ class AuthorizationST extends AbstractSystemTests {
         aclRules.add(generateAllowAclRule(userAlice, topicName));
 
         // start Kroxylicious
-        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         deployPortIdentifiesNodeWithAuthorizationFilter(usernamePasswords, aclRules);
         bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
 
         Map<String, String> bobKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         ExecResult producerResult = KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, bobKafkaProps);
         // depending on the client, error is written on stdout instead of stderr
         String logError = producerResult.out().concat(producerResult.err());
@@ -180,10 +172,8 @@ class AuthorizationST extends AbstractSystemTests {
                     "Topic authorization failed");
         });
 
-        LOGGER.atInfo().setMessage("Then aren't any messages to be consumed").log();
         Map<String, String> aliceKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), aliceKafkaProps);
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
                 .isEmpty();
@@ -203,21 +193,16 @@ class AuthorizationST extends AbstractSystemTests {
         aclRules.add(generateDenyAclRule(userAlice, topicName));
 
         // start Kroxylicious
-        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         deployPortIdentifiesNodeWithAuthorizationFilter(usernamePasswords, aclRules);
         bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
 
         Map<String, String> bobKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, bobKafkaProps);
 
-        LOGGER.atInfo().setMessage("Then aren't any messages to be consumed").log();
         Map<String, String> aliceKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), aliceKafkaProps);
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         String log = KroxyliciousSteps.getConsumerLog(namespace);
         assertAll(() -> {
