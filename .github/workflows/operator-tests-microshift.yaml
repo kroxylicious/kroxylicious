@@ -99,10 +99,10 @@ jobs:
           allow-unsafe-pr-checkout: true
 
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: 'Cache crc cache'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -174,7 +174,7 @@ jobs:
 
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./.github/actions/common/slack-notification
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
