@@ -23,8 +23,6 @@
 
     <properties>
         <errorprone.skip>true</errorprone.skip>
-
-        <!-- Terminal deployment artefact (zip, tar.gz): no Maven consumers, so don't publish to Central -->
         <maven.deploy.skip>true</maven.deploy.skip>
         <central.publishing.skip>true</central.publishing.skip>
     </properties>
