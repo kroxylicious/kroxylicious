@@ -27,7 +27,7 @@ class HeadersAssertTest {
         Assertions.assertThatThrownBy(emptyAssert::firstHeader).isExactlyInstanceOf(AssertionError.class)
                 .hasMessage("""
                         [headers]\s
-                        Expecting actual not to be empty""");
+                        Expecting actual not to be empty""".replace("\n", System.lineSeparator()));
         headersAssert.firstHeader().hasKeyEqualTo("foo").hasValueEqualTo("1");
     }
 
@@ -36,7 +36,7 @@ class HeadersAssertTest {
         Assertions.assertThatThrownBy(emptyAssert::lastHeader).isExactlyInstanceOf(AssertionError.class)
                 .hasMessage("""
                         [headers]\s
-                        Expecting actual not to be empty""");
+                        Expecting actual not to be empty""".replace("\n", System.lineSeparator()));
         headersAssert.lastHeader().hasKeyEqualTo("bar").hasValueEqualTo("3");
     }
 
@@ -46,7 +46,7 @@ class HeadersAssertTest {
                 .hasMessage("""
                         [headers]\s
                         Expected size: 1 but was: 0 in:
-                        RecordHeaders(headers = [], isReadOnly = false)""");
+                        RecordHeaders(headers = [], isReadOnly = false)""".replace("\n", System.lineSeparator()));
         Assertions.assertThatThrownBy(headersAssert::singleHeader).isInstanceOf(AssertionError.class);
         singletonAssert.singleHeader().hasNullValue();
     }
@@ -59,7 +59,7 @@ class HeadersAssertTest {
                 .isExactlyInstanceOf(AssertionError.class)
                 .hasMessage("""
                         [headers with key gee]\s
-                        Expecting actual not to be empty""");
+                        Expecting actual not to be empty""".replace("\n", System.lineSeparator()));
     }
 
     @Test
@@ -70,7 +70,7 @@ class HeadersAssertTest {
                 .isExactlyInstanceOf(AssertionError.class)
                 .hasMessage("""
                         [headers with key gee]\s
-                        Expecting actual not to be empty""");
+                        Expecting actual not to be empty""".replace("\n", System.lineSeparator()));
     }
 
     @Test
@@ -81,7 +81,7 @@ class HeadersAssertTest {
                 .hasMessage("""
                         [headers with key foo]\s
                         Expected size: 1 but was: 2 in:
-                        [RecordHeader(key = foo, value = [49]), RecordHeader(key = foo, value = [50])]""");
+                        [RecordHeader(key = foo, value = [49]), RecordHeader(key = foo, value = [50])]""".replace("\n", System.lineSeparator()));
     }
 
     @Test
@@ -93,6 +93,6 @@ class HeadersAssertTest {
                 .isExactlyInstanceOf(AssertionError.class)
                 .hasMessage("""
                         [null headers]\s
-                        Expecting actual not to be null""");
+                        Expecting actual not to be null""".replace("\n", System.lineSeparator()));
     }
 }
