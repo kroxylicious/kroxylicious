@@ -1498,19 +1498,6 @@ public final class Utils {
     }
 
     /**
-     * Convert a properties to map. All keys in properties must be string type. Otherwise, a ConfigException is thrown.
-     * @param properties to be converted
-     * @return a map including all elements in properties
-     */
-
-    /**
-     * Cast a map with arbitrary type keys to be keyed on String.
-     * @param inputMap A map with unknown type keys
-     * @return A map with the same contents as the input map, but with String keys
-     * @throws ConfigException if any key is not a String
-     */
-
-    /**
      * Convert timestamp to an epoch value
      * @param timestamp the timestamp to be converted, the accepted formats are:
      *                 (1) yyyy-MM-dd'T'HH:mm:ss.SSS, ex: 2020-11-10T16:51:38.198
@@ -1577,15 +1564,6 @@ public final class Utils {
                 .map(Object::toString)
                 .toArray(String[]::new);
     }
-
-    /**
-     * Ensure that the class is concrete (i.e., not abstract), and that it subclasses a given base class.
-     * If it is abstract or does not subclass the given base class, throw a {@link ConfigException}
-     * with a friendly error message suggesting a list of concrete child subclasses (if any are known).
-     * @param baseClass the expected superclass; may not be null
-     * @param klass the class to check; may not be null
-     * @throws ConfigException if the class is not concrete
-     */
 
     /**
      * Convert time instant to readable string for logging
@@ -1677,11 +1655,6 @@ public final class Utils {
         if (!requirement)
             throw new IllegalArgumentException(errorMessage);
     }
-
-    /**
-     * Merge multiple {@link ConfigDef} into one
-     * @param configDefs List of {@link ConfigDef}
-     */
 
     /**
      * Register the given mbean with the platform mbean server,

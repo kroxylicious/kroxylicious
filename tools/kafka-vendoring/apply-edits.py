@@ -59,28 +59,37 @@ def _member_end(text, match_start, match_end):
 def _member_bounds(text, sig_regex, label):
     """Locate a class member or statement (field, method, nested type, or a single
     statement within a method body) by its signature, returning (cut, end): cut is the
-    start of its leading @annotation lines (or the member itself if none), end is just
-    past its terminating ';' or '}'."""
+    start of its leading javadoc/@annotation lines (or the member itself if neither),
+    end is just past its terminating ';' or '}'."""
     m=re.search(sig_regex, text)
     if not m:
         raise SystemExit("SURGERY MISS: %s (%s) not found" % (label, sig_regex))
     start=m.start()
-    # extend start backwards over immediately-preceding annotation lines + blank
+    # extend start backwards over an immediately-preceding javadoc/comment block and/or
+    # annotation lines, so removeBlocks doesn't leave a dangling "/** ... */" behind
+    # describing a method that's no longer there, and preserveBlocks keeps a kept member's
+    # own doc comment instead of silently dropping it.
     line_start=text.rfind('\n', 0, start)+1
-    # walk up over @Override / annotation-only lines
     lines_before=text[:line_start].rstrip('\n').split('\n')
     cut=line_start
     j=len(lines_before)-1
     while j>=0 and lines_before[j].strip().startswith('@'):
         cut-=len(lines_before[j])+1
         j-=1
+    if j>=0 and lines_before[j].strip().endswith('*/'):
+        while j>=0:
+            stripped=lines_before[j].strip()
+            cut-=len(lines_before[j])+1
+            j-=1
+            if stripped.startswith('/*'):
+                break
     end=_member_end(text, m.start(), m.end())
     # swallow one trailing newline
     if end < len(text) and text[end]=='\n': end+=1
     return cut, end
 
 def remove_block(text, sig_regex, label):
-    """Remove a declaration whose header matches sig_regex, from any leading
+    """Remove a declaration whose header matches sig_regex, from any leading javadoc/
     @Override/annotation lines through its terminating ';' or brace-balanced body."""
     cut, end=_member_bounds(text, sig_regex, label)
     return text[:cut]+text[end:]

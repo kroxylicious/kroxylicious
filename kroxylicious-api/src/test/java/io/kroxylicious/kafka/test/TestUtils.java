@@ -37,8 +37,15 @@ public class TestUtils {
 
     public static final String LETTERS_AND_DIGITS = LETTERS + DIGITS;
 
+    /* A consistent random number generator to make tests repeatable */
     public static final Random SEEDED_RANDOM = new Random(192348092834L);
 
+    /**
+     * Generate a random string of letters and digits of the given length
+     *
+     * @param len The length of the string
+     * @return The random string
+     */
     public static String randomString(final int len) {
         final StringBuilder b = new StringBuilder();
         for (int i = 0; i < len; i++)
@@ -46,24 +53,50 @@ public class TestUtils {
         return b.toString();
     }
 
+    /**
+     * Create an empty file in the default temporary-file directory, using the given prefix and suffix
+     * to generate its name.
+     * @throws IOException
+     */
     public static File tempFile(final String prefix, final String suffix) throws IOException {
         final File file = Files.createTempFile(prefix, suffix).toFile();
         file.deleteOnExit();
         return file;
     }
 
+    /**
+     * Create an empty file in the default temporary-file directory, using `kafka` as the prefix and `tmp` as the
+     * suffix to generate its name.
+     */
     public static File tempFile() throws IOException {
         return tempFile("kafka", ".tmp");
     }
 
+    /**
+     * Create a temporary relative directory in the default temporary-file directory with the given prefix.
+     *
+     * @param prefix The prefix of the temporary directory, if null using "kafka-" as default prefix
+     */
     public static File tempDirectory(final String prefix) {
         return tempDirectory(null, prefix);
     }
 
+    /**
+     * Create a temporary relative directory in the default temporary-file directory with a
+     * prefix of "kafka-"
+     *
+     * @return the temporary directory just created.
+     */
     public static File tempDirectory() {
         return tempDirectory(null);
     }
 
+    /**
+     * Create a temporary relative directory in the specified parent directory with the given prefix.
+     *
+     * @param parent The parent folder path name, if null using the default temporary-file directory
+     * @param prefix The prefix of the temporary directory, if null using "kafka-" as default prefix
+     */
     public static File tempDirectory(final Path parent, String prefix) {
         final File file;
         prefix = prefix == null ? "kafka-" : prefix;
@@ -77,6 +110,9 @@ public class TestUtils {
         return file;
     }
 
+    /**
+     * Checks the two iterables for equality by first converting both to a list.
+     */
     public static <T> void checkEquals(Iterable<T> it1, Iterable<T> it2) {
         assertEquals(toList(it1), toList(it2));
     }

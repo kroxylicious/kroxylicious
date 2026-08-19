@@ -14,7 +14,7 @@
 # Schema, per entry:
 #   file:         path relative to the copy root (the java/ source root, e.g. org/apache/kafka/common/...)
 #   stripImports: regex patterns; any import line matching one is dropped
-#   removeBlocks: declarations to remove entirely (leading annotations + brace-balanced body)
+#   removeBlocks: declarations to remove entirely (leading javadoc/annotations + brace-balanced body)
 #     signature:  regex matching the declaration header
 #     label:      human-readable name used in "SURGERY MISS" error messages
 #     count:      how many matches to remove, in order found (default 1)
