@@ -78,10 +78,8 @@ public class ProxyDeploymentDependentResource
     private final String kroxyliciousImage = getOperandImage();
     /** Environment variable name that, when set, overrides the default Kroxylicious operand container image. */
     public static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
-
-    /** Environment variable name that specifies the {@code fsGroup} in the proxy pod's security context. */
-    public static final String PROXY_POD_FS_GROUP_ENV_VAR = "PROXY_POD_FS_GROUP";
-    private final long fsGroup = getProxyPodFsGroup();
+    /** GID of the {@code kroxylicious} user in the default proxy container image ({@code proxy.dockerfile}). */
+    private static final long PROXY_IMAGE_GID = 185L;
 
     /** Creates a new dependent resource for managing the proxy {@code Deployment}. */
     public ProxyDeploymentDependentResource() {
@@ -199,8 +197,12 @@ public class ProxyDeploymentDependentResource
             Annotations.annotateWithReferentChecksum(metadataBuilder, checksum);
         }
 
-        // fsGroup forces a volume ownership change to the given GID on mount, which OpenShift's
-        // restricted SCC forbids (it assigns fsGroup from a per-namespace range instead).
+        // fsGroup makes secret volumes accessible to the container process. Kubernetes chowns
+        // mounted volume files to the fsGroup GID and adds it as a supplementary group to all
+        // container processes, so the specific value does not need to match the image's GID.
+        // See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
+        // OpenShift's restricted SCC forbids explicit fsGroup; instead it assigns one automatically
+        // from the namespace's supplemental-groups range, so the same mechanism still applies.
         boolean isOpenShift = context.getClient().supports(SecurityContextConstraints.class);
 
         // @formatter:off
@@ -214,7 +216,7 @@ public class ProxyDeploymentDependentResource
                         .endSeccompProfile()
                     .endSecurityContext();
         if (!isOpenShift) {
-            specBuilder = specBuilder.editSecurityContext().withFsGroup(fsGroup).endSecurityContext();
+            specBuilder = specBuilder.editSecurityContext().withFsGroup(PROXY_IMAGE_GID).endSecurityContext();
         }
         return specBuilder
                     .withContainers(proxyContainer(primary, kafkaProxyContext, ingressModel, clusterResolutionResults))
@@ -365,31 +367,6 @@ public class ProxyDeploymentDependentResource
         catch (IOException ioe) {
             throw new IllegalStateException("Failed to open %s on classpath".formatted(name), ioe);
         }
-    }
-
-    /**
-     * Returns the {@code fsGroup} GID from the {@link #PROXY_POD_FS_GROUP_ENV_VAR} environment variable.
-     *
-     * @return the fsGroup GID
-     * @throws IllegalStateException if the environment variable is missing, blank, negative, or not a number
-     */
-    @VisibleForTesting
-    public static long getProxyPodFsGroup() {
-        var envValue = System.getenv().get(PROXY_POD_FS_GROUP_ENV_VAR);
-        if (envValue == null || envValue.isBlank()) {
-            throw new IllegalStateException("Environment variable %s must be set".formatted(PROXY_POD_FS_GROUP_ENV_VAR));
-        }
-        long value;
-        try {
-            value = Long.parseLong(envValue);
-        }
-        catch (NumberFormatException e) {
-            throw new IllegalStateException("Environment variable %s must be a number, got: %s".formatted(PROXY_POD_FS_GROUP_ENV_VAR, envValue), e);
-        }
-        if (value < 0) {
-            throw new IllegalStateException("Environment variable %s must be non-negative, got: %s".formatted(PROXY_POD_FS_GROUP_ENV_VAR, envValue));
-        }
-        return value;
     }
 
 }

@@ -42,8 +42,6 @@ spec:
           env:
             - name: KUBERNETES_USER_AGENT
               value: "kroxylicious-operator/$[project.version]"
-            - name: PROXY_POD_FS_GROUP
-              value: "185"
           args: [ ]
           resources:
             requests:

@@ -68,7 +68,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.KROXYLICIOUS_IMAGE_ENV_VAR;
-import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.PROXY_POD_FS_GROUP_ENV_VAR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.doReturn;
@@ -180,7 +179,6 @@ class DerivedResourcesTest {
 
     @TestFactory
     @SetEnvironmentVariable(key = KROXYLICIOUS_IMAGE_ENV_VAR, value = "quay.io/kroxylicious/proxy:test")
-    @SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "185")
     Stream<DynamicContainer> dependentResourcesShouldEqual() {
         // Note that the order in this list should reflect the dependency order declared in the ProxyReconciler's
         // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that

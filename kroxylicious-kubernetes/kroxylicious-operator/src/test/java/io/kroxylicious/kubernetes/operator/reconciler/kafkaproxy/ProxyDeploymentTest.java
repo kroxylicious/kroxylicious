@@ -46,14 +46,11 @@ import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.KROXYLICIOUS_IMAGE_ENV_VAR;
-import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.PROXY_POD_FS_GROUP_ENV_VAR;
 import static io.kroxylicious.kubernetes.operator.resolver.DependencyResolver.EMPTY_RESOLUTION_RESULT;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "185")
 class ProxyDeploymentTest {
 
     private static final String PROXY_NAME = "kproxy";
@@ -83,40 +80,6 @@ class ProxyDeploymentTest {
     void operandImageOverrideFromEnvironment() {
         assertThat(ProxyDeploymentDependentResource.getOperandImage())
                 .isEqualTo("quay.io/myorg/kroxylicious:1");
-    }
-
-    @Test
-    @ClearEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR)
-    void fsGroupMissingThrows() {
-        assertThatThrownBy(ProxyDeploymentDependentResource::getProxyPodFsGroup)
-                .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
-    @SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "1000")
-    void fsGroupOverrideFromEnvironment() {
-        assertThat(ProxyDeploymentDependentResource.getProxyPodFsGroup()).isEqualTo(1000L);
-    }
-
-    @Test
-    @SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "-1")
-    void fsGroupNegativeThrows() {
-        assertThatThrownBy(ProxyDeploymentDependentResource::getProxyPodFsGroup)
-                .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
-    @SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "notANumber")
-    void fsGroupInvalidThrows() {
-        assertThatThrownBy(ProxyDeploymentDependentResource::getProxyPodFsGroup)
-                .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
-    @SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "   ")
-    void fsGroupBlankThrows() {
-        assertThatThrownBy(ProxyDeploymentDependentResource::getProxyPodFsGroup)
-                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -158,33 +121,6 @@ class ProxyDeploymentTest {
 
     @Test
     void shouldNotSetFsGroupOnOpenShift() {
-        // Given
-        when(kubernetesContext.getClient().supports(SecurityContextConstraints.class)).thenReturn(true);
-        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
-
-        // When
-        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
-
-        // Then
-        assertThat(actual.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup()).isNull();
-    }
-
-    @Test
-    @SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "1000")
-    void shouldSetCustomFsGroupOnVanillaKubernetes() {
-        // Given
-        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
-
-        // When
-        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
-
-        // Then
-        assertThat(actual.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup()).isEqualTo(1000L);
-    }
-
-    @Test
-    @SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "1000")
-    void shouldNotSetFsGroupOnOpenShiftEvenWhenEnvVarSet() {
         // Given
         when(kubernetesContext.getClient().supports(SecurityContextConstraints.class)).thenReturn(true);
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();

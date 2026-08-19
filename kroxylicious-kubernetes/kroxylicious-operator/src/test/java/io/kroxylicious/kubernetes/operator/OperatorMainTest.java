@@ -53,7 +53,6 @@ import static org.mockito.Mockito.when;
 
 @EnableKubernetesMockClient(crud = true)
 @ExtendWith(MockitoExtension.class)
-@SetEnvironmentVariable(key = "PROXY_POD_FS_GROUP", value = "185")
 class OperatorMainTest {
 
     KubernetesClient kubeClient;
