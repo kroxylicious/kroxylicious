@@ -31,7 +31,6 @@ import io.kroxylicious.kafka.common.message.LeaderChangeMessage;
 import io.kroxylicious.kafka.common.message.SnapshotFooterRecord;
 import io.kroxylicious.kafka.common.message.SnapshotHeaderRecord;
 import io.kroxylicious.kafka.common.message.VotersRecord;
-import io.kroxylicious.kafka.common.network.TransferableChannel;
 import io.kroxylicious.kafka.common.record.TimestampType;
 import io.kroxylicious.kafka.common.record.internal.MemoryRecords.RecordFilter.BatchRetention;
 import io.kroxylicious.kafka.common.record.internal.MemoryRecords.RecordFilter.BatchRetentionResult;
@@ -39,7 +38,6 @@ import io.kroxylicious.kafka.common.utils.AbstractIterator;
 import io.kroxylicious.kafka.common.utils.BufferSupplier;
 import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.kafka.common.utils.CloseableIterator;
-import io.kroxylicious.kafka.common.utils.Utils;
 
 /**
  * A {@link Records} implementation backed by a ByteBuffer. This is used only for reading or
@@ -64,15 +62,6 @@ public class MemoryRecords extends AbstractRecords {
     @Override
     public int sizeInBytes() {
         return buffer.limit();
-    }
-
-    @Override
-    public int writeTo(TransferableChannel channel, int position, int length) throws IOException {
-        if (((long) position) + length > buffer.limit())
-            throw new IllegalArgumentException("position+length should not be greater than buffer.limit(), position: "
-                    + position + ", length: " + length + ", buffer.limit(): " + buffer.limit());
-
-        return Utils.tryWriteTo(channel, position, length, buffer);
     }
 
     /**

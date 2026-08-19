@@ -53,11 +53,13 @@ for root in main test; do
   COPY_ROOT="$STAGE/src/$root/java"
   mkdir -p "$COPY_ROOT"
 
-  echo "==> [$root] copying $(grep -c '\.java$' "$HERE/$root/vendored-files.txt") files from $SRC_ROOT"
+  echo "==> [$root] copying $(grep -c '^org/.*\.java$' "$HERE/$root/vendored-files.txt") files from $SRC_ROOT"
   while IFS= read -r rel; do
     # vendored-files.txt carries a license header and description before the file list; skip
-    # anything that isn't a file entry rather than relying on a particular comment style.
-    [[ "$rel" == *.java ]] || continue
+    # anything that isn't a file entry. Every real entry is org/apache/kafka/**.java — checking
+    # only a *.java suffix is not enough, since a wrapped comment line can end in a bare
+    # "Foo.java" mention (a real incident, not hypothetical).
+    [[ "$rel" == org/*.java ]] || continue
     mkdir -p "$COPY_ROOT/$(dirname "$rel")"
     cp "$SRC_ROOT/$rel" "$COPY_ROOT/$rel"
   done < "$HERE/$root/vendored-files.txt"

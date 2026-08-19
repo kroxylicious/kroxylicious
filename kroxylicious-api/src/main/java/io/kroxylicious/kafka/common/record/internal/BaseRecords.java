@@ -26,9 +26,4 @@ public interface BaseRecords {
      */
     int sizeInBytes();
 
-    /**
-     * Encapsulate this {@link BaseRecords} object into {@link RecordsSend}
-     * @return Initialized {@link RecordsSend} object
-     */
-    RecordsSend<? extends BaseRecords> toSend();
 }

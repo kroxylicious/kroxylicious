@@ -9,6 +9,19 @@
 # kafka-clients off the classpath) so the vendored tree is self-contained under
 # io.kroxylicious.kafka.common.* with no org.apache.kafka.* references left. See README.md
 # for how it was derived and when to recompute it.
+#
+# A compile-driven (or jdeps-driven) closure proves a class is needed to satisfy a signature, not
+# that any code path actually uses it, so it isn't self-correcting against over-inclusion. Seven
+# files originally in this list were found to be exactly that and have been removed:
+# CompressionRatioEstimator.java and RecordVersion.java (referenced nowhere outside themselves, in
+# either main or test), and the zero-copy send subsystem — network/Send.java,
+# network/TransferableChannel.java, record/internal/{RecordsSend,DefaultRecordsSend,
+# MultiRecordsSend}.java — which only stayed reachable because
+# BaseRecords/TransferableRecords/Records/UnalignedRecords declared a toSend()/writeTo() method
+# nothing ever calls (see main/edits.yaml). Headers.java/RecordHeaders.java looked like the same
+# kind of dead weight from main-code usage alone, but the forked MemoryRecordsTest constructs
+# RecordHeaders directly as a test fixture, so both stay — a reminder that "unreachable from main
+# code" isn't the same question as "unreachable", once main and test share one vendored tree.
 org/apache/kafka/common/InvalidRecordException.java
 org/apache/kafka/common/KafkaException.java
 org/apache/kafka/common/Uuid.java
@@ -32,8 +45,6 @@ org/apache/kafka/common/header/Headers.java
 org/apache/kafka/common/header/internals/RecordHeader.java
 org/apache/kafka/common/header/internals/RecordHeaders.java
 org/apache/kafka/common/header/package-info.java
-org/apache/kafka/common/network/Send.java
-org/apache/kafka/common/network/TransferableChannel.java
 org/apache/kafka/common/protocol/ApiMessage.java
 org/apache/kafka/common/protocol/ByteBufferAccessor.java
 org/apache/kafka/common/protocol/Message.java
@@ -60,27 +71,22 @@ org/apache/kafka/common/record/internal/AbstractRecordBatch.java
 org/apache/kafka/common/record/internal/AbstractRecords.java
 org/apache/kafka/common/record/internal/BaseRecords.java
 org/apache/kafka/common/record/internal/ByteBufferLogInputStream.java
-org/apache/kafka/common/record/internal/CompressionRatioEstimator.java
 org/apache/kafka/common/record/internal/CompressionType.java
 org/apache/kafka/common/record/internal/ControlRecordType.java
 org/apache/kafka/common/record/internal/ControlRecordUtils.java
 org/apache/kafka/common/record/internal/DefaultRecord.java
 org/apache/kafka/common/record/internal/DefaultRecordBatch.java
-org/apache/kafka/common/record/internal/DefaultRecordsSend.java
 org/apache/kafka/common/record/internal/EndTransactionMarker.java
 org/apache/kafka/common/record/internal/LegacyRecord.java
 org/apache/kafka/common/record/internal/LogInputStream.java
 org/apache/kafka/common/record/internal/MemoryRecords.java
 org/apache/kafka/common/record/internal/MemoryRecordsBuilder.java
-org/apache/kafka/common/record/internal/MultiRecordsSend.java
 org/apache/kafka/common/record/internal/MutableRecordBatch.java
 org/apache/kafka/common/record/internal/PartialDefaultRecord.java
 org/apache/kafka/common/record/internal/Record.java
 org/apache/kafka/common/record/internal/RecordBatch.java
 org/apache/kafka/common/record/internal/RecordBatchIterator.java
-org/apache/kafka/common/record/internal/RecordVersion.java
 org/apache/kafka/common/record/internal/Records.java
-org/apache/kafka/common/record/internal/RecordsSend.java
 org/apache/kafka/common/record/internal/SimpleRecord.java
 org/apache/kafka/common/record/internal/TransferableRecords.java
 org/apache/kafka/common/record/internal/UnalignedMemoryRecords.java

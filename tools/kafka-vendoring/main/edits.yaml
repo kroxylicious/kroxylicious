@@ -38,11 +38,12 @@
 
 - file: org/apache/kafka/common/utils/Utils.java
   # Only the config-machinery methods pull org.apache.kafka.common.config into the closure. The
-  # nio.file methods are pure JDK (kept); TransferableChannel/tryWriteTo are genuine records API
-  # (kept, TransferableChannel is copied faithfully).
+  # nio.file methods are pure JDK (kept). tryWriteTo is cut below along with the rest of the
+  # zero-copy send machinery it exists to support (see the comment further down this file).
   stripImports:
     - '\.config\.ConfigDef'
     - '\.config\.ConfigException'
+    - 'network\.TransferableChannel'
   removeBlocks:
     - signature: 'public static Map<String, Object> propsToMap\('
       label: Utils.propsToMap
@@ -52,6 +53,8 @@
       label: Utils.ensureConcreteSubclass
     - signature: 'public static ConfigDef mergeConfigs\('
       label: Utils.mergeConfigs
+    - signature: 'public\s+static\s+int\s+tryWriteTo\s*\(\s*TransferableChannel\s+destChannel\s*,'
+      label: Utils.tryWriteTo
 
 - file: org/apache/kafka/common/record/internal/DefaultRecordBatch.java
   stripImports:
@@ -68,3 +71,55 @@
   removeBlocks:
     - signature: 'static class LegacyFileChannelRecordBatch extends FileLogInputStream'
       label: AbstractLegacyRecordBatch.LegacyFileChannelRecordBatch
+
+# The following five entries (plus Utils.tryWriteTo above) cut Kafka's zero-copy "send to a socket
+# channel" machinery: a real broker/client concern with no relevance to a protocol data-class
+# library. Nothing in the vendored or generated code ever calls
+# BaseRecords.toSend()/TransferableRecords.writeTo() (confirmed by grepping the whole
+# main+test+generated tree for call sites, not just declarations) — they exist purely to satisfy
+# interface signatures, which is why a compile-error-driven or jdeps-driven closure both vendor the
+# whole network.Send/TransferableChannel/*RecordsSend subsystem regardless: class-level dependency
+# analysis can prove a type is needed to satisfy a signature, but not whether any code path actually
+# invokes it. Removing these interface methods (and the concrete overrides in
+# MemoryRecords/UnalignedMemoryRecords/Utils that only exist to implement them) lets
+# network/Send.java, network/TransferableChannel.java, record/internal/RecordsSend.java,
+# record/internal/DefaultRecordsSend.java and record/internal/MultiRecordsSend.java drop out of
+# main/vendored-files.txt entirely.
+- file: org/apache/kafka/common/record/internal/BaseRecords.java
+  removeBlocks:
+    - signature: 'RecordsSend<\?\s+extends\s+BaseRecords>\s+toSend\s*\(\s*\)'
+      label: BaseRecords.toSend
+
+- file: org/apache/kafka/common/record/internal/TransferableRecords.java
+  stripImports:
+    - 'java\.io\.IOException'
+    - 'network\.TransferableChannel'
+  removeBlocks:
+    - signature: 'int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
+      label: TransferableRecords.writeTo
+
+- file: org/apache/kafka/common/record/internal/AbstractRecords.java
+  removeBlocks:
+    - signature: 'public\s+DefaultRecordsSend<Records>\s+toSend\s*\(\s*\)'
+      label: AbstractRecords.toSend
+
+- file: org/apache/kafka/common/record/internal/UnalignedRecords.java
+  removeBlocks:
+    - signature: 'default\s+RecordsSend<\?\s+extends\s+BaseRecords>\s+toSend\s*\(\s*\)'
+      label: UnalignedRecords.toSend
+
+- file: org/apache/kafka/common/record/internal/MemoryRecords.java
+  stripImports:
+    - 'network\.TransferableChannel'
+  removeBlocks:
+    - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
+      label: MemoryRecords.writeTo
+
+- file: org/apache/kafka/common/record/internal/UnalignedMemoryRecords.java
+  stripImports:
+    - 'java\.io\.IOException'
+    - 'network\.TransferableChannel'
+    - 'utils\.Utils'
+  removeBlocks:
+    - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
+      label: UnalignedMemoryRecords.writeTo

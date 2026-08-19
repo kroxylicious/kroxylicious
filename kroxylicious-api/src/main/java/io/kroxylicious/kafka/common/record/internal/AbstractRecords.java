@@ -65,11 +65,6 @@ public abstract class AbstractRecords implements Records {
         return records;
     }
 
-    @Override
-    public DefaultRecordsSend<Records> toSend() {
-        return new DefaultRecordsSend<>(this);
-    }
-
     private Iterator<Record> recordsIterator() {
         return new AbstractIterator<>() {
             private final Iterator<? extends RecordBatch> batches = batches().iterator();

@@ -14,14 +14,16 @@
 # counterpart of its own. One same-named test, MultiRecordsSendTest, is deliberately NOT
 # included: its private test helper extends org.apache.kafka.common.requests.ByteBufferChannel,
 # and the whole requests package is out of scope (never vendored) for the same reason the
-# file/server classes are cut from main/edits.yaml. See README.md.
+# file/server classes are cut from main/edits.yaml. Two more same-named tests,
+# RecordHeadersTest and CompressionRatioEstimatorTest, are also NOT included: their production
+# classes (Headers, CompressionRatioEstimator) were removed from main/vendored-files.txt as
+# unreferenced. See README.md.
 org/apache/kafka/common/UuidTest.java
 org/apache/kafka/common/compress/GzipCompressionTest.java
 org/apache/kafka/common/compress/Lz4CompressionTest.java
 org/apache/kafka/common/compress/NoCompressionTest.java
 org/apache/kafka/common/compress/SnappyCompressionTest.java
 org/apache/kafka/common/compress/ZstdCompressionTest.java
-org/apache/kafka/common/header/internals/RecordHeadersTest.java
 org/apache/kafka/common/protocol/ByteBufferAccessorTest.java
 org/apache/kafka/common/protocol/MessageUtilTest.java
 org/apache/kafka/common/protocol/types/ProtocolSerializationTest.java
@@ -30,7 +32,6 @@ org/apache/kafka/common/protocol/types/StructTest.java
 org/apache/kafka/common/protocol/types/TypeTest.java
 org/apache/kafka/common/record/internal/AbstractLegacyRecordBatchTest.java
 org/apache/kafka/common/record/internal/ByteBufferLogInputStreamTest.java
-org/apache/kafka/common/record/internal/CompressionRatioEstimatorTest.java
 org/apache/kafka/common/record/internal/ControlRecordTypeTest.java
 org/apache/kafka/common/record/internal/ControlRecordUtilsTest.java
 org/apache/kafka/common/record/internal/DefaultRecordBatchTest.java

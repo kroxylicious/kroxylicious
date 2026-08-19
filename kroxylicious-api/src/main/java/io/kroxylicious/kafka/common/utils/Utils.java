@@ -91,7 +91,6 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 import io.kroxylicious.kafka.common.KafkaException;
-import io.kroxylicious.kafka.common.network.TransferableChannel;
 
 public final class Utils {
 
@@ -1322,30 +1321,6 @@ public final class Utils {
     public static void writeFully(FileChannel channel, ByteBuffer sourceBuffer) throws IOException {
         while (sourceBuffer.hasRemaining())
             channel.write(sourceBuffer);
-    }
-
-    /**
-     * Trying to write data in source buffer to a {@link TransferableChannel}, we may need to call this method multiple
-     * times since this method doesn't ensure the data in the source buffer can be fully written to the destination channel.
-     *
-     * @param destChannel The destination channel
-     * @param position From which the source buffer will be written
-     * @param length The max size of bytes can be written
-     * @param sourceBuffer The source buffer
-     *
-     * @return The length of the actual written data
-     * @throws IOException If an I/O error occurs
-     */
-    public static int tryWriteTo(TransferableChannel destChannel,
-                                 int position,
-                                 int length,
-                                 ByteBuffer sourceBuffer)
-            throws IOException {
-
-        ByteBuffer dup = sourceBuffer.duplicate();
-        dup.position(position);
-        dup.limit(position + length);
-        return destChannel.write(dup);
     }
 
     /**

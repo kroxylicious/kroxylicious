@@ -16,12 +16,8 @@
  */
 package io.kroxylicious.kafka.common.record.internal;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
-
-import io.kroxylicious.kafka.common.network.TransferableChannel;
-import io.kroxylicious.kafka.common.utils.Utils;
 
 /**
  * Represents a memory record set which is not necessarily offset-aligned
@@ -42,14 +38,6 @@ public class UnalignedMemoryRecords implements UnalignedRecords {
     @Override
     public int sizeInBytes() {
         return buffer.remaining();
-    }
-
-    @Override
-    public int writeTo(TransferableChannel channel, int position, int length) throws IOException {
-        if (((long) position) + length > buffer.limit())
-            throw new IllegalArgumentException("position+length should not be greater than buffer.limit(), position: "
-                    + position + ", length: " + length + ", buffer.limit(): " + buffer.limit());
-        return Utils.tryWriteTo(channel, position, length, buffer);
     }
 
     public static UnalignedMemoryRecords empty() {
