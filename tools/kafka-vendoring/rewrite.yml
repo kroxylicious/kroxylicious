@@ -4,19 +4,25 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-# OpenRewrite recipe used by vendor.sh to relocate the vendored Kafka support classes from
-# org.apache.kafka.common.* to io.kroxylicious.kafka.common.*. The FindSourceFiles precondition
-# path-scopes the rewrite to freshly-copied files sitting under an org/apache/kafka/** path, so it
-# never touches a module's own org.apache.kafka.* usage. ChangePackage rewrites package decls,
-# imports, fully-qualified references and relocates the files on disk to the new package path.
+# OpenRewrite recipe used by vendor.sh to relocate the vendored/forked Kafka classes from
+# org.apache.kafka.* to io.kroxylicious.kafka.*. The FindSourceFiles precondition path-scopes which
+# *files* the recipe processes (only those freshly copied under an org/apache/kafka/** path), but it
+# does NOT scope which *references within* those files get rewritten — ChangePackage with
+# recursive: true rewrites every occurrence of its oldPackageName it finds, including javadoc
+# {@link} mentions of genuinely external, non-forked Kafka classes (e.g. some vendored classes'
+# javadoc references org.apache.kafka.clients.consumer.KafkaConsumer, which we never copy). A single
+# rule rooted at the bare org.apache.kafka package would "correct" those into dangling references to
+# a class that doesn't exist under io.kroxylicious.kafka — confirmed by re-running vendor.sh and
+# diffing against the committed main tree. So this needs one explicit rule per package we actually
+# fork, not a root-level catch-all; add a new rule here if a future fork pulls from another sibling
+# package.
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: io.kroxylicious.RewriteCopiedKafka
-displayName: Relocate vendored Kafka common classes to io.kroxylicious.kafka.common
+displayName: Relocate vendored/forked Kafka classes to io.kroxylicious.kafka
 description: >-
-  Rewrites copied org.apache.kafka.common.* support classes into the
-  io.kroxylicious.kafka.common.* namespace so the vendored protocol surface references no
-  org.apache.kafka packages.
+  Rewrites copied org.apache.kafka.* classes into the io.kroxylicious.kafka.* namespace so the
+  vendored/forked surface references no org.apache.kafka packages.
 preconditions:
   - org.openrewrite.FindSourceFiles:
       filePattern: '**/org/apache/kafka/**'
@@ -24,4 +30,8 @@ recipeList:
   - org.openrewrite.java.ChangePackage:
       oldPackageName: org.apache.kafka.common
       newPackageName: io.kroxylicious.kafka.common
+      recursive: true
+  - org.openrewrite.java.ChangePackage:
+      oldPackageName: org.apache.kafka.test
+      newPackageName: io.kroxylicious.kafka.test
       recursive: true

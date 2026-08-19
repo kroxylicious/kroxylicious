@@ -732,7 +732,8 @@
                                          this exclusion only needs to work during the root-level scan. -->
                                     <exclude>kroxylicious-kafka-message-generator/src/**</exclude>
                                     <exclude>kroxylicious-kafka-message-generator/etc/**</exclude>
-                                    <exclude>kroxylicious-api/src/main/java/io/kroxylicious/kafka/common/**</exclude>
+                                    <exclude>kroxylicious-api/src/main/java/io/kroxylicious/kafka/**</exclude>
+                                    <exclude>kroxylicious-api/src/test/java/io/kroxylicious/kafka/**</exclude>
                                     <exclude>kroxylicious-api/etc/asf-license.txt</exclude>
                                     <exclude>tools/kafka-vendoring/requirements.txt</exclude>
 
@@ -1262,6 +1263,15 @@
                                         <ignoredUnusedDeclaredDependency>org.apache.kafka:kafka_2.13
                                         </ignoredUnusedDeclaredDependency>
                                     </ignoredDependencies>
+                                    <ignoredNonTestScopedDependencies>
+                                        <!-- kroxylicious-api's MessageUtil (vendored) implements jackson-core's
+                                        TreeNode directly, a compile-time-only requirement the bytecode analyzer
+                                        can't see, so it only ever detects jackson-core being used from test
+                                        bytecode (the forked MessageUtilTest) and suggests test-scoping it —
+                                        which would hide it from the main compile classpath. -->
+                                        <ignoredNonTestScopedDependency>com.fasterxml.jackson.core:jackson-core
+                                        </ignoredNonTestScopedDependency>
+                                    </ignoredNonTestScopedDependencies>
                                 </configuration>
                             </execution>
                         </executions>
@@ -1485,7 +1495,7 @@
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
                                 <!-- The following <arg> cannot be split over multiple lines :-( -->
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka/common)/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka)/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

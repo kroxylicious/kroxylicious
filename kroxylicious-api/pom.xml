@@ -45,13 +45,22 @@
             <artifactId>kafka-clients</artifactId>
         </dependency>
         <!-- Compile-scope dependencies of the vendored io.kroxylicious.kafka.common.* support
-             classes. jackson-databind backs the generated *JsonConverter classes; slf4j-api and the
-             native codecs back the vendored compress/record code. kafka-clients brings the codecs
-             transitively at runtime only, so they are declared here to lift them onto the compile
-             classpath. See tools/kafka-vendoring/README.md. -->
+             classes. jackson-databind backs the generated *JsonConverter classes; jackson-core is
+             also referenced directly (e.g. MessageUtil implements a jackson-core TreeNode-based
+             interface) rather than only transitively through jackson-databind, so it needs its own
+             explicit declaration — an explicit scope on a transitive dependency overrides Maven's
+             mediation, so declaring it test-scoped (it's also used by the forked MessageUtilTest)
+             would have hidden it from the main compile classpath. slf4j-api and the native codecs
+             back the vendored compress/record code. kafka-clients brings the codecs transitively at
+             runtime only, so they are declared here to lift them onto the compile classpath. See
+             tools/kafka-vendoring/README.md. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -183,13 +192,14 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- The vendored io.kroxylicious.kafka.common.* support classes (see
-                 tools/kafka-vendoring) are copied verbatim from Apache Kafka and carry ASF
-                 copyright headers; give them their own licenseSet with the ASF header instead of
-                 the parent's Kroxylicious header. combine.self="override" prevents the parent's
-                 licenseSet from merging in at module scope, so the Kroxylicious set below has to
-                 be restated. Mirrors kroxylicious-kafka-message-generator/pom.xml, which is fully
-                 forked and so needs no second (Kroxylicious) licenseSet. -->
+            <!-- The vendored/forked io.kroxylicious.kafka.* classes (see tools/kafka-vendoring —
+                 io.kroxylicious.kafka.common.* support classes under src/main, plus their forked
+                 Apache Kafka unit tests and test-support helper under src/test) are copied verbatim
+                 from Apache Kafka and carry ASF copyright headers; give them their own licenseSet
+                 with the ASF header instead of the parent's Kroxylicious header. combine.self="override"
+                 prevents the parent's licenseSet from merging in at module scope, so the Kroxylicious
+                 set below has to be restated. Mirrors kroxylicious-kafka-message-generator/pom.xml,
+                 which is fully forked and so needs no second (Kroxylicious) licenseSet. -->
             <plugin>
                 <groupId>com.mycila</groupId>
                 <artifactId>license-maven-plugin</artifactId>
@@ -199,7 +209,8 @@
                         <licenseSet>
                             <header>${rootdir}/etc/license.txt</header>
                             <excludes>
-                                <exclude>src/main/java/io/kroxylicious/kafka/common/**</exclude>
+                                <exclude>src/main/java/io/kroxylicious/kafka/**</exclude>
+                                <exclude>src/test/java/io/kroxylicious/kafka/**</exclude>
                                 <!-- The raw ASF header document itself; a header file is never
                                      checked against itself, but that's per-licenseSet, so with two
                                      sets it still needs excluding from this one explicitly. -->
@@ -209,7 +220,8 @@
                         <licenseSet>
                             <header>${project.basedir}/etc/asf-license.txt</header>
                             <includes>
-                                <include>src/main/java/io/kroxylicious/kafka/common/**</include>
+                                <include>src/main/java/io/kroxylicious/kafka/**</include>
+                                <include>src/test/java/io/kroxylicious/kafka/**</include>
                             </includes>
                         </licenseSet>
                     </licenseSets>
@@ -218,13 +230,14 @@
             <!-- The vendored (io.kroxylicious.kafka.common.*) and generated (…​.common.message.*)
                  Kafka protocol classes carry Kafka's own Javadoc, which does not satisfy this
                  project's doclint/failOnWarnings gate and is not something we publish API docs for.
-                 Exclude the whole common.* tree; the public Filter API (io.kroxylicious.proxy.filter)
-                 is unaffected. -->
+                 Exclude the whole io.kroxylicious.kafka.* tree; the public Filter API
+                 (io.kroxylicious.proxy.filter) is unaffected. (The maven-javadoc-plugin only
+                 processes src/main by default, so this doesn't need a src/test equivalent.) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
-                    <excludePackageNames>io.kroxylicious.kafka.common:io.kroxylicious.kafka.common.*</excludePackageNames>
+                    <excludePackageNames>io.kroxylicious.kafka:io.kroxylicious.kafka.*</excludePackageNames>
                 </configuration>
             </plugin>
             <plugin>

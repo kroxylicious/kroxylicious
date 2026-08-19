@@ -1,0 +1,53 @@
+====
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+====
+
+# The list of files copied from <kafka-checkout>/clients/src/test/java, relative to that
+# java/ source root, by vendor.sh: Apache Kafka's own unit tests for the classes vendored
+# by main/vendored-files.txt, plus org/apache/kafka/test/TestUtils.java, a shared test-support
+# helper four of these tests depend on (trimmed to the handful of methods actually used —
+# see test/edits.yaml). Derived by checking, for each main/vendored-files.txt entry, whether
+# Kafka's tree has a same-named *Test.java, plus one test (ProtocolSerializationTest) that
+# exercises several vendored protocol/types classes together and has no 1:1 production
+# counterpart of its own. One same-named test, MultiRecordsSendTest, is deliberately NOT
+# included: its private test helper extends org.apache.kafka.common.requests.ByteBufferChannel,
+# and the whole requests package is out of scope (never vendored) for the same reason the
+# file/server classes are cut from main/edits.yaml. See README.md.
+org/apache/kafka/common/UuidTest.java
+org/apache/kafka/common/compress/GzipCompressionTest.java
+org/apache/kafka/common/compress/Lz4CompressionTest.java
+org/apache/kafka/common/compress/NoCompressionTest.java
+org/apache/kafka/common/compress/SnappyCompressionTest.java
+org/apache/kafka/common/compress/ZstdCompressionTest.java
+org/apache/kafka/common/header/internals/RecordHeadersTest.java
+org/apache/kafka/common/protocol/ByteBufferAccessorTest.java
+org/apache/kafka/common/protocol/MessageUtilTest.java
+org/apache/kafka/common/protocol/types/ProtocolSerializationTest.java
+org/apache/kafka/common/protocol/types/RawTaggedFieldWriterTest.java
+org/apache/kafka/common/protocol/types/StructTest.java
+org/apache/kafka/common/protocol/types/TypeTest.java
+org/apache/kafka/common/record/internal/AbstractLegacyRecordBatchTest.java
+org/apache/kafka/common/record/internal/ByteBufferLogInputStreamTest.java
+org/apache/kafka/common/record/internal/CompressionRatioEstimatorTest.java
+org/apache/kafka/common/record/internal/ControlRecordTypeTest.java
+org/apache/kafka/common/record/internal/ControlRecordUtilsTest.java
+org/apache/kafka/common/record/internal/DefaultRecordBatchTest.java
+org/apache/kafka/common/record/internal/DefaultRecordTest.java
+org/apache/kafka/common/record/internal/EndTransactionMarkerTest.java
+org/apache/kafka/common/record/internal/LegacyRecordTest.java
+org/apache/kafka/common/record/internal/MemoryRecordsBuilderTest.java
+org/apache/kafka/common/record/internal/MemoryRecordsTest.java
+org/apache/kafka/common/utils/AbstractIteratorTest.java
+org/apache/kafka/common/utils/ByteBufferInputStreamTest.java
+org/apache/kafka/common/utils/ByteBufferOutputStreamTest.java
+org/apache/kafka/common/utils/ByteUtilsTest.java
+org/apache/kafka/common/utils/BytesTest.java
+org/apache/kafka/common/utils/ChecksumsTest.java
+org/apache/kafka/common/utils/ChunkedBytesStreamTest.java
+org/apache/kafka/common/utils/Crc32CTest.java
+org/apache/kafka/common/utils/ImplicitLinkedHashCollectionTest.java
+org/apache/kafka/common/utils/ImplicitLinkedHashMultiCollectionTest.java
+org/apache/kafka/common/utils/UtilsTest.java
+org/apache/kafka/test/TestUtils.java

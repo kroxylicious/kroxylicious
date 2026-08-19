@@ -31,11 +31,13 @@
     <suppress checks=".*"
               files="generated-sources/kafka-messages/.*"/>
 
-    <!-- Kafka protocol support classes vendored verbatim into io.kroxylicious.kafka.common.*
-         (see tools/kafka-vendoring). Copied from Apache Kafka and relocated by tooling,
-         not hand-maintained, so they do not follow Kroxylicious style conventions. -->
+    <!-- Kafka protocol support classes vendored/forked verbatim into io.kroxylicious.kafka.*
+         (see tools/kafka-vendoring): io.kroxylicious.kafka.common.* support classes, plus their
+         forked Apache Kafka unit tests and test-support helper. Copied from Apache Kafka and
+         relocated by tooling, not hand-maintained, so they do not follow Kroxylicious style
+         conventions. -->
     <suppress checks=".*"
-              files="io[/\\]kroxylicious[/\\]kafka[/\\]common[/\\].*\.java"/>
+              files="io[/\\]kroxylicious[/\\]kafka[/\\].*\.java"/>
 
     <!-- Exclude structured logging checks from test code (src/test) -->
     <suppress checks="RegexpSinglelineJava"
