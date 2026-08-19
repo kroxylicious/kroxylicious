@@ -19,8 +19,13 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
  */
 public class MountedResourceConfigProvider implements SecureConfigProvider {
 
+    /**
+     * The default octal file mode for secret volumes.
+     */
+    public static final String SECRET_VOLUME_DEFAULT_MODE = "0640";
+
     static final MountedResourceConfigProvider SECRET_PROVIDER = new MountedResourceConfigProvider("", "secrets",
-            (vb, resourceName) -> vb.withNewSecret().withSecretName(resourceName).withDefaultMode(0640).endSecret());
+            (vb, resourceName) -> vb.withNewSecret().withSecretName(resourceName).withDefaultMode(Integer.parseUnsignedInt(SECRET_VOLUME_DEFAULT_MODE, 8)).endSecret());
     static final MountedResourceConfigProvider CONFIGMAP_PROVIDER = new MountedResourceConfigProvider("", "configmaps",
             (vb, resourceName) -> vb.withNewConfigMap().withName(resourceName).endConfigMap());
 

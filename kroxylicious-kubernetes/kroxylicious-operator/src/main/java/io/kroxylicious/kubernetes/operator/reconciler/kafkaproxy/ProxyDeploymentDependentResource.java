@@ -40,6 +40,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.ProxyContainer;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.MountedResourceConfigProvider;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
@@ -77,6 +78,11 @@ public class ProxyDeploymentDependentResource
     private final String kroxyliciousImage = getOperandImage();
     /** Environment variable name that, when set, overrides the default Kroxylicious operand container image. */
     public static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
+
+    /** Environment variable name that, when set, overrides the default {@code fsGroup} in the proxy pod's security context. */
+    public static final String PROXY_POD_FS_GROUP_ENV_VAR = "PROXY_POD_FS_GROUP";
+    private static final long DEFAULT_FS_GROUP = 185L;
+    private final long fsGroup = getProxyPodFsGroup();
 
     /** Creates a new dependent resource for managing the proxy {@code Deployment}. */
     public ProxyDeploymentDependentResource() {
@@ -209,7 +215,7 @@ public class ProxyDeploymentDependentResource
                         .endSeccompProfile()
                     .endSecurityContext();
         if (!isOpenShift) {
-            specBuilder = specBuilder.editSecurityContext().withFsGroup(185L).endSecurityContext();
+            specBuilder = specBuilder.editSecurityContext().withFsGroup(fsGroup).endSecurityContext();
         }
         return specBuilder
                     .withContainers(proxyContainer(primary, kafkaProxyContext, ingressModel, clusterResolutionResults))
@@ -267,7 +273,7 @@ public class ProxyDeploymentDependentResource
                 // the check to allow 0640, matching the volume's defaultMode.
                 .addNewEnv()
                     .withName("KROXYLICIOUS_DANGEROUSLY_CHANGE_PERMISSION_CHECK")
-                    .withValue("0640")
+                    .withValue(MountedResourceConfigProvider.SECRET_VOLUME_DEFAULT_MODE)
                 .endEnv()
                 .withArgs("--config", ProxyDeploymentDependentResource.CONFIG_PATH_IN_CONTAINER)
                 // volume mount
@@ -360,6 +366,37 @@ public class ProxyDeploymentDependentResource
         catch (IOException ioe) {
             throw new IllegalStateException("Failed to open %s on classpath".formatted(name), ioe);
         }
+    }
+
+    @VisibleForTesting
+    public static long getProxyPodFsGroup() {
+        var envValue = System.getenv().get(PROXY_POD_FS_GROUP_ENV_VAR);
+        if (envValue != null && !envValue.isBlank()) {
+            try {
+                long value = Long.parseLong(envValue);
+                if (value < 0) {
+                    LOGGER.atWarn()
+                            .addKeyValue("envVar", PROXY_POD_FS_GROUP_ENV_VAR)
+                            .addKeyValue("value", envValue)
+                            .addKeyValue("default", DEFAULT_FS_GROUP)
+                            .log("Invalid value (must be non-negative), using default");
+                    return DEFAULT_FS_GROUP;
+                }
+                LOGGER.atInfo()
+                        .addKeyValue("fsGroup", value)
+                        .addKeyValue("envVar", PROXY_POD_FS_GROUP_ENV_VAR)
+                        .log("Using proxy pod fsGroup from environment variable");
+                return value;
+            }
+            catch (NumberFormatException e) {
+                LOGGER.atWarn()
+                        .addKeyValue("envVar", PROXY_POD_FS_GROUP_ENV_VAR)
+                        .addKeyValue("value", envValue)
+                        .addKeyValue("default", DEFAULT_FS_GROUP)
+                        .log("Invalid value (not a number), using default");
+            }
+        }
+        return DEFAULT_FS_GROUP;
     }
 
 }
