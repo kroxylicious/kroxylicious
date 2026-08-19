@@ -304,16 +304,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 return;
             }
             if (rri instanceof RouterResponseImpl.RespondWith rw) {
-                var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
-                header.setCorrelationId(correlationId);
-                var internalResponse = new InternalResponseFrame<>(
-                        oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
-                internalResponse.setRouteName(oobFrame.routeName());
-                ctx.channel().writeAndFlush(internalResponse).addListener(f -> {
-                    if (!f.isSuccess()) {
-                        oobFrame.promise().completeExceptionally(f.cause());
-                    }
-                });
+                writeOobResponse(ctx, rw, oobFrame, apiVersion, correlationId);
             }
             else {
                 Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
@@ -328,6 +319,20 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         finally {
             ccsm.onRoutedRequestComplete();
         }
+    }
+
+    private void writeOobResponse(ChannelHandlerContext ctx, RouterResponseImpl.RespondWith rw,
+                                  InternalRequestFrame<?> oobFrame, short apiVersion, int correlationId) {
+        var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
+        header.setCorrelationId(correlationId);
+        var internalResponse = new InternalResponseFrame<>(
+                oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
+        internalResponse.setRouteName(oobFrame.routeName());
+        ctx.channel().writeAndFlush(internalResponse).addListener(f -> {
+            if (!f.isSuccess()) {
+                oobFrame.promise().completeExceptionally(f.cause());
+            }
+        });
     }
 
     private void handleRegularCompletion(ChannelHandlerContext ctx, RouterResponse result, Throwable error,

@@ -193,9 +193,9 @@ public class ApiKeySessionProvider implements SessionProvider {
         return false;
     }
 
-    // FutureReturnValueIgnored: the failure is handled inside the callback;
-    // whenComplete(propagateResultToFuture) propagates both outcomes to the caller's future,
-    // and the derived stage can only fail if the callback itself throws.
+    // FutureReturnValueIgnored: the terminal callback propagates both the result and any
+    // failure to the caller's future, so the derived stage carries no information that
+    // is not already handled — discarding it loses nothing.
     @SuppressWarnings("FutureReturnValueIgnored")
     private void refreshCredential(CompletableFuture<Session> future) {
         var sessionRequest = createSessionAuthRequest();
