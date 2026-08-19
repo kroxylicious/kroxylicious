@@ -367,6 +367,12 @@ public class ProxyDeploymentDependentResource
         }
     }
 
+    /**
+     * Returns the {@code fsGroup} GID from the {@link #PROXY_POD_FS_GROUP_ENV_VAR} environment variable.
+     *
+     * @return the fsGroup GID
+     * @throws IllegalStateException if the environment variable is missing, blank, negative, or not a number
+     */
     @VisibleForTesting
     public static long getProxyPodFsGroup() {
         var envValue = System.getenv().get(PROXY_POD_FS_GROUP_ENV_VAR);
