@@ -25,12 +25,64 @@
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- rewrite:run forks the lifecycle through 'compile'. The staged sources deliberately do
-             not compile here (they still reference org.apache.kafka before relocation, and native
-             codec libs are off this throwaway classpath). ChangePackage is textual and needs no
-             type attribution, so we let the compile attempt fail without aborting the build. -->
+        <!-- rewrite:run forks the lifecycle through 'compile'. The staged sources still can't fully
+             compile here: they reference org.apache.kafka before relocation, which is deliberately
+             kept off this classpath (the whole point of vendoring is that these files DON'T link
+             against the real kafka-clients jar). ChangePackage is textual and needs no type
+             attribution to do package/import rewriting correctly, so we let the compile attempt
+             fail without aborting the build, rather than trying to chase full resolution. -->
         <maven.compiler.failOnError>false</maven.compiler.failOnError>
     </properties>
+
+    <!-- The third-party dependencies the vendored/forked sources actually reference (see each
+         *Test.java and the compress/ package), pinned independently of the root pom since this is
+         a standalone throwaway pom, not a reactor module. Declaring these isn't required for
+         ChangePackage's own correctness, but it gives OpenRewrite's parser a resolvable classpath
+         for everything except org.apache.kafka.* itself, so `vendor.sh`'s output no longer includes
+         a wall of unrelated "package does not exist" noise for every run — only the org.apache.kafka
+         symbols we're intentionally relocating are left unresolved. -->
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.14.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>5.14.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.22.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.23.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.18</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+            <version>1.5.6-10</version>
+        </dependency>
+        <dependency>
+            <groupId>at.yawk.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
+            <version>1.10.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+            <version>1.1.10.7</version>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
