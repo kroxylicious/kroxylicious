@@ -29,6 +29,7 @@ import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteIngress;
 import io.fabric8.openshift.api.model.RouteStatus;
+import io.fabric8.openshift.api.model.SecurityContextConstraints;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.BooleanWithUndefined;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
@@ -114,7 +115,7 @@ public class ProxyDeploymentDependentResource
                     .editOrNewSelector()
                     .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
-                    .withTemplate(podTemplate(primary, kafkaProxyContext, model.networkingModel(), model.clustersWithValidNetworking(), checksum))
+                    .withTemplate(podTemplate(primary, kafkaProxyContext, model.networkingModel(), model.clustersWithValidNetworking(), checksum, context))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -184,7 +185,8 @@ public class ProxyDeploymentDependentResource
                                         KafkaProxyContext kafkaProxyContext,
                                         ProxyNetworkingModel ingressModel,
                                         List<ClusterResolutionResult> clusterResolutionResults,
-                                        String checksum) {
+                                        String checksum,
+                                        Context<KafkaProxy> context) {
         PodTemplateSpecFluent<PodTemplateSpecBuilder>.MetadataNested<PodTemplateSpecBuilder> metadataBuilder = new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
                 .addToLabels(podLabels(primary));
@@ -192,17 +194,24 @@ public class ProxyDeploymentDependentResource
             Annotations.annotateWithReferentChecksum(metadataBuilder, checksum);
         }
 
+        // fsGroup forces a volume ownership change to the given GID on mount, which OpenShift's
+        // restricted SCC forbids (it assigns fsGroup from a per-namespace range instead).
+        boolean isOpenShift = context.getClient().supports(SecurityContextConstraints.class);
+
         // @formatter:off
-        return metadataBuilder
+        var specBuilder = metadataBuilder
                 .endMetadata()
                 .editOrNewSpec()
                     .withNewSecurityContext()
                         .withRunAsNonRoot(true)
-                        .withFsGroup(185L)
                         .withNewSeccompProfile()
                             .withType("RuntimeDefault")
                         .endSeccompProfile()
-                    .endSecurityContext()
+                    .endSecurityContext();
+        if (!isOpenShift) {
+            specBuilder = specBuilder.editSecurityContext().withFsGroup(185L).endSecurityContext();
+        }
+        return specBuilder
                     .withContainers(proxyContainer(primary, kafkaProxyContext, ingressModel, clusterResolutionResults))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
