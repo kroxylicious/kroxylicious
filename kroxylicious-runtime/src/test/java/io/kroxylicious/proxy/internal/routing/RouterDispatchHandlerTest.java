@@ -886,7 +886,7 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void executeOnEventLoopSynchronousThrowCompletesExceptionally() throws Exception {
+    void executeOnEventLoopSynchronousThrowCompletesExceptionally() {
         // Given: routes.get() throws synchronously; executor is a real single-threaded group
         // whose inEventLoop() returns false on the test thread, forcing the bridge path.
         var throwingRoutes = new HashMap<String, RouteDescriptor>() {
@@ -898,8 +898,7 @@ class RouterDispatchHandlerTest {
         var handler = new RouterDispatchHandler(router, throwingRoutes, Map.of(), ccsm, "test-cluster",
                 new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
 
-        var executorGroup = new DefaultEventExecutorGroup(1);
-        try {
+        try (var executorGroup = new DefaultEventExecutorGroup(1)) {
             // Wire ctx so that ctx.executor() returns the real (off-test-thread) executor
             var mockCtx = mock(ChannelHandlerContext.class);
             when(mockCtx.executor()).thenReturn(executorGroup.next());
@@ -911,9 +910,6 @@ class RouterDispatchHandlerTest {
 
             // Then: bridge completes exceptionally within a bounded time (not hanging)
             assertThat(stage.toCompletableFuture()).failsWithin(Duration.ofSeconds(5));
-        }
-        finally {
-            executorGroup.shutdownGracefully().syncUninterruptibly();
         }
     }
 

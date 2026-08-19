@@ -382,7 +382,7 @@ class OauthBearerValidationFilterTest {
     @Test
     void scheduleOperationThrowingSynchronouslyCompletesReturnedStageExceptionally() throws Exception {
         // Given: executor immediately runs the scheduled Runnable; operation.get() throws
-        // synchronously, exercising the schedule() catch(Exception) fix
+        // synchronously, exercising the synchronous-throw handling added to schedule
         var cause = new RuntimeException("sync throw from operation.get()");
         byte[] givenBytes = "test_bytes".getBytes(StandardCharsets.UTF_8);
         String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);

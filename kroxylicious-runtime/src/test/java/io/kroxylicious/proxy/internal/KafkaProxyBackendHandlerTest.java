@@ -165,7 +165,8 @@ class KafkaProxyBackendHandlerTest {
         final Channel channel = mock(Channel.class);
         when(handlerContext.channel()).thenReturn(channel);
         when(channel.isActive()).thenReturn(false);
-        when(channel.close()).thenReturn(mock(ChannelFuture.class));
+        ChannelFuture closeFuture = mock(ChannelFuture.class);
+        when(channel.close()).thenReturn(closeFuture);
         kafkaProxyBackendHandler.channelRegistered(handlerContext);
 
         // When
