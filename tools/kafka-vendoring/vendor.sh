@@ -20,9 +20,12 @@
 #   3. relocate org.apache.kafka.* -> io.kroxylicious.kafka.* via OpenRewrite (rewrite.yml), which
 #      also moves files to the new package path,
 #   4. sync the result into kroxylicious-api/src/$root/java,
-#   5. run `mvn process-sources` so formatter-maven-plugin/impsort-maven-plugin reformat brace
-#      style and import order to match every other module's committed source — without this the
-#      tree is functionally correct but diffs large and spuriously against the committed form.
+#   5. run `mvn process-test-sources` so formatter-maven-plugin/impsort-maven-plugin reformat
+#      brace style and import order to match every other module's committed source — without this
+#      the tree is functionally correct but diffs large and spuriously against the committed form.
+#      process-test-sources (not process-sources) is required: formatter-maven-plugin binds its
+#      test-source formatting to the process-test-sources phase, which process-sources does not
+#      reach, so src/test/java would otherwise come out unformatted.
 #
 # The generated *Data / *DataJsonConverter message classes are NOT handled here; they are produced
 # from the pinned protocol JSON specs by the build (see the module pom + kafka.message-spec.version).
@@ -84,7 +87,7 @@ for root in main test; do
   rsync -a --exclude='message/' "$REWRITTEN/" "$DEST/"
 done
 
-echo "==> formatting (mvn -pl kroxylicious-api -am process-sources)"
-( cd "$ROOT" && mvn -q -pl kroxylicious-api -am process-sources )
+echo "==> formatting (mvn -pl kroxylicious-api -am process-test-sources)"
+( cd "$ROOT" && mvn -q -pl kroxylicious-api -am process-test-sources )
 
 echo "==> done: $(find "$API_SRC/main/java/io/kroxylicious/kafka" -name '*.java' ! -path '*/message/*' | wc -l | tr -d ' ') main files, $(find "$API_SRC/test/java/io/kroxylicious/kafka" -name '*.java' | wc -l | tr -d ' ') test files"
