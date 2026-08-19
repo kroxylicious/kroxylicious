@@ -1,0 +1,8 @@
+title: "ci(release): remove legacy `quay.io/kroxylicious/kroxylicious` image push"
+type: removed
+issues:
+  - 3895
+important_notes:
+  - |
+    The deprecated `quay.io/kroxylicious/kroxylicious` proxy container image is no longer published.
+    Use `quay.io/kroxylicious/proxy` instead.
