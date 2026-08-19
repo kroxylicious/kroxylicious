@@ -41,7 +41,8 @@ class KeystoreCredentialManagerTest {
             keyStore.load(fis, KEYSTORE_PASSWORD.toCharArray());
         }
 
-        assertThat(keyStore.size()).isZero();
+        assertThat(manager.listUsers(keystorePath, KEYSTORE_PASSWORD)).isEmpty();
+        assertThat(keyStore.containsAlias(KeystoreCredentialManager.PHANTOM_SALT_KEY_ALIAS)).isTrue();
     }
 
     @Test

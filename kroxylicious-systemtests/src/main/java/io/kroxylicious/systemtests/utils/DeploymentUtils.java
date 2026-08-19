@@ -39,7 +39,7 @@ import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.client.dsl.ListVisitFromServerGetDeleteRecreateWaitApplicable;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
-import io.skodjob.testframe.utils.TestFrameUtils;
+import io.skodjob.kubetest4j.utils.KubeTestUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -322,7 +322,7 @@ public class DeploymentUtils {
             final String resourceType = operatorFile.getName().split("\\.")[1];
 
             if (resourceType.equals(Constants.NAMESPACE)) {
-                Namespace namespace = TestFrameUtils.configFromYaml(operatorFile, Namespace.class);
+                Namespace namespace = KubeTestUtils.configFromYaml(operatorFile, Namespace.class);
                 if (!isNamespaceCreated(namespace.getMetadata().getName())) {
                     NamespaceUtils.createNamespaceAndPrepare(namespace.getMetadata().getName());
                 }

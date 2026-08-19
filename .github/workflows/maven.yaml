@@ -59,12 +59,12 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
         with:
           javaVersion: ${{ matrix.java.version }}
           javaDistro: ${{ matrix.java.distro }}
       - name: Setup Minikube
-        uses: ./.github/actions/common/setup-minikube
+        uses: $/.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Test for unpublished reference release (japicmp)'
@@ -72,7 +72,7 @@ jobs:
           REFERENCE_RELEASE=$(mvn --quiet --projects kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
           echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Unit test all modules'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -110,11 +110,65 @@ jobs:
             -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./.github/actions/common/slack-notification
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The maven workflow failed on branch ${{ github.ref_name }}.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}
+
+  compute_pom_version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+      - name: 'Check out repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Setup Java
+        uses: $/.github/actions/common/setup-java
+      - name: 'Cache Maven packages'
+        uses: $/.github/actions/common/cache-maven-packages
+      - name: 'Determine project version'
+        id: version
+        run: echo "version=$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
+
+  build_container_images:
+    needs: compute_pom_version
+    uses: $/.github/workflows/build-kroxylicious-container-images.yaml
+    with:
+      push-images: ${{ github.event_name == 'push' }}
+      multi-arch: ${{ github.event_name == 'push' }}
+      additional-tags: ${{ github.event_name == 'push' && needs.compute_pom_version.outputs.version || '' }}
+    secrets:
+      REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
+  container_images_slack_notification:
+    runs-on: ubuntu-latest
+    needs: build_container_images
+    if: failure() && github.event_name == 'push'
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+      - name: 'Test for Slack secret'
+        env:
+          KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+        run: |
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+      - name: Slack Notification on Failure
+        if: env.SLACK_WEBHOOK_SET == 'true'
+        uses: $/.github/actions/common/slack-notification
+        with:
+          slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+          slackTitle: 'Failure Alert: ${{ github.repository }}'
+          slackMessage: 'The container image build failed on branch ${{ github.ref_name }}.'
           serverUrl: ${{ github.server_url }}
           repository: ${{ github.repository }}
           runId: ${{ github.run_id }}

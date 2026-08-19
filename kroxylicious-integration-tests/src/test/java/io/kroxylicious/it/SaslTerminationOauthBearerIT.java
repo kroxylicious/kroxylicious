@@ -14,14 +14,17 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -33,6 +36,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.security.oauthbearer.internals.secured.VerificationKeyResolverFactory;
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.jose4j.jwk.PublicJsonWebKey;
 import org.jose4j.jws.AlgorithmIdentifiers;
@@ -51,6 +55,8 @@ import io.kroxylicious.filter.sasl.termination.SaslTermination;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.scram.credentialstore.keystore.KeystoreCredentialManager;
+import io.kroxylicious.scram.credentialstore.keystore.KeystoreScramCredentialStoreService;
 import io.kroxylicious.testing.filter.assertj.KafkaAssertions;
 import io.kroxylicious.testing.filter.jws.JwsTestUtils;
 import io.kroxylicious.testing.integration.Request;
@@ -82,6 +88,10 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
         System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG,
                 TOKEN_ENDPOINT_URL + "," + TOKEN_ENDPOINT_URL_OTHER_ISSUER);
     }
+
+    private static final String TEST_USERNAME = "alice";
+    private static final String TEST_PASSWORD = "alice-secret-password-123";
+    private static final String KEYSTORE_PASSWORD = "keystore-password-secret-456";
 
     KafkaCluster cluster;
 
@@ -366,6 +376,39 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
         }
     }
 
+    @Test
+    void shouldAuthenticateWithBothScramAndOauthMechanisms(
+                                                           @TempDir Path tempDir)
+            throws Exception {
+
+        // Given
+        Path keystorePath = tempDir.resolve("credentials.jks");
+        var credentialManager = new KeystoreCredentialManager();
+        credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
+        credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
+
+        var saslTermination = createMultiMechanismFilter(keystorePath, KEYSTORE_PASSWORD);
+        var config = proxy(cluster)
+                .addToFilterDefinitions(saslTermination)
+                .addToDefaultFilters(saslTermination.name());
+
+        try (var tester = kroxyliciousTester(config)) {
+            // When/Then — SCRAM client
+            try (var scramAdmin = tester.admin(createScramClientConfigs(TEST_USERNAME, TEST_PASSWORD))) {
+                assertThat(scramAdmin.describeCluster().nodes())
+                        .succeedsWithin(10, TimeUnit.SECONDS)
+                        .isNotNull();
+            }
+
+            // When/Then — OAuth client
+            try (var oauthAdmin = tester.admin(getClientConfig(TOKEN_ENDPOINT_URL))) {
+                assertThat(oauthAdmin.describeCluster().nodes())
+                        .succeedsWithin(10, TimeUnit.SECONDS)
+                        .isNotNull();
+            }
+        }
+    }
+
     private NamedFilterDefinition createOauthTerminationFilter() {
         return createOauthTerminationFilterWithConfig(
                 JWKS_ENDPOINT_URL,
@@ -400,6 +443,34 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
                                 "expectedIssuer", EXPECTED_ISSUER)),
                         "maxTimeBeforeReauth", maxTimeBeforeReauth.toSeconds() + "s")
                 .build();
+    }
+
+    private NamedFilterDefinition createMultiMechanismFilter(Path keystorePath, String keystorePassword) {
+        return new NamedFilterDefinitionBuilder(
+                SaslTermination.class.getSimpleName(),
+                SaslTermination.class.getName())
+                .withConfig("mechanisms", List.of(
+                        Map.of("mechanism", "SCRAM-SHA-256",
+                                "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
+                                "credentialStoreConfig", Map.of(
+                                        "file", keystorePath.toString(),
+                                        "storePassword", Map.of("password", keystorePassword))),
+                        Map.of("mechanism", "OAUTHBEARER",
+                                "jwksEndpointUrl", JWKS_ENDPOINT_URL,
+                                "expectedAudience", EXPECTED_AUDIENCE,
+                                "expectedIssuer", EXPECTED_ISSUER)))
+                .build();
+    }
+
+    private Map<String, Object> createScramClientConfigs(String username, String password) {
+        String jaasConfig = String.format(
+                "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\";",
+                username, password);
+        return new HashMap<>(Map.of(
+                CommonClientConfigs.CLIENT_ID_CONFIG, "scram-test-client",
+                CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
+                SaslConfigs.SASL_MECHANISM, "SCRAM-SHA-256",
+                SaslConfigs.SASL_JAAS_CONFIG, jaasConfig));
     }
 
     private String getAccessToken() throws IOException, InterruptedException {
