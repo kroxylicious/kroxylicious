@@ -158,7 +158,6 @@
                                 <argument>ApiMessageTypeGenerator</argument>
                                 <argument>-m</argument>
                                 <argument>MessageDataGenerator</argument>
-                                <argument>JsonConverterGenerator</argument>
                             </arguments>
                         </configuration>
                     </execution>
