@@ -1129,7 +1129,7 @@
                                 <artifactItem>
                                     <groupId>org.apache.kafka</groupId>
                                     <artifactId>kafka-clients</artifactId>
-                                    <version>${kafka.message-spec.version}</version>
+                                    <version>${kafka.version}</version>
                                     <overWrite>false</overWrite>
                                     <includes>common/message/*.json</includes>
                                     <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
