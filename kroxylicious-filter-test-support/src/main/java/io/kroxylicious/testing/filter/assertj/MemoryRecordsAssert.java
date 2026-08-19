@@ -19,16 +19,36 @@ import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.assertj.core.api.IterableAssert;
 
+/**
+ * AssertJ assertions for {@link MemoryRecords}.
+ */
 public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, MemoryRecords> {
+    /**
+     * Constructs an assertion for the given MemoryRecords.
+     *
+     * @param memoryRecords the actual MemoryRecords
+     */
     protected MemoryRecordsAssert(MemoryRecords memoryRecords) {
         super(memoryRecords, MemoryRecordsAssert.class);
         describedAs(memoryRecords == null ? "null memory records" : "memory records");
     }
 
+    /**
+     * Creates an assertion for the given MemoryRecords.
+     *
+     * @param actual the actual MemoryRecords
+     * @return the assertion
+     */
     public static MemoryRecordsAssert assertThat(MemoryRecords actual) {
         return new MemoryRecordsAssert(actual);
     }
 
+    /**
+     * Verifies that the MemoryRecords have the expected size in bytes.
+     *
+     * @param expected the expected size in bytes
+     * @return this assertion
+     */
     public MemoryRecordsAssert hasSizeInBytes(int expected) {
         isNotNull();
         Assertions.assertThat(actual.sizeInBytes())
@@ -37,12 +57,22 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
         return this;
     }
 
+    /**
+     * Creates an iterable assertion over the batches.
+     *
+     * @return the batches assertion
+     */
     public IterableAssert<? extends RecordBatch> batchesIterable() {
         isNotNull();
         return IterableAssert.assertThatIterable(actual.batches())
                 .describedAs("batches");
     }
 
+    /**
+     * Returns an iterable of assertions, one for each batch.
+     *
+     * @return the batch assertions
+     */
     public Iterable<RecordBatchAssert> batches() {
         isNotNull();
         return () -> {
@@ -61,6 +91,11 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
         };
     }
 
+    /**
+     * Verifies that there is at least one batch and creates an assertion for the first one.
+     *
+     * @return the first batch assertion
+     */
     public RecordBatchAssert firstBatch() {
         isNotNull();
         isNotEmpty();
@@ -69,6 +104,11 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
                 .describedAs("first batch");
     }
 
+    /**
+     * Verifies that there is at least one batch and creates an assertion for the last one.
+     *
+     * @return the last batch assertion
+     */
     public RecordBatchAssert lastBatch() {
         isNotNull();
         isNotEmpty();
@@ -83,6 +123,12 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
                 .hasSizeGreaterThan(0);
     }
 
+    /**
+     * Verifies that the MemoryRecords contain the expected number of batches.
+     *
+     * @param expected the expected number of batches
+     * @return this assertion
+     */
     public MemoryRecordsAssert hasNumBatches(int expected) {
         isNotNull();
         Assertions.assertThat(actual.batches())
@@ -91,6 +137,12 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
         return this;
     }
 
+    /**
+     * Verifies that the batches contain the expected numbers of records.
+     *
+     * @param expected the expected number of records of each batch, in order
+     * @return this assertion
+     */
     public MemoryRecordsAssert hasBatchSizes(int... expected) {
         isNotNull();
         List<Integer> actualCounts = new ArrayList<>();

@@ -57,10 +57,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class MockFilterContext implements FilterContext {
 
+    /** Channel descriptor used unless overridden on the builder. */
     public static final String DEFAULT_CHANNEL_DESCRIPTOR = "channelDescriptor";
+    /** Session id used unless overridden on the builder. */
     public static final String DEFAULT_SESSION_ID = "sessionId";
+    /** SNI hostname used unless overridden on the builder. */
     public static final String DEFAULT_SNI_HOSTNAME = "sniHostname";
+    /** Virtual cluster name used unless overridden on the builder. */
     public static final String DEFAULT_VIRTUAL_CLUSTER_NAME = "virtualCluster";
+    /** Authenticated subject used unless overridden on the builder. */
     public static final Subject DEFAULT_AUTHENTICATED_SUBJECT = Subject.anonymous();
 
     private static TopicNameMappingException notConfiguredException() {
@@ -120,10 +125,20 @@ public class MockFilterContext implements FilterContext {
         this.authenticatedSubject = authenticatedSubject;
     }
 
+    /**
+     * Creates a builder for a MockFilterContext handling the given request or response.
+     *
+     * @param header the header of the message being filtered
+     * @param message the body of the message being filtered
+     * @return the builder
+     */
     public static MockFilterContextBuilder builder(ApiMessage header, ApiMessage message) {
         return new MockFilterContextBuilder(header, message);
     }
 
+    /**
+     * Builder for {@link MockFilterContext} instances.
+     */
     public static class MockFilterContextBuilder {
         private final ApiMessage header;
         private final ApiMessage message;
@@ -140,6 +155,12 @@ public class MockFilterContext implements FilterContext {
         private Subject authenticatedSubject = DEFAULT_AUTHENTICATED_SUBJECT;
         private final List<MockSendRequestResponse> sendRequestResponses = Lists.newArrayList();
 
+        /**
+         * Constructs a builder for a MockFilterContext handling the given request or response.
+         *
+         * @param header the header of the message being filtered
+         * @param message the body of the message being filtered
+         */
         public MockFilterContextBuilder(ApiMessage header, ApiMessage message) {
             Objects.requireNonNull(header, "header must not be null");
             Objects.requireNonNull(message, "message not be null");
@@ -147,6 +168,11 @@ public class MockFilterContext implements FilterContext {
             this.message = message;
         }
 
+        /**
+         * Builds the MockFilterContext.
+         *
+         * @return the MockFilterContext
+         */
         public MockFilterContext build() {
             return new MockFilterContext(header,
                     message,
@@ -162,6 +188,12 @@ public class MockFilterContext implements FilterContext {
                     sendRequestResponses);
         }
 
+        /**
+         * Configures the topic id to name mappings returned by {@link FilterContext#topicNames(Collection)}.
+         *
+         * @param topicNames the topic id to name mappings
+         * @return this builder
+         */
         public MockFilterContextBuilder withTopicNames(Map<Uuid, String> topicNames) {
             Objects.requireNonNull(topicNames);
             for (Map.Entry<Uuid, String> entry : topicNames.entrySet()) {
@@ -170,6 +202,13 @@ public class MockFilterContext implements FilterContext {
             return this;
         }
 
+        /**
+         * Configures a topic id to name mapping returned by {@link FilterContext#topicNames(Collection)}.
+         *
+         * @param topicId the topic id
+         * @param topicName the topic name
+         * @return this builder
+         */
         public MockFilterContextBuilder withTopicName(Uuid topicId, String topicName) {
             Objects.requireNonNull(topicId);
             Objects.requireNonNull(topicName);
@@ -183,29 +222,60 @@ public class MockFilterContext implements FilterContext {
             return this;
         }
 
+        /**
+         * Configures the SNI hostname reported by the context.
+         *
+         * @param sniHostname the SNI hostname, may be null
+         * @return this builder
+         */
         public MockFilterContextBuilder withSniHostname(@Nullable String sniHostname) {
             this.sniHostname = sniHostname;
             return this;
         }
 
+        /**
+         * Configures the session id reported by the context.
+         *
+         * @param sessionId the session id
+         * @return this builder
+         */
         public MockFilterContextBuilder withSessionId(String sessionId) {
             Objects.requireNonNull(sessionId);
             this.sessionId = sessionId;
             return this;
         }
 
+        /**
+         * Configures the channel descriptor reported by the context.
+         *
+         * @param channelDescriptor the channel descriptor
+         * @return this builder
+         */
         public MockFilterContextBuilder withChannelDescriptor(String channelDescriptor) {
             Objects.requireNonNull(channelDescriptor);
             this.channelDescriptor = channelDescriptor;
             return this;
         }
 
+        /**
+         * Configures the virtual cluster name reported by the context.
+         *
+         * @param virtualClusterName the virtual cluster name
+         * @return this builder
+         */
         public MockFilterContextBuilder withVirtualClusterName(String virtualClusterName) {
             Objects.requireNonNull(virtualClusterName);
             this.virtualClusterName = virtualClusterName;
             return this;
         }
 
+        /**
+         * Configures the context with a client SASL context with the given mechanism and authorization id.
+         *
+         * @param mechanismName the SASL mechanism name
+         * @param authorizationId the authorization id
+         * @return this builder
+         */
         public MockFilterContextBuilder withClientSaslContext(String mechanismName, String authorizationId) {
             Objects.requireNonNull(mechanismName);
             Objects.requireNonNull(authorizationId);
@@ -213,27 +283,58 @@ public class MockFilterContext implements FilterContext {
             return this;
         }
 
+        /**
+         * Configures the client SASL context reported by the context.
+         *
+         * @param clientSaslContext the client SASL context, may be null
+         * @return this builder
+         */
         public MockFilterContextBuilder withClientSaslContext(@Nullable ClientSaslContext clientSaslContext) {
             this.clientSaslContext = clientSaslContext;
             return this;
         }
 
+        /**
+         * Configures the context with a client TLS context with the given certificates.
+         *
+         * @param proxyServerCertificate the certificate presented by the proxy to the client
+         * @param clientCertificate the certificate presented by the client, may be null
+         * @return this builder
+         */
         public MockFilterContextBuilder withClientTlsContext(X509Certificate proxyServerCertificate, @Nullable X509Certificate clientCertificate) {
             this.clientTlsContext = new MockClientTlsContext(proxyServerCertificate, clientCertificate);
             return this;
         }
 
+        /**
+         * Configures the client TLS context reported by the context.
+         *
+         * @param context the client TLS context
+         * @return this builder
+         */
         public MockFilterContextBuilder withClientTlsContext(ClientTlsContext context) {
             this.clientTlsContext = context;
             return this;
         }
 
+        /**
+         * Configures the authenticated subject reported by the context.
+         *
+         * @param subject the authenticated subject
+         * @return this builder
+         */
         public MockFilterContextBuilder withAuthenticatedSubject(Subject subject) {
             Objects.requireNonNull(subject);
             this.authenticatedSubject = subject;
             return this;
         }
 
+        /**
+         * Enqueues a response to be returned by the next invocation of {@link FilterContext#sendRequest(RequestHeaderData, ApiMessage)}.
+         *
+         * @param response the response to return
+         * @return this builder
+         */
         public MockFilterContextBuilder withSendRequestResponseEnqueued(ApiMessage response) {
             sendRequestResponses.add(new MockSendRequestResponse(header -> {
             }, body -> {
@@ -241,6 +342,15 @@ public class MockFilterContext implements FilterContext {
             return this;
         }
 
+        /**
+         * Enqueues a response to be returned by the next invocation of {@link FilterContext#sendRequest(RequestHeaderData, ApiMessage)},
+         * validating that the header and request passed to sendRequest are equal to the expected ones.
+         *
+         * @param expectedHeader the header expected to be passed to sendRequest
+         * @param expectedRequest the request expected to be passed to sendRequest
+         * @param response the response to return
+         * @return this builder
+         */
         public MockFilterContextBuilder withSendRequestResponseEnqueued(ApiMessage expectedHeader, ApiMessage expectedRequest, ApiMessage response) {
             sendRequestResponses.add(new MockSendRequestResponse(header -> {
                 if (!expectedHeader.equals(header)) {
@@ -254,6 +364,13 @@ public class MockFilterContext implements FilterContext {
             return this;
         }
 
+        /**
+         * Configures a topic id to fail with the given exception when passed to {@link FilterContext#topicNames(Collection)}.
+         *
+         * @param topicId the topic id
+         * @param exception the exception the mapping fails with
+         * @return this builder
+         */
         public MockFilterContextBuilder withTopicNameError(Uuid topicId, TopicNameMappingException exception) {
             Objects.requireNonNull(topicId);
             Objects.requireNonNull(exception);
@@ -316,10 +433,20 @@ public class MockFilterContext implements FilterContext {
         return CompletableFuture.completedFuture(new MockRequestFilterResult(false, header, request, false, false));
     }
 
+    /**
+     * Returns the invocations of {@link FilterContext#sendRequest(RequestHeaderData, ApiMessage)} recorded by this context.
+     *
+     * @return the recorded invocations
+     */
     public List<SendRequestInvocation> sendRequestInvocations() {
         return List.copyOf(sendRequestInvocations);
     }
 
+    /**
+     * Returns the client SASL authentication gestures recorded by this context.
+     *
+     * @return the recorded gestures
+     */
     public List<ClientSaslGestureInvocation> clientSaslGestureInvocations() {
         return List.copyOf(clientSaslGestureInvocations);
     }
@@ -432,6 +559,14 @@ public class MockFilterContext implements FilterContext {
                                            boolean drop)
             implements RequestFilterResult {}
 
+    /**
+     * A RequestFilterResult capturing the inputs of an errorResponse invocation on the RequestFilterResultBuilder.
+     *
+     * @param header the request header passed to errorResponse
+     * @param message the request message passed to errorResponse
+     * @param apiException the exception passed to errorResponse
+     * @param closeConnection whether the connection should be closed
+     */
     public record MockErrorRequestFilterResult(ApiMessage header,
                                                ApiMessage message,
                                                ApiException apiException,
@@ -602,13 +737,35 @@ public class MockFilterContext implements FilterContext {
         }
     }
 
+    /**
+     * A recorded invocation of {@link FilterContext#sendRequest(RequestHeaderData, ApiMessage)}.
+     *
+     * @param header the header passed to sendRequest
+     * @param request the request passed to sendRequest
+     */
     public record SendRequestInvocation(ApiMessage header, ApiMessage request) {
 
     }
 
+    /**
+     * A recorded client SASL authentication gesture.
+     */
     public sealed interface ClientSaslGestureInvocation {
+        /**
+         * A recorded invocation of {@link FilterContext#clientSaslAuthenticationSuccess(String, Subject)}.
+         *
+         * @param mechanism the SASL mechanism
+         * @param subject the authenticated subject
+         */
         record AuthenticationSuccess(String mechanism, Subject subject) implements ClientSaslGestureInvocation {}
 
+        /**
+         * A recorded invocation of {@link FilterContext#clientSaslAuthenticationFailure(String, String, Exception)}.
+         *
+         * @param mechanism the SASL mechanism, may be null
+         * @param authorizedId the authorization id, may be null
+         * @param exception the exception describing the failure
+         */
         record AuthenticationFailure(@Nullable String mechanism, @Nullable String authorizedId, Exception exception) implements ClientSaslGestureInvocation {}
     }
 }
