@@ -89,7 +89,7 @@ Consider the following:
   SCRAM credentials must be managed using the SCRAM credential tool instead.
 * Unlike SASL Passthrough Inspection, SASL Termination enforces authentication at the proxy: clients that fail authentication are rejected before their application requests are forwarded to the broker.
 
-Infrastructure requirements depend on the mechanism: `OAUTHBEARER` requires a reachable JWKS endpoint that provides the public keys used to verify JWT signatures; `SCRAM-SHA-256` and `SCRAM-SHA-512` require a credential store such as a PKCS#12 KeyStore.
+Infrastructure requirements depend on the mechanism: `OAUTHBEARER` requires a reachable JWKS endpoint that provides the public keys used to verify JWT signatures; `SCRAM-SHA-256` and `SCRAM-SHA-512` require a credential store containing SCRAM credentials for your users.
 
 == Combining approaches
 
@@ -133,5 +133,5 @@ This can be useful when you want transport-level identity as a baseline and appl
 |Yes (from SASL exchange)
 |Yes (proxy validates directly)
 |Yes (`SaslTermination` filter)
-|JWKS endpoint (OAUTHBEARER) or credential store (SCRAM)
+|JWKS endpoint (OAUTHBEARER) or SCRAM credential store (SCRAM)
 |===
