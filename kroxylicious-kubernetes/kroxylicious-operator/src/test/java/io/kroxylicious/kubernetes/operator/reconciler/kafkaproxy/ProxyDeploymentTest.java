@@ -49,9 +49,11 @@ import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDep
 import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.PROXY_POD_FS_GROUP_ENV_VAR;
 import static io.kroxylicious.kubernetes.operator.resolver.DependencyResolver.EMPTY_RESOLUTION_RESULT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "185")
 class ProxyDeploymentTest {
 
     private static final String PROXY_NAME = "kproxy";
@@ -85,8 +87,9 @@ class ProxyDeploymentTest {
 
     @Test
     @ClearEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR)
-    void fsGroupDefault() {
-        assertThat(ProxyDeploymentDependentResource.getProxyPodFsGroup()).isEqualTo(185L);
+    void fsGroupMissingThrows() {
+        assertThatThrownBy(ProxyDeploymentDependentResource::getProxyPodFsGroup)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -97,20 +100,23 @@ class ProxyDeploymentTest {
 
     @Test
     @SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "-1")
-    void fsGroupNegativeFallsBackToDefault() {
-        assertThat(ProxyDeploymentDependentResource.getProxyPodFsGroup()).isEqualTo(185L);
+    void fsGroupNegativeThrows() {
+        assertThatThrownBy(ProxyDeploymentDependentResource::getProxyPodFsGroup)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     @SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "notANumber")
-    void fsGroupInvalidFallsBackToDefault() {
-        assertThat(ProxyDeploymentDependentResource.getProxyPodFsGroup()).isEqualTo(185L);
+    void fsGroupInvalidThrows() {
+        assertThatThrownBy(ProxyDeploymentDependentResource::getProxyPodFsGroup)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     @SetEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR, value = "   ")
-    void fsGroupBlankFallsBackToDefault() {
-        assertThat(ProxyDeploymentDependentResource.getProxyPodFsGroup()).isEqualTo(185L);
+    void fsGroupBlankThrows() {
+        assertThatThrownBy(ProxyDeploymentDependentResource::getProxyPodFsGroup)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -139,7 +145,6 @@ class ProxyDeploymentTest {
     }
 
     @Test
-    @ClearEnvironmentVariable(key = PROXY_POD_FS_GROUP_ENV_VAR)
     void shouldSetFsGroupOnVanillaKubernetes() {
         // Given
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();

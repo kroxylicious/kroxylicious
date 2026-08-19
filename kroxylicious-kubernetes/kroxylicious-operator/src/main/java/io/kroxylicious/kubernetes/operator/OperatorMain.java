@@ -35,6 +35,7 @@ import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaprotocolfilter.KafkaProtocolFilterReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxyingress.KafkaProxyIngressReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.KafkaServiceReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
@@ -140,6 +141,8 @@ public class OperatorMain {
      * Starts the operator instance and returns once that has completed successfully.
      */
     void start() {
+        ProxyDeploymentDependentResource.getProxyPodFsGroup();
+
         operator.installShutdownHook(Duration.ofSeconds(10));
 
         // Create SharedInformerManager to share informer caches across reconcilers

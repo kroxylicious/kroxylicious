@@ -79,9 +79,8 @@ public class ProxyDeploymentDependentResource
     /** Environment variable name that, when set, overrides the default Kroxylicious operand container image. */
     public static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
-    /** Environment variable name that, when set, overrides the default {@code fsGroup} in the proxy pod's security context. */
+    /** Environment variable name that specifies the {@code fsGroup} in the proxy pod's security context. */
     public static final String PROXY_POD_FS_GROUP_ENV_VAR = "PROXY_POD_FS_GROUP";
-    private static final long DEFAULT_FS_GROUP = 185L;
     private final long fsGroup = getProxyPodFsGroup();
 
     /** Creates a new dependent resource for managing the proxy {@code Deployment}. */
@@ -371,32 +370,20 @@ public class ProxyDeploymentDependentResource
     @VisibleForTesting
     public static long getProxyPodFsGroup() {
         var envValue = System.getenv().get(PROXY_POD_FS_GROUP_ENV_VAR);
-        if (envValue != null && !envValue.isBlank()) {
-            try {
-                long value = Long.parseLong(envValue);
-                if (value < 0) {
-                    LOGGER.atWarn()
-                            .addKeyValue("envVar", PROXY_POD_FS_GROUP_ENV_VAR)
-                            .addKeyValue("value", envValue)
-                            .addKeyValue("default", DEFAULT_FS_GROUP)
-                            .log("Invalid value (must be non-negative), using default");
-                    return DEFAULT_FS_GROUP;
-                }
-                LOGGER.atInfo()
-                        .addKeyValue("fsGroup", value)
-                        .addKeyValue("envVar", PROXY_POD_FS_GROUP_ENV_VAR)
-                        .log("Using proxy pod fsGroup from environment variable");
-                return value;
-            }
-            catch (NumberFormatException e) {
-                LOGGER.atWarn()
-                        .addKeyValue("envVar", PROXY_POD_FS_GROUP_ENV_VAR)
-                        .addKeyValue("value", envValue)
-                        .addKeyValue("default", DEFAULT_FS_GROUP)
-                        .log("Invalid value (not a number), using default");
-            }
+        if (envValue == null || envValue.isBlank()) {
+            throw new IllegalStateException("Environment variable %s must be set".formatted(PROXY_POD_FS_GROUP_ENV_VAR));
         }
-        return DEFAULT_FS_GROUP;
+        long value;
+        try {
+            value = Long.parseLong(envValue);
+        }
+        catch (NumberFormatException e) {
+            throw new IllegalStateException("Environment variable %s must be a number, got: %s".formatted(PROXY_POD_FS_GROUP_ENV_VAR, envValue), e);
+        }
+        if (value < 0) {
+            throw new IllegalStateException("Environment variable %s must be non-negative, got: %s".formatted(PROXY_POD_FS_GROUP_ENV_VAR, envValue));
+        }
+        return value;
     }
 
 }
