@@ -83,23 +83,7 @@ Then, once for the whole staged tree:
    previously-vendored/forked tree first.
 5. **Format** by running `mvn -pl kroxylicious-api -am process-test-sources`, so the
    build's `formatter-maven-plugin`/`impsort-maven-plugin` are applied. The raw
-   vendored output is not what gets committed. `process-test-sources`, not
-   `process-sources`, is required: `formatter-maven-plugin` binds its test-source
-   formatting to the later `process-test-sources` phase, so stopping at
-   `process-sources` would leave `src/test/java` unformatted.
-
-```console
-$ ./vendor.sh /path/to/apache/kafka
-==> [main] copying 93 files from …/clients/src/main/java
-==> [main] applying edits (main/edits.yaml)
-==> [test] copying 36 files from …/clients/src/test/java
-==> [test] applying edits (test/edits.yaml)
-==> relocating packages with OpenRewrite (org.apache.kafka -> io.kroxylicious.kafka)
-==> [main] syncing into …/kroxylicious-api/src/main/java/io/kroxylicious/kafka
-==> [test] syncing into …/kroxylicious-api/src/test/java/io/kroxylicious/kafka
-==> formatting (mvn -pl kroxylicious-api -am process-test-sources)
-==> done: 93 main files, 36 test files
-```
+   vendored output is not what gets committed.
 
 After running, rebuild and verify the module (`mvn -pl kroxylicious-api -am verify`)
 and commit the changed tree.
