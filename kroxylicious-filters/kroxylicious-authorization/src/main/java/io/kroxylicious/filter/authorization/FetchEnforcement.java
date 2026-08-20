@@ -12,20 +12,18 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
-
-import static org.apache.kafka.common.requests.FetchResponse.partitionResponse;
 
 class FetchEnforcement extends ApiEnforcement<FetchRequestData, FetchResponseData> {
 
@@ -140,6 +138,14 @@ class FetchEnforcement extends ApiEnforcement<FetchRequestData, FetchResponseDat
                         .setTopic(t.topic())
                         .setTopicId(t.topicId())
                         .setPartitions(t.partitions().stream().map(p -> partitionResponse(p.partition(), Errors.TOPIC_AUTHORIZATION_FAILED)).toList()));
+    }
+
+    private static FetchResponseData.PartitionData partitionResponse(int partition, Errors error) {
+        return new FetchResponseData.PartitionData()
+                .setPartitionIndex(partition)
+                .setErrorCode(error.code())
+                .setHighWatermark(-1L)
+                .setRecords(MemoryRecords.EMPTY);
     }
 
 }

@@ -11,21 +11,20 @@ import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import org.apache.kafka.common.message.FindCoordinatorRequestData;
-import org.apache.kafka.common.message.FindCoordinatorResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.FindCoordinatorRequest;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.authorizer.service.ResourceType;
+import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
+import io.kroxylicious.kafka.common.message.FindCoordinatorResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.CoordinatorType;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-import static org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType.GROUP;
-import static org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType.TRANSACTION;
-import static org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType.forId;
+import static io.kroxylicious.kafka.common.protocol.CoordinatorType.GROUP;
+import static io.kroxylicious.kafka.common.protocol.CoordinatorType.TRANSACTION;
+import static io.kroxylicious.kafka.common.protocol.CoordinatorType.forId;
 
 /**
  * Enforces authorization of the FindCoordinator API, requiring {@link GroupResource#DESCRIBE}
@@ -75,7 +74,7 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
         if (!AUTHORIZABLE.contains(request.keyType())) {
             return context.forwardRequest(header, request);
         }
-        FindCoordinatorRequest.CoordinatorType coordinatorType = forId(request.keyType());
+        CoordinatorType coordinatorType = forId(request.keyType());
         List<String> keys;
         if (usesBatching(header)) {
             keys = request.coordinatorKeys();
@@ -127,7 +126,7 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
                 });
     }
 
-    private static FindCoordinatorResponseData errorResponse(List<String> keys, boolean usesBatching, FindCoordinatorRequest.CoordinatorType coordinatorType) {
+    private static FindCoordinatorResponseData errorResponse(List<String> keys, boolean usesBatching, CoordinatorType coordinatorType) {
         Errors errorType = switch (coordinatorType) {
             case GROUP -> Errors.GROUP_AUTHORIZATION_FAILED;
             case TRANSACTION -> Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED;

@@ -11,13 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
-import org.apache.kafka.common.message.ProduceResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +20,13 @@ import io.kroxylicious.filter.validation.validators.request.ProduceRequestValida
 import io.kroxylicious.filter.validation.validators.topic.PartitionValidationResult;
 import io.kroxylicious.filter.validation.validators.topic.RecordValidationFailure;
 import io.kroxylicious.filter.validation.validators.topic.TopicValidationResult;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData.TopicProduceData;
+import io.kroxylicious.kafka.common.message.ProduceResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;

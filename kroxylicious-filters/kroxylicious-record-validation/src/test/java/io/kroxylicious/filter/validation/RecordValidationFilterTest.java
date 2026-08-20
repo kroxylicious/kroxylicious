@@ -14,12 +14,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.UnknownTopicIdException;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ProduceResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -31,10 +25,16 @@ import io.kroxylicious.filter.validation.validators.request.ProduceRequestValida
 import io.kroxylicious.filter.validation.validators.topic.PartitionValidationResult;
 import io.kroxylicious.filter.validation.validators.topic.RecordValidationFailure;
 import io.kroxylicious.filter.validation.validators.topic.TopicValidationResult;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.errors.UnknownTopicIdException;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.ProduceResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.testing.filter.assertj.MockFilterContextAssert;
 import io.kroxylicious.testing.filter.context.MockFilterContext;
 
-import static org.apache.kafka.common.message.ProduceRequestData.HIGHEST_SUPPORTED_VERSION;
+import static io.kroxylicious.kafka.common.message.ProduceRequestData.HIGHEST_SUPPORTED_VERSION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
