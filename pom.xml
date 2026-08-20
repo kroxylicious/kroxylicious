@@ -1202,6 +1202,7 @@
                     <publishingServerId>central</publishingServerId>
                     <waitMaxTime>3600</waitMaxTime>
                     <skipPublishing>${central.publishing.skip}</skipPublishing>
+                    <checksums>required</checksums>
                 </configuration>
             </plugin>
         </plugins>
