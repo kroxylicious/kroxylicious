@@ -29,6 +29,7 @@ import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteIngress;
 import io.fabric8.openshift.api.model.RouteStatus;
+import io.fabric8.openshift.api.model.SecurityContextConstraints;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.BooleanWithUndefined;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
@@ -39,6 +40,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.ProxyContainer;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.MountedResourceConfigProvider;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
@@ -76,6 +78,8 @@ public class ProxyDeploymentDependentResource
     private final String kroxyliciousImage = getOperandImage();
     /** Environment variable name that, when set, overrides the default Kroxylicious operand container image. */
     public static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
+    /** GID of the {@code kroxylicious} user in the default proxy container image ({@code proxy.dockerfile}). */
+    private static final long PROXY_IMAGE_GID = 185L;
 
     /** Creates a new dependent resource for managing the proxy {@code Deployment}. */
     public ProxyDeploymentDependentResource() {
@@ -114,7 +118,7 @@ public class ProxyDeploymentDependentResource
                     .editOrNewSelector()
                     .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
-                    .withTemplate(podTemplate(primary, kafkaProxyContext, model.networkingModel(), model.clustersWithValidNetworking(), checksum))
+                    .withTemplate(podTemplate(primary, kafkaProxyContext, model.networkingModel(), model.clustersWithValidNetworking(), checksum, context))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -184,7 +188,8 @@ public class ProxyDeploymentDependentResource
                                         KafkaProxyContext kafkaProxyContext,
                                         ProxyNetworkingModel ingressModel,
                                         List<ClusterResolutionResult> clusterResolutionResults,
-                                        String checksum) {
+                                        String checksum,
+                                        Context<KafkaProxy> context) {
         PodTemplateSpecFluent<PodTemplateSpecBuilder>.MetadataNested<PodTemplateSpecBuilder> metadataBuilder = new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
                 .addToLabels(podLabels(primary));
@@ -192,8 +197,16 @@ public class ProxyDeploymentDependentResource
             Annotations.annotateWithReferentChecksum(metadataBuilder, checksum);
         }
 
+        // fsGroup makes secret volumes accessible to the container process. Kubernetes chowns
+        // mounted volume files to the fsGroup GID and adds it as a supplementary group to all
+        // container processes, so the specific value does not need to match the image's GID.
+        // See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
+        // OpenShift's restricted SCC forbids explicit fsGroup; instead it assigns one automatically
+        // from the namespace's supplemental-groups range, so the same mechanism still applies.
+        boolean isOpenShift = context.getClient().supports(SecurityContextConstraints.class);
+
         // @formatter:off
-        return metadataBuilder
+        var specBuilder = metadataBuilder
                 .endMetadata()
                 .editOrNewSpec()
                     .withNewSecurityContext()
@@ -201,7 +214,11 @@ public class ProxyDeploymentDependentResource
                         .withNewSeccompProfile()
                             .withType("RuntimeDefault")
                         .endSeccompProfile()
-                    .endSecurityContext()
+                    .endSecurityContext();
+        if (!isOpenShift) {
+            specBuilder = specBuilder.editSecurityContext().withFsGroup(PROXY_IMAGE_GID).endSecurityContext();
+        }
+        return specBuilder
                     .withContainers(proxyContainer(primary, kafkaProxyContext, ingressModel, clusterResolutionResults))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
@@ -251,6 +268,14 @@ public class ProxyDeploymentDependentResource
                     .withReadOnlyRootFilesystem(true)
                 .endSecurityContext()
                 .withTerminationMessagePolicy("FallbackToLogsOnError")
+                // Kubernetes mounts secret volumes with 0640 permissions (set via defaultMode
+                // in MountedResourceConfigProvider). The keystore credential store checks file
+                // permissions and rejects group-readable files by default. This env var relaxes
+                // the check to allow 0640, matching the volume's defaultMode.
+                .addNewEnv()
+                    .withName("KROXYLICIOUS_DANGEROUSLY_CHANGE_PERMISSION_CHECK")
+                    .withValue(MountedResourceConfigProvider.SECRET_VOLUME_DEFAULT_MODE)
+                .endEnv()
                 .withArgs("--config", ProxyDeploymentDependentResource.CONFIG_PATH_IN_CONTAINER)
                 // volume mount
                 .addNewVolumeMount()
