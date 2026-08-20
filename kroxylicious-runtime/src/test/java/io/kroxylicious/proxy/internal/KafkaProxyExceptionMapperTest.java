@@ -64,8 +64,15 @@ class KafkaProxyExceptionMapperTest {
     }
 
     public static Stream<Arguments> decodedFrameSourceOldestVersion() {
+        // DESCRIBE_LOG_DIRS v1 has no field capable of carrying a generic error: the top-level
+        // ErrorCode field was only added at v3, and the response's per-directory Results are
+        // populated from the broker's own state, not from the request, so getErrorResponse()
+        // can't attach the error anywhere at this version.
+        var apiKeys = RequestFactory.supportedApiKeys().stream()
+                .filter(apiKey -> !(apiKey == ApiKeys.DESCRIBE_LOG_DIRS && apiKey.oldestVersion() == 1))
+                .toArray(ApiKeys[]::new);
         return RequestFactory
-                .apiMessageFor(ApiKeys::oldestVersion)
+                .apiMessageFor(ApiKeys::oldestVersion, apiKeys)
                 .map(KafkaProxyExceptionMapperTest::toDecodedFrame)
                 .map(Arguments::of);
     }

@@ -36,6 +36,8 @@ import io.kroxylicious.kafka.common.message.DeleteTopicsRequestData;
 import io.kroxylicious.kafka.common.message.DescribeAclsRequestData;
 import io.kroxylicious.kafka.common.message.DescribeGroupsRequestData;
 import io.kroxylicious.kafka.common.message.DescribeShareGroupOffsetsRequestData;
+import io.kroxylicious.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
 import io.kroxylicious.kafka.common.message.InitProducerIdRequestData;
 import io.kroxylicious.kafka.common.message.InitializeShareGroupStateRequestData;
 import io.kroxylicious.kafka.common.message.LeaveGroupRequestData;
@@ -86,6 +88,8 @@ public class RequestFactory {
 
     static {
         messagePopulators.put(ApiKeys.PRODUCE, RequestFactory::populateProduceRequest);
+        messagePopulators.put(ApiKeys.FETCH, RequestFactory::populateFetchRequest);
+        messagePopulators.put(ApiKeys.FIND_COORDINATOR, RequestFactory::populateFindCoordinatorRequest);
         messagePopulators.put(ApiKeys.LIST_OFFSETS, RequestFactory::populateListOffsetsRequest);
         messagePopulators.put(ApiKeys.OFFSET_FETCH, RequestFactory::populateOffsetFetchRequest);
         messagePopulators.put(ApiKeys.METADATA, RequestFactory::populateMetadataRequest);
@@ -218,6 +222,30 @@ public class RequestFactory {
         topicProduceData.setPartitionData(List.of(produceData));
         v.add(topicProduceData);
         produceRequestData.setTopicData(v);
+    }
+
+    private static void populateFetchRequest(ApiMessage apiMessage, short apiVersion) {
+        final FetchRequestData fetchRequestData = (FetchRequestData) apiMessage;
+        final FetchRequestData.FetchPartition partition = new FetchRequestData.FetchPartition();
+        partition.setPartition(0);
+        partition.setFetchOffset(0);
+        final FetchRequestData.FetchTopic topic = new FetchRequestData.FetchTopic();
+        topic.setTopic(MobyNamesGenerator.getRandomName());
+        topic.setTopicId(Uuid.ONE_UUID);
+        topic.setPartitions(List.of(partition));
+        fetchRequestData.setReplicaId(-1);
+        fetchRequestData.setTopics(List.of(topic));
+    }
+
+    private static void populateFindCoordinatorRequest(ApiMessage apiMessage, short apiVersion) {
+        final FindCoordinatorRequestData findCoordinatorRequestData = (FindCoordinatorRequestData) apiMessage;
+        final String key = MobyNamesGenerator.getRandomName();
+        if (apiVersion <= 3) {
+            findCoordinatorRequestData.setKey(key);
+        }
+        else {
+            findCoordinatorRequestData.setCoordinatorKeys(List.of(key));
+        }
     }
 
     private static void populateListOffsetsRequest(ApiMessage apiMessage, short apiVersion) {

@@ -53,7 +53,7 @@
         <jackson.version>2.22.1</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.4</junit.version>
-        <kafka.version>4.2.0</kafka.version>
+        <kafka.version>4.3.0</kafka.version>
         <kafka.message-spec.version>4.3.0</kafka.message-spec.version>
         <zstd-jni.version>1.5.6-10</zstd-jni.version>
         <lz4-java.version>1.10.1</lz4-java.version>
