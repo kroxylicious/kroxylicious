@@ -35,8 +35,8 @@ import io.kroxylicious.filter.sasl.termination.SaslTermination;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.scram.credentialstore.keystore.KeystoreCredentialManager;
-import io.kroxylicious.scram.credentialstore.keystore.KeystoreScramCredentialStoreService;
+import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileManager;
+import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileService;
 import io.kroxylicious.testing.filter.assertj.KafkaAssertions;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -71,7 +71,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -124,7 +124,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -154,7 +154,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -184,7 +184,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -215,7 +215,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -262,7 +262,7 @@ class SaslTerminationScramIT extends BaseIT {
                 .withConfig("mechanisms", List.of(
                         Map.of(
                                 "mechanism", "SCRAM-SHA-256",
-                                "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
+                                "credentialStore", ScramCredentialFileService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
                                         "storePassword", Map.of("password", KEYSTORE_PASSWORD)))),
@@ -289,7 +289,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Generate KeyStore with test credentials for SHA-512
         Path keystorePath = tempDir.resolve("credentials-512.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_512);
 
@@ -332,7 +332,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given — credential stored as SHA-256, client uses SHA-512
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -362,7 +362,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given — proxy only supports SCRAM-SHA-256, client requests PLAIN
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -398,7 +398,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -426,7 +426,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -460,7 +460,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -488,7 +488,7 @@ class SaslTerminationScramIT extends BaseIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -518,7 +518,7 @@ class SaslTerminationScramIT extends BaseIT {
                 .withConfig("mechanisms", List.of(
                         Map.of(
                                 "mechanism", mechanism,
-                                "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
+                                "credentialStore", ScramCredentialFileService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
                                         "storePassword", Map.of("password", KEYSTORE_PASSWORD)))))

@@ -23,7 +23,7 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>kroxylicious-scram-credential-store-provider-keystore</module>
+        <module>kroxylicious-scram-credential-store-provider-file</module>
     </modules>
 
     <build>
