@@ -17,11 +17,16 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Abstraction for request and response encoders.
+ * @param <F> The type of frame encoded.
  */
 abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder<F> {
     @Nullable
     private final KafkaMessageListener listener;
 
+    /**
+     * Constructs a message encoder.
+     * @param listener Listener notified of each encoded message, or null.
+     */
     protected KafkaMessageEncoder(@Nullable KafkaMessageListener listener) {
         this.listener = listener;
     }
@@ -33,6 +38,10 @@ abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder
      * so we had control over buffer allocation
      */
 
+    /**
+     * The logger of the concrete encoder.
+     * @return The logger.
+     */
     protected abstract Logger log();
 
     /**

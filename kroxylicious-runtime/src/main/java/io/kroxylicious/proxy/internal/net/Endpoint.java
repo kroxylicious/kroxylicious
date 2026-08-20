@@ -17,14 +17,36 @@ import java.util.Optional;
  * @param tls true if TLS is in use for this endpoint.
  */
 public record Endpoint(Optional<String> bindingAddress, int port, boolean tls) {
+    /**
+     * Creates an endpoint.
+     *
+     * @param bindingAddress address of the interface to which the endpoint is bound.  {@link Optional#empty()} indicates the 'any' address.
+     * @param port port number
+     * @param tls true if TLS is in use for this endpoint.
+     */
     public Endpoint {
         Objects.requireNonNull(bindingAddress);
     }
 
+    /**
+     * Creates an endpoint bound to a specific interface.
+     *
+     * @param bindingAddress address of the interface to which the endpoint is bound.  {@link Optional#empty()} indicates the 'any' address.
+     * @param port port number
+     * @param tls true if TLS is in use for this endpoint.
+     * @return the endpoint
+     */
     public static Endpoint createEndpoint(Optional<String> bindingAddress, int port, boolean tls) {
         return new Endpoint(bindingAddress, port, tls);
     }
 
+    /**
+     * Creates an endpoint bound to the 'any' address.
+     *
+     * @param port port number
+     * @param tls true if TLS is in use for this endpoint.
+     * @return the endpoint
+     */
     public static Endpoint createEndpoint(int port, boolean tls) {
         return createEndpoint(Optional.empty(), port, tls);
     }

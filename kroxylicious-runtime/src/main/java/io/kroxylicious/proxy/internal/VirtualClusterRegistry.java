@@ -123,6 +123,9 @@ public class VirtualClusterRegistry implements AutoCloseable {
      * {@code initialize()} runs on a non-event-loop thread regardless of which thread invoked
      * {@code reconfigure()}.
      *
+     * @param config the configuration containing the virtual cluster definition
+     * @param clusterName the name of the virtual cluster to build a model for
+     * @return the resolved model
      * @throws RuntimeException the same RuntimeException the underlying resolver threw
      */
     public VirtualClusterModel resolveModel(Configuration config, String clusterName) {
@@ -228,6 +231,7 @@ public class VirtualClusterRegistry implements AutoCloseable {
      *   <li>Failed → Stopped (fires callback with cause)</li>
      *   <li>Stopped → Stopped (no-op)</li>
      * </ul>
+     * @return the failures, if any, encountered while stopping the clusters
      */
     public List<Throwable> shutdownAllClusters() {
         var clusterFutures = entriesByCluster.entrySet().stream()
@@ -406,6 +410,8 @@ public class VirtualClusterRegistry implements AutoCloseable {
     /**
      * Attempts to register a new connection for {@code clusterName}.
      *
+     * @param clusterName the virtual cluster name
+     * @param ccsm the state machine of the connection being registered
      * @return {@code true} iff the cluster is known to this registry AND its lifecycle is in a
      *         state that accepts new connections (i.e. {@code SERVING}). An unknown cluster is
      *         treated as a rejection rather than an error so that {@code KafkaProxyInitializer}'s
@@ -431,6 +437,8 @@ public class VirtualClusterRegistry implements AutoCloseable {
      * Decrements the active-connections count for {@code clusterName} if
      * the cluster is no longer known to this registry. Called from a Netty channel-close
      * listener, which can race against entry removal in a future cleanup-on-{@code Stopped}
+     * @param clusterName the virtual cluster name
+     * @param ccsm the state machine of the connection being deregistered
      */
     public void deregisterConnection(String clusterName, ClientConnectionStateMachine ccsm) {
         var entry = entriesByCluster.get(clusterName);

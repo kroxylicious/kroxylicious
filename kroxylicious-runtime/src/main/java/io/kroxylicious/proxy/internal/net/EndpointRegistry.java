@@ -78,7 +78,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class EndpointRegistry implements EndpointReconciler, EndpointBindingResolver, AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EndpointRegistry.class);
+    /** Exception message used when a channel has no binding map attached. */
     public static final String NO_CHANNEL_BINDINGS_MESSAGE = "No channel bindings found for channel";
+    /** Exception message used when a null virtual cluster is passed to the registry. */
     public static final String VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE = "virtualCluster cannot be null";
 
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
@@ -90,6 +92,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      */
     private static final AtomicInteger SYNTHETIC_PORT_COUNTER = new AtomicInteger(-1);
 
+    /** Channel attribute holding the map of virtual node id to endpoint binding attached to each acceptor channel. */
     protected static final AttributeKey<Map<ProxyNodeId, EndpointBinding>> CHANNEL_BINDINGS = AttributeKey.newInstance("channelBindings");
 
     private record ReconciliationRecord(Map<Integer, HostPort> upstreamNodeMap, CompletionStage<Void> reconciliationStage) {
@@ -145,6 +148,11 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      */
     private final Map<ProxyNodeId, ListeningChannelRecord> virtualNodeIndex = new ConcurrentHashMap<>();
 
+    /**
+     * Creates an endpoint registry.
+     *
+     * @param bindingOperationProcessor processor that will execute the network binding operations emitted by this registry
+     */
     public EndpointRegistry(NetworkBindingOperationProcessor bindingOperationProcessor) {
         this.bindingOperationProcessor = bindingOperationProcessor;
     }

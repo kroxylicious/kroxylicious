@@ -7,5 +7,9 @@ package io.kroxylicious.proxy.config.admin;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+/**
+ * Enables the Prometheus scrape endpoint on the management HTTP server. Its presence in the
+ * configuration is what enables the endpoint; there are currently no further options.
+ */
 @JsonSerialize
 public record PrometheusMetricsConfig() {}

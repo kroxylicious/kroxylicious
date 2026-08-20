@@ -23,6 +23,12 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  * populated from route descriptors during {@code VirtualClusterModel} construction. An empty map is
  * used when no TLS resources have been resolved (e.g. in test contexts without a
  * {@code PluginFactoryRegistry}).
+ *
+ * @param routerName the name of the router plugin instance that chooses routes
+ * @param routeDescriptors the descriptors of the available routes, keyed by route name
+ * @param nodeIdMapping the mapping between target-cluster node IDs and virtual node IDs
+ * @param routerChainFactory the factory used to create router instances; owned and closed by this record
+ * @param routeClusterModels the per-route upstream cluster models, keyed by route name
  */
 public record DynamicRouting(
                              String routerName,
@@ -34,6 +40,11 @@ public record DynamicRouting(
 
     /**
      * Production constructor: computes the {@link NodeIdMapping} from the supplied route descriptors.
+     *
+     * @param routerName the name of the router plugin instance that chooses routes
+     * @param routeDescriptors the descriptors of the available routes, keyed by route name
+     * @param routerChainFactory the factory used to create router instances; owned and closed by this record
+     * @param routeClusterModels the per-route upstream cluster models, keyed by route name
      */
     public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors,
                           RouterChainFactory routerChainFactory, Map<String, UpstreamClusterModel> routeClusterModels) {
@@ -43,12 +54,19 @@ public record DynamicRouting(
     /**
      * Test-only constructor: uses an empty cluster model map.
      * Production code should supply fully-built {@link UpstreamClusterModel} instances.
+     *
+     * @param routerName the name of the router plugin instance that chooses routes
+     * @param routeDescriptors the descriptors of the available routes, keyed by route name
+     * @param routerChainFactory the factory used to create router instances; owned and closed by this record
      */
     @VisibleForTesting
     public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors, RouterChainFactory routerChainFactory) {
         this(routerName, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, Map.of());
     }
 
+    /**
+     * Validates all components and takes defensive copies of the maps.
+     */
     public DynamicRouting {
         Objects.requireNonNull(routerName, "routerName");
         Objects.requireNonNull(routeDescriptors, "routeDescriptors");
@@ -59,6 +77,12 @@ public record DynamicRouting(
         routeClusterModels = Map.copyOf(routeClusterModels);
     }
 
+    /**
+     * Creates a router instance for the given virtual cluster.
+     *
+     * @param clusterName the name of the virtual cluster
+     * @return the router
+     */
     public Router createRouter(String clusterName) {
         return routerChainFactory.createRouter(routerName, clusterName);
     }

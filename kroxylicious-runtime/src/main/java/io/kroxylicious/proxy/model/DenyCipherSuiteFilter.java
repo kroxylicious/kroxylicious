@@ -29,6 +29,11 @@ public final class DenyCipherSuiteFilter implements CipherSuiteFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DenyCipherSuiteFilter.class);
 
+    /**
+     * Constructs a DenyCipherSuiteFilter.
+     *
+     * @param deniedCiphers cipher suite names to exclude from the negotiable set; a null value is treated as an empty set.
+     */
     public DenyCipherSuiteFilter(@Nullable Set<String> deniedCiphers) {
         this.deniedCiphers = deniedCiphers == null ? new HashSet<>() : deniedCiphers;
     }

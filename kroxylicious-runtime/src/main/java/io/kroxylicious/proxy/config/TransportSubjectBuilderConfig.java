@@ -14,5 +14,12 @@ import io.kroxylicious.proxy.plugin.PluginImplName;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Configures how a virtual cluster builds the client's subject from transport-level
+ * information (such as a TLS client certificate).
+ *
+ * @param type the {@link TransportSubjectBuilderService} plugin implementation name
+ * @param config optional plugin-specific configuration
+ */
 public record TransportSubjectBuilderConfig(@PluginImplName(TransportSubjectBuilderService.class) @JsonProperty(required = true) String type,
                                             @Nullable @PluginImplConfig(implNameProperty = "type") Object config) {}

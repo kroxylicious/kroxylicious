@@ -56,6 +56,7 @@ public sealed interface VirtualClusterLifecycleState {
 
         /**
          * The cluster is being shut down or reconfigured.
+         * @param drainTimeout the maximum time to wait for in-flight requests to complete
          * @return the new draining state
          */
         public Draining toDraining(Duration drainTimeout) {
@@ -63,7 +64,11 @@ public sealed interface VirtualClusterLifecycleState {
         }
     }
 
-    /** New connections are rejected. Existing in-flight requests are completing. */
+    /**
+     * New connections are rejected. Existing in-flight requests are completing.
+     *
+     * @param drainTimeout the maximum time to wait for in-flight requests to complete
+     */
     record Draining(Duration drainTimeout) implements VirtualClusterLifecycleState {
 
         /**
@@ -76,9 +81,16 @@ public sealed interface VirtualClusterLifecycleState {
 
     }
 
-    /** Configuration was not viable. All resources have been released. */
+    /**
+     * Configuration was not viable. All resources have been released.
+     *
+     * @param cause the reason the configuration could not be applied
+     */
     record Failed(Throwable cause) implements VirtualClusterLifecycleState {
 
+        /**
+         * Validates that a failure cause is always present.
+         */
         public Failed {
             Objects.requireNonNull(cause);
         }
@@ -92,6 +104,10 @@ public sealed interface VirtualClusterLifecycleState {
         }
     }
 
-    /** Terminal state. The cluster has been permanently removed. */
+    /**
+     * Terminal state. The cluster has been permanently removed.
+     *
+     * @param priorFailureCause the failure that preceded the stop, retained for diagnostics, or null if the cluster stopped without failing
+     */
     record Stopped(@Nullable Throwable priorFailureCause) implements VirtualClusterLifecycleState {}
 }

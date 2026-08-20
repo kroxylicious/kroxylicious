@@ -357,18 +357,39 @@ public record Configuration(
         });
     }
 
+    /**
+     * The micrometer configuration hook definitions.
+     *
+     * @return the configured micrometer definitions, or an empty list if none were configured
+     */
     public List<MicrometerDefinition> getMicrometer() {
         return micrometer() == null ? List.of() : micrometer();
     }
 
+    /**
+     * Whether the proxy should use the io_uring based Netty transport.
+     *
+     * @return true if io_uring is to be used
+     */
     public boolean isUseIoUring() {
         return useIoUring();
     }
 
+    /**
+     * The effective PROXY protocol mode.
+     *
+     * @return the configured mode, or {@link ProxyProtocolMode#DISABLED} if no PROXY protocol configuration was given
+     */
     public ProxyProtocolMode proxyProtocolMode() {
         return proxyProtocol != null ? proxyProtocol.mode() : ProxyProtocolMode.DISABLED;
     }
 
+    /**
+     * Builds the runtime {@link VirtualClusterModel} for every virtual cluster in this configuration.
+     *
+     * @param pfr registry used to resolve plugin (e.g. filter and router) implementations
+     * @return the virtual cluster models
+     */
     public List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
         var filterDefinitionsByName = buildFilterDefinitionsByName();
         var routersByName = buildDefinitionsByName(routerDefinitions, RouterDefinition::name);
@@ -391,6 +412,9 @@ public record Configuration(
      * other than the one requested. Used by {@code OperationsPlanner} so a reconfigure that
      * targets one cluster doesn't orphan-initialise the filters of unrelated clusters.
      *
+     * @param pfr registry used to resolve plugin (e.g. filter and router) implementations
+     * @param clusterName name of the virtual cluster whose model is to be built
+     * @return the virtual cluster model for the named cluster
      * @throws IllegalArgumentException if no virtual cluster with that name exists in this configuration
      */
     public VirtualClusterModel virtualClusterModel(PluginFactoryRegistry pfr, String clusterName) {

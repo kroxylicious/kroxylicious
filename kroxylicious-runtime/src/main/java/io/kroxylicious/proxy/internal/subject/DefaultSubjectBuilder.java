@@ -17,9 +17,19 @@ import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 
+/**
+ * Subject builder used by the default subject builder services. It builds a
+ * {@link Subject} by applying each configured {@link PrincipalAdder} to the
+ * authentication context and collecting the resulting principals.
+ */
 public class DefaultSubjectBuilder implements TransportSubjectBuilder, SaslSubjectBuilder {
     private final List<PrincipalAdder> adders;
 
+    /**
+     * Constructor.
+     *
+     * @param adders the principal adders used to derive principals from the authentication context.
+     */
     public DefaultSubjectBuilder(List<PrincipalAdder> adders) {
         this.adders = adders;
     }

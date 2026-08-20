@@ -23,6 +23,8 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.openshift.api.model.SecurityContextConstraints;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
 
@@ -106,6 +108,31 @@ class ProxyDeploymentTest {
     }
 
     @Test
+    void shouldSetFsGroupOnVanillaKubernetes() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
+
+        // Then
+        assertThat(actual.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup()).isEqualTo(185L);
+    }
+
+    @Test
+    void shouldNotSetFsGroupOnOpenShift() {
+        // Given
+        when(kubernetesContext.getClient().supports(SecurityContextConstraints.class)).thenReturn(true);
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
+
+        // Then
+        assertThat(actual.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup()).isNull();
+    }
+
+    @Test
     void shouldSpecifySecCompProfile() {
         // Given
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
@@ -159,6 +186,8 @@ class ProxyDeploymentTest {
         var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of(clusterResolutionResultFor(virtualKafkaCluster)));
 
         Context<KafkaProxy> context = mock(Context.class);
+        KubernetesClient client = mock(KubernetesClient.class);
+        when(context.getClient()).thenReturn(client);
         resourceContext = new DefaultManagedWorkflowAndDependentResourceContext<>(null, kafkaProxy, context);
         configureProxyModel(proxyModel);
         when(context.managedWorkflowAndDependentResourceContext()).thenReturn(resourceContext);

@@ -43,6 +43,11 @@ public class RoutingTerminalHandler extends ChannelDuplexHandler {
     private final ClientConnectionStateMachine ccsm;
     private final Map<Integer, String> correlationIdToRoute = new HashMap<>();
 
+    /**
+     * Creates a routing terminal handler.
+     *
+     * @param ccsm the state machine for the client connection that routed frames are forwarded to
+     */
     public RoutingTerminalHandler(ClientConnectionStateMachine ccsm) {
         this.ccsm = requireNonNull(ccsm);
     }

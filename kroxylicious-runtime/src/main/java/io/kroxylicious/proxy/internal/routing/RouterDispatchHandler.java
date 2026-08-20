@@ -104,6 +104,17 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
     record PendingResponse(CompletableFuture<ApiMessage> future, String route) {}
 
+    /**
+     * Creates a dispatch handler with a private (non-shared) upstream node address cache.
+     *
+     * @param router the router plugin instance that dynamic requests are dispatched to
+     * @param routes the resolved routes of the router, keyed by route name
+     * @param staticRoutes API keys that bypass the router, mapped to the route name they are forwarded on
+     * @param ccsm the state machine for the client connection
+     * @param virtualClusterName the name of the virtual cluster (used for logging)
+     * @param nodeIdMapping the mapping between upstream and virtual node IDs
+     * @param nodeId the virtual node ID targeted by this connection, or null for bootstrap connections
+     */
     public RouterDispatchHandler(Router router,
                                  Map<String, RouteDescriptor> routes,
                                  Map<ApiKeys, String> staticRoutes,
@@ -114,6 +125,18 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         this(router, routes, staticRoutes, new HashMap<>(), ccsm, virtualClusterName, nodeIdMapping, nodeId);
     }
 
+    /**
+     * Creates a dispatch handler using the supplied (possibly shared) upstream node address cache.
+     *
+     * @param router the router plugin instance that dynamic requests are dispatched to
+     * @param routes the resolved routes of the router, keyed by route name
+     * @param staticRoutes API keys that bypass the router, mapped to the route name they are forwarded on
+     * @param sharedNodeAddresses cache of upstream node addresses keyed by virtual node ID
+     * @param ccsm the state machine for the client connection
+     * @param virtualClusterName the name of the virtual cluster (used for logging)
+     * @param nodeIdMapping the mapping between upstream and virtual node IDs
+     * @param nodeId the virtual node ID targeted by this connection, or null for bootstrap connections
+     */
     public RouterDispatchHandler(Router router,
                                  Map<String, RouteDescriptor> routes,
                                  Map<ApiKeys, String> staticRoutes,
@@ -163,6 +186,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     /**
      * Returns the upstream address for the given virtual node ID, as learned from the most
      * recent internal METADATA response. Returns empty if the address has not been cached yet.
+     *
+     * @param virtualNodeId the virtual node ID to resolve
+     * @return the upstream address of the node, or empty if not yet known
      */
     public Optional<HostPort> resolveRouterNodeAddress(int virtualNodeId) {
         return Optional.ofNullable(routerNodeAddresses.get(virtualNodeId));

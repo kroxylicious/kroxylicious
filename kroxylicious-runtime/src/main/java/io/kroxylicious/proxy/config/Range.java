@@ -15,6 +15,9 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  * Represents the set of integers between two integer endpoints. So the Range
  * with startInclusive 1 and endExclusive 3 contains the integers 1 and 2.
  * A Range must be non-empty, endExclusive must be greater than startInclusive
+ *
+ * @param startInclusive the (inclusive) initial value
+ * @param endExclusive the exclusive upper bound
  */
 public record Range(int startInclusive, int endExclusive) {
 

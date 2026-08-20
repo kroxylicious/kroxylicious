@@ -29,6 +29,7 @@ import org.apache.kafka.common.security.oauthbearer.BrokerJwtValidator;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.apache.kafka.common.security.oauthbearer.internals.OAuthBearerSaslServerProvider;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
+import org.apache.kafka.common.security.scram.internals.ScramSaslServerProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,6 +168,7 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
                     oauthMaxAuthBytes = oauthConfig.effectiveMaxAuthBytes();
                 }
                 case ScramMechanismConfig scramConfig -> {
+                    ScramSaslServerProvider.initialize();
                     ScramCredentialStoreService<Object> service = initScramCredentialStoreService(scramConfig, context);
                     closeables.add(service);
                     ScramCredentialStore store = service.buildCredentialStore();

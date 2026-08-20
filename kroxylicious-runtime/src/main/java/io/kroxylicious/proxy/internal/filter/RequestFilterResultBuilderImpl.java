@@ -19,6 +19,11 @@ import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Builder of {@link RequestFilterResult} instances. In addition to forwarding, supports
+ * short-circuit responses (answering the client without forwarding the request upstream),
+ * including error responses derived from an {@link ApiException}.
+ */
 public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<RequestHeaderData, RequestFilterResult>
         implements RequestFilterResultBuilder {
 
@@ -26,6 +31,13 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
     private @Nullable ResponseHeaderData shortCircuitHeader;
     private @Nullable ApiMessage shortCircuitResponse;
+
+    /**
+     * Creates an empty builder.
+     */
+    public RequestFilterResultBuilderImpl() {
+        // Intentionally empty
+    }
 
     @Override
     protected void validateForward(RequestHeaderData header, ApiMessage message) {

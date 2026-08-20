@@ -54,6 +54,10 @@
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.4</junit.version>
         <kafka.version>4.2.0</kafka.version>
+        <kafka.message-spec.version>4.3.0</kafka.message-spec.version>
+        <zstd-jni.version>1.5.6-10</zstd-jni.version>
+        <lz4-java.version>1.10.1</lz4-java.version>
+        <snappy-java.version>1.1.10.7</snappy-java.version>
         <kroxy.extension.version>0.16.0</kroxy.extension.version>
         <log4j.version>2.26.1</log4j.version>
         <caffeine.version>3.2.4</caffeine.version>
@@ -90,7 +94,7 @@
         <netty-leak-detector-junit-extension.version>0.2.2</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.2</wiremock.version>
         <docker-java.version>3.7.1</docker-java.version>
-        <test-frame.version>1.4.0</test-frame.version>
+        <kubetest4j.version>1.3.0</kubetest4j.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
         <opentest4j.version>1.3.0</opentest4j.version>
@@ -104,6 +108,11 @@
         <!-- Error Prone -->
         <errorprone.version>2.50.0</errorprone.version>
         <errorprone.skip>false</errorprone.skip>
+
+        <central.publishing.skip>false</central.publishing.skip>
+        <maven.javadoc.skip>${central.publishing.skip}</maven.javadoc.skip>
+        <maven.source.skip>${central.publishing.skip}</maven.source.skip>
+        <gpg.skip>${central.publishing.skip}</gpg.skip>
     </properties>
 
     <name>Parent POM</name>
@@ -255,6 +264,22 @@
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka-clients</artifactId>
                 <version>${kafka.version}</version>
+            </dependency>
+            <!-- Native compression codecs used by the vendored kafka-common compress classes. -->
+            <dependency>
+                <groupId>com.github.luben</groupId>
+                <artifactId>zstd-jni</artifactId>
+                <version>${zstd-jni.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>at.yawk.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>${lz4-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+                <version>${snappy-java.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.kafka</groupId>
@@ -568,24 +593,24 @@
                 <version>${netty-leak-detector-junit-extension.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.skodjob</groupId>
-                <artifactId>test-frame-common</artifactId>
-                <version>${test-frame.version}</version>
+                <groupId>io.skodjob.kubetest4j</groupId>
+                <artifactId>kubetest4j</artifactId>
+                <version>${kubetest4j.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.skodjob</groupId>
-                <artifactId>test-frame-kubernetes</artifactId>
-                <version>${test-frame.version}</version>
+                <groupId>io.skodjob.kubetest4j</groupId>
+                <artifactId>kubernetes-resources</artifactId>
+                <version>${kubetest4j.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.skodjob</groupId>
-                <artifactId>test-frame-openshift</artifactId>
-                <version>${test-frame.version}</version>
+                <groupId>io.skodjob.kubetest4j</groupId>
+                <artifactId>openshift-resources</artifactId>
+                <version>${kubetest4j.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.skodjob</groupId>
-                <artifactId>test-frame-log-collector</artifactId>
-                <version>${test-frame.version}</version>
+                <groupId>io.skodjob.kubetest4j</groupId>
+                <artifactId>log-collector</artifactId>
+                <version>${kubetest4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.junit-pioneer</groupId>
@@ -708,6 +733,10 @@
                                          this exclusion only needs to work during the root-level scan. -->
                                     <exclude>kroxylicious-kafka-message-generator/src/**</exclude>
                                     <exclude>kroxylicious-kafka-message-generator/etc/**</exclude>
+                                    <exclude>kroxylicious-api/src/main/java/io/kroxylicious/kafka/**</exclude>
+                                    <exclude>kroxylicious-api/src/test/java/io/kroxylicious/kafka/**</exclude>
+                                    <exclude>kroxylicious-api/etc/asf-license.txt</exclude>
+                                    <exclude>tools/kafka-vendoring/requirements.txt</exclude>
 
                                 </excludes>
                             </licenseSet>
@@ -1173,6 +1202,8 @@
                 <configuration>
                     <publishingServerId>central</publishingServerId>
                     <waitMaxTime>3600</waitMaxTime>
+                    <skipPublishing>${central.publishing.skip}</skipPublishing>
+                    <checksums>required</checksums>
                 </configuration>
             </plugin>
         </plugins>
@@ -1234,6 +1265,15 @@
                                         <ignoredUnusedDeclaredDependency>org.apache.kafka:kafka_2.13
                                         </ignoredUnusedDeclaredDependency>
                                     </ignoredDependencies>
+                                    <ignoredNonTestScopedDependencies>
+                                        <!-- kroxylicious-api's MessageUtil (vendored) implements jackson-core's
+                                        TreeNode directly, a compile-time-only requirement the bytecode analyzer
+                                        can't see, so it only ever detects jackson-core being used from test
+                                        bytecode (the forked MessageUtilTest) and suggests test-scoping it —
+                                        which would hide it from the main compile classpath. -->
+                                        <ignoredNonTestScopedDependency>com.fasterxml.jackson.core:jackson-core
+                                        </ignoredNonTestScopedDependency>
+                                    </ignoredNonTestScopedDependencies>
                                 </configuration>
                             </execution>
                         </executions>
@@ -1457,7 +1497,7 @@
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
                                 <!-- The following <arg> cannot be split over multiple lines :-( -->
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-sources/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka)/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

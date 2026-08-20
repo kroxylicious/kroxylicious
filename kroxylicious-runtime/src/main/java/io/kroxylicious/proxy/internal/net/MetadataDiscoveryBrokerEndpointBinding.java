@@ -22,6 +22,12 @@ import io.kroxylicious.proxy.service.HostPort;
 public record MetadataDiscoveryBrokerEndpointBinding(EndpointGateway endpointGateway, Integer nodeId)
         implements NodeSpecificEndpointBinding {
 
+    /**
+     * Creates a metadata discovery broker endpoint binding.
+     *
+     * @param endpointGateway the endpoint gateway
+     * @param nodeId kafka nodeId of the target broker
+     */
     public MetadataDiscoveryBrokerEndpointBinding {
         Objects.requireNonNull(endpointGateway, "endpointGateway cannot be null");
         Objects.requireNonNull(nodeId, "nodeId must not be null");
