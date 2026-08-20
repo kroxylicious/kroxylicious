@@ -140,7 +140,7 @@ public record DynamicRouting(
         if (routeDescriptors.size() == 1) {
             return new IdentityNodeIdMapping(routeDescriptors.keySet().iterator().next());
         }
-        var routeIds = new HashMap<String, Integer>(routeDescriptors.size());
+        var routeIds = HashMap.<String, Integer> newHashMap(routeDescriptors.size());
         for (var entry : routeDescriptors.entrySet()) {
             routeIds.put(entry.getKey(), entry.getValue().id());
         }
