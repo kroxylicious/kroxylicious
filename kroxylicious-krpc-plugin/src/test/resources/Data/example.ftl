@@ -102,32 +102,32 @@ ${field.defaultString}
 
 // THIS CODE IS AUTOMATICALLY GENERATED.  DO NOT EDIT.
 
-package org.apache.kafka.common.message;
+package io.kroxylicious.kafka.common.message;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.kafka.common.errors.UnsupportedVersionException;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Message;
-import org.apache.kafka.common.protocol.MessageSizeAccumulator;
-import org.apache.kafka.common.protocol.MessageUtil;
-import org.apache.kafka.common.protocol.ObjectSerializationCache;
-import org.apache.kafka.common.protocol.Readable;
-import org.apache.kafka.common.protocol.Writable;
-import org.apache.kafka.common.protocol.types.ArrayOf;
-import org.apache.kafka.common.protocol.types.CompactArrayOf;
-import org.apache.kafka.common.protocol.types.Field;
-import org.apache.kafka.common.protocol.types.RawTaggedField;
-import org.apache.kafka.common.protocol.types.RawTaggedFieldWriter;
-import org.apache.kafka.common.protocol.types.Schema;
-import org.apache.kafka.common.protocol.types.Type;
-import org.apache.kafka.common.utils.ByteUtils;
-import org.apache.kafka.common.utils.ImplicitLinkedHashCollection;
-import org.apache.kafka.common.utils.ImplicitLinkedHashMultiCollection;
+import io.kroxylicious.kafka.common.errors.UnsupportedVersionException;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Message;
+import io.kroxylicious.kafka.common.protocol.MessageSizeAccumulator;
+import io.kroxylicious.kafka.common.protocol.MessageUtil;
+import io.kroxylicious.kafka.common.protocol.ObjectSerializationCache;
+import io.kroxylicious.kafka.common.protocol.Readable;
+import io.kroxylicious.kafka.common.protocol.Writable;
+import io.kroxylicious.kafka.common.protocol.types.ArrayOf;
+import io.kroxylicious.kafka.common.protocol.types.CompactArrayOf;
+import io.kroxylicious.kafka.common.protocol.types.Field;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedFieldWriter;
+import io.kroxylicious.kafka.common.protocol.types.Schema;
+import io.kroxylicious.kafka.common.protocol.types.Type;
+import io.kroxylicious.kafka.common.utils.ByteUtils;
+import io.kroxylicious.kafka.common.utils.ImplicitLinkedHashCollection;
+import io.kroxylicious.kafka.common.utils.ImplicitLinkedHashMultiCollection;
 
-import static org.apache.kafka.common.protocol.types.Field.TaggedFieldsSection;
+import static io.kroxylicious.kafka.common.protocol.types.Field.TaggedFieldsSection;
 
 public class ${dataClass} implements ApiMessage {
 

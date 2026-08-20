@@ -13,11 +13,11 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 <#list inputSpecs as inputSpec>
-import org.apache.kafka.common.message.${inputSpec.name}Data;
+import io.kroxylicious.kafka.common.message.${inputSpec.name}Data;
 </#list>
 
 

@@ -14,12 +14,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.AbstractResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.spi.LoggingEventBuilder;
@@ -28,6 +22,11 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
@@ -366,11 +365,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 Objects.requireNonNull(responseSequencer).submit(sequence, responseFrame);
             }
             case RouterResponseImpl.RespondWithError rwe -> {
-                AbstractResponse errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
+                ApiMessage errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
                         rwe.requestHeader(), rwe.request(), rwe.exception());
                 ResponseHeaderData header = new ResponseHeaderData();
                 header.setCorrelationId(correlationId);
-                var responseFrame = new DecodedResponseFrame<>(apiVersion, correlationId, header, errorResponse.data());
+                var responseFrame = new DecodedResponseFrame<>(apiVersion, correlationId, header, errorResponse);
                 Objects.requireNonNull(responseSequencer).submit(sequence, responseFrame);
             }
             case RouterResponseImpl.RespondWithoutReply ignored -> {

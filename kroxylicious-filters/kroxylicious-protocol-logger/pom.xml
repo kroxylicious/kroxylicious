@@ -27,15 +27,15 @@
             <artifactId>kroxylicious-api</artifactId>
         </dependency>
 
-        <!--
-            Deliberate compile-scope dependency: ProtocolLoggerFilter uses KafkaApiMessageConverter
-            to render protocol messages as JSON. Normally this module is test-only, but the maintainers
-            agreed on issue #1121 that this is acceptable short-term. To be revisited under
-            kroxylicious/design#116.
-        -->
+        <!-- MessageFormatter uses KafkaApiMessageConverter to render protocol messages as JSON. -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kafka-message-json</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-filter-test-support</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <!-- third party dependencies -->
@@ -48,11 +48,6 @@
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

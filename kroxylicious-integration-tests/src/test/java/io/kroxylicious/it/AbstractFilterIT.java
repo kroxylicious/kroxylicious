@@ -24,20 +24,6 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.InvalidTopicException;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.CreateTopicsRequestData;
-import org.apache.kafka.common.message.CreateTopicsResponseData;
-import org.apache.kafka.common.message.ListGroupsResponseData;
-import org.apache.kafka.common.message.ListTransactionsRequestData;
-import org.apache.kafka.common.message.ListTransactionsResponseData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,6 +47,20 @@ import io.kroxylicious.it.testplugins.RequestResponseMarkingFilter;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.it.testplugins.TopicIdToNameResponseStamper;
 import io.kroxylicious.it.testplugins.TopicNameMetadataPrefixer;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.errors.InvalidTopicException;
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.CreateTopicsRequestData;
+import io.kroxylicious.kafka.common.message.CreateTopicsResponseData;
+import io.kroxylicious.kafka.common.message.ListGroupsResponseData;
+import io.kroxylicious.kafka.common.message.ListTransactionsRequestData;
+import io.kroxylicious.kafka.common.message.ListTransactionsResponseData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.internal.TopicNameRetriever;
@@ -80,6 +80,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.it.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.it.testplugins.RequestResponseMarkingFilter.FILTER_NAME_TAG;
 import static io.kroxylicious.it.testplugins.TopicIdToNameResponseStamper.topicNameMapping;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.API_VERSIONS;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.FETCH;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.LIST_GROUPS;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.METADATA;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static io.kroxylicious.testing.integration.tester.MockServerKroxyliciousTester.zeroAckProduceRequestMatcher;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
@@ -87,13 +94,6 @@ import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
-import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
-import static org.apache.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
-import static org.apache.kafka.common.protocol.ApiKeys.FETCH;
-import static org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS;
-import static org.apache.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
-import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
-import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.awaitility.Awaitility.await;
@@ -178,8 +178,8 @@ abstract class AbstractFilterIT {
 
     @Test
     void filtersCanLookUpTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) {
-        Uuid topic1Id = topic1.topicId().orElseThrow();
-        Uuid topic2Id = topic2.topicId().orElseThrow();
+        Uuid topic1Id = toVendoredUuid(topic1.topicId().orElseThrow());
+        Uuid topic2Id = toVendoredUuid(topic2.topicId().orElseThrow());
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
                 TopicIdToNameResponseStamper.class.getName())
                 .build();
@@ -279,6 +279,10 @@ abstract class AbstractFilterIT {
         }
     }
 
+    private static Uuid toVendoredUuid(org.apache.kafka.common.Uuid uuid) {
+        return new Uuid(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
+    }
+
     private static String[] extractTopicNames(Response response) {
         List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
         assertThat(tags).hasSize(1);
@@ -318,7 +322,7 @@ abstract class AbstractFilterIT {
 
     @Test
     void filtersCanLookUpPartiallyExistingTopics(KafkaCluster cluster, Topic topic1) {
-        Uuid topic1Id = topic1.topicId().orElseThrow();
+        Uuid topic1Id = toVendoredUuid(topic1.topicId().orElseThrow());
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
                 TopicIdToNameResponseStamper.class.getName())
                 .build();
@@ -355,8 +359,8 @@ abstract class AbstractFilterIT {
 
     private void assertTopicStampingFilterObservesTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2, String[] filterOrder, String expectedNameForTopic1,
                                                              String expectedNameForTopic2) {
-        Uuid topic1Id = topic1.topicId().orElseThrow();
-        Uuid topic2Id = topic2.topicId().orElseThrow();
+        Uuid topic1Id = toVendoredUuid(topic1.topicId().orElseThrow());
+        Uuid topic2Id = toVendoredUuid(topic2.topicId().orElseThrow());
 
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
                 TopicIdToNameResponseStamper.class.getName())

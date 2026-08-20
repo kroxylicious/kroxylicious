@@ -21,13 +21,6 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
-import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
-import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
-import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
@@ -42,6 +35,13 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
+import io.kroxylicious.kafka.common.message.AddOffsetsToTxnRequestData;
+import io.kroxylicious.kafka.common.message.AddOffsetsToTxnResponseData;
+import io.kroxylicious.kafka.common.message.TxnOffsetCommitRequestData;
+import io.kroxylicious.kafka.common.message.TxnOffsetCommitResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.CoordinatorType;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static io.kroxylicious.it.filter.authorization.AbstractAuthzEquivalenceIT.deleteTopicsAndAcls;
@@ -185,8 +185,8 @@ class AddOffsetsToTxnGroupAuthzIT extends AuthzIT {
         @Override
         public void prepareCluster(BaseClusterFixture cluster) {
             KafkaDriver driver = new KafkaDriver(cluster, cluster.authenticatedClient(AuthzIT.SUPER, SUPER_PASSWORD), AuthzIT.SUPER);
-            driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.TRANSACTION, transactionalId);
-            driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.GROUP, group);
+            driver.findCoordinator(CoordinatorType.TRANSACTION, transactionalId);
+            driver.findCoordinator(CoordinatorType.GROUP, group);
             producerIdAndEpoch = driver.initProducerId(transactionalId);
             super.prepareCluster(cluster);
         }

@@ -6,11 +6,11 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;

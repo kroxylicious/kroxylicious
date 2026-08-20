@@ -18,7 +18,7 @@
 
 package ${outputPackage};
 
-import org.apache.kafka.common.message.${inputSpec.name}Data;
+import io.kroxylicious.kafka.common.message.${inputSpec.name}Data;
 
 /**
  * A stateless filter for ${inputSpec.name}s.

@@ -6,9 +6,8 @@
 
 package io.kroxylicious.filter.encryption.encrypt;
 
-import org.apache.kafka.common.errors.ApiException;
-
 import io.kroxylicious.filter.encryption.common.EncryptionException;
+import io.kroxylicious.kafka.common.errors.ApiException;
 
 /**
  * Request could not be satisfied. Indicates that there was some logical reason

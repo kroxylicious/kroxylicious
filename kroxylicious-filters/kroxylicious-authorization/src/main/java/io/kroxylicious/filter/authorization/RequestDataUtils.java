@@ -9,10 +9,9 @@ package io.kroxylicious.filter.authorization;
 import java.util.Iterator;
 import java.util.Objects;
 
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.Records;
-import org.apache.kafka.common.requests.ProduceRequest;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
+import io.kroxylicious.kafka.common.record.internal.Records;
 
 /**
  * Utility methods for working with Kafka {@code *RequestData} classes.
@@ -27,8 +26,7 @@ public class RequestDataUtils {
     }
 
     /**
-     * Mirrors the logic of
-     * {@link org.apache.kafka.common.requests.RequestUtils#hasTransactionalRecords(ProduceRequest)}
+     * Mirrors the logic of {@code org.apache.kafka.common.requests.RequestUtils#hasTransactionalRecords(ProduceRequest)}.
      * We prefer to only depend on the *Data classes and their dependencies to try and control our exposure
      * to internal classes.
      * @param requestData request data

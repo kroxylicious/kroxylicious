@@ -12,8 +12,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.header.internals.RecordHeaders;
-import org.apache.kafka.common.record.Record;
 
 import io.apicurio.registry.serde.BaseSerde;
 import io.apicurio.registry.serde.Default4ByteIdHandler;
@@ -25,6 +25,8 @@ import io.apicurio.schema.validation.ValidationResult;
 
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.record.internal.Record;
 
 /**
  * Base class for schema-based record validators that validate Kafka record keys or values
@@ -138,7 +140,10 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
     @SuppressWarnings("removal")
     private Optional<Long> extractSchemaIdFromHeaders(Record kafkaRecord, boolean isKey) {
         if (kafkaRecord.headers().length > 0) {
-            var recordHeaders = new RecordHeaders(kafkaRecord.headers());
+            var recordHeaders = new RecordHeaders();
+            for (Header header : kafkaRecord.headers()) {
+                recordHeaders.add(new RecordHeader(header.key(), header.value()));
+            }
             var headerHandler = isKey ? keyHeaderHandler : valueHeaderHandler;
             var ref = headerHandler.readHeaders(recordHeaders);
 

@@ -8,12 +8,12 @@ package io.kroxylicious.testing.integration.codec;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
 
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.testing.integration.client.SequencedResponse;
 
 /**

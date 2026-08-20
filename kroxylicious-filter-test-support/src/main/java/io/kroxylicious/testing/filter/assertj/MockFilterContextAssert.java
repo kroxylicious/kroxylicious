@@ -8,14 +8,14 @@ package io.kroxylicious.testing.filter.assertj;
 
 import java.util.function.Consumer;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.BooleanAssert;
 import org.assertj.core.api.ObjectAssert;
 import org.assertj.core.api.ThrowableAssert;
 
+import io.kroxylicious.kafka.common.errors.ApiException;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.testing.filter.context.MockFilterContext.MockErrorRequestFilterResult;

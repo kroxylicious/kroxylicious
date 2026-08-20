@@ -7,10 +7,10 @@ package io.kroxylicious.testing.integration.codec;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.protocol.Readable;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+
+import io.kroxylicious.kafka.common.protocol.Readable;
 
 /**
  * An implementation of Kafka's Readable and Writable abstraction in terms of

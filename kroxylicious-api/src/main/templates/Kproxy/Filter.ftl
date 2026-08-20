@@ -32,8 +32,8 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.${dataClass};
-import org.apache.kafka.common.message.${headerClass};
+import io.kroxylicious.kafka.common.message.${dataClass};
+import io.kroxylicious.kafka.common.message.${headerClass};
 
 /**
  * A stateless filter for ${inputSpec.name}s.

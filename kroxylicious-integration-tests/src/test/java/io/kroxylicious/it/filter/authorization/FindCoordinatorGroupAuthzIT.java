@@ -20,12 +20,6 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.message.CreatePartitionsRequestData;
-import org.apache.kafka.common.message.CreatePartitionsResponseData;
-import org.apache.kafka.common.message.FindCoordinatorRequestData;
-import org.apache.kafka.common.message.FindCoordinatorResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
@@ -40,6 +34,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.FindCoordinatorEnforcement;
+import io.kroxylicious.kafka.common.message.CreatePartitionsRequestData;
+import io.kroxylicious.kafka.common.message.CreatePartitionsResponseData;
+import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
+import io.kroxylicious.kafka.common.message.FindCoordinatorResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.CoordinatorType;
 import io.kroxylicious.testing.kafka.common.ClientConfig;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
@@ -195,7 +195,7 @@ class FindCoordinatorGroupAuthzIT extends AuthzIT {
                             @Override
                             public FindCoordinatorRequestData request(String user, BaseClusterFixture baseClusterFixture) {
                                 return new FindCoordinatorRequestData()
-                                        .setKeyType(FindCoordinatorRequest.CoordinatorType.GROUP.id())
+                                        .setKeyType(CoordinatorType.GROUP.id())
                                         .setCoordinatorKeys(ALL_GROUPS_IN_TEST);
                             }
 
@@ -212,7 +212,7 @@ class FindCoordinatorGroupAuthzIT extends AuthzIT {
                                 @Override
                                 public FindCoordinatorRequestData request(String user, BaseClusterFixture topicNameToId) {
                                     return new FindCoordinatorRequestData()
-                                            .setKeyType(FindCoordinatorRequest.CoordinatorType.GROUP.id())
+                                            .setKeyType(CoordinatorType.GROUP.id())
                                             .setKey(group);
                                 }
 

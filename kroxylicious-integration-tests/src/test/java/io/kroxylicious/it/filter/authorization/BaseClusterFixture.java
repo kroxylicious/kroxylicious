@@ -11,8 +11,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.Uuid;
-
+import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 

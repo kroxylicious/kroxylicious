@@ -24,7 +24,7 @@
     <properties>
         <libs.dir>libs</libs.dir>
         <ApiCompatability.ReferenceVersion>0.23.0</ApiCompatability.ReferenceVersion>
-        <ApiCompatability.EnforceForMajorVersionZero>true</ApiCompatability.EnforceForMajorVersionZero>
+        <ApiCompatability.EnforceForMajorVersionZero>false</ApiCompatability.EnforceForMajorVersionZero>
     </properties>
 
     <name>Kroxylicious API</name>
@@ -40,19 +40,13 @@
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-        </dependency>
         <!-- Compile-scope dependencies of the vendored io.kroxylicious.kafka.common.* support
              classes. jackson-databind backs the generated *JsonConverter classes; jackson-core is
              also referenced directly (e.g. MessageUtil implements a jackson-core TreeNode-based
              interface) rather than only transitively through jackson-databind, so it needs its own
-             explicit declaration — an explicit scope on a transitive dependency overrides Maven's
-             mediation, so declaring it test-scoped (it's also used by the forked MessageUtilTest)
-             would have hidden it from the main compile classpath. slf4j-api and the native codecs
-             back the vendored compress/record code. kafka-clients brings the codecs transitively at
-             runtime only, so they are declared here to lift them onto the compile classpath. See
+             explicit declaration. slf4j-api and the native codecs back the vendored compress/record
+             code. This module has no kafka-clients dependency (main or transitive), so all of these
+             must be declared explicitly rather than relying on transitive resolution. See
              tools/kafka-vendoring/README.md. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -135,7 +129,16 @@
                                     <artifactId>kafka-clients</artifactId>
                                     <version>${kafka.message-spec.version}</version>
                                     <overWrite>false</overWrite>
-                                    <includes>common/message/*.json</includes>
+                                    <!-- Deliberately not "common/message/*.json": now that kafka.version
+                                         equals kafka.message-spec.version, that pattern is byte-for-byte
+                                         identical to the parent's unpack-message-specs execution above,
+                                         and maven-dependency-plugin's unpack marker is keyed only on
+                                         artifact GAV + includes/excludes (not outputDirectory), so an
+                                         identical pattern makes it silently skip this unpack as
+                                         "already done". "**/*.json" selects the same flat file set
+                                         (common/message has no subdirectories) but keeps the marker
+                                         distinct. -->
+                                    <includes>common/message/**/*.json</includes>
                                     <outputDirectory>${project.build.directory}/data-class-message-specs
                                     </outputDirectory>
                                 </artifactItem>

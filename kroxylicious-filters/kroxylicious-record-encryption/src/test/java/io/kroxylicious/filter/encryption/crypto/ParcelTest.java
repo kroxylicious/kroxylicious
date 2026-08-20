@@ -18,8 +18,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -31,6 +29,8 @@ import com.google.common.reflect.ClassPath;
 
 import io.kroxylicious.filter.encryption.config.ParcelVersion;
 import io.kroxylicious.filter.encryption.config.RecordField;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.record.internal.Record;
 import io.kroxylicious.kafka.transform.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
@@ -82,8 +82,9 @@ class ParcelTest {
     private record Header(@JsonProperty(required = true) ByteBuffer keyBase64, ByteBuffer valueBase64) {}
 
     private record ParcelContents(ByteBuffer valueBase64, @JsonProperty(required = true) List<ParcelTest.Header> headers) {
-        org.apache.kafka.common.header.Header[] kafkaHeaders() {
-            return this.headers.stream().map(header -> new RecordHeader(header.keyBase64(), header.valueBase64())).toArray(org.apache.kafka.common.header.Header[]::new);
+        io.kroxylicious.kafka.common.header.Header[] kafkaHeaders() {
+            return this.headers.stream().map(header -> new RecordHeader(header.keyBase64(), header.valueBase64()))
+                    .toArray(io.kroxylicious.kafka.common.header.Header[]::new);
         }
     }
 
@@ -147,7 +148,7 @@ class ParcelTest {
     void shouldDeserializeExpectedContentsFromBytes(String name, NamedExemplar exemplar) {
         failOnVersionWithoutExemplar(exemplar);
         Record mock = mock(Record.class);
-        when(mock.headers()).thenReturn(new org.apache.kafka.common.header.Header[0]);
+        when(mock.headers()).thenReturn(new io.kroxylicious.kafka.common.header.Header[0]);
         ParcelContents expected = exemplar.deserializedParcelContents;
         try {
             ParcelVersionResolver.ALL.fromName(exemplar.version).readParcel(exemplar.serialized(), mock, (byteBuffer, headers) -> {

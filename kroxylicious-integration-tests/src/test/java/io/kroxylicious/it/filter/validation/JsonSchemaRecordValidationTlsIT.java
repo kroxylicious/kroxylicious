@@ -180,7 +180,7 @@ class JsonSchemaRecordValidationTlsIT extends RecordSchemaValidationBaseIT {
                 var producer = tester.producer()) {
             // Should fail because the registry uses TLS with a self-signed cert and no trust store is configured
             var future = producer.send(new org.apache.kafka.clients.producer.ProducerRecord<>(topic.name(), "my-key", VALID_JSON_MESSAGE));
-            assertThatFutureFails(future, org.apache.kafka.common.InvalidRecordException.class, "");
+            assertThatFutureFails(future, io.kroxylicious.kafka.common.InvalidRecordException.class, "");
         }
     }
 

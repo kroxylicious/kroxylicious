@@ -25,10 +25,11 @@ import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AclBinding;
-import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.awaitility.core.ConditionFactory;
+
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.errors.UnknownTopicOrPartitionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -84,7 +85,12 @@ final class ClusterPrepUtils {
         // Phase 2: Wait for operational readiness
         ensureTopicsOperationallyReady(admin, topicNames);
 
-        return topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> res.topicId(topicName).toCompletionStage().toCompletableFuture().join()));
+        return topicNames.stream().collect(Collectors.toMap(Function.identity(),
+                topicName -> toVendoredUuid(res.topicId(topicName).toCompletionStage().toCompletableFuture().join())));
+    }
+
+    private static Uuid toVendoredUuid(org.apache.kafka.common.Uuid uuid) {
+        return new Uuid(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
     }
 
     /**

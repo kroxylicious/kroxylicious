@@ -6,7 +6,7 @@
 
 package com.foo;
 
-import org.apache.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.FetchRequestData;
 
 /**
  * A stateless filter for FetchRequests.

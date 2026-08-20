@@ -33,8 +33,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.SslConfigs;
-import org.apache.kafka.common.errors.TimeoutException;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +48,8 @@ import io.micrometer.core.instrument.Metrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
 import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
+import io.kroxylicious.kafka.common.errors.TimeoutException;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;

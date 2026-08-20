@@ -12,11 +12,6 @@ import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiMessageType;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +24,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.it.testplugins.FixedClientIdFilterFactory;
+import io.kroxylicious.kafka.common.message.ApiMessageType;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.testing.integration.ApiMessageSampleGenerator;
 import io.kroxylicious.testing.integration.ApiMessageSampleGenerator.ApiAndVersion;
 import io.kroxylicious.testing.integration.Request;
@@ -40,15 +40,15 @@ import io.kroxylicious.testing.integration.tester.MockServerKroxyliciousTester;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.API_VERSIONS;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.CONTROLLED_SHUTDOWN;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.METADATA;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.SHARE_ACKNOWLEDGE;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.SHARE_FETCH;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
-import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
-import static org.apache.kafka.common.protocol.ApiKeys.CONTROLLED_SHUTDOWN;
-import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;
-import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
-import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
-import static org.apache.kafka.common.protocol.ApiKeys.SHARE_ACKNOWLEDGE;
-import static org.apache.kafka.common.protocol.ApiKeys.SHARE_FETCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;

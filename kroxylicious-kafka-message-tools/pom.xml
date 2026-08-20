@@ -18,7 +18,7 @@
 
     <artifactId>kroxylicious-kafka-message-tools</artifactId>
     <name>Kafka message tools</name>
-    <description>Tools for manipulating kafka messages, depends only on kafka-clients, has no dependency on the rest of Kroxylicious</description>
+    <description>Tools for manipulating kafka messages, depends only on kroxylicious-api's vendored Kafka protocol classes, has no other dependency on the rest of Kroxylicious</description>
 
     <dependencies>
         <dependency>
@@ -26,9 +26,8 @@
             <artifactId>kroxylicious-annotations</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-            <scope>provided</scope>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>

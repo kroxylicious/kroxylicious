@@ -8,8 +8,7 @@ package io.kroxylicious.it.filter.authorization;
 
 import java.util.Map;
 
-import org.apache.kafka.common.Uuid;
-
+import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
 /**

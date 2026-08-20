@@ -64,6 +64,7 @@
                                         <include>io.kroxylicious:kroxylicious-unit-test-support</include>
                                         <include>io.kroxylicious:kroxylicious-integration-test-support</include>
                                         <include>io.kroxylicious:kroxylicious-kafka-message-tools</include>
+                                        <include>io.kroxylicious:kroxylicious-kafka-message-json</include>
                                         <include>io.kroxylicious:kroxylicious-runtime:*:*:test</include>
                                     </includes>
                                 </bannedDependencies>
