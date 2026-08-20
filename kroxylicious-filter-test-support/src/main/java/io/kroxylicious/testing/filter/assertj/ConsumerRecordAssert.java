@@ -7,9 +7,10 @@
 package io.kroxylicious.testing.filter.assertj;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Headers;
 import org.assertj.core.api.AbstractAssert;
-import org.assertj.core.api.InstanceOfAssertFactory;
+
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.header.internals.RecordHeaders;
 
 /**
  * AssertJ assertions for {@link ConsumerRecord}.
@@ -41,7 +42,8 @@ public class ConsumerRecordAssert extends AbstractAssert<ConsumerRecordAssert, C
      */
     public HeadersAssert headers() {
         isNotNull();
-        return extracting(ConsumerRecord::headers,
-                new InstanceOfAssertFactory<>(Headers.class, HeadersAssert::assertThat));
+        var headers = new RecordHeaders();
+        actual.headers().forEach(header -> headers.add(new RecordHeader(header.key(), header.value())));
+        return HeadersAssert.assertThat(headers);
     }
 }

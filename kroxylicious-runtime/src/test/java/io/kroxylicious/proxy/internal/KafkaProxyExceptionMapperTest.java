@@ -10,7 +10,6 @@ import java.util.stream.Stream;
 
 import javax.net.ssl.SSLHandshakeException;
 
-import org.apache.kafka.common.requests.AbstractResponse;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -35,11 +34,11 @@ class KafkaProxyExceptionMapperTest {
     void shouldGenerateErrorResponseApiKey(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponse(request,
+        final ApiMessage response = KafkaProxyExceptionMapper.errorResponse(request,
                 new BrokerNotAvailableException("handshake failure", new SSLHandshakeException("it went wrong")));
 
         // Then
-        assertThat(response)
+        assertThat(response, request.apiVersion())
                 .hasApiKey(request.apiKey())
                 .hasErrorCount(Errors.BROKER_NOT_AVAILABLE, 1);
     }
@@ -49,10 +48,10 @@ class KafkaProxyExceptionMapperTest {
     void shouldGenerateErrorMessage(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), new UnknownServerException("Bailing out!"));
+        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), new UnknownServerException("Bailing out!"));
 
         // Then
-        assertThat(response)
+        assertThat(response, request.apiVersion())
                 .hasApiKey(request.apiKey())
                 .hasErrorCount(Errors.UNKNOWN_SERVER_ERROR, 1);
     }

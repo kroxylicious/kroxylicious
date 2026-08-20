@@ -15,8 +15,6 @@ import java.util.function.IntPredicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.requests.ProduceRequest;
-import org.apache.kafka.common.requests.RequestHeader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -33,6 +31,7 @@ import io.kroxylicious.kafka.common.message.ProduceRequestData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.ByteBufferAccessor;
 import io.kroxylicious.kafka.common.protocol.ObjectSerializationCache;
 import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -170,18 +169,18 @@ class KafkaRequestDecoderTest {
     }
 
     private static Stream<Arguments> produceRequestsDoNotRequireResponse(short acks, boolean hasResponse) {
-        Function<Short, ProduceRequest> nonNullTransactionId = version -> produceRequest(version, acks, "transactionId");
-        Function<Short, ProduceRequest> nullTransactionId = version -> produceRequest(version, acks, null);
-        Function<Short, RequestHeader> withClientId = version -> new RequestHeader(ApiKeys.PRODUCE, version, "client", 2);
-        Function<Short, RequestHeader> withNullClientId = version -> new RequestHeader(ApiKeys.PRODUCE, version, null, 2);
-        Function<Short, RequestHeader> withTaggedField = version -> {
-            RequestHeader header = new RequestHeader(ApiKeys.PRODUCE, version, null, 2);
-            header.data().unknownTaggedFields().add(new RawTaggedField(1, new byte[]{ 1 }));
+        Function<Short, ProduceRequestData> nonNullTransactionId = version -> produceRequest(version, acks, "transactionId");
+        Function<Short, ProduceRequestData> nullTransactionId = version -> produceRequest(version, acks, null);
+        Function<Short, RequestHeaderData> withClientId = version -> produceRequestHeader(version, "client");
+        Function<Short, RequestHeaderData> withNullClientId = version -> produceRequestHeader(version, null);
+        Function<Short, RequestHeaderData> withTaggedField = version -> {
+            RequestHeaderData header = produceRequestHeader(version, null);
+            header.unknownTaggedFields().add(new RawTaggedField(1, new byte[]{ 1 }));
             return header;
         };
-        Function<Short, RequestHeader> withTaggedFields = version -> {
-            RequestHeader header = new RequestHeader(ApiKeys.PRODUCE, version, null, 2);
-            List<RawTaggedField> fields = header.data().unknownTaggedFields();
+        Function<Short, RequestHeaderData> withTaggedFields = version -> {
+            RequestHeaderData header = produceRequestHeader(version, null);
+            List<RawTaggedField> fields = header.unknownTaggedFields();
             fields.add(new RawTaggedField(1, new byte[]{ 1 }));
             fields.add(new RawTaggedField(2, new byte[]{ 3 }));
             return header;
@@ -207,7 +206,7 @@ class KafkaRequestDecoderTest {
                 notTargetedForDecodeWithNullClientId, targetedForDecodeWithNullClientId, withTaggedFieldInHeader, withTaggedFieldsInHeader).flatMap(identity());
     }
 
-    private static ProduceRequest produceRequest(short version, short acks, String transactionId) {
+    private static ProduceRequestData produceRequest(short version, short acks, String transactionId) {
         ProduceRequestData.TopicProduceDataCollection collection = new ProduceRequestData.TopicProduceDataCollection();
         ProduceRequestData.TopicProduceData newElement = new ProduceRequestData.TopicProduceData();
         newElement.setName("topic");
@@ -216,12 +215,19 @@ class KafkaRequestDecoderTest {
         ppd.setRecords(RecordTestUtils.singleElementMemoryRecords("a", "b"));
         newElement.partitionData().add(ppd);
         collection.add(newElement);
-        ProduceRequestData record = new ProduceRequestData().setAcks(acks).setTransactionalId(transactionId).setTopicData(collection);
-        return new ProduceRequest(record, version);
+        return new ProduceRequestData().setAcks(acks).setTransactionalId(transactionId).setTopicData(collection);
+    }
+
+    private static RequestHeaderData produceRequestHeader(short version, String clientId) {
+        return new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiVersion(version)
+                .setClientId(clientId)
+                .setCorrelationId(2);
     }
 
     private static Stream<Arguments> produceRequestVersionFrames(DecodePredicate decodePredicate, String decodeMessage,
-                                                                 Function<Short, ProduceRequest> bodyFunction, Function<Short, RequestHeader> headerFunction,
+                                                                 Function<Short, ProduceRequestData> bodyFunction, Function<Short, RequestHeaderData> headerFunction,
                                                                  IntPredicate versionPredicate, boolean hasResponse) {
 
         IntStream produceVersions = IntStream.rangeClosed(ApiKeys.PRODUCE.oldestVersion(), ApiKeys.PRODUCE.latestVersion(true)).filter(versionPredicate);
@@ -284,10 +290,20 @@ class KafkaRequestDecoderTest {
     }
 
     private static ByteBuffer createProduceRequestFrameWithAcksAndTransactionId(short version,
-                                                                                Function<Short, ProduceRequest> produceRequestFunction,
-                                                                                Function<Short, RequestHeader> headerFunction) {
-        ProduceRequest produceRequest = produceRequestFunction.apply(version);
-        return produceRequest.serializeWithHeader(headerFunction.apply(version));
+                                                                                Function<Short, ProduceRequestData> produceRequestFunction,
+                                                                                Function<Short, RequestHeaderData> headerFunction) {
+        ProduceRequestData produceRequest = produceRequestFunction.apply(version);
+        RequestHeaderData header = headerFunction.apply(version);
+        short headerVersion = ApiKeys.PRODUCE.requestHeaderVersion(version);
+        var cache = new ObjectSerializationCache();
+        int headerSize = header.size(cache, headerVersion);
+        int bodySize = produceRequest.size(cache, version);
+        ByteBuffer buffer = ByteBuffer.allocate(headerSize + bodySize);
+        var accessor = new ByteBufferAccessor(buffer);
+        header.write(accessor, cache, headerVersion);
+        produceRequest.write(accessor, cache, version);
+        buffer.flip();
+        return buffer;
     }
 
 }
