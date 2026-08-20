@@ -252,6 +252,12 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
         ensureRouterCreated();
 
+        // OOB frames must bypass static routing so their promise can be completed.
+        if (msg instanceof InternalRequestFrame<?> oobFrame) {
+            dispatchDynamically(ctx, oobFrame);
+            return;
+        }
+
         ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
         String staticRoute = resolvedStaticRoutes.get(apiKey);
         if (staticRoute != null) {
@@ -332,11 +338,17 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
         var routingContext = new RouterContextImpl(frame, dispatcher, sessionId, subject, effectiveNodeId);
 
-        if (requestSource instanceof VirtualClusterRequestSource vcs && frame instanceof InternalRequestFrame<?> oobFrame) {
-            Objects.requireNonNull(responseSequencer).skip(sequence);
-            var ccsm = vcs.ccsm();
-            router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
-                    .whenComplete((result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
+        if (frame instanceof InternalRequestFrame<?> oobFrame) {
+            if (requestSource instanceof VirtualClusterRequestSource vcs) {
+                Objects.requireNonNull(responseSequencer).skip(sequence);
+                var ccsm = vcs.ccsm();
+                router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
+                        .whenComplete((result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
+            }
+            else {
+                router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
+                        .whenComplete((result, error) -> handleNestedOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId));
+            }
         }
         else {
             long seq = sequence;
@@ -407,6 +419,57 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 oobFrame.promise().completeExceptionally(f.cause());
             }
         });
+    }
+
+    // --- OOB completion (nested) ---
+
+    // FutureReturnValueIgnored: ctx.voidPromise() is a VoidChannelPromise; by Netty's design,
+    // failures on a void-promise write are delivered to the pipeline's exceptionCaught rather
+    // than to a listener. Void promises are used deliberately on this hot data path to avoid
+    // per-write promise allocation.
+    @SuppressWarnings("FutureReturnValueIgnored")
+    private void handleNestedOobCompletion(ChannelHandlerContext ctx, InternalRequestFrame<?> oobFrame,
+                                           RouterResponse result, Throwable error,
+                                           ApiKeys apiKey, short apiVersion, int correlationId) {
+        if (error != null) {
+            LOGGER.atError()
+                    .addKeyValue("virtualCluster", virtualClusterName)
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("clientCorrelationId", correlationId)
+                    .setCause(error)
+                    .log("Router returned failed future");
+            oobFrame.promise().completeExceptionally(error);
+            return;
+        }
+        if (!(result instanceof RouterResponseImpl rri)) {
+            var cause = new IllegalStateException(
+                    "Router returned unrecognised RouterResponse type (apiKey=" + apiKey + ", type=" + (result == null ? "null" : result.getClass().getName()) + ")");
+            LOGGER.atError()
+                    .addKeyValue("virtualCluster", virtualClusterName)
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
+                    .log("Router returned unrecognised RouterResponse type");
+            oobFrame.promise().completeExceptionally(cause);
+            return;
+        }
+        if (rri instanceof RouterResponseImpl.RespondWith rw) {
+            var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
+            header.setCorrelationId(correlationId);
+            var internalResponse = new InternalResponseFrame<>(
+                    oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
+            internalResponse.setRouteName(((RouterRequestSource) requestSource).activationRoute());
+            ctx.write(internalResponse, ctx.voidPromise());
+            ctx.flush();
+        }
+        else {
+            Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
+                    ? rwe.exception()
+                    : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
+            oobFrame.promise().completeExceptionally(cause);
+            // Nested handlers ignore andCloseConnection() — they do not own the client connection
+        }
     }
 
     // --- Regular completion (both levels) ---
@@ -570,6 +633,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 ctx.channel().close().addListener(logFailure(LOGGER, "close after response with no pending routing future"));
                 promise.setSuccess();
                 return;
+            }
+            // Restore the outer route name so upstream route filters see the response.
+            if (requestSource instanceof RouterRequestSource rs) {
+                frame.setRouteName(rs.activationRoute());
             }
         }
         ctx.write(msg, promise);
