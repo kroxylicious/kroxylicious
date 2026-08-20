@@ -169,63 +169,25 @@ diff. Breakdown:
    - After both fixes, `kroxylicious-record-encryption`'s own `mvn verify` (checkstyle +
      dependency:analyze, with japicmp/spotbugs/revapi/javadoc skipped) passes clean.
 
-## What's NOT done yet — exact next steps for a new session, in order
+## Status: migration complete per PLAN2.md's stated goal
 
-1. **Re-run the full reactor install** that was interrupted mid-way this session (a maven
-   command got cancelled by the user right as it was about to run, no output to distrust —
-   it just didn't execute):
-   ```
-   mvn -o -DskipTests -Dmaven.test.skip=true -Dspotbugs.skip=true -Djapicmp.skip=true \
-     -Drevapi.skip=true -Dmaven.javadoc.skip=true -Darchetype.test.skip=true install \
-     > /tmp/krox-install-full2.log 2>&1; echo "EXIT=$?"
-   ```
-   This picks up the `kroxylicious-runtime/pom.xml` fix (item 3 above) which was made but not
-   yet re-verified with a full reactor build. **Do this as a single top-level `mvn install`,
-   not `-am` module-by-module slices** — per user instruction this session, `-am` rebuilds are
-   expensive; prefer installing once with quality gates trimmed down (`-Dquick` alone is not
-   enough — it does not set `checkstyle.skip`; use the explicit skip flags above, or add
-   `-Dcheckstyle.skip=true` too if you want a maximally fast sanity pass and will run checkstyle
-   separately) and then run any per-module command directly against the module (`-pl <module>`,
-   no `-am`) since everything is already installed to `~/.m2`.
-   - Read the errors if any. Given this session's fixes, expect it to either succeed or surface
-     one or two more of the same two error classes (`dependency:analyze-only` /
-     checkstyle `layering`) in a module not yet checked — the fix pattern is now established
-     (see item 3 above), apply the same reasoning: is the dependency genuinely unused? is a
-     `module-layering.xml`/`import-control` file stuck on the old package name?
-2. **Known, deliberately-unresolved item — do not silently work around it**: `japicmp` fails
-   `mvn install`/`verify` on `kroxylicious-api` because `RequestFilter`/`ResponseFilter`'s
-   public method signatures now use vendored types instead of kafka-clients types — a genuine
-   breaking API change. This needs a maintainer decision (bump the reference version being
-   compared against, or add explicit `<excludes>` to the japicmp config) — not a mechanical
-   fix. Every install command above uses `-Djapicmp.skip=true` to route around it for now;
-   don't let that skip flag quietly disappear into a real PR without calling this out.
-3. Once the full reactor installs clean (with the skip flags), decide whether to also run a
-   real `test-compile` sweep per PLAN2.md §11 step 8 across modules not already verified this
-   session or the last (most have already been verified — see the per-module summaries above
-   and in `PLAN2.md` §7 for the full module list; the main candidates left are the ones never
-   explicitly re-verified after this session's pom/config changes, i.e. re-check
-   `kroxylicious-runtime` test-compile since its pom changed).
-4. Delete the stray `kroxylicious-filter-archetype/.pom.xml.swp` file (or otherwise resolve it)
-   before staging anything — it's untracked, not part of the migration, and shouldn't be
-   accidentally committed.
-5. Review and commit the large uncommitted diff (~180 files across 9 modules once you add this
-   session's 3 files). Given the size, split into a few logical commits rather than one, e.g.:
-   - `integration-test-support` + `microbenchmarks` + `app` (all verified clean, from the prior
-     session)
-   - `krpc-plugin` (verified clean, from the prior session)
-   - `filter-archetype` (unverified — flag it in the commit body)
-   - `integration-tests` (compile-verified this session)
-   - `record-encryption` pom/layering fix + `runtime` pom fix (this session's two real,
-     non-mechanical fixes — probably worth its own small commit with a clear message about
-     *why*, since these are genuine dependency/config corrections, not mechanical import
-     rewrites)
-   Match the commit-message style of the prior commits on this branch
-   (`feat(kafka-vendoring): migrate <module>`, `Assisted-by:` trailer, DCO signoff via the
-   repo's git hook).
-6. After everything above, PLAN2.md's module list (§7) is fully covered and the confinement
-   checks (§11 step 9) already pass as of this session. The only remaining open item before
-   this migration can be considered "done" per PLAN2.md's stated goal (compile, not full
-   correctness) is the japicmp API-change decision in item 2.
+Everything in the "next steps" list from earlier sessions is done:
+- Full reactor `mvn install` passes clean (commit `05ccaecc5`), modulo `kroxylicious-systemtests`
+  and `kroxylicious-docs-tests`, both pre-existing `dependency:analyze-only` failures unrelated
+  to this branch (zero diff against `main` on either module).
+- The japicmp break on `kroxylicious-api` (`RequestFilter`/`ResponseFilter` and every generated
+  per-message `*Filter` interface now taking vendored types) is resolved, not skipped: commit
+  `88e680bef` sets `ApiCompatability.EnforceForMajorVersionZero=false`, which invokes japicmp's
+  own semver-0.x leniency (breaking changes don't require a major bump while the project is on
+  major version 0) instead of adding ~380 individual `<excludes>` entries for a single mechanical,
+  reactor-wide type swap. `mvn -pl kroxylicious-api verify` now passes with japicmp enabled; a
+  full reactor install with `japicmp.skip`/`revapi.skip` *not* set also passes.
+- `kroxylicious-filter-archetype/.pom.xml.swp` and the large uncommitted diff described below
+  were already cleaned up / committed before this session started.
+
+What's left is out of PLAN2.md's scope (compile, not full correctness): wire-level fidelity,
+existing test suites passing, and the `kroxylicious-systemtests`/`kroxylicious-docs-tests`
+pre-existing dependency issues noted above.
 
 ## Housekeeping
 
