@@ -31,20 +31,44 @@ steps). Delete this file once the migration is complete and merged.
   import fixed to new package. **Not fully migrated** — still uses kafka-clients `ApiKeys` at
   the call site (`apiKey.messageType`), which will now mismatch the vendored-typed converter.
   Expected, deferred to Phase B (§7 step 7).
-- `kroxylicious-runtime/src/main` — **bulk mechanical rewrite applied and verified narrow.**
-  Ran the §9 script across the whole tree (49 files rewritten). Result: **every file compiles
-  except exactly 3**, all belonging to the single known hot spot (§8.6):
-  - `kroxylicious-runtime/src/main/java/io/kroxylicious/proxy/internal/KafkaProxyExceptionMapper.java`
-  - `kroxylicious-runtime/src/main/java/io/kroxylicious/proxy/internal/filter/RequestFilterResultBuilderImpl.java`
-  - `kroxylicious-runtime/src/main/java/io/kroxylicious/proxy/internal/routing/RouterDispatchHandler.java`
+- `kroxylicious-runtime/src/main` — **DONE, verified.** §8.6 (`KafkaProxyExceptionMapper`)
+  finished this session using the byte-round-trip adapter described below (was the only
+  remaining broken file). `mvn -o -pl kroxylicious-runtime compile` is clean. Confinement
+  check passes: the only `src/main` file left referencing `org.apache.kafka.common.*` outside
+  the vendored tree is `KafkaProxyExceptionMapper.java` itself (plus two dead Javadoc/comment
+  mentions in `BareSaslRequest.java` and `KafkaMessageEncoder.java`, not real dependencies).
+  One incidental fix needed: `BodyDecoder.ftl`'s `decodeResponse` method had to be made
+  `public` (was package-private) — `KafkaProxyExceptionMapper` lives in
+  `io.kroxylicious.proxy.internal`, a different package from generated `BodyDecoder`
+  (`io.kroxylicious.proxy.internal.codec`), so it couldn't call the package-private method.
+  `decodeRequest` was left package-private (only ever called from within the codec package).
+  Regenerate after this template change: `rm -rf kroxylicious-runtime/target/generated-sources/krpc`.
+- `kroxylicious-runtime/src/test` — **mostly done, 5 files blocked on Phase B.** Ran the §9
+  bulk script (40 files rewritten), then hand-fixed `EagerMetadataLearnerTest.java` (it built
+  test fixtures via kafka-clients `AbstractRequest` subclasses just to get a `data()`/`apiKey()`/
+  `version()` triple — replaced with direct vendored `ApiKeys`/`*RequestData` construction,
+  no kafka-clients dependency needed). `mvn -o -pl kroxylicious-runtime test-compile` now fails
+  in exactly 5 files, **all genuinely blocked on `kroxylicious-filter-test-support` being
+  unmigrated** (confirmed: `mvn -o -pl kroxylicious-filter-test-support compile` fails with 82
+  errors today — Maven falls back to a stale pre-migration jar from `~/.m2` for
+  `kroxylicious-runtime`'s test-scope dependency, so these tests see kafka-clients-typed
+  `ApiKeys`/`ApiMessage` where they need vendored ones):
+  - `KafkaProxyExceptionMapperTest.java` — uses `RequestFactory.apiMessageFor(...)` and
+    `io.kroxylicious.testing.filter.assertj.ResponseAssert`.
+  - `RequestFilterResultBuilderTest.java` — uses `RequestFactory.apiMessageFor(...)`.
+  - `KafkaProxyFrontendHandlerTest.java` — uses `RequestFactory`.
+  - `BrokerAddressFilterTest.java` — uses `RequestResponseTestDef`/`ApiMessageTestDef` and a
+    static import of `io.kroxylicious.kafka.common.message.json.KafkaApiMessageConverter`
+    (doesn't exist as a test dependency of `kroxylicious-runtime` yet — would need adding once
+    `filter-test-support` is migrated and re-exports it, or a direct test dep on
+    `kroxylicious-kafka-message-json`).
+  - `KafkaRequestDecoderTest.java` — uses `io.kroxylicious.testing.filter.record.RecordTestUtils`.
 
-  This is much better than PLAN2.md's framing suggested — §8.1 (`ByteBufAccessor`/
-  `ByteBufAccessorImpl`) and §8.2/§8.3 (all three FreeMarker templates: `BodyDecoder.ftl`,
-  `FilterInvoker.ftl`, `SpecificFilterArrayInvoker.ftl`) were **already vendored on `main`**
-  before this branch was created (landed by earlier unrelated commits, e.g. `f5b01e647`).
-  Do not redo that work.
-- `kroxylicious-runtime/src/test` — **not touched yet.** ~40 files still reference
-  `org.apache.kafka.common.*` outside the vendored tree. Not attempted this session.
+  **Do not try to hand-fix these 5 without migrating `kroxylicious-filter-test-support` first**
+  (Phase B, §7 step 8) — the type mismatches are a direct symptom of that module's stale jar,
+  not a runtime-side bug. Migrating `filter-test-support` will very likely fix most/all of these
+  for free once `kroxylicious-runtime` builds against a freshly-installed, vendored jar
+  (`mvn -o -pl kroxylicious-filter-test-support install -DskipTests` after migrating it).
 - Everything else in Phase B (§7 steps 6–11: `kroxylicious-kafka-message-tools`, all
   `kroxylicious-filters/*` submodules, `kroxylicious-integration-test-support`,
   `kroxylicious-runtime-plugins`, `kroxylicious-microbenchmarks`, `kroxylicious-app`,
@@ -108,121 +132,48 @@ steps). Delete this file once the migration is complete and merged.
    before this branch started (see "already vendored" note above) — §8.2/§8.3 of the plan are
    already satisfied on `main`. Don't redo.
 
-## Exact next step: finish `KafkaProxyExceptionMapper.java` (§8.6)
+## §8.6 `KafkaProxyExceptionMapper.java` — DONE this session
 
-This is the only remaining broken file in `kroxylicious-runtime/src/main`. A backup of the
-pre-migration original is at `/tmp/KafkaProxyExceptionMapper.java.orig` (only valid on this
-machine/session — copy it into the repo somewhere durable if you need it, e.g. `git show
-HEAD:kroxylicious-runtime/.../KafkaProxyExceptionMapper.java` after the commit this session
-made, since the committed version is the *broken*, half-migrated state — imports rewritten,
-body not).
+Implemented the byte-round-trip adapter exactly as planned: `buildErrorResponse(ApiKeys
+vendoredApiKey, ApiMessage reqBody, short apiVersion, Throwable error)` serializes the
+vendored request body (`MessageUtil.toByteBufferAccessor`), parses it as a kafka-clients
+`AbstractRequest` (`AbstractRequest.parseRequest`, translating `ApiKeys` via `.id`/`.forId`),
+builds the kafka-clients error response (`getErrorResponse`, translating `Errors` via
+`.code()`/`.forCode(code).exception()` — passing a vendored exception straight into
+`getErrorResponse` silently degrades to `UNKNOWN_SERVER_ERROR`, must translate first),
+serializes that, and decodes it back into a vendored `ApiMessage` via
+`BodyDecoder.decodeResponse`. One incidental fix required: `BodyDecoder.ftl`'s
+`decodeResponse` had to become `public` (see note above) since it's called cross-package.
+The ~200-line per-API-key `switch` and `toLeaveGroupBuilder` helper are gone. Both call sites
+(`RequestFilterResultBuilderImpl.java`, `RouterDispatchHandler.java`) updated to the new
+`ApiMessage`-returning signature; `KafkaProxyFrontendHandler.java` needed no change (already
+expected `ApiMessage`).
 
-Verified API shapes (checked against Kafka 4.3.0 source at
-`/home/robeyoun/development/upstream/kafka`) to build the byte-round-trip adapter:
+## Next step: migrate `kroxylicious-filter-test-support` (Phase B, §7 step 8)
 
-- Vendored `io.kroxylicious.kafka.common.protocol.MessageUtil.toByteBufferAccessor(Message
-  message, short version)` returns a **vendored** `ByteBufferAccessor` with a `.buffer()`
-  getter (already flipped, ready to read). Use this to serialize the vendored request body.
-- kafka-clients `org.apache.kafka.common.protocol.ByteBufferAccessor` implements both
-  `Readable` and `Writable` — wrap the serialized `ByteBuffer` in one of these to feed
-  `AbstractRequest.parseRequest`.
-- `org.apache.kafka.common.requests.AbstractRequest.parseRequest(ApiKeys apiKey, short
-  apiVersion, Readable readable)` returns `RequestAndSize` (`.request` is the built
-  `AbstractRequest`).
-- Error translation: **do not** pass a vendored exception directly into
-  `AbstractRequest#getErrorResponse(Throwable)` — its internal `Errors.forException`
-  does a `getClass()`-keyed lookup against kafka-clients' own exception hierarchy and won't
-  recognize a vendored exception instance, silently degrading everything to
-  `UNKNOWN_SERVER_ERROR`. Instead: vendored `Errors.forException(error)` → `.code()` →
-  `org.apache.kafka.common.protocol.Errors.forCode(code)` → `.exception()` (a fresh
-  kafka-clients exception instance for that code) → pass that into `getErrorResponse`.
-- `AbstractResponse` has no direct `serialize(short)`; use `.data()` (returns kafka-clients
-  `ApiMessage`) then kafka-clients `MessageUtil.toByteBufferAccessor(data, apiVersion)`
-  (same shape as the vendored one) to get bytes back out.
-- Decode the response bytes back into a **vendored** `ApiMessage` via the generated
-  `io.kroxylicious.proxy.internal.codec.BodyDecoder.decodeResponse(ApiKeys apiKey, short
-  apiVersion, ByteBufAccessor accessor)` — note this takes the *project's*
-  `io.kroxylicious.proxy.frame.ByteBufAccessor` interface (Netty-based, more methods than
-  vendored `Readable`/`Writable`), not the vendored `ByteBufferAccessor` directly. Reuse the
-  existing `io.kroxylicious.proxy.internal.codec.ByteBufAccessorImpl` wrapping
-  `io.netty.buffer.Unpooled.wrappedBuffer(responseBytes)` for this final decode step.
+Pulled forward ahead of the rest of Phase B because it's now the hard blocker for finishing
+`kroxylicious-runtime`'s test-compile (5 files, see above) — not just its own module. Do this
+next, then re-run `kroxylicious-runtime` test-compile before moving to the remaining Phase B
+modules; most/all of those 5 files likely resolve for free once `filter-test-support` installs
+a freshly-vendored jar.
 
-Skeleton (fill in, don't blindly paste — verify field/method names against the actual
-generated `BodyDecoder` and vendored `MessageUtil`/`Errors`/`ApiKeys` before compiling):
+Standard recipe: fresh grep for `org\.apache\.kafka\.common\.` in
+`kroxylicious-filter-test-support/src/{main,test}` (don't trust old file counts), run the §9
+bulk script over the whole module tree, compile, hand-fix what's left. Known gotchas specific
+to this module:
+- It already has pom wiring done this/last session (§2d): `kroxylicious-krpc-plugin`
+  `generate-converters` execution removed, `KafkaApiMessageConverter.ftl` template removed,
+  dependency on `kroxylicious-kafka-message-json` added. Don't redo that part.
+- `RequestFactory`, `RecordTestUtils`, `ResponseAssert` (all in
+  `io.kroxylicious.testing.filter.*`) are the classes `kroxylicious-runtime`'s blocked tests
+  depend on — prioritize getting these three compiling/vendored correctly.
+- After migrating, reinstall so downstream modules pick it up:
+  `mvn -q -o -pl kroxylicious-filter-test-support install -DskipTests`, then re-run
+  `mvn -q -o -pl kroxylicious-runtime test-compile` and check the 5-file blocker list shrinks.
 
-```java
-private static ApiMessage buildErrorResponse(ApiKeys vendoredApiKey, ApiMessage reqBody, short apiVersion, Throwable error) {
-    var kafkaApiKey = org.apache.kafka.common.protocol.ApiKeys.forId(vendoredApiKey.id);
-    ByteBuffer requestBytes = io.kroxylicious.kafka.common.protocol.MessageUtil.toByteBufferAccessor(reqBody, apiVersion).buffer();
-    var ras = AbstractRequest.parseRequest(kafkaApiKey, apiVersion,
-            new org.apache.kafka.common.protocol.ByteBufferAccessor(requestBytes));
-    short code = Errors.forException(error).code(); // vendored Errors
-    var kafkaException = org.apache.kafka.common.protocol.Errors.forCode(code).exception();
-    AbstractResponse kafkaResponse = ras.request.getErrorResponse(kafkaException);
-    ByteBuffer responseBytes = org.apache.kafka.common.protocol.MessageUtil
-            .toByteBufferAccessor(kafkaResponse.data(), apiVersion).buffer();
-    return BodyDecoder.decodeResponse(vendoredApiKey, apiVersion,
-            new ByteBufAccessorImpl(io.netty.buffer.Unpooled.wrappedBuffer(responseBytes)));
-}
-```
+## Then: rest of Phase B (§7 steps 6, 7, 9–11), untouched
 
-This one method replaces the entire ~200-line `switch` in the current file (the whole
-`private static AbstractRequest errorResponse(ApiKeys apiKey, ApiMessage reqBody, short
-apiVersion)` method and `toLeaveGroupBuilder` helper go away — they exist only to build a
-`kafka-clients` request object per-API-key so `.getErrorResponse()` can be called on it; the
-round-trip through `AbstractRequest.parseRequest` does that generically for every API key).
-
-Also update:
-- `errorResponseForMessage(...)`: change return type `AbstractResponse` → vendored
-  `ApiMessage`, and its body to call `buildErrorResponse(...)` instead of
-  `errorResponse(ApiKeys.forId(apiKey), message, apiVersion).getErrorResponse(apiException)`.
-- `errorResponse(DecodedRequestFrame<?>, Throwable)` (package-private,
-  `@VisibleForTesting`): change return type `AbstractResponse` → vendored `ApiMessage`,
-  body calls `buildErrorResponse(...)` and returns it directly (no more `.getErrorResponse()`
-  call at this level — that's now inside `buildErrorResponse`).
-- `errorResponseMessage(...)`: simplifies to `return errorResponse(frame, error);` (no more
-  `.data()` — `errorResponse` now returns the data directly).
-- `newListConfigResourcesV0ErrorResponse`: change to build and return a **vendored**
-  `ListConfigResourcesResponseData` directly (no `ListConfigResourcesResponse` wrapper needed
-  since we're returning `ApiMessage`, not `AbstractResponse`) — this special case does not
-  need the round-trip at all, it's already a straight vendored-data build in the current code,
-  just drop the `org.apache.kafka.common.requests.ListConfigResourcesResponse` wrapper.
-- Drop now-unused imports: all ~90 `org.apache.kafka.common.requests.*Request` imports, `acl.*`,
-  `resource.*`, `security.auth.KafkaPrincipal`, `IsolationLevel`, `ElectionType` (all were only
-  used inside the deleted switch). Keep `org.apache.kafka.common.requests.AbstractRequest`,
-  `AbstractResponse` (used internally now), add
-  `org.apache.kafka.common.protocol.ApiKeys`/`Errors`/`ByteBufferAccessor` as
-  fully-qualified or aliased imports (there will be a name collision with the vendored
-  `ApiKeys`/`Errors`/`ByteBufferAccessor` already imported — use fully-qualified references
-  for the kafka-clients side, as sketched above, rather than importing both under the same
-  simple name).
-
-Then fix the two call sites (both currently do `KafkaProxyExceptionMapper
-.errorResponseForMessage(...)` then `.data()` — once the return type is the vendored
-`ApiMessage`, just drop the `.data()` and retype the local variable, and drop each file's now-
-unused `import org.apache.kafka.common.requests.AbstractResponse;`):
-- `kroxylicious-runtime/src/main/java/io/kroxylicious/proxy/internal/filter/RequestFilterResultBuilderImpl.java`
-  (currently line ~67, method `errorResponse(RequestHeaderData, ApiMessage, ApiException)`)
-- `kroxylicious-runtime/src/main/java/io/kroxylicious/proxy/internal/routing/RouterDispatchHandler.java`
-  (currently line ~369, the `RespondWithError` switch case)
-
-`KafkaProxyFrontendHandler.java:456` calls `errorResponseMessage(...)` and already expects
-`ApiMessage` back — no change needed there, it was already correct against the target shape.
-
-After that, recompile:
-```bash
-mvn -q -o -pl kroxylicious-runtime compile > /tmp/krox-mig.log 2>&1; echo "EXIT=$?"
-grep -E 'ERROR' /tmp/krox-mig.log | head -60
-```
-Expect **zero** errors in `src/main` at that point (verified this session that nothing else
-in the module is broken). Then move to `kroxylicious-runtime/src/test` (~40 files, not yet
-touched — run the §9 bulk script first, then hand-fix whatever's left, same pattern as
-`kroxylicious-api`).
-
-## Then: Phase B (§7 steps 6–11), untouched
-
-Work through `kroxylicious-kafka-message-tools`, then each `kroxylicious-filters/*`
-submodule, `kroxylicious-filter-test-support` (finish what was pom-wired this session),
+Work through `kroxylicious-kafka-message-tools`, each `kroxylicious-filters/*` submodule,
 `kroxylicious-integration-test-support`, `kroxylicious-runtime-plugins`,
 `kroxylicious-microbenchmarks`, `kroxylicious-app`, `kroxylicious-integration-tests`,
 `kroxylicious-krpc-plugin`. Same recipe each time: fresh grep for

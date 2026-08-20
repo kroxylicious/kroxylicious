@@ -14,7 +14,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
-import org.apache.kafka.common.requests.AbstractResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.spi.LoggingEventBuilder;
@@ -366,11 +365,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 Objects.requireNonNull(responseSequencer).submit(sequence, responseFrame);
             }
             case RouterResponseImpl.RespondWithError rwe -> {
-                AbstractResponse errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
+                ApiMessage errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
                         rwe.requestHeader(), rwe.request(), rwe.exception());
                 ResponseHeaderData header = new ResponseHeaderData();
                 header.setCorrelationId(correlationId);
-                var responseFrame = new DecodedResponseFrame<>(apiVersion, correlationId, header, errorResponse.data());
+                var responseFrame = new DecodedResponseFrame<>(apiVersion, correlationId, header, errorResponse);
                 Objects.requireNonNull(responseSequencer).submit(sequence, responseFrame);
             }
             case RouterResponseImpl.RespondWithoutReply ignored -> {

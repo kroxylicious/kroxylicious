@@ -73,7 +73,7 @@ public class BodyDecoder {
     * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-511%3A+Collect+and+Expose+Client%27s+Name+and+Version+in+the+Brokers#KIP511:CollectandExposeClient'sNameandVersionintheBrokers-ApiVersionsRequest/ResponseHandling">KIP-511: Collect and Expose Client's Name and Version in the Brokers</a>
     * ApiVersions Request/Response Handling
     */
-    static ApiMessage decodeResponse(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
+    public static ApiMessage decodeResponse(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
         return switch (apiKey) {
 <#list inputSpecs as inputSpec>
     <#if inputSpec.type?lower_case == 'response'>
