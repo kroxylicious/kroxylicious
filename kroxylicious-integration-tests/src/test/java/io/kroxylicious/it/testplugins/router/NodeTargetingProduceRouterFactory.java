@@ -21,7 +21,7 @@ import io.kroxylicious.proxy.router.RouterFactoryContext;
 public class NodeTargetingProduceRouterFactory
         implements RouterFactory<NodeTargetingProduceRouterFactory.Config, NodeTargetingProduceRouterFactory.Config> {
 
-    public record Config(String route, int targetVirtualNodeId) {}
+    public record Config(int targetVirtualNodeId) {}
 
     @Override
     public Config initialize(RouterFactoryContext context, Config config) {
@@ -30,7 +30,6 @@ public class NodeTargetingProduceRouterFactory
 
     @Override
     public Router createRouter(RouterFactoryContext context, Config config) {
-        String route = config.route();
         int targetVirtualNodeId = config.targetVirtualNodeId();
 
         return (apiKey, apiVersion, header, request, ctx) -> {

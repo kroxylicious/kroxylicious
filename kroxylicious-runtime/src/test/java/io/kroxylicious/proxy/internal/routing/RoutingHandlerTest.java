@@ -366,7 +366,7 @@ class RoutingHandlerTest {
     }
 
     @Test
-    void topLevel_shouldCloseChannelAfterRespondWithWhenCloseConnectionIsTrue() {
+    void topLevel_shouldDeliverResponseBeforeClosingChannelWhenRespondWithAndCloseConnection() {
         // Given
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
@@ -379,6 +379,11 @@ class RoutingHandlerTest {
         channel.runPendingTasks();
 
         // Then
+        DecodedResponseFrame<?> out = channel.readOutbound();
+        assertThat(out)
+                .as("response must be delivered even when the router also requests connection close")
+                .isNotNull();
+        assertThat(out.header().correlationId()).isEqualTo(CORRELATION_ID);
         assertThat(channel.isOpen()).isFalse();
     }
 

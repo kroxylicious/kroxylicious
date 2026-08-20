@@ -357,14 +357,22 @@ public record Configuration(
                                                                     Map<String, ClusterDefinition> clustersByName) {
         RouterDefinition topRouter = routersByName.get(virtualCluster.router());
         if (topRouter == null) {
-            return Map.of();
+            throw new IllegalStateException(
+                    "Virtual cluster '" + virtualCluster.name() + "' references router '" + virtualCluster.router()
+                            + "' that was not found in routersByName — this is a bug");
         }
         Map<String, RouteDescriptor> topLevel = resolveRouterRoutes(topRouter, filterDefinitionsByName, clustersByName);
         Map<String, RouteDescriptor> all = new HashMap<>(topLevel);
         for (var entry : topLevel.entrySet()) {
             if (entry.getValue().targetsRouter()) {
-                collectNestedRouteDescriptors(routersByName.get(entry.getValue().routerName()),
-                        routersByName, filterDefinitionsByName, clustersByName, all);
+                String nestedRouterName = entry.getValue().routerName();
+                RouterDefinition nested = routersByName.get(nestedRouterName);
+                if (nested == null) {
+                    throw new IllegalStateException(
+                            "Route '" + entry.getKey() + "' references router '" + nestedRouterName
+                                    + "' that was not found in routersByName — this is a bug");
+                }
+                collectNestedRouteDescriptors(nested, routersByName, filterDefinitionsByName, clustersByName, all);
             }
         }
         return all;
@@ -376,15 +384,20 @@ public record Configuration(
                                                Map<String, NamedFilterDefinition> filterDefinitionsByName,
                                                Map<String, ClusterDefinition> clustersByName,
                                                Map<String, RouteDescriptor> collector) {
-        Objects.requireNonNull(router, "router");
         Map<String, RouteDescriptor> routerRoutes = resolveRouterRoutes(router, filterDefinitionsByName, clustersByName);
         for (var entry : routerRoutes.entrySet()) {
             String qualifiedName = router.name() + "/" + entry.getKey();
             collector.put(qualifiedName, entry.getValue());
             RouteDescriptor desc = entry.getValue();
             if (desc.targetsRouter()) {
-                collectNestedRouteDescriptors(routersByName.get(desc.routerName()),
-                        routersByName, filterDefinitionsByName, clustersByName, collector);
+                String nestedRouterName = desc.routerName();
+                RouterDefinition nested = routersByName.get(nestedRouterName);
+                if (nested == null) {
+                    throw new IllegalStateException(
+                            "Route '" + entry.getKey() + "' in router '" + router.name() + "' references router '"
+                                    + nestedRouterName + "' that was not found in routersByName — this is a bug");
+                }
+                collectNestedRouteDescriptors(nested, routersByName, filterDefinitionsByName, clustersByName, collector);
             }
         }
     }

@@ -324,8 +324,8 @@ public class RouteDispatcher implements RouterDispatch {
                     }
                 });
             }
-            catch (Exception e) {
-                bridge.completeExceptionally(e);
+            catch (Throwable t) {
+                bridge.completeExceptionally(t);
             }
         });
         return bridge;

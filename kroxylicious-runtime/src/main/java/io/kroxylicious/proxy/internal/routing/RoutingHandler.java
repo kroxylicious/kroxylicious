@@ -450,6 +450,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
             return;
         }
 
+        deliverResponse(ctx, requestFrame, rri, apiKey, apiVersion, correlationId, sequence);
+
         if (rri.closeConnection()) {
             if (ccsm != null) {
                 ctx.channel().close().addListener(logFailure(LOGGER, "close requested by router after response delivery"));
@@ -464,7 +466,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
             }
         }
 
-        deliverResponse(ctx, requestFrame, rri, apiKey, apiVersion, correlationId, sequence);
         notifyRequestComplete();
     }
 
