@@ -4,6 +4,42 @@ Branch: `kafka-vendoring-phase-d`. Read `PLAN2.md` first (governing plan), then 
 (what actually happened vs. the plan, and exact next steps). Delete this file once the
 migration is complete and merged.
 
+## Update: full reactor install now passes (this session)
+
+Everything described below as "uncommitted" was already committed by the time this session
+started (`git status` was clean on `293dfd710`). This session did just one thing: reran the
+full reactor install per "next steps" item 1, fixed what it found, and committed
+(`05ccaecc5`).
+
+`-Dmaven.test.skip=true` skips test *compilation*, so `dependency:analyze-only` was scoring
+against stale `target/test-classes` left over from old builds, not the current sources —
+worth knowing if you rerun the same skip-flagged install command and something looks wrong
+after touching test sources. After the install went clean, test-compile and `verify`
+(with quality-gate skips, not `-Dmaven.test.skip`) were re-run directly against every module
+touched this session to confirm for real, not against stale classes.
+
+Eight more pom gaps found, same two bug classes as the previous fix commit
+(`ea7077e55`) — unused `kafka-clients` now that main sources are vendored, and
+`kroxylicious-filter-test-support` swapped for the real `kroxylicious-kafka-message-json`
+dependency `KafkaApiMessageConverter` now lives in:
+- `kafka-clients` removed as unused: `kroxylicious-connection-expiration`,
+  `kroxylicious-simple-transform`, `kroxylicious-protocol-logger`,
+  `kroxylicious-microbenchmarks`.
+- `kroxylicious-filter-test-support` → `kroxylicious-kafka-message-json`:
+  `kroxylicious-authorization`, `kroxylicious-entity-isolation` (test-only usage of
+  `KafkaApiMessageConverter`, nothing else in those modules still needed `filter-test-support`).
+- Added missing direct `kroxylicious-kafka-message-json` test dependency (previously resolved
+  only transitively): `kroxylicious-multitenant`, `kroxylicious-integration-tests`.
+
+`kroxylicious-systemtests` and `kroxylicious-docs-tests` also fail `dependency:analyze-only`
+in a full install, but neither has any diff against `main` — confirmed pre-existing and
+unrelated to this migration, left alone. If a future session sees the reactor install fail on
+either of these, that's not a regression from this branch.
+
+The only remaining open item before this migration is "done" per PLAN2.md's stated goal is
+the japicmp API-change decision (next steps item 2 below) — unchanged, still deliberately
+unresolved, needs a maintainer call.
+
 ## Current state: what's committed vs. uncommitted
 
 **Committed** (on `kafka-vendoring-phase-d`, in order): everything through
