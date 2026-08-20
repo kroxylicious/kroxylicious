@@ -10,10 +10,11 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 /**
  * A component for Filters that need to restrict the max version of a set of RPCs. For instance if

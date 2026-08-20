@@ -8,9 +8,10 @@ package io.kroxylicious.kafka.transform;
 
 import java.util.Set;
 
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
+
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 class ApiVersionRemoverTest extends ApiVersionsResponseTransformerTester {
 

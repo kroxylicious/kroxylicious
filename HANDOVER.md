@@ -190,17 +190,47 @@ The ~200-line per-API-key `switch` and `toLeaveGroupBuilder` helper are gone. Bo
 `ApiMessage`-returning signature; `KafkaProxyFrontendHandler.java` needed no change (already
 expected `ApiMessage`).
 
-## Next step: rest of Phase B (§7 steps 6, 7, 9–11), untouched
+## `kroxylicious-kafka-message-tools` — DONE this session
+
+Fully vendored, **and turns out fully kafka-clients-free** (main + test) — every import in this
+module was a §3a/§3b REWRITE case (`message.*`, `protocol.ApiKeys`, `record.*` → `record.internal`
+except `TimestampType`, `header.Header`, `utils.ByteBufferOutputStream`, `compress.Compression`),
+so after the bulk script ran there were zero `org.apache.kafka.*` references left anywhere in the
+module. This wasn't anticipated by PLAN2.md (§7 step 6 only asked for vendoring, not kafka-clients
+removal), but it fell out naturally once `ApiKeys`/`Errors`/records were vendored — same situation
+as `kroxylicious-api` in miniature. Changes beyond the mechanical rewrite:
+- `pom.xml`: replaced the `kafka-clients` dependency (was `provided` scope) with a plain
+  dependency on `kroxylicious-api` (where the vendored classes live). Verified with
+  `dependency:tree` that `kafka-clients` no longer appears at all, even transitively.
+  Description text updated to stop claiming a kafka-clients-only dependency.
+- `etc/module-layering.xml` (the `ImportControl` checkstyle config that enforces this module's
+  declared isolation from the rest of Kroxylicious): swapped `<allow pkg="org.apache.kafka"/>`
+  for `<allow pkg="io.kroxylicious.kafka.common"/>`. Verified with
+  `mvn -o -pl kroxylicious-kafka-message-tools checkstyle:check@layering` (the bound execution
+  has no explicit phase, so plain `checkstyle:check` runs the wrong, default `sun_checks.xml`
+  ruleset instead — use the `@layering` execution-id suffix to run the real one).
+- `BatchAwareMemoryRecordsBuilderTest.java`'s `controlRecord()` helper called `.sizeOf()`/
+  `.writeTo()` on `ControlRecordType.ABORT.recordKey()`, which used to return a kafka-clients
+  `Struct`. The vendored `ControlRecordType` (copied from Kafka 4.3.0 source, per PLAN2.md §5)
+  returns a plain `ByteBuffer` instead — Kafka's own API for this changed between whatever
+  kafka-clients version this repo pins (`kafka.version=4.2.0` in the root pom) and 4.3.0. Fixed
+  by reading the `ByteBuffer` into a `byte[]` directly instead of calling `Struct` methods on it.
+  **This is a live version-skew signal worth flagging to maintainers**: the vendored source was
+  copied from 4.3.0 while the repo's own kafka-clients dependency is pinned to 4.2.0 — most
+  vendored classes are self-contained enough that this doesn't matter, but any future vendored
+  class whose *shape* changed between 4.2.0 and 4.3.0 could surface the same kind of surprise.
+
+## Next step: rest of Phase B (§7 steps 7, 9–11), untouched
 
 `kroxylicious-api`, `kroxylicious-kafka-message-json`, `kroxylicious-runtime` (main + test),
-and `kroxylicious-filter-test-support` (main + test) are all DONE and verified this session.
-Everything else in Phase B has not been started.
+`kroxylicious-filter-test-support` (main + test), and `kroxylicious-kafka-message-tools`
+(main + test) are all DONE and verified this session. Everything else in Phase B has not been
+started.
 
-Work through `kroxylicious-kafka-message-tools`, each `kroxylicious-filters/*` submodule,
-`kroxylicious-integration-test-support`, `kroxylicious-runtime-plugins`,
-`kroxylicious-microbenchmarks`, `kroxylicious-app`, `kroxylicious-integration-tests`,
-`kroxylicious-krpc-plugin`. Same recipe each time: fresh grep for
-`org\.apache\.kafka\.common\.` in that module's `src/main` (don't trust the plan's file
+Work through each `kroxylicious-filters/*` submodule, `kroxylicious-integration-test-support`,
+`kroxylicious-runtime-plugins`, `kroxylicious-microbenchmarks`, `kroxylicious-app`,
+`kroxylicious-integration-tests`, `kroxylicious-krpc-plugin`. Same recipe each time: fresh grep
+for `org\.apache\.kafka\.common\.` in that module's `src/main` (don't trust the plan's file
 counts, see correction #2/#3 above), run the §9 script over the whole module tree, compile,
 hand-fix what's left. Watch specifically for:
 - The `FindCoordinatorRequest.CoordinatorType` gotcha (correction #1) in
