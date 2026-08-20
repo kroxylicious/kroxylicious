@@ -56,6 +56,11 @@ public class ${filterInvokerClass} implements FilterInvoker {
 
     private final ${filterClass} filter;
 
+    /**
+     * Creates an invoker for the given filter.
+     *
+     * @param filter the filter to invoke
+     */
     public ${filterInvokerClass}(${filterClass} filter) {
         this.filter = filter;
     }

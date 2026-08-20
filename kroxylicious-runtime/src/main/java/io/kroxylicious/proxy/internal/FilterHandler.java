@@ -90,6 +90,14 @@ public class FilterHandler extends ChannelDuplexHandler {
     private @Nullable ChannelHandlerContext ctx;
     private @Nullable PromiseFactory promiseFactory;
 
+    /**
+     * Creates a handler applying the given filter.
+     * @param filterAndInvoker the filter (and its invoker) applied by this handler
+     * @param timeoutMs timeout, in milliseconds, applied to out-of-band requests sent by the filter
+     * @param sniHostname the SNI hostname presented by the client, or {@code null} if none
+     * @param inboundChannel the downstream (client) channel
+     * @param clientConnectionStateMachine the state machine for the client connection
+     */
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
                          @Nullable String sniHostname,

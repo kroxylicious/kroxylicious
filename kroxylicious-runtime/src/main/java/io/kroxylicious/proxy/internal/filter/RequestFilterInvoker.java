@@ -16,6 +16,12 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * A {@link FilterInvoker} for filters that handle requests only, delegating to a
+ * {@link RequestFilter}.
+ *
+ * @param filter the request filter to delegate to
+ */
 public record RequestFilterInvoker(RequestFilter filter) implements FilterInvoker {
 
     @Override

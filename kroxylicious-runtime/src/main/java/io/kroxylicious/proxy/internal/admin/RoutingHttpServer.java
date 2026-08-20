@@ -38,6 +38,11 @@ import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.rtsp.RtspHeaderNames.CONTENT_TYPE;
 
+/**
+ * Netty handler implementing a minimal HTTP server for the management endpoints.  GET requests are
+ * dispatched to the handler function registered for the request path; unknown paths yield 404 and
+ * non-GET methods yield 405.
+ */
 public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
 
     private final Map<String, Function<HttpRequest, HttpResponse>> routes;
@@ -48,6 +53,11 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
         this.routes = routes;
     }
 
+    /**
+     * Creates a builder used to assemble the routes of a {@link RoutingHttpServer}.
+     *
+     * @return a new builder
+     */
     public static RoutingHttpServerBuilder builder() {
         return new RoutingHttpServerBuilder();
     }
@@ -109,10 +119,25 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
         }
     }
 
+    /**
+     * Creates a plain-text response for the given status, using the status reason phrase as body.
+     *
+     * @param req request being responded to (used for the protocol version)
+     * @param status response status
+     * @return the response
+     */
     public static FullHttpResponse responseWithStatus(HttpRequest req, HttpResponseStatus status) {
         return responseWithBody(req, status, status.reasonPhrase());
     }
 
+    /**
+     * Creates a plain-text response with the given status and body content.
+     *
+     * @param req request being responded to (used for the protocol version)
+     * @param status response status
+     * @param content response body
+     * @return the response
+     */
     public static FullHttpResponse responseWithBody(HttpRequest req, HttpResponseStatus status, String content) {
         FullHttpResponse response = new DefaultFullHttpResponse(req.protocolVersion(), status,
                 Unpooled.wrappedBuffer(content.getBytes(StandardCharsets.UTF_8)));
@@ -130,9 +155,19 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
         ctx.close();
     }
 
+    /**
+     * Builder that accumulates path to handler mappings for a {@link RoutingHttpServer}.
+     */
     public static class RoutingHttpServerBuilder {
 
         private final Map<String, Function<HttpRequest, HttpResponse>> routes = new HashMap<>();
+
+        /**
+         * Creates a builder with no routes.
+         */
+        public RoutingHttpServerBuilder() {
+            // Intentionally empty
+        }
 
         RoutingHttpServerBuilder withRoute(String path, Function<HttpRequest, HttpResponse> responseFunction) {
             routes.put(path, responseFunction);

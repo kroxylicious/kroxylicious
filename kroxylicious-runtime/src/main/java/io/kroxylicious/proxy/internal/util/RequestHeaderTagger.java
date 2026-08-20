@@ -23,7 +23,18 @@ public class RequestHeaderTagger {
     private static final RawTaggedField LEARN_TOPIC_NAMES_TAGGED_FIELD = new RawTaggedField(14343085,
             "kroxylicious.io/learn-topic-names".getBytes(StandardCharsets.UTF_8));
 
+    /**
+     * Not instantiable: all members are static.
+     */
+    private RequestHeaderTagger() {
+        // Prevent construction
+    }
+
+    /**
+     * The internal tags that may be applied to a request header.
+     */
     public enum Tag {
+        /** Marks a request as one from which the proxy should learn topic id to name mappings. */
         LEARN_TOPIC_NAMES;
 
         @VisibleForTesting
@@ -32,6 +43,11 @@ public class RequestHeaderTagger {
         }
     }
 
+    /**
+     * Removes all internal tags from the given request header.
+     *
+     * @param header the request header to strip of internal tags
+     */
     public static void removeTags(RequestHeaderData header) {
         List<RawTaggedField> rawTaggedFields = header.unknownTaggedFields();
         for (Tag value : Tag.values()) {
@@ -40,10 +56,23 @@ public class RequestHeaderTagger {
         }
     }
 
+    /**
+     * Applies the given internal tag to the request header.
+     *
+     * @param headerData the request header to tag
+     * @param tag the tag to apply
+     */
     public static void tag(RequestHeaderData headerData, Tag tag) {
         headerData.unknownTaggedFields().add(copyOf(rawTaggedField(tag)));
     }
 
+    /**
+     * Determines whether the request header carries the given internal tag.
+     *
+     * @param headerData the request header to inspect
+     * @param tag the tag to look for
+     * @return true if the header contains the tag
+     */
     public static boolean containsTag(RequestHeaderData headerData, Tag tag) {
         RawTaggedField taggedField = rawTaggedField(tag);
         return headerData.unknownTaggedFields().stream().anyMatch(rawTaggedField -> matches(rawTaggedField, taggedField));

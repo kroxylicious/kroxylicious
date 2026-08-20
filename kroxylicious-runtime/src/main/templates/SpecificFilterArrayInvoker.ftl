@@ -55,6 +55,12 @@ public class SpecificFilterArrayInvoker implements FilterInvoker {
     private final FilterInvoker[] requestInvokers;
     private final FilterInvoker[] responseInvokers;
 
+    /**
+     * Creates an invoker for the given filter, wiring up an invoker for each
+     * specific message filter interface the filter implements.
+     *
+     * @param filter the filter to invoke
+     */
     public SpecificFilterArrayInvoker(Filter filter) {
         Map<Integer, FilterInvoker> requestInvokers = new HashMap<>();
         Map<Integer, FilterInvoker> responseInvokers = new HashMap<>();

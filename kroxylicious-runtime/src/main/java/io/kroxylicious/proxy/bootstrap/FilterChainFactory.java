@@ -119,6 +119,15 @@ public class FilterChainFactory implements AutoCloseable {
      */
     private final Map<String, Wrapper> initialized;
 
+    /**
+     * Creates a {@link FilterChainFactory} for the given filter chain, initialising each unique
+     * named filter definition once (duplicated names share a single {@code initResult}).
+     * If any filter factory fails to initialise, the already-initialised factories are closed
+     * before the failure is propagated.
+     *
+     * @param pfr the plugin factory registry used to look up filter factory plugins; must not be null
+     * @param filterChain the virtual cluster's filter chain in invocation order; must not be null, may be empty
+     */
     public FilterChainFactory(PluginFactoryRegistry pfr, List<NamedFilterDefinition> filterChain) {
         Objects.requireNonNull(pfr, "pfr must not be null");
         Objects.requireNonNull(filterChain, "filterChain must not be null");

@@ -12,6 +12,11 @@ package io.kroxylicious.proxy.config;
  * but the proxy does not have test-only configuration loading enabled.
  */
 public class IllegalConfigurationException extends RuntimeException {
+    /**
+     * Creates the exception.
+     *
+     * @param message detail message
+     */
     public IllegalConfigurationException(String message) {
         super(message);
     }

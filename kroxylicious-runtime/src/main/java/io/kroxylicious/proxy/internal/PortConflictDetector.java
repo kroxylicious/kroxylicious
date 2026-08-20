@@ -23,6 +23,13 @@ import io.kroxylicious.proxy.service.HostPort;
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class PortConflictDetector {
 
+    /**
+     * Creates a port conflict detector.
+     */
+    public PortConflictDetector() {
+        // Intentionally empty
+    }
+
     private static final String ANY_STRING = "<any>";
 
     private enum BindingScope {

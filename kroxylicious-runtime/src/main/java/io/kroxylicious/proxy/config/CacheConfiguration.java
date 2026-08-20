@@ -21,8 +21,16 @@ public record CacheConfiguration(@Nullable Integer maxSize,
                                  @Nullable Duration expireAfterWrite,
                                  @Nullable Duration expireAfterAccess) {
 
+    /**
+     * A cache configuration with all values defaulted.
+     */
     public static final CacheConfiguration DEFAULT = new CacheConfiguration(null, null, null);
 
+    /**
+     * Duration after last access (or write) after which cache entries are removed.
+     *
+     * @return the configured {@code expireAfterAccess} duration, or the default of 1 hour if none was configured
+     */
     @Override
     public Duration expireAfterAccess() {
         return expireAfterAccess == null ? Duration.of(1L, ChronoUnit.HOURS) : expireAfterAccess;

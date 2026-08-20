@@ -11,6 +11,12 @@ package io.kroxylicious.proxy.config;
  */
 public class DurationArithmeticException extends RuntimeException {
 
+    /**
+     * Creates the exception.
+     *
+     * @param message detail message
+     * @param cause the underlying arithmetic exception
+     */
     public DurationArithmeticException(String message, ArithmeticException cause) {
         super(message, cause);
     }

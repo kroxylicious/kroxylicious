@@ -58,6 +58,9 @@ public sealed interface NodeIdMapping permits BijectiveNodeIdMapping, IdentityNo
 
     /**
      * A route name and target-cluster node ID pair.
+     *
+     * @param route the route name
+     * @param targetNodeId the node ID on the target cluster
      */
     record RouteAndNode(String route, int targetNodeId) {}
 }

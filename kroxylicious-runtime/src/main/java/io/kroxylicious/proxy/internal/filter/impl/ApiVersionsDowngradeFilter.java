@@ -23,10 +23,20 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 
+/**
+ * Filter that short-circuits ApiVersions requests received at an api version higher than the
+ * proxy supports, responding directly with {@code UNSUPPORTED_VERSION} and the versions the
+ * proxy does support, without forwarding to any broker.
+ */
 public class ApiVersionsDowngradeFilter implements ApiVersionsRequestFilter {
 
     private final ApiVersionsServiceImpl apiVersionsService;
 
+    /**
+     * Creates the filter.
+     *
+     * @param apiVersionsService the service that knows the api versions supported by the proxy
+     */
     public ApiVersionsDowngradeFilter(ApiVersionsServiceImpl apiVersionsService) {
         this.apiVersionsService = Objects.requireNonNull(apiVersionsService);
     }
@@ -84,6 +94,12 @@ public class ApiVersionsDowngradeFilter implements ApiVersionsRequestFilter {
                 .setRequestApiVersion((short) 0);
     }
 
+    /**
+     * Creates the synthetic ApiVersions request frame used to trigger the downgrade response.
+     *
+     * @param correlationId the correlation id of the client's original ApiVersions request
+     * @return the synthetic request frame
+     */
     public static DecodedRequestFrame<ApiVersionsRequestData> downgradeApiVersionsFrame(int correlationId) {
         RequestHeaderData requestHeaderData = apiVersionsRequestDowngradeHeader(correlationId);
         return new DecodedRequestFrame<>(
