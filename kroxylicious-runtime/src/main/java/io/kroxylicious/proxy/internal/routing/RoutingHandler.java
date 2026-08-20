@@ -54,7 +54,22 @@ import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
  * delegated to a {@link RouteDispatcher}. The handler owns the policy
  * decisions that differ between top-level and nested use: response sequencing,
  * connection-close semantics, out-of-band request handling, and
- * {@link ClientConnectionStateMachine} interaction.
+ * {@link ClientConnectionStateMachine} interaction. The {@link #requestSource}
+ * field distinguishes the two modes without scattering null checks throughout
+ * the class: a {@link VirtualClusterRequestSource} indicates top-level, a
+ * {@link RouterRequestSource} indicates nested.
+ *
+ * <h2>Pipeline structure</h2>
+ * <p>One handler of this type is installed per router level per connection.
+ * A router whose routes target a mix of upstream clusters and nested routers
+ * results in one {@code RoutingHandler} per router-targeting route, each
+ * intercepting only frames whose route name matches its
+ * {@link RouterRequestSource#activationRoute()}; cluster-targeting frames pass
+ * through unchanged. Because each activation route has its own handler
+ * instance and its own lazily-created {@link Router}, a router referenced from
+ * multiple parent routes (a diamond in the routing DAG) is effectively
+ * unrolled into a tree: each path to it gets independent handler and router
+ * instances.
  *
  * <p>Use the {@link #topLevel} and {@link #nested} factory methods to create
  * instances. Not thread-safe; all callers must be on the same Netty event loop.
@@ -72,11 +87,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
     @Nullable
     private final Integer nodeId;
 
-    @Nullable
-    private final String activationRoute;
-
-    @Nullable
-    private final ClientConnectionStateMachine ccsm;
+    private final RequestSource requestSource;
 
     // --- Router lifecycle ---
 
@@ -84,10 +95,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private Router router;
     @Nullable
     private Map<ApiKeys, String> resolvedStaticRoutes;
-    @Nullable
-    private final RouterChainFactory routerChainFactory;
-    @Nullable
-    private final String routerName;
 
     // --- Sequencing (top-level only) ---
 
@@ -97,30 +104,24 @@ public class RoutingHandler extends ChannelDuplexHandler {
     @Nullable
     private ChannelHandlerContext ctx;
 
-    // all parameters are genuinely needed: dispatch, identity, activation, lifecycle, auth
+    // all parameters are genuinely needed: dispatch, identity, request source, router state
     @SuppressWarnings("java:S107")
     private RoutingHandler(RouteDispatcher dispatcher,
                            String virtualClusterName,
                            String sessionId,
                            Subject subject,
                            @Nullable Integer nodeId,
-                           @Nullable String activationRoute,
-                           @Nullable ClientConnectionStateMachine ccsm,
+                           RequestSource requestSource,
                            @Nullable Router router,
-                           @Nullable Map<ApiKeys, String> staticRoutes,
-                           @Nullable RouterChainFactory routerChainFactory,
-                           @Nullable String routerName) {
+                           @Nullable Map<ApiKeys, String> staticRoutes) {
         this.dispatcher = dispatcher;
         this.virtualClusterName = virtualClusterName;
         this.sessionId = sessionId;
         this.subject = subject;
         this.nodeId = nodeId;
-        this.activationRoute = activationRoute;
-        this.ccsm = ccsm;
+        this.requestSource = requestSource;
         this.router = router;
         this.resolvedStaticRoutes = staticRoutes;
-        this.routerChainFactory = routerChainFactory;
-        this.routerName = routerName;
     }
 
     /**
@@ -152,9 +153,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
         var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", allocator, sharedNodeAddresses, virtualClusterName);
         return new RoutingHandler(dispatcher, virtualClusterName,
                 ccsm.sessionId(), ccsm.authenticatedSubject(), nodeId,
-                null, ccsm,
-                router, staticRoutes,
-                null, null);
+                new VirtualClusterRequestSource(ccsm),
+                router, staticRoutes);
     }
 
     /**
@@ -197,9 +197,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 correlationIdAllocator, routerNodeAddresses, virtualClusterName);
         return new RoutingHandler(dispatcher, virtualClusterName,
                 sessionId, subject, nodeId,
-                activationRoute, null,
-                null, null,
-                routerChainFactory, nestedRouterName);
+                new RouterRequestSource(activationRoute, routerChainFactory, nestedRouterName),
+                null, null);
     }
 
     // --- Accessors ---
@@ -246,7 +245,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
             return;
         }
 
-        if (activationRoute != null && !activationRoute.equals(frame.routeName())) {
+        if (requestSource instanceof RouterRequestSource rs && !rs.intercepts(frame)) {
             ctx.fireChannelRead(msg);
             return;
         }
@@ -285,7 +284,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
     }
 
     private void handleOpaqueFrame(ChannelHandlerContext ctx, RequestFrame frame, ApiKeys apiKey, Object msg) {
-        if (activationRoute != null) {
+        if (requestSource instanceof RouterRequestSource) {
             LOGGER.atWarn()
                     .addKeyValue("virtualCluster", virtualClusterName)
                     .addKeyValue("sessionId", sessionId)
@@ -320,7 +319,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 .log("Dispatching request to router");
 
         long sequence = -1;
-        if (ccsm != null) {
+        if (requestSource instanceof VirtualClusterRequestSource) {
             if (responseSequencer == null) {
                 responseSequencer = new ResponseSequencer(ctx.channel());
             }
@@ -328,15 +327,16 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
 
         Integer effectiveNodeId = nodeId;
-        if (activationRoute != null && frame.targetVirtualNodeId() != Frame.NO_TARGET_VIRTUAL_NODE_ID) {
+        if (requestSource instanceof RouterRequestSource && frame.targetVirtualNodeId() != Frame.NO_TARGET_VIRTUAL_NODE_ID) {
             effectiveNodeId = frame.targetVirtualNodeId();
         }
         var routingContext = new RouterContextImpl(frame, dispatcher, sessionId, subject, effectiveNodeId);
 
-        if (ccsm != null && frame instanceof InternalRequestFrame<?> oobFrame) {
+        if (requestSource instanceof VirtualClusterRequestSource vcs && frame instanceof InternalRequestFrame<?> oobFrame) {
             Objects.requireNonNull(responseSequencer).skip(sequence);
+            var ccsm = vcs.ccsm();
             router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
-                    .whenComplete((result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId));
+                    .whenComplete((result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
         }
         else {
             long seq = sequence;
@@ -349,7 +349,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
     private void handleOobCompletion(ChannelHandlerContext ctx, InternalRequestFrame<?> oobFrame,
                                      RouterResponse result, Throwable error,
-                                     ApiKeys apiKey, short apiVersion, int correlationId) {
+                                     ApiKeys apiKey, short apiVersion, int correlationId,
+                                     ClientConnectionStateMachine ccsm) {
         try {
             if (error != null) {
                 LOGGER.atError()
@@ -390,7 +391,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
             }
         }
         finally {
-            Objects.requireNonNull(ccsm).onRoutedRequestComplete();
+            ccsm.onRoutedRequestComplete();
         }
     }
 
@@ -421,7 +422,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                     .addKeyValue("clientCorrelationId", correlationId)
                     .setCause(error)
                     .log("Router returned failed future");
-            if (ccsm != null) {
+            if (requestSource instanceof VirtualClusterRequestSource) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
                 ctx.channel().close().addListener(logFailure(LOGGER, "close after router returned failed future"));
             }
@@ -438,7 +439,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                     .addKeyValue("apiKey", apiKey)
                     .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
                     .log("Router returned unrecognised RouterResponse type; closing connection");
-            if (ccsm != null) {
+            if (requestSource instanceof VirtualClusterRequestSource) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
                 ctx.channel().close().addListener(logFailure(LOGGER, "close after unrecognised router response type"));
             }
@@ -453,7 +454,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
         deliverResponse(ctx, requestFrame, rri, apiKey, apiVersion, correlationId, sequence);
 
         if (rri.closeConnection()) {
-            if (ccsm != null) {
+            if (requestSource instanceof VirtualClusterRequestSource) {
                 ctx.channel().close().addListener(logFailure(LOGGER, "close requested by router after response delivery"));
             }
             else {
@@ -516,8 +517,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
             responseSequencer.submit(sequence, responseFrame);
         }
         else {
-            if (activationRoute != null) {
-                responseFrame.setRouteName(activationRoute);
+            if (requestSource instanceof RouterRequestSource rs) {
+                responseFrame.setRouteName(rs.activationRoute());
             }
             ctx.write(responseFrame, ctx.voidPromise());
             ctx.flush();
@@ -532,16 +533,16 @@ public class RoutingHandler extends ChannelDuplexHandler {
         ApiMessage body = KafkaProxyExceptionMapper.errorResponseForMessage(
                 requestFrame.header(), requestFrame.body(), new UnknownServerException(error.getMessage())).data();
         var responseFrame = new DecodedResponseFrame<>(requestFrame.apiVersion(), requestFrame.correlationId(), header, body);
-        if (activationRoute != null) {
-            responseFrame.setRouteName(activationRoute);
+        if (requestSource instanceof RouterRequestSource rs) {
+            responseFrame.setRouteName(rs.activationRoute());
         }
         ctx.write(responseFrame, ctx.voidPromise());
         ctx.flush();
     }
 
     private void notifyRequestComplete() {
-        if (ccsm != null) {
-            ccsm.onRoutedRequestComplete();
+        if (requestSource instanceof VirtualClusterRequestSource vcs) {
+            vcs.ccsm().onRoutedRequestComplete();
         }
     }
 
@@ -558,7 +559,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 promise.setSuccess();
                 return;
             }
-            if (outcome == RouteDispatcher.ResponseOutcome.UNHANDLED && ccsm != null
+            if (outcome == RouteDispatcher.ResponseOutcome.UNHANDLED && requestSource instanceof VirtualClusterRequestSource
                     && dispatcher.correlationIdAllocator().inRange(frame.correlationId())) {
                 LOGGER.atWarn()
                         .addKeyValue("virtualCluster", virtualClusterName)
@@ -578,9 +579,9 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
     private void ensureRouterCreated() {
         if (router == null) {
-            Objects.requireNonNull(routerChainFactory, "No router and no factory to create one");
-            Objects.requireNonNull(routerName, "routerName required for lazy router creation");
-            router = routerChainFactory.createRouter(routerName, virtualClusterName);
+            // Only nested handlers reach this branch; top-level handlers always have a router from construction.
+            var rs = (RouterRequestSource) requestSource;
+            router = rs.routerChainFactory().createRouter(rs.routerName(), virtualClusterName);
         }
         if (resolvedStaticRoutes == null) {
             resolvedStaticRoutes = router.staticRoutes();
