@@ -234,16 +234,21 @@ public class RouteDispatcher implements RouterDispatch {
         int correlationId = frame.correlationId();
         PendingResponse pending = pendingResponses.remove(correlationId);
         if (pending != null) {
+            ApiMessage body = frame.body();
             try {
-                NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(),
+                NodeIdResponseTranslator.translate(body, frame.apiVersion(),
                         pending.nodeIdMapping(), pending.route());
-                cacheNodeAddressesIfMetadata(frame.body(), sessionId);
-                pending.future().complete(frame.body());
+                cacheNodeAddressesIfMetadata(body, sessionId);
+                pending.future().complete(body);
             }
             catch (Throwable t) {
                 pending.future().completeExceptionally(t);
             }
             finally {
+                // Safe: DecodedResponseFrames decoded from the network carry no managed ByteBufs
+                // (KafkaResponseDecoder adds none), and RouteFilterHandler only intercepts frames
+                // whose routeName matches its route — upstream responses have null routeName and
+                // pass through unmodified. So body does not alias any ByteBuf released here.
                 frame.release();
             }
             LOGGER.atTrace()
