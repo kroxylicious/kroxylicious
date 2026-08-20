@@ -295,7 +295,7 @@ jobs:
 
       - name: 'Set up Java'
         if: ${{ inputs.command == 'promote-release' }}
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
         with:
           javaVersion: '21'
           javaDistro: 'temurin'

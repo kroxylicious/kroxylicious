@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<!--
+    Throwaway pom used by vendor.sh to invoke the OpenRewrite ChangePackage recipe (rewrite.yml)
+    against a temporary staging copy of Kafka source. This is NOT a reactor module: it has no
+    source of its own and must never build as part of `mvn verify` at the repo root. vendor.sh
+    copies this file into its mktemp staging directory (alongside the freshly copied and edited
+    Kafka sources) and invokes rewrite-maven-plugin from there.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>io.kroxylicious.tools</groupId>
+    <artifactId>kafka-vendoring-rewrite</artifactId>
+    <version>1.0</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- rewrite:run forks the lifecycle through 'compile'. The staged sources still can't fully
+             compile here: they reference org.apache.kafka before relocation, which is deliberately
+             kept off this classpath (the whole point of vendoring is that these files DON'T link
+             against the real kafka-clients jar). ChangePackage is textual and needs no type
+             attribution to do package/import rewriting correctly, so we let the compile attempt
+             fail without aborting the build, rather than trying to chase full resolution. -->
+        <maven.compiler.failOnError>false</maven.compiler.failOnError>
+    </properties>
+
+    <!-- The third-party dependencies the vendored/forked sources actually reference (see each
+         *Test.java and the compress/ package), pinned independently of the root pom since this is
+         a standalone throwaway pom, not a reactor module. Declaring these isn't required for
+         ChangePackage's own correctness, but it gives OpenRewrite's parser a resolvable classpath
+         for everything except org.apache.kafka.* itself, so `vendor.sh`'s output no longer includes
+         a wall of unrelated "package does not exist" noise for every run — only the org.apache.kafka
+         symbols we're intentionally relocating are left unresolved. -->
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.14.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>5.14.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.22.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.23.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.18</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+            <version>1.5.6-10</version>
+        </dependency>
+        <dependency>
+            <groupId>at.yawk.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
+            <version>1.10.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+            <version>1.1.10.7</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.openrewrite.maven</groupId>
+                <artifactId>rewrite-maven-plugin</artifactId>
+                <version>6.46.1</version>
+                <configuration>
+                    <activeRecipes>
+                        <recipe>io.kroxylicious.RewriteCopiedKafka</recipe>
+                    </activeRecipes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -24,10 +24,23 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 
 
+/**
+ * Provides converters between the JSON representation of Kafka API messages and the
+ * corresponding {@link ApiMessage} instances.
+ */
 public class KafkaApiMessageConverter {
 
+    /**
+     * A pair of functions converting between JSON and {@link ApiMessage} at a given API version.
+     *
+     * @param reader function converting a JSON node to an {@link ApiMessage} at the given API version
+     * @param writer function converting an {@link ApiMessage} to a JSON node at the given API version
+     */
     public record Converter(BiFunction<JsonNode, Short, ApiMessage> reader,
                             BiFunction<ApiMessage, Short, JsonNode> writer) {
+    }
+
+    private KafkaApiMessageConverter() {
     }
 
     private static final Map<ApiMessageType, Converter> requestConverters;
@@ -53,6 +66,13 @@ public class KafkaApiMessageConverter {
         responseConverters = Collections.unmodifiableMap(resc);
     }
 
+    /**
+     * Returns the converter for the request message of the given API message type.
+     *
+     * @param apiMessageType the API message type
+     * @return the request converter
+     * @throws IllegalArgumentException if no request converter is registered for the given type
+     */
     public static Converter requestConverterFor(ApiMessageType apiMessageType) {
         var converter = requestConverters.get(apiMessageType);
         if (converter == null) {
@@ -61,6 +81,13 @@ public class KafkaApiMessageConverter {
         return converter;
     }
 
+    /**
+     * Returns the converter for the response message of the given API message type.
+     *
+     * @param apiMessageType the API message type
+     * @return the response converter
+     * @throws IllegalArgumentException if no response converter is registered for the given type
+     */
     public static Converter responseConverterFor(ApiMessageType apiMessageType) {
         var converter = responseConverters.get(apiMessageType);
         if (converter == null) {

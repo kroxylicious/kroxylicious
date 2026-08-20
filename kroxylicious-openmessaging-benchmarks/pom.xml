@@ -26,6 +26,8 @@
 
     <properties>
         <helm.chart.directory>${project.basedir}/helm/kroxylicious-benchmark</helm.chart.directory>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
     </properties>
 
     <dependencies>

@@ -59,11 +59,16 @@ import io.kroxylicious.testing.filter.record.RecordTestUtils;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
+/**
+ * Factory for building sample Kafka API request messages for use in tests.
+ */
 public class RequestFactory {
 
     private static final short ACKS_ALL = (short) -1;
-    // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
-    // Hopefully they go away one day as we have a sample generator for each type.
+    /**
+     * The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand.
+     * Hopefully they go away one day as we have a sample generator for each type.
+     */
     @VisibleForTesting
     protected static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN,
             ApiKeys.WRITE_TXN_MARKERS, ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS,
@@ -75,6 +80,7 @@ public class RequestFactory {
     protected static final EnumSet<ApiKeys> REMOVED_API_KEYS = EnumSet.of(ApiKeys.CONTROLLED_SHUTDOWN, ApiKeys.LEADER_AND_ISR, ApiKeys.STOP_REPLICA,
             ApiKeys.UPDATE_METADATA);
 
+    /** Populators used to fill sample data into the request message of each API key. */
     @VisibleForTesting
     protected static final Map<ApiKeys, BiConsumer<ApiMessage, Short>> messagePopulators = new EnumMap<>(ApiKeys.class);
 
@@ -110,10 +116,21 @@ public class RequestFactory {
     private RequestFactory() {
     }
 
+    /**
+     * Generates a sample request message for every supported API key.
+     *
+     * @param versionFunction function determining the API version to use for each API key
+     * @return a stream of sample request messages
+     */
     public static Stream<ApiMessageVersion> apiMessageFor(Function<ApiKeys, Short> versionFunction) {
         return apiMessageFor(versionFunction, supportedApiKeys());
     }
 
+    /**
+     * Returns the API keys for which this factory can generate sample requests.
+     *
+     * @return the supported API keys
+     */
     @NonNull
     public static Set<ApiKeys> supportedApiKeys() {
         var excluded = RequestFactory.SPECIAL_CASES;
@@ -121,6 +138,14 @@ public class RequestFactory {
         return EnumSet.complementOf(excluded);
     }
 
+    /**
+     * Generates a sample request message for each of the given API keys.
+     *
+     * @param versionFunction function determining the API version to use for each API key
+     * @param apiKeys the API keys to generate requests for
+     * @return a stream of sample request messages
+     * @throws IllegalArgumentException if any of the given API keys is unsupported
+     */
     public static Stream<ApiMessageVersion> apiMessageFor(Function<ApiKeys, Short> versionFunction, ApiKeys... apiKeys) {
         final EnumSet<ApiKeys> requestedApiKeys = EnumSet.copyOf(Arrays.asList(apiKeys));
 
@@ -130,6 +155,13 @@ public class RequestFactory {
         return apiMessageFor(versionFunction, requestedApiKeys);
     }
 
+    /**
+     * Generates a sample request message for each of the given API keys.
+     *
+     * @param versionFunction function determining the API version to use for each API key
+     * @param apiKeys the API keys to generate requests for
+     * @return a stream of sample request messages
+     */
     public static Stream<ApiMessageVersion> apiMessageFor(Function<ApiKeys, Short> versionFunction, Set<ApiKeys> apiKeys) {
         return Stream.of(apiKeys)
                 .flatMap(Collection::stream)
@@ -140,12 +172,30 @@ public class RequestFactory {
                 });
     }
 
+    /**
+     * Generates a sample request message for the given API key and version.
+     *
+     * @param apiKey the API key to generate a request for
+     * @param apiVersion the API version of the request
+     * @return the sample request message
+     */
     public static ApiMessageVersion apiMessageFor(ApiKeys apiKey, short apiVersion) {
         final ApiMessage apiMessage = apiMessageForApiKey(apiKey, apiVersion);
         return new ApiMessageVersion(apiMessage, apiVersion);
     }
 
+    /**
+     * An API message together with the API version at which it was generated.
+     *
+     * @param apiMessage the API message
+     * @param apiVersion the API version of the message
+     */
     public record ApiMessageVersion(ApiMessage apiMessage, short apiVersion) {
+        /**
+         * Returns the API key of the message.
+         *
+         * @return the API key
+         */
         public ApiKeys getApiKey() {
             return ApiKeys.forId(apiMessage().apiKey());
         }

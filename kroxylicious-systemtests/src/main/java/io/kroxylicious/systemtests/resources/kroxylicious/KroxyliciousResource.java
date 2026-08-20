@@ -13,7 +13,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.skodjob.testframe.interfaces.ResourceType;
+import io.skodjob.kubetest4j.interfaces.ResourceType;
 
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 
