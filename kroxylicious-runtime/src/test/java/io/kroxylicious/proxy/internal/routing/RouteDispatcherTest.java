@@ -468,6 +468,30 @@ class RouteDispatcherTest {
                 .containsEntry(2, new HostPort("broker2", 9093));
     }
 
+    @Test
+    void handleResponseShouldCompleteExceptionallyAndReleaseFrameWhenTranslateThrows() {
+        // Given
+        var routes = Map.of("r1", clusterRoute("r1", 0), "r2", clusterRoute("r2", 1));
+        var dispatcher = createDispatcher(routes, ROUTER_NAME + "/");
+        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
+        // Use a route name not in the BijectiveNodeIdMapping to force toVirtual() to throw
+        dispatcher.addPendingResponse(ROUTING_CORRELATION_ID, new RouteDispatcher.PendingResponse(future, "unknown-route", lastCreatedMapping));
+        var metadataResponse = new MetadataResponseData();
+        metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker()
+                .setNodeId(0).setHost("broker1").setPort(9092));
+        var responseFrame = new DecodedResponseFrame<>(
+                (short) 12, ROUTING_CORRELATION_ID,
+                new ResponseHeaderData(), metadataResponse);
+
+        // When
+        var outcome = dispatcher.handleResponse(responseFrame, SESSION_ID);
+
+        // Then
+        assertThat(outcome).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
+        assertThat(future).isCompletedExceptionally();
+        assertThat(responseFrame.refCnt()).isEqualTo(0);
+    }
+
     // --- failAllPending ---
 
     @Test

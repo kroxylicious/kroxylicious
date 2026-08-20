@@ -234,11 +234,18 @@ public class RouteDispatcher implements RouterDispatch {
         int correlationId = frame.correlationId();
         PendingResponse pending = pendingResponses.remove(correlationId);
         if (pending != null) {
-            NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(),
-                    pending.nodeIdMapping(), pending.route());
-            cacheNodeAddressesIfMetadata(frame.body(), sessionId);
-            pending.future().complete(frame.body());
-            frame.release();
+            try {
+                NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(),
+                        pending.nodeIdMapping(), pending.route());
+                cacheNodeAddressesIfMetadata(frame.body(), sessionId);
+                pending.future().complete(frame.body());
+            }
+            catch (Throwable t) {
+                pending.future().completeExceptionally(t);
+            }
+            finally {
+                frame.release();
+            }
             LOGGER.atTrace()
                     .addKeyValue("virtualCluster", virtualClusterName)
                     .addKeyValue("sessionId", sessionId)
