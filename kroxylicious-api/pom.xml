@@ -129,7 +129,16 @@
                                     <artifactId>kafka-clients</artifactId>
                                     <version>${kafka.message-spec.version}</version>
                                     <overWrite>false</overWrite>
-                                    <includes>common/message/*.json</includes>
+                                    <!-- Deliberately not "common/message/*.json": now that kafka.version
+                                         equals kafka.message-spec.version, that pattern is byte-for-byte
+                                         identical to the parent's unpack-message-specs execution above,
+                                         and maven-dependency-plugin's unpack marker is keyed only on
+                                         artifact GAV + includes/excludes (not outputDirectory), so an
+                                         identical pattern makes it silently skip this unpack as
+                                         "already done". "**/*.json" selects the same flat file set
+                                         (common/message has no subdirectories) but keeps the marker
+                                         distinct. -->
+                                    <includes>common/message/**/*.json</includes>
                                     <outputDirectory>${project.build.directory}/data-class-message-specs
                                     </outputDirectory>
                                 </artifactItem>
