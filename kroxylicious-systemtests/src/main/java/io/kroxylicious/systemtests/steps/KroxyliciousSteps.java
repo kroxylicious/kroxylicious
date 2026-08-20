@@ -10,9 +10,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.kafka.common.record.CompressionType;
-
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.CompressionType;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.executor.ExecResult;
