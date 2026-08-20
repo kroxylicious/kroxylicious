@@ -30,12 +30,14 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
     private final MessageFormatter formatter;
     private final Level logLevel;
     private final Logger logger;
+    private final LogWarningThrottle warningThrottle;
 
-    ProtocolLoggerFilter(Set<ApiKeys> apiKeys, MessageFormatter formatter, Level logLevel, Logger logger) {
+    ProtocolLoggerFilter(Set<ApiKeys> apiKeys, MessageFormatter formatter, Level logLevel, Logger logger, LogWarningThrottle warningThrottle) {
         this.apiKeys = apiKeys;
         this.formatter = formatter;
         this.logLevel = logLevel;
         this.logger = logger;
+        this.warningThrottle = warningThrottle;
     }
 
     @Override
@@ -54,14 +56,19 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
                                                           RequestHeaderData header,
                                                           ApiMessage request,
                                                           FilterContext context) {
-        logger.atLevel(logLevel)
-                .addKeyValue("direction", "request")
-                .addKeyValue("apiKey", apiKey)
-                .addKeyValue("apiVersion", apiVersion)
-                .addKeyValue("clientCorrelationId", header.correlationId())
-                .addKeyValue("clientId", header.clientId())
-                .addKeyValue("sessionId", context.sessionId())
-                .log(() -> buildRequestLogMessage(apiKey, apiVersion, header, request));
+        try {
+            logger.atLevel(logLevel)
+                    .addKeyValue("direction", "request")
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("apiVersion", apiVersion)
+                    .addKeyValue("clientCorrelationId", header.correlationId())
+                    .addKeyValue("clientId", header.clientId())
+                    .addKeyValue("sessionId", context.sessionId())
+                    .log(() -> buildRequestLogMessage(apiKey, apiVersion, header, request));
+        }
+        catch (Exception e) {
+            warningThrottle.onFailure(apiKey, apiVersion, e, logger);
+        }
         return context.forwardRequest(header, request);
     }
 
@@ -71,13 +78,18 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
                                                             ResponseHeaderData header,
                                                             ApiMessage response,
                                                             FilterContext context) {
-        logger.atLevel(logLevel)
-                .addKeyValue("direction", "response")
-                .addKeyValue("apiKey", apiKey)
-                .addKeyValue("apiVersion", apiVersion)
-                .addKeyValue("clientCorrelationId", header.correlationId())
-                .addKeyValue("sessionId", context.sessionId())
-                .log(() -> buildResponseLogMessage(apiKey, apiVersion, header, response));
+        try {
+            logger.atLevel(logLevel)
+                    .addKeyValue("direction", "response")
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("apiVersion", apiVersion)
+                    .addKeyValue("clientCorrelationId", header.correlationId())
+                    .addKeyValue("sessionId", context.sessionId())
+                    .log(() -> buildResponseLogMessage(apiKey, apiVersion, header, response));
+        }
+        catch (Exception e) {
+            warningThrottle.onFailure(apiKey, apiVersion, e, logger);
+        }
         return context.forwardResponse(header, response);
     }
 
