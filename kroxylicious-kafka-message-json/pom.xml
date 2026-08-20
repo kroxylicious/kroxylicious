@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.24.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>kroxylicious-kafka-message-json</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Kafka message JSON converters</name>
+    <description>Generated JSON converters for the io.kroxylicious.kafka.common.message.*Data classes, plus the
+        KafkaApiMessageConverter registry used to look them up by API message type.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <!-- Unpacks org.apache.kafka:kafka-clients as a build-time artifact to obtain its
+                         common/message/*.json specs. This is NOT a project dependency: it does not
+                         appear on any compile/runtime classpath. -->
+                    <execution>
+                        <id>unpack-message-specs</id>
+                        <phase>generate-sources</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Generate *DataJsonConverter classes only; MessageDataGenerator and
+                 ApiMessageTypeGenerator are deliberately omitted: those classes already exist in
+                 kroxylicious-api and this module depends on that jar. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-json-converters</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>io.kroxylicious.kafka.message.MessageGenerator</mainClass>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <arguments>
+                                <argument>-p</argument>
+                                <argument>io.kroxylicious.kafka.common.message</argument>
+                                <argument>-i</argument>
+                                <argument>${project.build.directory}/message-specs/common/message</argument>
+                                <argument>-o</argument>
+                                <argument>
+                                    ${project.build.directory}/generated-sources/kafka-messages/io/kroxylicious/kafka/common/message
+                                </argument>
+                                <argument>-m</argument>
+                                <argument>JsonConverterGenerator</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>io.kroxylicious</groupId>
+                        <artifactId>kroxylicious-kafka-message-generator</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <!-- Generate KafkaApiMessageConverter: krpc-plugin usage moved verbatim from
+                 kroxylicious-filter-test-support's pom.xml, only outputPackage changes. -->
+            <plugin>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-krpc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-converters</id>
+                        <goals>
+                            <goal>generate-multi</goal>
+                        </goals>
+                        <phase>process-sources</phase>
+                        <configuration>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message
+                            </messageSpecDirectory>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>KafkaApiMessageConverter.ftl</templateNames>
+                            <!--suppress MavenModelInspection -->
+                            <outputFilePattern>${templateName}.java</outputFilePattern>
+                            <outputPackage>io.kroxylicious.kafka.common.message.json</outputPackage>
+                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- This actually shouldn't be needed, as the plug-in itself adds that directory as a source directory;
+                 Unfortunately, Eclipse/M2E doesn't reliably pick it up without this helper plug-in -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/krpc</source>
+                                <source>${project.build.directory}/generated-sources/kafka-messages</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

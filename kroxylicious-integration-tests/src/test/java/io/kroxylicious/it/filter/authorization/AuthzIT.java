@@ -62,7 +62,7 @@ import io.kroxylicious.it.testplugins.SaslPlainTermination;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.testing.filter.RequestFactory;
-import io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter;
+import io.kroxylicious.kafka.common.message.json.KafkaApiMessageConverter;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.client.KafkaClient;

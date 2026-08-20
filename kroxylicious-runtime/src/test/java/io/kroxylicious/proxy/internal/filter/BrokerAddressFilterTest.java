@@ -50,7 +50,7 @@ import io.kroxylicious.testing.filter.requestresponsetestdef.RequestResponseTest
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
+import static io.kroxylicious.kafka.common.message.json.KafkaApiMessageConverter.responseConverterFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
