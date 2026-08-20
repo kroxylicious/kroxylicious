@@ -109,9 +109,10 @@
         <errorprone.version>2.50.0</errorprone.version>
         <errorprone.skip>false</errorprone.skip>
 
-        <!-- Maven Central publishing: overridden to true in modules that are terminal
-             deployment artefacts (fat jars, zip/tar.gz) with no Maven consumers -->
         <central.publishing.skip>false</central.publishing.skip>
+        <maven.javadoc.skip>${central.publishing.skip}</maven.javadoc.skip>
+        <maven.source.skip>${central.publishing.skip}</maven.source.skip>
+        <gpg.skip>${central.publishing.skip}</gpg.skip>
     </properties>
 
     <name>Parent POM</name>
@@ -1202,6 +1203,7 @@
                     <publishingServerId>central</publishingServerId>
                     <waitMaxTime>3600</waitMaxTime>
                     <skipPublishing>${central.publishing.skip}</skipPublishing>
+                    <checksums>required</checksums>
                 </configuration>
             </plugin>
         </plugins>

@@ -28,6 +28,8 @@
         <sonar.projectkey>kroxylicious_kroxylicious</sonar.projectkey>
         <!-- Error Prone disabled - fabric8 builders not compatible with -XDcompilePolicy=simple -->
         <errorprone.skip>true</errorprone.skip>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
     </properties>
 
     <dependencyManagement>
