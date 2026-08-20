@@ -28,7 +28,7 @@ public class EntityTypeSetFactory implements TemplateMethodModelEx {
     @Override
     @SuppressWarnings("unchecked") // Freemarker uses raw lists for its arguments
     public Object exec(List arguments) {
-        var entityTypes = new LinkedHashSet<>(arguments.size());
+        var entityTypes = LinkedHashSet.newLinkedHashSet(arguments.size());
         arguments.forEach(argument -> Optional.of(argument)
                 .map(String::valueOf)
                 .map(EntityType::valueOf)

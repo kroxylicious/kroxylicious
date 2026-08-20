@@ -102,7 +102,7 @@ public final class TopicNameRetriever {
     }
 
     private static TopicNameMapping doExtractTopicNames(Collection<Uuid> topicIds, MetadataResponseData d) {
-        Map<Uuid, String> topicNames = new HashMap<>(topicIds.size());
+        Map<Uuid, String> topicNames = HashMap.newHashMap(topicIds.size());
         Map<Uuid, TopicNameMappingException> failures = new HashMap<>();
         d.topics().forEach(metadataResponseTopic -> {
             Errors topicError = Errors.forCode(metadataResponseTopic.errorCode());

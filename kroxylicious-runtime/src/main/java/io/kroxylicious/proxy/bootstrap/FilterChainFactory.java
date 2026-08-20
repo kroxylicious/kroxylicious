@@ -159,7 +159,7 @@ public class FilterChainFactory implements AutoCloseable {
                     return pfr.pluginFactory(pluginClass).registeredInstanceNames();
                 }
             };
-            this.initialized = new LinkedHashMap<>(this.filterChain.size());
+            this.initialized = LinkedHashMap.newLinkedHashMap(this.filterChain.size());
             try {
                 for (var fd : this.filterChain) {
                     // A chain may reference the same definition twice (e.g. audit before/after).
