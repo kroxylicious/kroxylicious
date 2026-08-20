@@ -19,12 +19,6 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.message.ListOffsetsRequestData;
-import org.apache.kafka.common.message.ListOffsetsResponseData;
-import org.apache.kafka.common.message.ListTransactionsRequestData;
-import org.apache.kafka.common.message.ListTransactionsResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
@@ -37,6 +31,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import io.kroxylicious.kafka.common.message.ListOffsetsRequestData;
+import io.kroxylicious.kafka.common.message.ListOffsetsResponseData;
+import io.kroxylicious.kafka.common.message.ListTransactionsRequestData;
+import io.kroxylicious.kafka.common.message.ListTransactionsResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.CoordinatorType;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -153,7 +153,7 @@ class ListTransactionsAuthzIT extends AuthzIT {
         public void prepareCluster(BaseClusterFixture cluster) {
             KafkaDriver driver = new KafkaDriver(cluster, cluster.authenticatedClient(AuthzIT.SUPER, SUPER_PASSWORD), AuthzIT.SUPER);
             for (String id : transactionIds) {
-                driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.TRANSACTION, id);
+                driver.findCoordinator(CoordinatorType.TRANSACTION, id);
                 driver.initProducerId(id);
             }
         }

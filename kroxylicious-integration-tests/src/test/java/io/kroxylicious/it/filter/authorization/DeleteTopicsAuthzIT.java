@@ -17,14 +17,10 @@ import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.message.DeleteTopicsRequestData;
-import org.apache.kafka.common.message.DeleteTopicsResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
@@ -38,6 +34,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.DeleteTopicsRequestData;
+import io.kroxylicious.kafka.common.message.DeleteTopicsResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 class DeleteTopicsAuthzIT extends AuthzIT {

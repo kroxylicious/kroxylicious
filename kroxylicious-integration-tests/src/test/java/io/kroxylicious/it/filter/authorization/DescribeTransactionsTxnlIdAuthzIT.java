@@ -20,12 +20,6 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
-import org.apache.kafka.common.message.DescribeTopicPartitionsResponseData;
-import org.apache.kafka.common.message.DescribeTransactionsRequestData;
-import org.apache.kafka.common.message.DescribeTransactionsResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
@@ -39,6 +33,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
+import io.kroxylicious.kafka.common.message.DescribeTopicPartitionsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeTopicPartitionsResponseData;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.CoordinatorType;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static io.kroxylicious.it.filter.authorization.AbstractAuthzEquivalenceIT.deleteTopicsAndAcls;
@@ -126,7 +126,7 @@ class DescribeTransactionsTxnlIdAuthzIT extends AuthzIT {
         public void prepareCluster(BaseClusterFixture cluster) {
             KafkaDriver driver = new KafkaDriver(cluster, cluster.authenticatedClient(AuthzIT.SUPER, SUPER_PASSWORD), AuthzIT.SUPER);
             for (String id : transactionalIds) {
-                driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.TRANSACTION, id);
+                driver.findCoordinator(CoordinatorType.TRANSACTION, id);
                 driver.initProducerId(id);
             }
 

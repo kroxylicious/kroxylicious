@@ -21,14 +21,6 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
-import org.apache.kafka.common.message.HeartbeatRequestData;
-import org.apache.kafka.common.message.HeartbeatResponseData;
-import org.apache.kafka.common.message.JoinGroupResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
@@ -42,6 +34,14 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
+import io.kroxylicious.kafka.common.message.ConsumerGroupHeartbeatRequestData;
+import io.kroxylicious.kafka.common.message.ConsumerGroupHeartbeatResponseData;
+import io.kroxylicious.kafka.common.message.HeartbeatRequestData;
+import io.kroxylicious.kafka.common.message.HeartbeatResponseData;
+import io.kroxylicious.kafka.common.message.JoinGroupResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.CoordinatorType;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static java.util.stream.Stream.concat;
@@ -144,7 +144,7 @@ public class HeartbeatAuthzIT extends AuthzIT {
         @Override
         public void prepareCluster(BaseClusterFixture cluster) {
             KafkaDriver driver = new KafkaDriver(cluster, cluster.authenticatedClient(AuthzIT.SUPER, SUPER_PASSWORD), AuthzIT.SUPER);
-            driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.GROUP, group);
+            driver.findCoordinator(CoordinatorType.GROUP, group);
             groupInstanceId = group + "-" + UUID.randomUUID();
             JoinGroupResponseData responseData = driver.joinGroup("consumer", group, groupInstanceId);
             memberId = responseData.memberId();

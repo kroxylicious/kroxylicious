@@ -11,9 +11,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.config.SaslConfigs;
 
+import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;

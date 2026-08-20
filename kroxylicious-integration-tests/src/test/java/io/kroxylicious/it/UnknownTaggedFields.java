@@ -8,8 +8,8 @@ package io.kroxylicious.it;
 
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.protocol.Message;
-import org.apache.kafka.common.protocol.types.RawTaggedField;
+import io.kroxylicious.kafka.common.protocol.Message;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 

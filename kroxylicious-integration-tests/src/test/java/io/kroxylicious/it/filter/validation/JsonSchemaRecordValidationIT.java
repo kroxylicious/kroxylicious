@@ -15,7 +15,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.assertj.core.api.iterable.ThrowingExtractor;
@@ -39,6 +38,7 @@ import io.apicurio.registry.serde.jsonschema.JsonSchemaSerde;
 import io.apicurio.registry.serde.kafka.config.KafkaSerdeConfig;
 
 import io.kroxylicious.filter.validation.RecordValidation;
+import io.kroxylicious.kafka.common.InvalidRecordException;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;

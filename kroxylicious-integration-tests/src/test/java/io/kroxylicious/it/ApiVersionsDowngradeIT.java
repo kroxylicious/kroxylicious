@@ -18,11 +18,6 @@ import org.apache.kafka.clients.NodeApiVersions;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.common.config.SaslConfigs;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.junit.jupiter.api.Test;
@@ -39,6 +34,11 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.protocol.ObjectSerializationCache;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.testing.integration.Response;
@@ -148,6 +148,9 @@ public class ApiVersionsDowngradeIT {
     }
 
     private static void assertThatNodeIdMaxVersionForKeyIs(Admin admin, String nodeId, ApiKeys key, short apiVersion) {
+        // NetworkClient/NodeApiVersions are kafka-clients internals typed against the kafka-clients ApiKeys,
+        // not the vendored one -- translate at this boundary via the shared numeric id.
+        var kafkaClientsKey = org.apache.kafka.common.protocol.ApiKeys.forId(key.id);
         assertThat(admin).isInstanceOfSatisfying(CloseableAdmin.class, closeableAdmin -> {
             assertThat(closeableAdmin.instance()).isInstanceOfSatisfying(KafkaAdminClient.class, kafkaAdminClient -> {
                 Try<Object> client = ReflectionUtils.tryToReadFieldValue(KafkaAdminClient.class, "client", kafkaAdminClient);
@@ -156,7 +159,7 @@ public class ApiVersionsDowngradeIT {
                     Object apiVersions = maybeApiVersions.getOrThrow(RuntimeException::new);
                     assertThat(apiVersions).isInstanceOfSatisfying(ApiVersions.class, versions -> {
                         NodeApiVersions nav = versions.get(nodeId);
-                        assertThat(nav.apiVersion(key).maxVersion())
+                        assertThat(nav.apiVersion(kafkaClientsKey).maxVersion())
                                 .isEqualTo(apiVersion);
                     });
                 });
