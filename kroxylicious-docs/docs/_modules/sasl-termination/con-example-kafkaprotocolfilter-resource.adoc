@@ -32,7 +32,7 @@ spec:
         expectedAudience: kafka
         expectedIssuer: https://idp.example.com
       - mechanism: SCRAM-SHA-256
-        credentialStore: KeystoreScramCredentialStoreService
+        credentialStore: ScramCredentialFileService
         credentialStoreConfig:
           file: ${secret:scram-credentials:credentials.p12}
           storePassword:
