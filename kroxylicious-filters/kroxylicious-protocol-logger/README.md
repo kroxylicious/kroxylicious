@@ -253,6 +253,12 @@ Depending on chain position this filter may observe them and cannot reliably tel
 
 Latency can be derived from the log timestamps of matched request/response pairs.
 
+## Failure resilience
+
+The filter is a passive observer — it never modifies messages and never interferes with forwarding.
+If an exception occurs while building or emitting a log entry, the filter catches it, emits a rate-limited warning, and forwards the message unchanged.
+Warnings are keyed by API key: the first failure logs immediately, subsequent failures for the same key are suppressed for five minutes, and the next warning after the interval reports how many were suppressed.
+
 ## Caveats
 
 - **Idle consumers produce verbose output.** On an idle consumer the output is dominated by `HEARTBEAT` and `FETCH` responses. Use `apiKeyNames` to filter these out.
