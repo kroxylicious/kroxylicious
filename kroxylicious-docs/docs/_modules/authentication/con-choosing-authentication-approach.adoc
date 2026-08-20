@@ -69,7 +69,7 @@ Use SASL Termination when:
 
 * You want the proxy to be the sole authority for client authentication, fully decoupling it from the broker.
 * You need to ensure that only authenticated clients' application requests are forwarded to the broker.
-* Your Kafka clients authenticate using OAuth 2.0 bearer tokens (the `OAUTHBEARER` SASL mechanism), which is the only mechanism currently supported.
+* Your Kafka clients authenticate using the `OAUTHBEARER`, `SCRAM-SHA-256`, or `SCRAM-SHA-512` SASL mechanism.
 
 Authenticating clients at the proxy means that every broker feature which depends on client identity needs to be reconsidered:
 
@@ -85,9 +85,11 @@ Consider the following:
 * The proxy validates credentials directly and does not forward SASL exchanges to the broker.
   The broker does not need to be configured for SASL authentication at all, or it can use a different authentication mechanism for other clients.
 * Delegation Token APIs (`CreateDelegationToken`, `RenewDelegationToken`, `ExpireDelegationToken`, `DescribeDelegationToken`) are not available to clients when SASL is terminated at the proxy, because these APIs depend on a broker-side SASL session.
+* SCRAM credential management APIs (`AlterUserScramCredentials`, `DescribeUserScramCredentials`) are not available to clients when SCRAM is terminated at the proxy.
+  SCRAM credentials must be managed using the SCRAM credential tool instead.
 * Unlike SASL Passthrough Inspection, SASL Termination enforces authentication at the proxy: clients that fail authentication are rejected before their application requests are forwarded to the broker.
 
-This mode requires a reachable JWKS endpoint that provides the public keys used to verify JWT signatures.
+Infrastructure requirements depend on the mechanism: `OAUTHBEARER` requires a reachable JWKS endpoint that provides the public keys used to verify JWT signatures; `SCRAM-SHA-256` and `SCRAM-SHA-512` require a credential store containing SCRAM credentials for your users.
 
 == Combining approaches
 
@@ -131,5 +133,5 @@ This can be useful when you want transport-level identity as a baseline and appl
 |Yes (from SASL exchange)
 |Yes (proxy validates directly)
 |Yes (`SaslTermination` filter)
-|JWKS endpoint (for OAUTHBEARER)
+|JWKS endpoint (OAUTHBEARER) or SCRAM credential store (SCRAM)
 |===
