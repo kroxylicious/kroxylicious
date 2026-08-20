@@ -309,14 +309,21 @@ public class RouteDispatcher implements RouterDispatch {
             return work.get();
         }
         CompletableFuture<T> bridge = new CompletableFuture<>();
-        executor.execute(() -> work.get().whenComplete((r, e) -> {
-            if (e != null) {
-                bridge.completeExceptionally(e);
+        executor.execute(() -> {
+            try {
+                work.get().whenComplete((r, e) -> {
+                    if (e != null) {
+                        bridge.completeExceptionally(e);
+                    }
+                    else {
+                        bridge.complete(r);
+                    }
+                });
             }
-            else {
-                bridge.complete(r);
+            catch (Throwable t) {
+                bridge.completeExceptionally(t);
             }
-        }));
+        });
         return bridge;
     }
 

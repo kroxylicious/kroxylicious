@@ -30,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.util.concurrent.EventExecutor;
 
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -38,6 +39,9 @@ import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -299,6 +303,36 @@ class RouteDispatcherTest {
         assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID)).isNotNull();
         assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
         assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
+    }
+
+    @Test
+    void sendToAnyNodeShouldCompleteBridgeExceptionallyIfWorkThrowsWhenOffEventLoop() {
+        // Given: an executor that reports off-loop and runs submitted tasks inline (simulates event loop picking up the task)
+        var mockExecutor = mock(EventExecutor.class);
+        when(mockExecutor.inEventLoop()).thenReturn(false);
+        doAnswer(inv -> {
+            ((Runnable) inv.getArgument(0)).run();
+            return null;
+        }).when(mockExecutor).execute(any(Runnable.class));
+        var mockCtx = mock(ChannelHandlerContext.class);
+        when(mockCtx.executor()).thenReturn(mockExecutor);
+
+        when(correlationIdAllocator.allocateId()).thenThrow(new RuntimeException("allocator failure"));
+
+        var dispatcher = new RouteDispatcher(
+                Map.of("r1", clusterRoute("r1", 0)),
+                new IdentityNodeIdMapping("r1"),
+                ROUTER_NAME + "/",
+                correlationIdAllocator,
+                new HashMap<>(),
+                "test-cluster");
+        dispatcher.setContext(mockCtx);
+
+        // When
+        var stage = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+
+        // Then
+        assertThat(stage.toCompletableFuture()).isCompletedExceptionally();
     }
 
     private Thread obtainEventLoopThread() {

@@ -386,7 +386,7 @@ class NestedRoutingIT {
         var outerRoute = new RouteDefinition("to-inner", 0, List.of(), new RouteTarget(null, "inner"));
         var outerRouter = new RouterDefinition("outer",
                 NodeTargetingProduceRouterFactory.class.getName(),
-                new NodeTargetingProduceRouterFactory.Config("to-inner", 0),
+                new NodeTargetingProduceRouterFactory.Config(0),
                 List.of(outerRoute));
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
