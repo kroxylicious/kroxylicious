@@ -145,6 +145,10 @@ public class ClientConnectionStateMachine {
             this.label = label;
         }
 
+        /**
+         * Returns the label used to tag disconnect metrics with this cause.
+         * @return the metric label for this disconnect cause
+         */
         public String label() {
             return label;
         }
@@ -225,6 +229,12 @@ public class ClientConnectionStateMachine {
     @Nullable
     private Function<Integer, Optional<HostPort>> upstreamAddressResolver;
 
+    /**
+     * Creates a state machine for a single client connection.
+     * @param endpointBinding the binding identifying the virtual cluster endpoint the client connected to
+     * @param transportSubjectBuilder builder used to derive the client {@link Subject} from transport-level information
+     * @param kafkaSession the session associated with this connection
+     */
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
                                         KafkaSession kafkaSession) {
@@ -311,6 +321,10 @@ public class ClientConnectionStateMachine {
                 '}';
     }
 
+    /**
+     * Returns the simple class name of the current session state, for reporting purposes.
+     * @return the simple name of the current state class
+     */
     public String currentState() {
         return this.state().getClass().getSimpleName();
     }
@@ -783,6 +797,7 @@ public class ClientConnectionStateMachine {
 
     /**
      * Returns the session ID which connects a frontend channel with a backend channel.
+     * @return the session ID
      */
     public String sessionId() {
         return kafkaSession.sessionId();
@@ -790,37 +805,66 @@ public class ClientConnectionStateMachine {
 
     /**
      * Returns the session for this connection.
+     * @return the session
      */
     public KafkaSession kafkaSession() {
         return kafkaSession;
     }
 
+    /**
+     * Records that the session has been authenticated at the transport level (e.g. via a TLS client certificate)
+     * and notifies the frontend handler.
+     */
     public void onSessionTransportAuthenticated() {
         this.kafkaSession.transitionTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
+    /**
+     * Records that the session has been authenticated via SASL and notifies the frontend handler.
+     */
     public void onSessionSaslAuthenticated() {
         this.kafkaSession.transitionTo(KafkaSessionState.SASL_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
+    /**
+     * Returns the TLS context of the downstream client connection, if TLS is in use.
+     * @return the client TLS context, or empty if the client connection does not use TLS
+     */
     public Optional<ClientTlsContext> clientTlsContext() {
         return clientSubjectManager.clientTlsContext();
     }
 
+    /**
+     * Records a successful SASL authentication of the downstream client.
+     * @param mechanism the SASL mechanism used
+     * @param subject the subject established by the SASL exchange
+     */
     public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
         clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
     }
 
+    /**
+     * Returns the SASL context of the downstream client connection, if the client has successfully authenticated via SASL.
+     * @return the client SASL context, or empty if the client has not authenticated via SASL
+     */
     public Optional<ClientSaslContext> clientSaslContext() {
         return clientSubjectManager.clientSaslContext();
     }
 
+    /**
+     * Records a failed SASL authentication of the downstream client, discarding any previously established SASL context.
+     */
     public void clientSaslAuthenticationFailure() {
         clientSubjectManager.clientSaslAuthenticationFailure();
     }
 
+    /**
+     * Notifies the state machine that the TLS handshake with the downstream client succeeded,
+     * triggering asynchronous construction of the transport-level {@link Subject}.
+     * @param sslSession the negotiated TLS session
+     */
     public void onClientTlsHandshakeSuccess(SSLSession sslSession) {
         this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder,
                 Objects.requireNonNull(frontendHandler).eventLoopExecutor(), this::onTransportSubjectBuilt);
@@ -851,10 +895,18 @@ public class ClientConnectionStateMachine {
         tryUnblockClient();
     }
 
+    /**
+     * Returns the currently authenticated subject for this connection.
+     * @return the authenticated subject (anonymous if the client has not authenticated)
+     */
     public Subject authenticatedSubject() {
         return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
     }
 
+    /**
+     * Returns the Netty channel connected to the downstream client.
+     * @return the client channel, or {@code null} if the client is not yet active
+     */
     @Nullable
     public Channel clientChannel() {
         return frontendHandler != null ? frontendHandler.clientChannel() : null;
@@ -934,6 +986,8 @@ public class ClientConnectionStateMachine {
      * Forward a message to the backend connection for the named route.
      * Used by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
      * for both static and dynamic routing paths.
+     * @param routeName the name of the route identifying the target upstream
+     * @param msg the message to forward to the route's backend connection
      */
     public void forwardToRoute(String routeName, Object msg) {
         if (!(virtualCluster().routing() instanceof DynamicRouting)) {
@@ -972,6 +1026,7 @@ public class ClientConnectionStateMachine {
     /**
      * Sets the resolver used by {@link #forwardToNode} to translate a virtual node ID to
      * an upstream address. Must be set before any per-broker requests are sent.
+     * @param resolver function mapping a virtual node ID to the upstream address, if known
      */
     public void setUpstreamAddressResolver(Function<Integer, Optional<HostPort>> resolver) {
         this.upstreamAddressResolver = Objects.requireNonNull(resolver);
@@ -992,6 +1047,9 @@ public class ClientConnectionStateMachine {
      * Forward a message to the backend broker identified by the virtual node ID.
      * Creates a new server connection if one does not already exist for the
      * resolved upstream address.
+     * @param virtualNodeId the virtual node ID identifying the target broker
+     * @param routeName the name of the route the request belongs to
+     * @param msg the message to forward to the broker
      */
     public void forwardToNode(int virtualNodeId, String routeName, Object msg) {
         if (!(state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining)) {
@@ -1022,6 +1080,7 @@ public class ClientConnectionStateMachine {
 
     /**
      * A message has emerged from the filter chain and is ready to be forwarded to the upstream node.
+     * @param msg the RPC to be forwarded to the upstream node
      */
     public void onClientFilterChainComplete(Object msg) {
         if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {

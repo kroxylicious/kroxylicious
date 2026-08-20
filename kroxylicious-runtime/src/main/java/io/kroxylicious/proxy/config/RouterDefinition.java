@@ -34,6 +34,10 @@ public record RouterDefinition(
                                @Nullable @PluginImplConfig(implNameProperty = "type") Object config,
                                @JsonProperty(required = true) List<RouteDefinition> routes) {
 
+    /**
+     * Validates the router definition: {@code name} and {@code type} are required, and it
+     * must have at least one route with route names and ids unique within the router.
+     */
     @JsonCreator
     public RouterDefinition {
         Objects.requireNonNull(name, "'name' is required in a router definition");

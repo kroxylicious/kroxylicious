@@ -19,6 +19,13 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 public record BrokerEndpointBinding(EndpointGateway endpointGateway, HostPort upstreamTarget, Integer nodeId)
         implements NodeSpecificEndpointBinding {
+    /**
+     * Creates a broker specific endpoint binding.
+     *
+     * @param endpointGateway the endpoint listener
+     * @param upstreamTarget the upstream target of this binding
+     * @param nodeId kafka nodeId of the target broker
+     */
     public BrokerEndpointBinding {
         Objects.requireNonNull(endpointGateway, "endpointGateway must not be null");
         Objects.requireNonNull(upstreamTarget, "upstreamTarget must not be null");

@@ -39,9 +39,15 @@ public class StaticConfigurationChangedException extends RuntimeException {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Best-effort identifiers of the static configuration sections that differ between the
+     * running and submitted configurations.
+     */
     private final Set<String> humanReadableIdentifiers;
 
     /**
+     * Creates the exception for the given set of changed static configuration sections.
+     *
      * @param humanReadableIdentifiers best-effort strings identifying the static configuration
      *                                 sections that differ between the running and submitted
      *                                 configurations; non-null, may be empty (though an empty
@@ -59,6 +65,8 @@ public class StaticConfigurationChangedException extends RuntimeException {
      * that differ between the running and submitted configurations and that the proxy declined
      * to reconcile. The returned set is immutable. See the class-level Javadoc for identifier
      * semantics.
+     *
+     * @return the immutable set of identifiers of the changed static configuration sections
      */
     public Set<String> humanReadableIdentifiers() {
         return humanReadableIdentifiers;

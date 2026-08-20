@@ -15,6 +15,11 @@ import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A Jackson {@link com.fasterxml.jackson.databind.jsontype.TypeIdResolver} that resolves a plugin
+ * implementation name appearing in the configuration to the plugin's config type, using a
+ * {@link PluginFactory}. Deserialization only; serializing type ids is unsupported.
+ */
 public class PluginConfigTypeIdResolver extends TypeIdResolverBase {
 
     private final PluginFactory<?> providers;

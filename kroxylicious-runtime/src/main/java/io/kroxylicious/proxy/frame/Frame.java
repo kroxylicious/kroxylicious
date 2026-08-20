@@ -23,6 +23,7 @@ public interface Frame {
     /**
      * Estimate the expected encoded size in bytes of this {@code Frame}.<br>
      * In particular, written data by {@link #encode(ByteBufAccessor)} should be the same as reported by this method.
+     * @return The estimated encoded size in bytes.
      */
     int estimateEncodedSize();
 
@@ -38,21 +39,36 @@ public interface Frame {
      */
     int correlationId();
 
-    /** Api key id of this frame. */
+    /**
+     * The api key id of this frame.
+     * @return The api key id of this frame.
+     */
     short apiKeyId();
 
-    /** Api version of this frame. */
+    /**
+     * The api version of this frame.
+     * @return The api version of this frame.
+     */
     short apiVersion();
 
-    /** true if this frame is decoded, false otherwise */
+    /**
+     * Whether this frame has been decoded.
+     * @return true if this frame is decoded, false otherwise.
+     */
     boolean isDecoded();
 
-    /** The route this frame is associated with, or {@code null} if not yet routed. */
+    /**
+     * The route this frame is associated with.
+     * @return The route this frame is associated with, or {@code null} if not yet routed.
+     */
     default @Nullable String routeName() {
         return null;
     }
 
-    /** Sets the route this frame is associated with. */
+    /**
+     * Sets the route this frame is associated with.
+     * @param routeName The route name, or {@code null} if not routed.
+     */
     default void setRouteName(@Nullable String routeName) {
     }
 }

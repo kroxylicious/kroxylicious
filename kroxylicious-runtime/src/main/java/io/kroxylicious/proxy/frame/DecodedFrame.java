@@ -34,9 +34,13 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DecodedFrame.class);
 
+    /** The api version of the message. */
     protected final short apiVersion;
+    /** The correlation id of the message. */
     protected final int correlationId;
+    /** The header of the message. */
     protected final H header;
+    /** The body of the message. */
     protected final B body;
 
     private final List<ByteBuf> buffers;
@@ -64,6 +68,10 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         return body.apiKey();
     }
 
+    /**
+     * The {@link ApiKeys API key} of this frame.
+     * @return The API key of this frame.
+     */
     public ApiKeys apiKey() {
         return ApiKeys.forId(apiKeyId());
     }
@@ -78,12 +86,24 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         return true;
     }
 
+    /**
+     * The version of the header used by this frame.
+     * @return The header version.
+     */
     protected abstract short headerVersion();
 
+    /**
+     * The header of this frame.
+     * @return The header of this frame.
+     */
     public H header() {
         return header;
     }
 
+    /**
+     * The body of this frame.
+     * @return The body of this frame.
+     */
     public B body() {
         return body;
     }
@@ -136,6 +156,10 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
                 ')';
     }
 
+    /**
+     * Associates the given buffer with this frame, so that it is released when this frame is deallocated.
+     * @param buffer The buffer to release when this frame is deallocated.
+     */
     public void add(ByteBuf buffer) {
         buffers.add(buffer);
     }
@@ -165,16 +189,25 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
      * or {@link Frame#NO_TARGET_VIRTUAL_NODE_ID} (the default) if the frame should
      * be sent to any broker on the route. Set by the router dispatch handler when
      * forwarding to a specific node via {@code sendToSpecificNode}.
+     * @return The target virtual node ID, or {@link Frame#NO_TARGET_VIRTUAL_NODE_ID}.
      */
     public int targetVirtualNodeId() {
         return targetVirtualNodeId;
     }
 
-    /** Sets the target virtual node ID for this frame. See {@link #targetVirtualNodeId()}. */
+    /**
+     * Sets the target virtual node ID for this frame. See {@link #targetVirtualNodeId()}.
+     * @param targetVirtualNodeId The virtual node ID of the broker this frame should be forwarded to.
+     */
     public void setTargetVirtualNodeId(int targetVirtualNodeId) {
         this.targetVirtualNodeId = targetVirtualNodeId;
     }
 
+    /**
+     * Transfers ownership of this frame's associated buffers to the given frame,
+     * which becomes responsible for releasing them.
+     * @param frame The frame taking ownership of the buffers.
+     */
     public void transferBuffersTo(DecodedFrame<?, ?> frame) {
         frame.buffers.addAll(this.buffers);
         this.buffers.clear();

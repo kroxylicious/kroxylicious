@@ -18,6 +18,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public record RouteTarget(@Nullable String cluster,
                           @Nullable String router) {
 
+    /**
+     * Validates that exactly one of {@code cluster} or {@code router} is specified.
+     */
     @JsonCreator
     public RouteTarget {
         if (cluster != null && router != null) {

@@ -29,6 +29,9 @@ public record RouteDescriptor(
                               @Nullable String routerName,
                               List<NamedFilterDefinition> filters) {
 
+    /**
+     * Validates that the route has a name and targets exactly one of a cluster or a nested router.
+     */
     public RouteDescriptor {
         Objects.requireNonNull(name);
         Objects.requireNonNull(filters);
@@ -40,6 +43,8 @@ public record RouteDescriptor(
 
     /**
      * Returns true if this route targets a Kafka cluster.
+     *
+     * @return true if this route targets a Kafka cluster
      */
     public boolean targetsCluster() {
         return targetCluster != null;
@@ -47,6 +52,8 @@ public record RouteDescriptor(
 
     /**
      * Returns true if this route targets a nested router.
+     *
+     * @return true if this route targets a nested router
      */
     public boolean targetsRouter() {
         return routerName != null;

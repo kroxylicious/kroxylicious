@@ -34,10 +34,17 @@ public class CorrelationManager {
     /** The correlation id with the upstream broker */
     private int upstreamId;
 
+    /**
+     * Creates a correlation manager whose first allocated upstream correlation id is zero.
+     */
     public CorrelationManager() {
         this(0);
     }
 
+    /**
+     * Creates a correlation manager.
+     * @param initialCorrelationId The first upstream correlation id to allocate.
+     */
     public CorrelationManager(int initialCorrelationId) {
         upstreamId = initialCorrelationId;
     }
@@ -49,8 +56,10 @@ public class CorrelationManager {
      * @param apiVersion              The API version.
      * @param downstreamCorrelationId The downstream client's correlation id.
      * @param hasResponse             Whether a response is expected.
+     * @param recipient               The filter that sent the request, or null if the request originated from the downstream client.
      * @param promise                 A promise.
      * @param decodeResponse          Whether the response should be decoded.
+     * @return The allocated upstream correlation id.
      */
     public int putBrokerRequest(short apiKey,
                                 short apiVersion,
@@ -80,6 +89,7 @@ public class CorrelationManager {
     /**
      * Find (and remove) the Correlation for an incoming response from the broker
      * @param upstreamCorrelationId The (upstream) correlation id in the response.
+     * @return The correlation for the given upstream correlation id, or null if none was recorded.
      */
     public Correlation getBrokerCorrelation(int upstreamCorrelationId) {
         // Set the tag on the response object
@@ -114,6 +124,10 @@ public class CorrelationManager {
             this.promise = promise;
         }
 
+        /**
+         * The downstream client's correlation id.
+         * @return The downstream client's correlation id.
+         */
         public int downstreamCorrelationId() {
             return downstreamCorrelationId;
         }
@@ -147,22 +161,42 @@ public class CorrelationManager {
             return Objects.hash(apiKey, apiVersion, downstreamCorrelationId, decodeResponse);
         }
 
+        /**
+         * The api key of the request.
+         * @return The api key of the request.
+         */
         public short apiKey() {
             return apiKey;
         }
 
+        /**
+         * The api version of the request.
+         * @return The api version of the request.
+         */
         public short apiVersion() {
             return apiVersion;
         }
 
+        /**
+         * Whether the response should be decoded.
+         * @return true if the response should be decoded, false otherwise.
+         */
         public boolean decodeResponse() {
             return decodeResponse;
         }
 
+        /**
+         * The filter that sent the request.
+         * @return The filter that sent the request, or null if the request originated from the downstream client.
+         */
         public @Nullable Filter recipient() {
             return recipient;
         }
 
+        /**
+         * The promise to complete with the response.
+         * @return The promise to complete with the response, or null if there is none.
+         */
         public @Nullable CompletableFuture<?> promise() {
             return promise;
         }

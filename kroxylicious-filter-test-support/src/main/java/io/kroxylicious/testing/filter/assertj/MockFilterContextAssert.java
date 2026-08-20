@@ -38,19 +38,45 @@ public class MockFilterContextAssert {
         // prevent construction
     }
 
+    /**
+     * Creates an assertion for the given ResponseFilterResult.
+     *
+     * @param actual the actual ResponseFilterResult
+     * @return the assertion
+     */
     public static ResponseFilterResponseAssert assertThat(ResponseFilterResult actual) {
         return new ResponseFilterResponseAssert(actual);
     }
 
+    /**
+     * Creates an assertion for the given RequestFilterResult.
+     *
+     * @param actual the actual RequestFilterResult
+     * @return the assertion
+     */
     public static RequestFilterResponseAssert assertThat(RequestFilterResult actual) {
         return new RequestFilterResponseAssert(actual);
     }
 
+    /**
+     * AssertJ assertions for {@link ResponseFilterResult}.
+     */
     public static class ResponseFilterResponseAssert extends AbstractAssert<ResponseFilterResponseAssert, ResponseFilterResult> {
+        /**
+         * Constructs an assertion for the given ResponseFilterResult.
+         *
+         * @param responseFilterResult the actual ResponseFilterResult
+         */
         protected ResponseFilterResponseAssert(ResponseFilterResult responseFilterResult) {
             super(responseFilterResult, ResponseFilterResponseAssert.class);
         }
 
+        /**
+         * Verifies that the result's header is equal to the expected header.
+         *
+         * @param header the expected header
+         * @return this assertion
+         */
         public ResponseFilterResponseAssert hasHeaderEqualTo(ApiMessage header) {
             isNotNull();
             ObjectAssert<ApiMessage> headerAssert = new ObjectAssert<>(actual.header());
@@ -58,6 +84,12 @@ public class MockFilterContextAssert {
             return this;
         }
 
+        /**
+         * Verifies that the result's message is equal to the expected message.
+         *
+         * @param message the expected message
+         * @return this assertion
+         */
         public ResponseFilterResponseAssert hasMessageEqualTo(ApiMessage message) {
             isNotNull();
             ObjectAssert<ApiMessage> messageAssert = new ObjectAssert<>(actual.message());
@@ -65,54 +97,110 @@ public class MockFilterContextAssert {
             return this;
         }
 
+        /**
+         * Verifies that the result's message is an instance of the given type and satisfies the given requirements.
+         *
+         * @param <T> the expected type of the message
+         * @param clazz the expected type of the message
+         * @param satisfying the requirements the message must satisfy
+         * @return this assertion
+         */
         public <T extends ApiMessage> ResponseFilterResponseAssert hasMessageInstanceOfSatisfying(Class<T> clazz, Consumer<T> satisfying) {
             isNotNull();
             new ObjectAssert<>(actual.message()).isInstanceOfSatisfying(clazz, satisfying);
             return this;
         }
 
+        /**
+         * Verifies that the result's header is an instance of the given type and satisfies the given requirements.
+         *
+         * @param <T> the expected type of the header
+         * @param clazz the expected type of the header
+         * @param satisfying the requirements the header must satisfy
+         * @return this assertion
+         */
         public <T extends ApiMessage> ResponseFilterResponseAssert hasHeaderInstanceOfSatisfying(Class<T> clazz, Consumer<T> satisfying) {
             isNotNull();
             new ObjectAssert<>(actual.header()).isInstanceOfSatisfying(clazz, satisfying);
             return this;
         }
 
+        /**
+         * Creates an assertion for the result's drop flag.
+         *
+         * @return the drop flag assertion
+         */
         public BooleanAssert drop() {
             isNotNull();
             return new BooleanAssert(actual.drop());
         }
 
+        /**
+         * Creates an assertion for the result's close-connection flag.
+         *
+         * @return the close-connection flag assertion
+         */
         public BooleanAssert closeConnection() {
             isNotNull();
             return new BooleanAssert(actual.closeConnection());
         }
 
+        /**
+         * Verifies that the result commands the framework to drop the response.
+         *
+         * @return this assertion
+         */
         public ResponseFilterResponseAssert isDropResponse() {
             drop().isTrue();
             return this;
         }
 
+        /**
+         * Verifies that the result does not command the framework to drop the response.
+         *
+         * @return this assertion
+         */
         public ResponseFilterResponseAssert isNotDropResponse() {
             drop().isFalse();
             return this;
         }
 
+        /**
+         * Verifies that the result commands the framework to close the connection.
+         *
+         * @return this assertion
+         */
         public ResponseFilterResponseAssert isCloseConnection() {
             closeConnection().isTrue();
             return this;
         }
 
+        /**
+         * Verifies that the result does not command the framework to close the connection.
+         *
+         * @return this assertion
+         */
         public ResponseFilterResponseAssert isNotCloseConnection() {
             closeConnection().isFalse();
             return this;
         }
 
+        /**
+         * Verifies that the result commands the framework to forward the response.
+         *
+         * @return this assertion
+         */
         public ResponseFilterResponseAssert isForwardResponse() {
             isNotNull();
             forwardResponse().isTrue();
             return this;
         }
 
+        /**
+         * Verifies that the result does not command the framework to forward the response.
+         *
+         * @return this assertion
+         */
         public ResponseFilterResponseAssert isNotForwardResponse() {
             isNotNull();
             forwardResponse().isFalse();
@@ -126,11 +214,25 @@ public class MockFilterContextAssert {
         }
     }
 
+    /**
+     * AssertJ assertions for {@link RequestFilterResult}.
+     */
     public static class RequestFilterResponseAssert extends AbstractAssert<RequestFilterResponseAssert, RequestFilterResult> {
+        /**
+         * Constructs an assertion for the given RequestFilterResult.
+         *
+         * @param requestFilterResult the actual RequestFilterResult
+         */
         protected RequestFilterResponseAssert(RequestFilterResult requestFilterResult) {
             super(requestFilterResult, RequestFilterResponseAssert.class);
         }
 
+        /**
+         * Verifies that the result's header is equal to the expected header.
+         *
+         * @param header the expected header
+         * @return this assertion
+         */
         public RequestFilterResponseAssert hasHeaderEqualTo(ApiMessage header) {
             isNotNull();
             ObjectAssert<ApiMessage> headerAssert = new ObjectAssert<>(actual.header());
@@ -138,6 +240,12 @@ public class MockFilterContextAssert {
             return this;
         }
 
+        /**
+         * Verifies that the result's message is equal to the expected message.
+         *
+         * @param message the expected message
+         * @return this assertion
+         */
         public RequestFilterResponseAssert hasMessageEqualTo(ApiMessage message) {
             isNotNull();
             ObjectAssert<ApiMessage> messageAssert = new ObjectAssert<>(actual.message());
@@ -145,75 +253,151 @@ public class MockFilterContextAssert {
             return this;
         }
 
+        /**
+         * Verifies that the result's message is an instance of the given type and satisfies the given requirements.
+         *
+         * @param <T> the expected type of the message
+         * @param clazz the expected type of the message
+         * @param satisfying the requirements the message must satisfy
+         * @return this assertion
+         */
         public <T extends ApiMessage> RequestFilterResponseAssert hasMessageInstanceOfSatisfying(Class<T> clazz, Consumer<T> satisfying) {
             isNotNull();
             new ObjectAssert<>(actual.message()).isInstanceOfSatisfying(clazz, satisfying);
             return this;
         }
 
+        /**
+         * Verifies that the result's header is an instance of the given type and satisfies the given requirements.
+         *
+         * @param <T> the expected type of the header
+         * @param clazz the expected type of the header
+         * @param satisfying the requirements the header must satisfy
+         * @return this assertion
+         */
         public <T extends ApiMessage> RequestFilterResponseAssert hasHeaderInstanceOfSatisfying(Class<T> clazz, Consumer<T> satisfying) {
             isNotNull();
             new ObjectAssert<>(actual.header()).isInstanceOfSatisfying(clazz, satisfying);
             return this;
         }
 
+        /**
+         * Creates an assertion for the result's drop flag.
+         *
+         * @return the drop flag assertion
+         */
         public BooleanAssert drop() {
             isNotNull();
             return new BooleanAssert(actual.drop());
         }
 
+        /**
+         * Creates an assertion for the result's close-connection flag.
+         *
+         * @return the close-connection flag assertion
+         */
         public BooleanAssert closeConnection() {
             isNotNull();
             return new BooleanAssert(actual.closeConnection());
         }
 
+        /**
+         * Creates an assertion for the result's short-circuit flag.
+         *
+         * @return the short-circuit flag assertion
+         */
         public BooleanAssert shortCircuit() {
             isNotNull();
             return new BooleanAssert(actual.shortCircuitResponse());
         }
 
+        /**
+         * Verifies that the result commands the framework to drop the request.
+         *
+         * @return this assertion
+         */
         public RequestFilterResponseAssert isDropRequest() {
             drop().isTrue();
             return this;
         }
 
+        /**
+         * Verifies that the result does not command the framework to drop the request.
+         *
+         * @return this assertion
+         */
         public RequestFilterResponseAssert isNotDropRequest() {
             drop().isFalse();
             return this;
         }
 
+        /**
+         * Verifies that the result commands the framework to close the connection.
+         *
+         * @return this assertion
+         */
         public RequestFilterResponseAssert isCloseConnection() {
             closeConnection().isTrue();
             return this;
         }
 
+        /**
+         * Verifies that the result does not command the framework to close the connection.
+         *
+         * @return this assertion
+         */
         public RequestFilterResponseAssert isNotCloseConnection() {
             closeConnection().isFalse();
             return this;
         }
 
+        /**
+         * Verifies that the result commands the framework to send a short-circuit response.
+         *
+         * @return this assertion
+         */
         public RequestFilterResponseAssert isShortCircuitResponse() {
             shortCircuit().isTrue();
             return this;
         }
 
+        /**
+         * Verifies that the result does not command the framework to send a short-circuit response.
+         *
+         * @return this assertion
+         */
         public RequestFilterResponseAssert isNotShortCircuitResponse() {
             shortCircuit().isFalse();
             return this;
         }
 
+        /**
+         * Verifies that the result is an error response and creates an assertion for its exception.
+         *
+         * @return the exception assertion
+         */
         public ThrowableAssert<ApiException> errorResponse() {
             isNotNull();
             Assertions.assertThat(actual).isInstanceOf(MockErrorRequestFilterResult.class);
             return new ThrowableAssert<>(((MockErrorRequestFilterResult) actual).apiException());
         }
 
+        /**
+         * Verifies that the result commands the framework to send an error response.
+         *
+         * @return this assertion
+         */
         public RequestFilterResponseAssert isErrorResponse() {
             isNotNull();
             Assertions.assertThat(actual).isInstanceOf(MockErrorRequestFilterResult.class);
             return this;
         }
 
+        /**
+         * Verifies that the result does not command the framework to send an error response.
+         *
+         * @return this assertion
+         */
         public RequestFilterResponseAssert isNotErrorResponse() {
             isNotNull();
             Assertions.assertThat(actual).isNotInstanceOf(MockErrorRequestFilterResult.class);
@@ -222,6 +406,8 @@ public class MockFilterContextAssert {
 
         /**
          * RequestFilterResult is implicitly a forward command if it is not set to short-circuit respond or drop
+         *
+         * @return this assertion
          */
         public RequestFilterResponseAssert isForwardRequest() {
             isNotNull();
@@ -229,6 +415,11 @@ public class MockFilterContextAssert {
             return this;
         }
 
+        /**
+         * Verifies that the result does not command the framework to forward the request.
+         *
+         * @return this assertion
+         */
         public RequestFilterResponseAssert isNotForwardRequest() {
             isNotNull();
             forwardRequest().isFalse();
