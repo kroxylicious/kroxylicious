@@ -50,4 +50,4 @@ If connection latency is a higher priority than timing attack mitigation, the de
 The value can also be tuned to a lower delay, but if it is configured low enough that authentication processing frequently exceeds the fixed delay, the timing attack mitigation is lost.
 The `kroxylicious_filter_sasl_termination_auth_duration_seconds` metric records the real authentication latency exclusive of the fixed delay, and the filter logs a warning when authentication processing exceeds it.
 Use these to inform any tuning.
-See the _Authentication metrics_ and _Authentication logging_ sections of this guide for details.
+For details, see the Authentication metrics and Authentication logging sections of this guide.
