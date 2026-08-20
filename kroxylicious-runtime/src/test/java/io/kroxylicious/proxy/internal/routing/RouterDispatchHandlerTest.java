@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +26,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -45,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -671,7 +678,7 @@ class RouterDispatchHandlerTest {
         assertThat(future.toCompletableFuture()).isNotDone();
 
         // When
-        channel.close();
+        channel.close().syncUninterruptibly();
 
         // Then
         assertThat(future.toCompletableFuture()).isCompletedExceptionally();
@@ -847,6 +854,63 @@ class RouterDispatchHandlerTest {
         // Then
         assertThat(channel.isOpen()).isFalse();
         assertThat(promise).isCompletedExceptionally();
+    }
+
+    @Test
+    void oobFrameWriteFlushFailureCompletesOobPromiseExceptionally() {
+        // Given: a router that responds with a RespondWith body
+        var cause = new RuntimeException("write failed");
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(DEFAULT_ROUTE);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWith(null, new ProduceResponseData(), false)));
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+        channel.pipeline().addFirst("failWrites", new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise p) {
+                ReferenceCountUtil.release(msg);
+                p.setFailure(cause);
+            }
+        });
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then: OOB promise is completed exceptionally with the write failure cause
+        assertThat(promise).isCompletedExceptionally();
+        assertThatThrownBy(promise::join).hasCause(cause);
+    }
+
+    @Test
+    void executeOnEventLoopSynchronousThrowCompletesExceptionally() {
+        // Given: routes.get() throws synchronously; executor is a real single-threaded group
+        // whose inEventLoop() returns false on the test thread, forcing the bridge path.
+        var throwingRoutes = new HashMap<String, RouteDescriptor>() {
+            @Override
+            public RouteDescriptor get(Object key) {
+                throw new IllegalStateException("sync throw from routes");
+            }
+        };
+        var handler = new RouterDispatchHandler(router, throwingRoutes, Map.of(), ccsm, "test-cluster",
+                new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+
+        try (var executorGroup = new DefaultEventExecutorGroup(1)) {
+            // Wire ctx so that ctx.executor() returns the real (off-test-thread) executor
+            var mockCtx = mock(ChannelHandlerContext.class);
+            when(mockCtx.executor()).thenReturn(executorGroup.next());
+            handler.handlerAdded(mockCtx);
+
+            // When: called from the test thread — inEventLoop() is false, bridge path taken
+            var stage = handler.sendToAnyNode(DEFAULT_ROUTE, new RequestHeaderData(),
+                    new ProduceRequestData(), "session", 1);
+
+            // Then: bridge completes exceptionally within a bounded time (not hanging)
+            assertThat(stage.toCompletableFuture()).failsWithin(Duration.ofSeconds(5));
+        }
     }
 
     private InternalRequestFrame<ProduceRequestData> oobProduceFrame(int correlationId, CompletableFuture<?> promise) {

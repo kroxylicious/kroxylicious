@@ -8,7 +8,9 @@ package io.kroxylicious.testing.integration.client;
 
 import java.security.cert.X509Certificate;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -16,6 +18,8 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.X509TrustManager;
 
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -54,6 +58,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * </p>
  */
 public final class KafkaClient implements AutoCloseable {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClient.class);
 
     /**
      * A client SSL context that trusts all server certificates. For use in tests only.
@@ -209,11 +215,28 @@ public final class KafkaClient implements AutoCloseable {
 
     @Override
     public void close() {
-        CompletableFuture<Channel> channelCompletableFuture = connected.get();
-        if (channelCompletableFuture != null) {
-            channelCompletableFuture.thenApply(Channel::close);
+        try {
+            CompletableFuture<Channel> channelCompletableFuture = connected.get();
+            if (channelCompletableFuture != null) {
+                try {
+                    channelCompletableFuture
+                            .thenAccept(ch -> ch.close().syncUninterruptibly())
+                            .get(5, TimeUnit.SECONDS);
+                }
+                catch (TimeoutException e) {
+                    LOGGER.atWarn().log("Timed out after 5s waiting for Kafka test client channel to close; proceeding to group shutdown");
+                }
+                catch (ExecutionException e) {
+                    LOGGER.atWarn().setCause(e.getCause()).log("Exception while closing Kafka test client channel");
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
         }
-        bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS);
+        finally {
+            bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly();
+        }
     }
 
     private static Channel checkChannelOpen(Channel c) {

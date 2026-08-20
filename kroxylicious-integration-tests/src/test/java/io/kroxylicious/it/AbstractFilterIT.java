@@ -789,9 +789,10 @@ abstract class AbstractFilterIT {
             Request requestB = new Request(PRODUCE, PRODUCE.latestVersion(), "client", new ProduceRequestData().setAcks((short) 0));
             Request requestC = new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", data);
             var futureA = client.get(requestA);
-            client.get(requestB);
+            var futureB = client.get(requestB);
             var futureC = client.get(requestC);
             Response responseA = futureA.get(10, TimeUnit.SECONDS);
+            futureB.get(10, TimeUnit.SECONDS);
             Response responseC = futureC.get(10, TimeUnit.SECONDS);
             assertThat(responseA.sequenceNumber()).withFailMessage(() -> "responses received out of order").isLessThan(responseC.sequenceNumber());
         }

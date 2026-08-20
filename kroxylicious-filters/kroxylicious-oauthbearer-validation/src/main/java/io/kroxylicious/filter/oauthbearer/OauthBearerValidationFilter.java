@@ -247,21 +247,29 @@ public class OauthBearerValidationFilter
         }
     }
 
-    @SuppressWarnings("java:S1602") // not able to test the scheduled lambda otherwise
+    // FutureReturnValueIgnored: a synchronous throw from operation.get() is now caught and
+    // propagated to `future`, so the scheduled task cannot complete exceptionally and the
+    // discarded ScheduledFuture carries no unobserved failure.
+    @SuppressWarnings({ "java:S1602", "FutureReturnValueIgnored" }) // java:S1602: not able to test the scheduled lambda otherwise
     private <A> CompletionStage<A> schedule(Supplier<CompletionStage<A>> operation, Duration duration) {
         if (duration.equals(Duration.ZERO)) {
             return operation.get();
         }
         CompletableFuture<A> future = new CompletableFuture<>();
         executorService.schedule(() -> {
-            operation.get().whenComplete((a, throwable) -> {
-                if (throwable != null) {
-                    future.completeExceptionally(throwable);
-                }
-                else {
-                    future.complete(a);
-                }
-            });
+            try {
+                operation.get().whenComplete((a, throwable) -> {
+                    if (throwable != null) {
+                        future.completeExceptionally(throwable);
+                    }
+                    else {
+                        future.complete(a);
+                    }
+                });
+            }
+            catch (Exception e) {
+                future.completeExceptionally(e);
+            }
         }, duration.toMillis(), TimeUnit.MILLISECONDS);
         return future;
     }

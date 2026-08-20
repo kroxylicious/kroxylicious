@@ -137,19 +137,30 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         return e instanceof UnknownAliasException || e instanceof UnknownKeyException;
     }
 
+    // FutureReturnValueIgnored: a synchronous throw from operation.get() is now caught and
+    // propagated to `future`, so the scheduled task cannot complete exceptionally and the
+    // discarded ScheduledFuture carries no unobserved failure.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private <A> CompletionStage<A> schedule(Supplier<CompletionStage<A>> operation, Duration duration) {
         if (duration.equals(Duration.ZERO)) {
             return operation.get();
         }
         CompletableFuture<A> future = new CompletableFuture<>();
-        executorService.schedule((Runnable) () -> operation.get().whenComplete((a, throwable) -> {
-            if (throwable != null) {
-                future.completeExceptionally(throwable);
+        executorService.schedule((Runnable) () -> {
+            try {
+                operation.get().whenComplete((a, throwable) -> {
+                    if (throwable != null) {
+                        future.completeExceptionally(throwable);
+                    }
+                    else {
+                        future.complete(a);
+                    }
+                });
             }
-            else {
-                future.complete(a);
+            catch (Exception e) {
+                future.completeExceptionally(e);
             }
-        }), duration.toMillis(), TimeUnit.MILLISECONDS);
+        }, duration.toMillis(), TimeUnit.MILLISECONDS);
         return future;
     }
 }
