@@ -45,6 +45,11 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
     @Nullable
     private ByteBuf cumulation;
 
+    /**
+     * Creates a PROXY protocol detection handler.
+     * @param mode how the PROXY protocol is accepted on this connection ({@code ALLOWED} or {@code REQUIRED})
+     * @param kafkaSession the session in which any decoded PROXY context will be stored
+     */
     public HaProxyProtocolDetectionHandler(ProxyProtocolMode mode, KafkaSession kafkaSession) {
         this.mode = mode;
         this.kafkaSession = kafkaSession;

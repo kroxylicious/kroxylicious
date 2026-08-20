@@ -21,6 +21,11 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Netty handler for the upstream (server-facing) side of the proxy. Feeds channel lifecycle,
+ * writability and read events from the connection to the Kafka broker into the
+ * {@link ServerConnectionStateMachine}, and writes requests towards the broker on its behalf.
+ */
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyBackendHandler.class);

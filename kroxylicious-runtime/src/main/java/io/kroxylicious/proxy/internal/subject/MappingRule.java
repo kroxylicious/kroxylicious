@@ -12,11 +12,25 @@ import java.util.function.Function;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A rule which transforms a name extracted from authentication state into the name of a principal.
+ * Applying a rule yields an empty result if the rule does not match the given name.
+ */
 interface MappingRule extends Function<String, Optional<String>> {
 
+    /** {@code else} value that passes the name through unchanged. */
     String ELSE_IDENTITY = "identity";
+    /** {@code else} value that discards the name, contributing no principal. */
     String ELSE_ANONYMOUS = "anonymous";
 
+    /**
+     * Builds the mapping rules corresponding to the given {@code map} configurations, validating that
+     * an {@code else} mapping occurs at most once and only as the last element.
+     * A null or empty list yields a single {@link IdentityMappingRule}.
+     *
+     * @param maps the {@code map} configurations, possibly null.
+     * @return the corresponding mapping rules.
+     */
     static List<MappingRule> buildMappingRules(@Nullable List<Map> maps) {
         if (maps == null || maps.isEmpty()) {
             return List.of(new IdentityMappingRule());

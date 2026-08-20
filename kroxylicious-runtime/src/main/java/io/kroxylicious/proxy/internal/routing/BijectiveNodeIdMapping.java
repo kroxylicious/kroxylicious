@@ -18,11 +18,17 @@ import java.util.Map;
  *   route[0] (id=0): V = 0 + 2×0, 0 + 2×1, 0 + 2×2  →  0, 2, 4
  *   route[1] (id=1): V = 1 + 2×0, 1 + 2×1, 1 + 2×2  →  1, 3, 5
  * </pre>
+ *
+ * @param routeIds the identifier configured for each route, keyed by route name
+ * @param totalRoutes the total number of routes participating in the mapping
  */
 public record BijectiveNodeIdMapping(Map<String, Integer> routeIds,
                                      int totalRoutes)
         implements NodeIdMapping {
 
+    /**
+     * Validates the mapping and takes a defensive copy of the route identifiers.
+     */
     public BijectiveNodeIdMapping {
         routeIds = Map.copyOf(routeIds);
         if (totalRoutes < 2) {

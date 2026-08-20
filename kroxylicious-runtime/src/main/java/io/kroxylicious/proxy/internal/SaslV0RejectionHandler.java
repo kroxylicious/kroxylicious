@@ -36,6 +36,13 @@ import io.kroxylicious.proxy.frame.Frame;
 public class SaslV0RejectionHandler extends ChannelDuplexHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslV0RejectionHandler.class);
 
+    /**
+     * Creates a handler that rejects v0 SASL handshakes.
+     */
+    public SaslV0RejectionHandler() {
+        // Intentionally empty
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         Frame frame = (Frame) msg;

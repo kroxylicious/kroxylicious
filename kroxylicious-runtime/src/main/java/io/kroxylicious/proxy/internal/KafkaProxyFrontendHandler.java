@@ -60,13 +60,20 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Netty handler for the downstream (client-facing) side of the proxy. Feeds channel lifecycle
+ * and read events into the {@link ClientConnectionStateMachine}, buffers client requests until
+ * the session is ready to forward them, and writes responses back to the client.
+ */
 @SuppressWarnings("java:S1192") // ignore dupe string literals is due to logger keys
 public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
+    /** Default idle timeout, in seconds, applied to a client connection before it has authenticated. */
     public static final int DEFAULT_IDLE_TIME_SECONDS = 31;
+    /** Default idle timeout, in seconds, as a {@code long} value. */
     public static final long DEFAULT_IDLE_SECONDS = 31L;
     private static final Long NO_TIMEOUT = null;
     private static final String AUTH_IDLE_HANDLER_NAME = "authenticatedSessionIdleHandler";
@@ -483,6 +490,10 @@ public class KafkaProxyFrontendHandler
         return channel != null ? channel.id() : null;
     }
 
+    /**
+     * Notifies this handler that the session has authenticated: removes the pre-session idle
+     * handler and, if configured, installs the (longer) authenticated-session idle handler.
+     */
     public void onSessionAuthenticated() {
         ChannelPipeline channelPipeline = Objects.requireNonNull(clientCtx).pipeline();
         ChannelHandler preSessionHandler = channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER);
@@ -496,6 +507,10 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    /**
+     * Returns the host address of the connected client.
+     * @return the client's host address, or the string form of the socket address if it is not an inet address
+     */
     protected String remoteHost() {
         SocketAddress socketAddress = clientCtx().channel().remoteAddress();
         if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
@@ -506,6 +521,10 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    /**
+     * Returns the port of the connected client.
+     * @return the client's port, or {@code -1} if the socket address is not an inet address
+     */
     protected int remotePort() {
         SocketAddress socketAddress = clientCtx().channel().remoteAddress();
         if (socketAddress instanceof InetSocketAddress inetSocketAddress) {

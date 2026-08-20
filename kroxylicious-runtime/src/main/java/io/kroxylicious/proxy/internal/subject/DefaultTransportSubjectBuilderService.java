@@ -21,17 +21,37 @@ import io.kroxylicious.proxy.plugin.Plugins;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * The default {@link TransportSubjectBuilderService} plugin. It builds {@link io.kroxylicious.proxy.authentication.Subject}s
+ * from the client's TLS certificate by extracting names (subject DN or subject alternative names),
+ * transforming them through configured mapping rules and turning the results into principals.
+ */
 @Plugin(configType = DefaultTransportSubjectBuilderService.Config.class)
 public class DefaultTransportSubjectBuilderService implements TransportSubjectBuilderService<DefaultTransportSubjectBuilderService.Config> {
 
+    /** {@code from} value selecting the subject DN of the client's TLS certificate. */
     public static final String CLIENT_TLS_SUBJECT = "clientTlsSubject";
+    /** {@code from} value selecting the RFC 822 (email) subject alternative names of the client's TLS certificate. */
     public static final String CLIENT_TLS_SAN_RFC822_NAME = "clientTlsSanRfc822Name";
+    /** {@code from} value selecting the directory name subject alternative names of the client's TLS certificate. */
     public static final String CLIENT_TLS_SAN_DIR_NAME = "clientTlsSanDirName";
+    /** {@code from} value selecting the DNS subject alternative names of the client's TLS certificate. */
     public static final String CLIENT_TLS_SAN_DNS_NAME = "clientTlsSanDnsName";
+    /** {@code from} value selecting the URI subject alternative names of the client's TLS certificate. */
     public static final String CLIENT_TLS_SAN_URI = "clientTlsSanUri";
+    /** {@code from} value selecting the IP address subject alternative names of the client's TLS certificate. */
     public static final String CLIENT_TLS_SAN_IP_ADDRESS = "clientTlsSanIpAddress";
+    /** {@code else} mapping value that passes the extracted name through unchanged. */
     public static final String ELSE_IDENTITY = "identity";
+    /** {@code else} mapping value that discards the extracted name, contributing no principal. */
     public static final String ELSE_ANONYMOUS = "anonymous";
+
+    /**
+     * Constructor invoked by the plugin service loading machinery.
+     */
+    public DefaultTransportSubjectBuilderService() {
+        // Intentionally empty
+    }
 
     /*
      * subjectBuilder:
@@ -53,7 +73,17 @@ public class DefaultTransportSubjectBuilderService implements TransportSubjectBu
      * - sedLike: #.*,OU=(.*?).*#$1#
      * - else: anonymous
      */
+    /**
+     * Configuration for the {@link DefaultTransportSubjectBuilderService} plugin.
+     *
+     * @param addPrincipals the principal adder configurations, each describing where to extract names from,
+     *        how to map them and which principal factory to use.
+     */
     public record Config(List<PrincipalAdderConf> addPrincipals) {
+        /**
+         * Validates each principal adder configuration eagerly, rejecting invalid
+         * {@code from}, {@code map} or {@code principalFactory} values.
+         */
         public Config {
             for (PrincipalAdderConf adder : addPrincipals) {
                 // call methods for validation side-effect

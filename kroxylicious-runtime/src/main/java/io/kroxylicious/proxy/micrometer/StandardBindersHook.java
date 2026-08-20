@@ -29,17 +29,38 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A {@link MicrometerConfigurationHookService} that binds a configured selection of the standard
+ * micrometer {@link MeterBinder}s (JVM, processor, uptime, etc.) to the meter registry.
+ */
 @Plugin(configType = StandardBindersHook.StandardBindersHookConfig.class)
 public class StandardBindersHook implements MicrometerConfigurationHookService<StandardBindersHook.StandardBindersHookConfig> {
 
     private static final Logger log = LoggerFactory.getLogger(StandardBindersHook.class);
+
+    /**
+     * Creates a new service instance, invoked by the plugin framework.
+     */
+    public StandardBindersHook() {
+        // nothing to initialise: state is created in build(StandardBindersHookConfig)
+    }
 
     @Override
     public MicrometerConfigurationHook build(StandardBindersHookConfig config) {
         return new Hook(config);
     }
 
+    /**
+     * Configuration for the {@link StandardBindersHook}.
+     *
+     * @param binderNames simple names of the standard micrometer binders to bind (e.g. {@code JvmGcMetrics}); never null.
+     */
     public record StandardBindersHookConfig(List<String> binderNames) {
+        /**
+         * Constructs a StandardBindersHookConfig.
+         *
+         * @param binderNames simple names of the standard micrometer binders to bind; a null value is treated as an empty list.
+         */
         public StandardBindersHookConfig(@Nullable List<String> binderNames) {
             this.binderNames = binderNames == null ? List.of() : binderNames;
         }

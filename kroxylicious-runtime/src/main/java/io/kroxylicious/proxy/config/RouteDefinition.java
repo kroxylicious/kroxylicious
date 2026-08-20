@@ -28,6 +28,10 @@ public record RouteDefinition(
                               @Nullable List<String> filters,
                               @JsonProperty(required = true) RouteTarget target) {
 
+    /**
+     * Validates the route: {@code name} and {@code target} are required and {@code id}
+     * must be non-negative.
+     */
     @JsonCreator
     public RouteDefinition {
         Objects.requireNonNull(name, "'name' is required in a route definition");
@@ -38,11 +42,21 @@ public record RouteDefinition(
         }
     }
 
+    /**
+     * The name of the cluster this route targets, if any.
+     *
+     * @return the target cluster name, or {@code null} if the route targets a router
+     */
     @Nullable
     public String cluster() {
         return target.cluster();
     }
 
+    /**
+     * The name of the router this route targets, if any.
+     *
+     * @return the target router name, or {@code null} if the route targets a cluster
+     */
     @Nullable
     public String router() {
         return target.router();

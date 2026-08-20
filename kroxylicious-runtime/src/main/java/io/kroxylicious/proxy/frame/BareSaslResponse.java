@@ -14,6 +14,10 @@ public class BareSaslResponse implements ResponseFrame {
 
     private final byte[] bytes;
 
+    /**
+     * Constructs a bare SASL response.
+     * @param bytes The SASL token bytes.
+     */
     public BareSaslResponse(byte[] bytes) {
         this.bytes = bytes;
     }
@@ -48,6 +52,10 @@ public class BareSaslResponse implements ResponseFrame {
         return true;
     }
 
+    /**
+     * The SASL token bytes carried by this response.
+     * @return The SASL token bytes.
+     */
     public byte[] bytes() {
         return bytes;
     }

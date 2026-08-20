@@ -222,6 +222,13 @@ public class KafkaProxyExceptionMapper {
     private KafkaProxyExceptionMapper() {
     }
 
+    /**
+     * Builds the body of an error response answering the given request frame, with error codes
+     * set according to the given error.
+     * @param frame the request frame being answered
+     * @param error the error to convey to the client
+     * @return the error response body
+     */
     public static ApiMessage errorResponseMessage(DecodedRequestFrame<?> frame, Throwable error) {
         return errorResponse(frame, error).data();
     }
@@ -232,6 +239,14 @@ public class KafkaProxyExceptionMapper {
                 .setConfigResources(List.of(new ListConfigResourcesResponseData.ConfigResource().setResourceType((byte) 16))));
     }
 
+    /**
+     * Builds an error response answering the given request message, with error codes set
+     * according to the given exception.
+     * @param requestHeaders the headers of the request being answered
+     * @param message the body of the request being answered
+     * @param apiException the exception to convey to the client
+     * @return the error response
+     */
     public static AbstractResponse errorResponseForMessage(RequestHeaderData requestHeaders, ApiMessage message, ApiException apiException) {
         final short apiKey = message.apiKey();
         // Our ListConfigResourcesRequestData is deserialized off the wire and so will only have the v0 fields populated.

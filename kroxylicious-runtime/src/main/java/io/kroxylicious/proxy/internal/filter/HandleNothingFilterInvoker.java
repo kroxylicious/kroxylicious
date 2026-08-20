@@ -17,7 +17,15 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
+/**
+ * A {@link FilterInvoker} that declares no interest in any request or response and throws
+ * if it is ever invoked. Used in place of a real invoker when a filter handles nothing.
+ */
 public record HandleNothingFilterInvoker() implements FilterInvoker {
+
+    /**
+     * Shared singleton instance.
+     */
     public static final FilterInvoker INSTANCE = new HandleNothingFilterInvoker();
 
     @Override

@@ -20,6 +20,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public record BootstrapEndpointBinding(EndpointGateway endpointGateway) implements EndpointBinding {
 
+    /**
+     * Creates a bootstrap binding.
+     *
+     * @param endpointGateway the endpoint gateway
+     */
     public BootstrapEndpointBinding {
         Objects.requireNonNull(endpointGateway, "endpointGateway cannot be null");
     }

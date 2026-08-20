@@ -19,9 +19,21 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.bootstrap.ServerBootstrap;
 
+/**
+ * Default {@link NetworkBindingOperationProcessor} implementation that processes queued
+ * {@link NetworkBindingOperation}s sequentially on a dedicated daemon thread, applying each
+ * operation to the plain or TLS {@link ServerBootstrap} as appropriate.
+ */
 public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOperationProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultNetworkBindingOperationProcessor.class);
+
+    /**
+     * Creates a network binding operation processor.
+     */
+    public DefaultNetworkBindingOperationProcessor() {
+        // Intentionally empty
+    }
 
     /** Queue of network binding operations */
     private final BlockingQueue<NetworkBindingOperation<?>> queue = new LinkedBlockingQueue<>();

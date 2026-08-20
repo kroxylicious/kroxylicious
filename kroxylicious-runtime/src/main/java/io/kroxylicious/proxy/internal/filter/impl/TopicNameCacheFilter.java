@@ -53,13 +53,23 @@ public class TopicNameCacheFilter implements MetadataRequestFilter, MetadataResp
     @VisibleForTesting
     final Cache<Uuid, String> topicNameCache;
 
+    /**
+     * Creates a topic name cache filter with an initially empty cache.
+     *
+     * @param cacheConfiguration configuration controlling the cache size and expiry
+     * @param clusterName the name of the virtual cluster (used to label cache metrics)
+     */
     public TopicNameCacheFilter(CacheConfiguration cacheConfiguration,
                                 String clusterName) {
         this(cacheConfiguration, Map.of(), clusterName);
     }
 
     /**
+     * Creates a topic name cache filter with an initially populated cache.
+     *
+     * @param cacheConfiguration configuration controlling the cache size and expiry
      * @param topicNames initial topic names to populate the cache with
+     * @param clusterName the name of the virtual cluster (used to label cache metrics)
      */
     @VisibleForTesting
     public TopicNameCacheFilter(CacheConfiguration cacheConfiguration,

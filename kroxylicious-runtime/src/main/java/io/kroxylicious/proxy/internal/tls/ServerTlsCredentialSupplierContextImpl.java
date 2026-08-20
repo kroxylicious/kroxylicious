@@ -25,6 +25,11 @@ public class ServerTlsCredentialSupplierContextImpl implements ServerTlsCredenti
 
     private final Optional<ClientTlsContext> clientTlsContext;
 
+    /**
+     * Constructor.
+     *
+     * @param clientTlsContext the TLS context of the client connection, or null if the client did not use TLS.
+     */
     public ServerTlsCredentialSupplierContextImpl(@Nullable ClientTlsContext clientTlsContext) {
         this.clientTlsContext = Optional.ofNullable(clientTlsContext);
     }

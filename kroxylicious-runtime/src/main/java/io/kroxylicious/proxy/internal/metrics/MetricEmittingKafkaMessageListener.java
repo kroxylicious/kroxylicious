@@ -27,6 +27,12 @@ public class MetricEmittingKafkaMessageListener implements KafkaMessageListener 
     private final Meter.MeterProvider<Counter> messageCounterProvider;
     private final Meter.MeterProvider<DistributionSummary> messageSizeProvider;
 
+    /**
+     * Creates a metric emitting listener.
+     *
+     * @param messageCounterProvider provider of the counter used to record message counts
+     * @param messageSizeProvider provider of the distribution summary used to record message sizes
+     */
     public MetricEmittingKafkaMessageListener(Meter.MeterProvider<Counter> messageCounterProvider,
                                               Meter.MeterProvider<DistributionSummary> messageSizeProvider) {
         this.messageCounterProvider = Objects.requireNonNull(messageCounterProvider);
