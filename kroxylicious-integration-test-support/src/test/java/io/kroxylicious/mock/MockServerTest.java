@@ -12,14 +12,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiMessageType;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.kafka.common.message.ApiMessageType;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.testing.integration.ApiMessageSampleGenerator;
 import io.kroxylicious.testing.integration.ApiMessageSampleGenerator.ApiAndVersion;
 import io.kroxylicious.testing.integration.DataClasses;

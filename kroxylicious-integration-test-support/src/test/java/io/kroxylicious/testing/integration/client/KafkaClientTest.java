@@ -25,10 +25,6 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
 
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.ApiVersionsRequest;
 import org.apache.kafka.common.requests.RequestHeader;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +35,10 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.ResponsePayload;
@@ -72,9 +72,10 @@ class KafkaClientTest {
         message.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
         try (var mockServer = MockServer.startOnRandomPort(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 0, message));
                 var kafkaClient = new KafkaClient("localhost", mockServer.port())) {
-            ApiVersionsRequest request = new ApiVersionsRequest(new ApiVersionsRequestData(), (short) 0);
+            ApiVersionsRequest request = new ApiVersionsRequest(new org.apache.kafka.common.message.ApiVersionsRequestData(), (short) 0);
             int correlationId = 5;
-            ByteBuffer byteBuffer = request.serializeWithHeader(new RequestHeader(ApiKeys.API_VERSIONS, (short) 0, "client", correlationId));
+            ByteBuffer byteBuffer = request.serializeWithHeader(
+                    new RequestHeader(org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS, (short) 0, "client", correlationId));
             int length = byteBuffer.remaining();
             OpaqueRequestFrame frame = new OpaqueRequestFrame(Unpooled.copiedBuffer(byteBuffer), correlationId, length, true, ApiKeys.API_VERSIONS, (short) 0);
             CompletableFuture<Response> future = kafkaClient.get(frame);

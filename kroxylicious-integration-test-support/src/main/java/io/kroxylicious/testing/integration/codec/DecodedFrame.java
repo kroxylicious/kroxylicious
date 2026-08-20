@@ -7,12 +7,13 @@ package io.kroxylicious.testing.integration.codec;
 
 import java.util.Objects;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.MessageSizeAccumulator;
-import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.MessageSizeAccumulator;
+import io.kroxylicious.kafka.common.protocol.ObjectSerializationCache;
 
 /**
  * A frame that has been decoded.
