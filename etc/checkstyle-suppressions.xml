@@ -26,6 +26,19 @@
     <suppress checks=".*"
               files="generated-sources/antlr4/.*"/>
 
+    <!-- Kafka *Data classes generated from the protocol JSON specs; forked-generator
+         output that does not follow Kroxylicious style conventions and is not edited. -->
+    <suppress checks=".*"
+              files="generated-sources/kafka-messages/.*"/>
+
+    <!-- Kafka protocol support classes vendored/forked verbatim into io.kroxylicious.kafka.*
+         (see tools/kafka-vendoring): io.kroxylicious.kafka.common.* support classes, plus their
+         forked Apache Kafka unit tests and test-support helper. Copied from Apache Kafka and
+         relocated by tooling, not hand-maintained, so they do not follow Kroxylicious style
+         conventions. -->
+    <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]kafka[/\\].*\.java"/>
+
     <!-- Exclude structured logging checks from test code (src/test) -->
     <suppress checks="RegexpSinglelineJava"
               message="Use fluent API with addKeyValue"
