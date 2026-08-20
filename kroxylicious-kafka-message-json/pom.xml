@@ -116,6 +116,16 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Generated *DataJsonConverter classes carry no Javadoc comments; exclude them
+                 rather than fail the build (mirrors kroxylicious-api's handling of the same
+                 generated package). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <excludePackageNames>io.kroxylicious.kafka.common.message</excludePackageNames>
+                </configuration>
+            </plugin>
             <!-- This actually shouldn't be needed, as the plug-in itself adds that directory as a source directory;
                  Unfortunately, Eclipse/M2E doesn't reliably pick it up without this helper plug-in -->
             <plugin>
