@@ -28,10 +28,7 @@ class FidelityCheckTest {
         // Then
         assertThat(result.error()).isNull();
         assertThat(result.unreadBytes()).isZero();
-        assertThat(result.message().requestApiKey()).isEqualTo((short) 18);
-        assertThat(result.message().requestApiVersion()).isEqualTo((short) 7);
-        assertThat(result.message().correlationId()).isEqualTo(0x01020304);
-        assertThat(result.message().clientId()).isEqualTo("kroxylicious-client");
+        assertThat(result.message()).usingRecursiveComparison().isEqualTo(kafkaSource);
     }
 
     @Test
@@ -50,10 +47,7 @@ class FidelityCheckTest {
         // Then
         assertThat(result.error()).isNull();
         assertThat(result.unreadBytes()).isZero();
-        assertThat(result.message().requestApiKey()).isEqualTo((short) 18);
-        assertThat(result.message().requestApiVersion()).isEqualTo((short) 7);
-        assertThat(result.message().correlationId()).isEqualTo(0x01020304);
-        assertThat(result.message().clientId()).isEqualTo("kroxylicious-client");
+        assertThat(result.message()).usingRecursiveComparison().isEqualTo(oursSource);
     }
 
     @Test
