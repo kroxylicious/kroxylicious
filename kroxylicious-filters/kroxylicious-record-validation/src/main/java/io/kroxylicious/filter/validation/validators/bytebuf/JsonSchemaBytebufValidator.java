@@ -14,7 +14,6 @@ import java.util.concurrent.CompletionStage;
 import io.apicurio.registry.resolver.strategy.ArtifactReference;
 import io.apicurio.schema.validation.json.JsonValidator;
 
-import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
 
 /**
@@ -28,8 +27,8 @@ import io.kroxylicious.filter.validation.validators.Result;
 class JsonSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final JsonValidator jsonValidator;
 
-    JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
-        super(schemaId, wireFormatVersion);
+    JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId) {
+        super(schemaId);
         this.jsonValidator = new JsonValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromContentId(schemaId)));
     }
 
