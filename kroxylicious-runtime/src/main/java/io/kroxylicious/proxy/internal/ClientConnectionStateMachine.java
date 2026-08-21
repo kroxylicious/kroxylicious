@@ -604,6 +604,25 @@ public class ClientConnectionStateMachine {
     }
 
     /**
+     * Requests a graceful close of this connection, using the virtual cluster's configured
+     * drain timeout. The reason is logged (with {@code sessionId} and {@code virtualCluster})
+     * at the point drain begins. Delegates to {@link #drain(Duration)}.
+     * <p>
+     * Safe to call from any thread; idempotent (subsequent calls chain to the existing drain).
+     *
+     * @param reason why the close was requested — logged for debugging
+     */
+    public void requestClose(CloseReason reason) {
+        LOGGER.atInfo()
+                .addKeyValue("sessionId", kafkaSession.sessionId())
+                .addKeyValue("virtualCluster", clusterName())
+                .addKeyValue("closeCategory", reason.category())
+                .addKeyValue("closeReason", reason.detail())
+                .log("Connection close requested");
+        drain(virtualCluster().drainTimeout());
+    }
+
+    /**
      * Begin draining this connection and return a future that completes once the connection has
      * fully closed — either naturally (all in-flight responses delivered) or after the
      * {@code timeout} force-closes it. Safe to call from any thread; orchestration is dispatched

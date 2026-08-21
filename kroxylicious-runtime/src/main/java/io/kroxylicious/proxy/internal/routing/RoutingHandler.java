@@ -28,6 +28,7 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
+import io.kroxylicious.proxy.internal.CloseReason;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.internal.CorrelationIdSpace;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
@@ -501,8 +502,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
         deliverResponse(ctx, requestFrame, rri, apiKey, apiVersion, correlationId, sequence);
 
         if (rri.closeConnection()) {
-            if (requestSource instanceof VirtualClusterRequestSource) {
-                ctx.channel().close();
+            if (requestSource instanceof VirtualClusterRequestSource vcs) {
+                vcs.ccsm().requestClose(CloseReason.routerRequested());
             }
             else {
                 // TODO (#4157): design proposal 070 specifies completing the future exceptionally
