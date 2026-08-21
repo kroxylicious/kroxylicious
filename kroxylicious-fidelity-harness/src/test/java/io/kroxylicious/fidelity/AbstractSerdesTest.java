@@ -81,6 +81,7 @@ abstract class AbstractSerdesTest<M> {
         ReadResult<M> result = read(KNOWN_BYTES, (short) 1);
 
         // Then
+        assertThat(result.error()).isNull();
         // KNOWN_BYTES is v2-shaped (it has a trailing tagged-fields count); reading it as v1 correctly
         // stops before that byte, since v1 has no tagged-fields section - this is exactly the signal
         // assertAllBytesConsumed() relies on to catch a version mismatch.
@@ -94,6 +95,7 @@ abstract class AbstractSerdesTest<M> {
         ReadResult<M> result = read(KNOWN_BYTES_WITH_UNKNOWN_TAGGED_FIELD, (short) 2);
 
         // Then
+        assertThat(result.error()).isNull();
         assertThat(result.unreadBytes()).isZero();
         assertThat(snapshot(result.message()))
                 .isEqualTo(new Snapshot((short) 18, (short) 7, 0x01020304, "krox", List.of(new TagSnapshot(1, List.of((byte) 1)))));
@@ -117,17 +119,20 @@ abstract class AbstractSerdesTest<M> {
         ReadResult<M> result = read(KNOWN_BYTES_WITH_NULL_CLIENT_ID, (short) 2);
 
         // Then
+        assertThat(result.error()).isNull();
         assertThat(result.unreadBytes()).isZero();
         assertThat(snapshot(result.message())).isEqualTo(NULL_CLIENT_ID_SNAPSHOT);
     }
 
     @Test
     void shouldFailForMalformedInput() {
-        // When
+        // When - dropping the leading byte misaligns every field; requestApiKey/requestApiVersion/
+        // correlationId/clientId-length (10 bytes) still decode "successfully" (as garbage), then the
+        // claimed clientId length (garbage, from misaligned bytes) vastly exceeds the 4 bytes actually left
         ReadResult<M> result = read(Arrays.copyOfRange(KNOWN_BYTES, 1, KNOWN_BYTES.length), (short) 2);
 
         // Then
-        assertThat(result.unreadBytes()).isEqualTo(KNOWN_BYTES.length - 1);
+        assertThat(result.unreadBytes()).isEqualTo(4);
         assertThat(result.error()).isInstanceOf(RuntimeException.class).hasMessageContaining("Error reading byte array");
     }
 

@@ -14,39 +14,58 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FidelityCheckTest {
 
     @Test
-    void shouldRoundTripPopulatedFieldsThroughKafka() {
+    void kroxyliciousShouldReadKafkaSerialisedMessage() {
         // Given
-        RequestHeaderData ours = new RequestHeaderData()
+        org.apache.kafka.common.message.RequestHeaderData kafkaSource = new org.apache.kafka.common.message.RequestHeaderData()
                 .setRequestApiKey((short) 18)
                 .setRequestApiVersion((short) 7)
                 .setCorrelationId(0x01020304)
                 .setClientId("kroxylicious-client");
 
         // When
-        FidelityCheck.RoundTrip roundTrip = FidelityCheck.throughKafka(
-                ours, new org.apache.kafka.common.message.RequestHeaderData(), (short) 2);
+        ReadResult<RequestHeaderData> result = FidelityCheck.kroxyliciousReads(kafkaSource, new RequestHeaderData(), (short) 2);
 
         // Then
-        assertThat(roundTrip.roundTripped()).isEqualTo(roundTrip.original());
-        assertThat(roundTrip.original()).isNotEmpty();
-        assertThat(roundTrip).satisfies(FidelityCheck.RoundTrip::assertAllBytesConsumed);
+        assertThat(result.error()).isNull();
+        assertThat(result.unreadBytes()).isZero();
+        assertThat(result.message().requestApiKey()).isEqualTo((short) 18);
+        assertThat(result.message().requestApiVersion()).isEqualTo((short) 7);
+        assertThat(result.message().correlationId()).isEqualTo(0x01020304);
+        assertThat(result.message().clientId()).isEqualTo("kroxylicious-client");
     }
 
     @Test
-    void shouldRoundTripPopulatedFieldsThroughKroxylicious() {
+    void kafkaShouldReadKroxyliciousSerialisedMessage() {
         // Given
-        org.apache.kafka.common.message.RequestHeaderData kafka = new org.apache.kafka.common.message.RequestHeaderData()
+        RequestHeaderData oursSource = new RequestHeaderData()
                 .setRequestApiKey((short) 18)
                 .setRequestApiVersion((short) 7)
                 .setCorrelationId(0x01020304)
                 .setClientId("kroxylicious-client");
 
         // When
-        FidelityCheck.RoundTrip roundTrip = FidelityCheck.throughKroxylicious(kafka, new RequestHeaderData(), (short) 2);
+        ReadResult<org.apache.kafka.common.message.RequestHeaderData> result = FidelityCheck.kafkaReads(
+                oursSource, new org.apache.kafka.common.message.RequestHeaderData(), (short) 2);
 
         // Then
-        assertThat(roundTrip.roundTripped()).isEqualTo(roundTrip.original());
-        assertThat(roundTrip.original()).isNotEmpty();
-        assertThat(roundTrip).satisfies(FidelityCheck.RoundTrip::assertAllBytesConsumed);
+        assertThat(result.error()).isNull();
+        assertThat(result.unreadBytes()).isZero();
+        assertThat(result.message().requestApiKey()).isEqualTo((short) 18);
+        assertThat(result.message().requestApiVersion()).isEqualTo((short) 7);
+        assertThat(result.message().correlationId()).isEqualTo(0x01020304);
+        assertThat(result.message().clientId()).isEqualTo("kroxylicious-client");
+    }
+
+    @Test
+    void kroxyliciousShouldFailTheSameWayKafkaDoesOnMalformedInput() {
+        // Given - a clientId length prefix (100) far exceeding the 0 bytes actually remaining
+        byte[] malformed = { 0x00, 0x12, 0x00, 0x07, 0x01, 0x02, 0x03, 0x04, 0x00, 0x64 };
+
+        // When
+        FidelityCheck.ErrorParity parity = FidelityCheck.compareErrorHandling(
+                malformed, new org.apache.kafka.common.message.RequestHeaderData(), new RequestHeaderData(), (short) 2);
+
+        // Then
+        assertThat(parity).satisfies(FidelityCheck.ErrorParity::assertBothFailedOrBothSucceeded);
     }
 }

@@ -5,18 +5,17 @@
  */
 package io.kroxylicious.fidelity;
 
-import java.util.Arrays;
-
 /**
  * Proves wire-level fidelity between a {@code io.kroxylicious.kafka.common.message.*Data} instance and
  * its {@code org.apache.kafka.common.message.*Data} equivalent, without either side needing to know
  * anything about the other's API shape.
  * <p>
- * The only contract exercised is the wire format itself: a message is written with its own codec, the
- * resulting bytes are read into a fresh instance of the other side using that side's own codec, and the
- * fresh instance is written back out. Callers compare {@link RoundTrip#original()} against
- * {@link RoundTrip#roundTripped()} - equal bytes mean the two implementations are wire-compatible at the
- * given version.
+ * The properties this proves are read-correctness, not round-trip byte equality: can Kroxylicious
+ * correctly decode a message Kafka serialized ({@link #kroxyliciousReads}), can Kafka correctly decode a
+ * message Kroxylicious serialized ({@link #kafkaReads}), and given the same invalid bytes, does one side
+ * fail the same way the other does ({@link #compareErrorHandling}). A re-encode-and-diff round trip was
+ * tried first and rejected: it can't distinguish "the other side misread these bytes" from "the other side
+ * read them fine but re-encodes differently," since both produce the same symptom.
  */
 public final class FidelityCheck {
 
@@ -24,117 +23,83 @@ public final class FidelityCheck {
     }
 
     /**
-     * Writes {@code ours} with the Kroxylicious codec, then decodes and re-encodes those bytes with the
-     * Kafka codec using {@code kafkaScratch} as scratch space.
+     * Writes {@code kafkaSource} with the Kafka codec, then decodes those bytes with the Kroxylicious
+     * codec using {@code oursScratch} as scratch space.
      *
-     * @param ours the Kroxylicious-side instance to write
-     * @param kafkaScratch a fresh Kafka-side instance used as decode/re-encode scratch space
-     * @param version the protocol version to serialize at
-     * @return the original bytes and the bytes produced by the Kafka codec's round trip
+     * @param kafkaSource the Kafka-side instance to write
+     * @param oursScratch a fresh Kroxylicious-side instance to decode into
+     * @param version the protocol version to serialize/deserialize at
+     * @param <T> the Kroxylicious-side message type
+     * @return the result of decoding {@code kafkaSource}'s bytes with the Kroxylicious codec
      */
-    public static RoundTrip throughKafka(io.kroxylicious.kafka.common.protocol.Message ours,
-                                         org.apache.kafka.common.protocol.Message kafkaScratch,
-                                         short version) {
-        byte[] original = KroxyliciousSerdes.write(ours, version);
-        ReadResult<org.apache.kafka.common.protocol.Message> decoded = KafkaSerdes.read(kafkaScratch, original, version);
-        byte[] roundTripped = KafkaSerdes.write(decoded.message(), version);
-        return new RoundTrip(original, roundTripped, decoded.unreadBytes());
+    public static <T extends io.kroxylicious.kafka.common.protocol.Message> ReadResult<T> kroxyliciousReads(
+                                                                                                            org.apache.kafka.common.protocol.Message kafkaSource,
+                                                                                                            T oursScratch,
+                                                                                                            short version) {
+        byte[] kafkaBytes = KafkaSerdes.write(kafkaSource, version);
+        return KroxyliciousSerdes.read(oursScratch, kafkaBytes, version);
     }
 
     /**
-     * Writes {@code kafka} with the Kafka codec, then decodes and re-encodes those bytes with the
-     * Kroxylicious codec using {@code oursScratch} as scratch space.
+     * Writes {@code oursSource} with the Kroxylicious codec, then decodes those bytes with the Kafka
+     * codec using {@code kafkaScratch} as scratch space.
      *
-     * @param kafka the Kafka-side instance to write
-     * @param oursScratch a fresh Kroxylicious-side instance used as decode/re-encode scratch space
-     * @param version the protocol version to serialize at
-     * @return the original bytes and the bytes produced by the Kroxylicious codec's round trip
+     * @param oursSource the Kroxylicious-side instance to write
+     * @param kafkaScratch a fresh Kafka-side instance to decode into
+     * @param version the protocol version to serialize/deserialize at
+     * @param <T> the Kafka-side message type
+     * @return the result of decoding {@code oursSource}'s bytes with the Kafka codec
      */
-    public static RoundTrip throughKroxylicious(org.apache.kafka.common.protocol.Message kafka,
-                                                io.kroxylicious.kafka.common.protocol.Message oursScratch,
-                                                short version) {
-        byte[] original = KafkaSerdes.write(kafka, version);
-        ReadResult<io.kroxylicious.kafka.common.protocol.Message> decoded = KroxyliciousSerdes.read(oursScratch, original, version);
-        byte[] roundTripped = KroxyliciousSerdes.write(decoded.message(), version);
-        return new RoundTrip(original, roundTripped, decoded.unreadBytes());
+    public static <T extends org.apache.kafka.common.protocol.Message> ReadResult<T> kafkaReads(
+                                                                                                io.kroxylicious.kafka.common.protocol.Message oursSource,
+                                                                                                T kafkaScratch,
+                                                                                                short version) {
+        byte[] oursBytes = KroxyliciousSerdes.write(oursSource, version);
+        return KafkaSerdes.read(kafkaScratch, oursBytes, version);
     }
 
     /**
-     * The bytes originally written, and the bytes produced by decoding and re-encoding them with the
-     * other implementation. Equal arrays mean the two implementations are wire-compatible.
-     * <p>
-     * Defensively copies its array components on construction and on read, and defines
-     * {@code equals}/{@code hashCode}/{@code toString} in terms of array contents rather than identity.
+     * Feeds the same (presumably invalid) bytes to both codecs' {@code read()} and reports whether they
+     * failed equivalently.
      *
-     * @param original bytes as written by the originating side's own codec
-     * @param roundTripped bytes produced by decoding {@code original} and re-encoding with the other side's codec
-     * @param unreadBytes bytes of {@code original} left unconsumed when decoding it back - non-zero means
-     *     the decode was incomplete, even when {@code original} and {@code roundTripped} happen to match
+     * @param bytes the bytes to decode with both codecs
+     * @param kafkaScratch a fresh Kafka-side instance to decode into
+     * @param oursScratch a fresh Kroxylicious-side instance to decode into
+     * @param version the protocol version to deserialize at
+     * @param <K> the Kafka-side message type
+     * @param <X> the Kroxylicious-side message type
+     * @return the two sides' decode errors, if any
      */
-    @SuppressWarnings("ArrayRecordComponent") // arrays are cloned, and equals/hashCode is overridden => safe
-    public record RoundTrip(byte[] original, byte[] roundTripped, int unreadBytes) {
+    public static <K extends org.apache.kafka.common.protocol.Message, X extends io.kroxylicious.kafka.common.protocol.Message> ErrorParity compareErrorHandling(
+                                                                                                                                                                 byte[] bytes,
+                                                                                                                                                                 K kafkaScratch,
+                                                                                                                                                                 X oursScratch,
+                                                                                                                                                                 short version) {
+        Throwable kafkaError = KafkaSerdes.read(kafkaScratch, bytes, version).error();
+        Throwable kroxyliciousError = KroxyliciousSerdes.read(oursScratch, bytes, version).error();
+        return new ErrorParity(kafkaError, kroxyliciousError);
+    }
+
+    /**
+     * The decode error (if any) each codec produced for the same bytes.
+     *
+     * @param kafkaError the exception thrown by the Kafka codec, or {@code null} if it decoded successfully
+     * @param kroxyliciousError the exception thrown by the Kroxylicious codec, or {@code null} if it decoded successfully
+     */
+    public record ErrorParity(Throwable kafkaError, Throwable kroxyliciousError) {
 
         /**
-         * Defensively clones {@code original} and {@code roundTripped} so this instance is independent of
-         * the caller's arrays.
-         */
-        public RoundTrip {
-            original = original.clone();
-            roundTripped = roundTripped.clone();
-        }
-
-        /**
-         * Asserts that decoding {@code original} consumed every byte. Intended for use from test code, e.g.
-         * {@code assertThat(roundTrip).satisfies(RoundTrip::assertAllBytesConsumed)}.
+         * Asserts that either both codecs failed to decode, or both succeeded.
          *
-         * @throws AssertionError if any bytes of {@code original} were left unconsumed
+         * @throws AssertionError if exactly one codec failed
          */
-        public void assertAllBytesConsumed() {
-            if (unreadBytes != 0) {
-                throw new AssertionError("Decoding left " + unreadBytes + " byte(s) unconsumed");
+        public void assertBothFailedOrBothSucceeded() {
+            boolean kafkaFailed = kafkaError != null;
+            boolean kroxyliciousFailed = kroxyliciousError != null;
+            if (kafkaFailed != kroxyliciousFailed) {
+                throw new AssertionError("Kafka " + (kafkaFailed ? "failed (" + kafkaError + ")" : "succeeded")
+                        + ", but Kroxylicious " + (kroxyliciousFailed ? "failed (" + kroxyliciousError + ")" : "succeeded"));
             }
-        }
-
-        /**
-         * A copy of the original byte array
-         * @return a clone of the originally written bytes
-         */
-        @Override
-        public byte[] original() {
-            return original.clone();
-        }
-
-        /**
-         * A copy of the bytes after being re-serialised.
-         * @return a clone of the bytes produced by the round trip
-         */
-        @Override
-        public byte[] roundTripped() {
-            return roundTripped.clone();
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (!(obj instanceof RoundTrip other)) {
-                return false;
-            }
-            return unreadBytes == other.unreadBytes
-                    && Arrays.equals(original, other.original)
-                    && Arrays.equals(roundTripped, other.roundTripped);
-        }
-
-        @Override
-        public int hashCode() {
-            return (31 * Arrays.hashCode(original) + Arrays.hashCode(roundTripped)) * 31 + unreadBytes;
-        }
-
-        @Override
-        public String toString() {
-            return "RoundTrip[original=" + Arrays.toString(original) + ", roundTripped=" + Arrays.toString(roundTripped)
-                    + ", unreadBytes=" + unreadBytes + "]";
         }
     }
 }
