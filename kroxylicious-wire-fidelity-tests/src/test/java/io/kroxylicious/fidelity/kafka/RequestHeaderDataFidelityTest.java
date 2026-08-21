@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.kafka.fidelity;
+package io.kroxylicious.fidelity.kafka;
 
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.fidelity.FidelityCheck;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,21 +33,29 @@ class RequestHeaderDataFidelityTest {
     @ParameterizedTest
     @MethodSource("supportedVersions")
     void roundTripsThroughKafka(short version) {
+        // Given
         RequestHeaderData ours = new RequestHeaderData();
 
+        // When
         FidelityCheck.RoundTrip roundTrip = FidelityCheck.throughKafka(
                 ours, new org.apache.kafka.common.message.RequestHeaderData(), version);
 
+        // Then
         assertThat(roundTrip.roundTripped()).isEqualTo(roundTrip.original());
+        assertThat(roundTrip).satisfies(FidelityCheck.RoundTrip::assertAllBytesConsumed);
     }
 
     @ParameterizedTest
     @MethodSource("supportedVersions")
     void roundTripsThroughKroxylicious(short version) {
+        // Given
         org.apache.kafka.common.message.RequestHeaderData kafka = new org.apache.kafka.common.message.RequestHeaderData();
 
+        // When
         FidelityCheck.RoundTrip roundTrip = FidelityCheck.throughKroxylicious(kafka, new RequestHeaderData(), version);
 
+        // Then
         assertThat(roundTrip.roundTripped()).isEqualTo(roundTrip.original());
+        assertThat(roundTrip).satisfies(FidelityCheck.RoundTrip::assertAllBytesConsumed);
     }
 }
