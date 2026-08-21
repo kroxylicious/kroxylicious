@@ -30,9 +30,9 @@ public final class KroxyliciousSerdes {
      */
     public static byte[] write(Message message, short version) {
         ObjectSerializationCache cache = new ObjectSerializationCache();
-        MessageSizeAccumulator size = new MessageSizeAccumulator();
-        message.addSize(size, cache, version);
-        ByteBuffer buffer = ByteBuffer.allocate(size.totalSize());
+        MessageSizeAccumulator accumulator = new MessageSizeAccumulator();
+        message.addSize(accumulator, cache, version);
+        ByteBuffer buffer = ByteBuffer.allocate(accumulator.totalSize());
         message.write(new ByteBufferAccessor(buffer), cache, version);
         buffer.flip();
         byte[] bytes = new byte[buffer.remaining()];
@@ -50,13 +50,13 @@ public final class KroxyliciousSerdes {
      * @return {@code message}, populated, plus how many bytes of {@code bytes} were left unconsumed
      */
     public static <T extends Message> ReadResult<T> read(T message, byte[] bytes, short version) {
+        ByteBufferAccessor accessor = new ByteBufferAccessor(ByteBuffer.wrap(bytes));
         try {
-            ByteBufferAccessor accessor = new ByteBufferAccessor(ByteBuffer.wrap(bytes));
             message.read(accessor, version);
             return new ReadResult<>(message, accessor.remaining(), null);
         }
         catch (RuntimeException e) {
-            return new ReadResult<>(message, bytes.length, e);
+            return new ReadResult<>(message, accessor.remaining(), e);
         }
     }
 }
