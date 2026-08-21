@@ -30,20 +30,6 @@ class LeaveGroupRequestDataFidelityTest {
         return Stream.of((short) 3, (short) 4, (short) 5);
     }
 
-    private static LeaveGroupRequestData.MemberIdentity ourMember(String memberId, String groupInstanceId, String reason) {
-        return new LeaveGroupRequestData.MemberIdentity()
-                .setMemberId(memberId)
-                .setGroupInstanceId(groupInstanceId)
-                .setReason(reason);
-    }
-
-    private static org.apache.kafka.common.message.LeaveGroupRequestData.MemberIdentity kafkaMember(String memberId, String groupInstanceId, String reason) {
-        return new org.apache.kafka.common.message.LeaveGroupRequestData.MemberIdentity()
-                .setMemberId(memberId)
-                .setGroupInstanceId(groupInstanceId)
-                .setReason(reason);
-    }
-
     @ParameterizedTest
     @MethodSource("supportedVersions")
     void kroxyliciousShouldReadKafkaSerialisedMessage(short version) {
@@ -52,8 +38,8 @@ class LeaveGroupRequestDataFidelityTest {
         org.apache.kafka.common.message.LeaveGroupRequestData kafkaSource = new org.apache.kafka.common.message.LeaveGroupRequestData()
                 .setGroupId("grp")
                 .setMembers(List.of(
-                        kafkaMember("m1", null, reason),
-                        kafkaMember("m2", "gi", reason)));
+                        new org.apache.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("m1").setReason(reason),
+                        new org.apache.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("m2").setGroupInstanceId("gi").setReason(reason)));
 
         // When
         ReadResult<LeaveGroupRequestData> result = FidelityCheck.kroxyliciousReads(kafkaSource, new LeaveGroupRequestData(), version);
@@ -61,10 +47,7 @@ class LeaveGroupRequestDataFidelityTest {
         // Then
         assertThat(result.error()).isNull();
         assertThat(result.unreadBytes()).isZero();
-        assertThat(result.message().groupId()).isEqualTo("grp");
-        assertThat(result.message().members()).containsExactly(
-                ourMember("m1", null, reason),
-                ourMember("m2", "gi", reason));
+        assertThat(result.message()).usingRecursiveComparison().isEqualTo(kafkaSource);
     }
 
     @ParameterizedTest
@@ -75,8 +58,8 @@ class LeaveGroupRequestDataFidelityTest {
         LeaveGroupRequestData oursSource = new LeaveGroupRequestData()
                 .setGroupId("grp")
                 .setMembers(List.of(
-                        ourMember("m1", null, reason),
-                        ourMember("m2", "gi", reason)));
+                        new LeaveGroupRequestData.MemberIdentity().setMemberId("m1").setReason(reason),
+                        new LeaveGroupRequestData.MemberIdentity().setMemberId("m2").setGroupInstanceId("gi").setReason(reason)));
 
         // When
         ReadResult<org.apache.kafka.common.message.LeaveGroupRequestData> result = FidelityCheck.kafkaReads(
@@ -85,9 +68,6 @@ class LeaveGroupRequestDataFidelityTest {
         // Then
         assertThat(result.error()).isNull();
         assertThat(result.unreadBytes()).isZero();
-        assertThat(result.message().groupId()).isEqualTo("grp");
-        assertThat(result.message().members()).containsExactly(
-                kafkaMember("m1", null, reason),
-                kafkaMember("m2", "gi", reason));
+        assertThat(result.message()).usingRecursiveComparison().isEqualTo(oursSource);
     }
 }
