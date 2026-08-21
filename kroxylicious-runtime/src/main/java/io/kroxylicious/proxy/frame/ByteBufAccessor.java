@@ -50,8 +50,16 @@ public interface ByteBufAccessor extends Readable, Writable {
     @Override
     int remaining();
 
+    /**
+     * The current reader index of the underlying buffer.
+     * @return The reader index.
+     */
     int readerIndex();
 
+    /**
+     * Sets the reader index of the underlying buffer.
+     * @param readerIndex The new reader index.
+     */
     void readerIndex(int readerIndex);
 
     @Override
@@ -84,9 +92,22 @@ public interface ByteBufAccessor extends Readable, Writable {
     @Override
     void writeVarlong(long i);
 
+    /**
+     * Ensures the underlying buffer has capacity for at least the given number of writable bytes.
+     * @param encodedSize The number of bytes that need to be writable.
+     */
     void ensureWritable(int encodedSize);
 
+    /**
+     * The current writer index of the underlying buffer.
+     * @return The writer index.
+     */
     int writerIndex();
 
+    /**
+     * Transfers bytes from the given buffer to the underlying buffer.
+     * @param buf The buffer to read from.
+     * @param length The number of bytes to transfer.
+     */
     void writeBytes(ByteBuf buf, int length);
 }

@@ -28,6 +28,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * A {@link RecordTransform} that encrypts records so that they can be later decrypted by {@link io.kroxylicious.filter.encryption.decrypt.RecordDecryptor}.
  * @param <K> The type of KEK id
+ * @param <E> The type of encrypted DEK.
  */
 public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> {
 
@@ -49,7 +50,9 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
     private RecordBatch batch;
 
     /**
-     * Constructor (obviously).
+     * Creates a record encryptor.
+     * @param topicName The name of the topic to which the records are being produced.
+     * @param partition The index of the partition to which the records are being produced.
      * @param encryption The encryption version
      * @param encryptionScheme The encryption scheme for this key
      * @param edekSerde Serde for the encrypted DEK.

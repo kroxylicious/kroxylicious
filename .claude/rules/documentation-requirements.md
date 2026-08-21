@@ -81,6 +81,7 @@ Each filter guide must cover:
 - Follow IBM documentation style guide
 - Be comprehensive
 - Avoid contractions. For example instead of "Here's", use "Here is"
+- Phrase cross-references as "For <reason>, see <reference>", not "See <reference> for <reason>". Do not italicize or otherwise mark up the referenced section's title.
 
 ## Compiling the documentation
 

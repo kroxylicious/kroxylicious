@@ -11,6 +11,10 @@ package io.kroxylicious.filter.encryption.dek;
  * to encrypt when its limit on number of encryption operations has been reached.
  */
 public class DekUsageException extends DekException {
+    /**
+     * Creates an exception with the given message.
+     * @param message the detail message.
+     */
     public DekUsageException(String message) {
         super(message);
     }

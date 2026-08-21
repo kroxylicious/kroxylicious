@@ -14,6 +14,10 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Represents a single client's proxy session, identified by a unique session ID and tracking
+ * the session's {@link KafkaSessionState} (e.g. authentication progress) over its lifetime.
+ */
 public class KafkaSession {
 
     private final String sessionId;
@@ -27,6 +31,10 @@ public class KafkaSession {
     @Nullable
     private HaProxyContext haProxyContext;
 
+    /**
+     * Creates a session with a randomly generated session ID.
+     * @param currentState the initial session state
+     */
     public KafkaSession(KafkaSessionState currentState) {
         this(null, currentState);
     }
@@ -42,15 +50,28 @@ public class KafkaSession {
         this.currentState = currentState;
     }
 
+    /**
+     * Transitions this session to the given state.
+     * @param newState the state to transition to
+     * @return this session
+     */
     public KafkaSession transitionTo(KafkaSessionState newState) {
         this.currentState = newState;
         return this;
     }
 
+    /**
+     * Returns the unique identifier of this session.
+     * @return the session ID
+     */
     public String sessionId() {
         return sessionId;
     }
 
+    /**
+     * Returns the current state of this session.
+     * @return the current session state
+     */
     public KafkaSessionState currentState() {
         return currentState;
     }
@@ -66,6 +87,7 @@ public class KafkaSession {
 
     /**
      * Returns the HA Proxy context received for this session, or {@code null} if none.
+     * @return the HA Proxy context, or {@code null} if no PROXY-protocol message was received
      */
     @Nullable
     public HaProxyContext haProxyContext() {

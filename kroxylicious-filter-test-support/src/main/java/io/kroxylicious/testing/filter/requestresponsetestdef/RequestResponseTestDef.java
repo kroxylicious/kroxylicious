@@ -29,10 +29,25 @@ import com.google.common.reflect.ClassPath.ResourceInfo;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+/**
+ * A test definition pairing a Kafka API request and the corresponding response, read from a YAML test resource.
+ *
+ * @param testName a human readable name identifying the test case
+ * @param apiKey the API message type of the request/response pair
+ * @param header the request header carrying the API key and version of the test case
+ * @param request the request part of the test definition, or null if the test case has no request
+ * @param response the response part of the test definition, or null if the test case has no response
+ */
 public record RequestResponseTestDef(String testName, ApiMessageType apiKey, RequestHeaderData header, ApiMessageTestDef request, ApiMessageTestDef response) {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 
+    /**
+     * Reads request/response test definitions from the given YAML test resources, excluding disabled ones.
+     *
+     * @param resources the test resources to read
+     * @return a stream of test definitions
+     */
     public static Stream<RequestResponseTestDef> requestResponseTestDefinitions(List<ResourceInfo> resources) {
         return resources.stream()
                 .map(RequestResponseTestDef::readTestResource)

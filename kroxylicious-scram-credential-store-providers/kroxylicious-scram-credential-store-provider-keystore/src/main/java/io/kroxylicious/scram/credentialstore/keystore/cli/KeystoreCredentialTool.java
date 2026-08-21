@@ -209,7 +209,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         String username;
 
         @Option(names = { "-m",
-                "--mechanism" }, description = "Optional SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM_SHA_256")
+                "--mechanism" }, description = "Optional SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM-SHA-256", converter = ScramMechanismType.Converter.class)
         ScramMechanismType mechanism;
 
         @Option(names = { "-i",
@@ -306,7 +306,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         String username;
 
         @Option(names = { "-m",
-                "--mechanism" }, description = "Optional SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM_SHA_256")
+                "--mechanism" }, description = "Optional SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM-SHA-256", converter = ScramMechanismType.Converter.class)
         ScramMechanismType mechanism;
 
         @Option(names = { "-i",
@@ -401,6 +401,24 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 case SCRAM_SHA_256 -> ScramMechanism.SCRAM_SHA_256;
                 case SCRAM_SHA_512 -> ScramMechanism.SCRAM_SHA_512;
             };
+        }
+
+        @Override
+        public String toString() {
+            return toScramMechanism().mechanismName();
+        }
+
+        /** Picocli type converter that accepts the hyphenated IANA mechanism names. */
+        static class Converter implements CommandLine.ITypeConverter<ScramMechanismType> {
+            @Override
+            public ScramMechanismType convert(String value) {
+                ScramMechanism mechanism = ScramMechanism.forMechanismName(value);
+                if (mechanism == null) {
+                    throw new CommandLine.TypeConversionException("expected one of " +
+                            java.util.Arrays.toString(values()) + " but was '" + value + "'");
+                }
+                return valueOf(mechanism.name());
+            }
         }
     }
 

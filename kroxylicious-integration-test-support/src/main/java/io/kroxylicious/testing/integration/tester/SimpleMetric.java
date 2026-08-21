@@ -27,6 +27,12 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
  */
 public record SimpleMetric(String name, Map<String, String> labels, double value) {
 
+    /**
+     * Parses Prometheus text exposition format into a list of metrics.
+     *
+     * @param input the metrics text to parse
+     * @return the parsed metrics
+     */
     public static List<SimpleMetric> parse(String input) {
         CharStream chars = CharStreams.fromString(input);
 

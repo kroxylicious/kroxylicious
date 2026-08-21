@@ -178,7 +178,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
      */
     public AuthorizationFilter(Authorizer authorizer) {
         this.authorizer = authorizer;
-        this.inflightState = new HashMap<>(10);
+        this.inflightState = HashMap.newHashMap(10);
         if (apiEnforcement.get(ApiKeys.PRODUCE).minSupportedVersion() != 3) {
             // sanity check, see https://issues.apache.org/jira/browse/KAFKA-18659
             // if we want to raise the minimum version, we must consciously decide to break older librdkafka clients

@@ -22,6 +22,12 @@ public class SignificanceTester {
     /** p-value threshold below which a difference is considered statistically significant. */
     static final double SIGNIFICANCE_THRESHOLD = 0.05;
 
+    /**
+     * Outcome of a significance test.
+     *
+     * @param pValue      the p-value computed by the test
+     * @param significant whether the p-value is below the 0.05 significance threshold
+     */
     public record Result(double pValue, boolean significant) {}
 
     private final BiFunction<double[], double[], Double> pValueComputer;

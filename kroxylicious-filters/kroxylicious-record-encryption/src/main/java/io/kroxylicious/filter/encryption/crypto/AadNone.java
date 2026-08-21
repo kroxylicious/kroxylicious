@@ -13,8 +13,13 @@ import org.apache.kafka.common.utils.ByteUtils;
 
 import io.kroxylicious.filter.encryption.config.AadSpec;
 
+/**
+ * An {@link Aad} which computes an empty AAD, meaning no additional data is
+ * authenticated by the cipher.
+ */
 public class AadNone implements Aad {
 
+    /** The singleton instance of this AAD. */
     public static final AadNone INSTANCE = new AadNone();
 
     private AadNone() {

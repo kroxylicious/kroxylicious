@@ -6,12 +6,16 @@
 
 package io.kroxylicious.proxy.internal;
 
-// A class that divides the correlation id space into ranges reserved for different internal purposes
+/**
+ * Divides the correlation id space into ranges reserved for different internal purposes.
+ */
 public class CorrelationIdSpace {
 
-    // use a correlation id outside the routing range [Integer.MIN_VALUE/2, 0) to avoid collisions
+    /** Correlation id reserved for out-of-band internal requests; outside the routing range to avoid collisions. */
     public static final int RESERVED_OUT_OF_BAND_CORRELATION_ID = Integer.MIN_VALUE;
+    /** Inclusive start of the correlation id range reserved for routing ({@code Integer.MIN_VALUE / 2}). */
     public static final int RESERVED_ROUTING_ID_RANGE_START_INC = Integer.MIN_VALUE / 2;
+    /** Exclusive end of the correlation id range reserved for routing. */
     public static final int RESERVED_ROUTING_ID_RANGE_END_EXC = 0;
 
     private CorrelationIdSpace() {
@@ -24,10 +28,19 @@ public class CorrelationIdSpace {
         }
     }
 
+    /**
+     * Determines whether the given correlation id falls within the range reserved for routing.
+     * @param correlationId the correlation id to test
+     * @return {@code true} if the id is in the reserved routing range
+     */
     public static boolean isRoutingCorrelationId(int correlationId) {
         return correlationId >= RESERVED_ROUTING_ID_RANGE_START_INC && correlationId < RESERVED_ROUTING_ID_RANGE_END_EXC;
     }
 
+    /**
+     * Creates an allocator that hands out correlation ids from the reserved routing range.
+     * @return a new allocator over the routing correlation id range
+     */
     public static CorrelationIdAllocator createRouterAllocator() {
         return new CorrelationIdAllocator(RESERVED_ROUTING_ID_RANGE_START_INC, RESERVED_ROUTING_ID_RANGE_END_EXC);
     }

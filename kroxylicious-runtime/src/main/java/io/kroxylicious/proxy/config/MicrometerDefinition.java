@@ -13,9 +13,18 @@ import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookService;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 
+/**
+ * Configures a micrometer configuration hook that customises the proxy's meter registry.
+ *
+ * @param type the {@link MicrometerConfigurationHookService} plugin implementation name
+ * @param config plugin-specific configuration
+ */
 public record MicrometerDefinition(@PluginImplName(MicrometerConfigurationHookService.class) String type,
                                    @PluginImplConfig(implNameProperty = "type") Object config) {
 
+    /**
+     * Validates that the hook {@code type} is given.
+     */
     @JsonCreator
     public MicrometerDefinition {
         Objects.requireNonNull(type);

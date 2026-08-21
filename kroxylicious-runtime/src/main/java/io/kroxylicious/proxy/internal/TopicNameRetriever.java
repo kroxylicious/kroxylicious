@@ -35,8 +35,12 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * Resolves topic IDs to topic names by sending an out-of-band Metadata request to the upstream
+ * cluster via the {@link FilterContext}.
+ */
 public final class TopicNameRetriever {
-    // Version 12 was the first version that uses topic ids.
+    /** The first Metadata API version that supports requesting topics by topic id. */
     public static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
     private final FilterContext filterContext;
     private final ThreadAwareExecutor filterDispatchExecutor;
@@ -98,7 +102,7 @@ public final class TopicNameRetriever {
     }
 
     private static TopicNameMapping doExtractTopicNames(Collection<Uuid> topicIds, MetadataResponseData d) {
-        Map<Uuid, String> topicNames = new HashMap<>(topicIds.size());
+        Map<Uuid, String> topicNames = HashMap.newHashMap(topicIds.size());
         Map<Uuid, TopicNameMappingException> failures = new HashMap<>();
         d.topics().forEach(metadataResponseTopic -> {
             Errors topicError = Errors.forCode(metadataResponseTopic.errorCode());

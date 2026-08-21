@@ -11,6 +11,9 @@ package io.kroxylicious.filter.encryption.dek;
  */
 public class DestroyedDekException extends DekException {
 
+    /**
+     * Creates an exception with no message or cause.
+     */
     public DestroyedDekException() {
         super();
     }

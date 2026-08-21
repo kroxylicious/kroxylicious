@@ -6,7 +6,14 @@
 
 package io.kroxylicious.filter.encryption.dek;
 
+/**
+ * Indicates that an allocated buffer had too few bytes remaining for an
+ * encryption or decryption operation to be completed.
+ */
 public class BufferTooSmallException extends RuntimeException {
+    /**
+     * Creates an exception with no message or cause.
+     */
     public BufferTooSmallException() {
         super();
     }

@@ -23,15 +23,28 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Knows the range of API versions supported by the proxy and intersects the version ranges
+ * advertised in upstream API_VERSIONS responses with them, so that clients only use versions
+ * mutually understood by both the proxy and the broker.
+ */
 public class ApiVersionsServiceImpl {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsServiceImpl.class);
     private final Function<ApiKeys, Short> apiKeysShortFunction;
 
+    /**
+     * Creates a service using the proxy's supported versions with no overrides.
+     */
     public ApiVersionsServiceImpl() {
         this(Map.of());
     }
 
+    /**
+     * Creates a service using the proxy's supported versions, capped by the given overrides.
+     *
+     * @param overrideMap the maximum version to advertise for an API key, overriding the proxy's latest supported version
+     */
     public ApiVersionsServiceImpl(Map<ApiKeys, Short> overrideMap) {
         this(apiKeys -> getMaxApiVersionFor(apiKeys, overrideMap));
         sanityCheckOverrides(overrideMap);
@@ -63,6 +76,13 @@ public class ApiVersionsServiceImpl {
         return Optional.ofNullable(overrideMap.get(apiKey)).map(m -> ((Integer) Math.min(latest, m.intValue())).shortValue()).orElse(latest);
     }
 
+    /**
+     * Mutates the given API_VERSIONS response so that each API key advertises the intersection
+     * of the broker's and the proxy's supported version ranges.
+     *
+     * @param channel the session id, used for log correlation
+     * @param apiVersionsResponse the upstream API_VERSIONS response to mutate
+     */
     public void updateVersions(String channel, ApiVersionsResponseData apiVersionsResponse) {
         intersectApiVersions(channel, apiVersionsResponse, apiKeysShortFunction);
     }
@@ -142,6 +162,12 @@ public class ApiVersionsServiceImpl {
         }
     }
 
+    /**
+     * The latest version of the given API supported by the proxy, accounting for any override.
+     *
+     * @param apiKey the API key
+     * @return the latest supported version
+     */
     public short latestVersion(ApiKeys apiKey) {
         return apiKeysShortFunction.apply(apiKey);
     }

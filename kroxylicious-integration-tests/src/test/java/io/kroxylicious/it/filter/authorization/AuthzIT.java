@@ -426,9 +426,10 @@ public abstract class AuthzIT extends BaseIT {
                 .untilAsserted(() -> {
                     producer.initTransactions();
                     producer.beginTransaction();
-                    producer.send(new ProducerRecord<>("top", "", "")).get();
-                    var coordId = admin.describeTransactions(List.of(transactionalId)).all().toCompletionStage().toCompletableFuture()
-                            .join().get(transactionalId).coordinatorId();
+                    assertThat(producer.send(new ProducerRecord<>("top", "", ""))).succeedsWithin(Duration.ofSeconds(10));
+                    var describedTransactions = admin.describeTransactions(List.of(transactionalId)).all().toCompletionStage().toCompletableFuture();
+                    assertThat(describedTransactions).succeedsWithin(Duration.ofSeconds(10));
+                    var coordId = describedTransactions.join().get(transactionalId).coordinatorId();
                     producer.abortTransaction();
                     assertThat(coordId).isNotEqualTo(-1);
                 });

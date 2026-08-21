@@ -41,6 +41,9 @@ spec:
         - args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
+          env:
+          - name: "KROXYLICIOUS_DANGEROUSLY_CHANGE_PERMISSION_CHECK"
+            value: "0640"
           image: "quay.io/kroxylicious/proxy:test"
           name: "proxy"
           livenessProbe:
@@ -87,6 +90,7 @@ spec:
               readOnly: true
       securityContext:
         runAsNonRoot: true
+        fsGroup: 185
         seccompProfile:
           type: "RuntimeDefault"
       volumes:
@@ -95,4 +99,5 @@ spec:
           name: "config-volume"
         - name: "secrets-my-secret"
           secret:
+            defaultMode: 416
             secretName: "my-secret"

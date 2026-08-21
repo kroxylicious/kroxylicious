@@ -20,9 +20,13 @@ import io.kroxylicious.filter.encryption.config.CipherSpec;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+/**
+ * A {@link CipherManager} for the ChaCha20-Poly1305 cipher.
+ */
 public class ChaChaPoly implements CipherManager {
     private static final int NONCE_SIZE_BYTES = 12;
 
+    /** The singleton instance of this cipher manager. */
     public static final ChaChaPoly INSTANCE = new ChaChaPoly();
 
     private ChaChaPoly() {

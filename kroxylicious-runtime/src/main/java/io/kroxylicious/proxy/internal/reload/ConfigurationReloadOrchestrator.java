@@ -73,6 +73,14 @@ public class ConfigurationReloadOrchestrator {
      */
     private Configuration currentConfiguration;
 
+    /**
+     * Creates an orchestrator using the production {@link OperationsPlanner}.
+     *
+     * @param initialConfiguration the configuration the proxy was started with
+     * @param virtualClusterRegistry registry of the proxy's virtual clusters
+     * @param endpointRegistry registry of the proxy's network endpoints
+     * @param detectors the change detectors used to compute per-virtual-cluster changes
+     */
     public ConfigurationReloadOrchestrator(Configuration initialConfiguration,
                                            VirtualClusterRegistry virtualClusterRegistry,
                                            EndpointRegistry endpointRegistry,
@@ -98,6 +106,8 @@ public class ConfigurationReloadOrchestrator {
      * The production-default set of change detectors:
      * {@link VirtualClusterChangeDetector}, {@link FilterChangeDetector}, and
      * {@link RoutingGraphChangeDetector}.
+     *
+     * @return the default list of change detectors
      */
     public static List<ChangeDetector> defaultDetectors() {
         return List.of(new VirtualClusterChangeDetector(), new FilterChangeDetector(), new RoutingGraphChangeDetector());
@@ -106,6 +116,7 @@ public class ConfigurationReloadOrchestrator {
     /**
      * Apply {@code newConfig} to the running proxy.
      *
+     * @param newConfig the configuration to apply
      * @return a future that completes:
      *         <ul>
      *           <li>successfully with an empty-errors {@link ReconfigureResult} on a no-op

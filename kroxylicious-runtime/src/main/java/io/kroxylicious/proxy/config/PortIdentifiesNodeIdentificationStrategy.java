@@ -94,6 +94,15 @@ public class PortIdentifiesNodeIdentificationStrategy
     @JsonIgnore
     private final Set<Integer> exclusivePorts;
 
+    /**
+     * Creates a port based node identification strategy.
+     *
+     * @param bootstrapAddress host and port of the bootstrap address
+     * @param advertisedBrokerAddressPattern optional address pattern used to advertise broker addresses,
+     *        may contain the {@code $(nodeId)} replacement token; defaults to the host of {@code bootstrapAddress}
+     * @param nodeStartPort optional first port assigned to the brokers; defaults to the bootstrap port plus one
+     * @param nodeIdRanges node id ranges present in the target cluster; if null or empty a default range of 0-2 is assumed
+     */
     @JsonCreator
     public PortIdentifiesNodeIdentificationStrategy(@JsonProperty(required = true, value = "bootstrapAddress") HostPort bootstrapAddress,
                                                     @Nullable @JsonProperty(required = false, value = "advertisedBrokerAddressPattern") String advertisedBrokerAddressPattern,
@@ -213,24 +222,44 @@ public class PortIdentifiesNodeIdentificationStrategy
         return nodeIdToPort;
     }
 
+    /**
+     * The configured node start port, as given in the configuration.
+     *
+     * @return the node start port, or {@code null} if it was not configured
+     */
     @Nullable
     @JsonProperty
     public Integer getNodeStartPort() {
         return nodeStartPort;
     }
 
+    /**
+     * The configured node id ranges, as given in the configuration.
+     *
+     * @return the node id ranges, or {@code null} if they were not configured
+     */
     @Nullable
     @JsonProperty
     public List<NamedRange> getNodeIdRanges() {
         return nodeIdRanges;
     }
 
+    /**
+     * The configured advertised broker address pattern, as given in the configuration.
+     *
+     * @return the advertised broker address pattern, or {@code null} if it was not configured
+     */
     @Nullable
     @JsonProperty
     public String getAdvertisedBrokerAddressPattern() {
         return advertisedBrokerAddressPattern;
     }
 
+    /**
+     * The configured bootstrap address.
+     *
+     * @return the bootstrap address
+     */
     @JsonProperty(required = true)
     public HostPort getBootstrapAddress() {
         return bootstrapAddress;

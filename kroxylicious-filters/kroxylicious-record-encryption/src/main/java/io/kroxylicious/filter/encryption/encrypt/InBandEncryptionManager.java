@@ -31,6 +31,13 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * An implementation of {@link EncryptionManager}
+ * that uses envelope encryption and stores the KEK id and encrypted DEK
+ * alongside the record ("in-band").
+ * @param <K> The type of KEK id.
+ * @param <E> The type of the encrypted DEK.
+ */
 public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
     private static final int MAX_ATTEMPTS = 100;
@@ -47,6 +54,15 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private final int recordBufferInitialBytes;
     private final int recordBufferMaxBytes;
 
+    /**
+     * Creates an encryption manager.
+     * @param encryption the encryption used on the produce path.
+     * @param edekSerde the serde for encrypted DEKs.
+     * @param recordBufferInitialBytes the initial size, in bytes, of the buffer used to hold the encrypted record.
+     * @param recordBufferMaxBytes the maximum size, in bytes, of the buffer used to hold the encrypted record.
+     * @param dekCache the cache of DEKs used for encryption.
+     * @param filterThreadExecutor the executor used to complete futures on the filter thread.
+     */
     public InBandEncryptionManager(@NonNull Encryption encryption,
                                    @NonNull Serde<E> edekSerde,
                                    int recordBufferInitialBytes,
@@ -68,6 +84,11 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
     }
 
+    /**
+     * Returns the current DEK for the given encryption scheme, obtaining a new DEK from the cache if necessary.
+     * @param encryptionScheme the encryption scheme.
+     * @return a completion stage that completes with the current DEK for the given encryption scheme.
+     */
     @VisibleForTesting
     public CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.

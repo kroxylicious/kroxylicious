@@ -12,6 +12,10 @@ import java.util.concurrent.CompletionStage;
 
 import io.kroxylicious.proxy.service.HostPort;
 
+/**
+ * Reconciles the network endpoints of a virtual cluster against the broker topology of its
+ * target cluster, binding and unbinding ports as brokers are discovered, added or removed.
+ */
 public interface EndpointReconciler {
 
     /**

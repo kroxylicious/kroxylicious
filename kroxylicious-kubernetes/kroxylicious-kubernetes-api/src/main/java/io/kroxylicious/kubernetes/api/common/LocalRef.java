@@ -64,12 +64,28 @@ public abstract class LocalRef<T> implements Comparable<LocalRef<T>> {
             .thenComparing(LocalRef::getGroup, Comparator.nullsLast(String::compareTo))
             .thenComparing(LocalRef::getName, Comparator.nullsLast(String::compareTo));
 
+    /**
+     * The API group of the referenced resource, e.g. {@code kroxylicious.io}.
+     * The empty string denotes the Kubernetes core API group.
+     *
+     * @return the API group of the referenced resource, or null if not known.
+     */
     @Nullable
     public abstract String getGroup();
 
+    /**
+     * The kind of the referenced resource, e.g. {@code KafkaProxy}.
+     *
+     * @return the kind of the referenced resource, or null if not known.
+     */
     @Nullable
     public abstract String getKind();
 
+    /**
+     * The name of the referenced resource.
+     *
+     * @return the name of the referenced resource, or null if not set.
+     */
     @Nullable
     public abstract String getName();
 

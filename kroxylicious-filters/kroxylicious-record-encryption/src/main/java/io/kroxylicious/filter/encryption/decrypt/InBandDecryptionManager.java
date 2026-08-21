@@ -50,6 +50,13 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
 
     private final EncryptionResolver encryptionResolver;
 
+    /**
+     * Creates a decryption manager.
+     * @param encryptionResolver the resolver of the encryptions supported by this manager.
+     * @param dekManager the DEK manager used to decrypt encrypted DEKs.
+     * @param dekCache the cache of DEKs used for decryption.
+     * @param filterThreadExecutor the executor used to complete futures on the filter thread.
+     */
     public InBandDecryptionManager(EncryptionResolver encryptionResolver,
                                    @NonNull DekManager<K, E> dekManager,
                                    @NonNull DecryptionDekCache<K, E> dekCache,

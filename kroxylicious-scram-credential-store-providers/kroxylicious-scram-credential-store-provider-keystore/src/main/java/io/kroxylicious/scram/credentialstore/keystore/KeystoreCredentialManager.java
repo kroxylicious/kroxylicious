@@ -64,8 +64,10 @@ public class KeystoreCredentialManager {
 
     private static final int DEFAULT_ITERATIONS = 10000;
     private static final int SALT_LENGTH = 20;
+    private static final int PHANTOM_SALT_KEY_LENGTH = 32;
     private static final int MIN_PASSWORD_LENGTH = 12;
     private static final int MAX_USERNAME_LENGTH = 255;
+    static final String PHANTOM_SALT_KEY_ALIAS = "__kroxylicious_phantom_salt_key__";
     private final SecureRandom secureRandom;
 
     /**
@@ -133,6 +135,8 @@ public class KeystoreCredentialManager {
         try {
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
             keyStore.load(null, storePassword.toCharArray());
+
+            storePhantomSaltKey(keyStore, storePassword);
 
             KeystoreFilePermissions.createExclusively(keystorePath);
             try (OutputStream os = Files.newOutputStream(keystorePath)) {
@@ -381,6 +385,9 @@ public class KeystoreCredentialManager {
             Enumeration<String> aliases = keyStore.aliases();
             while (aliases.hasMoreElements()) {
                 String alias = aliases.nextElement();
+                if (PHANTOM_SALT_KEY_ALIAS.equals(alias)) {
+                    continue;
+                }
                 if (keyStore.isKeyEntry(alias)) {
                     KeyStore.SecretKeyEntry entry = (KeyStore.SecretKeyEntry) keyStore.getEntry(alias, protection);
                     credentials.add(serializer.deserialize(entry.getSecretKey().getEncoded(), alias));
@@ -507,6 +514,15 @@ public class KeystoreCredentialManager {
         byte[] salt = new byte[SALT_LENGTH];
         secureRandom.nextBytes(salt);
         return salt;
+    }
+
+    private void storePhantomSaltKey(KeyStore keyStore, String storePassword) throws KeyStoreException {
+        byte[] keyBytes = new byte[PHANTOM_SALT_KEY_LENGTH];
+        secureRandom.nextBytes(keyBytes);
+        SecretKey phantomKey = new SecretKeySpec(keyBytes, "HmacSHA256");
+        KeyStore.SecretKeyEntry entry = new KeyStore.SecretKeyEntry(phantomKey);
+        KeyStore.PasswordProtection protection = new KeyStore.PasswordProtection(storePassword.toCharArray());
+        keyStore.setEntry(PHANTOM_SALT_KEY_ALIAS, entry, protection);
     }
 
     /**

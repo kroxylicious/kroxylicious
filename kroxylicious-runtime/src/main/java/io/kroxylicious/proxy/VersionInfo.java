@@ -12,6 +12,10 @@ import java.util.Properties;
 
 import org.slf4j.LoggerFactory;
 
+/**
+ * Provides the Kroxylicious version and git commit id, as recorded in an
+ * artifact's version metadata resource at build time.
+ */
 public interface VersionInfo {
 
     /**
@@ -24,8 +28,19 @@ public interface VersionInfo {
      */
     VersionInfo VERSION_INFO = getVersionInfo();
 
+    /**
+     * Returns the Kroxylicious version, or {@code unknown} if it could not be determined.
+     *
+     * @return the version
+     */
     String version();
 
+    /**
+     * Returns the git commit id the artifact was built from, or {@code unknown} if it could
+     * not be determined.
+     *
+     * @return the commit id
+     */
     String commitId();
 
     /**
@@ -63,6 +78,10 @@ public interface VersionInfo {
         return Info.UNKNOWN_VERSION_INFO;
     }
 
+    /**
+     * Default {@link VersionInfo} implementation backed by values read from a version metadata
+     * properties resource, falling back to {@code unknown} values when unavailable.
+     */
     final class Info implements VersionInfo {
         private static final String UNKNOWN = "unknown";
 

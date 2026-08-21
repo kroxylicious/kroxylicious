@@ -241,7 +241,7 @@ class KeystoreCredentialToolIT {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = { "SCRAM_SHA_256", "SCRAM_SHA_512" })
+    @ValueSource(strings = { "SCRAM-SHA-256", "SCRAM-SHA-512" })
     void shouldSupportScramMechanism(String mechanism, @TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
@@ -269,7 +269,7 @@ class KeystoreCredentialToolIT {
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "alice-secret-password",
-                "-m", "SCRAM_SHA_256",
+                "-m", "SCRAM-SHA-256",
                 "-i", "8192");
 
         executeCommand("--unlock-insecure-options", "add-user",
@@ -277,7 +277,7 @@ class KeystoreCredentialToolIT {
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "bob",
                 "-w", "bob-secret-password",
-                "-m", "SCRAM_SHA_512",
+                "-m", "SCRAM-SHA-512",
                 "-i", "16384");
 
         // When

@@ -12,8 +12,12 @@ import java.util.List;
 import io.kroxylicious.filter.encryption.common.AbstractResolver;
 import io.kroxylicious.filter.encryption.config.ParcelVersion;
 
+/**
+ * A resolver of {@link ParcelVersion}s to their corresponding {@link Parcel}s.
+ */
 public class ParcelVersionResolver extends AbstractResolver<ParcelVersion, Parcel, ParcelVersionResolver> {
 
+    /** A resolver of all the known {@link Parcel}s. */
     public static final ParcelVersionResolver ALL = new ParcelVersionResolver(List.of(ParcelV1.INSTANCE));
 
     private ParcelVersionResolver(Collection<Parcel> impls) {

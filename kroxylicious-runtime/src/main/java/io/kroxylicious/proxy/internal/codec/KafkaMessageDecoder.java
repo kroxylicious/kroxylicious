@@ -25,8 +25,17 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
     private final int socketFrameMaxSize;
     private final @Nullable KafkaMessageListener listener;
 
+    /**
+     * The logger of the concrete decoder.
+     * @return The logger.
+     */
     protected abstract Logger log();
 
+    /**
+     * Constructs a message decoder.
+     * @param socketFrameMaxSize The maximum permitted frame size in bytes.
+     * @param listener Listener notified of each decoded message, or null.
+     */
     protected KafkaMessageDecoder(int socketFrameMaxSize,
                                   @Nullable KafkaMessageListener listener) {
         this.socketFrameMaxSize = socketFrameMaxSize;
@@ -94,6 +103,13 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
         }
     }
 
+    /**
+     * Decodes the header and body of a single frame.
+     * @param ctx The channel handler context.
+     * @param in A slice of the input buffer containing exactly the frame (excluding the frame size prefix).
+     * @param length The frame length in bytes.
+     * @return The decoded frame.
+     */
     protected abstract Frame decodeHeaderAndBody(ChannelHandlerContext ctx, ByteBuf in, int length);
 
 }

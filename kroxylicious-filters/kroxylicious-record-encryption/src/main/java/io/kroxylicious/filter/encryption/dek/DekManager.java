@@ -30,6 +30,11 @@ public class DekManager<K, E> {
     private final Kms<K, E> kms;
     private final long maxEncryptionsPerDek;
 
+    /**
+     * Creates a DEK manager.
+     * @param kms the KMS from which DEKs are generated and with which encrypted DEKs are decrypted.
+     * @param maxEncryptionsPerDek the maximum number of encryption operations allowed per generated DEK.
+     */
     public DekManager(Kms<K, E> kms, long maxEncryptionsPerDek) {
         this.kms = kms;
         this.maxEncryptionsPerDek = maxEncryptionsPerDek;
@@ -38,6 +43,7 @@ public class DekManager<K, E> {
     /**
      * Returns the KMS's serde for encrypted DEKs.
      *
+     * @return the KMS's serde for encrypted DEKs.
      * @see Kms#edekSerde()
      */
     public Serde<E> edekSerde() {

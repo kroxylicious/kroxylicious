@@ -36,10 +36,18 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.assertj.core.api.Condition;
 import org.assertj.core.description.TextDescription;
 
+/**
+ * An AssertJ {@link Condition} that matches {@link ${dataClass}} messages satisfying a predicate.
+ */
 public class ${conditionClassName} extends Condition<ApiMessage> {
 
     private final Predicate<${dataClass}> predicate;
 
+    /**
+     * Constructs a condition matching ${requestName} messages that satisfy the given predicate.
+     *
+     * @param predicate the predicate the message must satisfy
+     */
     public ${conditionClassName} (Predicate<${dataClass}> predicate) {
         super(new TextDescription("a ${requestName} matching the predicate"));
         this.predicate=predicate;
@@ -66,6 +74,12 @@ public class ${conditionClassName} extends Condition<ApiMessage> {
         }
     }
 
+    /**
+     * Creates a condition matching ${requestName} messages that satisfy the given predicate.
+     *
+     * @param predicate the predicate the message must satisfy
+     * @return the condition
+     */
     public static ${conditionClassName} ${requestName?uncap_first}Matching(Predicate<${dataClass}> predicate) {
         return new ${conditionClassName}(predicate);
     }

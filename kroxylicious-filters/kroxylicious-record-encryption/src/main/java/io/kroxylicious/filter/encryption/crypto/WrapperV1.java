@@ -24,9 +24,18 @@ import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Version 1 of the wrapper schema, used by pre-release versions of the filter.
+ * No longer supported: all its operations throw {@link EncryptionException}.
+ */
 public class WrapperV1 implements Wrapper {
 
+    /** The singleton instance of this wrapper. */
     public static final WrapperV1 INSTANCE = new WrapperV1();
+
+    private WrapperV1() {
+        // singleton: use INSTANCE
+    }
 
     @Override
     public byte serializedId() {

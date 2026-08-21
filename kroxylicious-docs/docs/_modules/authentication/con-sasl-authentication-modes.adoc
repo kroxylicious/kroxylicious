@@ -78,15 +78,16 @@ The proxy validates the client's credentials directly and constructs an authenti
 This mode is implemented by the `SaslTermination` filter.
 It fully decouples client authentication from broker authentication, which can be useful when the proxy and broker use different credential stores or when you want to ensure that only authenticated clients' application requests are forwarded to the broker.
 
-The `SaslTermination` filter currently supports the `OAUTHBEARER` SASL mechanism.
+The `SaslTermination` filter supports the `OAUTHBEARER`, `SCRAM-SHA-256`, and `SCRAM-SHA-512` SASL mechanisms.
 If a client attempts to use a mechanism that is not configured, the proxy rejects the handshake with an unsupported mechanism error and closes the connection.
 For `OAUTHBEARER`, the filter validates JWT tokens against a JSON Web Key Set (JWKS) retrieved from a configurable endpoint, checking the token signature, audience, issuer, and expiry.
+For `SCRAM-SHA-256` and `SCRAM-SHA-512`, the filter validates client credentials against a pluggable credential store that provides the SCRAM derived keys for each user.
 
 The filter supports session expiry and reauthentication (https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate[KIP-368]).
 When a token's expiry is reached, the client must reauthenticate or the connection is closed.
 
 Because SASL is terminated at the proxy, certain Kafka APIs that depend on a broker-side SASL session are not available.
-The filter removes the Delegation Token APIs (`CreateDelegationToken`, `RenewDelegationToken`, `ExpireDelegationToken`, `DescribeDelegationToken`) from the `ApiVersions` response and rejects any requests for these APIs.
+The filter removes the Delegation Token APIs (`CreateDelegationToken`, `RenewDelegationToken`, `ExpireDelegationToken`, `DescribeDelegationToken`) and the SCRAM credential APIs (`AlterUserScramCredentials`, `DescribeUserScramCredentials`) from the `ApiVersions` response and rejects any requests for these APIs.
 
 To mitigate timing side-channel attacks (such as username enumeration), the filter applies a configurable fixed delay to each authentication round.
 This ensures that authentication responses take a consistent amount of time regardless of the reason for success or failure.

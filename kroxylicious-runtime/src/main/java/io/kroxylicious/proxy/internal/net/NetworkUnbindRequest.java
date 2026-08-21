@@ -25,6 +25,13 @@ public class NetworkUnbindRequest extends NetworkBindingOperation<Void> {
     private final Channel channel;
     private final CompletableFuture<Void> future;
 
+    /**
+     * Creates a network unbind request.
+     *
+     * @param tls true if the port being unbound was used for TLS.
+     * @param channel the listening channel to close.
+     * @param future future that will be completed once the unbind operation completes.
+     */
     public NetworkUnbindRequest(boolean tls, Channel channel, CompletableFuture<Void> future) {
         super(tls);
         this.channel = channel;

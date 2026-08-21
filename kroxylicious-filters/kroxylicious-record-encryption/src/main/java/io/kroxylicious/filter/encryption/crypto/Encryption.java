@@ -23,7 +23,9 @@ import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
  */
 public class Encryption implements PersistedIdentifiable<EncryptionVersion> {
 
+    /** The encryption used by pre-release versions of the filter. No longer supported. */
     public static final Encryption V1 = new Encryption((byte) 1, EncryptionVersion.V1_UNSUPPORTED, WrapperV1.INSTANCE, ParcelV1.INSTANCE);
+    /** The encryption corresponding to {@link EncryptionVersion#V2}. */
     public static final Encryption V2 = new Encryption((byte) 2, EncryptionVersion.V2,
             new WrapperV2(
                     CipherSpecResolver.of(CipherSpec.AES_256_GCM_128),
@@ -68,10 +70,18 @@ public class Encryption implements PersistedIdentifiable<EncryptionVersion> {
         return version;
     }
 
+    /**
+     * Returns the wrapper used by this version of the encryption.
+     * @return the wrapper used by this version of the encryption.
+     */
     public Wrapper wrapper() {
         return wrapper;
     }
 
+    /**
+     * Returns the parcel used by this version of the encryption.
+     * @return the parcel used by this version of the encryption.
+     */
     public Parcel parcel() {
         return parcel;
     }

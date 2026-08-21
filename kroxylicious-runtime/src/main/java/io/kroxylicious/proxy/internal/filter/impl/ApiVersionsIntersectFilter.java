@@ -22,6 +22,11 @@ import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 public class ApiVersionsIntersectFilter implements ApiVersionsResponseFilter {
     private final ApiVersionsServiceImpl apiVersionsService;
 
+    /**
+     * Creates the filter.
+     *
+     * @param service the service used to intersect the broker's versions with the proxy's
+     */
     public ApiVersionsIntersectFilter(ApiVersionsServiceImpl service) {
         this.apiVersionsService = service;
     }

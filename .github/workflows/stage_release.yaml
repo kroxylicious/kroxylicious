@@ -87,10 +87,10 @@ jobs:
           git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: 'Set up Java'
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
         with:
           javaVersion: '21'
           javaDistro: 'temurin'
@@ -143,25 +143,29 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           # The release branch (rel) was pushed by stage-release.sh and carries exactly the
-          # release commit.  We use it as the docker.yaml trigger ref (a branch name is required)
-          # and as the anchor for the commit-<sha> image tags built by that workflow.
+          # release commit.  We dispatch build-kroxylicious-container-images.yaml on this branch
+          # so images are built from the release version and tagged commit-<sha> (no version tag
+          # until promote).
           RELEASE_SHA=$(git rev-parse "origin/${WORK_BRANCH}-rel")
 
           # Capture time before dispatch so the poll can ignore runs from prior staging attempts
           DISPATCH_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          gh workflow run docker.yaml --ref "${WORK_BRANCH}-rel"
+          gh workflow run build-kroxylicious-container-images.yaml \
+            --ref "${WORK_BRANCH}-rel" \
+            --field push-images=true \
+            --field multi-arch=true
 
           # Poll until the triggered run appears (dispatch registration can take a few seconds)
           RUN_ID=""
           for i in $(seq 1 12); do
             sleep 10
             RUN_ID=$(DISPATCH_SINCE="${DISPATCH_TIME}" gh api \
-              "/repos/${{ github.repository }}/actions/workflows/docker.yaml/runs?head_sha=${RELEASE_SHA}&event=workflow_dispatch" \
+              "/repos/${{ github.repository }}/actions/workflows/build-kroxylicious-container-images.yaml/runs?head_sha=${RELEASE_SHA}&event=workflow_dispatch" \
               --jq '[.workflow_runs[] | select(.created_at >= env.DISPATCH_SINCE)] | .[0].id // empty')
             [[ -n "${RUN_ID}" ]] && break
           done
           if [[ -z "${RUN_ID}" ]]; then
-            echo "Timed out waiting for docker workflow run to appear for ${RELEASE_SHA}"
+            echo "Timed out waiting for build-kroxylicious-container-images workflow run to appear for ${RELEASE_SHA}"
             exit 1
           fi
           gh run watch "${RUN_ID}" --exit-status
@@ -171,7 +175,7 @@ jobs:
       - name: 'Build release state'
         run: |
           VERSION="${{ github.event.inputs.release-version }}"
-          # RELEASE_SHA is the pre-merge release commit; it is also what docker.yaml tagged
+          # RELEASE_SHA is the pre-merge release commit; it is also what build-kroxylicious-container-images.yaml tagged
           # images with (GITHUB_SHA on the release branch == this commit).
           SHA_TAG="commit-$(git rev-parse --short "${RELEASE_SHA}")"
           REGISTRY="${{ vars.REGISTRY_SERVER }}"
@@ -187,10 +191,10 @@ jobs:
             --arg workBranch "${{ env.WORK_BRANCH }}" \
             --arg releaseCommitSha "${RELEASE_SHA}" \
             --arg imageWorkflowRunId "${{ env.DOCKER_RUN_ID }}" \
+            --arg websiteRepository "${{ github.event.inputs.website-repository }}" \
             --arg proxyAmd64Ref "${PROXY}:${SHA_TAG}-amd64" \
             --arg proxyArm64Ref "${PROXY}:${SHA_TAG}-arm64" \
             --arg proxyManifest "${PROXY}:${SHA_TAG}" \
-            --arg legacyProxyManifest "${REGISTRY}/${ORG}/kroxylicious:${SHA_TAG}" \
             --arg operatorManifest "${OPERATOR}:${SHA_TAG}" \
             --arg admissionManifest "${ADMISSION}:${SHA_TAG}" \
             '{
@@ -200,17 +204,13 @@ jobs:
               workBranch: $workBranch,
               releaseCommitSha: $releaseCommitSha,
               imageWorkflowRunId: $imageWorkflowRunId,
+              websiteRepository: $websiteRepository,
               stagedArtifacts: {
                 proxy: {
                   images: {
                     manifestImage: { ref: $proxyManifest },
                     amd64: { ref: $proxyAmd64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist"] } },
                     arm64: { ref: $proxyArm64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist", "aarch64"] } }
-                  }
-                },
-                legacyProxy: {
-                  images: {
-                    manifestImage: { ref: $legacyProxyManifest }
                   }
                 },
                 operator: {
@@ -260,15 +260,6 @@ jobs:
         with:
           name: RELEASE_ASSETS
           path: release-assets/
-
-      - name: 'Stage release docs'
-        if: ${{ success() }}
-        run: |
-          ./scripts/stage-docs.sh -v ${{ github.event.inputs.release-version }} \
-                                  -b "prepare-v${{ github.event.inputs.release-version }}-release-docs-${{ github.run_id }}" \
-                                  -u "https://user:${GH_TOKEN}@${{ github.event.inputs.website-repository }}"
-        env:
-          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-docs.sh
 
       - name: 'Drop stage repository, if failed'
         if: ${{ failure() &&  env.DEPLOYMENT_ID }}

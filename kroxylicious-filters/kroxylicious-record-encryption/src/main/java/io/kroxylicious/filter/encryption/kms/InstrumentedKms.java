@@ -18,6 +18,11 @@ import io.kroxylicious.kms.service.UnknownKeyException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * A KMS decorator which counts the attempts at, and outcomes of, the delegate's operations.
+ * @param <K> The type of Key Encryption Key id.
+ * @param <E> The type of encrypted Data Encryption Key.
+ */
 public class InstrumentedKms<K, E> implements Kms<K, E> {
     private final Kms<K, E> delegate;
     private final KmsMetrics metrics;
@@ -27,6 +32,14 @@ public class InstrumentedKms<K, E> implements Kms<K, E> {
         this.metrics = metrics;
     }
 
+    /**
+     * Wraps the given KMS with instrumentation.
+     * @param kms the KMS to be wrapped.
+     * @param metrics the metrics with which the KMS operations are counted.
+     * @param <A> The type of Key Encryption Key id.
+     * @param <B> The type of encrypted Data Encryption Key.
+     * @return an instrumented KMS wrapping the delegate.
+     */
     public static <A, B> Kms<A, B> wrap(Kms<A, B> kms, KmsMetrics metrics) {
         return new InstrumentedKms<>(kms, metrics);
     }

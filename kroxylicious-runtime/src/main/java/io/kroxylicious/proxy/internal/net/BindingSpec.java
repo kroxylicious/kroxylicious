@@ -31,6 +31,8 @@ public interface BindingSpec {
 
     /**
      * Address the proxy should bind for bootstrap connections. Port may be zero for OS assignment.
+     *
+     * @return the bootstrap bind address
      */
     HostPort getBootstrapBindAddress();
 
@@ -41,27 +43,37 @@ public interface BindingSpec {
      * These are bound before the first reconciliation and initially point to the upstream
      * bootstrap for metadata discovery only. They are replaced by real broker bindings
      * once topology is known.
+     *
+     * @return map of Kafka nodeId to bind address
      */
     Map<Integer, HostPort> nodeBindAddresses();
 
     /**
      * Ports that this gateway requires exclusive use of. No other gateway may bind these.
+     *
+     * @return set of exclusive port numbers
      */
     Set<Integer> getExclusivePorts();
 
     /**
      * Ports that this gateway can share with other gateways (typically for SNI-based routing
      * where multiple gateways multiplex over one port).
+     *
+     * @return set of shared port numbers
      */
     Set<Integer> getSharedPorts();
 
     /**
      * Network interface to bind on, or empty to bind on all interfaces (0.0.0.0).
+     *
+     * @return the bind address, or empty for the 'any' address
      */
     Optional<String> getBindAddress();
 
     /**
      * Whether connections to this gateway require TLS with Server Name Indication.
+     *
+     * @return true if connections require TLS with Server Name Indication
      */
     boolean requiresServerNameIndication();
 
