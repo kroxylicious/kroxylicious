@@ -41,6 +41,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
+import io.kroxylicious.proxy.internal.CloseReason;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
@@ -384,7 +385,38 @@ class RoutingHandlerTest {
                 .as("response must be delivered even when the router also requests connection close")
                 .isNotNull();
         assertThat(out.header().correlationId()).isEqualTo(CORRELATION_ID);
-        assertThat(channel.isOpen()).isFalse();
+        verify(ccsm).requestClose(CloseReason.routerRequested());
+    }
+
+    @Test
+    void topLevel_shouldDeliverResponseBeforeClosingChannelWhenRespondWithAndCloseConnectionAndResponseIsOutOfSequence() {
+        // Given
+        var pendingFuture = new CompletableFuture<RouterResponse>();
+        var responseBody = new ProduceResponseData();
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(pendingFuture.minimalCompletionStage())
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWith(null, responseBody, true)));
+        var handler = topLevelHandlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When: two requests in flight; request 2 resolves immediately with close, but request 1
+        // is still pending so request 2's response is buffered in the sequencer at slot 1.
+        channel.writeInbound(produceFrame(CORRELATION_ID));
+        channel.writeInbound(produceFrame(CORRELATION_ID + 1));
+        channel.runPendingTasks();
+        // Completing request 1 with no-reply advances the sequencer, which drains the buffered
+        // close-response at slot 1 and writes it to the channel.
+        pendingFuture.complete(new RouterResponseImpl.RespondWithoutReply(false));
+        channel.runPendingTasks();
+
+        // Then
+        DecodedResponseFrame<?> out = channel.readOutbound();
+        assertThat(out)
+                .as("response for the close-triggering request must be delivered even when it arrives out of sequence")
+                .isNotNull();
+        assertThat(out.header().correlationId()).isEqualTo(CORRELATION_ID + 1);
+        verify(ccsm).requestClose(CloseReason.routerRequested());
     }
 
     @Test

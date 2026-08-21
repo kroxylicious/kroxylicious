@@ -593,7 +593,7 @@ class FilterHandlerTest extends FilterHarness {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> stageFunction.apply(header, request);
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readInbound();
@@ -629,7 +629,7 @@ class FilterHandlerTest extends FilterHarness {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> stageFunction.apply(header, response);
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readOutbound();
@@ -654,7 +654,7 @@ class FilterHandlerTest extends FilterHarness {
         writeRequest(new ApiVersionsRequestData().setClientSoftwareName("should not be processed"));
         // the filter handler will have queued up the second request, awaiting the completion of the first.
         filterFuture.complete(new RequestFilterResultBuilderImpl().withCloseConnection().build());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readOutbound();
@@ -676,7 +676,7 @@ class FilterHandlerTest extends FilterHarness {
         writeArbitraryOpaqueRequest(opaqueBuf);
         // the filter handler will have queued up the opaque request, awaiting the completion of the first.
         filterFuture.complete(new RequestFilterResultBuilderImpl().withCloseConnection().build());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readOutbound();
@@ -699,7 +699,7 @@ class FilterHandlerTest extends FilterHarness {
         writeResponse(new ApiVersionsResponseData().setErrorCode((short) 2));
         // the filter handler will have queued up the second response, awaiting the completion of the first.
         filterFuture.complete(new ResponseFilterResultBuilderImpl().withCloseConnection().build());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readInbound();
@@ -723,7 +723,7 @@ class FilterHandlerTest extends FilterHarness {
         writeResponse(new ApiVersionsResponseData().setErrorCode((short) 2));
         // the filter handler will have queued up the second response, awaiting the completion of the first.
         filterFuture.complete(new ResponseFilterResultBuilderImpl().withCloseConnection().build());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readOutbound();
@@ -781,6 +781,7 @@ class FilterHandlerTest extends FilterHarness {
         };
         buildChannel(filter);
         writeRequest(new ApiVersionsRequestData());
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isEqualTo(!withClose);
 
