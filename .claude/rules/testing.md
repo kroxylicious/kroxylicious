@@ -58,3 +58,53 @@ EPOLL or io_uring can be enabled. These are deployment facts, not behavioral con
 behavioral preconditions (did my filter initialize? does this cluster exist?), `assumeThat`
 is the wrong tool — those imply a testable contract that either already has coverage elsewhere
 in the suite, or needs a dedicated test added. The right answer is never to silently skip.
+
+## Awaitility — the condition must fail only via AssertionError
+
+`await().untilAsserted(...)` retries **only** when the condition throws `AssertionError`.
+Any other exception escaping the lambda aborts the await and fails the test immediately,
+even with time left on the clock. So every operation inside the condition that can fail
+transiently must express that failure as an `AssertionError`, not as its own exception.
+
+The most common violation is blocking on a future inside the condition — `Future.get()`,
+`CompletableFuture.join()` — which throws `ExecutionException`/`CompletionException` on a
+transient failure and defeats the point of the await:
+
+```java
+// ❌ Wrong — a transiently failed future aborts the await instead of retrying
+await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+    var state = client.fetchState().get(10, TimeUnit.SECONDS);
+    assertThat(state).isEqualTo(READY);
+});
+
+// ✅ Correct — assert on the future with succeedsWithin and chain the assertion on
+// its result; a failed future becomes an AssertionError, which Awaitility retries
+await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+    assertThat(client.fetchState())
+            .succeedsWithin(10, TimeUnit.SECONDS)
+            .satisfies(state -> assertThat(state).isEqualTo(READY));
+});
+```
+
+AssertJ's `succeedsWithin` accepts `Future` and `CompletableFuture` directly; types that
+are neither (e.g. Kafka's `KafkaFuture`) usually offer a conversion such as
+`.toCompletionStage().toCompletableFuture()`.
+
+The same principle applies to non-future calls. When a synchronous call inside the
+condition throws a specific transient exception, declare it as part of the retry policy
+with the type-scoped `.ignoreException(TransientException.class)` on the `await()` chain
+(as done with `MeterNotFoundException` in `OperatorMainIT` and `KubernetesClientException`
+in `StrimziTestClient`):
+
+```java
+await().atMost(Duration.ofSeconds(30))
+        .ignoreException(MeterNotFoundException.class)
+        .untilAsserted(() -> assertThat(registry.get(meterName).counter().count()).isPositive());
+```
+
+Note `ignoreException` suppresses that exception type *anywhere* in the condition. If the
+condition does several things and the transient failure must be tolerated at only one
+specific sub-call, instead catch the exception at that call site and rethrow it wrapped in
+an `AssertionError`. Reach for the blanket, no-arg `.ignoreExceptions()` only as a last
+resort — it masks *every* exception, including genuine non-transient failures, turning
+what should be an immediate, diagnosable failure into a timeout.
