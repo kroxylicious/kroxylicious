@@ -13,20 +13,41 @@ package io.kroxylicious.proxy.internal;
  */
 public record CloseReason(Category category, String detail) {
 
+    /**
+     * Coarse-grained category of a connection close, used as a structured log key.
+     */
     public enum Category {
+        /** A router returned {@code closeConnection=true}. */
         ROUTER_REQUESTED,
+        /** A filter requested that the connection be closed. */
         FILTER_CLOSE_CONNECTION,
+        /** The proxy is shutting down or reloading the virtual cluster. */
         PROXY_SHUTDOWN
     }
 
+    /**
+     * Creates a close reason for a router-requested close.
+     *
+     * @return the close reason
+     */
     public static CloseReason routerRequested() {
         return new CloseReason(Category.ROUTER_REQUESTED, "router returned closeConnection=true");
     }
 
+    /**
+     * Creates a close reason for a filter-requested close.
+     *
+     * @return the close reason
+     */
     public static CloseReason filterCloseConnection() {
         return new CloseReason(Category.FILTER_CLOSE_CONNECTION, "filter requested connection close");
     }
 
+    /**
+     * Creates a close reason for a proxy shutdown or virtual-cluster reload.
+     *
+     * @return the close reason
+     */
     public static CloseReason proxyShutdown() {
         return new CloseReason(Category.PROXY_SHUTDOWN, "proxy shutdown or virtual-cluster reload");
     }

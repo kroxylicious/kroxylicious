@@ -22,6 +22,13 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  * populated from route descriptors during {@code VirtualClusterModel} construction. An empty map is
  * used when no TLS resources have been resolved (e.g. in test contexts without a
  * {@code PluginFactoryRegistry}).
+ *
+ * @param routerName the name of the top-level router
+ * @param topLevelRouteDescriptors the top-level router's route descriptors, keyed by route name (local names)
+ * @param allRouteDescriptors all route descriptors including nested routers, keyed by qualified name ({@code routerName/routeName})
+ * @param nodeIdMapping the mapping between target-cluster node IDs and virtual node IDs
+ * @param routerChainFactory the factory used to create router instances; owned and closed by this record
+ * @param routeClusterModels the per-route upstream cluster models, keyed by qualified route name
  */
 public record DynamicRouting(
                              String routerName,
@@ -51,6 +58,10 @@ public record DynamicRouting(
      * Test-only constructor: uses an empty cluster model map. {@code allRouteDescriptors}
      * defaults to the provided {@code topLevelRouteDescriptors} (i.e. no nested routes).
      * Production code should supply fully-built {@link UpstreamClusterModel} instances.
+     *
+     * @param routerName the name of the top-level router
+     * @param topLevelRouteDescriptors the top-level router's route descriptors (local names)
+     * @param routerChainFactory the factory used to create router instances; owned and closed by this record
      */
     @VisibleForTesting
     public DynamicRouting(String routerName, Map<String, RouteDescriptor> topLevelRouteDescriptors, RouterChainFactory routerChainFactory) {
