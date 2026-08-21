@@ -81,6 +81,7 @@ It fully decouples client authentication from broker authentication, which can b
 The `SaslTermination` filter supports the `OAUTHBEARER`, `SCRAM-SHA-256`, and `SCRAM-SHA-512` SASL mechanisms.
 If a client attempts to use a mechanism that is not configured, the proxy rejects the handshake with an unsupported mechanism error and closes the connection.
 For `OAUTHBEARER`, the filter validates JWT tokens against a JSON Web Key Set (JWKS) retrieved from a configurable endpoint, checking the token signature, audience, issuer, and expiry.
+For `SCRAM-SHA-256` and `SCRAM-SHA-512`, the filter validates client credentials against a pluggable credential store that provides the SCRAM derived keys for each user.
 
 The filter supports session expiry and reauthentication (https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate[KIP-368]).
 When a token's expiry is reached, the client must reauthenticate or the connection is closed.
