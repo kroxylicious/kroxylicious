@@ -3,22 +3,22 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.kafka.fidelity;
+package io.kroxylicious.fidelity;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.protocol.ByteBufferAccessor;
-import org.apache.kafka.common.protocol.Message;
-import org.apache.kafka.common.protocol.MessageSizeAccumulator;
-import org.apache.kafka.common.protocol.ObjectSerializationCache;
+import io.kroxylicious.kafka.common.protocol.ByteBufferAccessor;
+import io.kroxylicious.kafka.common.protocol.Message;
+import io.kroxylicious.kafka.common.protocol.MessageSizeAccumulator;
+import io.kroxylicious.kafka.common.protocol.ObjectSerializationCache;
 
 /**
- * Serializes and deserializes {@code org.apache.kafka.common.protocol.Message} instances to and
+ * Serializes and deserializes {@code io.kroxylicious.kafka.common.protocol.Message} instances to and
  * from raw bytes, using the standard two-pass size-then-write protocol.
  */
-public final class KafkaSerdes {
+public final class KroxyliciousSerdes {
 
-    private KafkaSerdes() {
+    private KroxyliciousSerdes() {
     }
 
     /**
@@ -47,10 +47,16 @@ public final class KafkaSerdes {
      * @param bytes the bytes to deserialize
      * @param version the protocol version to deserialize at
      * @param <T> the message type
-     * @return {@code message}, populated
+     * @return {@code message}, populated, plus how many bytes of {@code bytes} were left unconsumed
      */
-    public static <T extends Message> T read(T message, byte[] bytes, short version) {
-        message.read(new ByteBufferAccessor(ByteBuffer.wrap(bytes)), version);
-        return message;
+    public static <T extends Message> ReadResult<T> read(T message, byte[] bytes, short version) {
+        try {
+            ByteBufferAccessor accessor = new ByteBufferAccessor(ByteBuffer.wrap(bytes));
+            message.read(accessor, version);
+            return new ReadResult<>(message, accessor.remaining(), null);
+        }
+        catch (RuntimeException e) {
+            return new ReadResult<>(message, bytes.length, e);
+        }
     }
 }
