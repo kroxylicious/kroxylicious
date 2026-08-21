@@ -395,7 +395,7 @@ class RecordEncryptionFilterIT {
                     .atMost(Duration.ofSeconds(30))
                     .untilAsserted(() -> {
                         // async edek refresh will be trigger by the arrival of a message after edekExpiry
-                        producer.send(new ProducerRecord<>(topic.name(), message)).get(5, TimeUnit.SECONDS);
+                        assertThat(producer.send(new ProducerRecord<>(topic.name(), message))).succeedsWithin(5, TimeUnit.SECONDS);
                         assertMoreThanOneEdekUsed(topic, directConsumer);
                     });
         }
