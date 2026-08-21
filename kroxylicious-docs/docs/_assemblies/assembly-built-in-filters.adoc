@@ -39,13 +39,13 @@ For information on using the filter, see the {MultiTenancyGuide}.
 == Oauth Bearer Validation filter
 
 The Kroxylicious Oauth Bearer Validation filter enables a validation on the JWT token received from client before forwarding it to cluster.
-For information on using the filter, see the {OauthBearerValidationGuide}.
+For information on using the filter, see the {AuthenticationGuide}.
 
 == SASL Inspection filter
 
 The Kroxylicious SASL Inspection filter extracts the authenticated principal from a successful SASL exchange between Kafka Client
 and Kafka Broker and makes it available to the other filters in the chain.
-For information on using the filter, see the {SASLInspectionGuide}.
+For information on using the filter, see the {AuthenticationGuide}.
 
 == Connection Expiration filter
 
