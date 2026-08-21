@@ -113,14 +113,31 @@ public class RouteDispatcher implements RouterDispatch {
         return nodeIdMapping;
     }
 
+    /**
+     * Returns the correlation ID allocator shared by all routing levels on this connection.
+     *
+     * @return the correlation ID allocator
+     */
     public CorrelationIdAllocator correlationIdAllocator() {
         return correlationIdAllocator;
     }
 
+    /**
+     * Returns the upstream node addresses known at this routing level, keyed by virtual node ID.
+     *
+     * @return the known upstream node addresses
+     */
     public Map<Integer, HostPort> routerNodeAddresses() {
         return routerNodeAddresses;
     }
 
+    /**
+     * Returns the upstream address for the given virtual node ID, as learned from the most
+     * recent internal METADATA response. Returns empty if the address has not been cached yet.
+     *
+     * @param virtualNodeId the virtual node ID to resolve
+     * @return the upstream address of the node, or empty if not yet known
+     */
     public Optional<HostPort> resolveRouterNodeAddress(int virtualNodeId) {
         return Optional.ofNullable(routerNodeAddresses.get(virtualNodeId));
     }

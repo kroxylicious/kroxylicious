@@ -141,6 +141,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * @param nodeIdMapping the virtual-to-target node ID mapping for the top-level routing level
      * @param nodeId the virtual node ID of the gateway port that accepted this connection,
      *        or {@code null} if the gateway does not identify a specific node
+     * @return the top-level routing handler
      */
     public static RoutingHandler topLevel(Router router,
                                           Map<String, RouteDescriptor> routes,
@@ -179,6 +180,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * @param subject the authenticated subject for this connection
      * @param nodeId the virtual node ID passed from the enclosing routing level,
      *        or {@code null} if not available at this nesting depth
+     * @return the nested routing handler
      */
     // all parameters are genuinely needed: identity, routing config, protocol infrastructure, session, auth, network
     @SuppressWarnings("java:S107")
@@ -208,14 +210,31 @@ public class RoutingHandler extends ChannelDuplexHandler {
         return dispatcher;
     }
 
+    /**
+     * Returns the correlation ID allocator shared by all routing levels on this connection.
+     *
+     * @return the correlation ID allocator
+     */
     public CorrelationIdAllocator correlationIdAllocator() {
         return dispatcher.correlationIdAllocator();
     }
 
+    /**
+     * Returns the upstream node addresses known at this routing level, keyed by virtual node ID.
+     *
+     * @return the known upstream node addresses
+     */
     public Map<Integer, HostPort> routerNodeAddresses() {
         return dispatcher.routerNodeAddresses();
     }
 
+    /**
+     * Returns the upstream address for the given virtual node ID, as learned from the most
+     * recent internal METADATA response. Returns empty if the address has not been cached yet.
+     *
+     * @param virtualNodeId the virtual node ID to resolve
+     * @return the upstream address of the node, or empty if not yet known
+     */
     public Optional<HostPort> resolveRouterNodeAddress(int virtualNodeId) {
         return dispatcher.resolveRouterNodeAddress(virtualNodeId);
     }
