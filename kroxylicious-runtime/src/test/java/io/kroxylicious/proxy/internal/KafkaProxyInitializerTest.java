@@ -16,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.matcher.AssertionMatcher;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,7 +64,7 @@ import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
+import io.kroxylicious.proxy.internal.routing.RoutingHandler;
 import io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.router.Router;
@@ -431,8 +432,36 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.initConnection(channel, endpointBinding, new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
-        verify(channelPipeline).addLast(eq("routerDispatchHandler"), isA(RouterDispatchHandler.class));
+        verify(channelPipeline).addLast(eq("routerDispatchHandler"), isA(RoutingHandler.class));
         verify(channelPipeline).addLast(eq("routingTerminalHandler"), isA(RoutingTerminalHandler.class));
+    }
+
+    @Test
+    void shouldKeepDecodingApiKeysStaticallyRoutedToNestedRouter() {
+        // Given
+        var nestedRoute = new RouteDescriptor("to-nested", 0, null, "inner-router", List.of());
+        var clusterRoute = new RouteDescriptor("to-cluster", 1, new TargetCluster("localhost:9090", Optional.empty()), null, List.of());
+        var staticRoutes = Map.of(ApiKeys.LIST_OFFSETS, "to-nested", ApiKeys.OFFSET_COMMIT, "to-cluster");
+        var routeDescs = Map.of("to-nested", nestedRoute, "to-cluster", clusterRoute);
+
+        // When
+        var decodedKeys = KafkaProxyInitializer.computeDecodedKeysForRouter(staticRoutes, routeDescs);
+
+        // Then
+        assertThat(decodedKeys).contains(ApiKeys.LIST_OFFSETS);
+        assertThat(decodedKeys).doesNotContain(ApiKeys.OFFSET_COMMIT);
+    }
+
+    @Test
+    void shouldKeepDecodingApiKeysWhenStaticRouteNotFoundInDescriptors() {
+        // Given
+        var staticRoutes = Map.of(ApiKeys.LIST_OFFSETS, "unknown-route");
+
+        // When
+        var decodedKeys = KafkaProxyInitializer.computeDecodedKeysForRouter(staticRoutes, Map.of());
+
+        // Then
+        assertThat(decodedKeys).contains(ApiKeys.LIST_OFFSETS);
     }
 
     private VirtualClusterModel buildDynamicRoutingVirtualCluster(RouterChainFactory routerChainFactory) {

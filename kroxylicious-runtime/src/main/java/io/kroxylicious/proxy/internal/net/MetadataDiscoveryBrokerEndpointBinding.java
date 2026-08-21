@@ -12,10 +12,28 @@ import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
- * A bootstrap binding which can only be used for metadata discovery.
- * <p>
- * Its role is to allow the proxy to bind known ports without knowing the full upstream topology.
- * Once the upstream topology is discovered this should be replaced with a {@link BrokerEndpointBinding} for the same nodeId
+ * A placeholder endpoint binding used before the proxy has learned the real upstream address
+ * for a broker node. It is created when a per-node port is bound but the upstream topology
+ * has not yet been reconciled.
+ *
+ * <p>The {@link #upstreamTarget()} method returns the cluster's bootstrap server address
+ * as a stand-in, allowing the connection to proceed far enough to fire a Metadata request
+ * (via {@link io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner}) and
+ * trigger topology discovery. Once reconciliation completes, this binding is superseded by
+ * a {@link BrokerEndpointBinding} pointing at the real broker address.
+ *
+ * <p><strong>Direct routing only.</strong> {@link #upstreamTarget()} is only meaningful for
+ * virtual clusters using {@link io.kroxylicious.proxy.internal.routing.DirectRouting}.
+ * Dynamic routing virtual clusters resolve upstream addresses through the router's
+ * {@link io.kroxylicious.proxy.internal.routing.RoutingHandler} on a per-request basis
+ * and have no use for this binding's upstream target. Calling {@link #upstreamTarget()} on
+ * a dynamic routing virtual cluster throws {@link IllegalStateException}.
+ *
+ * <p>Note: instances of this class can be produced for any virtual cluster type whose gateway
+ * declares per-node ports (see {@link io.kroxylicious.proxy.internal.net.EndpointRegistry}).
+ * Callers must therefore check the routing type before acting on
+ * {@link #restrictUpstreamToMetadataDiscovery()}.
+ *
  * @param endpointGateway the endpoint gateway
  * @param nodeId kafka nodeId of the target broker
  */

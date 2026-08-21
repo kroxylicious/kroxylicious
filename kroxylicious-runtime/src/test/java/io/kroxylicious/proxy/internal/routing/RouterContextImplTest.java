@@ -24,7 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
+import io.kroxylicious.proxy.internal.CorrelationIdSpace;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.topology.VirtualNode;
@@ -40,9 +40,6 @@ class RouterContextImplTest {
 
     @Mock
     private Router router;
-
-    @Mock
-    private ClientConnectionStateMachine ccsm;
 
     private DecodedRequestFrame<?> clientFrame;
     private NodeIdMapping nodeIdMapping;
@@ -64,9 +61,9 @@ class RouterContextImplTest {
     }
 
     private RouterContextImpl createContext(Integer endpointVirtualNodeId) {
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm, "test-cluster", nodeIdMapping, null);
+        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", CorrelationIdSpace.createRouterAllocator(), new java.util.HashMap<>(), "test-cluster");
         return new RouterContextImpl(
-                clientFrame, handler, "test-session", Subject.anonymous(),
+                clientFrame, dispatcher, "test-session", Subject.anonymous(),
                 endpointVirtualNodeId);
     }
 
@@ -75,8 +72,9 @@ class RouterContextImplTest {
                 "route-a", new RouteDescriptor("route-a", 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of()),
                 "route-b", new RouteDescriptor("route-b", 1, new TargetCluster("localhost:9093", Optional.empty()), null, List.of()));
         var bijectiveMapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
-        var handler = new RouterDispatchHandler(router, bijectiveRoutes, Map.of(), ccsm, "test-cluster", bijectiveMapping, null);
-        return new RouterContextImpl(clientFrame, handler, "test-session", Subject.anonymous(), endpointVirtualNodeId);
+        var dispatcher = new RouteDispatcher(bijectiveRoutes, bijectiveMapping, "", CorrelationIdSpace.createRouterAllocator(), new java.util.HashMap<>(),
+                "test-cluster");
+        return new RouterContextImpl(clientFrame, dispatcher, "test-session", Subject.anonymous(), endpointVirtualNodeId);
     }
 
     @Test

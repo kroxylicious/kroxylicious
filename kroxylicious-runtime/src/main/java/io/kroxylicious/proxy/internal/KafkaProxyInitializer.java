@@ -44,7 +44,9 @@ import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
-import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RouteDispatcher;
+import io.kroxylicious.proxy.internal.routing.RoutingHandler;
 import io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -281,25 +283,19 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             case DynamicRouting dr -> {
                 Router router = virtualCluster.createRouter();
                 Map<ApiKeys, String> staticRoutes = router.staticRoutes();
-                Set<ApiKeys> decodedKeys = EnumSet.allOf(ApiKeys.class);
-                if (!staticRoutes.isEmpty()) {
-                    decodedKeys.removeAll(staticRoutes.keySet());
-                }
-                // Always decode API keys whose responses carry node IDs so RouterDispatchHandler
-                // can translate them, even when those keys are statically routed.
-                decodedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_APIS);
+                Set<ApiKeys> decodedKeys = computeDecodedKeysForRouter(staticRoutes, dr.topLevelRouteDescriptors());
                 dp.setRouterDecodingRequirements(decodedKeys);
 
                 var sharedAddresses = sharedNodeAddressCache.computeIfAbsent(dr, k -> new ConcurrentHashMap<>());
-                var dispatchHandler = new RouterDispatchHandler(
-                        router, dr.routeDescriptors(), staticRoutes, sharedAddresses, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(),
+                var routingHandler = RoutingHandler.topLevel(
+                        router, dr.topLevelRouteDescriptors(), staticRoutes, sharedAddresses, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(),
                         dr.nodeIdMapping(), binding.nodeId());
                 clientConnectionStateMachine.setRouterActive();
                 clientConnectionStateMachine.setUpstreamAddressResolver(
-                        virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)
+                        virtualNodeId -> routingHandler.resolveRouterNodeAddress(virtualNodeId)
                                 .or(() -> endpointReconciler.upstreamAddress(
                                         clientConnectionStateMachine.endpointGateway(), virtualNodeId)));
-                pipeline.addLast("routerDispatchHandler", dispatchHandler);
+                pipeline.addLast("routerDispatchHandler", routingHandler);
                 pipeline.addLast("routingTerminalHandler", new RoutingTerminalHandler(clientConnectionStateMachine));
             }
             case DirectRouting ignored -> pipeline.addLast("filterChainCompletionHandler",
@@ -311,6 +307,27 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 .addKeyValue("channelId", ch::toString)
                 .addKeyValue("pipeline", pipeline)
                 .log("Initial pipeline");
+    }
+
+    /**
+     * Only exclude an API key from decoding when all paths between the VC and the target
+     * cluster are statically routed. At init time we don't have nested router instances,
+     * so routes targeting nested routers are not provably fully static and must remain
+     * decoded. API keys whose responses carry node IDs are always decoded for translation.
+     */
+    static Set<ApiKeys> computeDecodedKeysForRouter(Map<ApiKeys, String> staticRoutes,
+                                                    Map<String, RouteDescriptor> routeDescriptors) {
+        Set<ApiKeys> decodedKeys = EnumSet.allOf(ApiKeys.class);
+        if (!staticRoutes.isEmpty()) {
+            for (var entry : staticRoutes.entrySet()) {
+                RouteDescriptor rd = routeDescriptors.get(entry.getValue());
+                if (rd != null && rd.targetsCluster()) {
+                    decodedKeys.remove(entry.getKey());
+                }
+            }
+        }
+        decodedKeys.addAll(RouteDispatcher.NODE_ID_TRANSLATION_APIS);
+        return decodedKeys;
     }
 
     private KafkaMessageListener buildMetricsMessageListenerForDecode(EndpointBinding binding, VirtualClusterModel virtualCluster) {

@@ -49,7 +49,6 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -605,6 +604,25 @@ public class ClientConnectionStateMachine {
     }
 
     /**
+     * Requests a graceful close of this connection, using the virtual cluster's configured
+     * drain timeout. The reason is logged (with {@code sessionId} and {@code virtualCluster})
+     * at the point drain begins. Delegates to {@link #drain(Duration)}.
+     * <p>
+     * Safe to call from any thread; idempotent (subsequent calls chain to the existing drain).
+     *
+     * @param reason why the close was requested — logged for debugging
+     */
+    public void requestClose(CloseReason reason) {
+        LOGGER.atInfo()
+                .addKeyValue("sessionId", kafkaSession.sessionId())
+                .addKeyValue("virtualCluster", clusterName())
+                .addKeyValue("closeCategory", reason.category())
+                .addKeyValue("closeReason", reason.detail())
+                .log("Connection close requested");
+        drain(virtualCluster().drainTimeout());
+    }
+
+    /**
      * Begin draining this connection and return a future that completes once the connection has
      * fully closed — either naturally (all in-flight responses delivered) or after the
      * {@code timeout} force-closes it. Safe to call from any thread; orchestration is dispatched
@@ -955,9 +973,9 @@ public class ClientConnectionStateMachine {
             throw new IllegalStateException(
                     "toForwardingWithRoutes called but virtualCluster has no router — this is a bug");
         }
-        var descriptors = dr.routeDescriptors();
+        var allDescriptors = dr.allRouteDescriptors();
         routeTargets = new HashMap<>();
-        for (var entry : descriptors.entrySet()) {
+        for (var entry : allDescriptors.entrySet()) {
             RouteDescriptor rd = entry.getValue();
             if (rd.targetsCluster()) {
                 routeTargets.put(entry.getKey(), Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
@@ -969,7 +987,7 @@ public class ClientConnectionStateMachine {
         // Server connections are opened lazily in forwardToRoute().
         if (endpointBinding instanceof BrokerEndpointBinding beb) {
             var routeAndNode = dr.nodeIdMapping().fromVirtual(beb.nodeId());
-            RouteDescriptor owningDesc = descriptors.get(routeAndNode.route());
+            RouteDescriptor owningDesc = dr.topLevelRouteDescriptors().get(routeAndNode.route());
             if (owningDesc != null && owningDesc.targetsCluster()) {
                 routeTargets.put(routeAndNode.route(), beb.upstreamTarget());
             }
@@ -984,7 +1002,7 @@ public class ClientConnectionStateMachine {
 
     /**
      * Forward a message to the backend connection for the named route.
-     * Used by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * Used by {@link io.kroxylicious.proxy.internal.routing.RoutingHandler}
      * for both static and dynamic routing paths.
      * @param routeName the name of the route identifying the target upstream
      * @param msg the message to forward to the route's backend connection
@@ -1015,7 +1033,7 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Signals that a {@link RouterDispatchHandler} is active on this connection's pipeline.
+     * Signals that a {@link io.kroxylicious.proxy.internal.routing.RoutingHandler} is active on this connection's pipeline.
      * When active, responses bearing routing-range correlation IDs are not counted
      * against the client in-flight limit (because they are synthetic, not client requests).
      */
@@ -1034,7 +1052,7 @@ public class ClientConnectionStateMachine {
 
     /**
      * Signals that a dynamically-routed client request has been fully handled.
-     * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * Called by {@link io.kroxylicious.proxy.internal.routing.RoutingHandler}
      * when the router's {@code onRequest} future completes and the response has been
      * delivered to the client. Decrements the in-flight request count to maintain the
      * 1:1 invariant even during fan-out routing.

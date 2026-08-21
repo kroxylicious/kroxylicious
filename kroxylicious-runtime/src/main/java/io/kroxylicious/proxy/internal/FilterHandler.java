@@ -362,10 +362,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         if (responseFilterResult.closeConnection()) {
-            if (responseFilterResult.message() != null) {
-                ctx.flush(); // ensure writes are flushed before closing
-            }
-            closeConnection();
+            closeConnection(CloseReason.filterCloseConnection());
         }
         return responseFilterResult;
     }
@@ -392,10 +389,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         if (requestFilterResult.closeConnection()) {
-            if (requestFilterResult.message() != null) {
-                ctx.flush();
-            }
-            closeConnection();
+            closeConnection(CloseReason.filterCloseConnection());
         }
         return requestFilterResult;
     }
@@ -586,6 +580,10 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("apiKey", decodedFrame.apiKey())
                     .log("Filter attempted to short-circuit respond to message with no response in Kafka Protocol, dropping response");
         }
+    }
+
+    private void closeConnection(CloseReason reason) {
+        clientConnectionStateMachine.requestClose(reason);
     }
 
     private void closeConnection() {
