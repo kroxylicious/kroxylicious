@@ -38,6 +38,8 @@
         <module>../kroxylicious-kafka-message-tools</module>
         <module>../kroxylicious-bom</module>
         <module>../kroxylicious-api</module>
+        <module>../kroxylicious-fidelity-harness</module>
+        <module>../kroxylicious-wire-fidelity-tests</module>
         <module>../kroxylicious-integration-test-support</module>
         <module>../kroxylicious-runtime</module>
         <module>../kroxylicious-app</module>
