@@ -63,8 +63,6 @@ class AdmissionWebhookST extends AbstractSystemTests {
 
     @BeforeAll
     void setupWebhook() {
-        LOGGER.info("Setting up admission webhook system test");
-
         LOGGER.info("Deploying cert-manager");
         certManager = new CertManager();
         certManager.deploy();
@@ -72,14 +70,10 @@ class AdmissionWebhookST extends AbstractSystemTests {
         LOGGER.info("Deploying admission webhook from distribution");
         admissionWebhook = new AdmissionWebhook();
         admissionWebhook.deploy(certManager);
-
-        LOGGER.info("Admission webhook setup complete");
     }
 
     @Test
     void shouldDeployWebhookSuccessfully() {
-        LOGGER.info("Verifying webhook deployment is ready");
-
         var deployment = kubeClient().getClient().apps().deployments()
                 .inNamespace(ADMISSION_NAMESPACE)
                 .withName(ADMISSION_DEPLOYMENT_NAME)
@@ -97,8 +91,6 @@ class AdmissionWebhookST extends AbstractSystemTests {
                 .withFailMessage("Webhook should have 2 ready replicas")
                 .isEqualTo(2);
 
-        LOGGER.info("Verifying MutatingWebhookConfiguration exists");
-
         var webhookConfig = kubeClient().getClient().admissionRegistration().v1()
                 .mutatingWebhookConfigurations()
                 .withName(ADMISSION_REGISTRATION_NAME)
@@ -112,43 +104,30 @@ class AdmissionWebhookST extends AbstractSystemTests {
                 .withFailMessage("MutatingWebhookConfiguration should have exactly one webhook")
                 .hasSize(1);
 
-        LOGGER.info("Verifying CA bundle was injected by cert-manager");
-
         var caBundle = webhookConfig.getWebhooks().get(0).getClientConfig().getCaBundle();
 
         assertThat(caBundle)
                 .withFailMessage("CA bundle should be injected by cert-manager")
                 .isNotNull()
                 .isNotBlank();
-
-        LOGGER.info("Webhook deployment verified successfully");
     }
 
     @Test
     void shouldInjectSidecarAndTransformMessages(String namespace) {
-        LOGGER.atInfo().addKeyValue("namespace", namespace).log("Starting sidecar injection test");
         createTargetKafkaClusterIfRequired(namespace);
         enableSidecarInjectionInNamespace(namespace);
         // wait for status and extract from Kafka CR?
         String upstreamBootstrap = "%s-kafka-bootstrap.%s.svc:9092".formatted(KAFKA_CLUSTER_NAME, KAFKA_DEFAULT_NAMESPACE);
         createUppercasingKroxyliciousSidecarConfig(namespace, upstreamBootstrap);
 
-        LOGGER.atInfo().addKeyValue("namespace", namespace)
-                .addKeyValue("topicName", topicName)
-                .log("Creating Kafka topic");
         KafkaSteps.createTopic(namespace, topicName, upstreamBootstrap, 1, 1);
 
         createPeriodicLowercaseProducerDeployment(namespace);
         verifyProducerPodHasSidecarInjectedAndEnvironmentConfigured(namespace);
         verifyMessagesStoredInTargetClusterHaveBeenTransformedToUppercase(namespace, upstreamBootstrap);
-        LOGGER.atInfo().addKeyValue("namespace", namespace).log("Sidecar injection test completed successfully");
     }
 
     private void verifyMessagesStoredInTargetClusterHaveBeenTransformedToUppercase(String namespace, String upstreamBootstrap) {
-        LOGGER.atInfo()
-                .addKeyValue("namespace", namespace)
-                .addKeyValue("topicName", topicName)
-                .log("Consuming messages directly from upstream Kafka");
         List<ConsumerRecord> records = KroxyliciousSteps.consumeMessages(
                 namespace,
                 topicName,
@@ -166,7 +145,6 @@ class AdmissionWebhookST extends AbstractSystemTests {
     }
 
     private static void verifyProducerPodHasSidecarInjectedAndEnvironmentConfigured(String namespace) {
-        LOGGER.atInfo().addKeyValue("namespace", namespace).log("Verifying sidecar was injected into the Deployment's pod");
         Pod pod = kubeClient().getClient().pods()
                 .inNamespace(namespace)
                 .withLabel("app", "message-producer")
@@ -183,7 +161,6 @@ class AdmissionWebhookST extends AbstractSystemTests {
                 .extracting(Container::getName)
                 .contains("kroxylicious-proxy");
 
-        LOGGER.atInfo().addKeyValue("namespace", namespace).log("Verifying KAFKA_BOOTSTRAP_SERVERS env var was set");
         Container appContainer = pod.getSpec().getContainers().stream()
                 .filter(c -> "producer".equals(c.getName()))
                 .findFirst()
@@ -198,7 +175,6 @@ class AdmissionWebhookST extends AbstractSystemTests {
     }
 
     private void createPeriodicLowercaseProducerDeployment(String namespace) {
-        LOGGER.atInfo().addKeyValue("namespace", namespace).log("Creating producer Deployment");
         var producerDeployment = new DeploymentBuilder()
                 .withNewMetadata()
                 .withName("message-producer")
@@ -234,15 +210,10 @@ class AdmissionWebhookST extends AbstractSystemTests {
 
         kubeClient().getClient().resource(producerDeployment).create();
 
-        LOGGER.atInfo().addKeyValue("namespace", namespace).log("Waiting for Deployment to become ready");
         DeploymentUtils.waitForDeploymentReady(namespace, "message-producer");
     }
 
     private static void createUppercasingKroxyliciousSidecarConfig(String namespace, String upstreamBootstrap) {
-        LOGGER.atInfo()
-                .addKeyValue("namespace", namespace)
-                .log("Creating KroxyliciousSidecarConfig with UpperCasing filter");
-
         var uppercaseConfig = Map.of(
                 "transformation", "UpperCasing",
                 "transformationConfig", Map.of("charset", "UTF-8"));
@@ -269,7 +240,6 @@ class AdmissionWebhookST extends AbstractSystemTests {
 
         kubeClient().getClient().resource(sidecarConfig).create();
 
-        LOGGER.atInfo().addKeyValue("namespace", namespace).log("Waiting for KroxyliciousSidecarConfig to be Ready");
         kubeClient().getClient().resources(KroxyliciousSidecarConfig.class)
                 .inNamespace(namespace)
                 .withName("uppercase-config")
@@ -283,10 +253,6 @@ class AdmissionWebhookST extends AbstractSystemTests {
     }
 
     private static void enableSidecarInjectionInNamespace(String namespace) {
-        LOGGER.atInfo()
-                .addKeyValue("namespace", namespace)
-                .log("Labeling namespace to enable sidecar injection");
-
         kubeClient().getClient().namespaces().withName(namespace).edit(ns -> new NamespaceBuilder(ns)
                 .editOrNewMetadata()
                 .addToLabels(NAMESPACE_SIDECAR_INJECTION_LABEL_KEY, "enabled")
@@ -295,7 +261,6 @@ class AdmissionWebhookST extends AbstractSystemTests {
     }
 
     private void createTargetKafkaClusterIfRequired(String namespace) {
-        LOGGER.atInfo().addKeyValue("namespace", namespace).log("Checking if Kafka cluster exists in kafka namespace");
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(KAFKA_DEFAULT_NAMESPACE, KAFKA_CLUSTER_NAME);
         if (kafkaPods.isEmpty()) {
             LOGGER.atInfo().addKeyValue("namespace", namespace).log("Deploying Kafka cluster");
