@@ -97,23 +97,23 @@ jobs:
       - name: 'Cache Maven packages'
         uses: $/.github/actions/common/cache-maven-packages
       - name: 'Download Kroxylicious Maven artifacts'
-        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
+        uses: dawidd6/action-download-artifact@57aa996fc1713cc1579039614f4645a7f4841fd4
         with:
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts
           run_id: ${{github.run_id}}
       - name: Download kroxylicious proxy container artifact
-        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
+        uses: dawidd6/action-download-artifact@57aa996fc1713cc1579039614f4645a7f4841fd4
         with:
           name: kroxylicious-proxy
           run_id: ${{github.run_id}}
       - name: Download kroxylicious operator container artifact
-        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
+        uses: dawidd6/action-download-artifact@57aa996fc1713cc1579039614f4645a7f4841fd4
         with:
           name: kroxylicious-operator
           run_id: ${{github.run_id}}
       - name: Download kroxylicious admission-webhook container artifact
-        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
+        uses: dawidd6/action-download-artifact@57aa996fc1713cc1579039614f4645a7f4841fd4
         with:
           name: kroxylicious-admission-webhook
           run_id: ${{github.run_id}}
