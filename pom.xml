@@ -55,7 +55,7 @@
         <junit.version>5.14.4</junit.version>
         <kafka.version>4.2.0</kafka.version>
         <kafka.message-spec.version>4.3.0</kafka.message-spec.version>
-        <zstd-jni.version>1.5.6-10</zstd-jni.version>
+        <zstd-jni.version>1.5.7-15</zstd-jni.version>
         <lz4-java.version>1.10.1</lz4-java.version>
         <snappy-java.version>1.1.10.7</snappy-java.version>
         <kroxy.extension.version>0.16.0</kroxy.extension.version>
