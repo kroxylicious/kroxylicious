@@ -1,20 +1,54 @@
 # CHANGELOG
 
-This changelog enumerates **all user-facing** changes made to Kroxylicious, in reverse chronological order.
+This changelog enumerates **all user-facing** changes made to Kroxylicious.
 For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#deprecation-policy) is followed.
 
 Format `<github issue/pr number>: <short description>`.
 
-## SNAPSHOT
+## 0.24.0
 
-* [#3759](https://github.com/kroxylicious/kroxylicious/issues/3759): fix(authorization): use client-negotiated version for internal metadata request
+* [#1121](https://github.com/kroxylicious/kroxylicious/issues/1121): feat(filters): add ProtocolLogger filter for wire-level request/response tracing
+* [#4156](https://github.com/kroxylicious/kroxylicious/issues/4156): feat(runtime): **Preview** — per-route filter chains
+* [#4465](https://github.com/kroxylicious/kroxylicious/pull/4465): Adding OCI annotations to the published images
+* [#4515](https://github.com/kroxylicious/kroxylicious/issues/4515): feat(runtime): add per-mechanism authentication outcome metrics
+* [#4516](https://github.com/kroxylicious/kroxylicious/issues/4516): feat(scram-credential-store): add SCRAM credential store SPI
+* [#4519](https://github.com/kroxylicious/kroxylicious/issues/4519): feat(sasl-termination): add SASL termination filter with OAUTHBEARER
+* [#4685](https://github.com/kroxylicious/kroxylicious/pull/4685): feat(kroxylicious-api): Kroxylicious begins owning its Kafka protocol classes independently of kafka-clients
+* [#4683](https://github.com/kroxylicious/kroxylicious/pull/4683): feat(sasl-termination): add SCRAM-SHA-256 and SCRAM-SHA-512 mechanism support
+* [#4468](https://github.com/kroxylicious/kroxylicious/issues/4468): build(release): stop publishing dist artefacts to Maven Central
+* [#4469](https://github.com/kroxylicious/kroxylicious/issues/4469): build(release): stop publishing operator/admission jars to Maven Central
 * [#3783](https://github.com/kroxylicious/kroxylicious/issues/3783): fix(config): remove deprecated `shutdownQuietPeriodSeconds` field from `NettySettings`.
+* [#3895](https://github.com/kroxylicious/kroxylicious/issues/3895): ci(release): remove legacy `quay.io/kroxylicious/kroxylicious` image push
+* [#4494](https://github.com/kroxylicious/kroxylicious/issues/4494): refactor(api): remove deprecated four-argument filter methods
+* [#3759](https://github.com/kroxylicious/kroxylicious/issues/3759): fix(authorization): use client-negotiated version for internal metadata request
+* [#4464](https://github.com/kroxylicious/kroxylicious/issues/4464): fix(kms): apply missing HTTP request timeouts and standardize KMS provider timeouts to 20s
+* [#4524](https://github.com/kroxylicious/kroxylicious/pull/4524): fix(routing): route-filter onResponse and OOB sendRequest now work correctly with dynamic routing
+* [#4600](https://github.com/kroxylicious/kroxylicious/pull/4600): fix(routing): nodeForId and virtualNode preserve virtual broker ID
 
 ### Changes, deprecations and removals
 
+* [#4156](https://github.com/kroxylicious/kroxylicious/issues/4156): Routes in `routerDefinitions` can now declare their own `filters` list;
+  these filters apply only to traffic on that route, executing after virtual-cluster-level filters.
+  Route filter definition changes are detected during hot reload.
+* [#4685](https://github.com/kroxylicious/kroxylicious/pull/4685): Groundwork only, not yet actionable: kroxylicious-api now builds its own copy of the
+  Kafka protocol data classes under io.kroxylicious.kafka.*, instead of relying solely
+  on kafka-clients' org.apache.kafka.* types. The Filter API and other plugin-facing
+  interfaces are unchanged by this PR and continue to use org.apache.kafka.* types for
+  now. It will eventually migrate to the io.kroxylicious.kafka.* types, which will
+  require a mechanical import replacement for plugin authors.
+* [#4468](https://github.com/kroxylicious/kroxylicious/issues/4468): `kroxylicious-app` (fat jar, `-bin.zip`, `-bin.tar.gz`), `kroxylicious-operator-dist`, and
+  `kroxylicious-admission-dist` (zip, tar.gz) are no longer published to Maven Central. We do not expect these artefacts to be consumed as Maven dependencies, please raise an issue if this affects you. We continue to publish them via GitHub Releases.
+* [#4469](https://github.com/kroxylicious/kroxylicious/issues/4469): `kroxylicious-operator` and `kroxylicious-admission` are no longer published to Maven Central.
+  We do not expect these artefacts to be consumed as Maven dependencies, please raise an issue if
+  this affects you. We continue to publish container images to quay.io and distribution tarballs
+  via GitHub Releases.
 * [#3783](https://github.com/kroxylicious/kroxylicious/issues/3783): The `shutdownQuietPeriodSeconds` field under `network.proxy` and `network.management` is removed.
   Use the new `shutdownQuietPeriod` field instead, which accepts Go-style durations (e.g. `"2s"`, `"500ms"`) and adds support for sub-second precision.
   A new `shutdownTimeout` field is also available to configure the previously hardcoded 15-second Netty shutdown timeout.
+* [#3895](https://github.com/kroxylicious/kroxylicious/issues/3895): The deprecated `quay.io/kroxylicious/kroxylicious` proxy container image is no longer published.
+  Use `quay.io/kroxylicious/proxy` instead.
+* [#4494](https://github.com/kroxylicious/kroxylicious/issues/4494): The four-argument `RequestFilter.onRequest` and `ResponseFilter.onResponse` methods have been removed.
+  Filter implementations must use the five-argument variants that include the API version.
 
 ## 0.23.0
 
