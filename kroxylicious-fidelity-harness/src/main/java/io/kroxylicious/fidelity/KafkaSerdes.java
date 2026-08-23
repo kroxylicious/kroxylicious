@@ -30,9 +30,9 @@ public final class KafkaSerdes {
      */
     public static byte[] write(Message message, short version) {
         ObjectSerializationCache cache = new ObjectSerializationCache();
-        MessageSizeAccumulator size = new MessageSizeAccumulator();
-        message.addSize(size, cache, version);
-        ByteBuffer buffer = ByteBuffer.allocate(size.totalSize());
+        MessageSizeAccumulator accumulator = new MessageSizeAccumulator();
+        message.addSize(accumulator, cache, version);
+        ByteBuffer buffer = ByteBuffer.allocate(accumulator.totalSize());
         message.write(new ByteBufferAccessor(buffer), cache, version);
         return MessageSerdesUtil.asByteArray(buffer);
     }
