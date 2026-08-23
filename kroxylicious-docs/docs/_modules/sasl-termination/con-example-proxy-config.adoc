@@ -33,8 +33,8 @@ filterDefinitions:
           credentialStore: ScramCredentialFileService
           credentialStoreConfig:
             file: /etc/kroxylicious/scram-credentials.p12
-            storePassword:
-              passwordFile: /etc/kroxylicious/keystore-password.txt
+            filePassword:
+              passwordFile: /etc/kroxylicious/file-password.txt
       maxTimeBeforeReauth: 1h
       fixedAuthDelay: 200ms
       subjectBuilder: <class name>
@@ -88,7 +88,7 @@ Use the SCRAM credential tool to create and populate this file.
 See <<proc-managing-scram-credentials-{context}>> for instructions.
 
 * `file` (required) specifies the path to the proxy SCRAM credential file.
-* `storePassword` (required) specifies the password used to access the KeyStore, using a `PasswordProvider`:
+* `filePassword` (required) specifies the password used to access the SCRAM credential file, using a `PasswordProvider`:
 ** `passwordFile` specifies the path to a file containing the password.
 This is the recommended approach for production deployments.
 ** `password` specifies the password inline.

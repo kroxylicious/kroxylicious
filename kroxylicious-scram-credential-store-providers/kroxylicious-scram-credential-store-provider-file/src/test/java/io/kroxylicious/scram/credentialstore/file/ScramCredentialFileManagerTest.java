@@ -8,7 +8,6 @@ package io.kroxylicious.scram.credentialstore.file;
 
 import java.nio.file.Path;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
 import java.util.List;
 
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
@@ -103,7 +102,7 @@ class ScramCredentialFileManagerTest {
 
         // When/Then
         assertThatThrownBy(() -> manager.removeUser(keystorePath, KEYSTORE_PASSWORD, "alice"))
-                .isInstanceOf(KeyStoreException.class)
+                .isInstanceOf(ScramCredentialFileException.class)
                 .hasMessageContaining("User 'alice' not found");
     }
 
@@ -139,7 +138,7 @@ class ScramCredentialFileManagerTest {
 
         // When/Then
         assertThatThrownBy(() -> manager.updatePassword(keystorePath, KEYSTORE_PASSWORD, "alice", "new-password-456", ScramMechanism.SCRAM_SHA_256))
-                .isInstanceOf(KeyStoreException.class)
+                .isInstanceOf(ScramCredentialFileException.class)
                 .hasMessageContaining("User 'alice' not found");
     }
 
@@ -199,8 +198,8 @@ class ScramCredentialFileManagerTest {
 
         // When/Then
         assertThatThrownBy(() -> manager.createKeyStore(keystorePath, KEYSTORE_PASSWORD))
-                .isInstanceOf(KeyStoreException.class)
-                .hasMessageContaining("KeyStore file already exists");
+                .isInstanceOf(ScramCredentialFileException.class)
+                .hasMessageContaining("SCRAM credential file already exists");
     }
 
     @Test
@@ -211,8 +210,8 @@ class ScramCredentialFileManagerTest {
 
         // When/Then
         assertThatThrownBy(() -> manager.addUser(keystorePath, KEYSTORE_PASSWORD, "alice", USER_PASSWORD, ScramMechanism.SCRAM_SHA_256))
-                .isInstanceOf(KeyStoreException.class)
-                .hasMessageContaining("KeyStore file not found");
+                .isInstanceOf(ScramCredentialFileException.class)
+                .hasMessageContaining("SCRAM credential file not found");
     }
 
     // Password validation tests
@@ -226,7 +225,7 @@ class ScramCredentialFileManagerTest {
         // When/Then
         assertThatThrownBy(() -> manager.createKeyStore(keystorePath, "short"))
                 .isInstanceOf(CredentialValidationException.class)
-                .hasMessageContaining("KeyStore password must be at least 12 characters long")
+                .hasMessageContaining("File password must be at least 12 characters long")
                 .hasMessageContaining("NIST recommends");
     }
 

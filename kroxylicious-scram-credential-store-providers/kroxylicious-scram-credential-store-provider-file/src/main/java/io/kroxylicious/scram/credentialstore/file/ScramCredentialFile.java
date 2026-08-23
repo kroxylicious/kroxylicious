@@ -34,9 +34,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
- * KeyStore-based implementation of {@link ScramCredentialStore}.
+ * File-based implementation of {@link ScramCredentialStore}, backed by a Java KeyStore.
  * <p>
- * Loads all SCRAM credentials from a Java KeyStore file into memory at construction time.
+ * Loads all SCRAM credentials from a proxy SCRAM credential file into memory at construction time.
  * Credentials are stored as {@link javax.crypto.SecretKey} entries with a hex-encoded SHA-256 hash of the
  * username as the alias. The original username is stored within the JSON payload.
  * </p>
@@ -51,10 +51,10 @@ public class ScramCredentialFile implements ScramCredentialStore {
     private final byte[] phantomSaltKey;
 
     /**
-     * Create a new KeyStore-based credential store.
+     * Create a new file-based credential store.
      *
      * @param config the configuration
-     * @throws CredentialServiceUnavailableException if the KeyStore cannot be loaded
+     * @throws CredentialServiceUnavailableException if the SCRAM credential file cannot be loaded
      */
     public ScramCredentialFile(ScramCredentialFileConfig config) throws CredentialServiceUnavailableException {
         this.serializer = new ScramCredentialSerializer();
@@ -62,13 +62,13 @@ public class ScramCredentialFile implements ScramCredentialStore {
         this.credentialCache = loaded.credentials;
         if (loaded.phantomSaltKey == null) {
             throw new CredentialServiceUnavailableException(
-                    "KeyStore at " + config.file() + " does not contain a phantom salt key. Recreate the KeyStore using the CLI tool.");
+                    "SCRAM credential file at " + config.file() + " does not contain a phantom salt key. Recreate the file using the CLI tool.");
         }
         this.phantomSaltKey = loaded.phantomSaltKey;
         LOGGER.atInfo()
                 .addKeyValue("count", credentialCache.size())
                 .addKeyValue("file", config.file())
-                .log("Loaded SCRAM credentials from KeyStore");
+                .log("Loaded SCRAM credentials from file");
     }
 
     @Override
@@ -121,7 +121,7 @@ public class ScramCredentialFile implements ScramCredentialStore {
         try {
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
 
-            char[] storePassword = config.storePassword().getProvidedPassword().toCharArray();
+            char[] storePassword = config.filePassword().getProvidedPassword().toCharArray();
             try {
                 try (FileInputStream fis = new FileInputStream(config.file())) {
                     keyStore.load(fis, storePassword);
@@ -134,7 +134,7 @@ public class ScramCredentialFile implements ScramCredentialStore {
         }
         catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
             throw new CredentialServiceUnavailableException(
-                    "Failed to load KeyStore from: " + config.file(), e);
+                    "Failed to load SCRAM credential file: " + config.file(), e);
         }
     }
 
@@ -161,7 +161,7 @@ public class ScramCredentialFile implements ScramCredentialStore {
             return new LoadResult(Collections.unmodifiableMap(credentials), phantomKey);
         }
         catch (KeyStoreException | NoSuchAlgorithmException e) {
-            throw new CredentialServiceUnavailableException("Failed to extract credentials from KeyStore", e);
+            throw new CredentialServiceUnavailableException("Failed to extract credentials from SCRAM credential file", e);
         }
     }
 
@@ -198,7 +198,7 @@ public class ScramCredentialFile implements ScramCredentialStore {
         }
         catch (UnrecoverableEntryException e) {
             throw new CredentialServiceUnavailableException(
-                    "Failed to recover KeyStore entry for alias '" + alias + "' - incorrect store password?", e);
+                    "Failed to recover credential entry for alias '" + alias + "' - incorrect file password?", e);
         }
     }
 
@@ -210,7 +210,7 @@ public class ScramCredentialFile implements ScramCredentialStore {
         }
         catch (IllegalArgumentException e) {
             throw new CredentialServiceUnavailableException(
-                    "Malformed credential in KeyStore entry for alias '" + alias + "'", e);
+                    "Malformed credential entry for alias '" + alias + "'", e);
         }
     }
 }

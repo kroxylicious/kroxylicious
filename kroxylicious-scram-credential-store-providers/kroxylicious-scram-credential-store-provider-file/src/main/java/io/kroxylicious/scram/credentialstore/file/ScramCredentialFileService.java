@@ -16,9 +16,9 @@ import io.kroxylicious.scram.credentialstore.ScramCredentialStoreService;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Service for creating KeyStore-based SCRAM credential stores.
+ * Service for creating file-based SCRAM credential stores, backed by a Java KeyStore.
  * <p>
- * This service loads credentials from a Java KeyStore file. The KeyStore should contain
+ * This service loads credentials from a proxy SCRAM credential file. The file should contain
  * {@link javax.crypto.SecretKey} entries where:
  * </p>
  * <ul>
@@ -28,11 +28,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * <h2>Configuration</h2>
  * <pre>{@code
- * credentialStore: ScramCredentialFile
+ * credentialStore: ScramCredentialFileService
  * credentialStoreConfig:
  *   file: /path/to/credentials.p12
- *   storePassword:
- *     passwordFile: /etc/kroxylicious/keystore-password.txt
+ *   filePassword:
+ *     passwordFile: /etc/kroxylicious/file-password.txt
  * }</pre>
  *
  * <h2>Lifecycle</h2>
@@ -71,7 +71,7 @@ public class ScramCredentialFileService implements ScramCredentialStoreService<S
         this.config = config;
         this.initialized = true;
 
-        LOGGER.atInfo().addKeyValue("file", config.file()).log("Initialized KeyStore credential store service");
+        LOGGER.atInfo().addKeyValue("file", config.file()).log("Initialized SCRAM credential file service");
     }
 
     @Override
@@ -98,6 +98,6 @@ public class ScramCredentialFileService implements ScramCredentialStoreService<S
         }
 
         closed = true;
-        LOGGER.info("Closed KeyStore credential store service");
+        LOGGER.info("Closed SCRAM credential file service");
     }
 }

@@ -32,16 +32,16 @@ class ScramCredentialFileToolIT {
 
         // Create keystore
         var createResult = executeCommand("--unlock-insecure-options", "create",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         assertThat(createResult.exitCode()).isZero();
-        assertThat(createResult.stdout()).contains("KeyStore created successfully");
+        assertThat(createResult.stdout()).contains("SCRAM credential file created successfully");
         assertThat(keystorePath).exists();
 
         // List users (should be empty)
         var listResult = executeCommand("--unlock-insecure-options", "list-users",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         assertThat(listResult.exitCode()).isZero();
@@ -54,12 +54,12 @@ class ScramCredentialFileToolIT {
 
         // Create keystore first
         executeCommand("--unlock-insecure-options", "create",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         // Add user
         var addResult = executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "alice-secret");
@@ -69,12 +69,12 @@ class ScramCredentialFileToolIT {
 
         // List users
         var listResult = executeCommand("--unlock-insecure-options", "list-users",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         assertThat(listResult.exitCode()).isZero();
         assertThat(listResult.stdout())
-                .contains("Users in KeyStore (1):")
+                .contains("Users in SCRAM credential file (1):")
                 .contains("alice")
                 .contains("SCRAM-SHA-256")
                 .contains("iterations=10000");
@@ -84,34 +84,34 @@ class ScramCredentialFileToolIT {
     void shouldAddMultipleUsersAndListInOrder(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-f", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
         // Add users in non-alphabetical order
         executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "zebra",
                 "-w", "password-secure");
 
         executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "password-secure");
 
         executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "mike",
                 "-w", "password-secure");
 
         // List should be sorted
         var listResult = executeCommand("--unlock-insecure-options", "list-users",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         assertThat(listResult.exitCode()).isZero();
-        assertThat(listResult.stdout()).contains("Users in KeyStore (3):");
+        assertThat(listResult.stdout()).contains("Users in SCRAM credential file (3):");
 
         // Extract lines and verify order
         var lines = listResult.stdout().lines().toList();
@@ -127,21 +127,21 @@ class ScramCredentialFileToolIT {
     void shouldRemoveUser(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-f", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
         executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "password-secure");
         executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "bob",
                 "-w", "password-secure");
 
         // Remove alice
         var removeResult = executeCommand("--unlock-insecure-options", "remove-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice");
 
@@ -150,7 +150,7 @@ class ScramCredentialFileToolIT {
 
         // List should only show bob
         var listResult = executeCommand("--unlock-insecure-options", "list-users",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         assertThat(listResult.exitCode()).isZero();
@@ -163,16 +163,16 @@ class ScramCredentialFileToolIT {
     void shouldUpdatePassword(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-f", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
         executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "old-password");
 
         // Update password
         var updateResult = executeCommand("--unlock-insecure-options", "update-password",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "new-password");
@@ -182,7 +182,7 @@ class ScramCredentialFileToolIT {
 
         // User should still exist
         var listResult = executeCommand("--unlock-insecure-options", "list-users",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         assertThat(listResult.exitCode()).isZero();
@@ -193,10 +193,10 @@ class ScramCredentialFileToolIT {
     void shouldFailWhenRemovingNonExistentUser(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-f", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
         var removeResult = executeCommand("--unlock-insecure-options", "remove-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "nonexistent");
 
@@ -210,10 +210,10 @@ class ScramCredentialFileToolIT {
     void shouldFailWhenUpdatingNonExistentUser(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-f", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
         var updateResult = executeCommand("--unlock-insecure-options", "update-password",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "nonexistent",
                 "-w", "password-secure");
@@ -229,7 +229,7 @@ class ScramCredentialFileToolIT {
         Path keystorePath = tempDir.resolve("nonexistent.p12");
 
         var addResult = executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "password-secure");
@@ -237,7 +237,7 @@ class ScramCredentialFileToolIT {
         assertThat(addResult.exitCode()).isEqualTo(1);
         assertThat(addResult.stderr())
                 .contains("Failed to add user")
-                .contains("KeyStore file not found");
+                .contains("SCRAM credential file not found");
     }
 
     @ParameterizedTest
@@ -245,10 +245,10 @@ class ScramCredentialFileToolIT {
     void shouldSupportScramMechanism(String mechanism, @TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-f", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
         var addResult = executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "password-secure",
@@ -262,10 +262,10 @@ class ScramCredentialFileToolIT {
     void shouldListUsersWithDifferentMechanismsAndIterations(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-f", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
         executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "alice-secret-password",
@@ -273,7 +273,7 @@ class ScramCredentialFileToolIT {
                 "-i", "8192");
 
         executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "bob",
                 "-w", "bob-secret-password",
@@ -282,13 +282,13 @@ class ScramCredentialFileToolIT {
 
         // When
         var listResult = executeCommand("--unlock-insecure-options", "list-users",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         // Then
         assertThat(listResult.exitCode()).isZero();
         assertThat(listResult.stdout())
-                .contains("Users in KeyStore (2):")
+                .contains("Users in SCRAM credential file (2):")
                 .contains("alice")
                 .contains("SCRAM-SHA-256")
                 .contains("iterations=8192")
@@ -301,11 +301,11 @@ class ScramCredentialFileToolIT {
     void shouldAddUserWithCustomIterations(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-f", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
         // When
         var addResult = executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "alice-secret-password",
@@ -320,11 +320,11 @@ class ScramCredentialFileToolIT {
     void shouldRejectIterationsBelowMinimum(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-f", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
         // When
         var addResult = executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "alice-secret-password",
@@ -339,10 +339,10 @@ class ScramCredentialFileToolIT {
     void shouldRejectOversizedUsernameOnAdd(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-f", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
         var addResult = executeCommand("--unlock-insecure-options", "add-user",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "a".repeat(256),
                 "-w", "password-for-long-user");
@@ -372,7 +372,7 @@ class ScramCredentialFileToolIT {
 
         // Try to create keystore with password option but without unlock flag
         var result = executeCommand("create",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         assertThat(result.exitCode()).isEqualTo(2);
@@ -387,7 +387,7 @@ class ScramCredentialFileToolIT {
 
         // Create with unlock flag - should warn
         var result = executeCommand("--unlock-insecure-options", "create",
-                "-k", keystorePath.toString(),
+                "-f", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         assertThat(result.exitCode()).isZero();

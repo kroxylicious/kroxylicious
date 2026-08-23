@@ -265,7 +265,7 @@ class SaslTerminationScramIT extends BaseIT {
                                 "credentialStore", ScramCredentialFileService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
-                                        "storePassword", Map.of("password", KEYSTORE_PASSWORD)))),
+                                        "filePassword", Map.of("password", KEYSTORE_PASSWORD)))),
                         "maxTimeBeforeReauth", maxTimeBeforeReauth.toSeconds() + "s")
                 .build();
     }
@@ -521,7 +521,7 @@ class SaslTerminationScramIT extends BaseIT {
                                 "credentialStore", ScramCredentialFileService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
-                                        "storePassword", Map.of("password", KEYSTORE_PASSWORD)))))
+                                        "filePassword", Map.of("password", KEYSTORE_PASSWORD)))))
                 .build();
     }
 

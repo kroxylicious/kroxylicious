@@ -11,14 +11,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
 /**
- * Configuration for KeyStore-based SCRAM credential store.
+ * Configuration for a proxy SCRAM credential file (backed by a Java KeyStore).
  *
- * @param file path to the Java KeyStore file
- * @param storePassword password provider for the KeyStore (also used for individual key entries)
+ * @param file path to the proxy SCRAM credential file
+ * @param filePassword password provider for the SCRAM credential file (also used to protect individual KeyStore entries)
  */
 public record ScramCredentialFileConfig(
                                         @JsonProperty(required = true) String file,
-                                        @JsonProperty(required = true) PasswordProvider storePassword) {
+                                        @JsonProperty(required = true) PasswordProvider filePassword) {
 
     /**
      * Canonical constructor with validation.
@@ -30,8 +30,8 @@ public record ScramCredentialFileConfig(
         if (file.isEmpty()) {
             throw new IllegalArgumentException("file must not be empty");
         }
-        if (storePassword == null) {
-            throw new IllegalArgumentException("storePassword must not be null");
+        if (filePassword == null) {
+            throw new IllegalArgumentException("filePassword must not be null");
         }
     }
 }

@@ -8,13 +8,13 @@ package io.kroxylicious.scram.credentialstore.file.cli;
 
 import java.io.Console;
 import java.nio.file.Path;
-import java.security.KeyStoreException;
 import java.util.List;
 import java.util.concurrent.Callable;
 
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 
 import io.kroxylicious.scram.credentialstore.file.CredentialValidationException;
+import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileException;
 import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileManager;
 
 import picocli.CommandLine;
@@ -32,19 +32,19 @@ import picocli.CommandLine.ParentCommand;
  * </p>
  * <pre>{@code
  * # Create a new credential file
- * scram-credential-file-tool create -k credentials.p12 -p password
+ * scram-credential-file-tool create -f credentials.p12 -p password
  *
  * # Add a user
- * scram-credential-file-tool add-user -k credentials.p12 -p password -u alice -w alice-secret
+ * scram-credential-file-tool add-user -f credentials.p12 -p password -u alice -w alice-secret
  *
  * # List users
- * scram-credential-file-tool list-users -k credentials.p12 -p password
+ * scram-credential-file-tool list-users -f credentials.p12 -p password
  *
  * # Update password
- * scram-credential-file-tool update-password -k credentials.p12 -p password -u alice -w new-password
+ * scram-credential-file-tool update-password -f credentials.p12 -p password -u alice -w new-password
  *
  * # Remove user
- * scram-credential-file-tool remove-user -k credentials.p12 -p password -u alice
+ * scram-credential-file-tool remove-user -f credentials.p12 -p password -u alice
  * }</pre>
  */
 @Command(name = "scram-credential-file-tool", description = "Manage SCRAM credentials in proxy SCRAM credential files", mixinStandardHelpOptions = true, subcommands = {
@@ -57,7 +57,7 @@ import picocli.CommandLine.ParentCommand;
 })
 public class ScramCredentialFileTool implements Callable<Integer> {
 
-    private static final String KEYSTORE_PASSWORD_PROMPT = "KeyStore password";
+    private static final String FILE_PASSWORD_PROMPT = "File password";
 
     /** Creates a new instance; called by picocli. */
     public ScramCredentialFileTool() {
@@ -155,9 +155,9 @@ public class ScramCredentialFileTool implements Callable<Integer> {
     }
 
     /**
-     * Create a new KeyStore file.
+     * Create a new SCRAM credential file.
      */
-    @Command(name = "create", description = "Create a new KeyStore file", sortOptions = false, sortSynopsis = false)
+    @Command(name = "create", description = "Create a new SCRAM credential file", sortOptions = false, sortSynopsis = false)
     static class CreateCommand implements Callable<Integer> {
 
         @ParentCommand
@@ -166,34 +166,34 @@ public class ScramCredentialFileTool implements Callable<Integer> {
         @CommandLine.Spec
         CommandLine.Model.CommandSpec spec;
 
-        @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
-        Path keystorePath;
+        @Option(names = { "-f", "--file" }, description = "Path to the proxy SCRAM credential file", required = true)
+        Path filePath;
 
-        @Option(names = { "-p", "--password" }, description = "Optional store password; requires --unlock-insecure-options. "
-                + "When omitted the store password will be prompted for interactively.")
+        @Option(names = { "-p", "--password" }, description = "Optional file password; requires --unlock-insecure-options. "
+                + "When omitted the file password will be prompted for interactively.")
         String password;
 
         @Override
         public Integer call() {
             return executeCommand(() -> {
-                String keystorePassword = getPassword(
+                String filePassword = getPassword(
                         password,
                         parent.unlockInsecureOptions,
-                        KEYSTORE_PASSWORD_PROMPT,
+                        FILE_PASSWORD_PROMPT,
                         true,
                         spec.commandLine().getErr());
 
                 ScramCredentialFileManager manager = new ScramCredentialFileManager();
-                manager.createKeyStore(keystorePath, keystorePassword);
-                spec.commandLine().getOut().println("KeyStore created successfully: " + keystorePath);
-            }, "Failed to create KeyStore", spec.commandLine().getErr());
+                manager.createKeyStore(filePath, filePassword);
+                spec.commandLine().getOut().println("SCRAM credential file created successfully: " + filePath);
+            }, "Failed to create SCRAM credential file", spec.commandLine().getErr());
         }
     }
 
     /**
-     * Add a user to a KeyStore.
+     * Add a user to a SCRAM credential file.
      */
-    @Command(name = "add-user", description = "Add a user to the KeyStore", sortOptions = false, sortSynopsis = false)
+    @Command(name = "add-user", description = "Add a user to the SCRAM credential file", sortOptions = false, sortSynopsis = false)
     static class AddUserCommand implements Callable<Integer> {
 
         @ParentCommand
@@ -202,8 +202,8 @@ public class ScramCredentialFileTool implements Callable<Integer> {
         @CommandLine.Spec
         CommandLine.Model.CommandSpec spec;
 
-        @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
-        Path keystorePath;
+        @Option(names = { "-f", "--file" }, description = "Path to the proxy SCRAM credential file", required = true)
+        Path filePath;
 
         @Option(names = { "-u", "--username" }, description = "Username to add", required = true)
         String username;
@@ -216,9 +216,9 @@ public class ScramCredentialFileTool implements Callable<Integer> {
                 "--iterations" }, description = "Optional PBKDF2 iteration count (default: ${DEFAULT-VALUE}, minimum: 4096)", defaultValue = "10000")
         int iterations;
 
-        @Option(names = { "-p", "--password" }, description = "Optional store password; requires --unlock-insecure-options. "
-                + "When omitted the store password will be prompted for interactively.")
-        String storePassword;
+        @Option(names = { "-p", "--password" }, description = "Optional file password; requires --unlock-insecure-options. "
+                + "When omitted the file password will be prompted for interactively.")
+        String filePassword;
 
         @Option(names = { "-w", "--user-password" }, description = "Optional user's password; requires --unlock-insecure-options. "
                 + "When omitted the user password will be prompted for interactively.")
@@ -227,10 +227,10 @@ public class ScramCredentialFileTool implements Callable<Integer> {
         @Override
         public Integer call() {
             return executeCommand(() -> {
-                String keystorePassword = getPassword(
-                        storePassword,
+                String resolvedFilePassword = getPassword(
+                        filePassword,
                         parent.unlockInsecureOptions,
-                        KEYSTORE_PASSWORD_PROMPT,
+                        FILE_PASSWORD_PROMPT,
                         false,
                         spec.commandLine().getErr());
 
@@ -242,16 +242,16 @@ public class ScramCredentialFileTool implements Callable<Integer> {
                         spec.commandLine().getErr());
 
                 ScramCredentialFileManager manager = new ScramCredentialFileManager();
-                manager.addUser(keystorePath, keystorePassword, username, password, mechanism.toScramMechanism(), iterations);
+                manager.addUser(filePath, resolvedFilePassword, username, password, mechanism.toScramMechanism(), iterations);
                 spec.commandLine().getOut().println("User '" + username + "' added successfully");
             }, "Failed to add user", spec.commandLine().getErr());
         }
     }
 
     /**
-     * Remove a user from a KeyStore.
+     * Remove a user from a SCRAM credential file.
      */
-    @Command(name = "remove-user", description = "Remove a user from the KeyStore", sortOptions = false, sortSynopsis = false)
+    @Command(name = "remove-user", description = "Remove a user from the SCRAM credential file", sortOptions = false, sortSynopsis = false)
     static class RemoveUserCommand implements Callable<Integer> {
 
         @ParentCommand
@@ -260,28 +260,28 @@ public class ScramCredentialFileTool implements Callable<Integer> {
         @CommandLine.Spec
         CommandLine.Model.CommandSpec spec;
 
-        @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
-        Path keystorePath;
+        @Option(names = { "-f", "--file" }, description = "Path to the proxy SCRAM credential file", required = true)
+        Path filePath;
 
         @Option(names = { "-u", "--username" }, description = "Username to remove", required = true)
         String username;
 
-        @Option(names = { "-p", "--password" }, description = "Optional store password; requires --unlock-insecure-options. "
-                + "When omitted the store password will be prompted for interactively.")
+        @Option(names = { "-p", "--password" }, description = "Optional file password; requires --unlock-insecure-options. "
+                + "When omitted the file password will be prompted for interactively.")
         String password;
 
         @Override
         public Integer call() {
             return executeCommand(() -> {
-                String keystorePassword = getPassword(
+                String filePassword = getPassword(
                         password,
                         parent.unlockInsecureOptions,
-                        KEYSTORE_PASSWORD_PROMPT,
+                        FILE_PASSWORD_PROMPT,
                         false,
                         spec.commandLine().getErr());
 
                 ScramCredentialFileManager manager = new ScramCredentialFileManager();
-                manager.removeUser(keystorePath, keystorePassword, username);
+                manager.removeUser(filePath, filePassword, username);
                 spec.commandLine().getOut().println("User '" + username + "' removed successfully");
             }, "Failed to remove user", spec.commandLine().getErr());
         }
@@ -299,8 +299,8 @@ public class ScramCredentialFileTool implements Callable<Integer> {
         @CommandLine.Spec
         CommandLine.Model.CommandSpec spec;
 
-        @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
-        Path keystorePath;
+        @Option(names = { "-f", "--file" }, description = "Path to the proxy SCRAM credential file", required = true)
+        Path filePath;
 
         @Option(names = { "-u", "--username" }, description = "Username", required = true)
         String username;
@@ -313,9 +313,9 @@ public class ScramCredentialFileTool implements Callable<Integer> {
                 "--iterations" }, description = "Optional PBKDF2 iteration count (default: ${DEFAULT-VALUE}, minimum: 4096)", defaultValue = "10000")
         int iterations;
 
-        @Option(names = { "-p", "--password" }, description = "Optional store password; requires --unlock-insecure-options. "
-                + "When omitted the store password will be prompted for interactively.")
-        String storePassword;
+        @Option(names = { "-p", "--password" }, description = "Optional file password; requires --unlock-insecure-options. "
+                + "When omitted the file password will be prompted for interactively.")
+        String filePassword;
 
         @Option(names = { "-w", "--new-password" }, description = "Optional new password for the user; requires --unlock-insecure-options. "
                 + "When omitted the new user password will be prompted for interactively.")
@@ -324,10 +324,10 @@ public class ScramCredentialFileTool implements Callable<Integer> {
         @Override
         public Integer call() {
             return executeCommand(() -> {
-                String keystorePassword = getPassword(
-                        storePassword,
+                String resolvedFilePassword = getPassword(
+                        filePassword,
                         parent.unlockInsecureOptions,
-                        KEYSTORE_PASSWORD_PROMPT,
+                        FILE_PASSWORD_PROMPT,
                         false,
                         spec.commandLine().getErr());
 
@@ -339,16 +339,16 @@ public class ScramCredentialFileTool implements Callable<Integer> {
                         spec.commandLine().getErr());
 
                 ScramCredentialFileManager manager = new ScramCredentialFileManager();
-                manager.updatePassword(keystorePath, keystorePassword, username, password, mechanism.toScramMechanism(), iterations);
+                manager.updatePassword(filePath, resolvedFilePassword, username, password, mechanism.toScramMechanism(), iterations);
                 spec.commandLine().getOut().println("Password for user '" + username + "' updated successfully");
             }, "Failed to update password", spec.commandLine().getErr());
         }
     }
 
     /**
-     * List all users in a KeyStore.
+     * List all users in a SCRAM credential file.
      */
-    @Command(name = "list-users", description = "List all users in the KeyStore", sortOptions = false, sortSynopsis = false)
+    @Command(name = "list-users", description = "List all users in the SCRAM credential file", sortOptions = false, sortSynopsis = false)
     static class ListUsersCommand implements Callable<Integer> {
 
         @ParentCommand
@@ -357,30 +357,31 @@ public class ScramCredentialFileTool implements Callable<Integer> {
         @CommandLine.Spec
         CommandLine.Model.CommandSpec spec;
 
-        @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
-        Path keystorePath;
+        @Option(names = { "-f", "--file" }, description = "Path to the proxy SCRAM credential file", required = true)
+        Path filePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password; requires --unlock-insecure-options (omit to be prompted interactively)")
+        @Option(names = { "-p", "--password" }, description = "Optional file password; requires --unlock-insecure-options. "
+                + "When omitted the file password will be prompted for interactively.")
         String password;
 
         @Override
         public Integer call() {
             return executeCommand(() -> {
-                String keystorePassword = getPassword(
+                String filePassword = getPassword(
                         password,
                         parent.unlockInsecureOptions,
-                        KEYSTORE_PASSWORD_PROMPT,
+                        FILE_PASSWORD_PROMPT,
                         false,
                         spec.commandLine().getErr());
 
                 ScramCredentialFileManager manager = new ScramCredentialFileManager();
-                List<ScramCredentialFileManager.UserCredentialInfo> credentials = manager.listCredentials(keystorePath, keystorePassword);
+                List<ScramCredentialFileManager.UserCredentialInfo> credentials = manager.listCredentials(filePath, filePassword);
 
                 if (credentials.isEmpty()) {
-                    spec.commandLine().getOut().println("No users found in KeyStore");
+                    spec.commandLine().getOut().println("No users found in SCRAM credential file");
                 }
                 else {
-                    spec.commandLine().getOut().println("Users in KeyStore (" + credentials.size() + "):");
+                    spec.commandLine().getOut().println("Users in SCRAM credential file (" + credentials.size() + "):");
                     for (var info : credentials) {
                         spec.commandLine().getOut().println("  " + info.username() + "  " + info.mechanism() + "  iterations=" + info.iterations());
                     }
@@ -423,20 +424,20 @@ public class ScramCredentialFileTool implements Callable<Integer> {
     }
 
     /**
-     * Action that may throw {@link KeyStoreException}.
+     * Action that may throw {@link ScramCredentialFileException}.
      */
     @FunctionalInterface
     interface CommandAction {
-        void execute() throws KeyStoreException;
+        void execute() throws ScramCredentialFileException;
     }
 
     /**
      * Execute a command action with standardised error handling.
      *
      * @param action the action to execute
-     * @param errorContext context string for KeyStoreException messages (e.g. "Failed to create KeyStore")
+     * @param errorContext context string for ScramCredentialFileException messages (e.g. "Failed to create SCRAM credential file")
      * @param err the error stream
-     * @return exit code: 0 for success, 1 for validation/keystore errors, 2 for input errors
+     * @return exit code: 0 for success, 1 for validation/credential-file errors, 2 for input errors
      */
     static int executeCommand(CommandAction action, String errorContext, java.io.PrintWriter err) {
         try {
@@ -451,7 +452,7 @@ public class ScramCredentialFileTool implements Callable<Integer> {
             printError(err, e.getMessage());
             return 2;
         }
-        catch (KeyStoreException e) {
+        catch (ScramCredentialFileException e) {
             printError(err, formatError(errorContext, e));
             return 1;
         }

@@ -31,9 +31,9 @@ class ScramCredentialFileConfigTest {
     }
 
     @Test
-    void shouldRejectNullStorePassword() {
+    void shouldRejectNullFilePassword() {
         assertThatThrownBy(() -> new ScramCredentialFileConfig("keystore.p12", null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("storePassword must not be null");
+                .hasMessageContaining("filePassword must not be null");
     }
 }

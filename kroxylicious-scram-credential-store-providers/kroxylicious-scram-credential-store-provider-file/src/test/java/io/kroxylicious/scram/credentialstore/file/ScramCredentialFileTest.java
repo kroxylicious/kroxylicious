@@ -130,7 +130,7 @@ class ScramCredentialFileTest {
 
         assertThatThrownBy(() -> new ScramCredentialFile(badConfig))
                 .isInstanceOf(CredentialServiceUnavailableException.class)
-                .hasMessageContaining("Failed to load KeyStore");
+                .hasMessageContaining("Failed to load SCRAM credential file");
     }
 
     @Test
@@ -141,7 +141,7 @@ class ScramCredentialFileTest {
 
         assertThatThrownBy(() -> new ScramCredentialFile(badConfig))
                 .isInstanceOf(CredentialServiceUnavailableException.class)
-                .hasMessageContaining("Failed to load KeyStore");
+                .hasMessageContaining("Failed to load SCRAM credential file");
     }
 
     @Test

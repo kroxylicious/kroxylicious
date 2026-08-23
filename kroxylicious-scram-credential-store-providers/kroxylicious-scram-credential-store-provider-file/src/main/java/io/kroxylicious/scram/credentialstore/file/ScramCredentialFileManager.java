@@ -37,12 +37,12 @@ import io.kroxylicious.scram.credentialstore.ScramHashAlgorithm;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
- * Utility for managing SCRAM credentials in Java KeyStore files.
+ * Utility for managing SCRAM credentials in a proxy SCRAM credential file (backed by a Java KeyStore).
  * <p>
  * Provides CRUD operations for managing users and credentials:
  * </p>
  * <ul>
- *     <li>Create new KeyStore files</li>
+ *     <li>Create new SCRAM credential files</li>
  *     <li>Add users with credentials</li>
  *     <li>Remove users</li>
  *     <li>Update user passwords</li>
@@ -56,8 +56,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * <strong>Thread Safety:</strong> Not thread-safe. Create new instances per operation.
  * </p>
  * <p>
- * <strong>Concurrent Access:</strong> This utility assumes exclusive access to the KeyStore file.
- * It should not operate on a KeyStore file that is actively being used by a running proxy.
+ * <strong>Concurrent Access:</strong> This utility assumes exclusive access to the SCRAM credential
+ * file. It should not operate on a SCRAM credential file that is actively being used by a running
+ * proxy.
  * </p>
  */
 public class ScramCredentialFileManager {
@@ -117,21 +118,20 @@ public class ScramCredentialFileManager {
     }
 
     /**
-     * Create a new KeyStore file.
+     * Create a new SCRAM credential file.
      * <p>
      * The file must not already exist.
      * </p>
      *
-     * @param keystorePath path where the KeyStore will be created
-     * @param storePassword password for the KeyStore
-     * @throws KeyStoreException if KeyStore creation fails or the file already exists
+     * @param keystorePath path where the SCRAM credential file will be created
+     * @param storePassword password for the file
+     * @throws ScramCredentialFileException if creation fails or the file already exists
      */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public void createKeyStore(
                                Path keystorePath,
-                               String storePassword)
-            throws KeyStoreException {
-        validatePasswordLength(storePassword, "KeyStore password");
+                               String storePassword) {
+        validatePasswordLength(storePassword, "File password");
         try {
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
             keyStore.load(null, storePassword.toCharArray());
@@ -144,25 +144,25 @@ public class ScramCredentialFileManager {
             }
         }
         catch (FileAlreadyExistsException e) {
-            throw new KeyStoreException("KeyStore file already exists: " + keystorePath, e);
+            throw new ScramCredentialFileException("SCRAM credential file already exists: " + keystorePath, e);
         }
-        catch (IOException | NoSuchAlgorithmException | CertificateException e) {
-            throw new KeyStoreException("Failed to create KeyStore at " + keystorePath, e);
+        catch (IOException | NoSuchAlgorithmException | CertificateException | KeyStoreException e) {
+            throw new ScramCredentialFileException("Failed to create SCRAM credential file at " + keystorePath, e);
         }
     }
 
     /**
-     * Add a user to an existing KeyStore.
+     * Add a user to an existing SCRAM credential file.
      * <p>
      * If the user already exists, their credential will be replaced.
      * </p>
      *
-     * @param keystorePath path to the KeyStore file
-     * @param storePassword KeyStore password
+     * @param keystorePath path to the SCRAM credential file
+     * @param storePassword password for the SCRAM credential file
      * @param username username to add
      * @param password plaintext password for the user
      * @param mechanism SCRAM mechanism (SCRAM-SHA-256 or SCRAM-SHA-512)
-     * @throws KeyStoreException if the operation fails
+     * @throws ScramCredentialFileException if the operation fails
      */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public void addUser(
@@ -170,24 +170,23 @@ public class ScramCredentialFileManager {
                         String storePassword,
                         String username,
                         String password,
-                        ScramMechanism mechanism)
-            throws KeyStoreException {
+                        ScramMechanism mechanism) {
         addUser(keystorePath, storePassword, username, password, mechanism, DEFAULT_ITERATIONS);
     }
 
     /**
-     * Add a user to an existing KeyStore with an explicit iteration count.
+     * Add a user to an existing SCRAM credential file with an explicit iteration count.
      * <p>
      * If the user already exists, their credential will be replaced.
      * </p>
      *
-     * @param keystorePath path to the KeyStore file
-     * @param storePassword KeyStore password
+     * @param keystorePath path to the SCRAM credential file
+     * @param storePassword password for the SCRAM credential file
      * @param username username to add
      * @param password plaintext password for the user
      * @param mechanism SCRAM mechanism (SCRAM-SHA-256 or SCRAM-SHA-512)
      * @param iterations SCRAM iteration count
-     * @throws KeyStoreException if the operation fails
+     * @throws ScramCredentialFileException if the operation fails
      */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public void addUser(
@@ -196,8 +195,7 @@ public class ScramCredentialFileManager {
                         String username,
                         String password,
                         ScramMechanism mechanism,
-                        int iterations)
-            throws KeyStoreException {
+                        int iterations) {
         validateUsername(username);
         validatePasswordLength(password, "User password");
 
@@ -217,39 +215,38 @@ public class ScramCredentialFileManager {
 
             saveKeyStore(keyStore, keystorePath, storePassword);
         }
-        catch (IOException | NoSuchAlgorithmException | CertificateException e) {
-            throw new KeyStoreException("Failed to add user '" + username + "' to KeyStore", e);
+        catch (IOException | NoSuchAlgorithmException | CertificateException | KeyStoreException e) {
+            throw new ScramCredentialFileException("Failed to add user '" + username + "' to SCRAM credential file", e);
         }
     }
 
     /**
-     * Remove a user from the KeyStore.
+     * Remove a user from the SCRAM credential file.
      *
-     * @param keystorePath path to the KeyStore file
-     * @param storePassword KeyStore password
+     * @param keystorePath path to the SCRAM credential file
+     * @param storePassword password for the SCRAM credential file
      * @param username username to remove
-     * @throws KeyStoreException if the operation fails
+     * @throws ScramCredentialFileException if the operation fails
      */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     public void removeUser(
                            Path keystorePath,
                            String storePassword,
-                           String username)
-            throws KeyStoreException {
+                           String username) {
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
 
             String alias = hashUsername(username);
             if (!keyStore.containsAlias(alias)) {
-                throw new KeyStoreException("User '" + username + "' not found in KeyStore");
+                throw new ScramCredentialFileException("User '" + username + "' not found in SCRAM credential file");
             }
 
             keyStore.deleteEntry(alias);
 
             saveKeyStore(keyStore, keystorePath, storePassword);
         }
-        catch (IOException | NoSuchAlgorithmException | CertificateException e) {
-            throw new KeyStoreException("Failed to remove user '" + username + "' from KeyStore", e);
+        catch (IOException | NoSuchAlgorithmException | CertificateException | KeyStoreException e) {
+            throw new ScramCredentialFileException("Failed to remove user '" + username + "' from SCRAM credential file", e);
         }
     }
 
@@ -259,20 +256,19 @@ public class ScramCredentialFileManager {
      * This is implemented as a remove followed by an add operation.
      * </p>
      *
-     * @param keystorePath path to the KeyStore file
-     * @param storePassword KeyStore password
+     * @param keystorePath path to the SCRAM credential file
+     * @param storePassword password for the SCRAM credential file
      * @param username username to update
      * @param newPassword new plaintext password
      * @param mechanism SCRAM mechanism
-     * @throws KeyStoreException if the operation fails
+     * @throws ScramCredentialFileException if the operation fails
      */
     public void updatePassword(
                                Path keystorePath,
                                String storePassword,
                                String username,
                                String newPassword,
-                               ScramMechanism mechanism)
-            throws KeyStoreException {
+                               ScramMechanism mechanism) {
         updatePassword(keystorePath, storePassword, username, newPassword, mechanism, DEFAULT_ITERATIONS);
     }
 
@@ -282,13 +278,13 @@ public class ScramCredentialFileManager {
      * This is implemented as a remove followed by an add operation.
      * </p>
      *
-     * @param keystorePath path to the KeyStore file
-     * @param storePassword KeyStore password
+     * @param keystorePath path to the SCRAM credential file
+     * @param storePassword password for the SCRAM credential file
      * @param username username to update
      * @param newPassword new plaintext password
      * @param mechanism SCRAM mechanism
      * @param iterations SCRAM iteration count
-     * @throws KeyStoreException if the operation fails
+     * @throws ScramCredentialFileException if the operation fails
      */
     public void updatePassword(
                                Path keystorePath,
@@ -296,8 +292,7 @@ public class ScramCredentialFileManager {
                                String username,
                                String newPassword,
                                ScramMechanism mechanism,
-                               int iterations)
-            throws KeyStoreException {
+                               int iterations) {
         validateUsername(username);
         validatePasswordLength(newPassword, "New password");
 
@@ -305,28 +300,27 @@ public class ScramCredentialFileManager {
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
             if (!keyStore.containsAlias(hashUsername(username))) {
-                throw new KeyStoreException("User '" + username + "' not found in KeyStore");
+                throw new ScramCredentialFileException("User '" + username + "' not found in SCRAM credential file");
             }
         }
-        catch (IOException | NoSuchAlgorithmException | CertificateException e) {
-            throw new KeyStoreException("Failed to update password for user '" + username + "'", e);
+        catch (IOException | NoSuchAlgorithmException | CertificateException | KeyStoreException e) {
+            throw new ScramCredentialFileException("Failed to update password for user '" + username + "' in SCRAM credential file", e);
         }
 
         addUser(keystorePath, storePassword, username, newPassword, mechanism, iterations);
     }
 
     /**
-     * List all usernames in the KeyStore.
+     * List all usernames in the SCRAM credential file.
      *
-     * @param keystorePath path to the KeyStore file
-     * @param storePassword KeyStore password
-     * @return list of usernames (aliases) in the KeyStore, sorted alphabetically
-     * @throws KeyStoreException if the operation fails
+     * @param keystorePath path to the SCRAM credential file
+     * @param storePassword password for the SCRAM credential file
+     * @return list of usernames (aliases) in the SCRAM credential file, sorted alphabetically
+     * @throws ScramCredentialFileException if the operation fails
      */
     public List<String> listUsers(
                                   Path keystorePath,
-                                  String storePassword)
-            throws KeyStoreException {
+                                  String storePassword) {
         return loadAllCredentials(keystorePath, storePassword).stream()
                 .map(ScramCredential::username)
                 .sorted()
@@ -334,7 +328,7 @@ public class ScramCredentialFileManager {
     }
 
     /**
-     * Credential metadata for a user stored in the KeyStore.
+     * Credential metadata for a user stored in the SCRAM credential file.
      *
      * @param username the username
      * @param mechanism the SCRAM mechanism (e.g. SCRAM-SHA-256)
@@ -348,17 +342,16 @@ public class ScramCredentialFileManager {
     }
 
     /**
-     * List all credentials stored in the KeyStore.
+     * List all credentials stored in the SCRAM credential file.
      *
-     * @param keystorePath path to the KeyStore file
-     * @param storePassword KeyStore password
+     * @param keystorePath path to the SCRAM credential file
+     * @param storePassword password for the SCRAM credential file
      * @return list of credential metadata, sorted by username
-     * @throws KeyStoreException if the operation fails
+     * @throws ScramCredentialFileException if the operation fails
      */
     public List<UserCredentialInfo> listCredentials(
                                                     Path keystorePath,
-                                                    String storePassword)
-            throws KeyStoreException {
+                                                    String storePassword) {
         return loadAllCredentials(keystorePath, storePassword).stream()
                 .map(c -> new UserCredentialInfo(
                         c.username(),
@@ -369,13 +362,12 @@ public class ScramCredentialFileManager {
     }
 
     /**
-     * Load and deserialize all SCRAM credentials from a KeyStore.
+     * Load and deserialize all SCRAM credentials from the SCRAM credential file.
      */
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
     private List<ScramCredential> loadAllCredentials(
                                                      Path keystorePath,
-                                                     String storePassword)
-            throws KeyStoreException {
+                                                     String storePassword) {
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
             ScramCredentialSerializer serializer = new ScramCredentialSerializer();
@@ -395,8 +387,8 @@ public class ScramCredentialFileManager {
             }
             return credentials;
         }
-        catch (IOException | NoSuchAlgorithmException | CertificateException | java.security.UnrecoverableEntryException e) {
-            throw new KeyStoreException("Failed to load credentials from KeyStore", e);
+        catch (IOException | NoSuchAlgorithmException | CertificateException | java.security.UnrecoverableEntryException | KeyStoreException e) {
+            throw new ScramCredentialFileException("Failed to load credentials from SCRAM credential file", e);
         }
     }
 
@@ -461,22 +453,22 @@ public class ScramCredentialFileManager {
     }
 
     /**
-     * Load a KeyStore from disk, auto-detecting the store type.
+     * Load the SCRAM credential file from disk, auto-detecting the underlying KeyStore type.
      */
     private KeyStore loadKeyStore(
                                   Path keystorePath,
                                   String storePassword)
-            throws IOException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
+            throws IOException, NoSuchAlgorithmException, CertificateException {
 
         if (!Files.exists(keystorePath)) {
-            throw new KeyStoreException("KeyStore file not found: " + keystorePath);
+            throw new ScramCredentialFileException("SCRAM credential file not found: " + keystorePath);
         }
 
         try {
             CredentialFilePermissions.checkForCredentialStore(keystorePath);
         }
         catch (CredentialServiceUnavailableException e) {
-            throw new KeyStoreException(e.getMessage(), e);
+            throw new ScramCredentialFileException(e.getMessage(), e);
         }
 
         try {
@@ -484,15 +476,18 @@ public class ScramCredentialFileManager {
         }
         catch (IOException e) {
             if (e.getCause() instanceof java.security.UnrecoverableKeyException) {
-                throw new KeyStoreException("Failed to open KeyStore at " + keystorePath
+                throw new ScramCredentialFileException("Failed to open SCRAM credential file at " + keystorePath
                         + ": the most likely cause is an incorrect KeyStore password", e);
             }
             throw e;
         }
+        catch (KeyStoreException e) {
+            throw new ScramCredentialFileException("Failed to open SCRAM credential file at " + keystorePath, e);
+        }
     }
 
     /**
-     * Save a KeyStore to disk.
+     * Save the SCRAM credential file to disk.
      */
     private void saveKeyStore(
                               KeyStore keyStore,

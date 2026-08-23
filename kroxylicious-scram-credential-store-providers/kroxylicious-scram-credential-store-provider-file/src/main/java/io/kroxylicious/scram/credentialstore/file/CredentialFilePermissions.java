@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.scram.credentialstore.CredentialServiceUnavailableException;
 
 /**
- * Shared file permission checks for keystore files.
+ * Shared file permission checks for SCRAM credential files.
  */
 final class CredentialFilePermissions {
 
@@ -58,13 +58,13 @@ final class CredentialFilePermissions {
             found.retainAll(perms);
             if (!found.isEmpty()) {
                 throw new CredentialServiceUnavailableException(
-                        "KeyStore file " + path + " has insecure permissions: " + PosixFilePermissions.toString(perms) +
+                        "SCRAM credential file " + path + " has insecure permissions: " + PosixFilePermissions.toString(perms) +
                                 ". Remove group and world access (e.g. chmod 600).");
             }
         }
         catch (IOException e) {
             throw new CredentialServiceUnavailableException(
-                    "Failed to check permissions on KeyStore file: " + path, e);
+                    "Failed to check permissions on SCRAM credential file: " + path, e);
         }
     }
 
@@ -103,7 +103,7 @@ final class CredentialFilePermissions {
             found.retainAll(perms);
             if (!found.isEmpty()) {
                 throw new IOException(
-                        "Keystore file " + path + " has insecure permissions: " + PosixFilePermissions.toString(perms)
+                        "SCRAM credential file " + path + " has insecure permissions: " + PosixFilePermissions.toString(perms)
                                 + ". It is possible that existing credentials in this file have been read or modified by an unauthorized party."
                                 + " Consult your organization's security procedures before continuing — you may need to report this."
                                 + " If you accept the risk to continue using the existing credentials,"

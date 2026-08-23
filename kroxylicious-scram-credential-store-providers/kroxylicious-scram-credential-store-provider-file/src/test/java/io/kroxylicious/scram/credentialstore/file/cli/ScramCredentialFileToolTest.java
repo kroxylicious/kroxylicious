@@ -9,7 +9,6 @@ package io.kroxylicious.scram.credentialstore.file.cli;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.security.KeyStoreException;
 
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.Test;
@@ -17,6 +16,7 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
 import io.kroxylicious.scram.credentialstore.file.CredentialValidationException;
+import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileException;
 import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileManager;
 
 import picocli.CommandLine;
@@ -161,22 +161,22 @@ class ScramCredentialFileToolTest {
                 .isEqualTo(ScramMechanism.SCRAM_SHA_512);
     }
 
-    // ===== Command KeyStoreException handling (exit code 1) =====
+    // ===== Command ScramCredentialFileException handling (exit code 1) =====
 
     @Test
-    void createCommandShouldReturnExitCode1OnKeystoreException() {
+    void createCommandShouldReturnExitCode1OnScramCredentialFileException() {
         try (MockedConstruction<ScramCredentialFileManager> ignored = mockConstruction(ScramCredentialFileManager.class, (mock, context) -> {
-            doThrow(new KeyStoreException("simulated error")).when(mock).createKeyStore(any(), anyString());
+            doThrow(new ScramCredentialFileException("simulated error")).when(mock).createKeyStore(any(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "create",
-                    "-k", "/tmp/test.p12",
+                    "-f", "/tmp/test.p12",
                     "-p", "test-password-secure");
 
             // Then
             assertThat(result.exitCode()).isEqualTo(1);
             assertThat(result.stderr())
-                    .contains("Failed to create KeyStore")
+                    .contains("Failed to create SCRAM credential file")
                     .contains("simulated error");
         }
     }
@@ -188,7 +188,7 @@ class ScramCredentialFileToolTest {
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "create",
-                    "-k", "/tmp/test.p12",
+                    "-f", "/tmp/test.p12",
                     "-p", "test-password-secure");
 
             // Then
@@ -204,7 +204,7 @@ class ScramCredentialFileToolTest {
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "add-user",
-                    "-k", "/tmp/test.p12",
+                    "-f", "/tmp/test.p12",
                     "-p", "test-password-secure",
                     "-u", "alice",
                     "-w", "user-password-secure");
@@ -216,13 +216,13 @@ class ScramCredentialFileToolTest {
     }
 
     @Test
-    void addUserCommandShouldReturnExitCode1OnKeystoreException() {
+    void addUserCommandShouldReturnExitCode1OnScramCredentialFileException() {
         try (MockedConstruction<ScramCredentialFileManager> ignored = mockConstruction(ScramCredentialFileManager.class, (mock, context) -> {
-            doThrow(new KeyStoreException("simulated error")).when(mock).addUser(any(), anyString(), anyString(), anyString(), any(), anyInt());
+            doThrow(new ScramCredentialFileException("simulated error")).when(mock).addUser(any(), anyString(), anyString(), anyString(), any(), anyInt());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "add-user",
-                    "-k", "/tmp/test.p12",
+                    "-f", "/tmp/test.p12",
                     "-p", "test-password-secure",
                     "-u", "alice",
                     "-w", "user-password-secure");
@@ -236,13 +236,13 @@ class ScramCredentialFileToolTest {
     }
 
     @Test
-    void removeUserCommandShouldReturnExitCode1OnKeystoreException() {
+    void removeUserCommandShouldReturnExitCode1OnScramCredentialFileException() {
         try (MockedConstruction<ScramCredentialFileManager> ignored = mockConstruction(ScramCredentialFileManager.class, (mock, context) -> {
-            doThrow(new KeyStoreException("simulated error")).when(mock).removeUser(any(), anyString(), anyString());
+            doThrow(new ScramCredentialFileException("simulated error")).when(mock).removeUser(any(), anyString(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "remove-user",
-                    "-k", "/tmp/test.p12",
+                    "-f", "/tmp/test.p12",
                     "-p", "test-password-secure",
                     "-u", "alice");
 
@@ -255,13 +255,13 @@ class ScramCredentialFileToolTest {
     }
 
     @Test
-    void updatePasswordCommandShouldReturnExitCode1OnKeystoreException() {
+    void updatePasswordCommandShouldReturnExitCode1OnScramCredentialFileException() {
         try (MockedConstruction<ScramCredentialFileManager> ignored = mockConstruction(ScramCredentialFileManager.class, (mock, context) -> {
-            doThrow(new KeyStoreException("simulated error")).when(mock).updatePassword(any(), anyString(), anyString(), anyString(), any(), anyInt());
+            doThrow(new ScramCredentialFileException("simulated error")).when(mock).updatePassword(any(), anyString(), anyString(), anyString(), any(), anyInt());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "update-password",
-                    "-k", "/tmp/test.p12",
+                    "-f", "/tmp/test.p12",
                     "-p", "test-password-secure",
                     "-u", "alice",
                     "-w", "new-password-secure");
@@ -275,13 +275,13 @@ class ScramCredentialFileToolTest {
     }
 
     @Test
-    void listUsersCommandShouldReturnExitCode1OnKeystoreException() {
+    void listUsersCommandShouldReturnExitCode1OnScramCredentialFileException() {
         try (MockedConstruction<ScramCredentialFileManager> ignored = mockConstruction(ScramCredentialFileManager.class, (mock, context) -> {
-            doThrow(new KeyStoreException("simulated error")).when(mock).listCredentials(any(), anyString());
+            doThrow(new ScramCredentialFileException("simulated error")).when(mock).listCredentials(any(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "list-users",
-                    "-k", "/tmp/test.p12",
+                    "-f", "/tmp/test.p12",
                     "-p", "test-password-secure");
 
             // Then
@@ -299,17 +299,17 @@ class ScramCredentialFileToolTest {
         try (MockedConstruction<ScramCredentialFileManager> ignored = mockConstruction(ScramCredentialFileManager.class, (mock, context) -> {
             var rootCause = new IOException("disk full");
             var intermediateCause = new RuntimeException("write failed", rootCause);
-            doThrow(new KeyStoreException("store error", intermediateCause)).when(mock).createKeyStore(any(), anyString());
+            doThrow(new ScramCredentialFileException("store error", intermediateCause)).when(mock).createKeyStore(any(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "create",
-                    "-k", "/tmp/test.p12",
+                    "-f", "/tmp/test.p12",
                     "-p", "test-password-secure");
 
             // Then
             assertThat(result.exitCode()).isEqualTo(1);
             assertThat(result.stderr())
-                    .contains("Failed to create KeyStore")
+                    .contains("Failed to create SCRAM credential file")
                     .contains("store error")
                     .contains("write failed")
                     .contains("disk full");
@@ -319,16 +319,16 @@ class ScramCredentialFileToolTest {
     @Test
     void commandShouldFormatExceptionWithNullMessage() {
         try (MockedConstruction<ScramCredentialFileManager> ignored = mockConstruction(ScramCredentialFileManager.class, (mock, context) -> {
-            doThrow(new KeyStoreException((String) null)).when(mock).createKeyStore(any(), anyString());
+            doThrow(new ScramCredentialFileException(null)).when(mock).createKeyStore(any(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "create",
-                    "-k", "/tmp/test.p12",
+                    "-f", "/tmp/test.p12",
                     "-p", "test-password-secure");
 
             // Then
             assertThat(result.exitCode()).isEqualTo(1);
-            assertThat(result.stderr()).contains("Failed to create KeyStore");
+            assertThat(result.stderr()).contains("Failed to create SCRAM credential file");
         }
     }
 
@@ -337,11 +337,11 @@ class ScramCredentialFileToolTest {
         try (MockedConstruction<ScramCredentialFileManager> ignored = mockConstruction(ScramCredentialFileManager.class, (mock, context) -> {
             var deepCause = new RuntimeException("deep cause");
             var causeWithNullMsg = new RuntimeException((String) null, deepCause);
-            doThrow(new KeyStoreException("top level", causeWithNullMsg)).when(mock).createKeyStore(any(), anyString());
+            doThrow(new ScramCredentialFileException("top level", causeWithNullMsg)).when(mock).createKeyStore(any(), anyString());
         })) {
             // When
             var result = executeCommand("--unlock-insecure-options", "create",
-                    "-k", "/tmp/test.p12",
+                    "-f", "/tmp/test.p12",
                     "-p", "test-password-secure");
 
             // Then
@@ -358,7 +358,7 @@ class ScramCredentialFileToolTest {
     void addUserCommandShouldReturnExitCode2WhenPasswordOptionNotUnlocked() {
         // When
         var result = executeCommand("add-user",
-                "-k", "/tmp/test.p12",
+                "-f", "/tmp/test.p12",
                 "-p", "test-password",
                 "-u", "alice",
                 "-w", "user-password");
@@ -372,7 +372,7 @@ class ScramCredentialFileToolTest {
     void removeUserCommandShouldReturnExitCode2WhenPasswordOptionNotUnlocked() {
         // When
         var result = executeCommand("remove-user",
-                "-k", "/tmp/test.p12",
+                "-f", "/tmp/test.p12",
                 "-p", "test-password",
                 "-u", "alice");
 
@@ -385,7 +385,7 @@ class ScramCredentialFileToolTest {
     void updatePasswordCommandShouldReturnExitCode2WhenPasswordOptionNotUnlocked() {
         // When
         var result = executeCommand("update-password",
-                "-k", "/tmp/test.p12",
+                "-f", "/tmp/test.p12",
                 "-p", "test-password",
                 "-u", "alice",
                 "-w", "new-password");
@@ -399,7 +399,7 @@ class ScramCredentialFileToolTest {
     void listUsersCommandShouldReturnExitCode2WhenPasswordOptionNotUnlocked() {
         // When
         var result = executeCommand("list-users",
-                "-k", "/tmp/test.p12",
+                "-f", "/tmp/test.p12",
                 "-p", "test-password");
 
         // Then

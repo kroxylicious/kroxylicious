@@ -20,8 +20,8 @@ This module provides a production-ready credential store that loads SCRAM creden
 credentialStore: ScramCredentialFileService
 credentialStoreConfig:
   file: /path/to/credentials.p12
-  storePassword:
-    passwordFile: /etc/kroxylicious/keystore-password.txt
+  filePassword:
+    passwordFile: /etc/kroxylicious/file-password.txt
 ```
 
 ### Configuration Parameters
@@ -29,7 +29,7 @@ credentialStoreConfig:
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `file` | string | Yes | - | Path to the proxy SCRAM credential file |
-| `storePassword` | PasswordProvider | Yes | - | Password for the credential file |
+| `filePassword` | PasswordProvider | Yes | - | Password for the credential file |
 
 ## Credential File Format
 
@@ -76,19 +76,19 @@ From the exploded proxy distribution directory:
 bin/scram-credential-tool.sh --help
 
 # Create a new credential file
-bin/scram-credential-tool.sh create -k credentials.p12
+bin/scram-credential-tool.sh create -f credentials.p12
 
 # Add a user (prompts for passwords interactively)
-bin/scram-credential-tool.sh add-user -k credentials.p12 -u alice
+bin/scram-credential-tool.sh add-user -f credentials.p12 -u alice
 
 # List users
-bin/scram-credential-tool.sh list-users -k credentials.p12
+bin/scram-credential-tool.sh list-users -f credentials.p12
 
 # Update a user's password
-bin/scram-credential-tool.sh update-password -k credentials.p12 -u alice
+bin/scram-credential-tool.sh update-password -f credentials.p12 -u alice
 
 # Remove a user
-bin/scram-credential-tool.sh remove-user -k credentials.p12 -u alice
+bin/scram-credential-tool.sh remove-user -f credentials.p12 -u alice
 ```
 
 By default, passwords are read interactively from the console.
@@ -152,8 +152,8 @@ filters:
           credentialStore: ScramCredentialFileService
           credentialStoreConfig:
             file: /etc/kroxylicious/credentials.p12
-            storePassword:
-              file: /etc/kroxylicious/keystore-password.txt
+            filePassword:
+              passwordFile: /etc/kroxylicious/file-password.txt
 ```
 
 ## Troubleshooting
@@ -161,7 +161,7 @@ filters:
 ### "Failed to load credential file"
 
 - **Check file path**: Ensure the file exists and is readable
-- **Check password**: Verify storePassword is correct
+- **Check password**: Verify filePassword is correct
 
 ### "Failed to recover key for alias"
 
