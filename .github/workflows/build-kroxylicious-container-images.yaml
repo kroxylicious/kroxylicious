@@ -150,12 +150,11 @@ jobs:
             echo "admission_tags=kroxylicious-admission:${SHA_TAG}" >> $GITHUB_OUTPUT
           else
             PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
-            LEGACY_PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/kroxylicious"
             OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
             ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
 
             # Per-arch intermediate tags are pushed individually then merged into the
-            # final manifest list (which also covers the legacy kroxylicious image name).
+            # final manifest list.
             echo "push_images=true" >> $GITHUB_OUTPUT
             echo "multi_arch=${{ inputs.multi-arch }}" >> $GITHUB_OUTPUT
             echo "proxy_amd64_tag=${PROXY_IMAGE}:${SHA_TAG}-amd64" >> $GITHUB_OUTPUT
@@ -176,7 +175,7 @@ jobs:
             OPERATOR_TAGS=""
             ADMISSION_TAGS=""
             for suffix in "${TAG_SUFFIXES[@]}"; do
-              PROXY_FINAL_TAGS="${PROXY_FINAL_TAGS:+${PROXY_FINAL_TAGS},}${PROXY_IMAGE}:${suffix},${LEGACY_PROXY_IMAGE}:${suffix}"
+              PROXY_FINAL_TAGS="${PROXY_FINAL_TAGS:+${PROXY_FINAL_TAGS},}${PROXY_IMAGE}:${suffix}"
               OPERATOR_TAGS="${OPERATOR_TAGS:+${OPERATOR_TAGS},}${OPERATOR_IMAGE}:${suffix}"
               ADMISSION_TAGS="${ADMISSION_TAGS:+${ADMISSION_TAGS},}${ADMISSION_IMAGE}:${suffix}"
             done
