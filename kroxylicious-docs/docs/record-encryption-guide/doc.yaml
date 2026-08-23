@@ -10,4 +10,4 @@ description: Using the record encryption filter to provide encryption-at-rest fo
 tags:
   - security
   - filter
-rank: "020"
+rank: "012"
