@@ -34,10 +34,7 @@ public final class KafkaSerdes {
         message.addSize(size, cache, version);
         ByteBuffer buffer = ByteBuffer.allocate(size.totalSize());
         message.write(new ByteBufferAccessor(buffer), cache, version);
-        buffer.flip();
-        byte[] bytes = new byte[buffer.remaining()];
-        buffer.get(bytes);
-        return bytes;
+        return MessageSerdesUtil.asByteArray(buffer);
     }
 
     /**
