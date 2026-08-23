@@ -137,7 +137,7 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         return e instanceof UnknownAliasException || e instanceof UnknownKeyException;
     }
 
-    // FutureReturnValueIgnored: a synchronous throw from operation.get() is now caught and
+    // FutureReturnValueIgnored: a synchronous throw from operation.get() is caught and
     // propagated to `future`, so the scheduled task cannot complete exceptionally and the
     // discarded ScheduledFuture carries no unobserved failure.
     @SuppressWarnings("FutureReturnValueIgnored")

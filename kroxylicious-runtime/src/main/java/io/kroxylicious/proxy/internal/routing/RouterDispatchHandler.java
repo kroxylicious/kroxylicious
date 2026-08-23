@@ -446,7 +446,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         return executeOnEventLoop(() -> doSendToAny(route, header, request, sessionId, clientCorrelationId));
     }
 
-    // FutureReturnValueIgnored: a synchronous throw from work.get() is now caught and
+    // FutureReturnValueIgnored: a synchronous throw from work.get() is caught and
     // propagated to `bridge`, so the submitted task cannot complete exceptionally and the
     // whenComplete callback completes `bridge` in both branches.
     @SuppressWarnings("FutureReturnValueIgnored")

@@ -96,7 +96,7 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
                                     + "or set proxyProtocol mode to 'allowed' or 'disabled'.");
                     cumulation.release();
                     cumulation = null;
-                    ctx.close().addListener(logFailure(LOGGER, "close after proxy protocol rejection"));
+                    ctx.close().addListener(logFailure(LOGGER, "close after PROXY protocol rejection"));
                 }
                 else {
                     // ALLOWED mode — no PROXY header, pass through to Kafka decoder

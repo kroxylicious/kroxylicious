@@ -139,7 +139,7 @@ class OffsetFetchTopicAuthzIT extends AuthzIT {
             }
             producer.flush();
             for (var f : sendFutures) {
-                f.get(5, TimeUnit.SECONDS);
+                f.get(DEFAULT_SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             }
             int observedRecords = 0;
             while (observedRecords < ALL_TOPIC_NAMES_IN_TEST.size()) {

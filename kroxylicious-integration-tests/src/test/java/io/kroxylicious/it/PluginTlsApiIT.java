@@ -192,7 +192,7 @@ class PluginTlsApiIT extends AbstractTlsIT {
         try (var tester = kroxyliciousTester(builder)) {
 
             try (Producer<String, String> producer = tester.producer(demoCluster, clientConfigs)) {
-                producer.send(new ProducerRecord<>(topic.name(), "hello", "world")).get(5, TimeUnit.SECONDS);
+                producer.send(new ProducerRecord<>(topic.name(), "hello", "world")).get(DEFAULT_SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 producer.flush();
             }
 

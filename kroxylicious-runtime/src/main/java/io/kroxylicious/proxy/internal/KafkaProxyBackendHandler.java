@@ -237,7 +237,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
             else {
                 // The outboundChannel can be open without being active during protocol negotiation.
                 // Ensure it gets closed.
-                outboundChannel.close().addListener(logFailure(LOGGER, "close inactive outbound channel"));
+                outboundChannel.close().addListener(logFailure(LOGGER, "close inactive proxy -> broker channel"));
             }
         }
     }
