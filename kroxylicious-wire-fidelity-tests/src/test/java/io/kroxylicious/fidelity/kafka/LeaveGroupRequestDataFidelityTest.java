@@ -6,12 +6,14 @@
 package io.kroxylicious.fidelity.kafka;
 
 import java.util.List;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.fidelity.FidelityCheck;
+import io.kroxylicious.fidelity.KroxyliciousSerdes;
 import io.kroxylicious.fidelity.ReadResult;
 import io.kroxylicious.kafka.common.message.LeaveGroupRequestData;
 
@@ -27,7 +29,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LeaveGroupRequestDataFidelityTest {
 
     static Stream<Short> supportedVersions() {
-        return Stream.of((short) 3, (short) 4, (short) 5);
+        LeaveGroupRequestData reference = new LeaveGroupRequestData();
+        return IntStream.rangeClosed(reference.lowestSupportedVersion(), reference.highestSupportedVersion())
+                .mapToObj(value -> (short) value);
     }
 
     @ParameterizedTest
@@ -36,10 +40,13 @@ class LeaveGroupRequestDataFidelityTest {
         // Given
         String reason = version >= 5 ? "leaving" : null;
         org.apache.kafka.common.message.LeaveGroupRequestData kafkaSource = new org.apache.kafka.common.message.LeaveGroupRequestData()
-                .setGroupId("grp")
-                .setMembers(List.of(
-                        new org.apache.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("m1").setReason(reason),
-                        new org.apache.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("m2").setGroupInstanceId("gi").setReason(reason)));
+                .setGroupId("grp");
+
+        if (version >= 3) {
+            kafkaSource.setMembers(List.of(
+                    new org.apache.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("m1").setReason(reason),
+                    new org.apache.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("m2").setGroupInstanceId("gi").setReason(reason)));
+        }
 
         // When
         ReadResult<LeaveGroupRequestData> result = FidelityCheck.kroxyliciousReads(kafkaSource, new LeaveGroupRequestData(), version);
@@ -56,10 +63,12 @@ class LeaveGroupRequestDataFidelityTest {
         // Given
         String reason = version >= 5 ? "leaving" : null;
         LeaveGroupRequestData oursSource = new LeaveGroupRequestData()
-                .setGroupId("grp")
-                .setMembers(List.of(
-                        new LeaveGroupRequestData.MemberIdentity().setMemberId("m1").setReason(reason),
-                        new LeaveGroupRequestData.MemberIdentity().setMemberId("m2").setGroupInstanceId("gi").setReason(reason)));
+                .setGroupId("grp");
+        if (version >= 3) {
+            oursSource.setMembers(List.of(
+                    new LeaveGroupRequestData.MemberIdentity().setMemberId("m1").setReason(reason),
+                    new LeaveGroupRequestData.MemberIdentity().setMemberId("m2").setGroupInstanceId("gi").setReason(reason)));
+        }
 
         // When
         ReadResult<org.apache.kafka.common.message.LeaveGroupRequestData> result = FidelityCheck.kafkaReads(
