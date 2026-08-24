@@ -48,7 +48,8 @@ class LeaveGroupRequestDataFidelityTest {
         }
 
         // When
-        ReadResult<io.kroxylicious.kafka.common.message.LeaveGroupRequestData> result = FidelityCheck.kroxyliciousReads(kafkaSource, new io.kroxylicious.kafka.common.message.LeaveGroupRequestData(), version);
+        ReadResult<io.kroxylicious.kafka.common.message.LeaveGroupRequestData> result = FidelityCheck.kroxyliciousReads(kafkaSource,
+                new io.kroxylicious.kafka.common.message.LeaveGroupRequestData(), version);
 
         // Then
         assertThat(result.error()).isNull();

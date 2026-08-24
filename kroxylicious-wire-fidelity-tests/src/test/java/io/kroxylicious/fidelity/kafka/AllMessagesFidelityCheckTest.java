@@ -16,8 +16,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.fidelity.FidelityCheck;
 import io.kroxylicious.fidelity.ReadResult;
@@ -30,7 +28,6 @@ class AllMessagesFidelityCheckTest {
     private static final String KAFKA_PACKAGE = "org.apache.kafka.common.message.";
     private static final String KROXYLICIOUS_PACKAGE = "io.kroxylicious.kafka.common.message.";
     private static final String CLASS_NAME_FORMAT = "%s%s%sData";
-    private static final Logger LOGGER = LoggerFactory.getLogger(AllMessagesFidelityCheckTest.class);
 
     @ParameterizedTest
     @MethodSource("allMessageVersions")
@@ -76,7 +73,7 @@ class AllMessagesFidelityCheckTest {
         Stream<Arguments> controllerApiStream = ApiKeys.controllerApis().stream()
                 .filter(apiKeys -> !ApiKeys.clientApis().contains(apiKeys))
                 .flatMap(AllMessagesFidelityCheckTest::directionalApiStream);
-        
+
         return Stream.concat(clientApiStream, Stream.concat(brokerApiStream, controllerApiStream));
     }
 
@@ -142,9 +139,6 @@ class AllMessagesFidelityCheckTest {
             return Class.forName(className);
         }
         catch (ClassNotFoundException e) {
-            LOGGER.atInfo().addArgument(messageName)
-                    .addArgument(className)
-                    .log("No class found for: {} FQN: {}");
             throw e;
         }
     }
