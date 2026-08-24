@@ -196,7 +196,7 @@ class SaslTerminationTest {
                   "mechanisms": [
                     {
                       "mechanism": "SCRAM-SHA-256",
-                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStore": "ScramCredentialFileService",
                       "credentialStoreConfig": {"file": "/path/to/creds.p12"}
                     }
                   ]
@@ -220,7 +220,7 @@ class SaslTerminationTest {
                   "mechanisms": [
                     {
                       "mechanism": "SCRAM-SHA-512",
-                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStore": "ScramCredentialFileService",
                       "credentialStoreConfig": {"file": "/path/to/creds.p12"}
                     }
                   ]
@@ -354,7 +354,7 @@ class SaslTerminationTest {
                   "mechanisms": [
                     {
                       "mechanism": "SCRAM-SHA-256",
-                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStore": "ScramCredentialFileService",
                       "credentialStoreConfig": {"file": "/path/to/creds.p12"}
                     },
                     {
