@@ -16,6 +16,7 @@ import io.kroxylicious.kafka.common.protocol.ObjectSerializationCache;
  * Serializes and deserializes {@code io.kroxylicious.kafka.common.protocol.Message} instances to and
  * from raw bytes, using the standard two-pass size-then-write protocol.
  */
+@SuppressWarnings("common-java:DuplicatedBlocks")
 public final class KroxyliciousSerdes {
 
     private KroxyliciousSerdes() {

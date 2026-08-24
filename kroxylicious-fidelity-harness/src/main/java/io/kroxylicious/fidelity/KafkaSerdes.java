@@ -16,6 +16,7 @@ import org.apache.kafka.common.protocol.ObjectSerializationCache;
  * Serializes and deserializes {@code org.apache.kafka.common.protocol.Message} instances to and
  * from raw bytes, using the standard two-pass size-then-write protocol.
  */
+@SuppressWarnings("common-java:DuplicatedBlocks")
 public final class KafkaSerdes {
 
     private KafkaSerdes() {
