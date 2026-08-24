@@ -116,13 +116,17 @@ class AllMessagesFidelityCheckTest {
 
     private static Stream<Arguments> versionedMessageStream(String messageName, String direction) {
 
-        var kroxyliciousMessage = kroxyliciousMessage(messageName, direction);
         org.apache.kafka.common.protocol.ApiMessage kafkaMessage = kafkaMessage(messageName, direction);
         short lowest = kafkaMessage.lowestSupportedVersion();
         short highest = kafkaMessage.highestSupportedVersion();
 
+        //Ensure full isolation by creating message instances per argumentSet
         return IntStream.rangeClosed(lowest, highest)
-                .mapToObj(version -> Arguments.argumentSet(messageName + direction + " - v" + version, (short) version, kroxyliciousMessage, kafkaMessage));
+                .mapToObj(version ->
+                        Arguments.argumentSet(messageName + direction + " - v" + version,
+                                (short) version,
+                                kroxyliciousMessage(messageName, direction),
+                                kafkaMessage(messageName, direction)));
     }
 
     private static org.apache.kafka.common.protocol.ApiMessage kafkaMessage(String messageName, String direction) {
