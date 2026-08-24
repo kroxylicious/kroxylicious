@@ -26,11 +26,6 @@
         Message contract (io.kroxylicious.kafka.common.protocol and org.apache.kafka.common.protocol),
         without either side needing to know anything about the other's API shape.</description>
 
-    <properties>
-        <maven.deploy.skip>true</maven.deploy.skip>
-        <central.publishing.skip>true</central.publishing.skip>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
