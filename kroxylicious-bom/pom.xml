@@ -308,6 +308,12 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-kafka-message-json</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-filter-test-support</artifactId>
                 <version>${project.version}</version>
             </dependency>
