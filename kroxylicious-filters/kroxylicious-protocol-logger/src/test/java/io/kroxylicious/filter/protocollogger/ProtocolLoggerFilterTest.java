@@ -467,6 +467,15 @@ class ProtocolLoggerFilterTest {
         };
     }
 
+    private static LogWarningThrottle throwingThrottle() {
+        return new LogWarningThrottle(Clock.systemUTC()) {
+            @Override
+            void onFailure(ApiKeys apiKey, short apiVersion, Exception exception, org.slf4j.Logger logger) {
+                throw new RuntimeException("throttle boom");
+            }
+        };
+    }
+
     @Test
     void requestWhoseFormattingThrowsIsStillForwardedUnchanged() {
         // Given
@@ -658,6 +667,48 @@ class ProtocolLoggerFilterTest {
                 .anyMatch(kv -> "apiKey".equals(kv.key) && ApiKeys.METADATA.equals(kv.value));
         assertThat(warnings.get(1).getKeyValuePairs())
                 .anyMatch(kv -> "apiKey".equals(kv.key) && ApiKeys.PRODUCE.equals(kv.value));
+    }
+
+    @Test
+    void requestForwardedEvenWhenBothFormatterAndThrottleThrow() {
+        // Given
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), throwingThrottle());
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
+        MetadataRequestData request = new MetadataRequestData();
+        MockFilterContext context = MockFilterContext.builder(header, request).build();
+
+        // When
+        RequestFilterResult result = f.onRequest(ApiKeys.METADATA, (short) 13, header, request, context)
+                .toCompletableFuture().join();
+
+        // Then
+        MockFilterContextAssert.assertThat(result)
+                .isForwardRequest()
+                .hasHeaderEqualTo(header)
+                .hasMessageEqualTo(request);
+    }
+
+    @Test
+    void responseForwardedEvenWhenBothFormatterAndThrottleThrow() {
+        // Given
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), throwingThrottle());
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
+        MetadataResponseData response = new MetadataResponseData();
+        MockFilterContext context = MockFilterContext.builder(header, response).build();
+
+        // When
+        ResponseFilterResult result = f.onResponse(ApiKeys.METADATA, (short) 13, header, response, context)
+                .toCompletableFuture().join();
+
+        // Then
+        MockFilterContextAssert.assertThat(result)
+                .isForwardResponse()
+                .hasHeaderEqualTo(header)
+                .hasMessageEqualTo(response);
     }
 
 }

@@ -50,6 +50,7 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
         return logger.isEnabledForLevel(logLevel) && apiKeys.contains(apiKey);
     }
 
+    @SuppressWarnings("Finally") // deliberate: the forward must execute even if warningThrottle throws
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
                                                           short apiVersion,
@@ -69,9 +70,12 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
         catch (Exception e) {
             warningThrottle.onFailure(apiKey, apiVersion, e, logger);
         }
-        return context.forwardRequest(header, request);
+        finally {
+            return context.forwardRequest(header, request); // the forward must execute even if warningThrottle throws
+        }
     }
 
+    @SuppressWarnings("Finally") // deliberate: the forward must execute even if warningThrottle throws
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
                                                             short apiVersion,
@@ -90,7 +94,9 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
         catch (Exception e) {
             warningThrottle.onFailure(apiKey, apiVersion, e, logger);
         }
-        return context.forwardResponse(header, response);
+        finally {
+            return context.forwardResponse(header, response); // the forward must execute even if warningThrottle throws
+        }
     }
 
     String buildRequestLogMessage(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request) {
