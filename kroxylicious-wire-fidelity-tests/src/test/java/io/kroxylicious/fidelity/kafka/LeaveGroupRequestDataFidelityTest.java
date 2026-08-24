@@ -9,13 +9,12 @@ import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.fidelity.FidelityCheck;
-import io.kroxylicious.fidelity.KroxyliciousSerdes;
 import io.kroxylicious.fidelity.ReadResult;
-import io.kroxylicious.kafka.common.message.LeaveGroupRequestData;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,7 +38,7 @@ class LeaveGroupRequestDataFidelityTest {
     void kroxyliciousShouldReadKafkaSerialisedMessage(short version) {
         // Given
         String reason = version >= 5 ? "leaving" : null;
-        org.apache.kafka.common.message.LeaveGroupRequestData kafkaSource = new org.apache.kafka.common.message.LeaveGroupRequestData()
+        LeaveGroupRequestData kafkaSource = new LeaveGroupRequestData()
                 .setGroupId("grp");
 
         if (version >= 3) {
@@ -49,7 +48,7 @@ class LeaveGroupRequestDataFidelityTest {
         }
 
         // When
-        ReadResult<LeaveGroupRequestData> result = FidelityCheck.kroxyliciousReads(kafkaSource, new LeaveGroupRequestData(), version);
+        ReadResult<io.kroxylicious.kafka.common.message.LeaveGroupRequestData> result = FidelityCheck.kroxyliciousReads(kafkaSource, new io.kroxylicious.kafka.common.message.LeaveGroupRequestData(), version);
 
         // Then
         assertThat(result.error()).isNull();
@@ -62,17 +61,16 @@ class LeaveGroupRequestDataFidelityTest {
     void kafkaShouldReadKroxyliciousSerialisedMessage(short version) {
         // Given
         String reason = version >= 5 ? "leaving" : null;
-        LeaveGroupRequestData oursSource = new LeaveGroupRequestData()
+        io.kroxylicious.kafka.common.message.LeaveGroupRequestData oursSource = new io.kroxylicious.kafka.common.message.LeaveGroupRequestData()
                 .setGroupId("grp");
         if (version >= 3) {
             oursSource.setMembers(List.of(
-                    new LeaveGroupRequestData.MemberIdentity().setMemberId("m1").setReason(reason),
-                    new LeaveGroupRequestData.MemberIdentity().setMemberId("m2").setGroupInstanceId("gi").setReason(reason)));
+                    new io.kroxylicious.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("m1").setReason(reason),
+                    new io.kroxylicious.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("m2").setGroupInstanceId("gi").setReason(reason)));
         }
 
         // When
-        ReadResult<org.apache.kafka.common.message.LeaveGroupRequestData> result = FidelityCheck.kafkaReads(
-                oursSource, new org.apache.kafka.common.message.LeaveGroupRequestData(), version);
+        ReadResult<LeaveGroupRequestData> result = FidelityCheck.kafkaReads(oursSource, new LeaveGroupRequestData(), version);
 
         // Then
         assertThat(result.error()).isNull();
