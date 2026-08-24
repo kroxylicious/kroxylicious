@@ -9,11 +9,15 @@ package io.kroxylicious.filter.sasl.termination;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -60,10 +64,16 @@ import static org.mockito.Mockito.when;
  * <p>
  * The test runs increasing batches in parallel and checks that the means
  * of the three scenarios (success, unknown user, wrong password) converge
- * — i.e. the relative spread between them shrinks below a tight threshold
- * — and that their standard deviations are within a bounded ratio of each
- * other (no scenario has a distinctively different noise profile).
+ * — i.e. the absolute spread between them shrinks below a tight millisecond
+ * threshold — and that their standard deviations are within a bounded ratio
+ * of each other (no scenario has a distinctively different noise profile).
  * If there were a real timing difference the means would diverge, not converge.
+ * <p>
+ * Each worker measures the three scenarios in a rotating order (rather than
+ * always success, then unknown, then wrong password) so that any latency
+ * introduced by the harness itself (e.g. thread scheduling, queuing on a
+ * shared timer) can't correlate with scenario identity and masquerade as a
+ * real timing difference.
  */
 class ScramTimingTest {
 
@@ -72,11 +82,24 @@ class ScramTimingTest {
     private static final String WRONG_PASSWORD = "wrong-password-12345";
     private static final String UNKNOWN_USERNAME = "unknown-user";
 
+    private record Scenario(String label, String username, String password) {}
+
+    private static final Scenario SCENARIO_SUCCESS = new Scenario("success", VALID_USERNAME, VALID_PASSWORD);
+    private static final Scenario SCENARIO_UNKNOWN = new Scenario("unknown", UNKNOWN_USERNAME, WRONG_PASSWORD);
+    private static final Scenario SCENARIO_WRONG_PASSWORD = new Scenario("wrongPw", VALID_USERNAME, WRONG_PASSWORD);
+    private static final List<Scenario> SCENARIOS = List.of(SCENARIO_SUCCESS, SCENARIO_UNKNOWN, SCENARIO_WRONG_PASSWORD);
+
     private static final int THREADS = 8;
     private static final int BATCH_SIZE = 50;
     private static final int MAX_BATCHES = 20;
-    private static final double MEAN_CONVERGENCE_THRESHOLD = 0.001;
+    private static final double MEAN_ABSOLUTE_SPREAD_THRESHOLD_MS = 1.0;
     private static final double STDDEV_RATIO_MAX = 5.0;
+
+    private static List<Scenario> rotatedScenarios(int iteration) {
+        List<Scenario> rotated = new ArrayList<>(SCENARIOS);
+        Collections.rotate(rotated, iteration % SCENARIOS.size());
+        return rotated;
+    }
 
     @BeforeAll
     static void registerProviders() {
@@ -86,7 +109,9 @@ class ScramTimingTest {
 
     @AfterAll
     static void shutdownExecutor() throws Exception {
-        TIMING_EVENT_LOOP.shutdownGracefully().sync();
+        for (DefaultEventLoop loop : TIMING_EVENT_LOOPS) {
+            loop.shutdownGracefully().sync();
+        }
     }
 
     @Test
@@ -103,9 +128,9 @@ class ScramTimingTest {
             for (int i = 0; i < THREADS; i++) {
                 warmup.add(executor.submit(() -> {
                     for (int j = 0; j < 3; j++) {
-                        timeFirstRound(credentialStore, VALID_USERNAME, VALID_PASSWORD);
-                        timeFirstRound(credentialStore, UNKNOWN_USERNAME, WRONG_PASSWORD);
-                        timeFirstRound(credentialStore, VALID_USERNAME, WRONG_PASSWORD);
+                        for (Scenario scenario : rotatedScenarios(j)) {
+                            timeFirstRound(credentialStore, scenario.username(), scenario.password());
+                        }
                     }
                     return null;
                 }));
@@ -118,26 +143,30 @@ class ScramTimingTest {
             RunningStats successTimes = new RunningStats();
             RunningStats unknownUserTimes = new RunningStats();
             RunningStats wrongPasswordTimes = new RunningStats();
+            List<String> batchLog = new ArrayList<>();
 
             boolean converged = false;
             for (int batch = 0; batch < MAX_BATCHES; batch++) {
-                List<Future<double[]>> futures = new ArrayList<>();
+                List<Future<Map<String, Double>>> futures = new ArrayList<>();
                 for (int i = 0; i < BATCH_SIZE; i++) {
-                    futures.add(executor.submit(() -> new double[]{
-                            timeFirstRound(credentialStore, VALID_USERNAME, VALID_PASSWORD),
-                            timeFirstRound(credentialStore, UNKNOWN_USERNAME, WRONG_PASSWORD),
-                            timeFirstRound(credentialStore, VALID_USERNAME, WRONG_PASSWORD)
+                    int iteration = batch * BATCH_SIZE + i;
+                    futures.add(executor.submit(() -> {
+                        Map<String, Double> times = new HashMap<>();
+                        for (Scenario scenario : rotatedScenarios(iteration)) {
+                            times.put(scenario.label(), timeFirstRound(credentialStore, scenario.username(), scenario.password()));
+                        }
+                        return times;
                     }));
                 }
 
-                for (Future<double[]> f : futures) {
-                    double[] times = f.get();
-                    successTimes.accept(times[0]);
-                    unknownUserTimes.accept(times[1]);
-                    wrongPasswordTimes.accept(times[2]);
+                for (Future<Map<String, Double>> f : futures) {
+                    Map<String, Double> times = f.get();
+                    successTimes.accept(times.get(SCENARIO_SUCCESS.label()));
+                    unknownUserTimes.accept(times.get(SCENARIO_UNKNOWN.label()));
+                    wrongPasswordTimes.accept(times.get(SCENARIO_WRONG_PASSWORD.label()));
                 }
 
-                double meanSpread = relativeSpread(
+                double meanSpread = absoluteSpread(
                         successTimes.mean(),
                         unknownUserTimes.mean(),
                         wrongPasswordTimes.mean());
@@ -146,7 +175,14 @@ class ScramTimingTest {
                 double minStdDev = Math.min(successTimes.stdDev(), Math.min(unknownUserTimes.stdDev(), wrongPasswordTimes.stdDev()));
                 boolean stdDevsConsistent = minStdDev > 0 && (maxStdDev / minStdDev) < STDDEV_RATIO_MAX;
 
-                if (meanSpread < MEAN_CONVERGENCE_THRESHOLD && stdDevsConsistent) {
+                batchLog.add(String.format(
+                        "batch %d: spread=%.3fms stddevRatio=%.2fx (success=%.2f/%.2f, unknown=%.2f/%.2f, wrongPw=%.2f/%.2f)",
+                        batch, meanSpread, minStdDev > 0 ? maxStdDev / minStdDev : Double.NaN,
+                        successTimes.mean(), successTimes.stdDev(),
+                        unknownUserTimes.mean(), unknownUserTimes.stdDev(),
+                        wrongPasswordTimes.mean(), wrongPasswordTimes.stdDev()));
+
+                if (meanSpread < MEAN_ABSOLUTE_SPREAD_THRESHOLD_MS && stdDevsConsistent) {
                     converged = true;
                     break;
                 }
@@ -154,13 +190,14 @@ class ScramTimingTest {
 
             // Then
             assertThat(converged)
-                    .as("means should converge (<%.1f%% spread) and std dev ratio should be low (<%.1fx) within %d iterations " +
-                            "(success: mean=%.1fms stddev=%.2fms, unknown: mean=%.1fms stddev=%.2fms, wrongPw: mean=%.1fms stddev=%.2fms)",
-                            MEAN_CONVERGENCE_THRESHOLD * 100, STDDEV_RATIO_MAX,
+                    .as("means should converge (<%.2fms absolute spread) and std dev ratio should be low (<%.1fx) within %d iterations " +
+                            "(success: mean=%.1fms stddev=%.2fms, unknown: mean=%.1fms stddev=%.2fms, wrongPw: mean=%.1fms stddev=%.2fms)%nBatch history:%n%s",
+                            MEAN_ABSOLUTE_SPREAD_THRESHOLD_MS, STDDEV_RATIO_MAX,
                             successTimes.count(),
                             successTimes.mean(), successTimes.stdDev(),
                             unknownUserTimes.mean(), unknownUserTimes.stdDev(),
-                            wrongPasswordTimes.mean(), wrongPasswordTimes.stdDev())
+                            wrongPasswordTimes.mean(), wrongPasswordTimes.stdDev(),
+                            String.join("\n", batchLog))
                     .isTrue();
         }
         finally {
@@ -182,9 +219,9 @@ class ScramTimingTest {
             for (int i = 0; i < THREADS; i++) {
                 warmup.add(executor.submit(() -> {
                     for (int j = 0; j < 3; j++) {
-                        timeSecondRound(credentialStore, VALID_USERNAME, VALID_PASSWORD);
-                        timeSecondRound(credentialStore, UNKNOWN_USERNAME, WRONG_PASSWORD);
-                        timeSecondRound(credentialStore, VALID_USERNAME, WRONG_PASSWORD);
+                        for (Scenario scenario : rotatedScenarios(j)) {
+                            timeSecondRound(credentialStore, scenario.username(), scenario.password());
+                        }
                     }
                     return null;
                 }));
@@ -197,26 +234,30 @@ class ScramTimingTest {
             RunningStats successTimes = new RunningStats();
             RunningStats unknownUserTimes = new RunningStats();
             RunningStats wrongPasswordTimes = new RunningStats();
+            List<String> batchLog = new ArrayList<>();
 
             boolean converged = false;
             for (int batch = 0; batch < MAX_BATCHES; batch++) {
-                List<Future<double[]>> futures = new ArrayList<>();
+                List<Future<Map<String, Double>>> futures = new ArrayList<>();
                 for (int i = 0; i < BATCH_SIZE; i++) {
-                    futures.add(executor.submit(() -> new double[]{
-                            timeSecondRound(credentialStore, VALID_USERNAME, VALID_PASSWORD),
-                            timeSecondRound(credentialStore, UNKNOWN_USERNAME, WRONG_PASSWORD),
-                            timeSecondRound(credentialStore, VALID_USERNAME, WRONG_PASSWORD)
+                    int iteration = batch * BATCH_SIZE + i;
+                    futures.add(executor.submit(() -> {
+                        Map<String, Double> times = new HashMap<>();
+                        for (Scenario scenario : rotatedScenarios(iteration)) {
+                            times.put(scenario.label(), timeSecondRound(credentialStore, scenario.username(), scenario.password()));
+                        }
+                        return times;
                     }));
                 }
 
-                for (Future<double[]> f : futures) {
-                    double[] times = f.get();
-                    successTimes.accept(times[0]);
-                    unknownUserTimes.accept(times[1]);
-                    wrongPasswordTimes.accept(times[2]);
+                for (Future<Map<String, Double>> f : futures) {
+                    Map<String, Double> times = f.get();
+                    successTimes.accept(times.get(SCENARIO_SUCCESS.label()));
+                    unknownUserTimes.accept(times.get(SCENARIO_UNKNOWN.label()));
+                    wrongPasswordTimes.accept(times.get(SCENARIO_WRONG_PASSWORD.label()));
                 }
 
-                double meanSpread = relativeSpread(
+                double meanSpread = absoluteSpread(
                         successTimes.mean(),
                         unknownUserTimes.mean(),
                         wrongPasswordTimes.mean());
@@ -225,7 +266,14 @@ class ScramTimingTest {
                 double minStdDev = Math.min(successTimes.stdDev(), Math.min(unknownUserTimes.stdDev(), wrongPasswordTimes.stdDev()));
                 boolean stdDevsConsistent = minStdDev > 0 && (maxStdDev / minStdDev) < STDDEV_RATIO_MAX;
 
-                if (meanSpread < MEAN_CONVERGENCE_THRESHOLD && stdDevsConsistent) {
+                batchLog.add(String.format(
+                        "batch %d: spread=%.3fms stddevRatio=%.2fx (success=%.2f/%.2f, unknown=%.2f/%.2f, wrongPw=%.2f/%.2f)",
+                        batch, meanSpread, minStdDev > 0 ? maxStdDev / minStdDev : Double.NaN,
+                        successTimes.mean(), successTimes.stdDev(),
+                        unknownUserTimes.mean(), unknownUserTimes.stdDev(),
+                        wrongPasswordTimes.mean(), wrongPasswordTimes.stdDev()));
+
+                if (meanSpread < MEAN_ABSOLUTE_SPREAD_THRESHOLD_MS && stdDevsConsistent) {
                     converged = true;
                     break;
                 }
@@ -233,13 +281,14 @@ class ScramTimingTest {
 
             // Then
             assertThat(converged)
-                    .as("second round: means should converge (<%.1f%% spread) and std dev ratio should be low (<%.1fx) within %d iterations " +
-                            "(success: mean=%.1fms stddev=%.2fms, unknown: mean=%.1fms stddev=%.2fms, wrongPw: mean=%.1fms stddev=%.2fms)",
-                            MEAN_CONVERGENCE_THRESHOLD * 100, STDDEV_RATIO_MAX,
+                    .as("second round: means should converge (<%.2fms absolute spread) and std dev ratio should be low (<%.1fx) within %d iterations " +
+                            "(success: mean=%.1fms stddev=%.2fms, unknown: mean=%.1fms stddev=%.2fms, wrongPw: mean=%.1fms stddev=%.2fms)%nBatch history:%n%s",
+                            MEAN_ABSOLUTE_SPREAD_THRESHOLD_MS, STDDEV_RATIO_MAX,
                             successTimes.count(),
                             successTimes.mean(), successTimes.stdDev(),
                             unknownUserTimes.mean(), unknownUserTimes.stdDev(),
-                            wrongPasswordTimes.mean(), wrongPasswordTimes.stdDev())
+                            wrongPasswordTimes.mean(), wrongPasswordTimes.stdDev(),
+                            String.join("\n", batchLog))
                     .isTrue();
         }
         finally {
@@ -247,10 +296,10 @@ class ScramTimingTest {
         }
     }
 
-    private static double relativeSpread(double a, double b, double c) {
+    private static double absoluteSpread(double a, double b, double c) {
         double max = Math.max(a, Math.max(b, c));
         double min = Math.min(a, Math.min(b, c));
-        return (max - min) / max;
+        return max - min;
     }
 
     private static class RunningStats {
@@ -280,8 +329,16 @@ class ScramTimingTest {
     }
 
     private static final byte[] TEST_PHANTOM_SALT_KEY = new byte[32];
-    private static final DefaultEventLoop TIMING_EVENT_LOOP = new DefaultEventLoop();
-    private static final FilterDispatchExecutor TIMING_EXECUTOR = NettyFilterDispatchExecutor.eventLoopExecutor(TIMING_EVENT_LOOP);
+
+    // Each worker thread gets its own dedicated event loop so that concurrent measurement
+    // threads never queue behind one another when their fixed auth delays complete, which
+    // would otherwise bias whichever scenario happens to be measured first in the sequence.
+    private static final Queue<DefaultEventLoop> TIMING_EVENT_LOOPS = new ConcurrentLinkedQueue<>();
+    private static final ThreadLocal<FilterDispatchExecutor> TIMING_EXECUTOR = ThreadLocal.withInitial(() -> {
+        DefaultEventLoop loop = new DefaultEventLoop();
+        TIMING_EVENT_LOOPS.add(loop);
+        return NettyFilterDispatchExecutor.eventLoopExecutor(loop);
+    });
 
     private static ScramCredentialStore testCredentialStore(ScramCredential credential) {
         return new ScramCredentialStore() {
@@ -309,7 +366,7 @@ class ScramTimingTest {
                 Clock.systemUTC(),
                 Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
-        var filter = new SaslTerminationFilter(TIMING_EXECUTOR, context);
+        var filter = new SaslTerminationFilter(TIMING_EXECUTOR.get(), context);
 
         try {
             SaslClient client = Sasl.createSaslClient(
@@ -365,7 +422,7 @@ class ScramTimingTest {
                 Clock.systemUTC(),
                 Duration.ofMillis(200),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
-        var filter = new SaslTerminationFilter(TIMING_EXECUTOR, context);
+        var filter = new SaslTerminationFilter(TIMING_EXECUTOR.get(), context);
 
         try {
             SaslClient client = Sasl.createSaslClient(
