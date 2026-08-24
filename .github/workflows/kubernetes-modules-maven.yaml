@@ -67,7 +67,7 @@ jobs:
         run: |
           source scripts/ci-build-functions.sh
           mvn --batch-mode \
-            --activate-profiles "!build-the-world,!qa" \
+            --activate-profiles "!build-the-world,!qa,!test-suites" \
             --activate-profiles "${PROXY_PROFILES}" \
             -DskipTests \
             -Derrorprone.skip=true \
@@ -79,7 +79,7 @@ jobs:
         run: |
           source scripts/ci-build-functions.sh
           mvn --batch-mode \
-            --activate-profiles "!build-the-world,!qa" \
+            --activate-profiles "!build-the-world,!qa,!test-suites" \
             --activate-profiles "${KUBERNETES_PROFILES},ci" \
             -Derrorprone.skip=true \
             -Djapicmp.skip=true \
