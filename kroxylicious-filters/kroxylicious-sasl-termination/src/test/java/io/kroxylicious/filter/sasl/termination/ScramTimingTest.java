@@ -364,7 +364,7 @@ class ScramTimingTest {
                 List.of(),
                 null,
                 Clock.systemUTC(),
-                Duration.ofMillis(200),
+                Duration.ofMillis(100),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(TIMING_EXECUTOR.get(), context);
 
@@ -420,7 +420,7 @@ class ScramTimingTest {
                 List.of(),
                 null,
                 Clock.systemUTC(),
-                Duration.ofMillis(200),
+                Duration.ofMillis(100),
                 SaslTermination.DEFAULT_SUBJECT_BUILDER);
         var filter = new SaslTerminationFilter(TIMING_EXECUTOR.get(), context);
 
