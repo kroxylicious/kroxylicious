@@ -38,7 +38,6 @@ runs:
           ~/.m2
           !~/.m2/repository/io/kroxylicious
         key: ${{ runner.os }}-m2-week-${{ steps.week.outputs.week }}
-        restore-keys: ${{ runner.os }}-m2-week-
     - name: 'Cache Maven packages (read-write)'
       if: ${{ inputs.read-only == 'false' }}
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -47,4 +46,3 @@ runs:
           ~/.m2
           !~/.m2/repository/io/kroxylicious
         key: ${{ runner.os }}-m2-week-${{ steps.week.outputs.week }}
-        restore-keys: ${{ runner.os }}-m2-week-
