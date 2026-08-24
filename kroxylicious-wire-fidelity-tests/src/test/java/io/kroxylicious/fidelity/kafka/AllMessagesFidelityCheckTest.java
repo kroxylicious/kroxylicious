@@ -122,8 +122,7 @@ class AllMessagesFidelityCheckTest {
         short highest = kafkaMessage.highestSupportedVersion();
 
         return IntStream.rangeClosed(lowest, highest)
-                .mapToObj(version ->
-                        Arguments.argumentSet(messageName + direction + " - v" + version, (short) version, kroxyliciousMessage, kafkaMessage));
+                .mapToObj(version -> Arguments.argumentSet(messageName + direction + " - v" + version, (short) version, kroxyliciousMessage, kafkaMessage));
     }
 
     private static org.apache.kafka.common.protocol.ApiMessage kafkaMessage(String messageName, String direction) {
