@@ -36,7 +36,7 @@ class AllMessagesFidelityCheckTest {
 
         // When
         ReadResult<?> result = FidelityCheck.kroxyliciousReads(
-                (org.apache.kafka.common.protocol.Message) kafkaMessage,
+                kafkaMessage,
                 (io.kroxylicious.kafka.common.protocol.Message) kroxyliciousMessage,
                 version);
 
@@ -54,7 +54,7 @@ class AllMessagesFidelityCheckTest {
 
         // When
         ReadResult<?> result = FidelityCheck.kafkaReads(
-                (io.kroxylicious.kafka.common.protocol.Message) kroxyliciousMessage,
+                kroxyliciousMessage,
                 (org.apache.kafka.common.protocol.Message) kafkaMessage,
                 version);
 
@@ -128,7 +128,6 @@ class AllMessagesFidelityCheckTest {
                             kafkaMessage(kafkaClass)));
         }
         catch (ClassNotFoundException e) {
-            // Skip specs with validVersions: "none"
             throw new RuntimeException(e);
         }
     }
