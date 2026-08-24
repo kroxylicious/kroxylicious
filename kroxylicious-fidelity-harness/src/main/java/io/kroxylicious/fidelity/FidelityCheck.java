@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.fidelity;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Proves wire-level fidelity between a {@code io.kroxylicious.kafka.common.message.*Data} instance and
  * its {@code org.apache.kafka.common.message.*Data} equivalent, without either side needing to know
@@ -17,6 +19,7 @@ package io.kroxylicious.fidelity;
  * tried first and rejected: it can't distinguish "the other side misread these bytes" from "the other side
  * read them fine but re-encodes differently," since both produce the same symptom.
  */
+@SuppressWarnings("java:S5960") // This module is intended for users to write tests with, using AssertJ here is a conscious and deliberate choice
 public final class FidelityCheck {
 
     private FidelityCheck() {
@@ -33,9 +36,9 @@ public final class FidelityCheck {
      * @return the result of decoding {@code kafkaSource}'s bytes with the Kroxylicious codec
      */
     public static <T extends io.kroxylicious.kafka.common.protocol.Message> ReadResult<T> kroxyliciousReads(
-                                                                                                            org.apache.kafka.common.protocol.Message kafkaSource,
-                                                                                                            T oursScratch,
-                                                                                                            short version) {
+            org.apache.kafka.common.protocol.Message kafkaSource,
+            T oursScratch,
+            short version) {
         byte[] kafkaBytes = KafkaSerdes.write(kafkaSource, version);
         return KroxyliciousSerdes.read(oursScratch, kafkaBytes, version);
     }
@@ -51,9 +54,9 @@ public final class FidelityCheck {
      * @return the result of decoding {@code oursSource}'s bytes with the Kafka codec
      */
     public static <T extends org.apache.kafka.common.protocol.Message> ReadResult<T> kafkaReads(
-                                                                                                io.kroxylicious.kafka.common.protocol.Message oursSource,
-                                                                                                T kafkaScratch,
-                                                                                                short version) {
+            io.kroxylicious.kafka.common.protocol.Message oursSource,
+            T kafkaScratch,
+            short version) {
         byte[] oursBytes = KroxyliciousSerdes.write(oursSource, version);
         return KafkaSerdes.read(kafkaScratch, oursBytes, version);
     }
@@ -71,10 +74,10 @@ public final class FidelityCheck {
      * @return the two sides' decode errors, if any
      */
     public static <K extends org.apache.kafka.common.protocol.Message, X extends io.kroxylicious.kafka.common.protocol.Message> ErrorParity compareErrorHandling(
-                                                                                                                                                                 byte[] bytes,
-                                                                                                                                                                 K kafkaScratch,
-                                                                                                                                                                 X oursScratch,
-                                                                                                                                                                 short version) {
+            byte[] bytes,
+            K kafkaScratch,
+            X oursScratch,
+            short version) {
         Throwable kafkaError = KafkaSerdes.read(kafkaScratch, bytes, version).error();
         Throwable kroxyliciousError = KroxyliciousSerdes.read(oursScratch, bytes, version).error();
         return new ErrorParity(kafkaError, kroxyliciousError);
@@ -93,12 +96,14 @@ public final class FidelityCheck {
          *
          * @throws AssertionError if exactly one codec failed
          */
-        public void assertBothFailedOrBothSucceeded() {
-            boolean kafkaFailed = kafkaError != null;
-            boolean kroxyliciousFailed = kroxyliciousError != null;
-            if (kafkaFailed != kroxyliciousFailed) {
-                throw new AssertionError("Kafka " + (kafkaFailed ? "failed (" + kafkaError + ")" : "succeeded")
-                        + ", but Kroxylicious " + (kroxyliciousFailed ? "failed (" + kroxyliciousError + ")" : "succeeded"));
+        public void assertEquivalentResults() {
+            if (kafkaError == null) {
+                assertThat(kroxyliciousError).isNull();
+            }
+            else {
+                assertThat(kroxyliciousError)
+                        .hasSameClassAs(kafkaError)
+                        .hasMessage(kafkaError.getMessage());
             }
         }
     }

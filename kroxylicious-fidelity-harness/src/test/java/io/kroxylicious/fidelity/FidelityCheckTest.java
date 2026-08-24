@@ -60,6 +60,6 @@ class FidelityCheckTest {
                 malformed, new org.apache.kafka.common.message.RequestHeaderData(), new RequestHeaderData(), (short) 2);
 
         // Then
-        assertThat(parity).satisfies(FidelityCheck.ErrorParity::assertBothFailedOrBothSucceeded);
+        parity.assertEquivalentResults();
     }
 }
