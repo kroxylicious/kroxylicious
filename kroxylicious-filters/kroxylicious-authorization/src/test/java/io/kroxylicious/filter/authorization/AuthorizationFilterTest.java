@@ -42,6 +42,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.reflect.ClassPath;
 
 import io.github.sambarker.logsquelcher.CapturedLogs;
+import io.github.sambarker.logsquelcher.EffectiveLogLevel;
 import io.github.sambarker.logsquelcher.LogSquelcherExtension;
 import io.github.sambarker.logsquelcher.LoggingEventAssert;
 
@@ -150,6 +151,7 @@ class AuthorizationFilterTest {
 
     @ParameterizedTest
     @MethodSource
+    @EffectiveLogLevel(logger = AuthorizationFilter.class, level = Level.DEBUG)
     void authorization(ScenarioDefinition definition, CapturedLogs capturedLogs) {
         SimpleAuthorizer authorizer = new SimpleAuthorizer(definition.given().authorizerRules());
         AuthorizationFilter authorizationFilter = new AuthorizationFilter(authorizer);
