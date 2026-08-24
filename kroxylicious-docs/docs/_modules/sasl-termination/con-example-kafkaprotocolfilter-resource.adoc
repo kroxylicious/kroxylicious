@@ -16,7 +16,7 @@
 [role="_abstract"]
 If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProtocolFilter` resource to contain the filter configuration.
 
-Here is a complete example of a `KafkaProtocolFilter` resource configured for SASL Termination:
+Here is a complete example of a `KafkaProtocolFilter` resource configured for SASL Termination with both `OAUTHBEARER` and `SCRAM-SHA-256` mechanisms:
 
 [source,yaml]
 ----
@@ -31,6 +31,12 @@ spec:
         jwksEndpointUrl: https://idp.example.com/.well-known/jwks.json
         expectedAudience: kafka
         expectedIssuer: https://idp.example.com
+      - mechanism: SCRAM-SHA-256
+        credentialStore: ScramCredentialFileService
+        credentialStoreConfig:
+          file: ${secret:scram-credentials:credentials.p12}
+          filePassword:
+            passwordFile: ${secret:scram-credentials:file-password}
     maxTimeBeforeReauth: 1h
     fixedAuthDelay: 200ms
     subjectBuilder: <class name>
@@ -38,7 +44,7 @@ spec:
 ----
 where:
 
-* `mechanisms` (required) configures the list of SASL mechanisms that the filter supports.
+* `mechanisms` (required) configures the enabled SASL mechanisms that the filter supports.
 Each entry specifies a `mechanism` name and mechanism-specific configuration.
 `OAUTHBEARER`, `SCRAM-SHA-256`, and `SCRAM-SHA-512` are supported.
 * `maxTimeBeforeReauth` specifies the maximum session lifetime before the client must reauthenticate (https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate[KIP-368]).
@@ -52,5 +58,9 @@ If omitted, a default subject builder creates a principal with name matching the
 * `subjectBuilderConfig` provides subject builder configuration.
 
 For `OAUTHBEARER` mechanism configuration, see the bare-metal configuration example for a full description of the mechanism-specific fields (`jwksEndpointUrl`, `expectedAudience`, `expectedIssuer`, and others).
+
+For `SCRAM-SHA-256` and `SCRAM-SHA-512` mechanism configuration, see the bare-metal configuration example for a full description of the mechanism-specific fields (`credentialStore`, `credentialStoreConfig`).
+The `${secret:scram-credentials:credentials.p12}` and `${secret:scram-credentials:file-password}` syntax references entries from the Kubernetes Secret named `scram-credentials`.
+The operator automatically mounts the referenced Secret entries as files in the proxy container and replaces the interpolation expressions with the corresponding file paths.
 
 For more information about configuration on Kubernetes, see the {OperatorGuide}.

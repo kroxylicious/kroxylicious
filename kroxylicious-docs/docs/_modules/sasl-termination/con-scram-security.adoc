@@ -1,0 +1,53 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-authentication-sasl-termination.adoc
+
+[id='con-scram-security-{context}']
+= SCRAM security considerations
+
+[role="_abstract"]
+This section describes the security measures that the `SaslTermination` filter applies when handling SCRAM-SHA-256 and SCRAM-SHA-512 authentication.
+
+== Credential storage
+
+The SCRAM credential tool creates a _proxy SCRAM credential file_ — a PKCS#12 file with an internal format specific to Kroxylicious.
+Always use the SCRAM credential tool to create and modify this file; other tools such as the JDK `keytool` are not compatible with the internal format.
+
+The proxy SCRAM credential file does not contain plaintext passwords.
+When a user is added, the password is processed through PBKDF2 key derivation to produce two derived keys: `StoredKey` and `ServerKey`.
+Only these derived keys and the associated salt and iteration count are stored.
+
+The PBKDF2 iteration count controls the computational cost of deriving keys from a password.
+Higher values increase resistance to brute-force attacks against the credential file, but also increase the CPU cost of each authentication.
+The default is 10000, and the minimum is 4096.
+
+== Username enumeration protection
+
+The filter protects against username enumeration attacks by generating synthetic SCRAM challenges for unknown usernames.
+These _phantom challenges_ are constructed so that an attacker cannot distinguish between a response for a valid user and a response for a non-existent user.
+
+To maintain this protection, the `phantomIterations` configuration property should match the iteration count used when creating real credentials.
+The iteration count is sent as a plaintext field in the SCRAM server challenge message, so if phantom challenges use a different iteration count than real credentials, an attacker can simply compare the values across attempts to distinguish real usernames from non-existent ones.
+
+All proxy instances must use the same proxy SCRAM credential file, because it contains a secret key used to derive phantom salts.
+If different instances used different files, phantom challenges for the same username would produce different salts across instances, which could reveal which challenges are phantom.
+
+== Timing side-channel mitigation
+
+The `fixedAuthDelay` property (configured at the `SaslTermination` filter level, not per mechanism) applies a fixed delay to each authentication round.
+This ensures that authentication responses take a consistent amount of time regardless of whether the user exists, the password is correct, or any other condition.
+The default delay is 200 milliseconds.
+
+If connection latency is a higher priority than timing attack mitigation, the delay can be set to `0s` to disable it entirely.
+The value can also be tuned to a lower delay, but if it is configured low enough that authentication processing frequently exceeds the fixed delay, the timing attack mitigation is lost.
+The `kroxylicious_filter_sasl_termination_auth_duration_seconds` metric records the real authentication latency exclusive of the fixed delay, and the filter logs a warning when authentication processing exceeds it.
+Use these to inform any tuning.
+For details, see the Authentication metrics and Authentication logging sections of this guide.

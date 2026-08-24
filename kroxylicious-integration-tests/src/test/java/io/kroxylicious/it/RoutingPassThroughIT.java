@@ -423,10 +423,11 @@ class RoutingPassThroughIT {
 
             // When / Then
             await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
-                var descriptions = admin.describeTopics(List.of(topicName)).allTopicNames().get(10, TimeUnit.SECONDS);
-                assertThat(descriptions.get(topicName).partitions())
-                        .singleElement()
-                        .satisfies(p -> assertThat(p.leader().id()).isEqualTo(1));
+                assertThat(admin.describeTopics(List.of(topicName)).allTopicNames().toCompletionStage().toCompletableFuture())
+                        .succeedsWithin(10, TimeUnit.SECONDS)
+                        .satisfies(descriptions -> assertThat(descriptions.get(topicName).partitions())
+                                .singleElement()
+                                .satisfies(p -> assertThat(p.leader().id()).isEqualTo(1)));
             });
         }
     }

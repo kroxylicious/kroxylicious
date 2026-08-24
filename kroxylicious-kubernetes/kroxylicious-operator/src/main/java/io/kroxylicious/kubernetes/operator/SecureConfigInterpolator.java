@@ -115,7 +115,7 @@ public class SecureConfigInterpolator {
     }
 
     private InterpolatedValue interpolateObject(Map<?, ?> object) {
-        var newObject = new LinkedHashMap<>(1 + (int) (object.size() / 0.75f));
+        var newObject = LinkedHashMap.newLinkedHashMap(object.size());
         List<ContainerFileReference> containerFileReferences = new ArrayList<>();
         for (var entry : object.entrySet()) {
             String fieldName = entry.getKey().toString();

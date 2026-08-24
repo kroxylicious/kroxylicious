@@ -10,4 +10,4 @@ description: Using the Authorization filter to provide Kafka®-equivalent access
 tags:
   - security
   - filter
-rank: "024"
+rank: "016"

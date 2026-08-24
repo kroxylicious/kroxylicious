@@ -24,5 +24,5 @@ export DEBUG_OUTPUT=/dev/null
 export HIDE_CMD_LINE=1
 JAVA_CLASSPATH="$(script_dir)/../libs/*"
 export JAVA_CLASSPATH
-export JAVA_MAIN_CLASS=io.kroxylicious.scram.credentialstore.keystore.cli.KeystoreCredentialTool
+export JAVA_MAIN_CLASS=io.kroxylicious.scram.credentialstore.file.cli.ScramCredentialFileTool
 exec "$(script_dir)"/run-java.sh "$@"
