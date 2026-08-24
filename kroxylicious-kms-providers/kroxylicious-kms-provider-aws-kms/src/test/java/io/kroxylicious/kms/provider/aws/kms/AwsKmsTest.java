@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import com.github.tomakehurst.wiremock.WireMockServer;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
+import io.kroxylicious.kms.provider.aws.kms.config.CredentialsConfig;
 import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
 import io.kroxylicious.kms.service.DekPair;
@@ -64,7 +65,8 @@ class AwsKmsTest {
     @BeforeEach
     void beforeEach() {
         var longTermCredentialsProviderConfig = new LongTermCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret"));
-        var config = new Config(URI.create(server.baseUrl()), longTermCredentialsProviderConfig, null, null, "us-west-2", null);
+        var credentials = new CredentialsConfig(longTermCredentialsProviderConfig, null, null, null);
+        var config = new Config(URI.create(server.baseUrl()), credentials, "us-west-2", null);
         awsKmsService = new AwsKmsService();
         awsKmsService.initialize(config);
         kms = awsKmsService.buildKms();
