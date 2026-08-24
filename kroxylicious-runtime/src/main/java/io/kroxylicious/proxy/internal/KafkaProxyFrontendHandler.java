@@ -351,6 +351,11 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link ClientConnectionStateMachine} to propagate an RPC to the downstream client.
      * @param msg the RPC to forward.
      */
+    // FutureReturnValueIgnored: clientCtx().voidPromise() is a VoidChannelPromise; by Netty's
+    // design, failures on a void-promise write are delivered to the pipeline's exceptionCaught
+    // rather than to a listener. Void promises are used deliberately on this hot data path to
+    // avoid per-write promise allocation.
+    @SuppressWarnings("FutureReturnValueIgnored")
     void forwardToClient(Object msg) {
         final Channel inboundChannel = clientCtx().channel();
         if (inboundChannel.isWritable()) {

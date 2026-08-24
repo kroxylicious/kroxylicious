@@ -44,6 +44,8 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
 /**
  * Sits at the end of the VC-level filter chain (instead of
  * {@link io.kroxylicious.proxy.internal.FilterChainCompletionHandler}) when a
@@ -285,7 +287,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                         .setCause(error)
                         .log("Router returned failed future");
                 oobFrame.promise().completeExceptionally(error);
-                ctx.channel().close();
+                ctx.channel().close().addListener(logFailure(LOGGER, "close after router returned failed future for OOB request"));
                 return;
             }
             if (!(result instanceof RouterResponseImpl rri)) {
@@ -298,16 +300,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                         .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
                         .log("Router returned unrecognised RouterResponse type; closing connection");
                 oobFrame.promise().completeExceptionally(cause);
-                ctx.channel().close();
+                ctx.channel().close().addListener(logFailure(LOGGER, "close after unrecognised router response type for OOB request"));
                 return;
             }
             if (rri instanceof RouterResponseImpl.RespondWith rw) {
-                var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
-                header.setCorrelationId(correlationId);
-                var internalResponse = new InternalResponseFrame<>(
-                        oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
-                internalResponse.setRouteName(oobFrame.routeName());
-                ctx.channel().writeAndFlush(internalResponse);
+                writeOobResponse(ctx, rw, oobFrame, apiVersion, correlationId);
             }
             else {
                 Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
@@ -315,13 +312,27 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                         : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
                 oobFrame.promise().completeExceptionally(cause);
                 if (rri.closeConnection()) {
-                    ctx.channel().close();
+                    ctx.channel().close().addListener(logFailure(LOGGER, "close requested by router for OOB request"));
                 }
             }
         }
         finally {
             ccsm.onRoutedRequestComplete();
         }
+    }
+
+    private void writeOobResponse(ChannelHandlerContext ctx, RouterResponseImpl.RespondWith rw,
+                                  InternalRequestFrame<?> oobFrame, short apiVersion, int correlationId) {
+        var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
+        header.setCorrelationId(correlationId);
+        var internalResponse = new InternalResponseFrame<>(
+                oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
+        internalResponse.setRouteName(oobFrame.routeName());
+        ctx.channel().writeAndFlush(internalResponse).addListener(f -> {
+            if (!f.isSuccess()) {
+                oobFrame.promise().completeExceptionally(f.cause());
+            }
+        });
     }
 
     private void handleRegularCompletion(ChannelHandlerContext ctx, RouterResponse result, Throwable error,
@@ -335,7 +346,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                     .setCause(error)
                     .log("Router returned failed future");
             Objects.requireNonNull(responseSequencer).skip(sequence);
-            ctx.channel().close();
+            ctx.channel().close().addListener(logFailure(LOGGER, "close after router returned failed future"));
             return;
         }
         if (!(result instanceof RouterResponseImpl rri)) {
@@ -346,7 +357,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                     .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
                     .log("Router returned unrecognised RouterResponse type; closing connection");
             Objects.requireNonNull(responseSequencer).skip(sequence);
-            ctx.channel().close();
+            ctx.channel().close().addListener(logFailure(LOGGER, "close after unrecognised router response type"));
             return;
         }
         deliverResponse(ctx, rri, apiKey, apiVersion, correlationId, sequence);
@@ -384,11 +395,14 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
             }
         }
         if (rri.closeConnection()) {
-            ctx.channel().close();
+            ctx.channel().close().addListener(logFailure(LOGGER, "close requested by router after response delivery"));
         }
         ccsm.onRoutedRequestComplete();
     }
 
+    // FutureReturnValueIgnored: `promise` is supplied by the caller and is notified with
+    // the outcome of the write, so the returned future carries no additional information.
+    @SuppressWarnings("FutureReturnValueIgnored")
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof DecodedResponseFrame<?> frame) {
@@ -411,7 +425,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                             .addKeyValue("sessionId", ccsm.sessionId())
                             .addKeyValue("routingCorrelationId", correlationId)
                             .log("Received response with no pending routing future");
-                    ctx.channel().close();
+                    ctx.channel().close().addListener(logFailure(LOGGER, "close after response with no pending routing future"));
                 }
                 promise.setSuccess();
                 return;
@@ -432,20 +446,31 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         return executeOnEventLoop(() -> doSendToAny(route, header, request, sessionId, clientCorrelationId));
     }
 
+    // FutureReturnValueIgnored: a synchronous throw from work.get() is caught and
+    // propagated to `bridge`, so the submitted task cannot complete exceptionally and the
+    // whenComplete callback completes `bridge` in both branches.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private <T> CompletionStage<T> executeOnEventLoop(Supplier<CompletableFuture<T>> work) {
         var executor = Objects.requireNonNull(ctx, "sendRequest called before handlerAdded").executor();
         if (executor.inEventLoop()) {
             return work.get();
         }
         CompletableFuture<T> bridge = new CompletableFuture<>();
-        executor.execute(() -> work.get().whenComplete((r, e) -> {
-            if (e != null) {
+        executor.execute(() -> {
+            try {
+                work.get().whenComplete((r, e) -> {
+                    if (e != null) {
+                        bridge.completeExceptionally(e);
+                    }
+                    else {
+                        bridge.complete(r);
+                    }
+                });
+            }
+            catch (Exception e) {
                 bridge.completeExceptionally(e);
             }
-            else {
-                bridge.complete(r);
-            }
-        }));
+        });
         return bridge;
     }
 

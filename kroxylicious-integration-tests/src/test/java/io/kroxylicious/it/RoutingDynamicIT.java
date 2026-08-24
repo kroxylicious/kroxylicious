@@ -94,6 +94,7 @@ class RoutingDynamicIT {
     }
 
     @Test
+    @SuppressWarnings("FutureReturnValueIgnored") // acks=0 fire-and-forget: send() returns before broker acknowledgement; see producer config in the try block below
     void shouldForwardFireAndForgetProduceToUpstream(KafkaCluster cluster, Topic topic) {
         // Given
         var config = dynamicRoutingConfig(cluster);

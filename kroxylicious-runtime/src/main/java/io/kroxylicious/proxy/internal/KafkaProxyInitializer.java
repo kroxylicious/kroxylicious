@@ -55,6 +55,8 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
 /**
  * Initializes the Netty pipeline for each accepted client connection: optionally installs
  * PROXY-protocol detection and TLS/SNI handling, resolves the {@link EndpointBinding} for the
@@ -221,7 +223,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                     // or that the virtual cluster is somehow not configured for TLS. All we can do is close the
                     // connection.
                     clientToProxyErrorCounter.increment();
-                    ctx.close();
+                    ctx.close().addListener(logFailure(LOGGER, "close after SNI/TLS lookup failure"));
                 }
 
             }
@@ -335,7 +337,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         LOGGER.atInfo()
                 .addKeyValue("virtualCluster", clusterName)
                 .log("Rejecting new connection - virtual cluster is draining");
-        ch.close();
+        ch.close().addListener(logFailure(LOGGER, "close rejected connection during virtual cluster drain"));
     }
 
     private static void addLoggingErrorHandler(ChannelPipeline pipeline) {

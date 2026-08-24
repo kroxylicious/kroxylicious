@@ -173,8 +173,8 @@ public final class MockServer implements AutoCloseable {
         ChannelFuture channelFuture = channel.close();
         try {
             channelFuture.sync();
-            bossGroup.shutdownGracefully();
-            workerGroup.shutdownGracefully();
+            bossGroup.shutdownGracefully().syncUninterruptibly();
+            workerGroup.shutdownGracefully().syncUninterruptibly();
         }
         catch (InterruptedException ie) {
             Thread.currentThread().interrupt();

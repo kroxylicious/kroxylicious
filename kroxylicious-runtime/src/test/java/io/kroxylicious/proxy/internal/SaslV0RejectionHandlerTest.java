@@ -55,7 +55,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn((short) 0);
         when(frame.apiKeyId()).thenReturn(ApiKeys.SASL_HANDSHAKE.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         Object o = channel.readOutbound();
         assertThat(o).isInstanceOfSatisfying(DecodedResponseFrame.class, decodedResponseFrame -> {
             assertThat(decodedResponseFrame.apiVersion()).isEqualTo((short) 0);
@@ -80,7 +80,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn(apiVersion);
         when(frame.apiKeyId()).thenReturn(ApiKeys.SASL_HANDSHAKE.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         Object o = channel.readInbound();
         assertThat(o).isSameAs(frame);
         assertThat(channel.isOpen()).isTrue();
@@ -94,7 +94,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn((short) 0);
         when(frame.apiKeyId()).thenReturn(apiKeys.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         Object o = channel.readInbound();
         assertThat(o).isSameAs(frame);
         assertThat(channel.isOpen()).isTrue();
@@ -108,7 +108,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn((short) 0);
         when(frame.apiKeyId()).thenReturn(apiKeys.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         assertThat(channel.pipeline().first()).isNull();
     }
 
@@ -119,7 +119,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn((short) 1);
         when(frame.apiKeyId()).thenReturn(ApiKeys.SASL_HANDSHAKE.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         assertThat(channel.pipeline().first()).isNull();
     }
 
@@ -129,7 +129,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn((short) 0);
         when(frame.apiKeyId()).thenReturn(ApiKeys.API_VERSIONS.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         assertThat(channel.pipeline().first()).isSameAs(saslV0RejectionHandler);
     }
 

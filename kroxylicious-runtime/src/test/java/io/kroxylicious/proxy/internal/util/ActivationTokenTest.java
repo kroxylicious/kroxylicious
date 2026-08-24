@@ -6,10 +6,13 @@
 
 package io.kroxylicious.proxy.internal.util;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -206,16 +209,17 @@ class ActivationTokenTest {
     @Test
     @DisplayName("concurrent acquire() operations are thread-safe")
     @Timeout(5)
-    void testConcurrentAcquireOperations() throws InterruptedException {
+    void testConcurrentAcquireOperations() throws Exception {
         final int threadCount = 10;
         final ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         final CountDownLatch latch = new CountDownLatch(threadCount);
         final CyclicBarrier barrier = new CyclicBarrier(threadCount);
+        final List<Future<?>> futures = new ArrayList<>();
 
         try {
             // When: multiple threads try to acquire the same token concurrently
             IntStream.range(0, threadCount).forEach(i -> {
-                executor.submit(() -> {
+                futures.add(executor.submit(() -> {
                     try {
                         barrier.await(); // Synchronize thread start
                         token.acquire();
@@ -226,11 +230,14 @@ class ActivationTokenTest {
                     finally {
                         latch.countDown();
                     }
-                });
+                }));
             });
 
             // Wait for all threads to complete
             assertTrue(latch.await(3, TimeUnit.SECONDS));
+            for (var f : futures) {
+                f.get(1, TimeUnit.SECONDS); // rethrow any AssertionError from worker threads
+            }
 
             // Then: counter should be incremented exactly once
             assertEquals(1, counter.get());
@@ -244,16 +251,17 @@ class ActivationTokenTest {
     @Test
     @DisplayName("concurrent acquire() and release() operations are thread-safe")
     @Timeout(5)
-    void testConcurrentAcquireAndReleaseOperations() throws InterruptedException {
+    void testConcurrentAcquireAndReleaseOperations() throws Exception {
         final int threadCount = 20; // 10 acquire, 10 release
         final ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         final CountDownLatch latch = new CountDownLatch(threadCount);
         final CyclicBarrier barrier = new CyclicBarrier(threadCount);
+        final List<Future<?>> futures = new ArrayList<>();
 
         try {
             // When: multiple threads try to acquire and release concurrently
             IntStream.range(0, threadCount).forEach(i -> {
-                executor.submit(() -> {
+                futures.add(executor.submit(() -> {
                     try {
                         barrier.await(); // Synchronize thread start
                         if (i < 10) {
@@ -269,11 +277,14 @@ class ActivationTokenTest {
                     finally {
                         latch.countDown();
                     }
-                });
+                }));
             });
 
             // Wait for all threads to complete
             assertTrue(latch.await(3, TimeUnit.SECONDS));
+            for (var f : futures) {
+                f.get(1, TimeUnit.SECONDS); // rethrow any AssertionError from worker threads
+            }
 
             // Then: final state should be consistent (either 0 or 1 depending on timing)
             int finalValue = counter.get();
@@ -289,7 +300,7 @@ class ActivationTokenTest {
     @Test
     @DisplayName("concurrent operations on multiple tokens are thread-safe")
     @Timeout(5)
-    void testConcurrentMultipleTokenOperations() throws InterruptedException {
+    void testConcurrentMultipleTokenOperations() throws Exception {
         final int tokenCount = 5;
         final int threadsPerToken = 4;
         final int totalThreads = tokenCount * threadsPerToken;
@@ -302,13 +313,14 @@ class ActivationTokenTest {
             tokens[i] = new ActivationToken(counter);
         }
 
+        final List<Future<?>> futures = new ArrayList<>();
         try {
             // When: multiple threads operate on different tokens concurrently
             for (int tokenIndex = 0; tokenIndex < tokenCount; tokenIndex++) {
                 final int finalTokenIndex = tokenIndex;
                 for (int threadIndex = 0; threadIndex < threadsPerToken; threadIndex++) {
                     final int finalThreadIndex = threadIndex;
-                    executor.submit(() -> {
+                    futures.add(executor.submit(() -> {
                         try {
                             ActivationToken currentToken = tokens[finalTokenIndex];
                             if (finalThreadIndex % 2 == 0) {
@@ -324,12 +336,15 @@ class ActivationTokenTest {
                         finally {
                             latch.countDown();
                         }
-                    });
+                    }));
                 }
             }
 
             // Wait for all threads to complete
             assertTrue(latch.await(5, TimeUnit.SECONDS));
+            for (var f : futures) {
+                f.get(1, TimeUnit.SECONDS); // rethrow any AssertionError from worker threads
+            }
 
             // Then: counter should be non-negative and not exceed token count
             int finalValue = counter.get();
@@ -345,16 +360,17 @@ class ActivationTokenTest {
     @RepeatedTest(10)
     @DisplayName("stress test - repeated concurrent operations")
     @Timeout(3)
-    void stressTestRepeatedConcurrentOperations() throws InterruptedException {
+    void stressTestRepeatedConcurrentOperations() throws Exception {
         final int threadCount = 20;
         final int operationsPerThread = 10;
         final ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         final CountDownLatch latch = new CountDownLatch(threadCount);
         final AtomicReference<Exception> exceptionRef = new AtomicReference<>();
+        final List<Future<?>> futures = new ArrayList<>();
 
         try {
             IntStream.range(0, threadCount).forEach(i -> {
-                executor.submit(() -> {
+                futures.add(executor.submit(() -> {
                     try {
                         for (int j = 0; j < operationsPerThread; j++) {
                             if (j % 2 == 0) {
@@ -371,10 +387,13 @@ class ActivationTokenTest {
                     finally {
                         latch.countDown();
                     }
-                });
+                }));
             });
 
             assertTrue(latch.await(2, TimeUnit.SECONDS));
+            for (var f : futures) {
+                f.get(1, TimeUnit.SECONDS); // rethrow any AssertionError or Error from worker threads
+            }
             assertNull(exceptionRef.get(), "No exceptions should occur during concurrent operations");
 
             // Counter should be in a valid state (0 or 1)
