@@ -36,9 +36,9 @@ public final class FidelityCheck {
      * @return the result of decoding {@code kafkaSource}'s bytes with the Kroxylicious codec
      */
     public static <T extends io.kroxylicious.kafka.common.protocol.Message> ReadResult<T> kroxyliciousReads(
-            org.apache.kafka.common.protocol.Message kafkaSource,
-            T oursScratch,
-            short version) {
+                                                                                                            org.apache.kafka.common.protocol.Message kafkaSource,
+                                                                                                            T oursScratch,
+                                                                                                            short version) {
         byte[] kafkaBytes = KafkaSerdes.write(kafkaSource, version);
         return KroxyliciousSerdes.read(oursScratch, kafkaBytes, version);
     }
@@ -54,9 +54,9 @@ public final class FidelityCheck {
      * @return the result of decoding {@code oursSource}'s bytes with the Kafka codec
      */
     public static <T extends org.apache.kafka.common.protocol.Message> ReadResult<T> kafkaReads(
-            io.kroxylicious.kafka.common.protocol.Message oursSource,
-            T kafkaScratch,
-            short version) {
+                                                                                                io.kroxylicious.kafka.common.protocol.Message oursSource,
+                                                                                                T kafkaScratch,
+                                                                                                short version) {
         byte[] oursBytes = KroxyliciousSerdes.write(oursSource, version);
         return KafkaSerdes.read(kafkaScratch, oursBytes, version);
     }
@@ -74,10 +74,10 @@ public final class FidelityCheck {
      * @return the two sides' decode errors, if any
      */
     public static <K extends org.apache.kafka.common.protocol.Message, X extends io.kroxylicious.kafka.common.protocol.Message> ErrorParity compareErrorHandling(
-            byte[] bytes,
-            K kafkaScratch,
-            X oursScratch,
-            short version) {
+                                                                                                                                                                 byte[] bytes,
+                                                                                                                                                                 K kafkaScratch,
+                                                                                                                                                                 X oursScratch,
+                                                                                                                                                                 short version) {
         Throwable kafkaError = KafkaSerdes.read(kafkaScratch, bytes, version).error();
         Throwable kroxyliciousError = KroxyliciousSerdes.read(oursScratch, bytes, version).error();
         return new ErrorParity(kafkaError, kroxyliciousError);
