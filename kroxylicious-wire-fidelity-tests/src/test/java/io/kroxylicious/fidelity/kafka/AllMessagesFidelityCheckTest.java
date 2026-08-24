@@ -115,17 +115,36 @@ class AllMessagesFidelityCheckTest {
     }
 
     private static Stream<Arguments> versionedMessageStream(String messageName, String direction) {
+
+        var kroxyliciousMessage = kroxyliciousMessage(messageName, direction);
+        org.apache.kafka.common.protocol.ApiMessage kafkaMessage = kafkaMessage(messageName, direction);
+        short lowest = kafkaMessage.lowestSupportedVersion();
+        short highest = kafkaMessage.highestSupportedVersion();
+
+        return IntStream.rangeClosed(lowest, highest)
+                .mapToObj(version ->
+                        Arguments.argumentSet(messageName + direction + " - v" + version, (short) version, kroxyliciousMessage, kafkaMessage));
+    }
+
+    private static org.apache.kafka.common.protocol.ApiMessage kafkaMessage(String messageName, String direction) {
+        try {
+            Class<?> kafkaClass = loadClass(KAFKA_PACKAGE, messageName, direction);
+            return kafkaMessage(kafkaClass);
+        }
+        catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static ApiMessage kroxyliciousMessage(String messageName, String direction) {
         try {
             Class<?> kroxyliciousClass = loadClass(KROXYLICIOUS_PACKAGE, messageName, direction);
-            Class<?> kafkaClass = loadClass(KAFKA_PACKAGE, messageName, direction);
-
-            var oursSample = kroxyliciousMessage(kroxyliciousClass);
-            short lowest = oursSample.lowestSupportedVersion();
-            short highest = oursSample.highestSupportedVersion();
-
-            return IntStream.rangeClosed(lowest, highest)
-                    .mapToObj(version -> Arguments.argumentSet(messageName + direction + " - v" + version, (short) version, kroxyliciousMessage(kroxyliciousClass),
-                            kafkaMessage(kafkaClass)));
+            try {
+                return (ApiMessage) kroxyliciousClass.getDeclaredConstructor().newInstance();
+            }
+            catch (ReflectiveOperationException e) {
+                throw new RuntimeException("Failed to instantiate " + kroxyliciousClass, e);
+            }
         }
         catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
@@ -134,21 +153,7 @@ class AllMessagesFidelityCheckTest {
 
     private static Class<?> loadClass(String packageName, String messageName, String direction) throws ClassNotFoundException {
         String className = CLASS_NAME_FORMAT.formatted(packageName, messageName, direction);
-        try {
-            return Class.forName(className);
-        }
-        catch (ClassNotFoundException e) {
-            throw e;
-        }
-    }
-
-    private static ApiMessage kroxyliciousMessage(Class<?> kroxyliciousClass) {
-        try {
-            return (ApiMessage) kroxyliciousClass.getDeclaredConstructor().newInstance();
-        }
-        catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Failed to instantiate " + kroxyliciousClass, e);
-        }
+        return Class.forName(className);
     }
 
     private static org.apache.kafka.common.protocol.ApiMessage kafkaMessage(Class<?> kafkaClass) {
