@@ -454,7 +454,7 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
                                 "credentialStore", ScramCredentialFileService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
-                                        "storePassword", Map.of("password", keystorePassword))),
+                                        "filePassword", Map.of("password", keystorePassword))),
                         Map.of("mechanism", "OAUTHBEARER",
                                 "jwksEndpointUrl", JWKS_ENDPOINT_URL,
                                 "expectedAudience", EXPECTED_AUDIENCE,
