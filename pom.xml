@@ -856,9 +856,18 @@
                                 junit.jupiter.extensions.autodetection.enabled=true
                             </configurationParameters>
                         </properties>
-                        <additionalClasspathElements>
-                            <additionalClasspathElement>${settings.localRepository}/io/github/sambarker/logsquelcher/${logsquelcher.version}/logsquelcher-${logsquelcher.version}.jar</additionalClasspathElement>
-                        </additionalClasspathElements>
+                        <additionalClasspathDependencies>
+                            <dependency>
+                                <groupId>io.github.sambarker</groupId>
+                                <artifactId>logsquelcher</artifactId>
+                                <version>${logsquelcher.version}</version>
+                            </dependency>
+                            <dependency>
+                                <groupId>org.mockito</groupId>
+                                <artifactId>mockito-core</artifactId>
+                                <version>${mockito.version}</version>
+                            </dependency>
+                        </additionalClasspathDependencies>
                         <systemPropertyVariables>
                             <io.netty.leakDetection.level>paranoid</io.netty.leakDetection.level>
                             <container.logs.dir>${project.build.directory}/container-logs/</container.logs.dir>
@@ -933,9 +942,18 @@
                                 junit.jupiter.extensions.autodetection.enabled=true
                             </configurationParameters>
                         </properties>
-                        <additionalClasspathElements>
-                            <additionalClasspathElement>${settings.localRepository}/io/github/sambarker/logsquelcher/${logsquelcher.version}/logsquelcher-${logsquelcher.version}.jar</additionalClasspathElement>
-                        </additionalClasspathElements>
+                        <additionalClasspathDependencies>
+                            <dependency>
+                                <groupId>io.github.sambarker</groupId>
+                                <artifactId>logsquelcher</artifactId>
+                                <version>${logsquelcher.version}</version>
+                            </dependency>
+                            <dependency>
+                                <groupId>org.mockito</groupId>
+                                <artifactId>mockito-core</artifactId>
+                                <version>${mockito.version}</version>
+                            </dependency>
+                        </additionalClasspathDependencies>
                         <systemPropertyVariables>
                             <slf4j.provider>io.github.sambarker.logsquelcher.LogSquelcherSLF4JProvider</slf4j.provider>
                         </systemPropertyVariables>

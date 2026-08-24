@@ -171,10 +171,6 @@ ifndef::DocRoot[:DocRoot: ..]
 :MultiTenancyGuideText: Kroxylicious Multi-Tenancy guide
 :MultiTenancyGuide: link:{MultiTenancyGuideUrl}[{MultiTenancyGuideText}]
 
-:OauthBearerValidationGuideUrl: {DocRoot}/oauth-bearer-validation/
-:OauthBearerValidationGuideText: OAuth Bearer Validation guide
-:OauthBearerValidationGuide: link:{OauthBearerValidationGuideUrl}[{OauthBearerValidationGuideText}]
-
 :RecordEncryptionGuideUrl: {DocRoot}/record-encryption-guide/
 :RecordEncryptionGuideText: Record Encryption guide
 :RecordEncryptionGuide: link:{RecordEncryptionGuideUrl}[{RecordEncryptionGuideText}]
@@ -182,10 +178,6 @@ ifndef::DocRoot[:DocRoot: ..]
 :RecordValidationGuideUrl: {DocRoot}/record-validation-guide/
 :RecordValidationGuideText: Record Validation guide
 :RecordValidationGuide: link:{RecordValidationGuideUrl}[{RecordValidationGuideText}]
-
-:SASLInspectionGuideUrl: {DocRoot}/sasl-inspection-guide/
-:SASLInspectionGuideText: SASL Inspection guide
-:SASLInspectionGuide: link:{SASLInspectionGuideUrl}[{SASLInspectionGuideText}]
 
 :AuthenticationGuideUrl: {DocRoot}/authentication-guide/
 :AuthenticationGuideText: Client Authentication guide

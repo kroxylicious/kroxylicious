@@ -55,8 +55,8 @@ import io.kroxylicious.filter.sasl.termination.SaslTermination;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.scram.credentialstore.keystore.KeystoreCredentialManager;
-import io.kroxylicious.scram.credentialstore.keystore.KeystoreScramCredentialStoreService;
+import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileManager;
+import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileService;
 import io.kroxylicious.testing.filter.assertj.KafkaAssertions;
 import io.kroxylicious.testing.filter.jws.JwsTestUtils;
 import io.kroxylicious.testing.integration.Request;
@@ -383,7 +383,7 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
@@ -451,10 +451,10 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
                 SaslTermination.class.getName())
                 .withConfig("mechanisms", List.of(
                         Map.of("mechanism", "SCRAM-SHA-256",
-                                "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
+                                "credentialStore", ScramCredentialFileService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
-                                        "storePassword", Map.of("password", keystorePassword))),
+                                        "filePassword", Map.of("password", keystorePassword))),
                         Map.of("mechanism", "OAUTHBEARER",
                                 "jwksEndpointUrl", JWKS_ENDPOINT_URL,
                                 "expectedAudience", EXPECTED_AUDIENCE,

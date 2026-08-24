@@ -82,11 +82,12 @@
                                 <dependencySourceInclude>io.kroxylicious:kroxylicious-authorizer-api</dependencySourceInclude>
                                 <dependencySourceInclude>io.kroxylicious:kroxylicious-kms</dependencySourceInclude>
                             </dependencySourceIncludes>
-                            <source>17</source>
+                            <source>${java.version}</source>
                             <detectJavaApiLink>true</detectJavaApiLink>
                             <detectLinks>false</detectLinks>
                             <failOnError>false</failOnError>
                             <failOnWarnings>false</failOnWarnings>
+                            <excludePackageNames>io.kroxylicious.kafka:io.kroxylicious.kafka.*</excludePackageNames>
                             <links>
                                 <link>https://javadoc.io/doc/org.apache.kafka/kafka-clients/${kafka.version}/</link>
                             </links>

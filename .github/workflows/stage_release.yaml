@@ -193,7 +193,6 @@ jobs:
             --arg proxyAmd64Ref "${PROXY}:${SHA_TAG}-amd64" \
             --arg proxyArm64Ref "${PROXY}:${SHA_TAG}-arm64" \
             --arg proxyManifest "${PROXY}:${SHA_TAG}" \
-            --arg legacyProxyManifest "${REGISTRY}/${ORG}/kroxylicious:${SHA_TAG}" \
             --arg operatorManifest "${OPERATOR}:${SHA_TAG}" \
             --arg admissionManifest "${ADMISSION}:${SHA_TAG}" \
             '{
@@ -210,11 +209,6 @@ jobs:
                     manifestImage: { ref: $proxyManifest },
                     amd64: { ref: $proxyAmd64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist"] } },
                     arm64: { ref: $proxyArm64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist", "aarch64"] } }
-                  }
-                },
-                legacyProxy: {
-                  images: {
-                    manifestImage: { ref: $legacyProxyManifest }
                   }
                 },
                 operator: {
