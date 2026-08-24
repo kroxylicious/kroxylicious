@@ -63,40 +63,4 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <!-- Unpack the IDL spec JSON files from the pinned kafka-clients jar so MessageSpecs can
-                 enumerate them. This is the same spec set (and version) that produced kroxylicious-api's
-                 generated *Data classes - see kroxylicious-api/pom.xml's unpack-data-class-message-specs
-                 execution. Uses a fresh execution id rather than the parent-managed unpack-message-specs
-                 (pinned to kafka.version, and used elsewhere for kroxylicious-krpc-plugin's filter
-                 generation) to avoid the version mismatch. -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>unpack-data-class-message-specs</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>unpack</goal>
-                        </goals>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>org.apache.kafka</groupId>
-                                    <artifactId>kafka-clients</artifactId>
-                                    <version>${kafka.message-spec.version}</version>
-                                    <overWrite>false</overWrite>
-                                    <includes>common/message/*.json</includes>
-                                    <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
-                                </artifactItem>
-                            </artifactItems>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
 </project>
