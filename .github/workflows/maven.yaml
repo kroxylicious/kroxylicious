@@ -73,6 +73,8 @@ jobs:
           echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: 'Cache Maven packages'
         uses: $/.github/actions/common/cache-maven-packages
+        with:
+          read-only: 'false'
       - name: 'Unit test all modules'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -132,8 +134,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Setup Java
         uses: $/.github/actions/common/setup-java
-      - name: 'Cache Maven packages'
-        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Determine project version'
         id: version
         run: echo "version=$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
