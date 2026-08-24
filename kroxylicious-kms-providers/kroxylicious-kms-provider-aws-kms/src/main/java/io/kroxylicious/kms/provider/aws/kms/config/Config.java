@@ -28,6 +28,14 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
                      @JsonProperty(value = "region", required = true) String region,
                      @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
 
+    /**
+     * Creates the AWS KMS configuration.
+     *
+     * @param endpointUrl URL of the AWS KMS endpoint.
+     * @param credentials grouped credential provider configuration.
+     * @param region AWS region.
+     * @param tls TLS settings.
+     */
     public Config {
         Objects.requireNonNull(endpointUrl);
         Objects.requireNonNull(credentials);
