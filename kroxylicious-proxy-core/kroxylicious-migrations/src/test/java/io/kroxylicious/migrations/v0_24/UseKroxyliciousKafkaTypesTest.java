@@ -17,14 +17,32 @@ class UseKroxyliciousKafkaTypesTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
         spec.recipeFromResources("io.kroxylicious.migrations.v0_24.UseKroxyliciousKafkaTypes");
-        spec.parser(JavaParser.fromJavaVersion().dependsOn("""
-                package org.apache.kafka.common.message;
-                public class ProduceRequestData {}
-                """));
+        spec.parser(JavaParser
+                .fromJavaVersion()
+                .dependsOn("""
+                        package org.apache.kafka.common.message;
+                        public class ProduceRequestData {}
+                        """,
+                        """
+                                package io.kroxylicious.kafka.common.message;
+                                public class ProduceRequestData {}
+                                """,
+                        """
+                                package org.apache.kafka.common.protocol;
+                                public interface Readable {}
+                                """,
+                        """
+                                package org.apache.kafka.common.protocol;
+                                public class ByteBufferAccessor implements Readable {}
+                                """,
+                        """
+                                package io.kroxylicious.kafka.common.protocol;
+                                public class ByteBufferAccessor {}
+                                """));
     }
 
     @Test
-    void shouldMigrateApachePackageToKroxyliciousPackage() {
+    void shouldMigrateApacheMessagePackageToKroxyliciousPackage() {
         rewriteRun(
                 java(
                         // Before (Input code)
@@ -45,6 +63,38 @@ class UseKroxyliciousKafkaTypesTest implements RewriteTest {
 
                                 public class SampleFilter {
                                     private ProduceRequestData data;
+                                }
+                                """));
+    }
+
+    @Test
+    void shouldMigrateApacheProtocolPackageToKroxyliciousPackage() {
+        rewriteRun(
+                java(
+                        // Before (Input code)
+                        """
+                                package com.example;
+
+                                import java.nio.ByteBuffer;
+                                import org.apache.kafka.common.protocol.ByteBufferAccessor;
+
+                                public class SampleFilter {
+                                    protected static void shouldBuildAccessor(short headerVersion, ByteBuffer buffer) {
+                                        new ByteBufferAccessor(buffer);
+                                    }
+                                }
+                                """,
+                        // After (Expected transformed code)
+                        """
+                                package com.example;
+
+                                import java.nio.ByteBuffer;
+                                import io.kroxylicious.kafka.common.protocol.ByteBufferAccessor;
+
+                                public class SampleFilter {
+                                    protected static void shouldBuildAccessor(short headerVersion, ByteBuffer buffer) {
+                                        new ByteBufferAccessor(buffer);
+                                    }
                                 }
                                 """));
     }

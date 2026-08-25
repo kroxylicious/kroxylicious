@@ -17,6 +17,13 @@ recipeList:
   - org.openrewrite.java.ChangePackageInStringLiteral:
       oldPackageName: org.apache.kafka.common.message
       newPackageName: io.kroxylicious.kafka.common.message
+  - org.openrewrite.java.ChangePackage:
+        oldPackageName: org.apache.kafka.common.protocol
+        newPackageName: io.kroxylicious.kafka.common.protocol
+        recursive: true
+  - org.openrewrite.java.ChangePackageInStringLiteral:
+      oldPackageName: org.apache.kafka.common.protocol
+      newPackageName: io.kroxylicious.kafka.common.protocol
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
