@@ -5,11 +5,13 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.FetchRequestData;
@@ -52,6 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyShort;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -257,6 +260,42 @@ class RoutingHandlerTest {
     }
 
     @Test
+    void topLevel_oobFrameForStaticallyRoutedApiKeyShouldBeForwardedWithoutInvokingRouter() {
+        // Given: PRODUCE is declared static, so the router's onRequest must never be consulted
+        var staticRoutes = Map.of(ApiKeys.PRODUCE, DEFAULT_ROUTE);
+        var handler = topLevelHandler(staticRoutes);
+        channel = new EmbeddedChannel(handler);
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+
+        // When
+        channel.writeInbound(oob);
+
+        // Then
+        InternalRequestFrame<?> forwarded = channel.readInbound();
+        assertThat(forwarded).isNotNull();
+        assertThat(forwarded.routeName()).isEqualTo(DEFAULT_ROUTE);
+        verify(router, never()).onRequest(any(), anyShort(), any(), any(), any());
+    }
+
+    @Test
+    void topLevel_oobFrameForNodeIdTranslationApiShouldNotTrackStaticRoute() {
+        // Given: every OOB frame shares the same reserved correlation ID, so tracking it for
+        // node-ID translation would collide with any other concurrently in-flight, statically-routed
+        // OOB request for a NODE_ID_TRANSLATION_APIS key.
+        var staticRoutes = Map.of(ApiKeys.PRODUCE, DEFAULT_ROUTE);
+        var handler = topLevelHandler(staticRoutes);
+        channel = new EmbeddedChannel(handler);
+        var oob = oobProduceFrame(CORRELATION_ID, new CompletableFuture<>());
+
+        // When
+        channel.writeInbound(oob);
+
+        // Then
+        assertThat(handler.dispatcher().hasPendingStaticRoute(oob.correlationId())).isFalse();
+    }
+
+    @Test
     void topLevel_shouldTranslateNodeIdsInMetadataResponse() {
         // Given
         var mapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
@@ -339,6 +378,22 @@ class RoutingHandlerTest {
         // Given
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("boom")));
+        var handler = topLevelHandlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(produceFrame(CORRELATION_ID));
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void topLevel_shouldCloseChannelWhenRouterThrowsSynchronously() {
+        // Given
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenThrow(new RuntimeException("boom"));
         var handler = topLevelHandlerWithRoute(DEFAULT_ROUTE);
         channel = new EmbeddedChannel(handler);
 
@@ -720,6 +775,31 @@ class RoutingHandlerTest {
         assertThat(channel.isOpen()).isFalse();
     }
 
+    @Test
+    void topLevel_oobFrameSynchronousThrowShouldCloseChannel() {
+        // Given
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenThrow(new RuntimeException("boom"));
+        when(ccsm.sessionId()).thenReturn(SESSION_ID);
+        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+
+        var handler = topLevelHandlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then: the connection closes, and the filter's promise fails with the exact exception thrown
+        assertThat(channel.isOpen()).isFalse();
+        assertThat(promise).failsWithin(Duration.ofSeconds(1))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RuntimeException.class)
+                .withMessageContaining("boom");
+    }
+
     // ========================================================================
     // Nested tests
     // ========================================================================
@@ -1068,5 +1148,81 @@ class RoutingHandlerTest {
         assertThat(ctx.virtualNode()).isPresent();
         assertThat(ctx.virtualNode().get()).isInstanceOfSatisfying(VirtualNodeImpl.class,
                 vn -> assertThat(vn.virtualNodeId()).isEqualTo(42));
+    }
+
+    // ========================================================================
+    // Nested OOB tests
+    // ========================================================================
+
+    @Test
+    void nested_oobFrameRespondWithShouldDeliverInternalResponseFrame() {
+        // Given
+        var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
+        channel = new EmbeddedChannel(handler);
+        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of());
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(ACTIVATION_ROUTE);
+        var body = new ProduceResponseData();
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new RouterResponseImpl.RespondWith(null, body, false)));
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then
+        var out = channel.readOutbound();
+        assertThat(out).isInstanceOf(InternalResponseFrame.class);
+        InternalResponseFrame<?> irf = (InternalResponseFrame<?>) out;
+        assertThat(irf.correlationId()).isEqualTo(CORRELATION_ID);
+        assertThat(irf.routeName()).isEqualTo(ACTIVATION_ROUTE);
+        assertThat(irf.promise()).isSameAs(promise);
+    }
+
+    @Test
+    void nested_oobFrameSynchronousThrowShouldCompletePromiseExceptionally() {
+        // Given
+        var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
+        channel = new EmbeddedChannel(handler);
+        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of());
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var oob = oobProduceFrame(CORRELATION_ID, promise);
+        oob.setRouteName(ACTIVATION_ROUTE);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenThrow(new RuntimeException("boom"));
+
+        // When
+        channel.writeInbound(oob);
+        channel.runPendingTasks();
+
+        // Then: nested handlers don't own the client connection, so only the promise is affected —
+        // and it must fail with the exact exception thrown, not some substitute
+        assertThat(promise).failsWithin(Duration.ofSeconds(1))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RuntimeException.class)
+                .withMessageContaining("boom");
+    }
+
+    @Test
+    void nested_shouldWriteErrorResponseWhenRouterThrowsSynchronously() {
+        // Given
+        var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
+        channel = new EmbeddedChannel(handler);
+        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of());
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenThrow(new RuntimeException("boom"));
+
+        // When
+        channel.writeInbound(fetchFrame(CORRELATION_ID, ACTIVATION_ROUTE));
+        channel.runPendingTasks();
+
+        // Then
+        DecodedResponseFrame<?> out = channel.readOutbound();
+        assertThat(out).isNotNull();
+        assertThat(out.header().correlationId()).isEqualTo(CORRELATION_ID);
     }
 }

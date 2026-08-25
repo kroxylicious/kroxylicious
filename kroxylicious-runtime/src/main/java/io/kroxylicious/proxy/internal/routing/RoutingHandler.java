@@ -8,8 +8,11 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletionStage;
+import java.util.function.BiConsumer;
 
 import org.apache.kafka.common.errors.UnknownServerException;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -272,12 +275,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
         ensureRouterCreated();
 
-        // OOB frames must bypass static routing so their promise can be completed.
-        if (msg instanceof InternalRequestFrame<?> oobFrame) {
-            dispatchDynamically(ctx, oobFrame);
-            return;
-        }
-
         ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
         String staticRoute = resolvedStaticRoutes.get(apiKey);
         if (staticRoute != null) {
@@ -295,7 +292,9 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
     private void dispatchStaticRoute(ChannelHandlerContext ctx, RequestFrame frame, Object msg, ApiKeys apiKey, String staticRoute) {
         String qualifiedRoute = dispatcher.qualifyRoute(staticRoute);
-        if (RouteDispatcher.NODE_ID_TRANSLATION_APIS.contains(apiKey)) {
+        // OOB frames all share the reserved out-of-band correlation ID, so tracking one for node-ID
+        // translation would collide with any other concurrently in-flight, statically-routed OOB request.
+        if (!(msg instanceof InternalRequestFrame<?>) && RouteDispatcher.NODE_ID_TRANSLATION_APIS.contains(apiKey)) {
             dispatcher.trackStaticRoute(frame.correlationId(), staticRoute);
         }
         ((Frame) msg).setRouteName(qualifiedRoute);
@@ -362,19 +361,43 @@ public class RoutingHandler extends ChannelDuplexHandler {
             if (requestSource instanceof VirtualClusterRequestSource vcs) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
                 var ccsm = vcs.ccsm();
-                router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
-                        .whenComplete((result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
+                invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                        (result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
             }
             else {
-                router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
-                        .whenComplete((result, error) -> handleNestedOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId));
+                invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                        (result, error) -> handleNestedOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId));
             }
         }
         else {
             long seq = sequence;
-            router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
-                    .whenComplete((result, error) -> handleCompletion(ctx, frame, result, error, apiKey, apiVersion, correlationId, seq));
+            invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                    (result, error) -> handleCompletion(ctx, frame, result, error, apiKey, apiVersion, correlationId, seq));
         }
+    }
+
+    /**
+     * Invokes {@link Router#onRequest}, treating a synchronous exception (or a {@code null}
+     * returned stage) the same as an asynchronously-failed {@link CompletionStage} — per
+     * {@link io.kroxylicious.proxy.router.RouterContext}'s documented contract, the runtime must
+     * close the connection rather than let the exception escape to the pipeline's generic error
+     * handler, which only logs and leaves the connection (and any pending OOB promise) hanging.
+     */
+    private void invokeRouter(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body,
+                              RouterContextImpl routingContext, BiConsumer<RouterResponse, Throwable> completion) {
+        CompletionStage<RouterResponse> stage;
+        try {
+            stage = router.onRequest(apiKey, apiVersion, header, body, routingContext);
+        }
+        catch (Throwable t) {
+            completion.accept(null, t);
+            return;
+        }
+        if (stage == null) {
+            completion.accept(null, new NullPointerException("Router.onRequest(...) returned a null CompletionStage"));
+            return;
+        }
+        stage.whenComplete(completion);
     }
 
     // --- OOB completion (top-level only) ---

@@ -314,6 +314,11 @@ public class RouteDispatcher implements RouterDispatch {
         pendingStaticRoutes.put(correlationId, route);
     }
 
+    @VisibleForTesting
+    boolean hasPendingStaticRoute(int correlationId) {
+        return pendingStaticRoutes.containsKey(correlationId);
+    }
+
     void failAllPending(String sessionId) {
         int abandoned = pendingResponses.size();
         if (abandoned > 0) {
