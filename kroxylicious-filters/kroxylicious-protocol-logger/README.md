@@ -257,6 +257,8 @@ Latency can be derived from the log timestamps of matched request/response pairs
 
 The filter is a passive observer — it never modifies messages and never interferes with forwarding.
 If an exception occurs while building or emitting a log entry, the filter catches it, emits a rate-limited warning, and forwards the message unchanged.
+Warnings are emitted on the filter module's own logger (`io.kroxylicious.filter.protocollogger.LogWarningThrottle`), not the configured protocol logger, so they remain visible even when protocol trace output is routed to a dedicated appender.
+Each warning includes a `targetLogger` key-value identifying the configured logger instance that failed.
 Warnings are keyed by API key: the first failure logs immediately, subsequent failures for the same key are suppressed for five minutes, and the next warning after the interval reports how many were suppressed.
 
 ## Caveats

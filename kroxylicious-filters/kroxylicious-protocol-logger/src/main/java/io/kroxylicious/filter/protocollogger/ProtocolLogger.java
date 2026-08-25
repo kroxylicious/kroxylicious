@@ -110,7 +110,7 @@ public class ProtocolLogger implements FilterFactory<ProtocolLogger.Config, Prot
                     .collect(Collectors.toCollection(() -> EnumSet.noneOf(ApiKeys.class)));
         }
         Logger logger = LoggerFactory.getLogger(config.loggerName());
-        return new ProtocolLoggerFilter(keys, new MessageFormatter(), config.logLevel(), logger, new LogWarningThrottle(Clock.systemUTC()));
+        return new ProtocolLoggerFilter(keys, new MessageFormatter(), config.logLevel(), logger, new LogWarningThrottle(Clock.systemUTC(), config.loggerName()));
     }
 
 }

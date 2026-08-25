@@ -13,6 +13,7 @@ import java.util.Map;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 /**
@@ -23,52 +24,58 @@ import org.slf4j.event.Level;
  */
 class LogWarningThrottle {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(LogWarningThrottle.class);
+
     static final Duration SUPPRESSION_INTERVAL = Duration.ofMinutes(5);
 
     private final Clock clock;
+    private final String targetLoggerName;
     private final Map<ApiKeys, FailureState> states = new EnumMap<>(ApiKeys.class);
 
-    LogWarningThrottle(Clock clock) {
+    LogWarningThrottle(Clock clock, String targetLoggerName) {
         this.clock = clock;
+        this.targetLoggerName = targetLoggerName;
     }
 
-    void onFailure(ApiKeys apiKey, short apiVersion, Exception exception, Logger logger) {
+    void onFailure(ApiKeys apiKey, short apiVersion, Exception exception) {
         FailureState state = states.get(apiKey);
         long now = clock.millis();
         if (state == null) {
             states.put(apiKey, new FailureState(now));
-            warnFirst(logger, apiKey, apiVersion, exception);
+            warnFirst(apiKey, apiVersion, exception);
         }
         else if (now - state.lastWarnedMillis >= SUPPRESSION_INTERVAL.toMillis()) {
             long suppressed = state.suppressedCount;
             state.lastWarnedMillis = now;
             state.suppressedCount = 0;
-            warnRecurring(logger, apiKey, apiVersion, exception, suppressed);
+            warnRecurring(apiKey, apiVersion, exception, suppressed);
         }
         else {
             state.suppressedCount++;
         }
     }
 
-    private static void warnFirst(Logger logger, ApiKeys apiKey, short apiVersion, Exception exception) {
-        logger.atLevel(Level.WARN)
+    private void warnFirst(ApiKeys apiKey, short apiVersion, Exception exception) {
+        LOGGER.atLevel(Level.WARN)
                 .addKeyValue("apiKey", apiKey)
                 .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("targetLogger", targetLoggerName)
                 .addKeyValue("error", exception.getMessage())
-                .setCause(logger.isDebugEnabled() ? exception : null)
-                .log(logger.isDebugEnabled()
+                .setCause(LOGGER.isDebugEnabled() ? exception : null)
+                .log(LOGGER.isDebugEnabled()
                         ? "failed to log protocol entry"
                         : "failed to log protocol entry, increase log level to DEBUG for stacktrace");
     }
 
-    private static void warnRecurring(Logger logger, ApiKeys apiKey, short apiVersion, Exception exception, long suppressedCount) {
-        logger.atLevel(Level.WARN)
+    private void warnRecurring(ApiKeys apiKey, short apiVersion, Exception exception, long suppressedCount) {
+        LOGGER.atLevel(Level.WARN)
                 .addKeyValue("apiKey", apiKey)
                 .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("targetLogger", targetLoggerName)
                 .addKeyValue("error", exception.getMessage())
                 .addKeyValue("suppressedCount", suppressedCount)
-                .setCause(logger.isDebugEnabled() ? exception : null)
-                .log(logger.isDebugEnabled()
+                .setCause(LOGGER.isDebugEnabled() ? exception : null)
+                .log(LOGGER.isDebugEnabled()
                         ? "failed to log protocol entry"
                         : "failed to log protocol entry, increase log level to DEBUG for stacktrace");
     }

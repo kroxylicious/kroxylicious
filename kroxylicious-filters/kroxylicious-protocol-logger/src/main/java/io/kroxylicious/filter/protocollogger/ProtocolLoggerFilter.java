@@ -50,7 +50,6 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
         return logger.isEnabledForLevel(logLevel) && apiKeys.contains(apiKey);
     }
 
-    @SuppressWarnings("Finally") // deliberate: the forward must execute even if warningThrottle throws
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
                                                           short apiVersion,
@@ -68,14 +67,16 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
                     .log(() -> buildRequestLogMessage(apiKey, apiVersion, header, request));
         }
         catch (Exception e) {
-            warningThrottle.onFailure(apiKey, apiVersion, e, logger);
+            try {
+                warningThrottle.onFailure(apiKey, apiVersion, e);
+            }
+            catch (Exception ignored) {
+                // the throttle itself failed; nothing more we can safely do here
+            }
         }
-        finally {
-            return context.forwardRequest(header, request); // the forward must execute even if warningThrottle throws
-        }
+        return context.forwardRequest(header, request);
     }
 
-    @SuppressWarnings("Finally") // deliberate: the forward must execute even if warningThrottle throws
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
                                                             short apiVersion,
@@ -92,11 +93,14 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
                     .log(() -> buildResponseLogMessage(apiKey, apiVersion, header, response));
         }
         catch (Exception e) {
-            warningThrottle.onFailure(apiKey, apiVersion, e, logger);
+            try {
+                warningThrottle.onFailure(apiKey, apiVersion, e);
+            }
+            catch (Exception ignored) {
+                // the throttle itself failed; nothing more we can safely do here
+            }
         }
-        finally {
-            return context.forwardResponse(header, response); // the forward must execute even if warningThrottle throws
-        }
+        return context.forwardResponse(header, response);
     }
 
     String buildRequestLogMessage(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request) {
