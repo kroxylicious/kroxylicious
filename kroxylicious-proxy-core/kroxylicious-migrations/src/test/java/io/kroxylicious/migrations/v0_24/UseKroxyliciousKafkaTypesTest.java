@@ -42,6 +42,7 @@ class UseKroxyliciousKafkaTypesTest implements RewriteTest {
     }
 
     @Test
+    @SuppressWarnings("java:S2699") // rewriteRun contains assertions
     void shouldMigrateApacheMessagePackageToKroxyliciousPackage() {
         rewriteRun(
                 java(
@@ -68,6 +69,7 @@ class UseKroxyliciousKafkaTypesTest implements RewriteTest {
     }
 
     @Test
+    @SuppressWarnings("java:S2699") // rewriteRun contains assertions
     void shouldMigrateApacheProtocolPackageToKroxyliciousPackage() {
         rewriteRun(
                 java(
