@@ -77,7 +77,7 @@
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <apicurio-registry.version>3.3.1</apicurio-registry.version>
-        <kiota.version>0.0.37</kiota.version>
+        <kiota.version>0.0.38</kiota.version>
         <avro.version>1.12.1</avro.version>
         <protobuf-java.version>4.35.1</protobuf-java.version>
         <jose4j.version>0.9.6</jose4j.version>
@@ -1033,7 +1033,7 @@
                 <plugin>
                     <groupId>io.fabric8</groupId>
                     <artifactId>docker-maven-plugin</artifactId>
-                    <version>0.48.1</version>
+                    <version>0.49.0</version>
                 </plugin>
 
                 <plugin>
@@ -1076,7 +1076,7 @@
                 <plugin>
                     <groupId>org.sonarsource.scanner.maven</groupId>
                     <artifactId>sonar-maven-plugin</artifactId>
-                    <version>5.5.0.6356</version>
+                    <version>5.7.0.6970</version>
                 </plugin>
             </plugins>
 
