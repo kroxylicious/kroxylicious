@@ -218,7 +218,7 @@ public final class KroxyliciousFilterTemplates {
                                         "credentialStore", ScramCredentialFileService.class.getName(),
                                         "credentialStoreConfig", Map.of(
                                                 "file", "${secret:" + keystoreSecretName + ":" + keystoreKey + "}",
-                                                "storePassword", Map.of(
+                                                "filePassword", Map.of(
                                                         "passwordFile", "${secret:" + passwordSecretName + ":" + passwordKey + "}"))))))
                 .endSpec();
     }
