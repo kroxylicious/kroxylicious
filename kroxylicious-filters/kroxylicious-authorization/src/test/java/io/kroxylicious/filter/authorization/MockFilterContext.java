@@ -228,10 +228,30 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
 
         @NonNull
         @Override
-        public CloseOrTerminalStage<RequestFilterResult> errorResponse(@NonNull RequestHeaderData header, @NonNull ApiMessage requestMessage,
-                                                                       @NonNull ApiException apiException)
+        public CloseOrTerminalStage<RequestFilterResult> errorResponse(@NonNull RequestHeaderData header, @NonNull ApiMessage requestMessage, @NonNull Errors error)
                 throws IllegalArgumentException {
-            return new ErrorCloseOrTerminalStage(header, requestMessage, apiException, false);
+            return errorResponse(header, requestMessage, error, null);
+        }
+
+        @NonNull
+        @Override
+        public CloseOrTerminalStage<RequestFilterResult> errorResponse(@NonNull RequestHeaderData header, @NonNull ApiMessage requestMessage, @NonNull Errors error,
+                                                                       @Nullable String message)
+                throws IllegalArgumentException {
+            // Errors.exception(String) returns the default-message exception when message is null.
+            return new ErrorCloseOrTerminalStage(header, requestMessage, error.exception(message), false);
+        }
+
+        @SuppressWarnings("removal")
+        @NonNull
+        @Override
+        public CloseOrTerminalStage<RequestFilterResult> errorResponse(@NonNull RequestHeaderData header, @NonNull ApiMessage requestMessage,
+                                                                       @NonNull Throwable apiException)
+                throws IllegalArgumentException {
+            if (!(apiException instanceof ApiException asApiException)) {
+                throw new IllegalArgumentException("apiException must be an " + ApiException.class.getName() + " but was " + apiException.getClass().getName());
+            }
+            return new ErrorCloseOrTerminalStage(header, requestMessage, asApiException, false);
         }
 
         @NonNull

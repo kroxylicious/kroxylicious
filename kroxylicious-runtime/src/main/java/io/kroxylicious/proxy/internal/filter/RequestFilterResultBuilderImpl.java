@@ -10,6 +10,7 @@ import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.AbstractResponse;
 
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -63,8 +64,29 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException)
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error)
             throws IllegalArgumentException {
+        return errorResponse(header, requestMessage, error, null);
+    }
+
+    @Override
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error, @Nullable String message)
+            throws IllegalArgumentException {
+        // Errors.exception(String) returns the default-message exception when message is null.
+        return errorResponseForException(header, requestMessage, error.exception(message));
+    }
+
+    @SuppressWarnings("removal")
+    @Override
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Throwable apiException)
+            throws IllegalArgumentException {
+        if (!(apiException instanceof ApiException asApiException)) {
+            throw new IllegalArgumentException("apiException must be an " + ApiException.class.getName() + " but was " + apiException.getClass().getName());
+        }
+        return errorResponseForException(header, requestMessage, asApiException);
+    }
+
+    private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException) {
         final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, apiException);
         validateShortCircuitResponse(errorResponseMessage.data());
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();

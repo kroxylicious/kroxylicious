@@ -530,10 +530,26 @@ public class MockFilterContext implements FilterContext {
         }
 
         @Override
-        public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage,
-                                                                       ApiException apiException)
+        public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error)
                 throws IllegalArgumentException {
-            return new MockErrorCloseOrTerminalRequestStage(header, requestMessage, apiException);
+            return errorResponse(header, requestMessage, error, null);
+        }
+
+        @Override
+        public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error, @Nullable String message)
+                throws IllegalArgumentException {
+            // Errors.exception(String) returns the default-message exception when message is null.
+            return new MockErrorCloseOrTerminalRequestStage(header, requestMessage, error.exception(message));
+        }
+
+        @SuppressWarnings("removal")
+        @Override
+        public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Throwable apiException)
+                throws IllegalArgumentException {
+            if (!(apiException instanceof ApiException asApiException)) {
+                throw new IllegalArgumentException("apiException must be an " + ApiException.class.getName() + " but was " + apiException.getClass().getName());
+            }
+            return new MockErrorCloseOrTerminalRequestStage(header, requestMessage, asApiException);
         }
 
         @Override

@@ -52,7 +52,7 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
                                                            AuthorizationFilter authorizationFilter,
                                                            TopicNameMapping topicNameMapping) {
         if (topicNameMapping.anyFailures()) {
-            return context.requestFilterResultBuilder().errorResponse(header, request, Errors.UNKNOWN_TOPIC_ID.exception()).completed();
+            return context.requestFilterResultBuilder().errorResponse(header, request, Errors.UNKNOWN_TOPIC_ID).completed();
         }
 
         Action readGroup = new Action(GroupResource.READ, request.groupId());
@@ -60,7 +60,7 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
                     if (authorization.denied().contains(readGroup)) {
-                        return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                        return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
                     }
                     var decisions = authorization.partition(request.topics(),
                             TopicResource.READ,

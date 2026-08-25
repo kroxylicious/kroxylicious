@@ -521,6 +521,60 @@ class MockFilterContextTest {
     }
 
     @Test
+    void shouldBuildErrorRequestFilterResultFromErrors() {
+        // given
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
+
+        // when
+        RequestFilterResult result = context.requestFilterResultBuilder()
+                .errorResponse(HEADER, MESSAGE, Errors.INVALID_REQUEST)
+                .build();
+
+        // then
+        MockFilterContextAssert.assertThat(result)
+                .isNotCloseConnection()
+                .isShortCircuitResponse()
+                .isErrorResponse()
+                .isNotDropRequest()
+                .errorResponse()
+                .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
+                .hasMessage(Errors.INVALID_REQUEST.message());
+    }
+
+    @Test
+    void shouldBuildErrorRequestFilterResultFromErrorsWithMessage() {
+        // given
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
+        String message = "custom explanation";
+
+        // when
+        RequestFilterResult result = context.requestFilterResultBuilder()
+                .errorResponse(HEADER, MESSAGE, Errors.INVALID_REQUEST, message)
+                .build();
+
+        // then
+        MockFilterContextAssert.assertThat(result)
+                .isNotCloseConnection()
+                .isShortCircuitResponse()
+                .isErrorResponse()
+                .isNotDropRequest()
+                .errorResponse()
+                .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
+                .hasMessage(message);
+    }
+
+    @Test
+    void shouldRejectNonApiExceptionThrowable() {
+        // given
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
+        Throwable notAnApiException = new IllegalStateException("not an ApiException");
+
+        // when / then
+        assertThatThrownBy(() -> context.requestFilterResultBuilder().errorResponse(HEADER, MESSAGE, notAnApiException))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void shouldBuildDropRequestFilterResult() {
         // given
         MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();

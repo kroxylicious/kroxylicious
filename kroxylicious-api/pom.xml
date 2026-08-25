@@ -384,6 +384,20 @@
                                         io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String,
                                         java.lang.String)
                                     </exclude>
+                                    <!-- The error-response entry points were widened from org.apache.kafka.common.errors.ApiException to
+                                         java.lang.Throwable (and re-expressed in terms of Errors codes) at 0.24.0. Every ApiException is a
+                                         Throwable, so existing callers keep compiling; the ApiException-typed overload is deprecated for removal.
+                                         See https://github.com/kroxylicious/kroxylicious/issues/4756 -->
+                                    <exclude>
+                                        io.kroxylicious.proxy.filter.RequestFilterResultBuilder#errorResponse(org.apache.kafka.common.message.RequestHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        org.apache.kafka.common.errors.ApiException)
+                                    </exclude>
+                                    <exclude>
+                                        io.kroxylicious.proxy.router.RouterContext#respondWithError(org.apache.kafka.common.message.RequestHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        org.apache.kafka.common.errors.ApiException)
+                                    </exclude>
                                 </excludes>
                                 <!-- see documentation -->
                             </parameter>

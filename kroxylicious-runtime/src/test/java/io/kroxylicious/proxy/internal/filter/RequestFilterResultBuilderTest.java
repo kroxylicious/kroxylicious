@@ -10,6 +10,8 @@ import java.time.Duration;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.errors.UnknownServerException;
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
@@ -17,6 +19,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
@@ -228,6 +231,82 @@ class RequestFilterResultBuilderTest {
                 .satisfies(result -> {
                     assertThat(result.closeConnection()).describedAs("connection closed").isFalse();
                 });
+    }
+
+    @Test
+    void errorResponseFromErrorsSetsErrorCode() {
+        // Given
+        var header = apiVersionsHeader();
+
+        // When
+        var result = builder.errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST).build();
+
+        // Then
+        assertThat(result.message())
+                .asInstanceOf(InstanceOfAssertFactories.type(ApiVersionsResponseData.class))
+                .satisfies(response -> assertThat(response.errorCode()).isEqualTo(Errors.INVALID_REQUEST.code()));
+    }
+
+    @Test
+    void errorResponseFromErrorsMatchesEquivalentException() {
+        // Given
+        var header = apiVersionsHeader();
+
+        // When
+        var fromErrors = builder.errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST).build();
+        var fromException = new RequestFilterResultBuilderImpl()
+                .errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST.exception()).build();
+
+        // Then
+        assertThat(fromErrors.message()).isEqualTo(fromException.message());
+    }
+
+    @Test
+    void errorResponseFromErrorsWithMessageMatchesEquivalentException() {
+        // Given
+        var header = apiVersionsHeader();
+        var message = "custom explanation";
+
+        // When
+        var fromErrors = builder.errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST, message).build();
+        var fromException = new RequestFilterResultBuilderImpl()
+                .errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST.exception(message)).build();
+
+        // Then
+        assertThat(fromErrors.message()).isEqualTo(fromException.message());
+    }
+
+    @Test
+    void errorResponseFromErrorsWithNullMessageUsesDefaultMessage() {
+        // Given
+        var header = apiVersionsHeader();
+
+        // When
+        var fromNullMessage = builder.errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST, null).build();
+        var fromNoMessage = new RequestFilterResultBuilderImpl()
+                .errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST).build();
+
+        // Then
+        assertThat(fromNullMessage.message()).isEqualTo(fromNoMessage.message());
+    }
+
+    @Test
+    void deprecatedErrorResponseRejectsNonApiException() {
+        // Given
+        var header = apiVersionsHeader();
+        var notAnApiException = new IllegalStateException("not an ApiException");
+
+        // When / Then
+        assertThatThrownBy(() -> builder.errorResponse(header, new ApiVersionsRequestData(), notAnApiException))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private static RequestHeaderData apiVersionsHeader() {
+        var header = new RequestHeaderData();
+        header.setRequestApiKey(ApiKeys.API_VERSIONS.id);
+        header.setRequestApiVersion(ApiKeys.API_VERSIONS.latestVersion());
+        header.setCorrelationId(23456);
+        return header;
     }
 
     public static Stream<Arguments> latestVersions() {
