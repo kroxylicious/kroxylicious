@@ -6,12 +6,8 @@
 
 package io.kroxylicious.systemtests.filters;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +30,6 @@ import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -53,10 +48,10 @@ import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperato
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
-import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -144,8 +139,9 @@ class SaslTerminationST extends AbstractSystemTests {
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, ADMIN_USER, ADMIN_PASSWORD, ScramMechanism.SCRAM_SHA_256);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, ALICE_USER, ALICE_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
-        createKeystoreSecret(Constants.KROXYLICIOUS_NAMESPACE, "scram-keystore", "credentials.jks", keystorePath);
-        createPasswordSecret(Constants.KROXYLICIOUS_NAMESPACE, "scram-keystore-password", KEYSTORE_PASSWORD);
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(
+                KroxyliciousSecretTemplates.createKeystoreSecret(Constants.KROXYLICIOUS_NAMESPACE, "scram-keystore", "credentials.jks", keystorePath),
+                KroxyliciousSecretTemplates.createPasswordSecret(Constants.KROXYLICIOUS_NAMESPACE, "scram-keystore-password", KEYSTORE_PASSWORD));
 
         kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(Constants.KROXYLICIOUS_NAMESPACE, clusterName, 1)
                 .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslTerminationScramFilter(
@@ -252,35 +248,6 @@ class SaslTerminationST extends AbstractSystemTests {
                 "sasl.oauthbearer.client.credentials.client.secret", OAUTH_CLIENT_SECRET));
     }
 
-    private void createKeystoreSecret(String namespace, String secretName, String dataKey, Path keystorePath) {
-        try {
-            byte[] keystoreBytes = Files.readAllBytes(keystorePath);
-            String encoded = Base64.getEncoder().encodeToString(keystoreBytes);
-            var secret = new SecretBuilder()
-                    .withNewMetadata()
-                    .withName(secretName)
-                    .withNamespace(namespace)
-                    .endMetadata()
-                    .addToData(dataKey, encoded)
-                    .build();
-            kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).create();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException("Failed to read keystore file: " + keystorePath, e);
-        }
-    }
-
-    private void createPasswordSecret(String namespace, String secretName, String password) {
-        var secret = new SecretBuilder()
-                .withNewMetadata()
-                .withName(secretName)
-                .withNamespace(namespace)
-                .endMetadata()
-                .withStringData(Map.of("password", password))
-                .build();
-        kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).create();
-    }
-
     private void deployMockOAuth2Server(String namespace) {
         LOGGER.atInfo()
                 .addKeyValue("namespace", namespace)
@@ -315,8 +282,7 @@ class SaslTerminationST extends AbstractSystemTests {
                         .build())
                 .endSpec()
                 .endTemplate()
-                .endSpec()
-                .build();
+                .endSpec();
 
         var service = new ServiceBuilder()
                 .withNewMetadata()
@@ -329,11 +295,8 @@ class SaslTerminationST extends AbstractSystemTests {
                         .withPort(MOCK_OAUTH_SERVER_PORT)
                         .withTargetPort(new IntOrString(MOCK_OAUTH_SERVER_PORT))
                         .build())
-                .endSpec()
-                .build();
+                .endSpec();
 
-        kubeClient().getClient().apps().deployments().inNamespace(namespace).resource(deployment).create();
-        kubeClient().getClient().services().inNamespace(namespace).resource(service).create();
-        DeploymentUtils.waitForDeploymentReady(namespace, MOCK_OAUTH_SERVER_NAME);
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(deployment, service);
     }
 }
