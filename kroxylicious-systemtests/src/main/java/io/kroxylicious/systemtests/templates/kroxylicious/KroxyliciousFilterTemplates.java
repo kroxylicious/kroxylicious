@@ -34,7 +34,7 @@ import io.kroxylicious.filter.sasl.inspection.Config;
 import io.kroxylicious.filter.sasl.inspection.SaslInspection;
 import io.kroxylicious.filter.sasl.termination.SaslTermination;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
-import io.kroxylicious.scram.credentialstore.keystore.KeystoreScramCredentialStoreService;
+import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileService;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -215,7 +215,7 @@ public final class KroxyliciousFilterTemplates {
                         "mechanisms", java.util.List.of(
                                 Map.of(
                                         "mechanism", mechanism,
-                                        "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
+                                        "credentialStore", ScramCredentialFileService.class.getName(),
                                         "credentialStoreConfig", Map.of(
                                                 "file", "${secret:" + keystoreSecretName + ":" + keystoreKey + "}",
                                                 "storePassword", Map.of(

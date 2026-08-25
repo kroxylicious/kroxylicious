@@ -40,7 +40,7 @@ import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.scram.credentialstore.keystore.KeystoreCredentialManager;
+import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileManager;
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -139,7 +139,7 @@ class SaslTerminationST extends AbstractSystemTests {
 
         // Given
         Path keystorePath = tempDir.resolve("credentials.jks");
-        var credentialManager = new KeystoreCredentialManager();
+        var credentialManager = new ScramCredentialFileManager();
         credentialManager.createKeyStore(keystorePath, KEYSTORE_PASSWORD);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, ADMIN_USER, ADMIN_PASSWORD, ScramMechanism.SCRAM_SHA_256);
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, ALICE_USER, ALICE_PASSWORD, ScramMechanism.SCRAM_SHA_256);
