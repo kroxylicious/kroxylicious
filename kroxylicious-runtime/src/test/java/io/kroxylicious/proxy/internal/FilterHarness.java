@@ -84,6 +84,9 @@ public abstract class FilterHarness {
      *
      * @param filters - the filters to associate with the channel.
      */
+    // FutureReturnValueIgnored: closing the EmbeddedChannel in this test-only mock callback is
+    // best-effort; tests observe the outcome via channel.isOpen(), not the close future.
+    @SuppressWarnings("FutureReturnValueIgnored")
     protected void buildChannel(Filter... filters) {
         assertNull(channel, "Channel already built");
 

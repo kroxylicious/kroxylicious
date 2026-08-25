@@ -315,7 +315,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                     .addKeyValue("sessionId", sessionId)
                     .addKeyValue("apiKey", apiKey)
                     .log("Opaque frame arrived for dynamically-routed nested API key; decode predicate misconfigured");
-            ctx.close();
+            ctx.close().addListener(logFailure(LOGGER, "close after opaque frame arrived for dynamically-routed nested API key"));
         }
         else {
             LOGGER.atWarn()
@@ -611,6 +611,11 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
     }
 
+    // FutureReturnValueIgnored: ctx.voidPromise() is a VoidChannelPromise; by Netty's design,
+    // failures on a void-promise write are delivered to the pipeline's exceptionCaught rather
+    // than to a listener. Void promises are used deliberately on this hot data path to avoid
+    // per-write promise allocation.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void deliverResponseFrame(ChannelHandlerContext ctx,
                                       DecodedRequestFrame<?> requestFrame,
                                       short apiVersion,
@@ -631,6 +636,11 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
     }
 
+    // FutureReturnValueIgnored: ctx.voidPromise() is a VoidChannelPromise; by Netty's design,
+    // failures on a void-promise write are delivered to the pipeline's exceptionCaught rather
+    // than to a listener. Void promises are used deliberately on this hot data path to avoid
+    // per-write promise allocation.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void writeErrorResponseUpstream(ChannelHandlerContext ctx,
                                             DecodedRequestFrame<?> requestFrame,
                                             Throwable error) {

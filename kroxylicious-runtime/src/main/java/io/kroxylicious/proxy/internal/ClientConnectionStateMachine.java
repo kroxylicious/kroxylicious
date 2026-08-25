@@ -612,6 +612,10 @@ public class ClientConnectionStateMachine {
      *
      * @param reason why the close was requested — logged for debugging
      */
+    // FutureReturnValueIgnored: requestClose() is fire-and-forget; callers are not expected to
+    // wait for the connection to fully close, and drain()'s returned future only ever completes
+    // exceptionally by propagating from another drain() call's future, which itself never does.
+    @SuppressWarnings("FutureReturnValueIgnored")
     public void requestClose(CloseReason reason) {
         LOGGER.atInfo()
                 .addKeyValue("sessionId", kafkaSession.sessionId())

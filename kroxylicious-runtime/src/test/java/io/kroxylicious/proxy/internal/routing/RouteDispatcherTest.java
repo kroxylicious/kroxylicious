@@ -335,6 +335,9 @@ class RouteDispatcherTest {
         assertThat(stage.toCompletableFuture()).isCompletedExceptionally();
     }
 
+    // FutureReturnValueIgnored: completion is observed via `future`, asserted immediately below;
+    // if the submitted task threw, `future` simply wouldn't complete and that assertion would fail.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private Thread obtainEventLoopThread() {
         var future = new CompletableFuture<Thread>();
         channel.eventLoop().submit(() -> future.complete(Thread.currentThread()));

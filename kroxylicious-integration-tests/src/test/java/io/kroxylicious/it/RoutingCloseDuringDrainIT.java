@@ -65,6 +65,9 @@ class RoutingCloseDuringDrainIT {
         ContextCapturingRouterFactory.reset();
     }
 
+    // FutureReturnValueIgnored: request 1 (acks=0) is fire-and-forget by design — it exists only
+    // to occupy an in-flight slot ahead of `closeResponseFuture`, which is the response under test.
+    @SuppressWarnings("FutureReturnValueIgnored")
     @Test
     void closeConnectionResponseIsDeliveredAfterEarlierPendingRequestCompletes() throws Exception {
         // Given: request 1 (PRODUCE, acks=0) is held pending until the test releases it; request 2
