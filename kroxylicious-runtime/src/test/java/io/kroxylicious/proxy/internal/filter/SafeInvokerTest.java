@@ -11,17 +11,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyShort;

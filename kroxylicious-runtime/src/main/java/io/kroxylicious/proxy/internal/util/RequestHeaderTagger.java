@@ -10,8 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.types.RawTaggedField;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 

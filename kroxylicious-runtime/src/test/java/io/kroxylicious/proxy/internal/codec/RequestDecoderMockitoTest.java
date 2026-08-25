@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.internal.codec;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

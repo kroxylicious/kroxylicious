@@ -14,12 +14,12 @@ import java.util.concurrent.CompletionStage;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 

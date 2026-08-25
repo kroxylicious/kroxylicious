@@ -14,8 +14,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;

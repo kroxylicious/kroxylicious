@@ -7,10 +7,10 @@
 package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -48,7 +48,7 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * The generated error response is API-specific, and add an error code (corresponding to the ApiException), and possibly error message (from the message of the ApiException), either at the top level of the response (if the API for the response has a global error code), or for all entities given in the request (if the API for the response has only-per entity error codes).
      * @param header the headers from the request
      * @param requestMessage the API request message to generate an error in response too.
-     * @param apiException the exception that triggered the error response. Note Kafka will map the exception to an {@link org.apache.kafka.common.requests.ApiError} using {@link org.apache.kafka.common.protocol.Errors#forException(java.lang.Throwable)} so callers may wish to supply choose their exception to trigger the appropriate error code
+     * @param apiException the exception that triggered the error response. Note Kafka will map the exception to an {@link org.apache.kafka.common.requests.ApiError} using {@link io.kroxylicious.kafka.common.protocol.Errors#forException(java.lang.Throwable)} so callers may wish to supply choose their exception to trigger the appropriate error code
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */

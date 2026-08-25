@@ -8,8 +8,8 @@ package io.kroxylicious.testing.filter.condition.kafka;
 
 import java.util.function.Predicate;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import org.assertj.core.api.Condition;
 import org.assertj.core.description.Description;
 import org.assertj.core.description.TextDescription;

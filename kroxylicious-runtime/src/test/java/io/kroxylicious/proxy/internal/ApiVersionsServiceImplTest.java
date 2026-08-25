@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

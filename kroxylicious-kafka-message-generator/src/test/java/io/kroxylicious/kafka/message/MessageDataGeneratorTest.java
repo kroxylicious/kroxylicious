@@ -47,7 +47,7 @@ public class MessageDataGeneratorTest {
                 "      \"nullableVersions\": \"2+\", \"default\": \"null\" }",
                 "  ]",
                 "}")), MessageSpec.class);
-        new MessageDataGenerator("org.apache.kafka.common.message").generate(testMessageSpec);
+        new MessageDataGenerator("io.kroxylicious.kafka.common.message").generate(testMessageSpec);
     }
 
     @Test
@@ -69,7 +69,7 @@ public class MessageDataGeneratorTest {
                 "      \"nullableVersions\": \"2+\", \"default\": \"null\" }",
                 "  ]",
                 "}")), MessageSpec.class);
-        new MessageDataGenerator("org.apache.kafka.common.message").generate(testMessageSpec);
+        new MessageDataGenerator("io.kroxylicious.kafka.common.message").generate(testMessageSpec);
     }
 
     private void assertStringContains(String substring, String value) {
@@ -90,7 +90,7 @@ public class MessageDataGeneratorTest {
                 "  ]",
                 "}")), MessageSpec.class);
         assertStringContains("Invalid default for int32",
-                assertThrows(RuntimeException.class, () -> new MessageDataGenerator("org.apache.kafka.common.message").generate(testMessageSpec)).getMessage());
+                assertThrows(RuntimeException.class, () -> new MessageDataGenerator("io.kroxylicious.kafka.common.message").generate(testMessageSpec)).getMessage());
     }
 
     @Test
@@ -108,7 +108,7 @@ public class MessageDataGeneratorTest {
                 "}")), MessageSpec.class);
 
         assertStringContains("not all versions of this field are nullable",
-                assertThrows(RuntimeException.class, () -> new MessageDataGenerator("org.apache.kafka.common.message").generate(testMessageSpec)).getMessage());
+                assertThrows(RuntimeException.class, () -> new MessageDataGenerator("io.kroxylicious.kafka.common.message").generate(testMessageSpec)).getMessage());
     }
 
     /**
@@ -280,7 +280,7 @@ public class MessageDataGeneratorTest {
 
         assertStringContains("Invalid default for struct field struct1.  The only valid default for a struct field " +
                 "is the empty struct or null",
-                assertThrows(RuntimeException.class, () -> new MessageDataGenerator("org.apache.kafka.common.message").generate(testMessageSpec)).getMessage());
+                assertThrows(RuntimeException.class, () -> new MessageDataGenerator("io.kroxylicious.kafka.common.message").generate(testMessageSpec)).getMessage());
     }
 
     @Test
@@ -301,6 +301,6 @@ public class MessageDataGeneratorTest {
                 "}")), MessageSpec.class);
 
         assertStringContains("not all versions of this field are nullable",
-                assertThrows(RuntimeException.class, () -> new MessageDataGenerator("org.apache.kafka.common.message").generate(testMessageSpec)).getMessage());
+                assertThrows(RuntimeException.class, () -> new MessageDataGenerator("io.kroxylicious.kafka.common.message").generate(testMessageSpec)).getMessage());
     }
 }

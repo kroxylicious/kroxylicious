@@ -10,14 +10,14 @@ import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.CreateTopicsRequestData;
-import org.apache.kafka.common.message.DescribeClusterRequestData;
-import org.apache.kafka.common.message.DescribeClusterResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.CreateTopicsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeClusterRequestData;
+import io.kroxylicious.kafka.common.message.DescribeClusterResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

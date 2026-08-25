@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

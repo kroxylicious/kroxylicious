@@ -8,8 +8,8 @@ package io.kroxylicious.benchmarking.jmh.filters;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.ProduceResponseData;
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ProduceResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;

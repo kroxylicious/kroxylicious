@@ -12,10 +12,10 @@ import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.kafka.common.errors.BrokerNotAvailableException;
 import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.AbstractResponse;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.params.ParameterizedTest;

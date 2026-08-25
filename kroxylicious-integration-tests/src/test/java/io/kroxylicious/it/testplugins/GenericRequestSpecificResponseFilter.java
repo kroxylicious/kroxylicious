@@ -11,12 +11,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.types.RawTaggedField;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;

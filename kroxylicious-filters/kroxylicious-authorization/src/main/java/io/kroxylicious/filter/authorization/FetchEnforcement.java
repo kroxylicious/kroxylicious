@@ -13,10 +13,10 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;

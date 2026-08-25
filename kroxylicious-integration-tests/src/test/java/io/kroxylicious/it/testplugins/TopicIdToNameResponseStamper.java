@@ -19,11 +19,11 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.InvalidRequestException;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.types.RawTaggedField;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 
 import io.kroxylicious.it.UnknownTaggedFields;
 import io.kroxylicious.proxy.filter.Filter;

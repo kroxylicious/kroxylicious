@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

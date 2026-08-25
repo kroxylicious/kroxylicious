@@ -9,10 +9,10 @@ package io.kroxylicious.it.testplugins;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.requests.AbstractResponse;
 
 import io.kroxylicious.proxy.filter.Filter;

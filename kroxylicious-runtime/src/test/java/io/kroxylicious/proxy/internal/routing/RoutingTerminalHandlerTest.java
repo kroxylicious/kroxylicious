@@ -5,12 +5,12 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
-import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

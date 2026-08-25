@@ -8,10 +8,10 @@ package io.kroxylicious.proxy.internal.filter;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterResult;

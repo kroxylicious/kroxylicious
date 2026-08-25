@@ -11,10 +11,10 @@ import java.util.Optional;
 
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -10,7 +10,7 @@ import java.nio.ByteBuffer;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.RecordBatch;

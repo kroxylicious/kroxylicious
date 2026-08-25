@@ -8,8 +8,8 @@ package io.kroxylicious.testing.filter.assertj;
 
 import java.util.Objects;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.AbstractResponse;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Condition;

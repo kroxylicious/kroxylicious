@@ -7,8 +7,8 @@ package io.kroxylicious.testing.integration.client;
 
 import java.io.IOException;
 
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -87,7 +87,7 @@ class KafkaClientHandlerTest {
     }
 
     private DecodedRequestFrame<ApiVersionsRequestData> createRequestFrame() {
-        var header = new org.apache.kafka.common.message.RequestHeaderData()
+        var header = new io.kroxylicious.kafka.common.message.RequestHeaderData()
                 .setRequestApiKey(ApiKeys.API_VERSIONS.id)
                 .setRequestApiVersion(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION)
                 .setClientId("test-client")

@@ -12,7 +12,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicNode;
 import org.junit.jupiter.api.DynamicTest;

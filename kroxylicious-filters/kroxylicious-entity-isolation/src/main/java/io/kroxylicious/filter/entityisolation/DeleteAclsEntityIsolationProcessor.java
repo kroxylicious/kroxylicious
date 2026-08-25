@@ -11,11 +11,11 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.DeleteAclsRequestData;
-import org.apache.kafka.common.message.DeleteAclsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.message.DeleteAclsRequestData;
+import io.kroxylicious.kafka.common.message.DeleteAclsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.filter.FilterContext;

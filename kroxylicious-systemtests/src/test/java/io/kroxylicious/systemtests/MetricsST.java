@@ -11,7 +11,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;

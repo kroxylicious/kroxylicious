@@ -15,7 +15,7 @@ import javax.security.auth.login.LoginException;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.serialization.Serdes;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.Test;

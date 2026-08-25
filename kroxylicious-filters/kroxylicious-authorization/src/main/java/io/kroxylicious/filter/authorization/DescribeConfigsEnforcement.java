@@ -11,13 +11,13 @@ import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.DescribeClusterResponseData;
-import org.apache.kafka.common.message.DescribeConfigsRequestData;
-import org.apache.kafka.common.message.DescribeConfigsRequestData.DescribeConfigsResource;
-import org.apache.kafka.common.message.DescribeConfigsResponseData;
-import org.apache.kafka.common.message.DescribeConfigsResponseData.DescribeConfigsResult;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.DescribeClusterResponseData;
+import io.kroxylicious.kafka.common.message.DescribeConfigsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeConfigsRequestData.DescribeConfigsResource;
+import io.kroxylicious.kafka.common.message.DescribeConfigsResponseData;
+import io.kroxylicious.kafka.common.message.DescribeConfigsResponseData.DescribeConfigsResult;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;

@@ -16,9 +16,9 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiMessageType;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.ApiMessageType;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

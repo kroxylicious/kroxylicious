@@ -24,7 +24,7 @@ import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.UnsupportedSaslMechanismException;
 import org.apache.kafka.common.header.Headers;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.Test;

@@ -10,10 +10,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;

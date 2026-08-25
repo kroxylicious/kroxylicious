@@ -8,7 +8,7 @@ package io.kroxylicious.it.testplugins;
 
 import java.util.Objects;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.it.testplugins.ConstantSasl.Config;
 import io.kroxylicious.proxy.filter.Filter;

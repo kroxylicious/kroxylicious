@@ -20,9 +20,9 @@ import java.util.function.Supplier;
 import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.event.Level;
 import org.slf4j.spi.LoggingEventBuilder;

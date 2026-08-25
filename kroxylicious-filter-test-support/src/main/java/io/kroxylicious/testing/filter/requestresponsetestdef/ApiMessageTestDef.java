@@ -6,7 +6,7 @@
 
 package io.kroxylicious.testing.filter.requestresponsetestdef;
 
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

@@ -7,8 +7,8 @@ package io.kroxylicious.proxy.frame;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.protocol.Readable;
-import org.apache.kafka.common.protocol.Writable;
+import io.kroxylicious.kafka.common.protocol.Readable;
+import io.kroxylicious.kafka.common.protocol.Writable;
 
 import io.netty.buffer.ByteBuf;
 

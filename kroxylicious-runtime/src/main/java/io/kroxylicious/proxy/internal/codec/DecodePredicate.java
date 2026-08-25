@@ -7,7 +7,7 @@ package io.kroxylicious.proxy.internal.codec;
 
 import java.util.List;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.FilterInvoker;

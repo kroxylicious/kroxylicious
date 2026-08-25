@@ -13,14 +13,14 @@ import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.DescribeTransactionsRequestData;
-import org.apache.kafka.common.message.DescribeTransactionsResponseData;
-import org.apache.kafka.common.message.DescribeTransactionsResponseData.TopicData;
-import org.apache.kafka.common.message.DescribeTransactionsResponseData.TopicDataCollection;
-import org.apache.kafka.common.message.DescribeTransactionsResponseData.TransactionState;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsResponseData;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsResponseData.TopicData;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsResponseData.TopicDataCollection;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsResponseData.TransactionState;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.proxy.filter.FilterContext;

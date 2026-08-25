@@ -14,9 +14,9 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiMessageType;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.ApiMessageType;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.BaseRecords;
 import org.apache.kafka.common.record.DefaultRecord;
 import org.apache.kafka.common.record.MemoryRecords;
@@ -25,7 +25,7 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.AbstractIterator;
 import org.junit.jupiter.api.Test;
 
-import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

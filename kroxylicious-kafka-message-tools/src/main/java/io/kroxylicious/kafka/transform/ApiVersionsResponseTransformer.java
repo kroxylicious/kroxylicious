@@ -8,7 +8,7 @@ package io.kroxylicious.kafka.transform;
 
 import java.util.Objects;
 
-import org.apache.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
 
 import io.kroxylicious.proxy.tag.ThreadSafe;
 

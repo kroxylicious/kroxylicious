@@ -6,8 +6,8 @@
 
 package io.kroxylicious.testing.integration;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 /**
  * The payload of a Kafka response.

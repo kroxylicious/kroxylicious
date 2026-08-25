@@ -6,13 +6,13 @@
 
 package io.kroxylicious.proxy.frame;
 
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

@@ -9,10 +9,10 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.JoinGroupRequestData;
-import org.apache.kafka.common.message.JoinGroupResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.JoinGroupRequestData;
+import io.kroxylicious.kafka.common.message.JoinGroupResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.proxy.filter.FilterContext;

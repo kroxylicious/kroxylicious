@@ -14,8 +14,8 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;

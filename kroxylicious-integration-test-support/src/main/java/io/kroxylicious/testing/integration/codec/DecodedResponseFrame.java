@@ -5,8 +5,8 @@
  */
 package io.kroxylicious.testing.integration.codec;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 /**
  * A decoded response frame.

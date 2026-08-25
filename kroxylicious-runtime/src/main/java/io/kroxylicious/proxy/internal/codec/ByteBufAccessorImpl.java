@@ -7,7 +7,7 @@ package io.kroxylicious.proxy.internal.codec;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.protocol.Readable;
+import io.kroxylicious.kafka.common.protocol.Readable;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;

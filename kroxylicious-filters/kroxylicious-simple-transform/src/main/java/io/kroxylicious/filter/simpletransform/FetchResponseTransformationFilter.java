@@ -11,10 +11,10 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;

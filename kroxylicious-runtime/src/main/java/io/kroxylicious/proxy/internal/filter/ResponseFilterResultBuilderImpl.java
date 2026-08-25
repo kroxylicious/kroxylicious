@@ -6,8 +6,8 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;

@@ -18,7 +18,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule;
 import org.apache.kafka.common.security.oauthbearer.internals.secured.VerificationKeyResolverFactory;
 import org.assertj.core.api.InstanceOfAssertFactory;

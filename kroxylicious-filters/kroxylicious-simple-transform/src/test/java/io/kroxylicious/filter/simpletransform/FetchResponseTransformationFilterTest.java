@@ -22,11 +22,11 @@ import java.util.stream.StreamSupport;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
-import org.apache.kafka.common.message.FetchResponseData.PartitionData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.FetchResponseData.FetchableTopicResponse;
+import io.kroxylicious.kafka.common.message.FetchResponseData.PartitionData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;

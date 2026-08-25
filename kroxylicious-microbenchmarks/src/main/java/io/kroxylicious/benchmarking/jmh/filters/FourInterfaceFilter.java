@@ -8,12 +8,12 @@ package io.kroxylicious.benchmarking.jmh.filters;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.CreateTopicsRequestData;
-import org.apache.kafka.common.message.CreateTopicsResponseData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ProduceResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.CreateTopicsRequestData;
+import io.kroxylicious.kafka.common.message.CreateTopicsResponseData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.ProduceResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 
 import io.kroxylicious.proxy.filter.CreateTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;

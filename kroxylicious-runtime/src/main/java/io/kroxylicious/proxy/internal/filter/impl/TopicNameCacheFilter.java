@@ -15,12 +15,12 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopic;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData.MetadataResponseTopic;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;

@@ -9,10 +9,10 @@ package io.kroxylicious.proxy.internal;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
