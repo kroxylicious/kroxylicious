@@ -1,0 +1,21 @@
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.kroxylicious.migrations.v0_24.UseKroxyliciousKafkaTypes
+displayName: Use Kroxylicious-managed Kafka API types
+description: Replaces org.apache.kafka generated message packages with io.kroxylicious.kafka.
+recipeList:
+  - org.openrewrite.java.ChangePackage:
+      oldPackageName: org.apache.kafka.common.message
+      newPackageName: io.kroxylicious.kafka.common.message
+      recursive: true
+  - org.openrewrite.java.ChangePackageInStringLiteral:
+      oldPackageName: org.apache.kafka.common.message
+      newPackageName: io.kroxylicious.kafka.common.message
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.kroxylicious.migrations.v0_24.MigrateTo0_24
+displayName: Upgrade Kroxylicious Filter API to 0.24.0
+description: Applies all deprecations, renames, and breaking changes introduced in Kroxylicious 0.24.0.
+recipeList:
+  - io.kroxylicious.migrations.v0_24.UseKroxyliciousKafkaTypes

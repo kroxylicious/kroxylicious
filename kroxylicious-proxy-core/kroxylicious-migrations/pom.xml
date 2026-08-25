@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright Kroxylicious Authors.
+  ~
+  ~ Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.24.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>kroxylicious-migrations</artifactId>
+    <name>Kroxylicious migrations</name>
+    <description>Provides automated migrations for kroxylicious</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Manages OpenRewrite test library versions -->
+            <dependency>
+                <groupId>org.openrewrite.recipe</groupId>
+                <artifactId>rewrite-recipe-bom</artifactId>
+                <version>3.37.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Provides RewriteTest interface and test runner -->
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Required for java(...) source code template assertions -->
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-java</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-java-${java.version}</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!--        &lt;!&ndash; Required for recipeFromResources() to parse declarative .yml files &ndash;&gt;-->
+        <!--        <dependency>-->
+        <!--            <groupId>org.openrewrite</groupId>-->
+        <!--            <artifactId>rewrite-yaml</artifactId>-->
+        <!--            <scope>test</scope>-->
+        <!--        </dependency>-->
+
+        <!-- JUnit 5 test framework -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.openrewrite.maven</groupId>
+                    <artifactId>rewrite-maven-plugin</artifactId>
+                    <version>${rewrite-maven-plugin.version}</version>
+                    <configuration>
+                        <!-- Points directly to local source tree, skipping mvn install requirement -->
+                        <configLocation>
+                            ${maven.multiModuleProjectDirectory}/kroxylicious-migrations/src/main/resources/META-INF/rewrite/v0_24.yml
+                        </configLocation>
+                        <activeRecipes>
+                            <recipe>io.kroxylicious.migrations.v0_24.MigrateTo0_24</recipe>
+                        </activeRecipes>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>analyze</id>
+                        <goals>
+                            <goal>analyze-only</goal>
+                        </goals>
+                        <configuration>
+                            <ignoredUnusedDeclaredDependencies>
+                                org.openrewrite:rewrite-java-${java.version}
+                            </ignoredUnusedDeclaredDependencies>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>validate-tree</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.openrewrite.maven</groupId>
+                        <artifactId>rewrite-maven-plugin</artifactId>
+                        <version>${rewrite-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>migrate-project-sources</id>
+                                <phase>process-sources</phase>
+                                <goals>
+                                    <goal>dryRunNoFork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
