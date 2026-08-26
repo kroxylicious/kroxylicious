@@ -11,16 +11,18 @@ import java.util.List;
 import java.util.Set;
 
 import org.openrewrite.ExecutionContext;
+import org.openrewrite.FindSourceFiles;
 import org.openrewrite.Preconditions;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.JavaTemplate;
 import org.openrewrite.java.JavaVisitor;
+import org.openrewrite.java.JavadocVisitor;
 import org.openrewrite.java.RemoveUnusedImports;
-import org.openrewrite.java.search.FindTypes;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
+import org.openrewrite.java.tree.Javadoc;
 import org.openrewrite.java.tree.Statement;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -53,7 +55,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
     @Override
     @NonNull
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        return Preconditions.check(new FindTypes("org.apache.kafka.common.protocol.Errors", true), new ErrorsEnumVisitor());
+        return Preconditions.check(new FindSourceFiles("**/Errors.java"), new ErrorsEnumVisitor());
     }
 
     private static class ErrorsEnumVisitor extends JavaVisitor<ExecutionContext> {
@@ -61,19 +63,23 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
         private final Set<String> REMOVED_FIELDS = Set.of("builder", "exception", "CLASS_TO_ERROR");
         private final Set<String> REMOVED_METHODS = Set.of("exception", "forException", "maybeThrow", "exceptionName", "main", "toHtml");
 
-        private final JavaTemplate messageFieldTemplate = JavaTemplate.builder("private final String message;").contextSensitive().build();
+        private final JavaTemplate messageFieldTemplate = JavaTemplate.builder("private final String message;").build();
 
-        private final JavaTemplate messageMethodBody = JavaTemplate.builder("return this.message;").contextSensitive().build();
+        private final JavaTemplate messageMethodBody = JavaTemplate.builder("return this.message;").build();
 
         private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                        "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}").contextSensitive()
+                        "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}")
                 .build();
+
+        @Override
+        protected JavadocVisitor<ExecutionContext> getJavadocVisitor() {
+            return new PruneJavadocVisitor();
+        }
 
         @Override
         public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDeclaration, ExecutionContext ctx) {
             J.ClassDeclaration cd = classDeclaration;
-            Statement messageField = findFieldByName(classDeclaration, "message");
-            boolean hasMessageField = messageField != null;
+            boolean hasMessageField = findFieldByName(classDeclaration, "message") != null;
 
             if (!hasMessageField) {
                 Statement codeField = findFieldByName(cd, "code");
@@ -121,21 +127,23 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
         @Override
         public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration methodDeclaration, ExecutionContext ctx) {
-            if (methodDeclaration.isConstructor() && findParameterByName(methodDeclaration, "builder") != null) {
-                return visitConstructorDeclaration(methodDeclaration);
-            }
 
             // Remove exception factory methods
             if (REMOVED_METHODS.contains(methodDeclaration.getSimpleName())) {
                 return null;
             }
 
+            if (methodDeclaration.isConstructor() && findParameterByName(methodDeclaration, "builder") != null) {
+                return visitConstructorDeclaration(methodDeclaration);
+            }
+
             var md = (J.MethodDeclaration) super.visitMethodDeclaration(methodDeclaration, ctx);
 
-            J.Block body = md.getBody();
-            if ("message".equals(md.getSimpleName()) && body != null && body.getStatements().size() > 1) {
-                // TODO either need to make this idempotent or find a better test that we have seen it before
-                return messageMethodBody.apply(updateCursor(md), md.getCoordinates().replaceBody());
+            if ("message".equals(md.getSimpleName()) && md.getBody() != null) {
+                String currentBody = md.getBody().printTrimmed(getCursor());
+                if (!currentBody.contains("this.message")) {
+                    return messageMethodBody.apply(updateCursor(md), md.getCoordinates().replaceBody());
+                }
             }
             return md;
         }
@@ -195,27 +203,60 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             List<String> paramNames = constructorType.getParameterNames();
             List<Expression> args = initializer.getArguments();
             List<Expression> safeArgs = new ArrayList<>();
+            if (paramNames.contains("builder")) {
+                for (int i = 0; i < args.size(); i++) {
+                    Expression arg = args.get(i);
+                    String paramName = (i < paramNames.size()) ? paramNames.get(i) : "";
 
-            for (int i = 0; i < args.size(); i++) {
-                Expression arg = args.get(i);
-                String paramName = (i < paramNames.size()) ? paramNames.get(i) : "";
-
-                if ("builder".equals(paramName)) {
-                    // Prune import for the referenced exception type in UnknownServerException::new
-                    if (arg instanceof J.MemberReference mr && mr.getContaining().getType() instanceof JavaType.FullyQualified fq) {
-                        maybeRemoveImport(fq.getFullyQualifiedName());
+                    if ("builder".equals(paramName)) {
+                        // Prune import for the referenced exception type in UnknownServerException::new
+                        if (arg instanceof J.MemberReference mr && mr.getContaining().getType() instanceof JavaType.FullyQualified fq) {
+                            maybeRemoveImport(fq.getFullyQualifiedName());
+                        }
+                        maybeRemoveImport("java.util.function.Function");
                     }
-                    maybeRemoveImport("java.util.function.Function");
+                    else {
+                        safeArgs.add(arg);
+                    }
                 }
-                else {
-                    safeArgs.add(arg);
-                }
-            }
 
-            if (safeArgs.size() != args.size()) {
-                return enumValue.withInitializer(initializer.withArguments(safeArgs));
+                if (safeArgs.size() != args.size()) {
+                    return enumValue.withInitializer(initializer.withArguments(safeArgs));
+                }
             }
             return enumValue;
+        }
+
+        private class PruneJavadocVisitor extends JavadocVisitor<ExecutionContext> {
+            PruneJavadocVisitor() {
+                super(ErrorsEnumVisitor.this);
+            }
+
+            @Override
+            public Javadoc visitSee(Javadoc.See see, ExecutionContext ctx) {
+                // Check if the @see reference targets SslTransportLayer
+                if (see.printTrimmed(getCursor()).contains("SslTransportLayer")) {
+                    return null; // Safely deletes the @see tag node from the Javadoc AST
+                }
+                return super.visitSee(see, ctx);
+            }
+
+            @Override
+            public Javadoc visitDocComment(Javadoc.DocComment docComment, ExecutionContext ctx) {
+                Javadoc.DocComment dc = (Javadoc.DocComment) super.visitDocComment(docComment, ctx);
+                List<Javadoc> body = dc.getBody();
+                List<Javadoc> cleanedBody = new ArrayList<>();
+
+                for (int i = 0; i < body.size(); i++) {
+                    Javadoc current = body.get(i);
+                    // Drop duplicate LineBreaks created when a tag between them is deleted
+                    if (current instanceof Javadoc.LineBreak && i + 1 < body.size() && body.get(i + 1) instanceof Javadoc.LineBreak) {
+                        continue;
+                    }
+                    cleanedBody.add(current);
+                }
+                return dc.withBody(cleanedBody);
+            }
         }
     }
 }
