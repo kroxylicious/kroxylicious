@@ -6,17 +6,20 @@
 
 package io.kroxylicious.vendoring.rewrite;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
+import org.openrewrite.java.JavaTemplate;
 import org.openrewrite.java.JavaVisitor;
 import org.openrewrite.java.RemoveUnusedImports;
+import org.openrewrite.java.TypeNameMatcher;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
+import org.openrewrite.java.tree.JavaType;
 import org.openrewrite.java.tree.Statement;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -26,6 +29,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Applies the required edits to Apache Kafka's hand rolled Errors enum to make it part of the Kroxylicious API
  */
 public class PruneKafkaErrorsEnumRecipe extends Recipe {
+
+    private static final TypeNameMatcher FUNCTION_TYPE_MATCHER = TypeNameMatcher.fromPattern("java.util.function.Function");
+    private static final TypeNameMatcher KAFKA_EXCEPTION_TYPE_MATCHER = TypeNameMatcher.fromPattern("org.apache.kafka.common.errors.*Exception");
 
     /**
      * Create an instance of the recipe.
@@ -51,7 +57,36 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         return new JavaVisitor<>() {
 
-            @Nullable
+            private final Set<String> REMOVED_FIELDS = Set.of("builder", "exception", "CLASS_TO_ERROR");
+            private final Set<String> REMOVED_METHODS = Set.of("exception", "forException", "maybeThrow", "exceptionName", "main", "toHtml");
+
+            private final JavaTemplate messageFieldTemplate = JavaTemplate.builder("private final String message;").contextSensitive().build();
+
+            private final JavaTemplate messageMethodBody = JavaTemplate.builder("return this.message;").contextSensitive().build();
+
+            private final JavaTemplate constructorTemplate = JavaTemplate.builder(
+                            "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}").contextSensitive()
+                    .build();
+
+            @Override
+            public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDeclaration, ExecutionContext ctx) {
+                J.ClassDeclaration cd = classDeclaration;
+                Statement messageField = findFieldByName(classDeclaration, "message");
+                boolean hasMessageField = messageField != null;
+
+                if (!hasMessageField) {
+                    Statement codeField = findFieldByName(cd, "code");
+
+                    if (codeField != null) {
+                        cd = messageFieldTemplate.apply(updateCursor(cd), codeField.getCoordinates().after());
+                    }
+                    else {
+                        cd = messageFieldTemplate.apply(updateCursor(cd), cd.getBody().getCoordinates().firstStatement());
+                    }
+                }
+                return (J.ClassDeclaration) super.visitClassDeclaration(cd, ctx);
+            }
+
             @Override
             public J.EnumValue visitEnumValue(J.EnumValue enumConstant, ExecutionContext ctx) {
                 J.EnumValue ec = (J.EnumValue) super.visitEnumValue(enumConstant, ctx);
@@ -59,9 +94,32 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 if (initializer != null) {
                     List<Expression> arguments = initializer.getArguments();
                     if (arguments.size() == 3) {
-                        List<Expression> replacementArgs = new ArrayList<>(arguments);
-                        replacementArgs.remove(2); // Remove 3rd argument (Exception constructor reference)
-                        return ec.withInitializer(initializer.withArguments(replacementArgs));
+                        List<Expression> safeArgs = arguments.stream().filter(expression -> {
+                            JavaType type = expression.getType();
+                            if (expression instanceof J.MemberReference memberReference) {
+                                var method = memberReference.getMethodType();
+                                if (method != null) {
+                                    JavaType.FullyQualified declaringType = method.getDeclaringType();
+                                    if (declaringType.isAssignableFrom(KAFKA_EXCEPTION_TYPE_MATCHER)) {
+                                        maybeRemoveImport(declaringType);
+                                        return false;
+                                    }
+                                }
+                            }
+                            if (type != null && type.isAssignableFrom(FUNCTION_TYPE_MATCHER)) {
+                                var pt = (JavaType.Parameterized) type;
+                                var matching = pt.getTypeParameters().stream().filter(t -> t.isAssignableFrom(KAFKA_EXCEPTION_TYPE_MATCHER)).collect(Collectors.toSet());
+                                matching.forEach(typ -> maybeRemoveImport(typ.toString()));
+                                return matching.isEmpty();
+                            }
+                            else {
+                                return true;
+                            }
+                        }).toList();
+                        maybeRemoveImport("java.util.function.Function");
+                        maybeRemoveImport("org.apache.kafka.common.errors.RetriableException");
+                        maybeRemoveImport("org.apache.kafka.common.errors.ApiException");
+                        return ec.withInitializer(initializer.withArguments(safeArgs));
                     }
                 }
                 return ec;
@@ -69,42 +127,36 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
             @Override
             public J.VariableDeclarations visitVariableDeclarations(J.VariableDeclarations multiVariable, ExecutionContext ctx) {
-                J.VariableDeclarations vd = (J.VariableDeclarations) super.visitVariableDeclarations(multiVariable, ctx);
-                if (vd.getVariables().stream().anyMatch(v -> "builder".equals(v.getSimpleName()))) {
+                if (multiVariable.getVariables().stream().anyMatch(v -> REMOVED_FIELDS.contains(v.getSimpleName()))) {
                     return null; // Remove 'builder' field
                 }
-                return vd;
+                findVariableByName("message", multiVariable);
+
+                return (J.VariableDeclarations) super.visitVariableDeclarations(multiVariable, ctx);
+            }
+
+            @NonNull
+            private J.MethodDeclaration visitConstructorDeclaration(J.MethodDeclaration md) {
+                return constructorTemplate.apply(updateCursor(md), md.getCoordinates().replace());
             }
 
             @Override
-            public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration method, ExecutionContext ctx) {
-                J.MethodDeclaration md = (J.MethodDeclaration) super.visitMethodDeclaration(method, ctx);
-                String name = md.getSimpleName();
+            public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration md, ExecutionContext ctx) {
+                if (md.isConstructor() && findParameterByName(md, "builder") != null) {
+                    return visitConstructorDeclaration(md);
+                }
 
                 // Remove exception factory methods
-                if ("exception".equals(name) || "forException".equals(name)) {
+                if (REMOVED_METHODS.contains(md.getSimpleName())) {
                     return null;
                 }
 
-                // Update constructor signature and body
-                if (md.isConstructor()) {
-                    List<Statement> newParams = md.getParameters().stream()
-                            .filter(p -> !(p instanceof J.VariableDeclarations vd &&
-                                    vd.getVariables().stream().anyMatch(v -> "builder".equals(v.getSimpleName()))))
-                            .collect(Collectors.toList());
-
-                    J.Block body = md.getBody();
-                    if (body != null) {
-                        List<Statement> newStatements = body.getStatements().stream()
-                                .filter(stmt -> !stmt.printTrimmed(getCursor()).contains("builder"))
-                                .collect(Collectors.toList());
-                        md = md.withBody(body.withStatements(newStatements));
-                    }
-
-                    return md.withParameters(newParams);
+                J.Block body = md.getBody();
+                if ("message".equals(md.getSimpleName()) && body != null && body.getStatements().size() > 1) {
+                    // TODO either need to make this idempotent or find a better test that we have seen it before
+                    return messageMethodBody.apply(updateCursor(md), md.getCoordinates().replaceBody());
                 }
-
-                return md;
+                return (J.MethodDeclaration) super.visitMethodDeclaration(md, ctx);
             }
 
             @Override
@@ -113,6 +165,50 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 doAfterVisit(new RemoveUnusedImports().getVisitor());
                 return c;
             }
+
+            @Override
+            @Nullable
+            public J visitIf(J.If ifSeq, ExecutionContext ctx) {
+                J.If i = (J.If) super.visitIf(ifSeq, ctx);
+
+                if (isClassToErrorIf(i)) {
+                    return null; // Deletes the if-statement from the parent block
+                }
+                return i;
+            }
+
+            private boolean isClassToErrorIf(J.If ifStmt) {
+                Statement body = ifStmt.getThenPart();
+                if (body instanceof J.Block block) {
+                    if (block.getStatements().isEmpty()) {
+                        return false;
+                    }
+                    body = block.getStatements().get(0);
+                }
+                if (body instanceof J.MethodInvocation mi) {
+                    Expression selectExpression = mi.getSelect();
+                    return selectExpression != null && selectExpression.toString().endsWith("CLASS_TO_ERROR") && "put".equals(mi.getSimpleName());
+                }
+                return false;
+            }
+
+            @Nullable
+            private static Statement findFieldByName(J.ClassDeclaration cd, String fieldName) {
+                return cd.getBody().getStatements().stream()
+                        .filter(s -> s instanceof J.VariableDeclarations vd && findVariableByName(fieldName, vd) != null).findFirst()
+                        .orElse(null);
+            }
+
+            private static J.VariableDeclarations.NamedVariable findVariableByName(String fieldName, J.VariableDeclarations vd) {
+                return vd.getVariables().stream().filter(v -> fieldName.equals(v.getSimpleName())).findFirst().orElse(null);
+            }
+
+            @Nullable
+            private J.VariableDeclarations.NamedVariable findParameterByName(J.MethodDeclaration md, String parameterName) {
+                return md.getParameters().stream().filter(J.VariableDeclarations.class::isInstance).map(J.VariableDeclarations.class::cast)
+                        .flatMap(vd -> vd.getVariables().stream()).filter(v -> parameterName.equals(v.getSimpleName())).findFirst().orElse(null);
+            }
         };
     }
+
 }

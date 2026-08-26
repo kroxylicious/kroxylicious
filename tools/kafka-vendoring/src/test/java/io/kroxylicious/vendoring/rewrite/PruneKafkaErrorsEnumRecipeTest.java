@@ -28,58 +28,126 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
         rewriteRun(
                 java(
                         """
-                                package org.apache.kafka.common.protocol;
 
-                                import java.util.function.Function;
+                                  package org.apache.kafka.common.protocol;
 
-                                import org.apache.kafka.common.errors.ApiException;
-                                import org.apache.kafka.common.errors.InvalidRequestException;
-                                import org.apache.kafka.common.errors.UnknownServerException;
+                                  import java.util.HashMap;
+                                  import java.util.Map;
+                                  import java.util.function.Function;
 
-                                public enum Errors {
-                                    UNKNOWN_SERVER_ERROR(-1, "Unexpected error", UnknownServerException::new),
-                                    INVALID_REQUEST(42, "Invalid request", InvalidRequestException::new);
+                                  import org.apache.kafka.common.errors.ApiException;
+                                  import org.apache.kafka.common.errors.InvalidRequestException;
+                                  import org.apache.kafka.common.errors.UnknownServerException;
 
-                                    private final short code;
-                                    private final String message;
-                                    private final Function<String, ApiException> builder;
+                                  public enum Errors {
+                                      UNKNOWN_SERVER_ERROR(-1, "Unexpected error", UnknownServerException::new),
+                                      INVALID_REQUEST(42, "Invalid request", InvalidRequestException::new);
 
-                                    Errors(int code, String defaultMessage, Function<String, ApiException> builder) {
-                                        this.code = (short) code;
-                                        this.message = defaultMessage;
-                                        this.builder = builder;
-                                    }
+                                      private final short code;
+                                      private String message;
 
-                                    public ApiException exception() {
-                                        return builder.apply(message);
-                                    }
+                                      private final Function<String, ApiException> builder;
 
-                                    public ApiException exception(String message) {
-                                        return builder.apply(message);
-                                    }
+                                      private static final Map<Class<?>, Errors> CLASS_TO_ERROR = new HashMap<>();
+                                      private static final Map<Short, Errors> CODE_TO_ERROR = new HashMap<>();
 
-                                    public static Errors forException(Throwable cause) {
-                                        return UNKNOWN_SERVER_ERROR;
-                                    }
+                                      private ApiException exception;
 
-                                    public short code() {
-                                        return code;
-                                    }
+                                      static {
+                                          for (Errors error : Errors.values()) {
+                                              if (CODE_TO_ERROR.put(error.code(), error) != null)
+                                                  throw new ExceptionInInitializerError("Code " + error.code() + " for error " +
+                                                          error + " has already been used");
 
-                                    public String message() {
-                                        return message;
-                                    }
-                                }
+                                              if (error.exception != null)
+                                                  CLASS_TO_ERROR.put(error.exception.getClass(), error);
+                                          }
+                                      }
+
+                                      Errors(int code, String defaultMessage, Function<String, ApiException> builder) {
+                                          this.code = (short) code;
+                                          this.builder = builder;
+                                      }
+
+                                      public ApiException exception() {
+                                          return builder.apply(message);
+                                      }
+
+                                      public ApiException exception(String message) {
+                                          return builder.apply(message);
+                                      }
+
+                                      public static Errors forException(Throwable cause) {
+                                          return UNKNOWN_SERVER_ERROR;
+                                      }
+
+                                      public short code() {
+                                          return code;
+                                      }
+
+                                      public String message() {
+                                          if (exception != null)
+                                              return exception.getMessage();
+                                          return toString();
+                                      }
+
+                                      public static Errors forCode(short code) {
+                                          Errors error = CODE_TO_ERROR.get(code);
+                                          if (error != null) {
+                                              return error;
+                                          } else {
+                                              return UNKNOWN_SERVER_ERROR;
+                                          }
+                                      }
+
+                                      public void maybeThrow() {
+                                          if (exception != null) {
+                                              throw this.exception;
+                                          }
+                                      }
+
+                                      public String exceptionName() {
+                                          return exception == null ? null : exception.getClass().getName();
+                                      }
+
+                                      private static String toHtml() {
+                                          final StringBuilder b = new StringBuilder();
+                                          b.append("<table class=\\"data-table\\"><tbody>\\n");
+                                          b.append("<tr>");
+                                          b.append("<th>Error</th>\\n");
+                                          b.append("<th>Code</th>\\n");
+                                          b.append("<th>Retriable</th>\\n");
+                                          b.append("<th>Description</th>\\n");
+                                          b.append("</tr>\\n");
+                                          b.append("</tbody></table>\\n");
+                                          return b.toString();
+                                      }
+
+                                      public static void main(String[] args) {
+                                      }
+                                  }
                                 """,
                         """
                                 package org.apache.kafka.common.protocol;
+
+                                import java.util.HashMap;
+                                import java.util.Map;
 
                                 public enum Errors {
                                     UNKNOWN_SERVER_ERROR(-1, "Unexpected error"),
                                     INVALID_REQUEST(42, "Invalid request");
 
                                     private final short code;
-                                    private final String message;
+                                    private String message;
+                                    private static final Map<Short, Errors> CODE_TO_ERROR = new HashMap<>();
+
+                                    static {
+                                        for (Errors error : Errors.values()) {
+                                            if (CODE_TO_ERROR.put(error.code(), error) != null)
+                                                throw new ExceptionInInitializerError("Code " + error.code() + " for error " +
+                                                        error + " has already been used");
+                                        }
+                                    }
 
                                     Errors(int code, String defaultMessage) {
                                         this.code = (short) code;
@@ -91,7 +159,16 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                     }
 
                                     public String message() {
-                                        return message;
+                                        return this.message;
+                                    }
+
+                                    public static Errors forCode(short code) {
+                                        Errors error = CODE_TO_ERROR.get(code);
+                                        if (error != null) {
+                                            return error;
+                                        } else {
+                                            return UNKNOWN_SERVER_ERROR;
+                                        }
                                     }
                                 }
                                 """));

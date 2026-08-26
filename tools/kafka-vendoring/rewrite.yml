@@ -27,6 +27,7 @@ preconditions:
   - org.openrewrite.FindSourceFiles:
       filePattern: '**/org/apache/kafka/**'
 recipeList:
+  - io.kroxylicious.vendoring.rewrite.PruneKafkaErrorsEnumRecipe
   - org.openrewrite.java.ChangePackage:
       oldPackageName: org.apache.kafka.common
       newPackageName: io.kroxylicious.kafka.common
@@ -35,4 +36,3 @@ recipeList:
       oldPackageName: org.apache.kafka.test
       newPackageName: io.kroxylicious.kafka.test
       recursive: true
-  - io.kroxylicious.vendoring.rewrite.PruneKafkaErrorsEnumRecipe
