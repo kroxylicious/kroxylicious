@@ -119,7 +119,10 @@ import static org.slf4j.LoggerFactory.getLogger;
  *   <li>When the client channel becomes unwritable, reads are paused on all server channels (don't accept responses we can't deliver).</li>
  * </ul>
  */
-@SuppressWarnings({ "java:S1133", "java:S1172" }) // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller
+@SuppressWarnings({
+        "java:S1133",
+        // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller
+        "java:S1172" })
 public class ClientConnectionStateMachine {
     private static final Logger LOGGER = getLogger(ClientConnectionStateMachine.class);
 
@@ -333,7 +336,7 @@ public class ClientConnectionStateMachine {
         return endpointBinding.nodeId();
     }
 
-    String clusterName() {
+    public String clusterName() {
         return virtualCluster().getClusterName();
     }
 
@@ -1299,5 +1302,4 @@ public class ClientConnectionStateMachine {
         }
         return ch;
     }
-
 }

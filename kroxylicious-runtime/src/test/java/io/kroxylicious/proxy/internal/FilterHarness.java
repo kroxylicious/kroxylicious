@@ -274,9 +274,6 @@ public abstract class FilterHarness {
     }
 
     /**
-     * Shutdown the channel, asserting there were no further requests or responses to read.
-     */
-    /**
      * Runs all pending tasks on both the main channel and the inbound channel event loops.
      * Needed when the CCSM drain dispatches work to {@code inboundChannel}'s event loop
      * (e.g. when a filter calls closeConnection()).

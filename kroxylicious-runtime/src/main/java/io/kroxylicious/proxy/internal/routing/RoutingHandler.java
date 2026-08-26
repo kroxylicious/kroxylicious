@@ -81,6 +81,11 @@ import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
 public class RoutingHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RoutingHandler.class);
+    public static final String KOG_KEY_RESULT_TYPE = "resultType";
+    public static final String LOG_KEY_CLIENT_CORRELATION_ID = "clientCorrelationId";
+    public static final String LOG_KEY_API_KEY = "apiKey";
+    public static final String LOG_KEY_SESSION_ID = "sessionId";
+    public static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
 
     // --- Configuration ---
 
@@ -104,9 +109,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
     @Nullable
     private ResponseSequencer responseSequencer;
-
-    @Nullable
-    private ChannelHandlerContext ctx;
 
     // all parameters are genuinely needed: dispatch, identity, request source, router state
     @SuppressWarnings("java:S107")
@@ -140,7 +142,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * @param sharedNodeAddresses node addresses shared across routes (e.g. from a prior metadata response),
      *        used to route node-specific requests without an additional metadata round-trip
      * @param ccsm the connection state machine; provides session ID, subject, and connection lifecycle hooks
-     * @param virtualClusterName the virtual cluster name, used for logging
      * @param nodeIdMapping the virtual-to-target node ID mapping for the top-level routing level
      * @param nodeId the virtual node ID of the gateway port that accepted this connection,
      *        or {@code null} if the gateway does not identify a specific node
@@ -151,9 +152,9 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                           Map<ApiKeys, String> staticRoutes,
                                           Map<Integer, HostPort> sharedNodeAddresses,
                                           ClientConnectionStateMachine ccsm,
-                                          String virtualClusterName,
                                           NodeIdMapping nodeIdMapping,
                                           @Nullable Integer nodeId) {
+        String virtualClusterName = ccsm.clusterName();
         var allocator = CorrelationIdSpace.createRouterAllocator();
         var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", allocator, sharedNodeAddresses, virtualClusterName);
         return new RoutingHandler(dispatcher, virtualClusterName,
@@ -246,7 +247,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
-        this.ctx = ctx;
         dispatcher.setContext(ctx);
     }
 
@@ -287,7 +287,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
             return;
         }
 
-        handleOpaqueFrame(ctx, frame, apiKey, msg);
+        handleOpaqueFrame(ctx, apiKey, msg);
     }
 
     private void dispatchStaticRoute(ChannelHandlerContext ctx, RequestFrame frame, Object msg, ApiKeys apiKey, String staticRoute) {
@@ -300,28 +300,28 @@ public class RoutingHandler extends ChannelDuplexHandler {
         ((Frame) msg).setRouteName(qualifiedRoute);
         ctx.fireChannelRead(msg);
         LOGGER.atTrace()
-                .addKeyValue("virtualCluster", virtualClusterName)
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("apiKey", apiKey)
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                .addKeyValue(LOG_KEY_API_KEY, apiKey)
                 .addKeyValue("route", qualifiedRoute)
                 .addKeyValue("routingMode", "static")
                 .log("Request forwarded via static route");
     }
 
-    private void handleOpaqueFrame(ChannelHandlerContext ctx, RequestFrame frame, ApiKeys apiKey, Object msg) {
+    private void handleOpaqueFrame(ChannelHandlerContext ctx, ApiKeys apiKey, Object msg) {
         if (requestSource instanceof RouterRequestSource) {
             LOGGER.atWarn()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
                     .log("Opaque frame arrived for dynamically-routed nested API key; decode predicate misconfigured");
             ctx.close().addListener(logFailure(LOGGER, "close after opaque frame arrived for dynamically-routed nested API key"));
         }
         else {
             LOGGER.atWarn()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
                     .log("Dynamically-routed API key arrived as opaque frame, forwarding via pipeline");
             ctx.fireChannelRead(msg);
         }
@@ -335,11 +335,11 @@ public class RoutingHandler extends ChannelDuplexHandler {
         int correlationId = frame.correlationId();
 
         LOGGER.atTrace()
-                .addKeyValue("virtualCluster", virtualClusterName)
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("apiKey", apiKey)
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                .addKeyValue(LOG_KEY_API_KEY, apiKey)
                 .addKeyValue("apiVersion", apiVersion)
-                .addKeyValue("clientCorrelationId", correlationId)
+                .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
                 .addKeyValue("routingMode", "dynamic")
                 .log("Dispatching request to router");
 
@@ -358,9 +358,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
         var routingContext = new RouterContextImpl(frame, dispatcher, sessionId, subject, effectiveNodeId);
 
         if (frame instanceof InternalRequestFrame<?> oobFrame) {
-            if (requestSource instanceof VirtualClusterRequestSource vcs) {
+            if (requestSource instanceof VirtualClusterRequestSource(ClientConnectionStateMachine ccsm)) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
-                var ccsm = vcs.ccsm();
                 invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
                         (result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
             }
@@ -383,13 +382,17 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * close the connection rather than let the exception escape to the pipeline's generic error
      * handler, which only logs and leaves the connection (and any pending OOB promise) hanging.
      */
-    private void invokeRouter(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body,
-                              RouterContextImpl routingContext, BiConsumer<RouterResponse, Throwable> completion) {
+    private void invokeRouter(ApiKeys apiKey,
+                              short apiVersion,
+                              RequestHeaderData header,
+                              ApiMessage body,
+                              RouterContextImpl routingContext,
+                              BiConsumer<RouterResponse, Throwable> completion) {
         CompletionStage<RouterResponse> stage;
         try {
-            stage = router.onRequest(apiKey, apiVersion, header, body, routingContext);
+            stage = Objects.requireNonNull(router).onRequest(apiKey, apiVersion, header, body, routingContext);
         }
-        catch (Throwable t) {
+        catch (Exception t) {
             completion.accept(null, t);
             return;
         }
@@ -402,17 +405,22 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
     // --- OOB completion (top-level only) ---
 
-    private void handleOobCompletion(ChannelHandlerContext ctx, InternalRequestFrame<?> oobFrame,
-                                     RouterResponse result, Throwable error,
-                                     ApiKeys apiKey, short apiVersion, int correlationId,
+    @SuppressWarnings("java:S107") // difficult to reduce the number of parameters for this method
+    private void handleOobCompletion(ChannelHandlerContext ctx,
+                                     InternalRequestFrame<?> oobFrame,
+                                     @Nullable RouterResponse result,
+                                     @Nullable Throwable error,
+                                     ApiKeys apiKey,
+                                     short apiVersion,
+                                     int correlationId,
                                      ClientConnectionStateMachine ccsm) {
         try {
             if (error != null) {
                 LOGGER.atError()
-                        .addKeyValue("virtualCluster", virtualClusterName)
-                        .addKeyValue("sessionId", sessionId)
-                        .addKeyValue("apiKey", apiKey)
-                        .addKeyValue("clientCorrelationId", correlationId)
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                        .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                        .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
                         .setCause(error)
                         .log("Router returned failed future");
                 oobFrame.promise().completeExceptionally(error);
@@ -423,10 +431,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 var cause = new IllegalStateException(
                         "Router returned unrecognised RouterResponse type (apiKey=" + apiKey + ", type=" + (result == null ? "null" : result.getClass().getName()) + ")");
                 LOGGER.atError()
-                        .addKeyValue("virtualCluster", virtualClusterName)
-                        .addKeyValue("sessionId", sessionId)
-                        .addKeyValue("apiKey", apiKey)
-                        .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                        .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                        .addKeyValue(KOG_KEY_RESULT_TYPE, result == null ? "null" : result.getClass().getName())
                         .log("Router returned unrecognised RouterResponse type; closing connection");
                 oobFrame.promise().completeExceptionally(cause);
                 ctx.channel().close().addListener(logFailure(LOGGER, "close after unrecognised router response type for OOB request"));
@@ -471,15 +479,19 @@ public class RoutingHandler extends ChannelDuplexHandler {
     // than to a listener. Void promises are used deliberately on this hot data path to avoid
     // per-write promise allocation.
     @SuppressWarnings("FutureReturnValueIgnored")
-    private void handleNestedOobCompletion(ChannelHandlerContext ctx, InternalRequestFrame<?> oobFrame,
-                                           RouterResponse result, Throwable error,
-                                           ApiKeys apiKey, short apiVersion, int correlationId) {
+    private void handleNestedOobCompletion(ChannelHandlerContext ctx,
+                                           InternalRequestFrame<?> oobFrame,
+                                           @Nullable RouterResponse result,
+                                           @Nullable Throwable error,
+                                           ApiKeys apiKey,
+                                           short apiVersion,
+                                           int correlationId) {
         if (error != null) {
             LOGGER.atError()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("apiKey", apiKey)
-                    .addKeyValue("clientCorrelationId", correlationId)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                    .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
                     .setCause(error)
                     .log("Router returned failed future");
             oobFrame.promise().completeExceptionally(error);
@@ -489,10 +501,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
             var cause = new IllegalStateException(
                     "Router returned unrecognised RouterResponse type (apiKey=" + apiKey + ", type=" + (result == null ? "null" : result.getClass().getName()) + ")");
             LOGGER.atError()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("apiKey", apiKey)
-                    .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                    .addKeyValue(KOG_KEY_RESULT_TYPE, result == null ? "null" : result.getClass().getName())
                     .log("Router returned unrecognised RouterResponse type");
             oobFrame.promise().completeExceptionally(cause);
             return;
@@ -517,15 +529,21 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
     // --- Regular completion (both levels) ---
 
-    private void handleCompletion(ChannelHandlerContext ctx, DecodedRequestFrame<?> requestFrame,
-                                  RouterResponse result, Throwable error,
-                                  ApiKeys apiKey, short apiVersion, int correlationId, long sequence) {
+    @SuppressWarnings("java:S107") // difficult to reduce the number of parameters for this method
+    private void handleCompletion(ChannelHandlerContext ctx,
+                                  DecodedRequestFrame<?> requestFrame,
+                                  @Nullable RouterResponse result,
+                                  @Nullable Throwable error,
+                                  ApiKeys apiKey,
+                                  short apiVersion,
+                                  int correlationId,
+                                  long sequence) {
         if (error != null) {
             LOGGER.atError()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("apiKey", apiKey)
-                    .addKeyValue("clientCorrelationId", correlationId)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                    .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
                     .setCause(error)
                     .log("Router returned failed future");
             if (requestSource instanceof VirtualClusterRequestSource) {
@@ -540,10 +558,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
         if (!(result instanceof RouterResponseImpl rri)) {
             LOGGER.atError()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("apiKey", apiKey)
-                    .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                    .addKeyValue(KOG_KEY_RESULT_TYPE, result == null ? "null" : result.getClass().getName())
                     .log("Router returned unrecognised RouterResponse type; closing connection");
             if (requestSource instanceof VirtualClusterRequestSource) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
@@ -557,18 +575,18 @@ public class RoutingHandler extends ChannelDuplexHandler {
             return;
         }
 
-        deliverResponse(ctx, requestFrame, rri, apiKey, apiVersion, correlationId, sequence);
+        deliverResponse(ctx, rri, apiKey, apiVersion, correlationId, sequence);
 
         if (rri.closeConnection()) {
-            if (requestSource instanceof VirtualClusterRequestSource vcs) {
-                vcs.ccsm().requestClose(CloseReason.routerRequested());
+            if (requestSource instanceof VirtualClusterRequestSource(ClientConnectionStateMachine ccsm)) {
+                ccsm.requestClose(CloseReason.routerRequested());
             }
             else {
                 // TODO (#4157): design proposal 070 specifies completing the future exceptionally
                 // when a nested router calls andCloseConnection()
                 LOGGER.atWarn()
-                        .addKeyValue("virtualCluster", virtualClusterName)
-                        .addKeyValue("sessionId", sessionId)
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                         .log("Nested router attempted to close connection; ignoring close request");
             }
         }
@@ -577,7 +595,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
     }
 
     private void deliverResponse(ChannelHandlerContext ctx,
-                                 DecodedRequestFrame<?> requestFrame,
                                  RouterResponseImpl rri,
                                  ApiKeys apiKey,
                                  short apiVersion,
@@ -588,21 +605,21 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 ResponseHeaderData header = rw.header() != null ? rw.header() : new ResponseHeaderData();
                 header.setCorrelationId(correlationId);
                 ApiMessage body = rw.body();
-                deliverResponseFrame(ctx, requestFrame, apiVersion, correlationId, header, body, sequence);
+                deliverResponseFrame(ctx, apiVersion, correlationId, header, body, sequence);
             }
             case RouterResponseImpl.RespondWithError rwe -> {
                 AbstractResponse errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
                         rwe.requestHeader(), rwe.request(), rwe.exception());
                 ResponseHeaderData header = new ResponseHeaderData();
                 header.setCorrelationId(correlationId);
-                deliverResponseFrame(ctx, requestFrame, apiVersion, correlationId, header, errorResponse.data(), sequence);
+                deliverResponseFrame(ctx, apiVersion, correlationId, header, errorResponse.data(), sequence);
             }
             case RouterResponseImpl.RespondWithoutReply ignored -> {
                 LOGGER.atTrace()
-                        .addKeyValue("virtualCluster", virtualClusterName)
-                        .addKeyValue("sessionId", sessionId)
-                        .addKeyValue("apiKey", apiKey)
-                        .addKeyValue("clientCorrelationId", correlationId)
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                        .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                        .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
                         .log("Router completed request with no reply");
                 if (responseSequencer != null) {
                     responseSequencer.skip(sequence);
@@ -617,7 +634,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
     // per-write promise allocation.
     @SuppressWarnings("FutureReturnValueIgnored")
     private void deliverResponseFrame(ChannelHandlerContext ctx,
-                                      DecodedRequestFrame<?> requestFrame,
                                       short apiVersion,
                                       int correlationId,
                                       ResponseHeaderData header,
@@ -657,8 +673,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
     }
 
     private void notifyRequestComplete() {
-        if (requestSource instanceof VirtualClusterRequestSource vcs) {
-            vcs.ccsm().onRoutedRequestComplete();
+        if (requestSource instanceof VirtualClusterRequestSource(ClientConnectionStateMachine ccsm)) {
+            ccsm.onRoutedRequestComplete();
         }
     }
 
@@ -678,8 +694,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
             if (outcome == RouteDispatcher.ResponseOutcome.UNHANDLED && requestSource instanceof VirtualClusterRequestSource
                     && dispatcher.correlationIdAllocator().inRange(frame.correlationId())) {
                 LOGGER.atWarn()
-                        .addKeyValue("virtualCluster", virtualClusterName)
-                        .addKeyValue("sessionId", sessionId)
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                         .addKeyValue("routingCorrelationId", frame.correlationId())
                         .log("Received response with no pending routing future");
                 frame.release();

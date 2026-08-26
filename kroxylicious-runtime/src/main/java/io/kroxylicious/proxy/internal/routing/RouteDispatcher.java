@@ -63,6 +63,10 @@ public class RouteDispatcher implements RouterDispatch {
             ApiKeys.SHARE_FETCH,
             ApiKeys.SHARE_ACKNOWLEDGE,
             ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
+    public static final String LOG_KEY_ROUTING_CORRELATION_ID = "routingCorrelationId";
+    public static final String LOG_KEY_TARGET_NODE_ID = "targetNodeId";
+    public static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
+    public static final String LOG_KEY_SESSION_ID = "sessionId";
 
     private final Map<String, RouteDescriptor> routes;
     private final NodeIdMapping nodeIdMapping;
@@ -188,7 +192,7 @@ public class RouteDispatcher implements RouterDispatch {
         if (!frame.hasResponse()) {
             fireChannelRead(frame);
             withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
-                    .addKeyValue("routingCorrelationId", routingCorrelationId)
+                    .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
                     .log("Fire-and-forget request sent to route (no response expected)");
             return CompletableFuture.completedFuture(null);
         }
@@ -198,7 +202,7 @@ public class RouteDispatcher implements RouterDispatch {
         fireChannelRead(frame);
 
         withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
-                .addKeyValue("routingCorrelationId", routingCorrelationId)
+                .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
                 .addKeyValue("apiVersion", requestApiVersion)
                 .log("Request sent to route");
         return future;
@@ -228,8 +232,8 @@ public class RouteDispatcher implements RouterDispatch {
         if (!frame.hasResponse()) {
             fireChannelRead(frame);
             withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
-                    .addKeyValue("targetNodeId", targetNodeId)
-                    .addKeyValue("routingCorrelationId", routingCorrelationId)
+                    .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
+                    .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
                     .log("Fire-and-forget request sent to specific node (no response expected)");
             return CompletableFuture.completedFuture(null);
         }
@@ -239,8 +243,8 @@ public class RouteDispatcher implements RouterDispatch {
         fireChannelRead(frame);
 
         withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
-                .addKeyValue("targetNodeId", targetNodeId)
-                .addKeyValue("routingCorrelationId", routingCorrelationId)
+                .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
+                .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
                 .log("Request sent to specific node");
         return future;
     }
@@ -269,9 +273,9 @@ public class RouteDispatcher implements RouterDispatch {
                 frame.release();
             }
             LOGGER.atTrace()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("routingCorrelationId", correlationId)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, correlationId)
                     .log("Routed response matched to pending request");
             return ResponseOutcome.CONSUMED;
         }
@@ -328,8 +332,8 @@ public class RouteDispatcher implements RouterDispatch {
             }
             pendingResponses.clear();
             LOGGER.atWarn()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                     .addKeyValue("abandonedResponses", abandoned)
                     .log("Connection closed with pending router responses");
         }
@@ -376,8 +380,8 @@ public class RouteDispatcher implements RouterDispatch {
             }
             if (!md.brokers().isEmpty()) {
                 LOGGER.atDebug()
-                        .addKeyValue("virtualCluster", virtualClusterName)
-                        .addKeyValue("sessionId", sessionId)
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                         .addKeyValue("brokerCount", md.brokers().size())
                         .log("Cached upstream node addresses from internal METADATA response");
             }
@@ -385,16 +389,16 @@ public class RouteDispatcher implements RouterDispatch {
     }
 
     private LoggingEventBuilder withSendContext(LoggingEventBuilder event, String sessionId, String route, int clientCorrelationId) {
-        return event.addKeyValue("virtualCluster", virtualClusterName)
-                .addKeyValue("sessionId", sessionId)
+        return event.addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                 .addKeyValue("route", route)
                 .addKeyValue("clientCorrelationId", clientCorrelationId);
     }
 
     private LoggingEventBuilder withNodeContext(LoggingEventBuilder event, String sessionId, String route, int targetNodeId) {
-        return event.addKeyValue("virtualCluster", virtualClusterName)
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("targetNodeId", targetNodeId)
+        return event.addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
                 .addKeyValue("route", route);
     }
 }

@@ -290,8 +290,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
                 var sharedAddresses = sharedNodeAddressCache.computeIfAbsent(dr, k -> new ConcurrentHashMap<>());
                 var routingHandler = RoutingHandler.topLevel(
-                        router, dr.topLevelRouteDescriptors(), staticRoutes, sharedAddresses, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(),
-                        dr.nodeIdMapping(), binding.nodeId());
+                        router,
+                        dr.topLevelRouteDescriptors(),
+                        staticRoutes,
+                        sharedAddresses,
+                        clientConnectionStateMachine,
+                        dr.nodeIdMapping(),
+                        binding.nodeId());
                 clientConnectionStateMachine.setRouterActive();
                 clientConnectionStateMachine.setUpstreamAddressResolver(
                         virtualNodeId -> routingHandler.resolveRouterNodeAddress(virtualNodeId)

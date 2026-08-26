@@ -23,6 +23,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -86,6 +87,11 @@ class RoutingHandlerTest {
 
     private EmbeddedChannel channel;
 
+    @BeforeEach
+    void setUp() {
+        when(ccsm.clusterName()).thenReturn(VIRTUAL_CLUSTER);
+    }
+
     @AfterEach
     void tearDown() {
         if (channel != null) {
@@ -96,7 +102,7 @@ class RoutingHandlerTest {
     // ======================== Top-level helpers ========================
 
     private RoutingHandler topLevelHandler(Map<ApiKeys, String> staticRoutes) {
-        return RoutingHandler.topLevel(router, Map.of(), staticRoutes, new HashMap<>(), ccsm, VIRTUAL_CLUSTER,
+        return RoutingHandler.topLevel(router, Map.of(), staticRoutes, new HashMap<>(), ccsm,
                 new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
     }
 
@@ -104,7 +110,7 @@ class RoutingHandlerTest {
         when(ccsm.sessionId()).thenReturn(SESSION_ID);
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
         var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", null), null, List.of());
-        return RoutingHandler.topLevel(router, Map.of(routeName, rd), Map.of(), new HashMap<>(), ccsm, VIRTUAL_CLUSTER,
+        return RoutingHandler.topLevel(router, Map.of(routeName, rd), Map.of(), new HashMap<>(), ccsm,
                 new IdentityNodeIdMapping(routeName), null);
     }
 
@@ -146,16 +152,6 @@ class RoutingHandlerTest {
                 .setRequestApiVersion((short) 12)
                 .setCorrelationId(correlationId);
         var frame = new DecodedRequestFrame<>((short) 12, correlationId, true, header, new FetchRequestData());
-        frame.setRouteName(routeName);
-        return frame;
-    }
-
-    private static DecodedRequestFrame<MetadataRequestData> metadataFrame(int correlationId, String routeName) {
-        var header = new RequestHeaderData()
-                .setRequestApiKey(ApiKeys.METADATA.id)
-                .setRequestApiVersion((short) 12)
-                .setCorrelationId(correlationId);
-        var frame = new DecodedRequestFrame<>((short) 12, correlationId, true, header, new MetadataRequestData());
         frame.setRouteName(routeName);
         return frame;
     }
@@ -302,7 +298,7 @@ class RoutingHandlerTest {
         when(ccsm.sessionId()).thenReturn(SESSION_ID);
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
         var handler = RoutingHandler.topLevel(
-                router, Map.of(), Map.of(ApiKeys.METADATA, "route-a"), new HashMap<>(), ccsm, VIRTUAL_CLUSTER, mapping, null);
+                router, Map.of(), Map.of(ApiKeys.METADATA, "route-a"), new HashMap<>(), ccsm, mapping, null);
         channel = channelWithTerminal(handler);
 
         var requestFrame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true,
@@ -577,7 +573,7 @@ class RoutingHandlerTest {
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
         var handler = RoutingHandler.topLevel(
                 router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
-                Map.of(), new HashMap<>(), ccsm, VIRTUAL_CLUSTER, new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+                Map.of(), new HashMap<>(), ccsm, new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
         channel = channelWithTerminal(handler);
 
         int routingCorrelationId = Integer.MIN_VALUE / 2;
@@ -599,7 +595,7 @@ class RoutingHandlerTest {
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
         var rd = new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of());
         var handler = RoutingHandler.topLevel(
-                router, Map.of(DEFAULT_ROUTE, rd), Map.of(), new HashMap<>(), ccsm, VIRTUAL_CLUSTER,
+                router, Map.of(DEFAULT_ROUTE, rd), Map.of(), new HashMap<>(), ccsm,
                 new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
         channel = channelWithTerminal(handler);
         var header = new RequestHeaderData()

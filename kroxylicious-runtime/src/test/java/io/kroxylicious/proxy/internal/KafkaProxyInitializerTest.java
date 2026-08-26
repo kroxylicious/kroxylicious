@@ -451,8 +451,8 @@ class KafkaProxyInitializerTest {
         var decodedKeys = KafkaProxyInitializer.computeDecodedKeysForRouter(staticRoutes, routeDescs);
 
         // Then
-        assertThat(decodedKeys).contains(ApiKeys.LIST_OFFSETS);
-        assertThat(decodedKeys).doesNotContain(ApiKeys.OFFSET_COMMIT);
+        assertThat(decodedKeys).contains(ApiKeys.LIST_OFFSETS)
+                .doesNotContain(ApiKeys.OFFSET_COMMIT);
     }
 
     @Test

@@ -335,9 +335,12 @@ class RouteDispatcherTest {
         assertThat(stage.toCompletableFuture()).isCompletedExceptionally();
     }
 
-    // FutureReturnValueIgnored: completion is observed via `future`, asserted immediately below;
-    // if the submitted task threw, `future` simply wouldn't complete and that assertion would fail.
-    @SuppressWarnings("FutureReturnValueIgnored")
+    @SuppressWarnings({
+            // FutureReturnValueIgnored: completion is observed via `future`, asserted immediately below;
+            // if the submitted task threw, `future` simply wouldn't complete and that assertion would fail.
+            "FutureReturnValueIgnored",
+            // The above comment is seen by sonar as commented-out code :facepalm:
+            "java:S125"})
     private Thread obtainEventLoopThread() {
         var future = new CompletableFuture<Thread>();
         channel.eventLoop().submit(() -> future.complete(Thread.currentThread()));
@@ -492,7 +495,7 @@ class RouteDispatcherTest {
         // Then
         assertThat(outcome).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
         assertThat(future).isCompletedExceptionally();
-        assertThat(responseFrame.refCnt()).isEqualTo(0);
+        assertThat(responseFrame.refCnt()).isZero();
     }
 
     // --- failAllPending ---
