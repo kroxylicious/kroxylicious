@@ -61,7 +61,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             private final JavaTemplate messageMethodBody = JavaTemplate.builder("return this.message;").contextSensitive().build();
 
             private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                            "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}").contextSensitive()
+                    "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}").contextSensitive()
                     .build();
 
             @Override
