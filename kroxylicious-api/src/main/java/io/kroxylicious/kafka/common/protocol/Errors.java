@@ -18,8 +18,6 @@ package io.kroxylicious.kafka.common.protocol;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -213,9 +211,9 @@ public enum Errors {
 
     private final String message;
 
-    Errors(int code, String defaultMessage) {
+    Errors(int code, String message) {
         this.code = (short) code;
-        this.message = defaultMessage;
+        this.message = message;
     }
 
     /**
@@ -230,7 +228,10 @@ public enum Errors {
      * @return the error message
      */
     public String message() {
-        return this.message;
+        if (this.message != null) {
+            return this.message;
+        }
+        return this.toString();
     }
 
     /**
@@ -244,23 +245,6 @@ public enum Errors {
         else {
             log.warn("Unexpected error code: {}.", code);
             return UNKNOWN_SERVER_ERROR;
-        }
-    }
-
-    /**
-     * Check if a Throwable is a commonly wrapped exception type (e.g. `CompletionException`) and return
-     * the cause if so. This is useful to handle cases where exceptions may be raised from a future or a
-     * completion stage (as might be the case for requests sent to the controller in `ControllerApis`).
-     *
-     * @param t The Throwable to check
-     * @return The throwable itself or its cause if it is an instance of a commonly wrapped exception type
-     */
-    public static Throwable maybeUnwrapException(Throwable t) {
-        if (t instanceof CompletionException || t instanceof ExecutionException) {
-            return t.getCause();
-        }
-        else {
-            return t;
         }
     }
 }
