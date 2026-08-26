@@ -63,10 +63,11 @@ public class RouteDispatcher implements RouterDispatch {
             ApiKeys.SHARE_FETCH,
             ApiKeys.SHARE_ACKNOWLEDGE,
             ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
-    public static final String LOG_KEY_ROUTING_CORRELATION_ID = "routingCorrelationId";
-    public static final String LOG_KEY_TARGET_NODE_ID = "targetNodeId";
-    public static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
-    public static final String LOG_KEY_SESSION_ID = "sessionId";
+
+    private static final String LOG_KEY_ROUTING_CORRELATION_ID = "routingCorrelationId";
+    private static final String LOG_KEY_TARGET_NODE_ID = "targetNodeId";
+    private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
+    private static final String LOG_KEY_SESSION_ID = "sessionId";
 
     private final Map<String, RouteDescriptor> routes;
     private final NodeIdMapping nodeIdMapping;

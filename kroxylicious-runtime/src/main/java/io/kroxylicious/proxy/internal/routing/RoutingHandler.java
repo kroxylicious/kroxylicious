@@ -81,11 +81,11 @@ import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
 public class RoutingHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RoutingHandler.class);
-    public static final String KOG_KEY_RESULT_TYPE = "resultType";
-    public static final String LOG_KEY_CLIENT_CORRELATION_ID = "clientCorrelationId";
-    public static final String LOG_KEY_API_KEY = "apiKey";
-    public static final String LOG_KEY_SESSION_ID = "sessionId";
-    public static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
+    private static final String KOG_KEY_RESULT_TYPE = "resultType";
+    private static final String LOG_KEY_CLIENT_CORRELATION_ID = "clientCorrelationId";
+    private static final String LOG_KEY_API_KEY = "apiKey";
+    private static final String LOG_KEY_SESSION_ID = "sessionId";
+    private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
 
     // --- Configuration ---
 

@@ -336,6 +336,10 @@ public class ClientConnectionStateMachine {
         return endpointBinding.nodeId();
     }
 
+    /**
+     * Return the virtual cluster name.
+     * @return the virtual cluster name
+     */
     public String clusterName() {
         return virtualCluster().getClusterName();
     }
