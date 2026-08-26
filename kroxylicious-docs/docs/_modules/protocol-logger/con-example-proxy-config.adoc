@@ -1,0 +1,64 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-protocol-logger-filter.adoc
+
+[id='con-example-proxy-config-{context}']
+= Example proxy configuration file
+
+[role="_abstract"]
+If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
+
+Here is a complete example of a `filterDefinitions` entry configured for the Protocol Logger:
+
+[source, yaml]
+----
+filterDefinitions:
+  - name: my-protocol-logger-filter
+    type: ProtocolLogger
+    config:
+      logLevel: DEBUG
+      apiKeyNames:
+        - METADATA
+        - PRODUCE
+        - FETCH
+      loggerName: protocol.downstream
+----
+where:
+
+* `logLevel` (optional) is the SLF4J level at which the filter emits log messages. Defaults to `DEBUG`. The logging backend must be enabled at this level for the filter's logger, otherwise no output appears.
+* `apiKeyNames` (optional) is the set of Kafka `ApiKeys` enum names to log. If absent or empty, all API keys are logged. Names are resolved case-insensitively and with non-alphanumeric characters stripped, so `FindCoordinator`, `find-coordinator`, and `FIND_COORDINATOR` all resolve to the same API key.
+* `loggerName` (optional) is the SLF4J logger name used by this filter instance. Defaults to the filter class name, `io.kroxylicious.filter.protocollogger.ProtocolLoggerFilter`.
+
+All configuration properties are optional, so the `config` block may be omitted entirely to log all API keys at `DEBUG` level.
+
+NOTE: On an idle consumer the output is dominated by `HEARTBEAT` and `FETCH` messages. Use `apiKeyNames` to filter these out. This filter skips decoding for API keys not in the configured set, avoiding formatting cost for excluded messages. Note that another filter in the chain may still require decoding of those same messages.
+
+You can define more than one instance of the filter, placing one at each end of the filter chain to see the effect of the filters between them.
+Distinct logger names let each instance be enabled independently from the logging backend:
+
+[source, yaml]
+----
+filterDefinitions:
+  - name: log-downstream
+    type: ProtocolLogger
+    config:
+      loggerName: protocol.downstream
+  - name: log-upstream
+    type: ProtocolLogger
+    config:
+      loggerName: protocol.upstream
+defaultFilters:
+  - log-downstream
+  - some-other-filter
+  - log-upstream
+----
+
+Refer to the {ProxyGuide} for more information about configuring the proxy.
