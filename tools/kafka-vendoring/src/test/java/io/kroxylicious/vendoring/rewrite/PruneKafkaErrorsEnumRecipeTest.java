@@ -13,6 +13,7 @@ import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.java.Assertions.java;
 
+@SuppressWarnings("java:S2699") // rewriteRun contains assertions
 class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
 
     @Override
@@ -22,7 +23,6 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                         .classpath("kafka-clients"));
     }
 
-    @SuppressWarnings("java:S2699") // rewriteRun contains assertions
     @Test
     void shouldRemoveExceptionsFromErrorsEnum() {
         rewriteRun(
@@ -177,9 +177,9 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                 """));
     }
 
-    @SuppressWarnings("java:S2699") // rewriteRun contains assertions
+
     @Test
-    void shouldAtSeeTagFromJavaDoc() {
+    void shouldRemoveSslTransportLayerFromJavaDoc() {
         rewriteRun(
                 java(
                         """
@@ -207,7 +207,6 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                 """));
     }
 
-    @SuppressWarnings("java:S2699") // rewriteRun contains assertions
     @Test
     void shouldReplaceMessageGetterBody() {
         rewriteRun(

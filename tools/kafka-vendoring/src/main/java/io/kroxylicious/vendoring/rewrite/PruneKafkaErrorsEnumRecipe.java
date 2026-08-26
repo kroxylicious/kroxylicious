@@ -73,15 +73,16 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 """).contextSensitive().build();
 
         private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                """
-                        Errors(int code, String message) {
-                            this.code = (short) code;
-                            this.message = message;
-                        }""")
+                        """
+                                Errors(int code, String message) {
+                                    this.code = (short) code;
+                                    this.message = message;
+                                }""")
                 .contextSensitive()
                 .build();
 
         @Override
+        @NonNull
         protected JavadocVisitor<ExecutionContext> getJavadocVisitor() {
             return new PruneJavadocVisitor();
         }
@@ -139,7 +140,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 return null;
             }
 
-            if (methodDeclaration.isConstructor() && findParameterByName(methodDeclaration, "builder") != null) {
+            if (methodDeclaration.isConstructor() && hasBuilderParameter(methodDeclaration)) {
                 return visitConstructorDeclaration(methodDeclaration);
             }
 
@@ -199,14 +200,12 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                     .orElse(null);
         }
 
-        private static J.VariableDeclarations.NamedVariable findVariableByName(String fieldName, J.VariableDeclarations vd) {
-            return vd.getVariables().stream().filter(v -> fieldName.equals(v.getSimpleName())).findFirst().orElse(null);
-        }
-
-        @Nullable
-        private J.VariableDeclarations.NamedVariable findParameterByName(J.MethodDeclaration md, String parameterName) {
-            return md.getParameters().stream().filter(J.VariableDeclarations.class::isInstance).map(J.VariableDeclarations.class::cast)
-                    .flatMap(vd -> vd.getVariables().stream()).filter(v -> parameterName.equals(v.getSimpleName())).findFirst().orElse(null);
+        private boolean hasBuilderParameter(J.MethodDeclaration md) {
+            return md.getParameters().stream()
+                    .filter(J.VariableDeclarations.class::isInstance)
+                    .map(J.VariableDeclarations.class::cast)
+                    .flatMap(vd -> vd.getVariables().stream())
+                    .anyMatch(v -> "builder".equals(v.getSimpleName()));
         }
 
         @NonNull
