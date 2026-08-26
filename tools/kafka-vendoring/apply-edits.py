@@ -14,6 +14,7 @@ Usage: apply-edits.py <copy-root> <edits.yaml>
 """
 import sys, re, os
 import yaml
+from pathlib import Path
 
 def strip_imports(text, patterns):
     out=[]
@@ -149,18 +150,27 @@ def qualify_nested_import(text, qualified_name):
     return re.sub(r'(?<!\.)\b%s\b' % re.escape(simple_name), type_path, text)
 
 def apply_edit(root, entry):
-    path=os.path.join(root, entry['file'])
-    text=open(path, encoding='utf-8').read()
-    text=strip_imports(text, entry.get('stripImports', []))
-    for qualified_name in entry.get('qualifyNestedImports', []):
-        text=qualify_nested_import(text, qualified_name)
-    for block in entry.get('removeBlocks', []):
-        for _ in range(block.get('count', 1)):
-            text=remove_block(text, block['signature'], block['label'])
-    if 'preserveBlocks' in entry:
-        text=preserve_blocks(text, entry['preserveBlocks'])
-    open(path, 'w', encoding='utf-8').write(text)
-    print("edited "+entry['file'])
+    path = Path(root) / entry['file']
+
+    try:
+        text = path.read_text(encoding='utf-8')
+        text = strip_imports(text, entry.get('stripImports', []))
+
+        for qualified_name in entry.get('qualifyNestedImports', []):
+            text = qualify_nested_import(text, qualified_name)
+
+        for block in entry.get('removeBlocks', []):
+            for _ in range(block.get('count', 1)):
+                text = remove_block(text, block['signature'], block['label'])
+
+        if 'preserveBlocks' in entry:
+            text = preserve_blocks(text, entry['preserveBlocks'])
+
+        path.write_text(text, encoding='utf-8')
+        print(f"edited {entry['file']}")
+
+    except (UnicodeDecodeError, OSError) as e:
+        print(f"Skipping {entry['file']} due to error: {e}")
 
 def main():
     root, edits_path = sys.argv[1], sys.argv[2]
