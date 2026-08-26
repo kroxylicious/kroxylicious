@@ -26,6 +26,7 @@
         <maven.compiler.version>3.15.0</maven.compiler.version>
         <maven.failsafe.version>3.5.6</maven.failsafe.version>
         <maven.surefire.version>3.5.6</maven.surefire.version>
+        <it.failsafe.xmx>5g</it.failsafe.xmx>
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
@@ -875,6 +876,7 @@
                         </systemPropertyVariables>
                         <argLine>
                             -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
+                            -Xmx${it.failsafe.xmx}
                         </argLine>
                         <runOrder>random</runOrder>
                     </configuration>
