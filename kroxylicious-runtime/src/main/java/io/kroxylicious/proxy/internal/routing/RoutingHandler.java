@@ -416,13 +416,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                      ClientConnectionStateMachine ccsm) {
         try {
             if (error != null) {
-                LOGGER.atError()
-                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
-                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                        .addKeyValue(LOG_KEY_API_KEY, apiKey)
-                        .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
-                        .setCause(error)
-                        .log("Router returned failed future");
+                logErrorFailedFuture(error, apiKey, correlationId);
                 oobFrame.promise().completeExceptionally(error);
                 ctx.channel().close().addListener(logFailure(LOGGER, "close after router returned failed future for OOB request"));
                 return;
@@ -458,6 +452,16 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
     }
 
+    private void logErrorFailedFuture(Throwable error, ApiKeys apiKey, int correlationId) {
+        LOGGER.atError()
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
+                .setCause(error)
+                .log("Router returned failed future");
+    }
+
     private void writeOobResponse(ChannelHandlerContext ctx, RouterResponseImpl.RespondWith rw,
                                   InternalRequestFrame<?> oobFrame, short apiVersion, int correlationId) {
         var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
@@ -487,13 +491,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                            short apiVersion,
                                            int correlationId) {
         if (error != null) {
-            LOGGER.atError()
-                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
-                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
-                    .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
-                    .setCause(error)
-                    .log("Router returned failed future");
+            logErrorFailedFuture(error, apiKey, correlationId);
             oobFrame.promise().completeExceptionally(error);
             return;
         }
@@ -539,13 +537,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                   int correlationId,
                                   long sequence) {
         if (error != null) {
-            LOGGER.atError()
-                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
-                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
-                    .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
-                    .setCause(error)
-                    .log("Router returned failed future");
+            logErrorFailedFuture(error, apiKey, correlationId);
             if (requestSource instanceof VirtualClusterRequestSource) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
                 ctx.channel().close().addListener(logFailure(LOGGER, "close after router returned failed future"));

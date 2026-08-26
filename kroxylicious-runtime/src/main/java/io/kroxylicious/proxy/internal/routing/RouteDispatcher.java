@@ -263,7 +263,7 @@ public class RouteDispatcher implements RouterDispatch {
                 cacheNodeAddressesIfMetadata(body, sessionId);
                 pending.future().complete(body);
             }
-            catch (Throwable t) {
+            catch (Exception t) {
                 pending.future().completeExceptionally(t);
             }
             finally {
@@ -363,7 +363,7 @@ public class RouteDispatcher implements RouterDispatch {
                     }
                 });
             }
-            catch (Throwable t) {
+            catch (Exception t) {
                 bridge.completeExceptionally(t);
             }
         });
