@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.NullMarked;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.FindSourceFiles;
 import org.openrewrite.Preconditions;
@@ -88,6 +89,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
         }
 
         @Override
+        @NullMarked
         public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDeclaration, ExecutionContext ctx) {
             J.ClassDeclaration cd = classDeclaration;
             boolean hasMessageField = findFieldByName(cd, "message") != null;
@@ -104,7 +106,8 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
         }
 
         @Override
-        public J.EnumValue visitEnumValue(J.EnumValue enumConstant, ExecutionContext ctx) {
+        @NonNull
+        public J.EnumValue visitEnumValue(@NonNull J.EnumValue enumConstant, @NonNull ExecutionContext ctx) {
             J.EnumValue ec = (J.EnumValue) super.visitEnumValue(enumConstant, ctx);
             J.NewClass initializer = ec.getInitializer();
             if (initializer == null) {
@@ -120,7 +123,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
         }
 
         @Override
-        public J.VariableDeclarations visitVariableDeclarations(J.VariableDeclarations multiVariable, ExecutionContext ctx) {
+        public @Nullable J.VariableDeclarations visitVariableDeclarations(J.VariableDeclarations multiVariable, @NonNull ExecutionContext ctx) {
             if (multiVariable.getVariables().stream().anyMatch(v -> REMOVED_FIELDS.contains(v.getSimpleName()))) {
                 return null; // Remove 'builder' field
             }
@@ -133,7 +136,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
         }
 
         @Override
-        public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration methodDeclaration, ExecutionContext ctx) {
+        public @Nullable J.MethodDeclaration visitMethodDeclaration(@NonNull J.MethodDeclaration methodDeclaration, @NonNull ExecutionContext ctx) {
 
             // Remove exception factory methods
             if (REMOVED_METHODS.contains(methodDeclaration.getSimpleName())) {
@@ -157,15 +160,15 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
         }
 
         @Override
-        public J.CompilationUnit visitCompilationUnit(J.CompilationUnit cu, ExecutionContext ctx) {
+        @NonNull
+        public J.CompilationUnit visitCompilationUnit(@NonNull J.CompilationUnit cu, @NonNull ExecutionContext ctx) {
             J.CompilationUnit c = (J.CompilationUnit) super.visitCompilationUnit(cu, ctx);
             doAfterVisit(new RemoveUnusedImports().getVisitor());
             return c;
         }
 
         @Override
-        @Nullable
-        public J visitIf(J.If ifSeq, ExecutionContext ctx) {
+        public @Nullable J visitIf(@NonNull J.If ifSeq, @NonNull ExecutionContext ctx) {
             J.If i = (J.If) super.visitIf(ifSeq, ctx);
 
             if (isClassToErrorIf(i)) {
@@ -180,7 +183,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 if (block.getStatements().isEmpty()) {
                     return false;
                 }
-                body = block.getStatements().get(0);
+                body = block.getStatements().getFirst();
             }
             if (body instanceof J.MethodInvocation mi) {
                 Expression selectExpression = mi.getSelect();
@@ -243,7 +246,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             }
 
             @Override
-            public Javadoc visitSee(Javadoc.See see, ExecutionContext ctx) {
+            public @Nullable Javadoc visitSee(@NonNull Javadoc.See see, @NonNull ExecutionContext ctx) {
                 // Check if the @see reference targets SslTransportLayer
                 if (see.printTrimmed(getCursor()).contains("SslTransportLayer")) {
                     return null; // Safely deletes the @see tag node from the Javadoc AST
@@ -252,7 +255,8 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             }
 
             @Override
-            public Javadoc visitDocComment(Javadoc.DocComment docComment, ExecutionContext ctx) {
+            @NonNull
+            public Javadoc visitDocComment(@NonNull Javadoc.DocComment docComment, @NonNull ExecutionContext ctx) {
                 Javadoc.DocComment originalComment = (Javadoc.DocComment) super.visitDocComment(docComment, ctx);
                 List<Javadoc> body = originalComment.getBody();
                 List<Javadoc> cleanedBody = pruneLineBreaks(body);
