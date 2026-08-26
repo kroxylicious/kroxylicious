@@ -244,6 +244,8 @@ jobs:
             unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-admission-dist/${KROXYLICIOUS_VERSION}/kroxylicious-admission-dist-${KROXYLICIOUS_VERSION}.zip" \
               -d kroxylicious-kubernetes/kroxylicious-admission/target/packaged/
           fi
+      - name: 'Report default JVM heap sizing'
+        run: java -XX:+PrintFlagsFinal -version | grep -i heapsize
       - name: 'Run integration tests'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
