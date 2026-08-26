@@ -6,9 +6,9 @@
 
 package io.kroxylicious.vendoring.rewrite;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
@@ -16,7 +16,6 @@ import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.JavaTemplate;
 import org.openrewrite.java.JavaVisitor;
 import org.openrewrite.java.RemoveUnusedImports;
-import org.openrewrite.java.TypeNameMatcher;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
@@ -29,9 +28,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Applies the required edits to Apache Kafka's hand rolled Errors enum to make it part of the Kroxylicious API
  */
 public class PruneKafkaErrorsEnumRecipe extends Recipe {
-
-    private static final TypeNameMatcher FUNCTION_TYPE_MATCHER = TypeNameMatcher.fromPattern("java.util.function.Function");
-    private static final TypeNameMatcher KAFKA_EXCEPTION_TYPE_MATCHER = TypeNameMatcher.fromPattern("org.apache.kafka.common.errors.*Exception");
 
     /**
      * Create an instance of the recipe.
@@ -91,38 +87,16 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             public J.EnumValue visitEnumValue(J.EnumValue enumConstant, ExecutionContext ctx) {
                 J.EnumValue ec = (J.EnumValue) super.visitEnumValue(enumConstant, ctx);
                 J.NewClass initializer = ec.getInitializer();
-                if (initializer != null) {
-                    List<Expression> arguments = initializer.getArguments();
-                    if (arguments.size() == 3) {
-                        List<Expression> safeArgs = arguments.stream().filter(expression -> {
-                            JavaType type = expression.getType();
-                            if (expression instanceof J.MemberReference memberReference) {
-                                var method = memberReference.getMethodType();
-                                if (method != null) {
-                                    JavaType.FullyQualified declaringType = method.getDeclaringType();
-                                    if (declaringType.isAssignableFrom(KAFKA_EXCEPTION_TYPE_MATCHER)) {
-                                        maybeRemoveImport(declaringType);
-                                        return false;
-                                    }
-                                }
-                            }
-                            if (type != null && type.isAssignableFrom(FUNCTION_TYPE_MATCHER)) {
-                                var pt = (JavaType.Parameterized) type;
-                                var matching = pt.getTypeParameters().stream().filter(t -> t.isAssignableFrom(KAFKA_EXCEPTION_TYPE_MATCHER)).collect(Collectors.toSet());
-                                matching.forEach(typ -> maybeRemoveImport(typ.toString()));
-                                return matching.isEmpty();
-                            }
-                            else {
-                                return true;
-                            }
-                        }).toList();
-                        maybeRemoveImport("java.util.function.Function");
-                        maybeRemoveImport("org.apache.kafka.common.errors.RetriableException");
-                        maybeRemoveImport("org.apache.kafka.common.errors.ApiException");
-                        return ec.withInitializer(initializer.withArguments(safeArgs));
-                    }
+                if (initializer == null) {
+                    return ec;
                 }
-                return ec;
+
+                JavaType.Method constructorType = initializer.getConstructorType();
+                if (constructorType == null) {
+                    return ec;
+                }
+
+                return removeBuilderArg(constructorType, initializer, ec);
             }
 
             @Override
@@ -141,22 +115,24 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             }
 
             @Override
-            public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration md, ExecutionContext ctx) {
-                if (md.isConstructor() && findParameterByName(md, "builder") != null) {
-                    return visitConstructorDeclaration(md);
+            public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration methodDeclaration, ExecutionContext ctx) {
+                if (methodDeclaration.isConstructor() && findParameterByName(methodDeclaration, "builder") != null) {
+                    return visitConstructorDeclaration(methodDeclaration);
                 }
 
                 // Remove exception factory methods
-                if (REMOVED_METHODS.contains(md.getSimpleName())) {
+                if (REMOVED_METHODS.contains(methodDeclaration.getSimpleName())) {
                     return null;
                 }
+
+                var md = (J.MethodDeclaration) super.visitMethodDeclaration(methodDeclaration, ctx);
 
                 J.Block body = md.getBody();
                 if ("message".equals(md.getSimpleName()) && body != null && body.getStatements().size() > 1) {
                     // TODO either need to make this idempotent or find a better test that we have seen it before
                     return messageMethodBody.apply(updateCursor(md), md.getCoordinates().replaceBody());
                 }
-                return (J.MethodDeclaration) super.visitMethodDeclaration(md, ctx);
+                return md;
             }
 
             @Override
@@ -207,6 +183,34 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             private J.VariableDeclarations.NamedVariable findParameterByName(J.MethodDeclaration md, String parameterName) {
                 return md.getParameters().stream().filter(J.VariableDeclarations.class::isInstance).map(J.VariableDeclarations.class::cast)
                         .flatMap(vd -> vd.getVariables().stream()).filter(v -> parameterName.equals(v.getSimpleName())).findFirst().orElse(null);
+            }
+
+            @NonNull
+            private J.EnumValue removeBuilderArg(JavaType.Method constructorType, J.NewClass initializer, J.EnumValue enumValue) {
+                List<String> paramNames = constructorType.getParameterNames();
+                List<Expression> args = initializer.getArguments();
+                List<Expression> safeArgs = new ArrayList<>();
+
+                for (int i = 0; i < args.size(); i++) {
+                    Expression arg = args.get(i);
+                    String paramName = (i < paramNames.size()) ? paramNames.get(i) : "";
+
+                    if ("builder".equals(paramName)) {
+                        // Prune import for the referenced exception type in UnknownServerException::new
+                        if (arg instanceof J.MemberReference mr && mr.getContaining().getType() instanceof JavaType.FullyQualified fq) {
+                            maybeRemoveImport(fq.getFullyQualifiedName());
+                        }
+                        maybeRemoveImport("java.util.function.Function");
+                    }
+                    else {
+                        safeArgs.add(arg);
+                    }
+                }
+
+                if (safeArgs.size() != args.size()) {
+                    return enumValue.withInitializer(initializer.withArguments(safeArgs));
+                }
+                return enumValue;
             }
         };
     }
