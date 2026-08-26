@@ -23,7 +23,6 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -86,11 +85,6 @@ class RoutingHandlerTest {
     private CorrelationIdAllocator correlationIdAllocator;
 
     private EmbeddedChannel channel;
-
-    @BeforeEach
-    void setUp() {
-        when(ccsm.clusterName()).thenReturn(VIRTUAL_CLUSTER);
-    }
 
     @AfterEach
     void tearDown() {
