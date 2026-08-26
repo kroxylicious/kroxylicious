@@ -63,12 +63,13 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
         private final Set<String> REMOVED_FIELDS = Set.of("builder", "exception", "CLASS_TO_ERROR");
         private final Set<String> REMOVED_METHODS = Set.of("exception", "forException", "maybeThrow", "exceptionName", "main", "toHtml");
 
-        private final JavaTemplate messageFieldTemplate = JavaTemplate.builder("private final String message;").build();
+        private final JavaTemplate messageFieldTemplate = JavaTemplate.builder("private final String message;").contextSensitive().build();
 
-        private final JavaTemplate messageMethodBody = JavaTemplate.builder("return this.message;").build();
+        private final JavaTemplate messageMethodBody = JavaTemplate.builder("return this.message;").contextSensitive().build();
 
         private final JavaTemplate constructorTemplate = JavaTemplate.builder(
                         "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}")
+                .contextSensitive()
                 .build();
 
         @Override
@@ -86,9 +87,6 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
                 if (codeField != null) {
                     cd = messageFieldTemplate.apply(updateCursor(cd), codeField.getCoordinates().after());
-                }
-                else {
-                    cd = messageFieldTemplate.apply(updateCursor(cd), cd.getBody().getCoordinates().firstStatement());
                 }
             }
             return (J.ClassDeclaration) super.visitClassDeclaration(cd, ctx);
@@ -183,8 +181,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
         @Nullable
         private static Statement findFieldByName(J.ClassDeclaration cd, String fieldName) {
-            return cd.getBody().getStatements().stream()
-                    .filter(s -> s instanceof J.VariableDeclarations vd && findVariableByName(fieldName, vd) != null).findFirst()
+            return cd.getBody().getStatements().stream().filter(s -> s instanceof J.VariableDeclarations vd && findVariableByName(fieldName, vd) != null).findFirst()
                     .orElse(null);
         }
 
@@ -243,20 +240,34 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
             @Override
             public Javadoc visitDocComment(Javadoc.DocComment docComment, ExecutionContext ctx) {
-                Javadoc.DocComment dc = (Javadoc.DocComment) super.visitDocComment(docComment, ctx);
-                List<Javadoc> body = dc.getBody();
-                List<Javadoc> cleanedBody = new ArrayList<>();
+                Javadoc.DocComment originalComment = (Javadoc.DocComment) super.visitDocComment(docComment, ctx);
+                List<Javadoc> body = originalComment.getBody();
+                List<Javadoc> cleanedBody = pruneLineBreaks(body);
 
-                for (int i = 0; i < body.size(); i++) {
-                    Javadoc current = body.get(i);
-                    // Drop duplicate LineBreaks created when a tag between them is deleted
-                    if (current instanceof Javadoc.LineBreak && i + 1 < body.size() && body.get(i + 1) instanceof Javadoc.LineBreak) {
-                        continue;
-                    }
-                    cleanedBody.add(current);
+                if (cleanedBody.size() == body.size()) {
+                    return originalComment;
                 }
-                return dc.withBody(cleanedBody);
+                return originalComment.withBody(cleanedBody);
             }
+
+            @NonNull
+            private static List<Javadoc> pruneLineBreaks(List<Javadoc> body) {
+                List<Javadoc> cleanedBody = new ArrayList<>(body);
+
+                if (cleanedBody.getLast() instanceof Javadoc.Text text && text.getText().trim().isEmpty()) {
+                    cleanedBody.removeLast();
+                }
+                if (cleanedBody.getLast() instanceof Javadoc.LineBreak lastLine) {
+                    String margin = lastLine.getMargin();
+                    if (margin.contains("*")) {
+                        String newMargin = margin.substring(0, margin.indexOf('*'));
+                        cleanedBody.removeLast();
+                        cleanedBody.addLast(lastLine.withMargin(newMargin));
+                    }
+                }
+                return cleanedBody;
+            }
+
         }
     }
 }

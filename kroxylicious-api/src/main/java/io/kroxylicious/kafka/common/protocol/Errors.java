@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory;
  *
  * Do not add exceptions that occur only on the client or only on the server here.
  *
- * @see io.kroxylicious.kafka.common.network.SslTransportLayer
  */
 public enum Errors {
     UNKNOWN_SERVER_ERROR(-1, "The server experienced an unexpected error when processing the request."),

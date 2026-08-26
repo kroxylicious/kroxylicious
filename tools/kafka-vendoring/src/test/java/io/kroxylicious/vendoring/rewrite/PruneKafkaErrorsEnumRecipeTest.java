@@ -38,10 +38,7 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                   import org.apache.kafka.common.errors.ApiException;
                                   import org.apache.kafka.common.errors.InvalidRequestException;
                                   import org.apache.kafka.common.errors.UnknownServerException;
-                                
-                                  /**
-                                  * some javadoc
-                                  */
+
                                   public enum Errors {
                                       UNKNOWN_SERVER_ERROR(-1, "Unexpected error", UnknownServerException::new),
                                       INVALID_REQUEST(42, "Invalid request", InvalidRequestException::new);
