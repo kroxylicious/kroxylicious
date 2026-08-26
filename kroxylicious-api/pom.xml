@@ -183,6 +183,33 @@
                             </arguments>
                         </configuration>
                     </execution>
+                    <!-- Generate the owned io.kroxylicious.kafka.common.protocol.ApiKeys enum as a
+                         veneer over the generated ApiMessageType. ApiKeys lives in the protocol
+                         package (mirroring Kafka), which differs from ApiMessageType's message
+                         package, so it needs its own MessageGenerator run with a distinct -p/-o. -->
+                    <execution>
+                        <id>generate-api-keys</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>io.kroxylicious.kafka.message.MessageGenerator</mainClass>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <arguments>
+                                <argument>-p</argument>
+                                <argument>io.kroxylicious.kafka.common.protocol</argument>
+                                <argument>-i</argument>
+                                <argument>${project.build.directory}/data-class-message-specs/common/message</argument>
+                                <argument>-o</argument>
+                                <argument>
+                                    ${project.build.directory}/generated-sources/kafka-messages/io/kroxylicious/kafka/common/protocol
+                                </argument>
+                                <argument>-t</argument>
+                                <argument>ApiKeysGenerator</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
                 </executions>
                 <dependencies>
                     <dependency>
