@@ -372,10 +372,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         if (responseFilterResult.closeConnection()) {
-            if (responseFilterResult.message() != null) {
-                ctx.flush(); // ensure writes are flushed before closing
-            }
-            closeConnection();
+            closeConnection(CloseReason.filterCloseConnection());
         }
         return responseFilterResult;
     }
@@ -402,10 +399,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         if (requestFilterResult.closeConnection()) {
-            if (requestFilterResult.message() != null) {
-                ctx.flush();
-            }
-            closeConnection();
+            closeConnection(CloseReason.filterCloseConnection());
         }
         return requestFilterResult;
     }
@@ -591,6 +585,11 @@ public class FilterHandler extends ChannelDuplexHandler {
                 .log("Filter sending short-circuit response");
         ctx.write(responseFrame, ctx.voidPromise());
         ctx.flush();
+        if (!(decodedRequestFrame instanceof InternalRequestFrame<?>)) {
+            // OOB requests are internally-generated (via FilterContext.sendRequest) and were never
+            // counted by ClientConnectionStateMachine.onClientRequest, so they must not be decremented here.
+            clientConnectionStateMachine.onShortCircuitResponseComplete();
+        }
     }
 
     private void validateResponseMessage(ApiMessage message) {
@@ -611,6 +610,10 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("apiKey", decodedFrame.apiKey())
                     .log("Filter attempted to short-circuit respond to message with no response in Kafka Protocol, dropping response");
         }
+    }
+
+    private void closeConnection(CloseReason reason) {
+        clientConnectionStateMachine.requestClose(reason);
     }
 
     private void closeConnection() {
