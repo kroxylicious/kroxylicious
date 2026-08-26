@@ -211,8 +211,10 @@ public interface RouterContext {
      * @param request the request body
      * @param error the error to convey to the client; its {@link Errors#code() code}
      *              is set on the generated response and its {@link Errors#message()
-     *              default message} is used.
+     *              default message} is used. Must denote an actual error;
+     *              {@link Errors#NONE} is not permitted.
      * @return a stage that can optionally close the connection
+     * @throws IllegalArgumentException if {@code error} is {@link Errors#NONE}.
      */
     CloseOrTerminalStage respondWithError(
                                           RequestHeaderData header,
@@ -227,10 +229,12 @@ public interface RouterContext {
      * @param header the request header
      * @param request the request body
      * @param error the error to convey to the client; its {@link Errors#code() code}
-     *              is set on the generated response.
+     *              is set on the generated response. Must denote an actual error;
+     *              {@link Errors#NONE} is not permitted.
      * @param message the error message to convey to the client, or {@code null} to
      *                use the error's default message.
      * @return a stage that can optionally close the connection
+     * @throws IllegalArgumentException if {@code error} is {@link Errors#NONE}.
      */
     CloseOrTerminalStage respondWithError(
                                           RequestHeaderData header,

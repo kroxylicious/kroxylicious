@@ -566,6 +566,32 @@ class MockFilterContextTest {
     }
 
     @Test
+    void shouldRejectErrorsNone() {
+        // given
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
+        var builder = context.requestFilterResultBuilder();
+
+        // when / then
+        assertThatThrownBy(() -> builder.errorResponse(HEADER, MESSAGE, Errors.NONE))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.errorResponse(HEADER, MESSAGE, Errors.NONE, "some message"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldRejectNullError() {
+        // given
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
+        var builder = context.requestFilterResultBuilder();
+
+        // when / then
+        assertThatThrownBy(() -> builder.errorResponse(HEADER, MESSAGE, null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> builder.errorResponse(HEADER, MESSAGE, null, "some message"))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     void shouldBuildDropRequestFilterResult() {
         // given
         MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();

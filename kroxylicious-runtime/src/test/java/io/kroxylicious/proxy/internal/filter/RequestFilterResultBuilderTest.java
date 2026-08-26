@@ -274,6 +274,46 @@ class RequestFilterResultBuilderTest {
         assertThat(fromNullMessage.message()).isEqualTo(fromNoMessage.message());
     }
 
+    @Test
+    void errorResponseFromErrorsRejectsNone() {
+        // Given
+        var header = apiVersionsHeader();
+
+        // When / Then
+        assertThatThrownBy(() -> builder.errorResponse(header, new ApiVersionsRequestData(), Errors.NONE))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void errorResponseFromErrorsWithMessageRejectsNone() {
+        // Given
+        var header = apiVersionsHeader();
+
+        // When / Then
+        assertThatThrownBy(() -> builder.errorResponse(header, new ApiVersionsRequestData(), Errors.NONE, "some message"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void errorResponseFromErrorsRejectsNullError() {
+        // Given
+        var header = apiVersionsHeader();
+
+        // When / Then
+        assertThatThrownBy(() -> builder.errorResponse(header, new ApiVersionsRequestData(), null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void errorResponseFromErrorsWithMessageRejectsNullError() {
+        // Given
+        var header = apiVersionsHeader();
+
+        // When / Then
+        assertThatThrownBy(() -> builder.errorResponse(header, new ApiVersionsRequestData(), null, "some message"))
+                .isInstanceOf(NullPointerException.class);
+    }
+
     private static RequestHeaderData apiVersionsHeader() {
         var header = new RequestHeaderData();
         header.setRequestApiKey(ApiKeys.API_VERSIONS.id);

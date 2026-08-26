@@ -53,8 +53,10 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @param requestMessage the API request message to generate an error in response too.
      * @param error the error to convey to the client; its {@link Errors#code() code} is set on the
      *              generated response and its {@link Errors#message() default message} is used.
+     *              Must denote an actual error; {@link Errors#NONE} is not permitted.
      * @return next stage in the fluent builder API
-     * @throws IllegalArgumentException header or message do not meet criteria described above.
+     * @throws IllegalArgumentException header or message do not meet criteria described above, or
+     *         {@code error} is {@link Errors#NONE}.
      */
     CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header,
                                                             ApiMessage requestMessage,
@@ -70,11 +72,12 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @param header the headers from the request
      * @param requestMessage the API request message to generate an error in response too.
      * @param error the error to convey to the client; its {@link Errors#code() code} is set on the
-     *              generated response.
+     *              generated response. Must denote an actual error; {@link Errors#NONE} is not permitted.
      * @param message the error message to convey to the client, or {@code null} to use the error's
      *                default message.
      * @return next stage in the fluent builder API
-     * @throws IllegalArgumentException header or message do not meet criteria described above.
+     * @throws IllegalArgumentException header or message do not meet criteria described above, or
+     *         {@code error} is {@link Errors#NONE}.
      */
     CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header,
                                                             ApiMessage requestMessage,

@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.Objects;
+
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -72,6 +74,10 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     @Override
     public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error, @Nullable String message)
             throws IllegalArgumentException {
+        Objects.requireNonNull(error, "error must not be null");
+        if (error == Errors.NONE) {
+            throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
+        }
         // Errors.exception(String) returns the default-message exception when message is null.
         return errorResponseForException(header, requestMessage, error.exception(message));
     }

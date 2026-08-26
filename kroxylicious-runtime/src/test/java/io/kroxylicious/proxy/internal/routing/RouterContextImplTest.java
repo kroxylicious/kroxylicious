@@ -305,6 +305,54 @@ class RouterContextImplTest {
     }
 
     @Test
+    void respondWithErrorFromErrorsRejectsNone() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, Errors.NONE))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void respondWithErrorFromErrorsWithMessageRejectsNone() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, Errors.NONE, "some message"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void respondWithErrorFromErrorsRejectsNullError() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void respondWithErrorFromErrorsWithMessageRejectsNullError() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, null, "some message"))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     void respondWithoutReplyWithCloseConnectionShouldSetFlag() {
         // Given
         var ctx = createContext();

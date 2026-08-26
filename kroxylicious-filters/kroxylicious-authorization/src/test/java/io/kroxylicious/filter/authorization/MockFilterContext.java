@@ -238,6 +238,10 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
         public CloseOrTerminalStage<RequestFilterResult> errorResponse(@NonNull RequestHeaderData header, @NonNull ApiMessage requestMessage, @NonNull Errors error,
                                                                        @Nullable String message)
                 throws IllegalArgumentException {
+            Objects.requireNonNull(error, "error must not be null");
+            if (error == Errors.NONE) {
+                throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
+            }
             // Errors.exception(String) returns the default-message exception when message is null.
             return new ErrorCloseOrTerminalStage(header, requestMessage, error.exception(message), false);
         }
