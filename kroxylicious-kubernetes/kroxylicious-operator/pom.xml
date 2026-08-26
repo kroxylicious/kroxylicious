@@ -323,6 +323,7 @@
                         <!-- https://junit-pioneer.org/docs/environment-variables/#warnings-for-reflective-access -->
                         --add-opens java.base/java.util=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
+                        -XX:+PrintFlagsFinal
                     </argLine>
                 </configuration>
                 <executions>
