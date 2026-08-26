@@ -585,6 +585,11 @@ public class FilterHandler extends ChannelDuplexHandler {
                 .log("Filter sending short-circuit response");
         ctx.write(responseFrame, ctx.voidPromise());
         ctx.flush();
+        if (!(decodedRequestFrame instanceof InternalRequestFrame<?>)) {
+            // OOB requests are internally-generated (via FilterContext.sendRequest) and were never
+            // counted by ClientConnectionStateMachine.onClientRequest, so they must not be decremented here.
+            clientConnectionStateMachine.onShortCircuitResponseComplete();
+        }
     }
 
     private void validateResponseMessage(ApiMessage message) {

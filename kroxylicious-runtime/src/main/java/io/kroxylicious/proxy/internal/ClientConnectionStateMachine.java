@@ -1070,6 +1070,17 @@ public class ClientConnectionStateMachine {
     }
 
     /**
+     * Signals that a client request has been fully handled by a filter's short-circuit
+     * response, without a broker round-trip. Called by {@link io.kroxylicious.proxy.internal.FilterHandler}
+     * once the response has been written to the client. Decrements the in-flight request
+     * count so that a {@link #requestClose} triggered by the same filter can drain
+     * promptly instead of waiting out the full drain timeout.
+     */
+    public void onShortCircuitResponseComplete() {
+        decrementInFlightCount();
+    }
+
+    /**
      * Forward a message to the backend broker identified by the virtual node ID.
      * Creates a new server connection if one does not already exist for the
      * resolved upstream address.
