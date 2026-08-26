@@ -28,6 +28,7 @@ preconditions:
       filePattern: '**/org/apache/kafka/**'
 recipeList:
   - io.kroxylicious.vendoring.rewrite.PruneKafkaErrorsEnumRecipe
+  - org.openrewrite.java.RemoveUnusedImports
   - org.openrewrite.java.ChangePackage:
       oldPackageName: org.apache.kafka.common
       newPackageName: io.kroxylicious.kafka.common

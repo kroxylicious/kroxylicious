@@ -16,14 +16,6 @@ import sys, re, os
 import yaml
 from pathlib import Path
 
-def strip_imports(text, patterns):
-    out=[]
-    for line in text.splitlines(keepends=True):
-        if any(re.search(p, line) for p in patterns) and line.lstrip().startswith('import'):
-            continue
-        out.append(line)
-    return ''.join(out)
-
 def _matching_brace(text, open_idx):
     depth=0
     i=open_idx
@@ -154,7 +146,6 @@ def apply_edit(root, entry):
 
     try:
         text = path.read_text(encoding='utf-8')
-        text = strip_imports(text, entry.get('stripImports', []))
 
         for qualified_name in entry.get('qualifyNestedImports', []):
             text = qualify_nested_import(text, qualified_name)
