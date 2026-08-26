@@ -44,7 +44,6 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                       INVALID_REQUEST(42, "Invalid request", InvalidRequestException::new);
 
                                       private final short code;
-                                      private String message;
 
                                       private final Function<String, ApiException> builder;
 
@@ -70,7 +69,7 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                       }
 
                                       public ApiException exception() {
-                                          return builder.apply(message);
+                                          return builder.apply(message());
                                       }
 
                                       public ApiException exception(String message) {
@@ -138,7 +137,8 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                     INVALID_REQUEST(42, "Invalid request");
 
                                     private final short code;
-                                    private String message;
+
+                                    private final String message;
                                     private static final Map<Short, Errors> CODE_TO_ERROR = new HashMap<>();
 
                                     static {
@@ -149,9 +149,9 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                         }
                                     }
 
-                                    Errors(int code, String defaultMessage) {
+                                    Errors(int code, String message) {
                                         this.code = (short) code;
-                                        this.message = defaultMessage;
+                                        this.message = message;
                                     }
 
                                     public short code() {
@@ -159,7 +159,10 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                     }
 
                                     public String message() {
-                                        return this.message;
+                                        if (this.message != null) {
+                                            return this.message;
+                                        }
+                                        return this.toString();
                                     }
 
                                     public static Errors forCode(short code) {
@@ -200,6 +203,49 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                 public enum Errors {
                                     UNKNOWN_SERVER_ERROR,
                                     INVALID_REQUEST;
+                                }
+                                """));
+    }
+
+    @SuppressWarnings("java:S2699") // rewriteRun contains assertions
+    @Test
+    void shouldReplaceMessageGetterBody() {
+        rewriteRun(
+                java(
+                        """
+                                package org.apache.kafka.common.protocol;
+
+                                public enum Errors {
+                                    UNKNOWN_SERVER_ERROR(-1, "Unexpected error"),
+                                    INVALID_REQUEST(42, "Invalid request");
+
+                                    private final short code;
+                                    private RuntimeException exception = new RuntimeException("boom");
+
+                                    public String message() {
+                                      if (exception != null)
+                                          return exception.getMessage();
+                                      return toString();
+                                      }
+                                }
+                                """,
+                        """
+                                package org.apache.kafka.common.protocol;
+
+                                public enum Errors {
+                                    UNKNOWN_SERVER_ERROR(-1, "Unexpected error"),
+                                    INVALID_REQUEST(42, "Invalid request");
+
+                                    private final short code;
+
+                                    private final String message;
+
+                                    public String message() {
+                                        if (this.message != null) {
+                                            return this.message;
+                                        }
+                                        return this.toString();
+                                    }
                                 }
                                 """));
     }

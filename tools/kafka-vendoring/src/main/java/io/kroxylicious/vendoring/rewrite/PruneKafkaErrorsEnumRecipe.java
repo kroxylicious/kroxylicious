@@ -61,14 +61,23 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
     private static class ErrorsEnumVisitor extends JavaVisitor<ExecutionContext> {
 
         private final Set<String> REMOVED_FIELDS = Set.of("builder", "exception", "CLASS_TO_ERROR");
-        private final Set<String> REMOVED_METHODS = Set.of("exception", "forException", "maybeThrow", "exceptionName", "main", "toHtml");
+        private final Set<String> REMOVED_METHODS = Set.of("exception", "forException", "maybeThrow", "exceptionName", "main", "toHtml", "maybeUnwrapException");
 
         private final JavaTemplate messageFieldTemplate = JavaTemplate.builder("private final String message;").contextSensitive().build();
 
-        private final JavaTemplate messageMethodBody = JavaTemplate.builder("return this.message;").contextSensitive().build();
+        private final JavaTemplate messageMethodBody = JavaTemplate.builder("""
+                if (this.message != null) {
+                    return this.message;
+                }
+                return this.toString();
+                """).contextSensitive().build();
 
         private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}")
+                """
+                        Errors(int code, String message) {
+                            this.code = (short) code;
+                            this.message = message;
+                        }""")
                 .contextSensitive()
                 .build();
 
@@ -80,7 +89,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
         @Override
         public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDeclaration, ExecutionContext ctx) {
             J.ClassDeclaration cd = classDeclaration;
-            boolean hasMessageField = findFieldByName(classDeclaration, "message") != null;
+            boolean hasMessageField = findFieldByName(cd, "message") != null;
 
             if (!hasMessageField) {
                 Statement codeField = findFieldByName(cd, "code");
@@ -89,6 +98,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                     cd = messageFieldTemplate.apply(updateCursor(cd), codeField.getCoordinates().after());
                 }
             }
+
             return (J.ClassDeclaration) super.visitClassDeclaration(cd, ctx);
         }
 
@@ -113,8 +123,6 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             if (multiVariable.getVariables().stream().anyMatch(v -> REMOVED_FIELDS.contains(v.getSimpleName()))) {
                 return null; // Remove 'builder' field
             }
-            findVariableByName("message", multiVariable);
-
             return (J.VariableDeclarations) super.visitVariableDeclarations(multiVariable, ctx);
         }
 
@@ -140,7 +148,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             J.Block body = md.getBody();
             if ("message".equals(md.getSimpleName()) && body != null) {
                 String currentBody = body.printTrimmed(getCursor());
-                if (!currentBody.contains("this.message")) {
+                if (currentBody.contains("exception")) {
                     return messageMethodBody.apply(updateCursor(md), md.getCoordinates().replaceBody());
                 }
             }
@@ -182,7 +190,12 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
         @Nullable
         private static Statement findFieldByName(J.ClassDeclaration cd, String fieldName) {
-            return cd.getBody().getStatements().stream().filter(s -> s instanceof J.VariableDeclarations vd && findVariableByName(fieldName, vd) != null).findFirst()
+            return cd.getBody().getStatements().stream()
+                    .filter(J.VariableDeclarations.class::isInstance)
+                    .map(J.VariableDeclarations.class::cast)
+                    .filter(vd -> vd.getVariables().stream()
+                            .anyMatch(v -> v.getSimpleName().equals(fieldName)))
+                    .findFirst()
                     .orElse(null);
         }
 
