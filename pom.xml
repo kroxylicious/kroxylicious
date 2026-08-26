@@ -736,8 +736,6 @@
                                     <exclude>kroxylicious-api/src/main/java/io/kroxylicious/kafka/**</exclude>
                                     <exclude>kroxylicious-api/src/test/java/io/kroxylicious/kafka/**</exclude>
                                     <exclude>kroxylicious-api/etc/asf-license.txt</exclude>
-                                    <exclude>tools/kafka-vendoring/requirements.txt</exclude>
-
                                 </excludes>
                             </licenseSet>
                         </licenseSets>
@@ -746,6 +744,7 @@
                             <bicep>DOUBLESLASH_STYLE</bicep>
                             <g4>JAVADOC_STYLE</g4>
                             <operator>SCRIPT_STYLE</operator>
+                            <requirements.txt>SCRIPT_STYLE</requirements.txt>
                         </mapping>
                     </configuration>
                 </plugin>
