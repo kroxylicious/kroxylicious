@@ -340,7 +340,7 @@ class RouteDispatcherTest {
             // if the submitted task threw, `future` simply wouldn't complete and that assertion would fail.
             "FutureReturnValueIgnored",
             // The above comment is seen by sonar as commented-out code :facepalm:
-            "java:S125"})
+            "java:S125" })
     private Thread obtainEventLoopThread() {
         var future = new CompletableFuture<Thread>();
         channel.eventLoop().submit(() -> future.complete(Thread.currentThread()));
