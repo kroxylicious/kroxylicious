@@ -81,6 +81,7 @@
         <avro.version>1.12.1</avro.version>
         <protobuf-java.version>4.35.1</protobuf-java.version>
         <jose4j.version>0.9.6</jose4j.version>
+        <rewrite-maven-plugin.version>6.46.1</rewrite-maven-plugin.version>
 
         <!-- Test dependencies -->
         <strimzi.version>1.1.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
@@ -643,7 +644,9 @@
          update the relevant intermediate aggregator pom.xml (kroxylicious-proxy-core/,
          kroxylicious-runtime-plugins/, kroxylicious-supplementary/, or kroxylicious-kubernetes/) — not this file.
          Enforced by the module-profile lint check. -->
-    <modules/>
+    <modules>
+        <module>tools/kafka-vendoring</module>
+    </modules>
 
 
     <build>
