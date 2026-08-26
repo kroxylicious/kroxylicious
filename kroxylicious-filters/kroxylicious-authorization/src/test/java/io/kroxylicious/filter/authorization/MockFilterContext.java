@@ -242,18 +242,6 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
             return new ErrorCloseOrTerminalStage(header, requestMessage, error.exception(message), false);
         }
 
-        @SuppressWarnings("removal")
-        @NonNull
-        @Override
-        public CloseOrTerminalStage<RequestFilterResult> errorResponse(@NonNull RequestHeaderData header, @NonNull ApiMessage requestMessage,
-                                                                       @NonNull Throwable apiException)
-                throws IllegalArgumentException {
-            if (!(apiException instanceof ApiException asApiException)) {
-                throw new IllegalArgumentException("apiException must be an " + ApiException.class.getName() + " but was " + apiException.getClass().getName());
-            }
-            return new ErrorCloseOrTerminalStage(header, requestMessage, asApiException, false);
-        }
-
         @NonNull
         @Override
         public CloseOrTerminalStage<RequestFilterResult> forward(@NonNull RequestHeaderData header, @NonNull ApiMessage message) throws IllegalArgumentException {

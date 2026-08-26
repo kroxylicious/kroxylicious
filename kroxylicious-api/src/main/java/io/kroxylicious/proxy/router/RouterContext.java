@@ -239,28 +239,6 @@ public interface RouterContext {
                                           @Nullable String message);
 
     /**
-     * Begins building a router result that generates an error response
-     * for the client. The generated error response is API-specific.
-     *
-     * @param header the request header
-     * @param request the request body
-     * @param apiException the throwable that triggered the error. Must be an
-     *                  {@code org.apache.kafka.common.errors.ApiException}.
-     * @return a stage that can optionally close the connection
-     * @throws IllegalArgumentException if {@code apiException} is not an
-     *         {@code org.apache.kafka.common.errors.ApiException}.
-     * @deprecated use {@link #respondWithError(RequestHeaderData, ApiMessage, Errors)}
-     *             or {@link #respondWithError(RequestHeaderData, ApiMessage, Errors, String)}
-     *             instead, which express the error as a code rather than requiring a
-     *             client exception.
-     */
-    @Deprecated(since = "0.24.0", forRemoval = true)
-    CloseOrTerminalStage respondWithError(
-                                          RequestHeaderData header,
-                                          ApiMessage request,
-                                          Throwable apiException);
-
-    /**
      * Begins building a router result for a fire-and-forget request
      * where no response is delivered to the client (e.g. acks=0
      * {@code PRODUCE}).

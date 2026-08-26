@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.internal.filter;
 import java.time.Duration;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
@@ -35,7 +34,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RequestFilterResultBuilderTest {
 
-    private final UnknownServerException filterRuntimeException = new UnknownServerException("Filter says yeah, nah!");
     private final RequestFilterResultBuilder builder = new RequestFilterResultBuilderImpl();
 
     @Test
@@ -155,7 +153,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, versionedMessage.apiMessage(), filterRuntimeException).completed();
+        var future = builder.errorResponse(header, versionedMessage.apiMessage(), Errors.UNKNOWN_SERVER_ERROR).completed();
 
         // Then
         assertThat(future)
@@ -179,7 +177,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, new LeaveGroupRequestData(), filterRuntimeException).completed();
+        var future = builder.errorResponse(header, new LeaveGroupRequestData(), Errors.UNKNOWN_SERVER_ERROR).completed();
 
         // Then
         assertThat(future)
@@ -202,7 +200,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, request.apiMessage(), filterRuntimeException).completed();
+        var future = builder.errorResponse(header, request.apiMessage(), Errors.UNKNOWN_SERVER_ERROR).completed();
 
         // Then
         assertThat(future)
@@ -223,7 +221,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, request.apiMessage(), filterRuntimeException).completed();
+        var future = builder.errorResponse(header, request.apiMessage(), Errors.UNKNOWN_SERVER_ERROR).completed();
 
         // Then
         assertThat(future)
@@ -248,32 +246,18 @@ class RequestFilterResultBuilderTest {
     }
 
     @Test
-    void errorResponseFromErrorsMatchesEquivalentException() {
-        // Given
-        var header = apiVersionsHeader();
-
-        // When
-        var fromErrors = builder.errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST).build();
-        var fromException = new RequestFilterResultBuilderImpl()
-                .errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST.exception()).build();
-
-        // Then
-        assertThat(fromErrors.message()).isEqualTo(fromException.message());
-    }
-
-    @Test
-    void errorResponseFromErrorsWithMessageMatchesEquivalentException() {
+    void errorResponseFromErrorsWithMessageSetsErrorCode() {
         // Given
         var header = apiVersionsHeader();
         var message = "custom explanation";
 
         // When
-        var fromErrors = builder.errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST, message).build();
-        var fromException = new RequestFilterResultBuilderImpl()
-                .errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST.exception(message)).build();
+        var result = builder.errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST, message).build();
 
         // Then
-        assertThat(fromErrors.message()).isEqualTo(fromException.message());
+        assertThat(result.message())
+                .asInstanceOf(InstanceOfAssertFactories.type(ApiVersionsResponseData.class))
+                .satisfies(response -> assertThat(response.errorCode()).isEqualTo(Errors.INVALID_REQUEST.code()));
     }
 
     @Test
@@ -288,17 +272,6 @@ class RequestFilterResultBuilderTest {
 
         // Then
         assertThat(fromNullMessage.message()).isEqualTo(fromNoMessage.message());
-    }
-
-    @Test
-    void deprecatedErrorResponseRejectsNonApiException() {
-        // Given
-        var header = apiVersionsHeader();
-        var notAnApiException = new IllegalStateException("not an ApiException");
-
-        // When / Then
-        assertThatThrownBy(() -> builder.errorResponse(header, new ApiVersionsRequestData(), notAnApiException))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private static RequestHeaderData apiVersionsHeader() {

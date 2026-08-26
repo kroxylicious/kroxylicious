@@ -1,16 +1,14 @@
 title: "feat(api): express short-circuit error responses in terms of Errors codes"
-type: added
+type: changed
 issues:
   - 4756
 important_notes:
   - |
-    `RequestFilterResultBuilder.errorResponse` and `RouterContext.respondWithError` now offer
-    overloads that take an `org.apache.kafka.common.protocol.Errors` code (with an optional message)
-    instead of a client exception. Prefer these over constructing an `ApiException`.
+    `RequestFilterResultBuilder.errorResponse` and `RouterContext.respondWithError` now take an
+    `org.apache.kafka.common.protocol.Errors` code (with an optional message) instead of a client
+    exception, so the kafka-clients exception hierarchy no longer leaks into the API.
   - |
     The exception-based overloads (`errorResponse(RequestHeaderData, ApiMessage, ApiException)` and
-    `respondWithError(RequestHeaderData, ApiMessage, ApiException)`) are deprecated for removal. Their
-    parameter has been widened from `org.apache.kafka.common.errors.ApiException` to
-    `java.lang.Throwable`; existing callers keep compiling (every `ApiException` is a `Throwable`), but
-    the deprecated overloads now throw `IllegalArgumentException` at runtime if the throwable is not an
-    `ApiException`. Migrate to the `Errors`-based overloads.
+    `respondWithError(RequestHeaderData, ApiMessage, ApiException)`) have been removed. Migrate to the
+    `Errors`-based overloads, e.g. replace `errorResponse(header, request, new InvalidRequestException(msg))`
+    with `errorResponse(header, request, Errors.INVALID_REQUEST, msg)`.

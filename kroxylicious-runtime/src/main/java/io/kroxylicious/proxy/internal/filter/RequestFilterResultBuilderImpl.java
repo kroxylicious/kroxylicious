@@ -76,16 +76,6 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
         return errorResponseForException(header, requestMessage, error.exception(message));
     }
 
-    @SuppressWarnings("removal")
-    @Override
-    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Throwable apiException)
-            throws IllegalArgumentException {
-        if (!(apiException instanceof ApiException asApiException)) {
-            throw new IllegalArgumentException("apiException must be an " + ApiException.class.getName() + " but was " + apiException.getClass().getName());
-        }
-        return errorResponseForException(header, requestMessage, asApiException);
-    }
-
     private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException) {
         final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, apiException);
         validateShortCircuitResponse(errorResponseMessage.data());

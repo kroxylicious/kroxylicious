@@ -82,23 +82,4 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
                                                             @Nullable String message)
             throws IllegalArgumentException;
 
-    /**
-     * Generate a short-circuit error response towards the client.
-     * The generated error response is API-specific, and adds an error code (corresponding to the throwable), and possibly error message (from the message of the throwable), either at the top level of the response (if the API for the response has a global error code), or for all entities given in the request (if the API for the response has only-per entity error codes).
-     * @param header the headers from the request
-     * @param requestMessage the API request message to generate an error in response too.
-     * @param apiException the throwable that triggered the error response. Must be an
-     *                  {@code org.apache.kafka.common.errors.ApiException}. Note Kafka will map the throwable to an {@link org.apache.kafka.common.requests.ApiError} using {@link org.apache.kafka.common.protocol.Errors#forException(java.lang.Throwable)} so callers may wish to choose their throwable to trigger the appropriate error code
-     * @return next stage in the fluent builder API
-     * @throws IllegalArgumentException header or message do not meet criteria described above, or {@code apiException} is not an {@code org.apache.kafka.common.errors.ApiException}.
-     * @deprecated use {@link #errorResponse(RequestHeaderData, ApiMessage, Errors)} or
-     *             {@link #errorResponse(RequestHeaderData, ApiMessage, Errors, String)} instead,
-     *             which express the error as a code rather than requiring a client exception.
-     */
-    @Deprecated(since = "0.24.0", forRemoval = true)
-    CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header,
-                                                            ApiMessage requestMessage,
-                                                            Throwable apiException)
-            throws IllegalArgumentException;
-
 }

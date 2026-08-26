@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -200,24 +198,6 @@ class RouterContextImplTest {
     }
 
     @Test
-    void respondWithErrorShouldBuildErrorResult() {
-        // Given
-        var ctx = createContext();
-        var header = new RequestHeaderData();
-        var request = new MetadataRequestData();
-        ApiException exception = new UnknownServerException("test error");
-
-        // When
-        RouterResponse response = ctx.respondWithError(header, request, exception).build();
-
-        // Then
-        assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
-        var rwe = (RouterResponseImpl.RespondWithError) response;
-        assertThat(rwe.exception()).isSameAs(exception);
-        assertThat(rwe.closeConnection()).isFalse();
-    }
-
-    @Test
     void respondWithErrorFromErrorsShouldBuildErrorResult() {
         // Given
         var ctx = createContext();
@@ -253,19 +233,6 @@ class RouterContextImplTest {
         assertThat(rwe.exception())
                 .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
                 .hasMessage(message);
-    }
-
-    @Test
-    void respondWithErrorShouldRejectNonApiExceptionThrowable() {
-        // Given
-        var ctx = createContext();
-        var header = new RequestHeaderData();
-        var request = new MetadataRequestData();
-        Throwable notAnApiException = new IllegalStateException("not an ApiException");
-
-        // When / Then
-        assertThatThrownBy(() -> ctx.respondWithError(header, request, notAnApiException))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -327,10 +294,9 @@ class RouterContextImplTest {
     void respondWithErrorWithCloseConnectionShouldSetFlag() {
         // Given
         var ctx = createContext();
-        ApiException exception = new UnknownServerException("test error");
 
         // When
-        RouterResponse response = ctx.respondWithError(new RequestHeaderData(), new MetadataRequestData(), exception)
+        RouterResponse response = ctx.respondWithError(new RequestHeaderData(), new MetadataRequestData(), Errors.UNKNOWN_SERVER_ERROR)
                 .withCloseConnection().build();
 
         // Then

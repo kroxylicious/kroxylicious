@@ -542,16 +542,6 @@ public class MockFilterContext implements FilterContext {
             return new MockErrorCloseOrTerminalRequestStage(header, requestMessage, error.exception(message));
         }
 
-        @SuppressWarnings("removal")
-        @Override
-        public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Throwable apiException)
-                throws IllegalArgumentException {
-            if (!(apiException instanceof ApiException asApiException)) {
-                throw new IllegalArgumentException("apiException must be an " + ApiException.class.getName() + " but was " + apiException.getClass().getName());
-            }
-            return new MockErrorCloseOrTerminalRequestStage(header, requestMessage, asApiException);
-        }
-
         @Override
         public CloseOrTerminalStage<RequestFilterResult> forward(RequestHeaderData header, ApiMessage message) throws IllegalArgumentException {
             return new MockCloseOrTerminalRequestStage(false, header, message, false, false);

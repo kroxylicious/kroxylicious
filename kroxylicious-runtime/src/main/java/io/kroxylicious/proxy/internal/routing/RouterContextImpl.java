@@ -9,7 +9,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -127,17 +126,6 @@ class RouterContextImpl implements RouterContext {
                                                  @Nullable String message) {
         // Errors.exception(String) returns the default-message exception when message is null.
         return RouterResponseImpl.builder(new RouterResponseImpl.RespondWithError(header, request, error.exception(message), false));
-    }
-
-    @SuppressWarnings("removal")
-    @Override
-    public CloseOrTerminalStage respondWithError(RequestHeaderData header,
-                                                 ApiMessage request,
-                                                 Throwable apiException) {
-        if (!(apiException instanceof ApiException asApiException)) {
-            throw new IllegalArgumentException("apiException must be an " + ApiException.class.getName() + " but was " + apiException.getClass().getName());
-        }
-        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWithError(header, request, asApiException, false));
     }
 
     @Override
