@@ -11,11 +11,13 @@ import java.util.List;
 import java.util.Set;
 
 import org.openrewrite.ExecutionContext;
+import org.openrewrite.Preconditions;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.JavaTemplate;
 import org.openrewrite.java.JavaVisitor;
 import org.openrewrite.java.RemoveUnusedImports;
+import org.openrewrite.java.search.FindTypes;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
@@ -51,168 +53,169 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
     @Override
     @NonNull
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        return new JavaVisitor<>() {
-
-            private final Set<String> REMOVED_FIELDS = Set.of("builder", "exception", "CLASS_TO_ERROR");
-            private final Set<String> REMOVED_METHODS = Set.of("exception", "forException", "maybeThrow", "exceptionName", "main", "toHtml");
-
-            private final JavaTemplate messageFieldTemplate = JavaTemplate.builder("private final String message;").contextSensitive().build();
-
-            private final JavaTemplate messageMethodBody = JavaTemplate.builder("return this.message;").contextSensitive().build();
-
-            private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                    "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}").contextSensitive()
-                    .build();
-
-            @Override
-            public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDeclaration, ExecutionContext ctx) {
-                J.ClassDeclaration cd = classDeclaration;
-                Statement messageField = findFieldByName(classDeclaration, "message");
-                boolean hasMessageField = messageField != null;
-
-                if (!hasMessageField) {
-                    Statement codeField = findFieldByName(cd, "code");
-
-                    if (codeField != null) {
-                        cd = messageFieldTemplate.apply(updateCursor(cd), codeField.getCoordinates().after());
-                    }
-                    else {
-                        cd = messageFieldTemplate.apply(updateCursor(cd), cd.getBody().getCoordinates().firstStatement());
-                    }
-                }
-                return (J.ClassDeclaration) super.visitClassDeclaration(cd, ctx);
-            }
-
-            @Override
-            public J.EnumValue visitEnumValue(J.EnumValue enumConstant, ExecutionContext ctx) {
-                J.EnumValue ec = (J.EnumValue) super.visitEnumValue(enumConstant, ctx);
-                J.NewClass initializer = ec.getInitializer();
-                if (initializer == null) {
-                    return ec;
-                }
-
-                JavaType.Method constructorType = initializer.getConstructorType();
-                if (constructorType == null) {
-                    return ec;
-                }
-
-                return removeBuilderArg(constructorType, initializer, ec);
-            }
-
-            @Override
-            public J.VariableDeclarations visitVariableDeclarations(J.VariableDeclarations multiVariable, ExecutionContext ctx) {
-                if (multiVariable.getVariables().stream().anyMatch(v -> REMOVED_FIELDS.contains(v.getSimpleName()))) {
-                    return null; // Remove 'builder' field
-                }
-                findVariableByName("message", multiVariable);
-
-                return (J.VariableDeclarations) super.visitVariableDeclarations(multiVariable, ctx);
-            }
-
-            @NonNull
-            private J.MethodDeclaration visitConstructorDeclaration(J.MethodDeclaration md) {
-                return constructorTemplate.apply(updateCursor(md), md.getCoordinates().replace());
-            }
-
-            @Override
-            public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration methodDeclaration, ExecutionContext ctx) {
-                if (methodDeclaration.isConstructor() && findParameterByName(methodDeclaration, "builder") != null) {
-                    return visitConstructorDeclaration(methodDeclaration);
-                }
-
-                // Remove exception factory methods
-                if (REMOVED_METHODS.contains(methodDeclaration.getSimpleName())) {
-                    return null;
-                }
-
-                var md = (J.MethodDeclaration) super.visitMethodDeclaration(methodDeclaration, ctx);
-
-                J.Block body = md.getBody();
-                if ("message".equals(md.getSimpleName()) && body != null && body.getStatements().size() > 1) {
-                    // TODO either need to make this idempotent or find a better test that we have seen it before
-                    return messageMethodBody.apply(updateCursor(md), md.getCoordinates().replaceBody());
-                }
-                return md;
-            }
-
-            @Override
-            public J.CompilationUnit visitCompilationUnit(J.CompilationUnit cu, ExecutionContext ctx) {
-                J.CompilationUnit c = (J.CompilationUnit) super.visitCompilationUnit(cu, ctx);
-                doAfterVisit(new RemoveUnusedImports().getVisitor());
-                return c;
-            }
-
-            @Override
-            @Nullable
-            public J visitIf(J.If ifSeq, ExecutionContext ctx) {
-                J.If i = (J.If) super.visitIf(ifSeq, ctx);
-
-                if (isClassToErrorIf(i)) {
-                    return null; // Deletes the if-statement from the parent block
-                }
-                return i;
-            }
-
-            private boolean isClassToErrorIf(J.If ifStmt) {
-                Statement body = ifStmt.getThenPart();
-                if (body instanceof J.Block block) {
-                    if (block.getStatements().isEmpty()) {
-                        return false;
-                    }
-                    body = block.getStatements().get(0);
-                }
-                if (body instanceof J.MethodInvocation mi) {
-                    Expression selectExpression = mi.getSelect();
-                    return selectExpression != null && selectExpression.toString().endsWith("CLASS_TO_ERROR") && "put".equals(mi.getSimpleName());
-                }
-                return false;
-            }
-
-            @Nullable
-            private static Statement findFieldByName(J.ClassDeclaration cd, String fieldName) {
-                return cd.getBody().getStatements().stream()
-                        .filter(s -> s instanceof J.VariableDeclarations vd && findVariableByName(fieldName, vd) != null).findFirst()
-                        .orElse(null);
-            }
-
-            private static J.VariableDeclarations.NamedVariable findVariableByName(String fieldName, J.VariableDeclarations vd) {
-                return vd.getVariables().stream().filter(v -> fieldName.equals(v.getSimpleName())).findFirst().orElse(null);
-            }
-
-            @Nullable
-            private J.VariableDeclarations.NamedVariable findParameterByName(J.MethodDeclaration md, String parameterName) {
-                return md.getParameters().stream().filter(J.VariableDeclarations.class::isInstance).map(J.VariableDeclarations.class::cast)
-                        .flatMap(vd -> vd.getVariables().stream()).filter(v -> parameterName.equals(v.getSimpleName())).findFirst().orElse(null);
-            }
-
-            @NonNull
-            private J.EnumValue removeBuilderArg(JavaType.Method constructorType, J.NewClass initializer, J.EnumValue enumValue) {
-                List<String> paramNames = constructorType.getParameterNames();
-                List<Expression> args = initializer.getArguments();
-                List<Expression> safeArgs = new ArrayList<>();
-
-                for (int i = 0; i < args.size(); i++) {
-                    Expression arg = args.get(i);
-                    String paramName = (i < paramNames.size()) ? paramNames.get(i) : "";
-
-                    if ("builder".equals(paramName)) {
-                        // Prune import for the referenced exception type in UnknownServerException::new
-                        if (arg instanceof J.MemberReference mr && mr.getContaining().getType() instanceof JavaType.FullyQualified fq) {
-                            maybeRemoveImport(fq.getFullyQualifiedName());
-                        }
-                        maybeRemoveImport("java.util.function.Function");
-                    }
-                    else {
-                        safeArgs.add(arg);
-                    }
-                }
-
-                if (safeArgs.size() != args.size()) {
-                    return enumValue.withInitializer(initializer.withArguments(safeArgs));
-                }
-                return enumValue;
-            }
-        };
+        return Preconditions.check(new FindTypes("org.apache.kafka.common.protocol.Errors", true), new ErrorsEnumVisitor());
     }
 
+    private static class ErrorsEnumVisitor extends JavaVisitor<ExecutionContext> {
+
+        private final Set<String> REMOVED_FIELDS = Set.of("builder", "exception", "CLASS_TO_ERROR");
+        private final Set<String> REMOVED_METHODS = Set.of("exception", "forException", "maybeThrow", "exceptionName", "main", "toHtml");
+
+        private final JavaTemplate messageFieldTemplate = JavaTemplate.builder("private final String message;").contextSensitive().build();
+
+        private final JavaTemplate messageMethodBody = JavaTemplate.builder("return this.message;").contextSensitive().build();
+
+        private final JavaTemplate constructorTemplate = JavaTemplate.builder(
+                        "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}").contextSensitive()
+                .build();
+
+        @Override
+        public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDeclaration, ExecutionContext ctx) {
+            J.ClassDeclaration cd = classDeclaration;
+            Statement messageField = findFieldByName(classDeclaration, "message");
+            boolean hasMessageField = messageField != null;
+
+            if (!hasMessageField) {
+                Statement codeField = findFieldByName(cd, "code");
+
+                if (codeField != null) {
+                    cd = messageFieldTemplate.apply(updateCursor(cd), codeField.getCoordinates().after());
+                }
+                else {
+                    cd = messageFieldTemplate.apply(updateCursor(cd), cd.getBody().getCoordinates().firstStatement());
+                }
+            }
+            return (J.ClassDeclaration) super.visitClassDeclaration(cd, ctx);
+        }
+
+        @Override
+        public J.EnumValue visitEnumValue(J.EnumValue enumConstant, ExecutionContext ctx) {
+            J.EnumValue ec = (J.EnumValue) super.visitEnumValue(enumConstant, ctx);
+            J.NewClass initializer = ec.getInitializer();
+            if (initializer == null) {
+                return ec;
+            }
+
+            JavaType.Method constructorType = initializer.getConstructorType();
+            if (constructorType == null) {
+                return ec;
+            }
+
+            return removeBuilderArg(constructorType, initializer, ec);
+        }
+
+        @Override
+        public J.VariableDeclarations visitVariableDeclarations(J.VariableDeclarations multiVariable, ExecutionContext ctx) {
+            if (multiVariable.getVariables().stream().anyMatch(v -> REMOVED_FIELDS.contains(v.getSimpleName()))) {
+                return null; // Remove 'builder' field
+            }
+            findVariableByName("message", multiVariable);
+
+            return (J.VariableDeclarations) super.visitVariableDeclarations(multiVariable, ctx);
+        }
+
+        @NonNull
+        private J.MethodDeclaration visitConstructorDeclaration(J.MethodDeclaration md) {
+            return constructorTemplate.apply(updateCursor(md), md.getCoordinates().replace());
+        }
+
+        @Override
+        public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration methodDeclaration, ExecutionContext ctx) {
+            if (methodDeclaration.isConstructor() && findParameterByName(methodDeclaration, "builder") != null) {
+                return visitConstructorDeclaration(methodDeclaration);
+            }
+
+            // Remove exception factory methods
+            if (REMOVED_METHODS.contains(methodDeclaration.getSimpleName())) {
+                return null;
+            }
+
+            var md = (J.MethodDeclaration) super.visitMethodDeclaration(methodDeclaration, ctx);
+
+            J.Block body = md.getBody();
+            if ("message".equals(md.getSimpleName()) && body != null && body.getStatements().size() > 1) {
+                // TODO either need to make this idempotent or find a better test that we have seen it before
+                return messageMethodBody.apply(updateCursor(md), md.getCoordinates().replaceBody());
+            }
+            return md;
+        }
+
+        @Override
+        public J.CompilationUnit visitCompilationUnit(J.CompilationUnit cu, ExecutionContext ctx) {
+            J.CompilationUnit c = (J.CompilationUnit) super.visitCompilationUnit(cu, ctx);
+            doAfterVisit(new RemoveUnusedImports().getVisitor());
+            return c;
+        }
+
+        @Override
+        @Nullable
+        public J visitIf(J.If ifSeq, ExecutionContext ctx) {
+            J.If i = (J.If) super.visitIf(ifSeq, ctx);
+
+            if (isClassToErrorIf(i)) {
+                return null; // Deletes the if-statement from the parent block
+            }
+            return i;
+        }
+
+        private boolean isClassToErrorIf(J.If ifStmt) {
+            Statement body = ifStmt.getThenPart();
+            if (body instanceof J.Block block) {
+                if (block.getStatements().isEmpty()) {
+                    return false;
+                }
+                body = block.getStatements().get(0);
+            }
+            if (body instanceof J.MethodInvocation mi) {
+                Expression selectExpression = mi.getSelect();
+                return selectExpression != null && selectExpression.toString().endsWith("CLASS_TO_ERROR") && "put".equals(mi.getSimpleName());
+            }
+            return false;
+        }
+
+        @Nullable
+        private static Statement findFieldByName(J.ClassDeclaration cd, String fieldName) {
+            return cd.getBody().getStatements().stream()
+                    .filter(s -> s instanceof J.VariableDeclarations vd && findVariableByName(fieldName, vd) != null).findFirst()
+                    .orElse(null);
+        }
+
+        private static J.VariableDeclarations.NamedVariable findVariableByName(String fieldName, J.VariableDeclarations vd) {
+            return vd.getVariables().stream().filter(v -> fieldName.equals(v.getSimpleName())).findFirst().orElse(null);
+        }
+
+        @Nullable
+        private J.VariableDeclarations.NamedVariable findParameterByName(J.MethodDeclaration md, String parameterName) {
+            return md.getParameters().stream().filter(J.VariableDeclarations.class::isInstance).map(J.VariableDeclarations.class::cast)
+                    .flatMap(vd -> vd.getVariables().stream()).filter(v -> parameterName.equals(v.getSimpleName())).findFirst().orElse(null);
+        }
+
+        @NonNull
+        private J.EnumValue removeBuilderArg(JavaType.Method constructorType, J.NewClass initializer, J.EnumValue enumValue) {
+            List<String> paramNames = constructorType.getParameterNames();
+            List<Expression> args = initializer.getArguments();
+            List<Expression> safeArgs = new ArrayList<>();
+
+            for (int i = 0; i < args.size(); i++) {
+                Expression arg = args.get(i);
+                String paramName = (i < paramNames.size()) ? paramNames.get(i) : "";
+
+                if ("builder".equals(paramName)) {
+                    // Prune import for the referenced exception type in UnknownServerException::new
+                    if (arg instanceof J.MemberReference mr && mr.getContaining().getType() instanceof JavaType.FullyQualified fq) {
+                        maybeRemoveImport(fq.getFullyQualifiedName());
+                    }
+                    maybeRemoveImport("java.util.function.Function");
+                }
+                else {
+                    safeArgs.add(arg);
+                }
+            }
+
+            if (safeArgs.size() != args.size()) {
+                return enumValue.withInitializer(initializer.withArguments(safeArgs));
+            }
+            return enumValue;
+        }
+    }
 }
