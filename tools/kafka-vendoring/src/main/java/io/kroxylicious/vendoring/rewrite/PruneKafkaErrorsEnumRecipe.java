@@ -68,7 +68,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
         private final JavaTemplate messageMethodBody = JavaTemplate.builder("return this.message;").contextSensitive().build();
 
         private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                        "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}")
+                "Errors(int code, String defaultMessage) {\n" + "    this.code = (short) code;\n" + "    this.message = defaultMessage;\n" + "}")
                 .contextSensitive()
                 .build();
 
@@ -137,8 +137,9 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
             var md = (J.MethodDeclaration) super.visitMethodDeclaration(methodDeclaration, ctx);
 
-            if ("message".equals(md.getSimpleName()) && md.getBody() != null) {
-                String currentBody = md.getBody().printTrimmed(getCursor());
+            J.Block body = md.getBody();
+            if ("message".equals(md.getSimpleName()) && body != null) {
+                String currentBody = body.printTrimmed(getCursor());
                 if (!currentBody.contains("this.message")) {
                     return messageMethodBody.apply(updateCursor(md), md.getCoordinates().replaceBody());
                 }
