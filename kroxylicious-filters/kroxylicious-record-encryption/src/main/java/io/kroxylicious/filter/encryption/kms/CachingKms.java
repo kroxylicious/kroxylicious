@@ -112,6 +112,10 @@ public class CachingKms<K, E> implements Kms<K, E> {
         return delegate.edekSerde();
     }
 
+    // FutureReturnValueIgnored: the failure is handled inside the callback; the throwable is
+    // inspected to populate the not-found cache, and `resolved` is returned to the caller
+    // on the next line.
+    @SuppressWarnings("FutureReturnValueIgnored")
     @NonNull
     @Override
     public CompletionStage<K> resolveAlias(@NonNull String alias) {

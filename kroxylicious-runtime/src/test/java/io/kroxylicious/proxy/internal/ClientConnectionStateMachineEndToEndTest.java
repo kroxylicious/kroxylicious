@@ -212,7 +212,7 @@ class ClientConnectionStateMachineEndToEndTest {
         var clientConnectionStateMachine = buildHandlerInClientActiveState(false);
 
         // When
-        inboundChannel.close();
+        inboundChannel.close().syncUninterruptibly();
 
         // Then
         inboundChannel.checkException();

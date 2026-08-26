@@ -18,7 +18,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is valid using the schema in Apicurio Registry.
  * @param apicurioRegistryUrl apicurio registry url
- * @param apicurioId schema identifier - interpreted as contentId for V3 (default) or globalId for V2
+ * @param apicurioId schema identifier - interpreted as contentId
  * @param wireFormatVersion wire format version (defaults to V3 if null)
  * @param tls optional TLS configuration for connecting to a schema registry protected by TLS
  * @param schemaType the type of schema to validate against (defaults to JSON_SCHEMA if null)
@@ -52,18 +52,10 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl,
     /**
      * Wire format versions for Apicurio Registry schema identifiers.
      * <p>
-     * V3 uses 4-byte content IDs (Confluent-compatible format) and is the default.
-     * V2 uses 8-byte global IDs and is deprecated.
+     * V3 uses 4-byte content IDs (Confluent-compatible format) and is the default and only supported format.
      * </p>
      */
     public enum WireFormatVersion {
-        /**
-         * Apicurio Registry v2 wire format using 8-byte global IDs.
-         * @deprecated Use {@link #V3} instead for Confluent compatibility. This option will be removed in a future release.
-         */
-        @Deprecated(since = "0.19.0", forRemoval = true)
-        V2,
-
         /**
          * Apicurio Registry v3 wire format using 4-byte content IDs (Confluent-compatible).
          * This is the recommended and default format.
@@ -74,7 +66,7 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl,
     /**
      * Construct SchemaValidationConfig with explicit wire format version, TLS configuration, and schema type
      * @param apicurioRegistryUrl Apicurio Registry instance url
-     * @param apicurioId schema identifier - interpreted as contentId for V3 (default) or globalId for V2
+     * @param apicurioId schema identifier - interpreted as contentId
      * @param wireFormatVersion wire format version (defaults to V3 if null)
      * @param tls optional TLS configuration for connecting to a schema registry protected by TLS with a custom trust store
      * @param schemaType the type of schema to validate against (defaults to JSON_SCHEMA if null)

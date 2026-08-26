@@ -18,6 +18,8 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
 /**
  * Uses {@link HAProxyMessageDecoder#detectProtocol(ByteBuf)} on the first bytes
  * of a connection to decide whether to install the PROXY protocol decoder.
@@ -94,7 +96,7 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
                                     + "or set proxyProtocol mode to 'allowed' or 'disabled'.");
                     cumulation.release();
                     cumulation = null;
-                    ctx.close();
+                    ctx.close().addListener(logFailure(LOGGER, "close after PROXY protocol rejection"));
                 }
                 else {
                     // ALLOWED mode — no PROXY header, pass through to Kafka decoder

@@ -27,6 +27,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
+import io.kroxylicious.kafka.message.json.KafkaApiMessageConverter;
+
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**

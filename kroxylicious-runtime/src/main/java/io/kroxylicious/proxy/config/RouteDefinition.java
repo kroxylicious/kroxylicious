@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.config;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -28,6 +29,8 @@ public record RouteDefinition(
                               @Nullable List<String> filters,
                               @JsonProperty(required = true) RouteTarget target) {
 
+    private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9A-Z](?:[a-z0-9A-Z_.-]{0,251}[a-z0-9A-Z])?");
+
     /**
      * Validates the route: {@code name} and {@code target} are required and {@code id}
      * must be non-negative.
@@ -35,6 +38,9 @@ public record RouteDefinition(
     @JsonCreator
     public RouteDefinition {
         Objects.requireNonNull(name, "'name' is required in a route definition");
+        if (!NAME_PATTERN.matcher(name).matches()) {
+            throw new IllegalArgumentException("Invalid route name '" + name + "' (should match '" + NAME_PATTERN.pattern() + "')");
+        }
         Objects.requireNonNull(target, "'target' is required in route '" + name + "'");
         if (id < 0) {
             throw new IllegalConfigurationException(

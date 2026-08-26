@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -34,6 +35,8 @@ public record RouterDefinition(
                                @Nullable @PluginImplConfig(implNameProperty = "type") Object config,
                                @JsonProperty(required = true) List<RouteDefinition> routes) {
 
+    private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9A-Z](?:[a-z0-9A-Z_.-]{0,251}[a-z0-9A-Z])?");
+
     /**
      * Validates the router definition: {@code name} and {@code type} are required, and it
      * must have at least one route with route names and ids unique within the router.
@@ -41,6 +44,9 @@ public record RouterDefinition(
     @JsonCreator
     public RouterDefinition {
         Objects.requireNonNull(name, "'name' is required in a router definition");
+        if (!NAME_PATTERN.matcher(name).matches()) {
+            throw new IllegalArgumentException("Invalid router name '" + name + "' (should match '" + NAME_PATTERN.pattern() + "')");
+        }
         Objects.requireNonNull(type, "'type' is required in a router definition");
         if (routes == null || routes.isEmpty()) {
             throw new IllegalConfigurationException("Router '" + name + "' must have at least one route");
