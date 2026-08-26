@@ -7,6 +7,7 @@
 package io.kroxylicious.testing.operator;
 
 import java.util.Objects;
+import java.util.UUID;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
@@ -64,6 +65,20 @@ public class OperatorTestUtils {
      */
     public static boolean isKubeClientAvailable() {
         return isKubeClientAvailable(PRESENCE_PROBING_KUBE_CLIENT_BUILD);
+    }
+
+    /**
+     * A unique, hyphen-prefixed suffix (e.g. {@code "-a1b2c3d4"}), used to isolate resource names
+     * per test invocation so that stale reconciler events from a completed test cannot race
+     * resources created by the next test with the same name. See #4527 / #4533.
+     * <p>
+     * The leading hyphen means callers can append it directly to a base name without adding their
+     * own separator, e.g. {@code "proxy-a" + uniqueSuffix()}.
+     *
+     * @return a unique, hyphen-prefixed suffix
+     */
+    public static String uniqueSuffix() {
+        return "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     @VisibleForTesting

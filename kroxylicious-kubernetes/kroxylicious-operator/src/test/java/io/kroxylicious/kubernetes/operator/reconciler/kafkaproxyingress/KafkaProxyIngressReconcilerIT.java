@@ -26,6 +26,7 @@ import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.testing.operator.assertj.KafkaProxyIngressStatusAssert;
 
 import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
+import static io.kroxylicious.testing.operator.OperatorTestUtils.uniqueSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -54,23 +55,26 @@ class KafkaProxyIngressReconcilerIT {
 
     @Test
     void testCreateIngressFirst() {
-        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        var suffix = uniqueSuffix();
+        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS + suffix, PROXY_A + suffix));
         assertResolvedRefsFalse(ingressBar);
-        clusterUser.create(kafkaProxy(PROXY_A));
+        clusterUser.create(kafkaProxy(PROXY_A + suffix));
         assertAllConditionsTrue(ingressBar);
     }
 
     @Test
     void testCreateProxyFirst() {
-        clusterUser.create(kafkaProxy(PROXY_A));
-        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        var suffix = uniqueSuffix();
+        clusterUser.create(kafkaProxy(PROXY_A + suffix));
+        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS + suffix, PROXY_A + suffix));
         assertAllConditionsTrue(ingressBar);
     }
 
     @Test
     void testDeleteProxy() {
-        KafkaProxy proxy = clusterUser.create(kafkaProxy(PROXY_A));
-        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        var suffix = uniqueSuffix();
+        KafkaProxy proxy = clusterUser.create(kafkaProxy(PROXY_A + suffix));
+        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS + suffix, ResourcesUtil.name(proxy)));
         assertAllConditionsTrue(ingressBar);
 
         clusterUser.delete(proxy);
@@ -79,12 +83,13 @@ class KafkaProxyIngressReconcilerIT {
 
     @Test
     void testSwitchProxy() {
-        clusterUser.create(kafkaProxy(PROXY_A));
-        clusterUser.create(kafkaProxy(PROXY_B));
-        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        var suffix = uniqueSuffix();
+        clusterUser.create(kafkaProxy(PROXY_A + suffix));
+        clusterUser.create(kafkaProxy(PROXY_B + suffix));
+        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS + suffix, PROXY_A + suffix));
         assertAllConditionsTrue(ingressBar);
 
-        clusterUser.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_B));
+        clusterUser.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS + suffix, PROXY_B + suffix));
         assertAllConditionsTrue(ingressBar);
     }
 
