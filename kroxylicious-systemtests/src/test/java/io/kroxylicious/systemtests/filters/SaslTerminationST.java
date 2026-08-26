@@ -52,6 +52,7 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemp
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -111,10 +112,7 @@ class SaslTerminationST extends AbstractSystemTests {
                     .inNamespace(Constants.KROXYLICIOUS_NAMESPACE)
                     .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
                     .delete();
-            client.apps().deployments()
-                    .inNamespace(Constants.KROXYLICIOUS_NAMESPACE)
-                    .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
-                    .waitUntilCondition(d -> d == null, 60, java.util.concurrent.TimeUnit.SECONDS);
+            DeploymentUtils.waitForDeploymentDeletion(Constants.KROXYLICIOUS_NAMESPACE, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
         }
     }
 

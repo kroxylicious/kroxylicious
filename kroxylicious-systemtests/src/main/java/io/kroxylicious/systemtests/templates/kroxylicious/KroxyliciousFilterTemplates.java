@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -212,7 +213,7 @@ public final class KroxyliciousFilterTemplates {
                 .withNewSpec()
                 .withType(SaslTermination.class.getSimpleName())
                 .withConfigTemplate(Map.of(
-                        "mechanisms", java.util.List.of(
+                        "mechanisms", List.of(
                                 Map.of(
                                         "mechanism", mechanism,
                                         "credentialStore", ScramCredentialFileService.class.getName(),
@@ -238,7 +239,7 @@ public final class KroxyliciousFilterTemplates {
                 .withNewSpec()
                 .withType(SaslTermination.class.getSimpleName())
                 .withConfigTemplate(Map.of(
-                        "mechanisms", java.util.List.of(
+                        "mechanisms", List.of(
                                 Map.of(
                                         "mechanism", "OAUTHBEARER",
                                         "jwksEndpointUrl", jwksEndpointUrl,

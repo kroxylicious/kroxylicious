@@ -191,6 +191,24 @@ public interface KafkaClient {
     ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
             throws KubeClusterException;
 
+    /**
+     * Produce messages, additionally setting JVM system properties on the client process.
+     * <p>
+     * {@code javaSystemProperties} is only honoured by client implementations that run inside a JVM
+     * (e.g. {@link StrimziTestClient}). Non-Java clients (e.g. kcat, kaf, the python client) have no
+     * way to apply JVM system properties, so this default implementation silently ignores the parameter
+     * and delegates to {@link #produceMessages(String, String, String, String, int, Map)}.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param messageKey optional record key for the message. <code>null</code> means don't specify a key
+     * @param numOfMessages the num of messages
+     * @param additionalConfig the additional config
+     * @param javaSystemProperties JVM system properties, honoured only by Java-based client implementations
+     * @return  the exec result
+     * @throws KubeClusterException the kubernetes cluster exception
+     */
     default ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                        Map<String, String> additionalConfig, Map<String, String> javaSystemProperties)
             throws KubeClusterException {
@@ -226,6 +244,24 @@ public interface KafkaClient {
                                          String consumerGroup)
             throws KubeClusterException;
 
+    /**
+     * Consume messages, additionally setting JVM system properties on the client process.
+     * <p>
+     * {@code javaSystemProperties} is only honoured by client implementations that run inside a JVM
+     * (e.g. {@link StrimziTestClient}). Non-Java clients (e.g. kcat, kaf, the python client) have no
+     * way to apply JVM system properties, so this default implementation silently ignores the parameter
+     * and delegates to {@link #consumeMessages(String, String, int, Duration, Map, String)}.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numOfMessages the num of messages
+     * @param timeout the timeout
+     * @param additionalConfig the additional config
+     * @param consumerGroup the consumer group
+     * @param javaSystemProperties JVM system properties, honoured only by Java-based client implementations
+     * @return  the list of ConsumerRecords
+     * @throws KubeClusterException the kubernetes cluster exception
+     */
     default List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
                                                  String consumerGroup, Map<String, String> javaSystemProperties)
             throws KubeClusterException {
