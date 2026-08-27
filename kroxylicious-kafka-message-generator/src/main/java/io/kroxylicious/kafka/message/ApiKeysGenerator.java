@@ -121,25 +121,9 @@ public final class ApiKeysGenerator implements TypeClassGenerator {
     private final CodeBuffer buffer;
     private final TreeMap<Short, ApiData> apis;
 
-    private static final class ApiData {
-        final short apiKey;
-        MessageSpec requestSpec;
-        MessageSpec responseSpec;
-
+    private static final class ApiData extends ApiSpec {
         ApiData(short apiKey) {
-            this.apiKey = apiKey;
-        }
-
-        String name() {
-            if (requestSpec != null) {
-                return MessageGenerator.stripSuffix(requestSpec.name(), MessageGenerator.REQUEST_SUFFIX);
-            }
-            else if (responseSpec != null) {
-                return MessageGenerator.stripSuffix(responseSpec.name(), MessageGenerator.RESPONSE_SUFFIX);
-            }
-            else {
-                throw new RuntimeException("Neither requestSpec nor responseSpec is defined for API key " + apiKey);
-            }
+            super(apiKey);
         }
 
         String constantName() {
