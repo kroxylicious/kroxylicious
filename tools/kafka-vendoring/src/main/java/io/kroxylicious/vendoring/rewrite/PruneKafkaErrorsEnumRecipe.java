@@ -79,11 +79,11 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 """).contextSensitive().build();
 
         private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                        """
-                                Errors(int code, String message) {
-                                    this.code = (short) code;
-                                    this.message = message;
-                                }""")
+                """
+                        Errors(int code, String message) {
+                            this.code = (short) code;
+                            this.message = message;
+                        }""")
                 .contextSensitive()
                 .build();
 
@@ -300,8 +300,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                         new Javadoc.LineBreak(Tree.randomId(), margin + " ", Markers.EMPTY),
                         new Javadoc.Return(Tree.randomId(), Markers.EMPTY, List.of(returnText)),
                         new Javadoc.LineBreak(Tree.randomId(), margin, Markers.EMPTY),
-                        new Javadoc.LineBreak(Tree.randomId(), margin.substring(0, margin.lastIndexOf('*')), Markers.EMPTY)
-                );
+                        new Javadoc.LineBreak(Tree.randomId(), margin.substring(0, margin.lastIndexOf('*')), Markers.EMPTY));
             }
 
             @NonNull

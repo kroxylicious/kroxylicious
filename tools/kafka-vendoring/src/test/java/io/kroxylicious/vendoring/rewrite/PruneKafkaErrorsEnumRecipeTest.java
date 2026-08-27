@@ -177,7 +177,6 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                 """));
     }
 
-
     @Test
     void shouldRemoveSslTransportLayerFromJavaDoc() {
         rewriteRun(
@@ -213,11 +212,11 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                 java(
                         """
                                 package org.apache.kafka.common.protocol;
-                                
+
                                 public enum Errors {
                                     UNKNOWN_SERVER_ERROR,
                                     INVALID_REQUEST;
-                                
+
                                     /**
                                      * Throw the exception if there is one
                                      */
@@ -228,11 +227,11 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                 """,
                         """
                                 package org.apache.kafka.common.protocol;
-                                
+
                                 public enum Errors {
                                     UNKNOWN_SERVER_ERROR,
                                     INVALID_REQUEST;
-                                
+
                                     /**
                                      * Map the code for an Error to its Entry in the enum
                                      * @param code the {@code short} to map
@@ -252,14 +251,14 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                 java(
                         """
                                 package org.apache.kafka.common.protocol;
-                                
+
                                 public enum Errors {
                                     UNKNOWN_SERVER_ERROR(-1, "Unexpected error"),
                                     INVALID_REQUEST(42, "Invalid request");
-                                
+
                                     private final short code;
                                     private RuntimeException exception = new RuntimeException("boom");
-                                
+
                                     public String message() {
                                       if (exception != null)
                                           return exception.getMessage();
