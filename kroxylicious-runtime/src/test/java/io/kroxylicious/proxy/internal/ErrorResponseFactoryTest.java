@@ -18,7 +18,13 @@ import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddRaftVoterRequestData;
 import org.apache.kafka.common.message.AllocateProducerIdsRequestData;
+import org.apache.kafka.common.message.AlterClientQuotasRequestData;
+import org.apache.kafka.common.message.AlterConfigsRequestData;
+import org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData;
 import org.apache.kafka.common.message.AlterPartitionRequestData;
+import org.apache.kafka.common.message.AlterReplicaLogDirsRequestData;
+import org.apache.kafka.common.message.AlterShareGroupOffsetsRequestData;
+import org.apache.kafka.common.message.AlterUserScramCredentialsRequestData;
 import org.apache.kafka.common.message.AssignReplicasToDirsRequestData;
 import org.apache.kafka.common.message.BeginQuorumEpochRequestData;
 import org.apache.kafka.common.message.BrokerHeartbeatRequestData;
@@ -27,15 +33,21 @@ import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.ControllerRegistrationRequestData;
 import org.apache.kafka.common.message.CreateAclsRequestData;
+import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
 import org.apache.kafka.common.message.CreatePartitionsRequestData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DeleteAclsRequestData;
+import org.apache.kafka.common.message.DeleteShareGroupOffsetsRequestData;
 import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
+import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DescribeClientQuotasRequestData;
 import org.apache.kafka.common.message.DescribeClusterRequestData;
 import org.apache.kafka.common.message.DescribeConfigsRequestData;
+import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.DescribeLogDirsRequestData;
 import org.apache.kafka.common.message.DescribeProducersRequestData;
+import org.apache.kafka.common.message.DescribeQuorumRequestData;
+import org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData;
 import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
 import org.apache.kafka.common.message.DescribeTransactionsRequestData;
 import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
@@ -47,7 +59,11 @@ import org.apache.kafka.common.message.GetTelemetrySubscriptionsRequestData;
 import org.apache.kafka.common.message.HeartbeatRequestData;
 import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
+import org.apache.kafka.common.message.ListPartitionReassignmentsRequestData;
 import org.apache.kafka.common.message.ListTransactionsRequestData;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.message.OffsetDeleteRequestData;
+import org.apache.kafka.common.message.PushTelemetryRequestData;
 import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
 import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
 import org.apache.kafka.common.message.RemoveRaftVoterRequestData;
@@ -55,11 +71,13 @@ import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.ShareAcknowledgeRequestData;
+import org.apache.kafka.common.message.ShareFetchRequestData;
 import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
 import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.StreamsGroupDescribeRequestData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.UnregisterBrokerRequestData;
+import org.apache.kafka.common.message.UpdateFeaturesRequestData;
 import org.apache.kafka.common.message.UpdateRaftVoterRequestData;
 import org.apache.kafka.common.message.VoteRequestData;
 import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
@@ -70,7 +88,13 @@ import org.apache.kafka.common.requests.AbstractRequest;
 import org.apache.kafka.common.requests.AddOffsetsToTxnRequest;
 import org.apache.kafka.common.requests.AddRaftVoterRequest;
 import org.apache.kafka.common.requests.AllocateProducerIdsRequest;
+import org.apache.kafka.common.requests.AlterClientQuotasRequest;
+import org.apache.kafka.common.requests.AlterConfigsRequest;
+import org.apache.kafka.common.requests.AlterPartitionReassignmentsRequest;
 import org.apache.kafka.common.requests.AlterPartitionRequest;
+import org.apache.kafka.common.requests.AlterReplicaLogDirsRequest;
+import org.apache.kafka.common.requests.AlterShareGroupOffsetsRequest;
+import org.apache.kafka.common.requests.AlterUserScramCredentialsRequest;
 import org.apache.kafka.common.requests.AssignReplicasToDirsRequest;
 import org.apache.kafka.common.requests.BeginQuorumEpochRequest;
 import org.apache.kafka.common.requests.BrokerHeartbeatRequest;
@@ -79,15 +103,21 @@ import org.apache.kafka.common.requests.ConsumerGroupDescribeRequest;
 import org.apache.kafka.common.requests.ConsumerGroupHeartbeatRequest;
 import org.apache.kafka.common.requests.ControllerRegistrationRequest;
 import org.apache.kafka.common.requests.CreateAclsRequest;
+import org.apache.kafka.common.requests.CreateDelegationTokenRequest;
 import org.apache.kafka.common.requests.CreatePartitionsRequest;
 import org.apache.kafka.common.requests.CreateTopicsRequest;
 import org.apache.kafka.common.requests.DeleteAclsRequest;
+import org.apache.kafka.common.requests.DeleteShareGroupOffsetsRequest;
 import org.apache.kafka.common.requests.DeleteShareGroupStateRequest;
+import org.apache.kafka.common.requests.DeleteTopicsRequest;
 import org.apache.kafka.common.requests.DescribeClientQuotasRequest;
 import org.apache.kafka.common.requests.DescribeClusterRequest;
 import org.apache.kafka.common.requests.DescribeConfigsRequest;
+import org.apache.kafka.common.requests.DescribeGroupsRequest;
 import org.apache.kafka.common.requests.DescribeLogDirsRequest;
 import org.apache.kafka.common.requests.DescribeProducersRequest;
+import org.apache.kafka.common.requests.DescribeQuorumRequest;
+import org.apache.kafka.common.requests.DescribeShareGroupOffsetsRequest;
 import org.apache.kafka.common.requests.DescribeTopicPartitionsRequest;
 import org.apache.kafka.common.requests.DescribeTransactionsRequest;
 import org.apache.kafka.common.requests.DescribeUserScramCredentialsRequest;
@@ -99,7 +129,11 @@ import org.apache.kafka.common.requests.GetTelemetrySubscriptionsRequest;
 import org.apache.kafka.common.requests.HeartbeatRequest;
 import org.apache.kafka.common.requests.InitializeShareGroupStateRequest;
 import org.apache.kafka.common.requests.ListGroupsRequest;
+import org.apache.kafka.common.requests.ListPartitionReassignmentsRequest;
 import org.apache.kafka.common.requests.ListTransactionsRequest;
+import org.apache.kafka.common.requests.OffsetCommitRequest;
+import org.apache.kafka.common.requests.OffsetDeleteRequest;
+import org.apache.kafka.common.requests.PushTelemetryRequest;
 import org.apache.kafka.common.requests.ReadShareGroupStateRequest;
 import org.apache.kafka.common.requests.ReadShareGroupStateSummaryRequest;
 import org.apache.kafka.common.requests.RemoveRaftVoterRequest;
@@ -107,11 +141,13 @@ import org.apache.kafka.common.requests.RenewDelegationTokenRequest;
 import org.apache.kafka.common.requests.SaslAuthenticateRequest;
 import org.apache.kafka.common.requests.SaslHandshakeRequest;
 import org.apache.kafka.common.requests.ShareAcknowledgeRequest;
+import org.apache.kafka.common.requests.ShareFetchRequest;
 import org.apache.kafka.common.requests.ShareGroupDescribeRequest;
 import org.apache.kafka.common.requests.ShareGroupHeartbeatRequest;
 import org.apache.kafka.common.requests.StreamsGroupDescribeRequest;
 import org.apache.kafka.common.requests.StreamsGroupHeartbeatRequest;
 import org.apache.kafka.common.requests.UnregisterBrokerRequest;
+import org.apache.kafka.common.requests.UpdateFeaturesRequest;
 import org.apache.kafka.common.requests.UpdateRaftVoterRequest;
 import org.apache.kafka.common.requests.VoteRequest;
 import org.apache.kafka.common.requests.WriteShareGroupStateRequest;
@@ -241,6 +277,45 @@ class ErrorResponseFactoryTest {
         builders.put(ApiKeys.READ_SHARE_GROUP_STATE_SUMMARY, () -> new ReadShareGroupStateSummaryRequestData().setTopics(
                 List.of(new ReadShareGroupStateSummaryRequestData.ReadStateSummaryData().setTopicId(TOPIC_ID).setPartitions(
                         List.of(new ReadShareGroupStateSummaryRequestData.PartitionData().setPartition(0))))));
+
+        // Chunk 2: moderate structural/version quirks, still no field renames.
+        builders.put(ApiKeys.ALTER_CLIENT_QUOTAS, () -> new AlterClientQuotasRequestData().setEntries(List.of(
+                new AlterClientQuotasRequestData.EntryData().setEntity(List.of(
+                        new AlterClientQuotasRequestData.EntityData().setEntityType("client-id").setEntityName("client-a"))))));
+        builders.put(ApiKeys.ALTER_CONFIGS, () -> new AlterConfigsRequestData().setResources(
+                new AlterConfigsRequestData.AlterConfigsResourceCollection(
+                        List.of(new AlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a").setResourceType((byte) 2)).iterator())));
+        builders.put(ApiKeys.ALTER_PARTITION_REASSIGNMENTS, () -> new AlterPartitionReassignmentsRequestData().setTopics(List.of(
+                new AlterPartitionReassignmentsRequestData.ReassignableTopic().setName("topic-a").setPartitions(List.of(
+                        new AlterPartitionReassignmentsRequestData.ReassignablePartition().setPartitionIndex(0))))));
+        builders.put(ApiKeys.ALTER_REPLICA_LOG_DIRS, () -> new AlterReplicaLogDirsRequestData().setDirs(
+                new AlterReplicaLogDirsRequestData.AlterReplicaLogDirCollection(
+                        List.of(new AlterReplicaLogDirsRequestData.AlterReplicaLogDir().setPath("/data/1").setTopics(
+                                new AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopicCollection(
+                                        List.of(new AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopic().setName("topic-a").setPartitions(List.of(0, 1)))
+                                                .iterator())))
+                                .iterator())));
+        builders.put(ApiKeys.ALTER_SHARE_GROUP_OFFSETS, AlterShareGroupOffsetsRequestData::new);
+        builders.put(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, () -> new AlterUserScramCredentialsRequestData()
+                .setDeletions(List.of(new AlterUserScramCredentialsRequestData.ScramCredentialDeletion().setName("alice")))
+                .setUpsertions(List.of(new AlterUserScramCredentialsRequestData.ScramCredentialUpsertion().setName("bob"))));
+        builders.put(ApiKeys.CREATE_DELEGATION_TOKEN, CreateDelegationTokenRequestData::new);
+        builders.put(ApiKeys.DELETE_SHARE_GROUP_OFFSETS, DeleteShareGroupOffsetsRequestData::new);
+        builders.put(ApiKeys.DELETE_TOPICS, () -> new DeleteTopicsRequestData().setTopicNames(List.of("topic-a", "topic-b")));
+        builders.put(ApiKeys.DESCRIBE_GROUPS, () -> new DescribeGroupsRequestData().setGroups(List.of("group-1", "group-2")));
+        builders.put(ApiKeys.DESCRIBE_QUORUM, DescribeQuorumRequestData::new);
+        builders.put(ApiKeys.DESCRIBE_SHARE_GROUP_OFFSETS, () -> new DescribeShareGroupOffsetsRequestData().setGroups(List.of(
+                new DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-1"),
+                new DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-2"))));
+        builders.put(ApiKeys.LIST_PARTITION_REASSIGNMENTS, () -> new ListPartitionReassignmentsRequestData().setTopics(List.of(
+                new ListPartitionReassignmentsRequestData.ListPartitionReassignmentsTopics().setName("topic-a").setPartitionIndexes(List.of(0, 1)))));
+        builders.put(ApiKeys.OFFSET_COMMIT, () -> new OffsetCommitRequestData().setTopics(List.of(
+                new OffsetCommitRequestData.OffsetCommitRequestTopic().setName("topic-a").setTopicId(TOPIC_ID).setPartitions(List.of(
+                        new OffsetCommitRequestData.OffsetCommitRequestPartition().setPartitionIndex(0).setCommittedOffset(10L))))));
+        builders.put(ApiKeys.OFFSET_DELETE, OffsetDeleteRequestData::new);
+        builders.put(ApiKeys.PUSH_TELEMETRY, PushTelemetryRequestData::new);
+        builders.put(ApiKeys.SHARE_FETCH, ShareFetchRequestData::new);
+        builders.put(ApiKeys.UPDATE_FEATURES, UpdateFeaturesRequestData::new);
         return builders;
     }
 
@@ -323,6 +398,28 @@ class ErrorResponseFactoryTest {
         builders.put(ApiKeys.INITIALIZE_SHARE_GROUP_STATE, (data, v) -> new InitializeShareGroupStateRequest((InitializeShareGroupStateRequestData) data, v));
         builders.put(ApiKeys.DELETE_SHARE_GROUP_STATE, (data, v) -> new DeleteShareGroupStateRequest((DeleteShareGroupStateRequestData) data, v));
         builders.put(ApiKeys.READ_SHARE_GROUP_STATE_SUMMARY, (data, v) -> new ReadShareGroupStateSummaryRequest((ReadShareGroupStateSummaryRequestData) data, v));
+
+        builders.put(ApiKeys.ALTER_CLIENT_QUOTAS, (data, v) -> new AlterClientQuotasRequest((AlterClientQuotasRequestData) data, v));
+        builders.put(ApiKeys.ALTER_CONFIGS, (data, v) -> new AlterConfigsRequest((AlterConfigsRequestData) data, v));
+        builders.put(ApiKeys.ALTER_PARTITION_REASSIGNMENTS, (data, v) -> new AlterPartitionReassignmentsRequest.Builder((AlterPartitionReassignmentsRequestData) data)
+                .build(v));
+        builders.put(ApiKeys.ALTER_REPLICA_LOG_DIRS, (data, v) -> new AlterReplicaLogDirsRequest((AlterReplicaLogDirsRequestData) data, v));
+        builders.put(ApiKeys.ALTER_SHARE_GROUP_OFFSETS, (data, v) -> new AlterShareGroupOffsetsRequest.Builder((AlterShareGroupOffsetsRequestData) data).build(v));
+        builders.put(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
+                (data, v) -> new AlterUserScramCredentialsRequest.Builder((AlterUserScramCredentialsRequestData) data).build(v));
+        builders.put(ApiKeys.CREATE_DELEGATION_TOKEN, (data, v) -> new CreateDelegationTokenRequest.Builder((CreateDelegationTokenRequestData) data).build(v));
+        builders.put(ApiKeys.DELETE_SHARE_GROUP_OFFSETS, (data, v) -> new DeleteShareGroupOffsetsRequest((DeleteShareGroupOffsetsRequestData) data, v));
+        builders.put(ApiKeys.DELETE_TOPICS, (data, v) -> new DeleteTopicsRequest.Builder((DeleteTopicsRequestData) data).build(v));
+        builders.put(ApiKeys.DESCRIBE_GROUPS, (data, v) -> new DescribeGroupsRequest.Builder((DescribeGroupsRequestData) data).build(v));
+        builders.put(ApiKeys.DESCRIBE_QUORUM, (data, v) -> new DescribeQuorumRequest.Builder((DescribeQuorumRequestData) data).build(v));
+        builders.put(ApiKeys.DESCRIBE_SHARE_GROUP_OFFSETS, (data, v) -> new DescribeShareGroupOffsetsRequest((DescribeShareGroupOffsetsRequestData) data, v));
+        builders.put(ApiKeys.LIST_PARTITION_REASSIGNMENTS,
+                (data, v) -> new ListPartitionReassignmentsRequest.Builder((ListPartitionReassignmentsRequestData) data).build(v));
+        builders.put(ApiKeys.OFFSET_COMMIT, (data, v) -> new OffsetCommitRequest((OffsetCommitRequestData) data, v));
+        builders.put(ApiKeys.OFFSET_DELETE, (data, v) -> new OffsetDeleteRequest((OffsetDeleteRequestData) data, v));
+        builders.put(ApiKeys.PUSH_TELEMETRY, (data, v) -> new PushTelemetryRequest((PushTelemetryRequestData) data, v));
+        builders.put(ApiKeys.SHARE_FETCH, (data, v) -> new ShareFetchRequest((ShareFetchRequestData) data, v));
+        builders.put(ApiKeys.UPDATE_FEATURES, (data, v) -> new UpdateFeaturesRequest((UpdateFeaturesRequestData) data, v));
         return builders;
     }
 }
