@@ -129,7 +129,7 @@ class RouterContextImpl implements RouterContext {
             throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
         }
         // Errors.exception(String) returns the default-message exception when message is null.
-        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWithError(header, request, error.exception(message), false));
+        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWithError(header, request, error, message, false));
     }
 
     @Override

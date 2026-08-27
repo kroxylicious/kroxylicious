@@ -78,11 +78,12 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
             throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
         }
         // Errors.exception(String) returns the default-message exception when message is null.
-        return errorResponseForException(header, requestMessage, error.exception(message));
+        return errorResponseForException(header, requestMessage, error, message);
     }
 
-    private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException) {
-        final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, apiException);
+    private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, Errors error,
+                                                                                @Nullable String message) {
+        final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, error, message);
         validateShortCircuitResponse(errorResponseMessage);
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();
         responseHeaders.setCorrelationId(header.correlationId());
@@ -91,7 +92,7 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
         return this;
     }
 
-    private void validateShortCircuitResponse(ApiMessage message) {
+    private void validateShortCircuitResponse(@Nullable ApiMessage message) {
         if (message == null) {
             throw new IllegalArgumentException("message may not be null");
         }

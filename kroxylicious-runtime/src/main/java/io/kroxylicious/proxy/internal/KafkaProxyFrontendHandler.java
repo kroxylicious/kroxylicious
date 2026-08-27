@@ -21,6 +21,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -529,7 +530,7 @@ public class KafkaProxyFrontendHandler
     static @Nullable ResponseFrame buildErrorResponseFrame(
                                                            DecodedRequestFrame<?> triggerFrame,
                                                            Throwable error) {
-        var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
+        var responseData = KafkaProxyExceptionMapper.errorResponseForMessage(triggerFrame.header(), triggerFrame.body(), Errors.UNKNOWN_SERVER_ERROR, error.getMessage());
         if (responseData == null) {
             // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
             LOGGER.atTrace()

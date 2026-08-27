@@ -13,7 +13,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -22,6 +21,7 @@ import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -351,7 +351,7 @@ class RoutingHandlerTest {
                 .thenReturn(CompletableFuture.completedFuture(
                         new RouterResponseImpl.RespondWithError(
                                 requestHeader, new ProduceRequestData().setAcks((short) 1),
-                                new UnknownServerException("test"), false)));
+                                Errors.UNKNOWN_SERVER_ERROR, "test", false)));
 
         // When
         channel.writeInbound(produceFrame(CORRELATION_ID));
@@ -647,7 +647,7 @@ class RoutingHandlerTest {
         oob.setRouteName(DEFAULT_ROUTE);
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
-                        new RouterResponseImpl.RespondWithError(new RequestHeaderData(), new ProduceRequestData(), new UnknownServerException("oob-error"), false)));
+                        new RouterResponseImpl.RespondWithError(new RequestHeaderData(), new ProduceRequestData(), Errors.UNKNOWN_SERVER_ERROR, "oob-error", false)));
         when(ccsm.sessionId()).thenReturn(SESSION_ID);
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
 
@@ -952,7 +952,7 @@ class RoutingHandlerTest {
                 .thenReturn(CompletableFuture.completedFuture(
                         new RouterResponseImpl.RespondWithError(
                                 requestHeader, new ProduceRequestData().setAcks((short) 1),
-                                new UnknownServerException("test"), false)));
+                                Errors.UNKNOWN_SERVER_ERROR, "test", false)));
 
         // When
         channel.writeInbound(produceFrame(CORRELATION_ID, ACTIVATION_ROUTE));

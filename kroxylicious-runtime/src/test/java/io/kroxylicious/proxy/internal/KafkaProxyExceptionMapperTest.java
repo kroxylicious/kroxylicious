@@ -8,13 +8,10 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.stream.Stream;
 
-import javax.net.ssl.SSLHandshakeException;
-
-import org.apache.kafka.common.errors.BrokerNotAvailableException;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -39,23 +36,10 @@ class KafkaProxyExceptionMapperTest {
 
     @ParameterizedTest
     @MethodSource({ "decodedFrameSourceLatestVersion", "decodedFrameSourceOldestVersion" })
-    void shouldGenerateErrorResponseApiKey(DecodedRequestFrame<?> request) {
-        // Given
-        // When
-        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseMessage(request,
-                new BrokerNotAvailableException("handshake failure", new SSLHandshakeException("it went wrong")));
-
-        // Then
-        assertThat(response).isNotNull();
-        assertThat(ApiKeys.forId(response.apiKey())).isEqualTo(request.apiKey());
-    }
-
-    @ParameterizedTest
-    @MethodSource({ "decodedFrameSourceLatestVersion", "decodedFrameSourceOldestVersion" })
     void shouldGenerateErrorMessage(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), new UnknownServerException("Bailing out!"));
+        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), Errors.UNKNOWN_SERVER_ERROR, null);
 
         // Then
         assertThat(response).isNotNull();
