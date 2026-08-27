@@ -15,6 +15,7 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.FindSourceFiles;
 import org.openrewrite.Preconditions;
 import org.openrewrite.Recipe;
+import org.openrewrite.Tree;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.JavaTemplate;
 import org.openrewrite.java.JavaVisitor;
@@ -24,7 +25,9 @@ import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
 import org.openrewrite.java.tree.Javadoc;
+import org.openrewrite.java.tree.Space;
 import org.openrewrite.java.tree.Statement;
+import org.openrewrite.marker.Markers;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -61,8 +64,10 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
     private static class ErrorsEnumVisitor extends JavaVisitor<ExecutionContext> {
 
-        private final Set<String> REMOVED_FIELDS = Set.of("builder", "exception", "CLASS_TO_ERROR");
-        private final Set<String> REMOVED_METHODS = Set.of("exception", "forException", "maybeThrow", "exceptionName", "main", "toHtml", "maybeUnwrapException");
+        private static final String BUILDER_METHOD_NAME = "builder";
+        private static final String EXCEPTION = "exception";
+        private static final Set<String> REMOVED_FIELDS = Set.of(BUILDER_METHOD_NAME, EXCEPTION, "CLASS_TO_ERROR");
+        private static final Set<String> REMOVED_METHODS = Set.of(EXCEPTION, "forException", "maybeThrow", "exceptionName", "main", "toHtml", "maybeUnwrapException");
 
         private final JavaTemplate messageFieldTemplate = JavaTemplate.builder("private final String message;").contextSensitive().build();
 
@@ -152,7 +157,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             J.Block body = md.getBody();
             if ("message".equals(md.getSimpleName()) && body != null) {
                 String currentBody = body.printTrimmed(getCursor());
-                if (currentBody.contains("exception")) {
+                if (currentBody.contains(EXCEPTION)) {
                     return messageMethodBody.apply(updateCursor(md), md.getCoordinates().replaceBody());
                 }
             }
@@ -208,7 +213,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                     .filter(J.VariableDeclarations.class::isInstance)
                     .map(J.VariableDeclarations.class::cast)
                     .flatMap(vd -> vd.getVariables().stream())
-                    .anyMatch(v -> "builder".equals(v.getSimpleName()));
+                    .anyMatch(v -> BUILDER_METHOD_NAME.equals(v.getSimpleName()));
         }
 
         @NonNull
@@ -216,12 +221,12 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             List<String> paramNames = constructorType.getParameterNames();
             List<Expression> args = initializer.getArguments();
             List<Expression> safeArgs = new ArrayList<>();
-            if (paramNames.contains("builder")) {
+            if (paramNames.contains(BUILDER_METHOD_NAME)) {
                 for (int i = 0; i < args.size(); i++) {
                     Expression arg = args.get(i);
                     String paramName = (i < paramNames.size()) ? paramNames.get(i) : "";
 
-                    if ("builder".equals(paramName)) {
+                    if (BUILDER_METHOD_NAME.equals(paramName)) {
                         // Prune import for the referenced exception type in UnknownServerException::new
                         if (arg instanceof J.MemberReference mr && mr.getContaining().getType() instanceof JavaType.FullyQualified fq) {
                             maybeRemoveImport(fq.getFullyQualifiedName());
@@ -259,12 +264,59 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             public Javadoc visitDocComment(@NonNull Javadoc.DocComment docComment, @NonNull ExecutionContext ctx) {
                 Javadoc.DocComment originalComment = (Javadoc.DocComment) super.visitDocComment(docComment, ctx);
                 List<Javadoc> body = originalComment.getBody();
-                List<Javadoc> cleanedBody = pruneLineBreaks(body);
+                J host = getCursor().firstEnclosing(J.class);
 
-                if (cleanedBody.size() == body.size()) {
-                    return originalComment;
+                if (host instanceof J.MethodDeclaration method && method.getSimpleName().equals("forCode")) {
+                    if (docComment.print(getCursor()).contains(EXCEPTION)) {
+                        List<Javadoc> newBody = buildReplacmentForCodeComment(docComment, method, body);
+                        return originalComment.withBody(newBody);
+                    }
                 }
-                return originalComment.withBody(cleanedBody);
+                else if (host instanceof J.ClassDeclaration) {
+                    List<Javadoc> cleanedBody = pruneLineBreaks(body);
+
+                    if (cleanedBody.size() == body.size()) {
+                        return originalComment;
+                    }
+                    return originalComment.withBody(cleanedBody);
+
+                }
+                return docComment;
+            }
+
+            @NonNull
+            private List<Javadoc> buildReplacmentForCodeComment(@NonNull Javadoc.DocComment docComment, J.MethodDeclaration method, List<Javadoc> body) {
+                String margin = extractMargin(body);
+                J.Identifier codeParamName = findParameterNamed(method, "code");
+                Markers markers = existingMarkers(docComment);
+                Javadoc.Text returnText = new Javadoc.Text(Tree.randomId(), Markers.EMPTY,
+                        " the Errors enum entry for the code. Returns {@code Errors.UNKNOWN_SERVER_ERROR} for all unmapped codes.");
+                return List.of(
+                        new Javadoc.LineBreak(Tree.randomId(), margin, markers),
+                        new Javadoc.Text(Tree.randomId(), Markers.EMPTY, " Map the code for an Error to its Entry in the enum"),
+                        new Javadoc.LineBreak(Tree.randomId(), margin + " ", Markers.EMPTY),
+                        new Javadoc.Parameter(Tree.randomId(), Markers.EMPTY, List.of(), codeParamName.withPrefix(Space.format(" ")), null,
+                                List.of(new Javadoc.Text(Tree.randomId(), Markers.EMPTY, " the {@code short} to map"))),
+                        new Javadoc.LineBreak(Tree.randomId(), margin + " ", Markers.EMPTY),
+                        new Javadoc.Return(Tree.randomId(), Markers.EMPTY, List.of(returnText)),
+                        new Javadoc.LineBreak(Tree.randomId(), margin, Markers.EMPTY),
+                        new Javadoc.LineBreak(Tree.randomId(), margin.substring(0, margin.lastIndexOf('*')), Markers.EMPTY)
+                );
+            }
+
+            @NonNull
+            private static Markers existingMarkers(@NonNull Javadoc.DocComment docComment) {
+                return docComment.getBody().isEmpty() ? Markers.EMPTY : docComment.getBody().getFirst().getMarkers();
+            }
+
+            @NonNull
+            private static String extractMargin(List<Javadoc> body) {
+                return body.stream()
+                        .filter(Javadoc.LineBreak.class::isInstance)
+                        .map(Javadoc.LineBreak.class::cast)
+                        .map(Javadoc.LineBreak::getMargin)
+                        .findFirst()
+                        .orElse("\n * ");
             }
 
             @NonNull
@@ -286,5 +338,18 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             }
 
         }
+
+        @NonNull
+        private static J.Identifier findParameterNamed(J.MethodDeclaration method, String paramName) {
+            return method.getParameters().stream()
+                    .filter(J.VariableDeclarations.class::isInstance)
+                    .map(J.VariableDeclarations.class::cast)
+                    .flatMap(vd -> vd.getVariables().stream())
+                    .filter(v -> paramName.equals(v.getSimpleName()))
+                    .map(J.VariableDeclarations.NamedVariable::getName)
+                    .findFirst()
+                    .orElseThrow();
+        }
     }
+
 }

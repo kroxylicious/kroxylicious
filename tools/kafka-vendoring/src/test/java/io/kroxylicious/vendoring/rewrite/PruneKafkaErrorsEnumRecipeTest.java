@@ -208,19 +208,58 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
     }
 
     @Test
+    void shouldReplaceJavaDocOnForCode() {
+        rewriteRun(
+                java(
+                        """
+                                package org.apache.kafka.common.protocol;
+                                
+                                public enum Errors {
+                                    UNKNOWN_SERVER_ERROR,
+                                    INVALID_REQUEST;
+                                
+                                    /**
+                                     * Throw the exception if there is one
+                                     */
+                                    public static Errors forCode(short code) {
+                                        return Errors.UNKNOWN_SERVER_ERROR;
+                                    }
+                                }
+                                """,
+                        """
+                                package org.apache.kafka.common.protocol;
+                                
+                                public enum Errors {
+                                    UNKNOWN_SERVER_ERROR,
+                                    INVALID_REQUEST;
+                                
+                                    /**
+                                     * Map the code for an Error to its Entry in the enum
+                                     * @param code the {@code short} to map
+                                     * @return the Errors enum entry for the code. Returns {@code Errors.UNKNOWN_SERVER_ERROR} for all unmapped codes.
+                                     *
+                                     */
+                                    public static Errors forCode(short code) {
+                                        return Errors.UNKNOWN_SERVER_ERROR;
+                                    }
+                                }
+                                """));
+    }
+
+    @Test
     void shouldReplaceMessageGetterBody() {
         rewriteRun(
                 java(
                         """
                                 package org.apache.kafka.common.protocol;
-
+                                
                                 public enum Errors {
                                     UNKNOWN_SERVER_ERROR(-1, "Unexpected error"),
                                     INVALID_REQUEST(42, "Invalid request");
-
+                                
                                     private final short code;
                                     private RuntimeException exception = new RuntimeException("boom");
-
+                                
                                     public String message() {
                                       if (exception != null)
                                           return exception.getMessage();
