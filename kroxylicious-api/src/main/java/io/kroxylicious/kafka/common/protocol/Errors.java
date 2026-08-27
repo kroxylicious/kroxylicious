@@ -235,7 +235,10 @@ public enum Errors {
     }
 
     /**
-     * Throw the exception if there is one
+     * Map the code for an Error to its Entry in the enum
+     * @param code the {@code short} to map
+     * @return the Errors enum entry for the code. Returns {@code Errors.UNKNOWN_SERVER_ERROR} for all unmapped codes.
+     *
      */
     public static Errors forCode(short code) {
         Errors error = CODE_TO_ERROR.get(code);
