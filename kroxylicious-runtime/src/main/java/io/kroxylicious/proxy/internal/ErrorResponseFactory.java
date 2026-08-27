@@ -9,12 +9,18 @@ package io.kroxylicious.proxy.internal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.TopicIdPartition;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
+import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
+import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.AddRaftVoterResponseData;
 import org.apache.kafka.common.message.AllocateProducerIdsResponseData;
 import org.apache.kafka.common.message.AlterClientQuotasRequestData;
@@ -29,6 +35,7 @@ import org.apache.kafka.common.message.AlterReplicaLogDirsResponseData;
 import org.apache.kafka.common.message.AlterShareGroupOffsetsResponseData;
 import org.apache.kafka.common.message.AlterUserScramCredentialsRequestData;
 import org.apache.kafka.common.message.AlterUserScramCredentialsResponseData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.AssignReplicasToDirsResponseData;
 import org.apache.kafka.common.message.BeginQuorumEpochResponseData;
 import org.apache.kafka.common.message.BrokerHeartbeatResponseData;
@@ -46,15 +53,19 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DeleteAclsRequestData;
 import org.apache.kafka.common.message.DeleteAclsResponseData;
+import org.apache.kafka.common.message.DeleteRecordsRequestData;
+import org.apache.kafka.common.message.DeleteRecordsResponseData;
 import org.apache.kafka.common.message.DeleteShareGroupOffsetsResponseData;
 import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
 import org.apache.kafka.common.message.DeleteShareGroupStateResponseData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
+import org.apache.kafka.common.message.DescribeAclsResponseData;
 import org.apache.kafka.common.message.DescribeClientQuotasResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.DescribeConfigsRequestData;
 import org.apache.kafka.common.message.DescribeConfigsResponseData;
+import org.apache.kafka.common.message.DescribeDelegationTokenResponseData;
 import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.DescribeGroupsResponseData;
 import org.apache.kafka.common.message.DescribeLogDirsResponseData;
@@ -69,21 +80,42 @@ import org.apache.kafka.common.message.DescribeTransactionsRequestData;
 import org.apache.kafka.common.message.DescribeTransactionsResponseData;
 import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
 import org.apache.kafka.common.message.DescribeUserScramCredentialsResponseData;
+import org.apache.kafka.common.message.ElectLeadersRequestData;
+import org.apache.kafka.common.message.ElectLeadersResponseData;
 import org.apache.kafka.common.message.EndQuorumEpochResponseData;
+import org.apache.kafka.common.message.EndTxnResponseData;
 import org.apache.kafka.common.message.EnvelopeResponseData;
 import org.apache.kafka.common.message.ExpireDelegationTokenResponseData;
+import org.apache.kafka.common.message.FetchRequestData;
+import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchSnapshotResponseData;
+import org.apache.kafka.common.message.FindCoordinatorRequestData;
+import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.GetTelemetrySubscriptionsResponseData;
 import org.apache.kafka.common.message.HeartbeatResponseData;
+import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.InitializeShareGroupStateResponseData;
+import org.apache.kafka.common.message.JoinGroupResponseData;
+import org.apache.kafka.common.message.LeaveGroupResponseData;
+import org.apache.kafka.common.message.ListConfigResourcesResponseData;
 import org.apache.kafka.common.message.ListGroupsResponseData;
+import org.apache.kafka.common.message.ListOffsetsRequestData;
+import org.apache.kafka.common.message.ListOffsetsResponseData;
 import org.apache.kafka.common.message.ListPartitionReassignmentsRequestData;
 import org.apache.kafka.common.message.ListPartitionReassignmentsResponseData;
 import org.apache.kafka.common.message.ListTransactionsResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
 import org.apache.kafka.common.message.OffsetDeleteResponseData;
+import org.apache.kafka.common.message.OffsetFetchRequestData;
+import org.apache.kafka.common.message.OffsetFetchResponseData;
+import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
+import org.apache.kafka.common.message.OffsetForLeaderEpochResponseData;
+import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.PushTelemetryResponseData;
 import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
 import org.apache.kafka.common.message.ReadShareGroupStateResponseData;
@@ -101,16 +133,25 @@ import org.apache.kafka.common.message.ShareGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.StreamsGroupDescribeRequestData;
 import org.apache.kafka.common.message.StreamsGroupDescribeResponseData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
+import org.apache.kafka.common.message.SyncGroupResponseData;
+import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
+import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
 import org.apache.kafka.common.message.UnregisterBrokerResponseData;
 import org.apache.kafka.common.message.UpdateFeaturesResponseData;
 import org.apache.kafka.common.message.UpdateRaftVoterResponseData;
 import org.apache.kafka.common.message.VoteResponseData;
 import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
 import org.apache.kafka.common.message.WriteShareGroupStateResponseData;
+import org.apache.kafka.common.message.WriteTxnMarkersRequestData;
+import org.apache.kafka.common.message.WriteTxnMarkersResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Builds error {@code *ResponseData} bodies directly from a request {@code *ResponseData}, an {@link ApiKeys}
@@ -128,6 +169,9 @@ import org.apache.kafka.common.security.auth.KafkaPrincipal;
  * <p>
  * Coverage is partial: unhandled {@link ApiKeys} throw {@link UnsupportedOperationException}. Full coverage is
  * tracked incrementally; see the class's test coverage for the current state.
+ * <p>
+ * {@code null} is a legitimate return value for {@code PRODUCE} when the request's {@code acks} is 0 — the
+ * client doesn't want a response at all, mirroring {@code ProduceRequest.getErrorResponse}.
  */
 public final class ErrorResponseFactory {
 
@@ -136,6 +180,7 @@ public final class ErrorResponseFactory {
     private ErrorResponseFactory() {
     }
 
+    @Nullable
     public static ApiMessage errorResponseData(ApiKeys apiKey, ApiMessage requestBody, short apiVersion, Errors error, String message) {
         short code = error.code();
         return switch (apiKey) {
@@ -217,6 +262,31 @@ public final class ErrorResponseFactory {
             case SHARE_FETCH -> new ShareFetchResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code).setAcquisitionLockTimeoutMs(0);
             case UPDATE_FEATURES -> new UpdateFeaturesResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code)
                     .setErrorMessage(apiErrorMessage(error, message));
+
+            case PRODUCE -> produceErrorResponse((ProduceRequestData) requestBody, code, apiErrorMessage(error, message));
+            case FETCH -> fetchErrorResponse((FetchRequestData) requestBody, apiVersion, code);
+            case OFFSET_FETCH -> offsetFetchErrorResponse((OffsetFetchRequestData) requestBody, apiVersion, code);
+            case METADATA -> metadataErrorResponse((MetadataRequestData) requestBody, code);
+            case LIST_OFFSETS -> listOffsetsErrorResponse((ListOffsetsRequestData) requestBody, code);
+            case API_VERSIONS -> apiVersionsErrorResponse(apiVersion, error, code);
+            case END_TXN -> new EndTxnResponseData().setErrorCode(code).setThrottleTimeMs(THROTTLE_TIME_MS);
+            case LEAVE_GROUP -> leaveGroupErrorResponse(apiVersion, code);
+            case LIST_CONFIG_RESOURCES -> new ListConfigResourcesResponseData().setErrorCode(code).setThrottleTimeMs(THROTTLE_TIME_MS);
+            case DESCRIBE_ACLS -> new DescribeAclsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code)
+                    .setErrorMessage(apiErrorMessage(error, message));
+            case ELECT_LEADERS -> electLeadersErrorResponse((ElectLeadersRequestData) requestBody, apiVersion, code, apiErrorMessage(error, message));
+            case DESCRIBE_DELEGATION_TOKEN -> new DescribeDelegationTokenResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code)
+                    .setTokens(Collections.emptyList());
+            case ADD_PARTITIONS_TO_TXN -> addPartitionsToTxnErrorResponse((AddPartitionsToTxnRequestData) requestBody, apiVersion, code);
+            case DELETE_RECORDS -> deleteRecordsErrorResponse((DeleteRecordsRequestData) requestBody, code);
+            case FIND_COORDINATOR -> findCoordinatorErrorResponse((FindCoordinatorRequestData) requestBody, apiVersion, error);
+            case JOIN_GROUP -> joinGroupErrorResponse(apiVersion, code);
+            case OFFSET_FOR_LEADER_EPOCH -> offsetForLeaderEpochErrorResponse((OffsetForLeaderEpochRequestData) requestBody, code);
+            case SYNC_GROUP -> new SyncGroupResponseData().setErrorCode(code).setAssignment(new byte[0]).setThrottleTimeMs(THROTTLE_TIME_MS);
+            case TXN_OFFSET_COMMIT -> txnOffsetCommitErrorResponse((TxnOffsetCommitRequestData) requestBody, code);
+            case WRITE_TXN_MARKERS -> writeTxnMarkersErrorResponse((WriteTxnMarkersRequestData) requestBody, code);
+            case INIT_PRODUCER_ID -> new InitProducerIdResponseData().setErrorCode(code)
+                    .setProducerId(RecordBatch.NO_PRODUCER_ID).setProducerEpoch(RecordBatch.NO_PRODUCER_EPOCH).setThrottleTimeMs(THROTTLE_TIME_MS);
 
             default -> throw new UnsupportedOperationException("ErrorResponseFactory does not yet handle APIKey: " + apiKey);
         };
@@ -584,5 +654,305 @@ public final class ErrorResponseFactory {
                     new OffsetCommitResponseData.OffsetCommitResponsePartition().setPartitionIndex(partition.partitionIndex()).setErrorCode(code)));
         });
         return response;
+    }
+
+    /**
+     * Mirrors {@code ProduceRequest.getErrorResponse}: {@code null} when {@code acks == 0} (the client doesn't
+     * want a response), otherwise one response per distinct (topicId, partition, name) key deduplicated via a
+     * {@link HashMap} exactly as kafka-clients does internally (via its {@code partitionSizes()}), so that the
+     * insertion order into the response topic collection matches the oracle's hash-based iteration order.
+     */
+    @Nullable
+    private static ProduceResponseData produceErrorResponse(ProduceRequestData request, short code, String message) {
+        if (request.acks() == 0) {
+            return null;
+        }
+        Map<TopicIdPartition, Boolean> partitionKeys = new HashMap<>();
+        request.topicData().forEach(topicData -> topicData.partitionData().forEach(partitionData -> partitionKeys.put(
+                new TopicIdPartition(topicData.topicId(), partitionData.index(), topicData.name()), Boolean.TRUE)));
+        ProduceResponseData response = new ProduceResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
+        partitionKeys.keySet().forEach(tpId -> {
+            ProduceResponseData.TopicProduceResponse topicResponse = response.responses().find(tpId.topic(), tpId.topicId());
+            if (topicResponse == null) {
+                topicResponse = new ProduceResponseData.TopicProduceResponse().setName(tpId.topic()).setTopicId(tpId.topicId());
+                response.responses().add(topicResponse);
+            }
+            topicResponse.partitionResponses().add(new ProduceResponseData.PartitionProduceResponse()
+                    .setIndex(tpId.partition())
+                    .setRecordErrors(Collections.emptyList())
+                    .setBaseOffset(-1L)
+                    .setLogAppendTimeMs(RecordBatch.NO_TIMESTAMP)
+                    .setLogStartOffset(-1L)
+                    .setErrorMessage(message)
+                    .setErrorCode(code));
+        });
+        return response;
+    }
+
+    private static FetchResponseData fetchErrorResponse(FetchRequestData request, short apiVersion, short code) {
+        List<FetchResponseData.FetchableTopicResponse> topicResponses = new ArrayList<>();
+        if (apiVersion < 13) {
+            request.topics().forEach(topic -> {
+                List<FetchResponseData.PartitionData> partitions = topic.partitions().stream()
+                        .map(partition -> new FetchResponseData.PartitionData()
+                                .setPartitionIndex(partition.partition())
+                                .setErrorCode(code)
+                                .setHighWatermark(-1L)
+                                .setRecords(MemoryRecords.EMPTY))
+                        .toList();
+                topicResponses.add(new FetchResponseData.FetchableTopicResponse()
+                        .setTopic(topic.topic())
+                        .setTopicId(topic.topicId())
+                        .setPartitions(partitions));
+            });
+        }
+        return new FetchResponseData()
+                .setThrottleTimeMs(THROTTLE_TIME_MS)
+                .setErrorCode(code)
+                .setSessionId(request.sessionId())
+                .setResponses(topicResponses);
+    }
+
+    /**
+     * Mirrors {@code OffsetFetchRequest.getErrorResponse}'s three eras of the wire format: pre-v2 stamps every
+     * partition individually (no top-level error support), v2-v7 has a single top-level error and no per-group
+     * shape, v8+ is batched with one error per requested group.
+     */
+    private static OffsetFetchResponseData offsetFetchErrorResponse(OffsetFetchRequestData request, short apiVersion, short code) {
+        if (apiVersion < 2) {
+            List<OffsetFetchResponseData.OffsetFetchResponseTopic> topics = request.topics().stream()
+                    .map(topic -> new OffsetFetchResponseData.OffsetFetchResponseTopic()
+                            .setName(topic.name())
+                            .setPartitions(topic.partitionIndexes().stream()
+                                    .map(partitionIndex -> new OffsetFetchResponseData.OffsetFetchResponsePartition()
+                                            .setPartitionIndex(partitionIndex)
+                                            .setErrorCode(code)
+                                            .setCommittedOffset(-1L)
+                                            .setMetadata("")
+                                            .setCommittedLeaderEpoch(-1))
+                                    .toList()))
+                    .toList();
+            return new OffsetFetchResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setTopics(topics);
+        }
+        else if (apiVersion < 8) {
+            return new OffsetFetchResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+        }
+        else {
+            List<OffsetFetchResponseData.OffsetFetchResponseGroup> groups = request.groups().stream()
+                    .map(group -> new OffsetFetchResponseData.OffsetFetchResponseGroup().setGroupId(group.groupId()).setErrorCode(code))
+                    .toList();
+            return new OffsetFetchResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setGroups(groups);
+        }
+    }
+
+    private static MetadataResponseData metadataErrorResponse(MetadataRequestData request, short code) {
+        MetadataResponseData response = new MetadataResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+        if (request.topics() != null) {
+            request.topics().forEach(topic -> response.topics().add(new MetadataResponseData.MetadataResponseTopic()
+                    .setName(topic.name() == null ? "" : topic.name())
+                    .setTopicId(topic.topicId())
+                    .setErrorCode(code)
+                    .setIsInternal(false)
+                    .setPartitions(Collections.emptyList())));
+        }
+        return response;
+    }
+
+    private static ListOffsetsResponseData listOffsetsErrorResponse(ListOffsetsRequestData request, short code) {
+        List<ListOffsetsResponseData.ListOffsetsTopicResponse> topics = request.topics().stream()
+                .map(topic -> new ListOffsetsResponseData.ListOffsetsTopicResponse()
+                        .setName(topic.name())
+                        .setPartitions(topic.partitions().stream()
+                                .map(partition -> new ListOffsetsResponseData.ListOffsetsPartitionResponse()
+                                        .setErrorCode(code)
+                                        .setPartitionIndex(partition.partitionIndex())
+                                        .setOffset(-1L)
+                                        .setTimestamp(-1L))
+                                .toList()))
+                .toList();
+        return new ListOffsetsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setTopics(topics);
+    }
+
+    /**
+     * Mirrors {@code ApiVersionsRequest.getErrorResponse}'s KIP-511 behaviour: an {@code UNSUPPORTED_VERSION}
+     * error carries the proxy's own supported {@code ApiVersions} range back to the client so it can retry at a
+     * compatible version.
+     */
+    private static ApiVersionsResponseData apiVersionsErrorResponse(short apiVersion, Errors error, short code) {
+        ApiVersionsResponseData response = new ApiVersionsResponseData().setErrorCode(code);
+        if (apiVersion >= 1) {
+            response.setThrottleTimeMs(THROTTLE_TIME_MS);
+        }
+        if (error == Errors.UNSUPPORTED_VERSION) {
+            ApiVersionsResponseData.ApiVersionCollection apiKeys = new ApiVersionsResponseData.ApiVersionCollection();
+            apiKeys.add(new ApiVersionsResponseData.ApiVersion()
+                    .setApiKey(ApiKeys.API_VERSIONS.id)
+                    .setMinVersion(ApiKeys.API_VERSIONS.oldestVersion())
+                    .setMaxVersion(ApiKeys.API_VERSIONS.latestVersion()));
+            response.setApiKeys(apiKeys);
+        }
+        return response;
+    }
+
+    private static LeaveGroupResponseData leaveGroupErrorResponse(short apiVersion, short code) {
+        LeaveGroupResponseData response = new LeaveGroupResponseData().setErrorCode(code);
+        if (apiVersion >= 1) {
+            response.setThrottleTimeMs(THROTTLE_TIME_MS);
+        }
+        return response;
+    }
+
+    private static ElectLeadersResponseData electLeadersErrorResponse(ElectLeadersRequestData request, short apiVersion, short code, String message) {
+        ElectLeadersResponseData response = new ElectLeadersResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
+        if (apiVersion >= 1) {
+            response.setErrorCode(code);
+        }
+        List<ElectLeadersResponseData.ReplicaElectionResult> electionResults = request.topicPartitions() == null
+                ? List.of()
+                : request.topicPartitions().stream()
+                        .map(topic -> new ElectLeadersResponseData.ReplicaElectionResult()
+                                .setTopic(topic.topic())
+                                .setPartitionResult(topic.partitions().stream()
+                                        .map(partitionId -> new ElectLeadersResponseData.PartitionResult()
+                                                .setPartitionId(partitionId)
+                                                .setErrorCode(code)
+                                                .setErrorMessage(message))
+                                        .toList()))
+                        .toList();
+        response.setReplicaElectionResults(electionResults);
+        return response;
+    }
+
+    private static AddPartitionsToTxnResponseData addPartitionsToTxnErrorResponse(AddPartitionsToTxnRequestData request, short apiVersion, short code) {
+        AddPartitionsToTxnResponseData response = new AddPartitionsToTxnResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
+        if (apiVersion < 4) {
+            AddPartitionsToTxnResponseData.AddPartitionsToTxnTopicResultCollection results = new AddPartitionsToTxnResponseData.AddPartitionsToTxnTopicResultCollection();
+            request.v3AndBelowTopics().forEach(topic -> {
+                AddPartitionsToTxnResponseData.AddPartitionsToTxnPartitionResultCollection partitionResults = new AddPartitionsToTxnResponseData.AddPartitionsToTxnPartitionResultCollection();
+                topic.partitions().forEach(partition -> partitionResults.add(
+                        new AddPartitionsToTxnResponseData.AddPartitionsToTxnPartitionResult().setPartitionIndex(partition).setPartitionErrorCode(code)));
+                results.add(new AddPartitionsToTxnResponseData.AddPartitionsToTxnTopicResult().setName(topic.name()).setResultsByPartition(partitionResults));
+            });
+            response.setResultsByTopicV3AndBelow(results);
+        }
+        else {
+            response.setErrorCode(code);
+        }
+        return response;
+    }
+
+    private static DeleteRecordsResponseData deleteRecordsErrorResponse(DeleteRecordsRequestData request, short code) {
+        DeleteRecordsResponseData response = new DeleteRecordsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
+        request.topics().forEach(topic -> {
+            DeleteRecordsResponseData.DeleteRecordsTopicResult topicResult = new DeleteRecordsResponseData.DeleteRecordsTopicResult().setName(topic.name());
+            response.topics().add(topicResult);
+            topic.partitions().forEach(partition -> topicResult.partitions().add(
+                    new DeleteRecordsResponseData.DeleteRecordsPartitionResult()
+                            .setPartitionIndex(partition.partitionIndex())
+                            .setErrorCode(code)
+                            .setLowWatermark(-1L)));
+        });
+        return response;
+    }
+
+    /**
+     * Mirrors {@code FindCoordinatorRequest.getErrorResponse}: below the batched version it returns a single
+     * unbatched coordinator error keyed by nothing (the request's own key is discarded, same as the real
+     * implementation), otherwise one error entry per requested coordinator key. Note kafka-clients' own
+     * implementation never actually sets throttleTimeMs here (it computes it into a value it then discards) —
+     * this replicates that real, if surprising, wire behaviour rather than "fixing" it.
+     */
+    private static FindCoordinatorResponseData findCoordinatorErrorResponse(FindCoordinatorRequestData request, short apiVersion, Errors error) {
+        if (apiVersion < 4) {
+            return new FindCoordinatorResponseData()
+                    .setErrorCode(error.code())
+                    .setErrorMessage(error.message())
+                    .setNodeId(-1)
+                    .setHost("")
+                    .setPort(-1);
+        }
+        List<FindCoordinatorResponseData.Coordinator> coordinators = request.coordinatorKeys().stream()
+                .map(key -> new FindCoordinatorResponseData.Coordinator()
+                        .setErrorCode(error.code())
+                        .setErrorMessage(error.message())
+                        .setKey(key)
+                        .setHost("")
+                        .setPort(-1)
+                        .setNodeId(-1))
+                .toList();
+        return new FindCoordinatorResponseData().setCoordinators(coordinators);
+    }
+
+    private static JoinGroupResponseData joinGroupErrorResponse(short apiVersion, short code) {
+        return new JoinGroupResponseData()
+                .setThrottleTimeMs(THROTTLE_TIME_MS)
+                .setErrorCode(code)
+                .setGenerationId(-1)
+                .setProtocolName(apiVersion >= 7 ? null : "")
+                .setLeader("")
+                .setMemberId("")
+                .setMembers(Collections.emptyList());
+    }
+
+    private static OffsetForLeaderEpochResponseData offsetForLeaderEpochErrorResponse(OffsetForLeaderEpochRequestData request, short code) {
+        OffsetForLeaderEpochResponseData response = new OffsetForLeaderEpochResponseData();
+        request.topics().forEach(topic -> {
+            OffsetForLeaderEpochResponseData.OffsetForLeaderTopicResult topicResult = new OffsetForLeaderEpochResponseData.OffsetForLeaderTopicResult()
+                    .setTopic(topic.topic());
+            response.topics().add(topicResult);
+            topic.partitions().forEach(partition -> topicResult.partitions().add(
+                    new OffsetForLeaderEpochResponseData.EpochEndOffset()
+                            .setPartition(partition.partition())
+                            .setErrorCode(code)
+                            .setLeaderEpoch(-1)
+                            .setEndOffset(-1L)));
+        });
+        return response;
+    }
+
+    private static TxnOffsetCommitResponseData txnOffsetCommitErrorResponse(TxnOffsetCommitRequestData request, short code) {
+        List<TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic> topics = request.topics().stream()
+                .map(topic -> new TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic()
+                        .setName(topic.name())
+                        .setPartitions(topic.partitions().stream()
+                                .map(partition -> new TxnOffsetCommitResponseData.TxnOffsetCommitResponsePartition()
+                                        .setPartitionIndex(partition.partitionIndex())
+                                        .setErrorCode(code))
+                                .toList()))
+                .toList();
+        return new TxnOffsetCommitResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setTopics(topics);
+    }
+
+    /**
+     * Mirrors {@code WriteTxnMarkersResponse}'s constructor from a {@code Map<producerId, Map<TopicPartition, Errors>>}:
+     * marker entries and topics within a marker are deduplicated by key exactly as kafka-clients does internally
+     * (last write wins for a repeated producerId; partitions merge for a repeated topic name within one marker),
+     * so the response shape matches the oracle even for a request that repeats a producerId or topic name.
+     */
+    private static WriteTxnMarkersResponseData writeTxnMarkersErrorResponse(WriteTxnMarkersRequestData request, short code) {
+        Map<Long, Map<TopicPartition, Short>> errorsByProducerId = new HashMap<>();
+        request.markers().forEach(marker -> {
+            Map<TopicPartition, Short> errorsPerPartition = new HashMap<>();
+            marker.topics().forEach(topic -> topic.partitionIndexes().forEach(
+                    partitionIndex -> errorsPerPartition.put(new TopicPartition(topic.name(), partitionIndex), code)));
+            errorsByProducerId.put(marker.producerId(), errorsPerPartition);
+        });
+
+        List<WriteTxnMarkersResponseData.WritableTxnMarkerResult> markers = new ArrayList<>();
+        errorsByProducerId.forEach((producerId, errorsPerPartition) -> {
+            Map<String, WriteTxnMarkersResponseData.WritableTxnMarkerTopicResult> topicsByName = new HashMap<>();
+            errorsPerPartition.forEach((topicPartition, errorCode) -> {
+                WriteTxnMarkersResponseData.WritableTxnMarkerTopicResult topic = topicsByName.getOrDefault(topicPartition.topic(),
+                        new WriteTxnMarkersResponseData.WritableTxnMarkerTopicResult().setName(topicPartition.topic()));
+                topic.partitions().add(new WriteTxnMarkersResponseData.WritableTxnMarkerPartitionResult()
+                        .setErrorCode(errorCode)
+                        .setPartitionIndex(topicPartition.partition()));
+                topicsByName.put(topicPartition.topic(), topic);
+            });
+            markers.add(new WriteTxnMarkersResponseData.WritableTxnMarkerResult()
+                    .setProducerId(producerId)
+                    .setTopics(new ArrayList<>(topicsByName.values())));
+        });
+        return new WriteTxnMarkersResponseData().setMarkers(markers);
     }
 }
