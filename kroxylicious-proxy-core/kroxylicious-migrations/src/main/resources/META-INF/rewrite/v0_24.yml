@@ -27,6 +27,49 @@ recipeList:
   - org.openrewrite.java.ChangeType:
       oldFullyQualifiedTypeName: org.apache.kafka.common.protocol.Errors
       newFullyQualifiedTypeName: io.kroxylicious.kafka.common.protocol.Errors
+  - org.openrewrite.java.ChangePackage:
+      oldPackageName: org.apache.kafka.common.compress
+      newPackageName: io.kroxylicious.kafka.common.compress
+      recursive: true
+  - org.openrewrite.java.ChangePackageInStringLiteral:
+      oldPackageName: org.apache.kafka.common.compress
+      newPackageName: io.kroxylicious.kafka.common.compress
+  - org.openrewrite.java.ChangePackage:
+      oldPackageName: org.apache.kafka.common.header
+      newPackageName: io.kroxylicious.kafka.common.header
+      recursive: true
+  - org.openrewrite.java.ChangePackageInStringLiteral:
+      oldPackageName: org.apache.kafka.common.header
+      newPackageName: io.kroxylicious.kafka.common.header
+  - org.openrewrite.java.ChangePackage:
+      oldPackageName: org.apache.kafka.common.utils
+      newPackageName: io.kroxylicious.kafka.common.utils
+      recursive: true
+  - org.openrewrite.java.ChangePackageInStringLiteral:
+      oldPackageName: org.apache.kafka.common.utils
+      newPackageName: io.kroxylicious.kafka.common.utils
+  # TimestampType is the only record type kept at the top-level package; relocate it before the
+  # package move below sends the remaining record types to the internal package.
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.record.TimestampType
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.record.TimestampType
+  - org.openrewrite.java.ChangePackage:
+      oldPackageName: org.apache.kafka.common.record
+      newPackageName: io.kroxylicious.kafka.common.record.internal
+      recursive: true
+  # No ChangePackageInStringLiteral for the record package: the TimestampType exception above means a
+  # blanket string-literal rename would wrongly send org.apache.kafka.common.record.TimestampType to the
+  # internal package.
+  # Specific top-level classes relocated from org.apache.kafka.common to io.kroxylicious.kafka.common.
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.Uuid
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.Uuid
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.KafkaException
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.KafkaException
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.InvalidRecordException
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.InvalidRecordException
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
