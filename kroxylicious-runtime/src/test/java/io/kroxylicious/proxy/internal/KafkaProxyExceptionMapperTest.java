@@ -27,13 +27,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Named.named;
 
 /**
- * Exercises {@link KafkaProxyExceptionMapper}'s dispatch to {@link ErrorResponseFactory} across
+ * Exercises {@link KafkaProxyExceptionMapper}'s mapping across
  * every {@link ApiKeys} that {@link RequestFactory} can populate, both at each key's oldest and
  * latest supported version. Per-RPC error-code and error-message correctness (including message
  * suppression rules) is covered exhaustively against the kafka-clients oracle by
- * {@link ErrorResponseFactoryTest}; this test's job is narrower - confirming the mapper routes to
+ * {@link KafkaProxyExceptionMapperParityTest}; this test's job is narrower - confirming the mapper routes to
  * the right {@link ApiKeys} case and returns a well-formed body, using an independently-generated
- * fixture set rather than {@link ErrorResponseFactoryTest}'s own fixtures.
+ * fixture set rather than {@link KafkaProxyExceptionMapperParityTest}'s own fixtures.
  */
 class KafkaProxyExceptionMapperTest {
 
