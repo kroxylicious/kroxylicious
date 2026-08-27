@@ -601,9 +601,23 @@ public class RoutingHandler extends ChannelDuplexHandler {
             case RouterResponseImpl.RespondWithError rwe -> {
                 ApiMessage errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
                         rwe.requestHeader(), rwe.request(), rwe.exception());
-                ResponseHeaderData header = new ResponseHeaderData();
-                header.setCorrelationId(correlationId);
-                deliverResponseFrame(ctx, apiVersion, correlationId, header, errorResponse, sequence);
+                if (errorResponse == null) {
+                    // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
+                    LOGGER.atTrace()
+                            .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                            .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                            .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                            .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
+                            .log("Router completed request with an error that this API key does not send a response for");
+                    if (responseSequencer != null) {
+                        responseSequencer.skip(sequence);
+                    }
+                }
+                else {
+                    ResponseHeaderData header = new ResponseHeaderData();
+                    header.setCorrelationId(correlationId);
+                    deliverResponseFrame(ctx, apiVersion, correlationId, header, errorResponse, sequence);
+                }
             }
             case RouterResponseImpl.RespondWithoutReply ignored -> {
                 LOGGER.atTrace()
@@ -651,10 +665,19 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private void writeErrorResponseUpstream(ChannelHandlerContext ctx,
                                             DecodedRequestFrame<?> requestFrame,
                                             Throwable error) {
-        var header = new ResponseHeaderData();
-        header.setCorrelationId(requestFrame.correlationId());
         ApiMessage body = KafkaProxyExceptionMapper.errorResponseForMessage(
                 requestFrame.header(), requestFrame.body(), new UnknownServerException(error.getMessage()));
+        if (body == null) {
+            // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
+            LOGGER.atTrace()
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, requestFrame.correlationId())
+                    .log("Not writing error response upstream for an API key that does not send a response");
+            return;
+        }
+        var header = new ResponseHeaderData();
+        header.setCorrelationId(requestFrame.correlationId());
         var responseFrame = new DecodedResponseFrame<>(requestFrame.apiVersion(), requestFrame.correlationId(), header, body);
         if (requestSource instanceof RouterRequestSource rs) {
             responseFrame.setRouteName(rs.activationRoute());
