@@ -318,7 +318,7 @@ public final class ErrorResponseFactory {
      * {@code null}) for {@link Errors#UNKNOWN_SERVER_ERROR} or when it's identical to the error code's own
      * canned message, to avoid leaking arbitrary exception text for opaque server errors.
      */
-    private static String apiErrorMessage(Errors error, String message) {
+    private static @Nullable String apiErrorMessage(Errors error, String message) {
         return error == Errors.UNKNOWN_SERVER_ERROR || error.message().equals(message) ? null : message;
     }
 
