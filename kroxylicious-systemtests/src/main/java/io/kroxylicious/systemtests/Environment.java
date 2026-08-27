@@ -114,12 +114,15 @@ public class Environment {
      * SASL client login but Kafka incorrectly omits jose4j as a runtime dependency of kafka-clients (KAFKA-20184),
      * and the upstream Strimzi test-clients image does not bundle it.
      * <p>
-     * Deliberately NOT tagged {@code latest}: {@link io.kroxylicious.systemtests.templates.ContainerTemplates#baseImageBuilder}
-     * forces {@code imagePullPolicy=Always} the first time it sees a "latest"/"snapshot" image, which
-     * breaks this image since it only ever exists in minikube's local cache (loaded via
-     * {@code minikube image load}) and isn't served by any real registry.
+     * Deliberately a static tag containing neither "latest" nor "snapshot" (case-insensitive):
+     * {@link io.kroxylicious.systemtests.templates.ContainerTemplates#baseImageBuilder} forces
+     * {@code imagePullPolicy=Always} the first time it sees either substring in an image reference -
+     * note {@code ${project.version}} (e.g. {@code 0.24.0-SNAPSHOT}) would ALSO trigger this via the
+     * "snapshot" substring. This image only ever exists in minikube's local cache (loaded via
+     * {@code minikube image load}) and isn't served by any real registry, so an Always pull fails
+     * outright. It's rebuilt fresh right before every use, so the tag doesn't need to track versions.
      */
-    private static final String TEST_CLIENTS_OAUTH_IMAGE_DEFAULT = "localhost/kroxylicious/oauth-test-clients:" + KROXYLICIOUS_VERSION_DEFAULT;
+    private static final String TEST_CLIENTS_OAUTH_IMAGE_DEFAULT = "localhost/kroxylicious/oauth-test-clients:jose4j";
     private static final String OLM_OPERATOR_CHANNEL_DEFAULT = "alpha";
     private static final String CATALOG_SOURCE_NAME_DEFAULT = "kroxylicious-source";
     private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT = "kroxylicious-operator";
