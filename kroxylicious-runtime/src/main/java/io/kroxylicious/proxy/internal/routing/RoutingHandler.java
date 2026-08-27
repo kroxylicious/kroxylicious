@@ -23,7 +23,6 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
-import io.kroxylicious.kafka.common.errors.ApiException;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -439,8 +438,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
             }
             else {
                 Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
-                        // what type to use here?
-                        ? new ApiException("Router returned error response gesture: " + rwe.error().name() + " " + rwe.message())
+                        ? new RoutingDispatchException(rwe.error(), rwe.message())
                         : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
                 oobFrame.promise().completeExceptionally(cause);
                 if (rri.closeConnection()) {
@@ -519,8 +517,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
         else {
             Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
-                    // what type to use here?
-                    ? new ApiException("Router returned error response gesture: " + rwe.error().name() + " " + rwe.message())
+                    ? new RoutingDispatchException(rwe.error(), rwe.message())
                     : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
             oobFrame.promise().completeExceptionally(cause);
             // Nested handlers ignore andCloseConnection() — they do not own the client connection

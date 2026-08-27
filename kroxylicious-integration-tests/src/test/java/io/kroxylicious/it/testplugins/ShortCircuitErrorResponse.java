@@ -8,7 +8,6 @@ package io.kroxylicious.it.testplugins;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -32,10 +31,6 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 public class ShortCircuitErrorResponse implements FilterFactory<ShortCircuitErrorResponse.Config, ShortCircuitErrorResponse.ResponseMechanism> {
 
     private static final String ERROR_MESSAGE = ShortCircuitErrorResponse.class.getName() + ": responding error to all requests";
-
-    private static UnknownServerException exception() {
-        return new UnknownServerException(ERROR_MESSAGE);
-    }
 
     public enum ResponseMechanism implements RequestFilter {
         ERROR {
