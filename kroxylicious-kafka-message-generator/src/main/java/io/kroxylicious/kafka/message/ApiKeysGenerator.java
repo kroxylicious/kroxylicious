@@ -32,89 +32,89 @@ import java.util.TreeMap;
  */
 public final class ApiKeysGenerator implements TypeClassGenerator {
 
-    // The fixed body emitted after the generated enum constants. Kept as verbatim source lines
+    // The fixed body emitted after the generated enum constants. Kept as a verbatim source block
     // (already indented for the class body) so nothing here is spec-derived except the constants.
-    private static final String[] BODY = {
-            "",
-            "    // Versions 0-2 were removed in Apache Kafka 4.0, version 3 is the new baseline. Due to a bug in",
-            "    // librdkafka, version 0 has to be included in the api versions response (see KAFKA-18659).",
-            "    public static final short PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION = 0;",
-            "",
-            "    /** the permanent and immutable id of an API - this can't change ever */",
-            "    public final short id;",
-            "",
-            "    /** An english description of the api - used for debugging and metric names */",
-            "    public final String name;",
-            "",
-            "    public final ApiMessageType messageType;",
-            "",
-            "    private static final Map<Integer, ApiKeys> ID_TO_TYPE = new HashMap<>();",
-            "",
-            "    static {",
-            "        for (ApiKeys apiKey : values()) {",
-            "            ID_TO_TYPE.put((int) apiKey.id, apiKey);",
-            "        }",
-            "    }",
-            "",
-            "    ApiKeys(ApiMessageType messageType) {",
-            "        this.messageType = messageType;",
-            "        this.id = messageType.apiKey();",
-            "        this.name = messageType.name;",
-            "    }",
-            "",
-            "    public static ApiKeys forId(int id) {",
-            "        ApiKeys apiKey = ID_TO_TYPE.get(id);",
-            "        if (apiKey == null) {",
-            "            throw new IllegalArgumentException(\"Unexpected api key: \" + id);",
-            "        }",
-            "        return apiKey;",
-            "    }",
-            "",
-            "    public static boolean hasId(int id) {",
-            "        return ID_TO_TYPE.containsKey(id);",
-            "    }",
-            "",
-            "    public short latestVersion() {",
-            "        return messageType.highestSupportedVersion(true);",
-            "    }",
-            "",
-            "    public short latestVersion(boolean enableUnstableLastVersion) {",
-            "        return messageType.highestSupportedVersion(enableUnstableLastVersion);",
-            "    }",
-            "",
-            "    public short oldestVersion() {",
-            "        return messageType.lowestSupportedVersion();",
-            "    }",
-            "",
-            "    public List<Short> allVersions() {",
-            "        List<Short> versions = new ArrayList<>(latestVersion() - oldestVersion() + 1);",
-            "        for (short version = oldestVersion(); version <= latestVersion(); version++) {",
-            "            versions.add(version);",
-            "        }",
-            "        return versions;",
-            "    }",
-            "",
-            "    public boolean isVersionSupported(short apiVersion) {",
-            "        return apiVersion >= oldestVersion() && apiVersion <= latestVersion();",
-            "    }",
-            "",
-            "    /**",
-            "     * Returns {@code true} if there is at least one valid version. When {@code false}, the api key",
-            "     * remains assigned to a removed api so it is not accidentally reused for a different api.",
-            "     */",
-            "    public boolean hasValidVersion() {",
-            "        return oldestVersion() <= latestVersion();",
-            "    }",
-            "",
-            "    public short requestHeaderVersion(short apiVersion) {",
-            "        return messageType.requestHeaderVersion(apiVersion);",
-            "    }",
-            "",
-            "    public short responseHeaderVersion(short apiVersion) {",
-            "        return messageType.responseHeaderVersion(apiVersion);",
-            "    }",
-            "}"
-    };
+    private static final String[] BODY = """
+
+                // Versions 0-2 were removed in Apache Kafka 4.0, version 3 is the new baseline. Due to a bug in
+                // librdkafka, version 0 has to be included in the api versions response (see KAFKA-18659).
+                public static final short PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION = 0;
+
+                /** the permanent and immutable id of an API - this can't change ever */
+                public final short id;
+
+                /** An english description of the api - used for debugging and metric names */
+                public final String name;
+
+                public final ApiMessageType messageType;
+
+                private static final Map<Integer, ApiKeys> ID_TO_TYPE = new HashMap<>();
+
+                static {
+                    for (ApiKeys apiKey : values()) {
+                        ID_TO_TYPE.put((int) apiKey.id, apiKey);
+                    }
+                }
+
+                ApiKeys(ApiMessageType messageType) {
+                    this.messageType = messageType;
+                    this.id = messageType.apiKey();
+                    this.name = messageType.name;
+                }
+
+                public static ApiKeys forId(int id) {
+                    ApiKeys apiKey = ID_TO_TYPE.get(id);
+                    if (apiKey == null) {
+                        throw new IllegalArgumentException("Unexpected api key: " + id);
+                    }
+                    return apiKey;
+                }
+
+                public static boolean hasId(int id) {
+                    return ID_TO_TYPE.containsKey(id);
+                }
+
+                public short latestVersion() {
+                    return messageType.highestSupportedVersion(true);
+                }
+
+                public short latestVersion(boolean enableUnstableLastVersion) {
+                    return messageType.highestSupportedVersion(enableUnstableLastVersion);
+                }
+
+                public short oldestVersion() {
+                    return messageType.lowestSupportedVersion();
+                }
+
+                public List<Short> allVersions() {
+                    List<Short> versions = new ArrayList<>(latestVersion() - oldestVersion() + 1);
+                    for (short version = oldestVersion(); version <= latestVersion(); version++) {
+                        versions.add(version);
+                    }
+                    return versions;
+                }
+
+                public boolean isVersionSupported(short apiVersion) {
+                    return apiVersion >= oldestVersion() && apiVersion <= latestVersion();
+                }
+
+                /**
+                 * Returns {@code true} if there is at least one valid version. When {@code false}, the api key
+                 * remains assigned to a removed api so it is not accidentally reused for a different api.
+                 */
+                public boolean hasValidVersion() {
+                    return oldestVersion() <= latestVersion();
+                }
+
+                public short requestHeaderVersion(short apiVersion) {
+                    return messageType.requestHeaderVersion(apiVersion);
+                }
+
+                public short responseHeaderVersion(short apiVersion) {
+                    return messageType.responseHeaderVersion(apiVersion);
+                }
+            }"""
+            .split("\n");
 
     private final HeaderGenerator headerGenerator;
     private final CodeBuffer buffer;
