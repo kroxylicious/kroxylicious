@@ -31,7 +31,7 @@
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-filter-test-support</artifactId>
+            <artifactId>kroxylicious-kafka-message-json</artifactId>
             <scope>test</scope>
         </dependency>
 

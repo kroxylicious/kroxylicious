@@ -83,7 +83,7 @@ class ListTransactionsEntityIsolationProcessor
                     Pattern.compile(transactionalIdPattern);
                 }
                 catch (PatternSyntaxException pse) {
-                    return filterContext.requestFilterResultBuilder().errorResponse(header, request, Errors.INVALID_REGULAR_EXPRESSION.exception()).completed();
+                    return filterContext.requestFilterResultBuilder().errorResponse(header, request, Errors.INVALID_REGULAR_EXPRESSION).completed();
                 }
                 // Idea: n.b. there's a half-way house where we pass the isolation prefix as
                 // our own RE (based on the entity prefix) and apply the user's at the response stage.

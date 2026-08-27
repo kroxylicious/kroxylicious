@@ -22,8 +22,8 @@ import java.util.Map;
  * @param routeIds the identifier configured for each route, keyed by route name
  * @param totalRoutes the total number of routes participating in the mapping
  */
-public record BijectiveNodeIdMapping(Map<String, Integer> routeIds,
-                                     int totalRoutes)
+record BijectiveNodeIdMapping(Map<String, Integer> routeIds,
+                              int totalRoutes)
         implements NodeIdMapping {
 
     /**

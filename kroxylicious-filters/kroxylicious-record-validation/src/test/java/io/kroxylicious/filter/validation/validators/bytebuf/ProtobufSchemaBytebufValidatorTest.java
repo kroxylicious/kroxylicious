@@ -24,7 +24,6 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import io.apicurio.registry.serde.BaseSerde;
 import io.apicurio.registry.serde.kafka.headers.KafkaSerdeHeaders;
 
-import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -91,7 +90,7 @@ class ProtobufSchemaBytebufValidatorTest {
     @Test
     void valuePassesSchemaValidation() {
         Record record = record(RECORD_KEY, VALID_PROTOBUF);
-        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -103,7 +102,7 @@ class ProtobufSchemaBytebufValidatorTest {
     void emptyMessagePassesValidation() {
         // In proto3, all fields are optional, so an empty message is valid
         Record record = record(RECORD_KEY, new byte[0]);
-        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -116,7 +115,7 @@ class ProtobufSchemaBytebufValidatorTest {
         // Length-delimited field claims length 16 but only 1 byte follows
         byte[] corruptData = new byte[]{ 0x0A, 0x10, 0x01 };
         Record record = record(RECORD_KEY, corruptData);
-        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -133,7 +132,7 @@ class ProtobufSchemaBytebufValidatorTest {
         // When schema ID is in headers, the Apicurio ProtobufSerde writes a Ref delimited message
         // before the protobuf payload in the body.
         Record record = record(RECORD_KEY, withRefPrefix("Person", VALID_PROTOBUF), headers);
-        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -145,7 +144,7 @@ class ProtobufSchemaBytebufValidatorTest {
     void valueWithWrongSchemaIdInHeaderRejected() {
         Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_CONTENT_ID, toByteArray(CONTENT_ID + 1)) };
         Record record = record(RECORD_KEY, VALID_PROTOBUF, headers);
-        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -158,7 +157,7 @@ class ProtobufSchemaBytebufValidatorTest {
         // Apicurio protobuf body wire format: magic + contentId + Ref + protobuf
         var value = asV3SchemaIdPrefixBuf(CONTENT_ID, withRefPrefix("Person", VALID_PROTOBUF));
         Record record = record(RECORD_KEY, value);
-        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -170,7 +169,7 @@ class ProtobufSchemaBytebufValidatorTest {
     void valueWithUnexpectedSchemaIdInBodyRejected() {
         var value = asV3SchemaIdPrefixBuf(CONTENT_ID + 1, withRefPrefix("Person", VALID_PROTOBUF));
         Record record = record(RECORD_KEY, value);
-        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -201,7 +200,7 @@ class ProtobufSchemaBytebufValidatorTest {
                                 .withHeader("Content-Type", "application/json")
                                 .withBody("{\"message\":\"No artifact with ID '999' was found.\",\"error_code\":404}")));
 
-        assertThatThrownBy(() -> BytebufValidators.protobufSchemaValidator(apicurioConfig, nonExistentContentId, WireFormatVersion.V3))
+        assertThatThrownBy(() -> BytebufValidators.protobufSchemaValidator(apicurioConfig, nonExistentContentId))
                 .isInstanceOf(RuntimeException.class);
     }
 

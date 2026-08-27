@@ -167,6 +167,9 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      * @param virtualClusterModel virtual cluster to be registered.
      * @return completion stage that will complete after registration is finished.
      */
+    // FutureReturnValueIgnored: the failure is handled inside the callback; t drives
+    // rollbackRelatedBindings, and the derived stage can only fail if the callback itself throws.
+    @SuppressWarnings("FutureReturnValueIgnored")
     public CompletionStage<Endpoint> registerVirtualCluster(EndpointGateway virtualClusterModel) {
         Objects.requireNonNull(virtualClusterModel, VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE);
 
@@ -362,6 +365,10 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         }
     }
 
+    // FutureReturnValueIgnored: the failure is handled inside the callback; t resets the
+    // reconciliation record and completes the caller's future exceptionally, and the derived
+    // stage can only fail if the callback itself throws.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void doReconcile(EndpointGateway virtualClusterModel, Map<Integer, HostPort> upstreamNodes, CompletableFuture<Void> future, VirtualClusterRecord vcr) {
         var bindingAddress = virtualClusterModel.getBindAddress();
 

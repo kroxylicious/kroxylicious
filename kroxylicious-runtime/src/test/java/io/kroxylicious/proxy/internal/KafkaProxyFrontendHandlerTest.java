@@ -151,9 +151,9 @@ class KafkaProxyFrontendHandlerTest {
 
     @AfterEach
     void closeChannel() {
-        inboundChannel.close();
+        inboundChannel.close().syncUninterruptibly();
         if (outboundChannel != null) {
-            outboundChannel.close();
+            outboundChannel.close().syncUninterruptibly();
         }
     }
 

@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -107,8 +108,8 @@ class KafkaProxyBackendHandlerTest {
         // When
         outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener((ChannelFutureListener) future -> {
             flushed.set(true);
-            future.channel().close();
-        });
+            future.channel().close().syncUninterruptibly();
+        }).syncUninterruptibly();
 
         // Then
         await().untilTrue(flushed);
@@ -164,6 +165,8 @@ class KafkaProxyBackendHandlerTest {
         final Channel channel = mock(Channel.class);
         when(handlerContext.channel()).thenReturn(channel);
         when(channel.isActive()).thenReturn(false);
+        ChannelFuture closeFuture = mock(ChannelFuture.class);
+        when(channel.close()).thenReturn(closeFuture);
         kafkaProxyBackendHandler.channelRegistered(handlerContext);
 
         // When

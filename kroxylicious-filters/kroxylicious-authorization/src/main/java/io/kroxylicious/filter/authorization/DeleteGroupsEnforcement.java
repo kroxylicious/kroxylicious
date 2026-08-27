@@ -54,7 +54,7 @@ public class DeleteGroupsEnforcement extends ApiEnforcement<DeleteGroupsRequestD
                 return context.forwardRequest(header, request);
             }
             else if (authorizeResult.allowed().isEmpty()) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
             }
             else {
                 Map<Decision, List<String>> partitioned = authorizeResult.partition(request.groupsNames(), GroupResource.DELETE, s -> s);

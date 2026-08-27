@@ -278,6 +278,10 @@ public class VirtualClusterRegistry implements AutoCloseable {
      *
      * @return a future that completes when the cluster has reached {@code Stopped}
      */
+    // FutureReturnValueIgnored: ErrorProne flags the nested CompletableFuture<CompletableFuture<Void>>
+    // returned by supplyAsync, but the .thenCompose(Function.identity()) on the very next line
+    // already unwraps it and the fully-composed result IS returned.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private CompletableFuture<Void> shutdownCluster(String clusterName, VirtualClusterLifecycle lifecycle) {
         if (lifecycle.state() instanceof VirtualClusterLifecycleState.Stopped) {
             return CompletableFuture.completedFuture(null);

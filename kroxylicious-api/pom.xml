@@ -183,6 +183,33 @@
                             </arguments>
                         </configuration>
                     </execution>
+                    <!-- Generate the owned io.kroxylicious.kafka.common.protocol.ApiKeys enum as a
+                         veneer over the generated ApiMessageType. ApiKeys lives in the protocol
+                         package (mirroring Kafka), which differs from ApiMessageType's message
+                         package, so it needs its own MessageGenerator run with a distinct -p/-o. -->
+                    <execution>
+                        <id>generate-api-keys</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>io.kroxylicious.kafka.message.MessageGenerator</mainClass>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <arguments>
+                                <argument>-p</argument>
+                                <argument>io.kroxylicious.kafka.common.protocol</argument>
+                                <argument>-i</argument>
+                                <argument>${project.build.directory}/data-class-message-specs/common/message</argument>
+                                <argument>-o</argument>
+                                <argument>
+                                    ${project.build.directory}/generated-sources/kafka-messages/io/kroxylicious/kafka/common/protocol
+                                </argument>
+                                <argument>-t</argument>
+                                <argument>ApiKeysGenerator</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
                 </executions>
                 <dependencies>
                     <dependency>
@@ -356,6 +383,20 @@
                                     <exclude>
                                         io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String,
                                         java.lang.String)
+                                    </exclude>
+                                    <!-- The ApiException-typed error-response entry points were removed at 0.24.0 and replaced by overloads
+                                         taking an org.apache.kafka.common.protocol.Errors code (with an optional message), so the kafka-clients
+                                         exception hierarchy no longer leaks into the API. Removing the released overloads is binary-incompatible.
+                                         See https://github.com/kroxylicious/kroxylicious/issues/4756 -->
+                                    <exclude>
+                                        io.kroxylicious.proxy.filter.RequestFilterResultBuilder#errorResponse(org.apache.kafka.common.message.RequestHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        org.apache.kafka.common.errors.ApiException)
+                                    </exclude>
+                                    <exclude>
+                                        io.kroxylicious.proxy.router.RouterContext#respondWithError(org.apache.kafka.common.message.RequestHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        org.apache.kafka.common.errors.ApiException)
                                     </exclude>
                                 </excludes>
                                 <!-- see documentation -->

@@ -27,10 +27,6 @@
 #     once its enclosing type ends up in the same package as the importing file (see test/edits.yaml).
 
 - file: org/apache/kafka/common/record/internal/CompressionType.java
-  stripImports:
-    - '\.config\.ConfigDef'
-    - '\.config\.ConfigException'
-    - '\.config\.ConfigDef\.Range\.between'
   removeBlocks:
     - signature: 'public\s+ConfigDef\.Validator\s+levelValidator\s*\(\s*\)'
       label: CompressionType.levelValidator
@@ -40,10 +36,6 @@
   # Only the config-machinery methods pull org.apache.kafka.common.config into the closure. The
   # nio.file methods are pure JDK (kept). tryWriteTo is cut below along with the rest of the
   # zero-copy send machinery it exists to support (see the comment further down this file).
-  stripImports:
-    - '\.config\.ConfigDef'
-    - '\.config\.ConfigException'
-    - 'network\.TransferableChannel'
   removeBlocks:
     - signature: 'public static Map<String, Object> propsToMap\('
       label: Utils.propsToMap
@@ -57,17 +49,11 @@
       label: Utils.tryWriteTo
 
 - file: org/apache/kafka/common/record/internal/DefaultRecordBatch.java
-  stripImports:
-    - 'record\.internal\.FileLogInputStream'
-    - 'record\.internal\.FileRecords'
   removeBlocks:
     - signature: 'static class DefaultFileChannelRecordBatch extends FileLogInputStream'
       label: DefaultRecordBatch.DefaultFileChannelRecordBatch
 
 - file: org/apache/kafka/common/record/internal/AbstractLegacyRecordBatch.java
-  stripImports:
-    - 'record\.internal\.FileLogInputStream'
-    - 'record\.internal\.FileRecords'
   removeBlocks:
     - signature: 'static class LegacyFileChannelRecordBatch extends FileLogInputStream'
       label: AbstractLegacyRecordBatch.LegacyFileChannelRecordBatch
@@ -91,9 +77,6 @@
       label: BaseRecords.toSend
 
 - file: org/apache/kafka/common/record/internal/TransferableRecords.java
-  stripImports:
-    - 'java\.io\.IOException'
-    - 'network\.TransferableChannel'
   removeBlocks:
     - signature: 'int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
       label: TransferableRecords.writeTo
@@ -109,17 +92,11 @@
       label: UnalignedRecords.toSend
 
 - file: org/apache/kafka/common/record/internal/MemoryRecords.java
-  stripImports:
-    - 'network\.TransferableChannel'
   removeBlocks:
     - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
       label: MemoryRecords.writeTo
 
 - file: org/apache/kafka/common/record/internal/UnalignedMemoryRecords.java
-  stripImports:
-    - 'java\.io\.IOException'
-    - 'network\.TransferableChannel'
-    - 'utils\.Utils'
   removeBlocks:
     - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
       label: UnalignedMemoryRecords.writeTo
