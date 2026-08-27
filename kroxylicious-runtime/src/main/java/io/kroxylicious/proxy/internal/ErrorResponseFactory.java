@@ -295,7 +295,11 @@ public final class ErrorResponseFactory {
             case INIT_PRODUCER_ID -> new InitProducerIdResponseData().setErrorCode(code)
                     .setProducerId(RecordBatch.NO_PRODUCER_ID).setProducerEpoch(RecordBatch.NO_PRODUCER_EPOCH).setThrottleTimeMs(THROTTLE_TIME_MS);
 
-            default -> throw new UnsupportedOperationException("ErrorResponseFactory does not yet handle APIKey: " + apiKey);
+            // Removed by Kafka 4.0 (KIP-500); never reachable from a client connection the proxy handles.
+            // Handled explicitly, rather than via a catch-all default, so that adding a new ApiKeys constant
+            // in a future kafka-clients upgrade is a compile error here instead of a silent runtime gap.
+            case CONTROLLED_SHUTDOWN, LEADER_AND_ISR, STOP_REPLICA, UPDATE_METADATA -> throw new UnsupportedOperationException(
+                    "ErrorResponseFactory does not handle APIKey: " + apiKey + " (removed by Kafka 4.0)");
         };
     }
 
