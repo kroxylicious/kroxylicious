@@ -13,6 +13,7 @@
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
         <version>0.24.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <!-- Pure aggregator — do not declare this as <parent> in any child module. -->
