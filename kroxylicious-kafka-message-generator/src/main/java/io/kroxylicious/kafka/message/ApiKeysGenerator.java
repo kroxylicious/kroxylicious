@@ -198,6 +198,10 @@ public final class ApiKeysGenerator implements TypeClassGenerator {
         headerGenerator.addImport("java.util.List");
         headerGenerator.addImport("java.util.Map");
 
+        buffer.printf("%s%n", "/**");
+        buffer.printf("%s%n", " * Thin veneer over {@link ApiMessageType}: everything exposed here is spec-derivable and");
+        buffer.printf("%s%n", " * delegates to it, omitting the broker/controller-internal details.");
+        buffer.printf("%s%n", " */");
         buffer.printf("%s%n", "public enum ApiKeys {");
         int numProcessed = 0;
         for (Map.Entry<Short, ApiData> entry : apis.entrySet()) {
