@@ -170,7 +170,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class KafkaProxyExceptionMapper {
 
-    public static final int THROTTLE_TIME_MS = 0;
+    private static final int THROTTLE_TIME_MS = 0;
 
     private KafkaProxyExceptionMapper() {
     }
@@ -341,7 +341,7 @@ public class KafkaProxyExceptionMapper {
      * {@code null}) for {@link Errors#UNKNOWN_SERVER_ERROR} or when it's identical to the error code's own
      * canned message, to avoid leaking arbitrary exception text for opaque server errors.
      */
-    private static @Nullable String apiErrorMessage(Errors error, String message) {
+    private static @Nullable String apiErrorMessage(Errors error, @Nullable String message) {
         return error == Errors.UNKNOWN_SERVER_ERROR || error.message().equals(message) ? null : message;
     }
 
@@ -369,7 +369,8 @@ public class KafkaProxyExceptionMapper {
                 .setThrottleTimeMs(THROTTLE_TIME_MS);
     }
 
-    private static IncrementalAlterConfigsResponseData incrementalAlterConfigsErrorResponse(IncrementalAlterConfigsRequestData request, short code, String message) {
+    private static IncrementalAlterConfigsResponseData incrementalAlterConfigsErrorResponse(IncrementalAlterConfigsRequestData request, short code,
+                                                                                            @Nullable String message) {
         List<IncrementalAlterConfigsResponseData.AlterConfigsResourceResponse> responses = request.resources().stream()
                 .map(resource -> new IncrementalAlterConfigsResponseData.AlterConfigsResourceResponse()
                         .setResourceName(resource.resourceName())
@@ -401,20 +402,20 @@ public class KafkaProxyExceptionMapper {
         return response;
     }
 
-    private static CreateAclsResponseData createAclsErrorResponse(CreateAclsRequestData request, short code, String message) {
+    private static CreateAclsResponseData createAclsErrorResponse(CreateAclsRequestData request, short code, @Nullable String message) {
         List<CreateAclsResponseData.AclCreationResult> results = Collections.nCopies(request.creations().size(),
                 new CreateAclsResponseData.AclCreationResult().setErrorCode(code).setErrorMessage(message));
         return new CreateAclsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setResults(results);
     }
 
-    private static DeleteAclsResponseData deleteAclsErrorResponse(DeleteAclsRequestData request, short code, String message) {
+    private static DeleteAclsResponseData deleteAclsErrorResponse(DeleteAclsRequestData request, short code, @Nullable String message) {
         List<DeleteAclsResponseData.DeleteAclsFilterResult> results = Collections.nCopies(request.filters().size(),
                 new DeleteAclsResponseData.DeleteAclsFilterResult().setErrorCode(code).setErrorMessage(message));
         return new DeleteAclsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setFilterResults(results);
     }
 
     private static DescribeUserScramCredentialsResponseData describeUserScramCredentialsErrorResponse(DescribeUserScramCredentialsRequestData request, short code,
-                                                                                                      String message) {
+                                                                                                      @Nullable String message) {
         DescribeUserScramCredentialsResponseData response = new DescribeUserScramCredentialsResponseData()
                 .setThrottleTimeMs(THROTTLE_TIME_MS)
                 .setErrorCode(code)
@@ -424,14 +425,14 @@ public class KafkaProxyExceptionMapper {
         return response;
     }
 
-    private static CreatePartitionsResponseData createPartitionsErrorResponse(CreatePartitionsRequestData request, short code, String message) {
+    private static CreatePartitionsResponseData createPartitionsErrorResponse(CreatePartitionsRequestData request, short code, @Nullable String message) {
         CreatePartitionsResponseData response = new CreatePartitionsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
         request.topics().forEach(topic -> response.results().add(
                 new CreatePartitionsResponseData.CreatePartitionsTopicResult().setName(topic.name()).setErrorCode(code).setErrorMessage(message)));
         return response;
     }
 
-    private static CreateTopicsResponseData createTopicsErrorResponse(CreateTopicsRequestData request, short apiVersion, short code, String message) {
+    private static CreateTopicsResponseData createTopicsErrorResponse(CreateTopicsRequestData request, short apiVersion, short code, @Nullable String message) {
         CreateTopicsResponseData response = new CreateTopicsResponseData();
         if (apiVersion >= 2) {
             response.setThrottleTimeMs(THROTTLE_TIME_MS);
@@ -559,7 +560,7 @@ public class KafkaProxyExceptionMapper {
         return new AlterClientQuotasResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setEntries(entries);
     }
 
-    private static AlterConfigsResponseData alterConfigsErrorResponse(AlterConfigsRequestData request, short code, String message) {
+    private static AlterConfigsResponseData alterConfigsErrorResponse(AlterConfigsRequestData request, short code, @Nullable String message) {
         List<AlterConfigsResponseData.AlterConfigsResourceResponse> responses = request.resources().stream()
                 .map(resource -> new AlterConfigsResponseData.AlterConfigsResourceResponse()
                         .setResourceType(resource.resourceType())
@@ -571,7 +572,7 @@ public class KafkaProxyExceptionMapper {
     }
 
     private static AlterPartitionReassignmentsResponseData alterPartitionReassignmentsErrorResponse(AlterPartitionReassignmentsRequestData request, short code,
-                                                                                                    String message) {
+                                                                                                    @Nullable String message) {
         List<AlterPartitionReassignmentsResponseData.ReassignableTopicResponse> topicResponses = request.topics().stream()
                 .map(topic -> new AlterPartitionReassignmentsResponseData.ReassignableTopicResponse()
                         .setName(topic.name())
@@ -604,7 +605,7 @@ public class KafkaProxyExceptionMapper {
     }
 
     private static AlterUserScramCredentialsResponseData alterUserScramCredentialsErrorResponse(AlterUserScramCredentialsRequestData request, short code,
-                                                                                                String message) {
+                                                                                                @Nullable String message) {
         Set<String> users = Stream.concat(
                 request.deletions().stream().map(AlterUserScramCredentialsRequestData.ScramCredentialDeletion::name),
                 request.upsertions().stream().map(AlterUserScramCredentialsRequestData.ScramCredentialUpsertion::name))
@@ -688,7 +689,7 @@ public class KafkaProxyExceptionMapper {
     }
 
     private static ListPartitionReassignmentsResponseData listPartitionReassignmentsErrorResponse(ListPartitionReassignmentsRequestData request, short code,
-                                                                                                  String message) {
+                                                                                                  @Nullable String message) {
         List<ListPartitionReassignmentsResponseData.OngoingTopicReassignment> topicReassignments = request.topics() == null
                 ? List.of()
                 : request.topics().stream()
@@ -726,7 +727,7 @@ public class KafkaProxyExceptionMapper {
      * insertion order into the response topic collection matches the oracle's hash-based iteration order.
      */
     @Nullable
-    private static ProduceResponseData produceErrorResponse(ProduceRequestData request, short code, String message) {
+    private static ProduceResponseData produceErrorResponse(ProduceRequestData request, short code, @Nullable String message) {
         if (request.acks() == 0) {
             return null;
         }
@@ -865,7 +866,7 @@ public class KafkaProxyExceptionMapper {
         return response;
     }
 
-    private static ElectLeadersResponseData electLeadersErrorResponse(ElectLeadersRequestData request, short apiVersion, short code, String message) {
+    private static ElectLeadersResponseData electLeadersErrorResponse(ElectLeadersRequestData request, short apiVersion, short code, @Nullable String message) {
         ElectLeadersResponseData response = new ElectLeadersResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
         if (apiVersion >= 1) {
             response.setErrorCode(code);
