@@ -46,6 +46,7 @@ import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
 import org.apache.kafka.common.message.CreatePartitionsRequestData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DeleteAclsRequestData;
+import org.apache.kafka.common.message.DeleteGroupsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsRequestData;
 import org.apache.kafka.common.message.DeleteShareGroupOffsetsRequestData;
 import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
@@ -73,6 +74,7 @@ import org.apache.kafka.common.message.FetchSnapshotRequestData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.GetTelemetrySubscriptionsRequestData;
 import org.apache.kafka.common.message.HeartbeatRequestData;
+import org.apache.kafka.common.message.IncrementalAlterConfigsRequestData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
@@ -138,6 +140,7 @@ import org.apache.kafka.common.requests.CreateDelegationTokenRequest;
 import org.apache.kafka.common.requests.CreatePartitionsRequest;
 import org.apache.kafka.common.requests.CreateTopicsRequest;
 import org.apache.kafka.common.requests.DeleteAclsRequest;
+import org.apache.kafka.common.requests.DeleteGroupsRequest;
 import org.apache.kafka.common.requests.DeleteRecordsRequest;
 import org.apache.kafka.common.requests.DeleteShareGroupOffsetsRequest;
 import org.apache.kafka.common.requests.DeleteShareGroupStateRequest;
@@ -165,6 +168,7 @@ import org.apache.kafka.common.requests.FetchSnapshotRequest;
 import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.apache.kafka.common.requests.GetTelemetrySubscriptionsRequest;
 import org.apache.kafka.common.requests.HeartbeatRequest;
+import org.apache.kafka.common.requests.IncrementalAlterConfigsRequest;
 import org.apache.kafka.common.requests.InitProducerIdRequest;
 import org.apache.kafka.common.requests.InitializeShareGroupStateRequest;
 import org.apache.kafka.common.requests.JoinGroupRequest;
@@ -325,6 +329,10 @@ class ErrorResponseFactoryTest {
         builders.put(ApiKeys.VOTE, VoteRequestData::new);
 
         // Array-copy: populate with real elements so per-element error stamping is actually exercised.
+        builders.put(ApiKeys.DELETE_GROUPS, () -> new DeleteGroupsRequestData().setGroupsNames(List.of("group-1", "group-2")));
+        builders.put(ApiKeys.INCREMENTAL_ALTER_CONFIGS, () -> new IncrementalAlterConfigsRequestData().setResources(
+                new IncrementalAlterConfigsRequestData.AlterConfigsResourceCollection(
+                        List.of(new IncrementalAlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a").setResourceType((byte) 2)).iterator())));
         builders.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, () -> new ConsumerGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")));
         builders.put(ApiKeys.SHARE_GROUP_DESCRIBE, () -> new ShareGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")));
         builders.put(ApiKeys.STREAMS_GROUP_DESCRIBE, () -> new StreamsGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")));
@@ -523,6 +531,8 @@ class ErrorResponseFactoryTest {
         builders.put(ApiKeys.UPDATE_RAFT_VOTER, (data, v) -> new UpdateRaftVoterRequest((UpdateRaftVoterRequestData) data, v));
         builders.put(ApiKeys.VOTE, (data, v) -> new VoteRequest.Builder((VoteRequestData) data).build(v));
 
+        builders.put(ApiKeys.DELETE_GROUPS, (data, v) -> new DeleteGroupsRequest((DeleteGroupsRequestData) data, v));
+        builders.put(ApiKeys.INCREMENTAL_ALTER_CONFIGS, (data, v) -> new IncrementalAlterConfigsRequest((IncrementalAlterConfigsRequestData) data, v));
         builders.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, (data, v) -> new ConsumerGroupDescribeRequest((ConsumerGroupDescribeRequestData) data, v));
         builders.put(ApiKeys.SHARE_GROUP_DESCRIBE, (data, v) -> new ShareGroupDescribeRequest((ShareGroupDescribeRequestData) data, v));
         builders.put(ApiKeys.STREAMS_GROUP_DESCRIBE, (data, v) -> new StreamsGroupDescribeRequest((StreamsGroupDescribeRequestData) data, v));
