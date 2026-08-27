@@ -744,6 +744,7 @@
                             <g4>JAVADOC_STYLE</g4>
                             <operator>SCRIPT_STYLE</operator>
                             <requirements.txt>SCRIPT_STYLE</requirements.txt>
+                            <preserve-kroxylicious.txt>SCRIPT_STYLE</preserve-kroxylicious.txt>
                         </mapping>
                     </configuration>
                 </plugin>
