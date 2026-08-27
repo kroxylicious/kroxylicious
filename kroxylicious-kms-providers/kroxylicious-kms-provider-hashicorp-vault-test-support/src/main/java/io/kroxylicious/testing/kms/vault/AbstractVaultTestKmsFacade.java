@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultEdek;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse;
+import io.kroxylicious.kms.provider.hashicorp.vault.WrappingKey;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -50,7 +51,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * Transit engine REST API, leaving subclasses responsible for the lifecycle of, and connection
  * details for, the underlying Vault instance.
  */
-public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
+public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config, WrappingKey, VaultEdek> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVaultTestKmsFacade.class);
 

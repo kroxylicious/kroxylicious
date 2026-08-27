@@ -41,6 +41,9 @@ public record VaultResponse<D>(D data) {
          */
         public ReadKeyData {
             Objects.requireNonNull(name);
+            if (latestVersion < 1) {
+                throw new IllegalArgumentException("latest_version must be >= 1, got " + latestVersion);
+            }
         }
     }
 

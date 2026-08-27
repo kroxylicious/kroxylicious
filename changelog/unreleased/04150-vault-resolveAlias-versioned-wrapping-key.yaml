@@ -1,0 +1,4 @@
+title: "fix(kms): HashiCorp Vault resolveAlias now returns a versioned key reference so KEK rotations are picked up within the alias cache refresh period"
+type: fixed
+issues:
+  - 4150
