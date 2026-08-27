@@ -13,6 +13,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.AbstractResponse;
 
 import io.kroxylicious.proxy.filter.Filter;
@@ -31,8 +32,10 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 @Plugin(configType = ShortCircuitErrorResponse.Config.class)
 public class ShortCircuitErrorResponse implements FilterFactory<ShortCircuitErrorResponse.Config, ShortCircuitErrorResponse.ResponseMechanism> {
 
+    private static final String ERROR_MESSAGE = ShortCircuitErrorResponse.class.getName() + ": responding error to all requests";
+
     private static UnknownServerException exception() {
-        return new UnknownServerException(ShortCircuitErrorResponse.class.getName() + ": responding error to all requests");
+        return new UnknownServerException(ERROR_MESSAGE);
     }
 
     public enum ResponseMechanism implements RequestFilter {
@@ -40,7 +43,7 @@ public class ShortCircuitErrorResponse implements FilterFactory<ShortCircuitErro
             @Override
             public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
                 return context.requestFilterResultBuilder()
-                        .errorResponse(header, request, exception())
+                        .errorResponse(header, request, Errors.UNKNOWN_SERVER_ERROR, ERROR_MESSAGE)
                         .completed();
             }
         },

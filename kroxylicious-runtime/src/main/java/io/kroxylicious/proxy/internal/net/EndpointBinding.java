@@ -29,9 +29,26 @@ public interface EndpointBinding {
     HostPort upstreamTarget();
 
     /**
-     * If set true, the upstream target must only be used for metadata discovery.
+     * Returns {@code true} if this binding is a temporary placeholder whose upstream target
+     * must only be used for initial topology discovery, not for serving real client traffic.
      *
-     * @return true if the target must be restricted to metadata discovery.
+     * <p>A {@code true} value indicates that the proxy has bound a port for a broker node ID
+     * but does not yet know that broker's real upstream address. The upstream target points at
+     * the cluster's bootstrap server as a stand-in. Once the real topology is learned (via a
+     * Metadata response), the registry replaces this binding with a {@link BrokerEndpointBinding}
+     * that points at the actual broker address.
+     *
+     * <p><strong>Note for callers:</strong> this flag can be {@code true} for virtual clusters
+     * using either direct or dynamic routing, because {@link MetadataDiscoveryBrokerEndpointBinding}
+     * is created for any virtual cluster whose gateway declares per-node ports. Callers that
+     * install {@link io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner} in
+     * response to this flag <em>must</em> additionally verify that the virtual cluster uses
+     * {@link io.kroxylicious.proxy.internal.routing.DirectRouting}, because
+     * {@code EagerMetadataLearner} relies on {@link #upstreamTarget()} which throws for
+     * dynamic routing.
+     *
+     * @return {@code true} if the upstream target is restricted to metadata discovery.
+     * @see MetadataDiscoveryBrokerEndpointBinding
      */
     default boolean restrictUpstreamToMetadataDiscovery() {
         return false;

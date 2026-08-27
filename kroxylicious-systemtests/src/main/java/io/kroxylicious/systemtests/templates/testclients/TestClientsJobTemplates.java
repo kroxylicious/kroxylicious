@@ -114,25 +114,42 @@ public class TestClientsJobTemplates {
      * @return  the job builder
      */
     public static JobBuilder authenticationAdminClientJob(String jobName, List<String> args, String additionalConfig) {
+        return authenticationAdminClientJob(jobName, args, additionalConfig, Map.of());
+    }
+
+    /**
+     * Authentication admin client job builder with JVM system properties.
+     *
+     * @param jobName the job name
+     * @param args the admin client arguments
+     * @param additionalConfig the additional config (SASL/SSL properties)
+     * @param javaSystemProperties JVM system properties to set via JAVA_TOOL_OPTIONS
+     * @return  the job builder
+     */
+    public static JobBuilder authenticationAdminClientJob(String jobName, List<String> args, String additionalConfig,
+                                                          Map<String, String> javaSystemProperties) {
         // Firstly configure admin client with additional configuration, then run the actual admin-client command from arguments
         String command = "admin-client configure common --from-env && admin-client " + String.join(" ", args);
+
+        var containerBuilder = ContainerTemplates.baseImageBuilder("admin", Environment.TEST_CLIENTS_IMAGE)
+                .withCommand("sh")
+                .withArgs("-c", command)
+                .addNewEnv()
+                .withName("CONFIG_FOLDER_PATH")
+                .withValue("/tmp")
+                .endEnv()
+                .addNewEnv()
+                .withName(ADDITIONAL_CONFIG_VAR)
+                .withValue(additionalConfig)
+                .endEnv();
+
+        addJavaToolOptions(containerBuilder, javaSystemProperties);
 
         return baseClientJob(jobName)
                 .editSpec()
                 .editTemplate()
                 .editSpec()
-                .withContainers(ContainerTemplates.baseImageBuilder("admin", Environment.TEST_CLIENTS_IMAGE)
-                        .withCommand("sh")
-                        .withArgs("-c", command)
-                        .addNewEnv()
-                        .withName("CONFIG_FOLDER_PATH")
-                        .withValue("/tmp")
-                        .endEnv()
-                        .addNewEnv()
-                        .withName(ADDITIONAL_CONFIG_VAR)
-                        .withValue(additionalConfig)
-                        .endEnv()
-                        .build())
+                .withContainers(containerBuilder.build())
                 .endSpec()
                 .endTemplate()
                 .endSpec();
@@ -152,10 +169,31 @@ public class TestClientsJobTemplates {
      */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
                                                           @Nullable String messageKey, Map<String, String> additionalConfig) {
+        return defaultTestClientProducerJob(jobName, bootstrap, topicName, numOfMessages, message, messageKey, additionalConfig, Map.of());
+    }
+
+    /**
+     * Default test client producer job builder with JVM system properties.
+     *
+     * @param jobName the job name
+     * @param bootstrap the bootstrap
+     * @param topicName the topic name
+     * @param numOfMessages the num of messages
+     * @param message the message
+     * @param messageKey the message key
+     * @param additionalConfig the additional config
+     * @param javaSystemProperties JVM system properties to set via JAVA_TOOL_OPTIONS
+     * @return  the job builder
+     */
+    public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
+                                                          @Nullable String messageKey, Map<String, String> additionalConfig,
+                                                          Map<String, String> javaSystemProperties) {
+        List<EnvVar> envVars = testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey, additionalConfig);
+        addJavaToolOptionsEnvVar(envVars, javaSystemProperties);
         return newJobForContainer(jobName,
                 "test-client-producer",
                 Environment.TEST_CLIENTS_IMAGE,
-                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey, additionalConfig));
+                envVars);
     }
 
     private static JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
@@ -184,10 +222,30 @@ public class TestClientsJobTemplates {
      */
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages,
                                                           Map<String, String> additionalKafkaProps, String consumerGroup) {
+        return defaultTestClientConsumerJob(jobName, bootstrap, topicName, numOfMessages, additionalKafkaProps, consumerGroup, Map.of());
+    }
+
+    /**
+     * Default test client consumer job builder with JVM system properties.
+     *
+     * @param jobName the job name
+     * @param bootstrap the bootstrap
+     * @param topicName the topic name
+     * @param numOfMessages the num of messages
+     * @param additionalKafkaProps the additional kafka props
+     * @param consumerGroup the consumer group
+     * @param javaSystemProperties JVM system properties to set via JAVA_TOOL_OPTIONS
+     * @return  the job builder
+     */
+    public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages,
+                                                          Map<String, String> additionalKafkaProps, String consumerGroup,
+                                                          Map<String, String> javaSystemProperties) {
+        List<EnvVar> envVars = new ArrayList<>(testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages, additionalKafkaProps, consumerGroup));
+        addJavaToolOptionsEnvVar(envVars, javaSystemProperties);
         return newJobForContainer(jobName,
                 "test-client-consumer",
                 Environment.TEST_CLIENTS_IMAGE,
-                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages, additionalKafkaProps, consumerGroup));
+                envVars);
     }
 
     /**
@@ -322,5 +380,27 @@ public class TestClientsJobTemplates {
                 envVar(CLIENT_TYPE_VAR, "KafkaConsumer"),
                 envVar(OUTPUT_FORMAT_VAR, "json"),
                 envVar(ADDITIONAL_CONFIG_VAR, additionalConfigVar));
+    }
+
+    private static void addJavaToolOptionsEnvVar(List<EnvVar> envVars, Map<String, String> javaSystemProperties) {
+        if (!javaSystemProperties.isEmpty()) {
+            String javaToolOpts = javaSystemProperties.entrySet().stream()
+                    .map(e -> "-D" + e.getKey() + "=" + e.getValue())
+                    .collect(Collectors.joining(" "));
+            envVars.add(envVar("JAVA_TOOL_OPTIONS", javaToolOpts));
+        }
+    }
+
+    private static void addJavaToolOptions(io.fabric8.kubernetes.api.model.ContainerBuilder containerBuilder,
+                                           Map<String, String> javaSystemProperties) {
+        if (!javaSystemProperties.isEmpty()) {
+            String javaToolOpts = javaSystemProperties.entrySet().stream()
+                    .map(e -> "-D" + e.getKey() + "=" + e.getValue())
+                    .collect(Collectors.joining(" "));
+            containerBuilder.addNewEnv()
+                    .withName("JAVA_TOOL_OPTIONS")
+                    .withValue(javaToolOpts)
+                    .endEnv();
+        }
     }
 }

@@ -39,8 +39,11 @@
         <module>../kroxylicious-bom</module>
         <module>../kroxylicious-api</module>
         <module>../kroxylicious-kafka-message-json</module>
+        <module>../kroxylicious-fidelity-harness</module>
+        <module>../kroxylicious-wire-fidelity-tests</module>
         <module>../kroxylicious-integration-test-support</module>
         <module>../kroxylicious-runtime</module>
         <module>../kroxylicious-app</module>
+        <module>../tools/kafka-vendoring</module>
     </modules>
 </project>

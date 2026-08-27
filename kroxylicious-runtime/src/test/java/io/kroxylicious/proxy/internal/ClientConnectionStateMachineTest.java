@@ -1948,6 +1948,38 @@ class ClientConnectionStateMachineTest {
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
         }
 
+        @Test
+        void onShortCircuitResponseCompleteShouldDecrementAndFireDrainWhenCountReachesZero() {
+            // Given
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When
+            clientConnectionStateMachine.onShortCircuitResponseComplete();
+
+            // Then
+            assertThat(closedFuture).isCompleted();
+        }
+
+        @Test
+        void onShortCircuitResponseCompleteShouldDecrementWithoutFiringDrainWhenCountStillPositive() {
+            // Given
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When
+            clientConnectionStateMachine.onShortCircuitResponseComplete();
+
+            // Then: one decrement, one still in-flight
+            assertThat(closedFuture).isNotCompleted();
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+        }
+
         /**
          * Drives a request through {@code onClientRequest} while in Forwarding to bump
          * the internal client-in-flight counter by one. {@code admitToFilterChain} is

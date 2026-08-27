@@ -28,9 +28,6 @@
 # so nothing depends on what OpenRewrite decides to do with the import.
 
 - file: org/apache/kafka/common/compress/GzipCompressionTest.java
-  stripImports:
-    - '\.config\.ConfigDef'
-    - '\.config\.ConfigException'
   removeBlocks:
     - signature: 'public\s+void\s+testLevelValidator\s*\(\s*\)'
       label: GzipCompressionTest.testLevelValidator
@@ -38,8 +35,6 @@
 - file: org/apache/kafka/common/utils/UtilsTest.java
   # These ten methods test the four Utils methods (propsToMap, castToStringObjectMap,
   # ensureConcreteSubclass, mergeConfigs) that main/edits.yaml already strips from Utils.java.
-  stripImports:
-    - '\.config\.ConfigException'
   removeBlocks:
     - signature: 'public\s+void\s+testPropsToMap\s*\(\s*\)'
       label: UtilsTest.testPropsToMap

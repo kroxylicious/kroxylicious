@@ -44,11 +44,11 @@ class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestDa
         return authorization.thenCompose(result -> {
             Decision transactionalResult = result.decision(TransactionalIdResource.WRITE, request.transactionalId());
             if (transactionalResult == Decision.DENY) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED).completed();
             }
             Decision groupResult = result.decision(GroupResource.READ, request.groupId());
             if (groupResult == Decision.DENY) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
             }
             Map<Decision, List<TxnOffsetCommitRequestTopic>> partitioned = result.partition(request.topics(), TopicResource.READ,
                     TxnOffsetCommitRequestTopic::name);

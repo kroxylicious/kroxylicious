@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.24.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>kroxylicious-wire-fidelity-tests</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Kafka wire-fidelity confirmation suite</name>
+    <description>Confirms byte-level wire compatibility between io.kroxylicious.kafka.common.message.*Data classes
+        (kroxylicious-api) and their org.apache.kafka.common.message.*Data equivalents from kafka-clients, using
+        the kroxylicious-fidelity-harness checker. Test-only: nothing here is meant to be depended on.</description>
+
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-fidelity-harness</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Pinned to kafka.message-spec.version rather than the project's managed kafka.version:
+             our *Data classes are generated from the IDL specs bundled in this exact kafka-clients
+             jar, so fidelity must be proven against that same jar's actual implementations. Mirrors
+             the pin used in kroxylicious-api/pom.xml's unpack-data-class-message-specs execution. -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.message-spec.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

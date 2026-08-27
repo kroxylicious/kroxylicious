@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
@@ -32,6 +31,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.it.testplugins.router.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
@@ -367,7 +367,7 @@ class RoutingContextContractIT {
     void respondWithErrorDeliversApiSpecificErrorResponseToClient(KafkaCluster cluster) {
         // Given: router returns an error for every API_VERSIONS request
         ContextCapturingRouterFactory.currentAction
-                .set((apiKey, apiVersion, header, request, ctx) -> ctx.respondWithError(header, request, new UnknownServerException("routing failed")).completed());
+                .set((apiKey, apiVersion, header, request, ctx) -> ctx.respondWithError(header, request, Errors.UNKNOWN_SERVER_ERROR, "routing failed").completed());
 
         try (var tester = KroxyliciousTesters.newBuilder(config(cluster))
                 .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
@@ -574,6 +574,157 @@ class RoutingContextContractIT {
                 .addToClusterDefinitions(clusterA)
                 .addToClusterDefinitions(clusterB)
                 .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+    }
+
+    /**
+     * Same scenario as {@link #nodeForIdWithBijectiveMappingRoutesToCorrectUpstream()} but with
+     * the bijective-mapped router nested inside an outer router. Verifies that {@link RouterContext#nodeForId(int)}
+     * works correctly through the {@code NestedRouterDispatch} path.
+     */
+    @Test
+    void nodeForIdWithBijectiveMappingRoutesToCorrectUpstreamThroughNestedRouter() {
+        try (var mockA = MockServer.startOnRandomPort();
+                var mockB = MockServer.startOnRandomPort()) {
+
+            // Given
+            var mdA = new MetadataResponseData();
+            mdA.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockA.port()));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdA));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+            var mdB = new MetadataResponseData();
+            mdB.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockB.port()));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+            var metadataHeader = new RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.METADATA.id)
+                    .setRequestApiVersion((short) 12);
+
+            ContextCapturingRouterFactory.currentAction
+                    .set((apiKey, apiVersion, header, request, ctx) -> ctx.sendRequest(ctx.anyNode("route-a"), metadataHeader, new MetadataRequestData())
+                            .thenCompose(ignored -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new MetadataRequestData()))
+                            .thenCompose(ignored -> {
+                                var node = ctx.nodeForId(1);
+                                return ctx.sendRequest(node, header, request)
+                                        .thenCompose(body -> ctx.respondWith(body).completed());
+                            }));
+
+            try (var tester = KroxyliciousTesters.newBuilder(nestedBijectiveConfig(mockA, mockB))
+                    .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                    var client = tester.simpleTestClient()) {
+
+                // When
+                var response = client.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+
+                // Then
+                assertThat(response.payload().message()).isInstanceOf(ListGroupsResponseData.class);
+                assertThat(mockB.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .contains(ApiKeys.LIST_GROUPS);
+                assertThat(mockA.getReceivedRequests())
+                        .filteredOn(r -> r.apiKeys() == ApiKeys.LIST_GROUPS)
+                        .isEmpty();
+            }
+        }
+    }
+
+    /**
+     * Same scenario as {@link #virtualNodeWithBijectiveMappingRoutesToCorrectUpstream()} but with
+     * the bijective-mapped router nested inside an outer router. Verifies that {@link RouterContext#virtualNode()}
+     * works correctly when the gateway's virtual node ID is passed through to the nested router.
+     */
+    @Test
+    void virtualNodeWithBijectiveMappingRoutesToCorrectUpstreamThroughNestedRouter() {
+        try (var mockA = MockServer.startOnRandomPort();
+                var mockB = MockServer.startOnRandomPort()) {
+
+            // Given
+            var mdA = new MetadataResponseData();
+            mdA.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockA.port()));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdA));
+
+            var mdB = new MetadataResponseData();
+            mdB.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockB.port()));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
+
+            var metadataHeader = new RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.METADATA.id)
+                    .setRequestApiVersion((short) 12);
+
+            ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
+                var vn = ctx.virtualNode();
+                if (vn.isEmpty()) {
+                    return ctx.sendRequest(ctx.anyNode("route-a"), header, request)
+                            .thenCompose(bodyA -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new MetadataRequestData())
+                                    .thenCompose(bodyB -> {
+                                        ((MetadataResponseData) bodyB).brokers()
+                                                .forEach(b -> ((MetadataResponseData) bodyA).brokers().add(b.duplicate()));
+                                        return ctx.respondWith(bodyA).completed();
+                                    }));
+                }
+                return ctx.sendRequest(vn.get(), header, request)
+                        .thenCompose(body -> ctx.respondWith(body).completed());
+            });
+
+            try (var tester = KroxyliciousTesters.newBuilder(nestedBijectiveConfig(mockA, mockB))
+                    .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
+                // Given
+                primeProxyWithBrokerAddresses(tester);
+                mockA.clear();
+                mockB.clear();
+                mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+                mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+                // When
+                try (var nodeZero = tester.simpleTestClient("localhost:9193", false)) {
+                    nodeZero.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+                }
+                try (var nodeOne = tester.simpleTestClient("localhost:9194", false)) {
+                    nodeOne.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+                }
+
+                // Then
+                assertThat(mockA.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .containsExactly(ApiKeys.LIST_GROUPS);
+                assertThat(mockB.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .containsExactly(ApiKeys.LIST_GROUPS);
+            }
+        }
+    }
+
+    private ConfigurationBuilder nestedBijectiveConfig(MockServer mockA, MockServer mockB) {
+        var clusterA = new ClusterDefinition("cluster-a", "localhost:" + mockA.port(), null);
+        var clusterB = new ClusterDefinition("cluster-b", "localhost:" + mockB.port(), null);
+        var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
+        var innerRouter = new RouterDefinition(ROUTER,
+                ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config("route-a"),
+                List.of(routeA, routeB));
+        var outerRoute = new RouteDefinition("to-inner", 0, List.of(), new RouteTarget(null, ROUTER));
+        var outerRouter = new RouterDefinition("outer",
+                ClientIdRouterFactory.class.getName(),
+                new ClientIdRouterFactory.Config(Map.of(), "to-inner"),
+                List.of(outerRoute));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, "outer"))
+                .addToGateways(defaultGatewayBuilder()
+                        .withNewPortIdentifiesNode()
+                        .withBootstrapAddress(HostPort.parse(BOOTSTRAP))
+                        .withNodeIdRanges(new NamedRange("nodes", 0, 1))
+                        .endPortIdentifiesNode()
+                        .build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterA)
+                .addToClusterDefinitions(clusterB)
+                .addToRouterDefinitions(innerRouter)
+                .addToRouterDefinitions(outerRouter)
                 .addToVirtualClusters(vc);
     }
 

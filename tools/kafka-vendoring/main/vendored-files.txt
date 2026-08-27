@@ -22,6 +22,7 @@
 # kind of dead weight from main-code usage alone, but the forked MemoryRecordsTest constructs
 # RecordHeaders directly as a test fixture, so both stay — a reminder that "unreachable from main
 # code" isn't the same question as "unreachable", once main and test share one vendored tree.
+org/apache/kafka/common/protocol/Errors.java
 org/apache/kafka/common/InvalidRecordException.java
 org/apache/kafka/common/KafkaException.java
 org/apache/kafka/common/Uuid.java
