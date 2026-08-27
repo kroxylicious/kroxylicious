@@ -11,10 +11,11 @@
 `io.kroxylicious.kafka.common.*` namespace, so that the API references no
 `org.apache.kafka.*` types. That surface has three parts:
 
-1. **Generated message classes** — the `*Data` / `*DataJsonConverter` classes and
-   `ApiMessageType`, produced on every build by the forked message generator
-   (`kroxylicious-kafka-message-generator`) from the protocol JSON specs. These are
-   **not** committed; they land in `target/generated-sources/kafka-messages`.
+1. **Generated message classes** — the `*Data` / `*DataJsonConverter` classes,
+   `ApiMessageType` and the `ApiKeys` enum (a veneer over `ApiMessageType`), produced on
+   every build by the forked message generator (`kroxylicious-kafka-message-generator`)
+   from the protocol JSON specs. These are **not** committed; they land in
+   `target/generated-sources/kafka-messages`.
 2. **Vendored support classes** — the ~90 non-generated classes the generated code
    needs at runtime (records, compression, protocol readers/writers, a handful of
    utils and errors). These **are** committed, under

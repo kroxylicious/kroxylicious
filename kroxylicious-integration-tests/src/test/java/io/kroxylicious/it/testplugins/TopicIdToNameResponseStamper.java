@@ -18,11 +18,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.InvalidRequestException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
 
 import io.kroxylicious.it.UnknownTaggedFields;
@@ -78,7 +78,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<TopicIdToName
         public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
             List<String> list = UnknownTaggedFields.unknownTaggedFieldsToStrings(request, TOPIC_ID_TAG).toList();
             if (list.isEmpty()) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, new InvalidRequestException("no topic id tag")).withCloseConnection()
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.INVALID_REQUEST, "no topic id tag").withCloseConnection()
                         .completed();
             }
 

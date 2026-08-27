@@ -293,6 +293,10 @@ class InternalCompletableFuture<T> extends CompletableFuture<T> {
         return super.whenComplete(action);
     }
 
+    // FutureReturnValueIgnored: the failure is handled inside the callback; dispatch() handles
+    // the throwable and propagates it to incompleteFuture, and the derived stage can only fail
+    // if the callback itself throws.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void whenCompleteDispatch(CompletableFuture<T> incompleteFuture) {
         super.whenComplete((t, throwable) -> dispatch(t, throwable, incompleteFuture));
     }

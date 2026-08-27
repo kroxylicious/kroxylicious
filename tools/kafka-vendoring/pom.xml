@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.24.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>kroxylicious-kafka-vendoring</artifactId>
+    <name>Kroxylicious Vendoring</name>
+    <description>Tooling used in support of vendoring Apache Kafka sources into Kroxylicious</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Manages OpenRewrite test library versions -->
+            <dependency>
+                <groupId>org.openrewrite.recipe</groupId>
+                <artifactId>rewrite-recipe-bom</artifactId>
+                <version>3.37.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-java</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-java-${java.version}</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+        <!-- JUnit 5 test framework -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>analyze</id>
+                        <configuration>
+                            <ignoredUnusedDeclaredDependencies>
+                                org.apache.kafka:kafka-clients,org.openrewrite:rewrite-java-${java.version},org.jspecify:jspecify
+                            </ignoredUnusedDeclaredDependencies>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

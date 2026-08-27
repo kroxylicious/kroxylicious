@@ -42,7 +42,7 @@ class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, Of
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
                     if (authorization.denied().contains(groupDeleteAction)) {
-                        return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                        return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
                     }
                     var decisions = authorization.partition(request.topics(),
                             TopicResource.READ,

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.protocollogger;
 
+import java.time.Clock;
 import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Map;
@@ -109,7 +110,7 @@ public class ProtocolLogger implements FilterFactory<ProtocolLogger.Config, Prot
                     .collect(Collectors.toCollection(() -> EnumSet.noneOf(ApiKeys.class)));
         }
         Logger logger = LoggerFactory.getLogger(config.loggerName());
-        return new ProtocolLoggerFilter(keys, new MessageFormatter(), config.logLevel(), logger);
+        return new ProtocolLoggerFilter(keys, new MessageFormatter(), config.logLevel(), logger, new LogWarningThrottle(Clock.systemUTC(), config.loggerName()));
     }
 
 }

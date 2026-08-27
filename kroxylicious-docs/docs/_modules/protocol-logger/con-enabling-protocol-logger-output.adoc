@@ -1,0 +1,67 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// index.adoc
+
+[id='con-enabling-protocol-logger-output-{context}']
+= Enabling log output
+
+[role="_abstract"]
+The filter is silent by default.
+Two settings must agree for output to appear:
+
+. The filter's own `logLevel` configuration property (default `DEBUG`).
+. The logging backend must be enabled at that level for the logger used by the filter instance.
+
+Setting one without the other produces no output at all.
+With default settings, adding the filter to your proxy configuration and seeing nothing is expected — the logging backend must also be told to emit `DEBUG` messages for the filter's logger.
+
+The simplest way to see output is to set the environment variable before starting the proxy:
+
+[source,shell]
+----
+KROXYLICIOUS_APP_LOG_LEVEL=DEBUG bin/kroxylicious-start.sh --config proxy-config.yaml
+----
+
+This enables `DEBUG` for all `io.kroxylicious` loggers.
+For a more targeted approach, add a logger entry to `log4j2.yaml` as described in the next section.
+
+== Runtime log level tuning
+
+The same filter configuration can be deployed to development and production environments.
+Operators turn output on and off by tuning the logging backend — no proxy restart and no configuration change are required.
+
+Add `monitorInterval` to the top of your `log4j2.yaml` so that Log4j 2 re-reads the file periodically.
+Then add a logger entry for the filter:
+
+[source,yaml]
+----
+Configuration:
+  monitorInterval: 5          # re-read this file every 5 seconds
+  # ... appenders unchanged ...
+  Loggers:
+    # ... other loggers ...
+    Logger:
+      - name: io.kroxylicious.filter.protocollogger.ProtocolLoggerFilter
+        level: DEBUG           # change to WARN or OFF to silence
+        additivity: false
+        AppenderRef:
+          - ref: STDOUT
+----
+
+`monitorInterval` is what makes this work without a restart.
+Edit the file, change the level, and within `monitorInterval` seconds the proxy starts or stops emitting protocol traces.
+
+NOTE: The default `log4j2.yaml` shipped with the proxy distribution does *not* include `monitorInterval`. An operator must add it to enable live tuning.
+
+When using a custom `loggerName`, the logger entry must match that name instead of the filter class name.
+
+Other SLF4J backends work too — the only requirement is a logger enabled at the configured level for the name used by the filter instance.
+Log4j 2 is the example because it is what the proxy distribution uses by default.

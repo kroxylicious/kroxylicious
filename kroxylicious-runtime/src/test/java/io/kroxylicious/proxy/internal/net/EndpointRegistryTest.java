@@ -1209,6 +1209,9 @@ class EndpointRegistryTest {
             }
         }
 
+        // FutureReturnValueIgnored: the handle callback completes `dest` in both branches
+        // (exceptionally on failure, normally on success); the derived stage carries no additional information.
+        @SuppressWarnings("FutureReturnValueIgnored")
         private <U> void propagateFutureResult(CompletableFuture<U> source, CompletableFuture<U> dest) {
             source.handle((c, t) -> {
                 if (t != null) {

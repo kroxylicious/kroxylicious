@@ -79,9 +79,9 @@ class ProduceRequestValidatorBuilder {
     private static BytebufValidator buildSchemaValidator(SchemaValidationConfig config) {
         var schemaResolverConfig = buildSchemaResolverConfig(config);
         return switch (config.schemaType()) {
-            case JSON_SCHEMA -> BytebufValidators.jsonSchemaValidator(schemaResolverConfig, config.apicurioId(), config.wireFormatVersion());
-            case AVRO -> BytebufValidators.avroSchemaValidator(schemaResolverConfig, config.apicurioId(), config.wireFormatVersion());
-            case PROTOBUF -> BytebufValidators.protobufSchemaValidator(schemaResolverConfig, config.apicurioId(), config.wireFormatVersion());
+            case JSON_SCHEMA -> BytebufValidators.jsonSchemaValidator(schemaResolverConfig, config.apicurioId());
+            case AVRO -> BytebufValidators.avroSchemaValidator(schemaResolverConfig, config.apicurioId());
+            case PROTOBUF -> BytebufValidators.protobufSchemaValidator(schemaResolverConfig, config.apicurioId());
         };
     }
 

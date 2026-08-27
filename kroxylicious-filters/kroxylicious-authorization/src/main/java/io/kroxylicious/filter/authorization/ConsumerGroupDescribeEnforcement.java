@@ -67,7 +67,7 @@ class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescr
         List<Action> describeGroupActions = getActions(request, includeAuthorizedOperations);
         return authorizationFilter.authorization(context, describeGroupActions).thenCompose(authorizeResult -> {
             if (authorizeResult.allowed(GroupResource.DESCRIBE).isEmpty()) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
             }
             else if (!authorizeResult.denied().isEmpty()) {
                 Map<Decision, List<String>> groupsByDecision = authorizeResult.partition(request.groupIds(), GroupResource.DESCRIBE, Function.identity());

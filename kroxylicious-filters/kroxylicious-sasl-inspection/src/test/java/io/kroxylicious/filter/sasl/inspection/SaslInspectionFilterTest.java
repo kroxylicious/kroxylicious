@@ -130,7 +130,7 @@ class SaslInspectionFilterTest {
                 return requestCloseOrTerminalStage;
             });
 
-            lenient().when(requestBuilder.errorResponse(any(), any(), any())).thenReturn(requestCloseOrTerminalStage);
+            lenient().when(requestBuilder.errorResponse(any(), any(), any(Errors.class))).thenReturn(requestCloseOrTerminalStage);
             return requestBuilder;
         });
 

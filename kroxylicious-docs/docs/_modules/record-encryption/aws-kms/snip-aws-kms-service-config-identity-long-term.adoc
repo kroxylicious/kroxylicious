@@ -37,5 +37,3 @@ where:
 **** `accessKeyId` references a file containing the AWS access key ID.
 **** `secretAccessKey` references a file containing the AWS secret access key.
 ** `region` defines the AWS region identifier where KMS resources are located, such as `us-east-1`. This must match the region of the KMS endpoint you're using.
-
-NOTE: The legacy top-level `longTermCredentials` key is deprecated but continues to work for backward compatibility. New configurations should use `credentials.longTerm` instead.

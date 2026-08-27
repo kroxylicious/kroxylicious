@@ -76,7 +76,7 @@ class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFil
         List<Uuid> uuids = extractTopicIds(request);
         return context.topicNames(uuids).thenCompose(topicNameMapping -> {
             if (topicNameMapping.anyFailures()) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.UNKNOWN_TOPIC_ID.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.UNKNOWN_TOPIC_ID).completed();
             }
             List<NamedTopicProduceData> namedTopicProduceData = request.topicData().stream()
                     .map(data -> namedData(topicNameMapping, data)).toList();
