@@ -53,6 +53,8 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DeleteAclsRequestData;
 import org.apache.kafka.common.message.DeleteAclsResponseData;
+import org.apache.kafka.common.message.DeleteGroupsRequestData;
+import org.apache.kafka.common.message.DeleteGroupsResponseData;
 import org.apache.kafka.common.message.DeleteRecordsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsResponseData;
 import org.apache.kafka.common.message.DeleteShareGroupOffsetsResponseData;
@@ -93,6 +95,8 @@ import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.GetTelemetrySubscriptionsResponseData;
 import org.apache.kafka.common.message.HeartbeatResponseData;
+import org.apache.kafka.common.message.IncrementalAlterConfigsRequestData;
+import org.apache.kafka.common.message.IncrementalAlterConfigsResponseData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.InitializeShareGroupStateResponseData;
@@ -218,6 +222,9 @@ public final class ErrorResponseFactory {
             case UPDATE_RAFT_VOTER -> new UpdateRaftVoterResponseData().setErrorCode(code).setThrottleTimeMs(THROTTLE_TIME_MS);
             case VOTE -> new VoteResponseData().setErrorCode(code);
 
+            case DELETE_GROUPS -> deleteGroupsErrorResponse((DeleteGroupsRequestData) requestBody, code);
+            case INCREMENTAL_ALTER_CONFIGS -> incrementalAlterConfigsErrorResponse((IncrementalAlterConfigsRequestData) requestBody, code,
+                    apiErrorMessage(error, message));
             case CONSUMER_GROUP_DESCRIBE -> consumerGroupDescribeErrorResponse((ConsumerGroupDescribeRequestData) requestBody, code);
             case SHARE_GROUP_DESCRIBE -> shareGroupDescribeErrorResponse((ShareGroupDescribeRequestData) requestBody, code);
             case STREAMS_GROUP_DESCRIBE -> streamsGroupDescribeErrorResponse((StreamsGroupDescribeRequestData) requestBody, code);
@@ -315,6 +322,25 @@ public final class ErrorResponseFactory {
             response.setThrottleTimeMs(THROTTLE_TIME_MS);
         }
         return response;
+    }
+
+    private static DeleteGroupsResponseData deleteGroupsErrorResponse(DeleteGroupsRequestData request, short code) {
+        List<DeleteGroupsResponseData.DeletableGroupResult> results = request.groupsNames().stream()
+                .map(groupId -> new DeleteGroupsResponseData.DeletableGroupResult().setGroupId(groupId).setErrorCode(code))
+                .toList();
+        return new DeleteGroupsResponseData().setResults(new DeleteGroupsResponseData.DeletableGroupResultCollection(results.iterator()))
+                .setThrottleTimeMs(THROTTLE_TIME_MS);
+    }
+
+    private static IncrementalAlterConfigsResponseData incrementalAlterConfigsErrorResponse(IncrementalAlterConfigsRequestData request, short code, String message) {
+        List<IncrementalAlterConfigsResponseData.AlterConfigsResourceResponse> responses = request.resources().stream()
+                .map(resource -> new IncrementalAlterConfigsResponseData.AlterConfigsResourceResponse()
+                        .setResourceName(resource.resourceName())
+                        .setResourceType(resource.resourceType())
+                        .setErrorCode(code)
+                        .setErrorMessage(message))
+                .toList();
+        return new IncrementalAlterConfigsResponseData().setResponses(responses);
     }
 
     private static ConsumerGroupDescribeResponseData consumerGroupDescribeErrorResponse(ConsumerGroupDescribeRequestData request, short code) {
