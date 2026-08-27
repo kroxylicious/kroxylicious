@@ -51,11 +51,12 @@ public class UseErrorsInsteadOfExceptions extends Recipe {
             J.MethodInvocation mi = super.visitMethodInvocation(method, ctx);
 
             // Target errorResponse invocations with 3 arguments
-            if ("errorResponse".equals(mi.getSimpleName())) {
-                Expression thirdArg = mi.getArguments().get(2);
+            List<Expression> arguments = mi.getArguments();
+            if ("errorResponse".equals(mi.getSimpleName()) && arguments.size() == 3) {
+                Expression thirdArg = arguments.get(2);
                 if (thirdArg instanceof J.MethodInvocation invocation) {
                     Expression innerExpression = invocation.getSelect();
-                    List<Expression> newArgs = new ArrayList<>(mi.getArguments());
+                    List<Expression> newArgs = new ArrayList<>(arguments);
                     newArgs.set(2, Objects.requireNonNull(innerExpression).withPrefix(thirdArg.getPrefix()));
 
                     maybeRemoveImport("org.apache.kafka.common.protocol.Errors");
