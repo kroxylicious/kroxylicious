@@ -79,11 +79,11 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 """).contextSensitive().build();
 
         private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                """
-                        Errors(int code, String message) {
-                            this.code = (short) code;
-                            this.message = message;
-                        }""")
+                        """
+                                Errors(int code, String message) {
+                                    this.code = (short) code;
+                                    this.message = message;
+                                }""")
                 .contextSensitive()
                 .build();
 
@@ -321,16 +321,17 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             @NonNull
             private static List<Javadoc> pruneLineBreaks(List<Javadoc> body) {
                 List<Javadoc> cleanedBody = new ArrayList<>(body);
-
+                if (body.isEmpty()) {
+                    return body;
+                }
                 if (cleanedBody.getLast() instanceof Javadoc.Text text && text.getText().trim().isEmpty()) {
                     cleanedBody.removeLast();
                 }
                 if (cleanedBody.getLast() instanceof Javadoc.LineBreak lastLine) {
                     String margin = lastLine.getMargin();
-                    if (margin.contains("*")) {
-                        String newMargin = margin.substring(0, margin.indexOf('*'));
+                    if (margin.endsWith("*")) {
                         cleanedBody.removeLast();
-                        cleanedBody.addLast(lastLine.withMargin(newMargin));
+                        cleanedBody.addLast(lastLine.withMargin(margin.substring(0, margin.lastIndexOf('*'))));
                     }
                 }
                 return cleanedBody;
