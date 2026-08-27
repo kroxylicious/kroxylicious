@@ -72,7 +72,7 @@ class UseErrorsInsteadOfExceptionsTest implements RewriteTest {
     }
 
     @Test
-    void shouldMigrateApacheMessagePackageToKroxyliciousPackage() {
+    void shouldRemoveExceptionInvocationFromApacheErrors() {
         rewriteRun(
                 java(
                         // Before (Input code)
