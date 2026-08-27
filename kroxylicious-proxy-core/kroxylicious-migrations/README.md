@@ -37,7 +37,7 @@ Downstream filter projects do not need to modify their `pom.xml` to execute publ
 
 ```bash
 mvn org.openrewrite.maven:rewrite-maven-plugin:run \
-  -Drewrite.dependencies=io.kroxylicious:kroxylicious-migrations:<RELEASE_VERSION> \
+  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:<RELEASE_VERSION> \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.v0_24.MigrateTo0_24
 
 ```
@@ -46,7 +46,7 @@ mvn org.openrewrite.maven:rewrite-maven-plugin:run \
 
 ```bash
 mvn org.openrewrite.maven:rewrite-maven-plugin:run \
-  -Drewrite.dependencies=io.kroxylicious:kroxylicious-migrations:<RELEASE_VERSION> \
+  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:<RELEASE_VERSION> \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.UpgradeToLatest
 
 ```
@@ -56,6 +56,8 @@ mvn org.openrewrite.maven:rewrite-maven-plugin:run \
 ## In-Tree Execution (Core Contributors)
 
 When developing or validating recipes against the local Kroxylicious repository, pass the absolute path using `$(pwd)` to bypass local artifact installation (`mvn install`):
+
+> NOTE: the `java.version` is required in order to avoid a maven property conflict between Rewrite and properties used by Kroxylicious's own POMs.
 
 **Preview Changes (Dry Run):**
 

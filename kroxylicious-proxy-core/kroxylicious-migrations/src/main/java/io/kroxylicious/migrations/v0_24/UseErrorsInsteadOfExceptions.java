@@ -18,7 +18,7 @@ import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 
 /**
- * Removes calls to `exception()` from Apaches Error enum. That is it transforms @{code Errors.GROUP_AUTHORIZATION_FAILED.exception()} into @{code Errors.GROUP_AUTHORIZATION_FAILED}
+ * Removes calls to `exception()` from Apaches Error enum. That is it transforms {@code Errors.GROUP_AUTHORIZATION_FAILED.exception()} into {@code Errors.GROUP_AUTHORIZATION_FAILED}
  */
 public class UseErrorsInsteadOfExceptions extends Recipe {
 
@@ -26,6 +26,7 @@ public class UseErrorsInsteadOfExceptions extends Recipe {
      * Instantiates an instance
      */
     public UseErrorsInsteadOfExceptions() {
+        // Intentionally empty
     }
 
     @Override
