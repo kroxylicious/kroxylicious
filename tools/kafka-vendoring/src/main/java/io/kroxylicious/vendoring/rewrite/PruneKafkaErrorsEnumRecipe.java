@@ -79,11 +79,11 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 """).contextSensitive().build();
 
         private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                """
-                        Errors(int code, String message) {
-                            this.code = (short) code;
-                            this.message = message;
-                        }""")
+                        """
+                                Errors(int code, String message) {
+                                    this.code = (short) code;
+                                    this.message = message;
+                                }""")
                 .contextSensitive()
                 .build();
 
@@ -184,12 +184,6 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
         private boolean isClassToErrorIf(J.If ifStmt) {
             Statement body = ifStmt.getThenPart();
-            if (body instanceof J.Block block) {
-                if (block.getStatements().isEmpty()) {
-                    return false;
-                }
-                body = block.getStatements().getFirst();
-            }
             if (body instanceof J.MethodInvocation mi) {
                 Expression selectExpression = mi.getSelect();
                 return selectExpression != null && selectExpression.toString().endsWith("CLASS_TO_ERROR") && "put".equals(mi.getSimpleName());
