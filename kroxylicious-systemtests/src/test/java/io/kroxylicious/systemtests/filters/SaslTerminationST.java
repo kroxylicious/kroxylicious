@@ -19,7 +19,6 @@ import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -39,6 +38,7 @@ import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileManager;
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.clients.KafkaClient;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
@@ -173,8 +173,6 @@ class SaslTerminationST extends AbstractSystemTests {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
-    @Disabled("Blocked by KAFKA-20184: Kafka 4.1+ eagerly loads jose4j via DefaultJwtValidator"
-            + " during OAUTHBEARER client login, but the Strimzi test-clients image does not bundle jose4j")
     @Test
     void testOauthBearerAuthentication(String namespace) {
         // kcat does not support OAUTHBEARER authentication
@@ -205,15 +203,21 @@ class SaslTerminationST extends AbstractSystemTests {
         Map<String, String> allowedUrlsSystemProps = Map.of(
                 "org.apache.kafka.sasl.oauthbearer.allowed.urls", tokenUrl + "," + jwksUrl);
 
+        // Kafka 4.1+ clients eagerly load jose4j during OAUTHBEARER login (KAFKA-20184), but the
+        // upstream Strimzi test-clients image doesn't bundle it, so use our jose4j-augmented build
+        // of that image for this test only.
+        KafkaClient client = KafkaClients.getKafkaClient().inNamespace(namespace).withImage(Environment.TEST_CLIENTS_OAUTH_IMAGE);
+        client.preloadImage();
+
         // When
         String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
         KafkaSteps.createTopic(namespace, topicName, kafkaBootstrap, 1, 1);
 
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, oauthProps, allowedUrlsSystemProps);
+        client.produceMessages(topicName, bootstrap, MESSAGE, null, numberOfMessages, oauthProps, allowedUrlsSystemProps);
 
         // Then
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), oauthProps,
-                allowedUrlsSystemProps);
+        List<ConsumerRecord> result = client.consumeMessages(topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), oauthProps,
+                Constants.CONSUMER_GROUP_NAME, allowedUrlsSystemProps);
         LOGGER.atInfo()
                 .addKeyValue("received", result)
                 .log("Consumed messages");

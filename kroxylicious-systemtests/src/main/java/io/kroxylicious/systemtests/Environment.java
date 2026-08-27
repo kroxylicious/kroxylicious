@@ -53,6 +53,7 @@ public class Environment {
     private static final String AWS_REGION_ENV = "AWS_REGION";
     private static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE";
     private static final String TEST_CLIENTS_IMAGE_ENV = "TEST_CLIENTS_IMAGE";
+    private static final String TEST_CLIENTS_OAUTH_IMAGE_ENV = "TEST_CLIENTS_OAUTH_IMAGE";
     private static final String OLM_OPERATOR_CHANNEL_ENV = "OLM_OPERATOR_CHANNEL";
     private static final String CATALOG_SOURCE_NAME_ENV = "CATALOG_SOURCE_NAME";
     private static final String CATALOG_NAMESPACE_ENV = "CATALOG_NAMESPACE";
@@ -107,6 +108,12 @@ public class Environment {
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT = AWS_SECRET_ACCESS_KEY_DEFAULT;
     public static final String AWS_REGION_DEFAULT = "us-east-2";
     private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:0.14.0-kafka-" + KAFKA_VERSION_DEFAULT;
+    /**
+     * A build of {@link #TEST_CLIENTS_IMAGE_DEFAULT} with jose4j added to the classpath, built by the
+     * kroxylicious-test-images module. Needed because Kafka 4.1+ eagerly loads jose4j during OAUTHBEARER
+     * SASL client login (KAFKA-20184), but the upstream Strimzi test-clients image does not bundle it.
+     */
+    private static final String TEST_CLIENTS_OAUTH_IMAGE_DEFAULT = "localhost/kroxylicious/oauth-test-clients:latest";
     private static final String OLM_OPERATOR_CHANNEL_DEFAULT = "alpha";
     private static final String CATALOG_SOURCE_NAME_DEFAULT = "kroxylicious-source";
     private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT = "kroxylicious-operator";
@@ -167,6 +174,7 @@ public class Environment {
     public static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV, "");
 
     public static final String TEST_CLIENTS_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_IMAGE_ENV, TEST_CLIENTS_IMAGE_DEFAULT);
+    public static final String TEST_CLIENTS_OAUTH_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_OAUTH_IMAGE_ENV, TEST_CLIENTS_OAUTH_IMAGE_DEFAULT);
     public static final String TEST_CLIENTS_PULL_SECRET = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_PULL_SECRET_ENV, "");
     public static final String OLM_OPERATOR_CHANNEL = ENVIRONMENT_VARIABLES.getOrDefault(OLM_OPERATOR_CHANNEL_ENV, OLM_OPERATOR_CHANNEL_DEFAULT);
     public static final String CATALOG_SOURCE_NAME = ENVIRONMENT_VARIABLES.getOrDefault(CATALOG_SOURCE_NAME_ENV, CATALOG_SOURCE_NAME_DEFAULT);

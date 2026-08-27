@@ -122,12 +122,16 @@ jobs:
           mkdir -p "$HOME/.m2/repository"
           cd "$HOME/.m2/repository"
           tar xzf /tmp/kroxylicious-artifacts/maven-repo.tar.gz
+      - name: 'Build OAuth test-clients image'
+        working-directory: kroxylicious-test-images
+        run: mvn --batch-mode --quiet --activate-profiles dist -DskipTests package
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
           minikube image load kroxylicious-proxy.img.tar.gz
           minikube image load kroxylicious-operator.img.tar.gz
           minikube image load kroxylicious-webhook.img.tar.gz
-          
+          minikube image load kroxylicious-test-images/target/oauth-test-clients.img.tar.gz
+
           # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
           KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects :kroxylicious-app --activate-profiles dist help:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
           KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects :kroxylicious-operator --activate-profiles dist help:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"

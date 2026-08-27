@@ -57,6 +57,18 @@ public interface KafkaClient {
     KafkaClient inNamespace(String namespace);
 
     /**
+     * Overrides the container image used for this client instance. Only honoured by client
+     * implementations backed by a configurable image (e.g. {@link StrimziTestClient}); other
+     * implementations silently ignore this and keep using their fixed image.
+     *
+     * @param image the image
+     * @return  the kafka client
+     */
+    default KafkaClient withImage(String image) {
+        return this;
+    }
+
+    /**
      * Preload the image of the corresponding kafka client to fail fast if not available
      *
      */
