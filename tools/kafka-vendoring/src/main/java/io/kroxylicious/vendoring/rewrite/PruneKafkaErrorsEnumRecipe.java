@@ -79,11 +79,11 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 """).contextSensitive().build();
 
         private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                        """
-                                Errors(int code, String message) {
-                                    this.code = (short) code;
-                                    this.message = message;
-                                }""")
+                """
+                        Errors(int code, String message) {
+                            this.code = (short) code;
+                            this.message = message;
+                        }""")
                 .contextSensitive()
                 .build();
 
