@@ -210,9 +210,8 @@ class RouterContextImplTest {
         // Then
         assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
         var rwe = (RouterResponseImpl.RespondWithError) response;
-        assertThat(rwe.exception())
-                .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
-                .hasMessage(Errors.INVALID_REQUEST.message());
+        assertThat(rwe.error()).isEqualTo(Errors.INVALID_REQUEST);
+        assertThat(rwe.message()).isEqualTo(null);
         assertThat(rwe.closeConnection()).isFalse();
     }
 
@@ -230,9 +229,8 @@ class RouterContextImplTest {
         // Then
         assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
         var rwe = (RouterResponseImpl.RespondWithError) response;
-        assertThat(rwe.exception())
-                .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
-                .hasMessage(message);
+        assertThat(rwe.error()).isEqualTo(Errors.INVALID_REQUEST);
+        assertThat(rwe.message()).isEqualTo(message);
     }
 
     @Test

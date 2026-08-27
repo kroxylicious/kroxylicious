@@ -11,11 +11,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiConsumer;
 
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +23,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.kafka.common.errors.ApiException;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -438,7 +439,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
             }
             else {
                 Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
-                        ? rwe.exception()
+                        // what type to use here?
+                        ? new ApiException("Router returned error response gesture: " + rwe.error().name() + " " + rwe.message())
                         : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
                 oobFrame.promise().completeExceptionally(cause);
                 if (rri.closeConnection()) {
@@ -517,7 +519,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
         else {
             Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
-                    ? rwe.exception()
+                    // what type to use here?
+                    ? new ApiException("Router returned error response gesture: " + rwe.error().name() + " " + rwe.message())
                     : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
             oobFrame.promise().completeExceptionally(cause);
             // Nested handlers ignore andCloseConnection() — they do not own the client connection
@@ -600,7 +603,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
             }
             case RouterResponseImpl.RespondWithError rwe -> {
                 ApiMessage errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
-                        rwe.requestHeader(), rwe.request(), rwe.exception());
+                        rwe.requestHeader(), rwe.request(), rwe.error(), rwe.message());
                 if (errorResponse == null) {
                     // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
                     LOGGER.atTrace()
@@ -666,7 +669,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                             DecodedRequestFrame<?> requestFrame,
                                             Throwable error) {
         ApiMessage body = KafkaProxyExceptionMapper.errorResponseForMessage(
-                requestFrame.header(), requestFrame.body(), new UnknownServerException(error.getMessage()));
+                requestFrame.header(), requestFrame.body(), Errors.UNKNOWN_SERVER_ERROR, error.getMessage());
         if (body == null) {
             // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
             LOGGER.atTrace()

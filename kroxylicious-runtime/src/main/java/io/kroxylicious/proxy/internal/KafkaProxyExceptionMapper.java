@@ -18,7 +18,6 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.common.TopicIdPartition;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
@@ -157,8 +156,6 @@ import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -176,31 +173,18 @@ public class KafkaProxyExceptionMapper {
     }
 
     /**
-     * Builds the body of an error response answering the given request frame, with error codes
-     * set according to the given error.
-     * @param frame the request frame being answered
-     * @param error the error to convey to the client
-     * @return the error response body
-     */
-    @Nullable
-    public static ApiMessage errorResponseMessage(DecodedRequestFrame<?> frame, Throwable error) {
-        Errors errors = Errors.forException(error);
-        return errorResponseData(frame.apiKey(), frame.body(), frame.apiVersion(), errors, error.getMessage());
-    }
-
-    /**
      * Builds an error response answering the given request message, with error codes set
      * according to the given exception.
      * @param requestHeaders the headers of the request being answered
      * @param message the body of the request being answered
-     * @param apiException the exception to convey to the client
+     * @param error the error to convey to the client
+     * @param errorMessage the optional error message to convey to the client (if the RPC version supports messages)
      * @return the error response
      */
     @Nullable
-    public static ApiMessage errorResponseForMessage(RequestHeaderData requestHeaders, ApiMessage message, ApiException apiException) {
+    public static ApiMessage errorResponseForMessage(RequestHeaderData requestHeaders, ApiMessage message, Errors error, @Nullable String errorMessage) {
         ApiKeys apiKey = ApiKeys.forId(message.apiKey());
-        Errors errors = Errors.forException(apiException);
-        return errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), errors, apiException.getMessage());
+        return errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), error, errorMessage);
     }
 
     /**
@@ -214,7 +198,7 @@ public class KafkaProxyExceptionMapper {
      * @return the error response body, or {@code null} if this API key sends no response (e.g. Produce with acks=0)
      */
     @Nullable
-    public static ApiMessage errorResponseData(ApiKeys apiKey, ApiMessage requestBody, short apiVersion, Errors error, String message) {
+    public static ApiMessage errorResponseData(ApiKeys apiKey, ApiMessage requestBody, short apiVersion, Errors error, @Nullable String message) {
         if (error == Errors.NONE) {
             throw new IllegalArgumentException("error must not be NONE when generating an error response");
         }
@@ -680,7 +664,7 @@ public class KafkaProxyExceptionMapper {
      * {@link Errors#UNKNOWN_SERVER_ERROR} specifically, not whenever it matches the canned text.
      */
     private static DescribeShareGroupOffsetsResponseData describeShareGroupOffsetsErrorResponse(DescribeShareGroupOffsetsRequestData request, short code,
-                                                                                                Errors error, String message) {
+                                                                                                Errors error, @Nullable String message) {
         String errorMessage = error == Errors.UNKNOWN_SERVER_ERROR ? error.message() : message;
         List<DescribeShareGroupOffsetsResponseData.DescribeShareGroupOffsetsResponseGroup> groups = request.groups().stream()
                 .map(group -> new DescribeShareGroupOffsetsResponseData.DescribeShareGroupOffsetsResponseGroup()
