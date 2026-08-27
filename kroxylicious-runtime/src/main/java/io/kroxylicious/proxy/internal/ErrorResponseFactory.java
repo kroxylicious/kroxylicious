@@ -184,6 +184,16 @@ public final class ErrorResponseFactory {
     private ErrorResponseFactory() {
     }
 
+    /**
+     * Builds the body of an error response for the given request, with error codes and messages
+     * set according to the given error.
+     * @param apiKey the API key of the request being answered
+     * @param requestBody the body of the request being answered
+     * @param apiVersion the API version of the request being answered
+     * @param error the error to convey to the client
+     * @param message the message to convey to the client, subject to per-RPC suppression rules
+     * @return the error response body, or {@code null} if this API key sends no response (e.g. Produce with acks=0)
+     */
     @Nullable
     public static ApiMessage errorResponseData(ApiKeys apiKey, ApiMessage requestBody, short apiVersion, Errors error, String message) {
         short code = error.code();
