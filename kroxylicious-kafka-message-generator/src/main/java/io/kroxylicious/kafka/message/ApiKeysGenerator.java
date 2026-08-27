@@ -46,6 +46,7 @@ public final class ApiKeysGenerator implements TypeClassGenerator {
                 /** An english description of the api - used for debugging and metric names */
                 public final String name;
 
+                /** The generated {@code ApiMessageType} this key delegates to */
                 public final ApiMessageType messageType;
 
                 private static final Map<Integer, ApiKeys> ID_TO_TYPE = new HashMap<>();
