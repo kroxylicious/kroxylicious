@@ -15,7 +15,7 @@ kroxylicious-migrations/
         └── resources/
             └── META-INF/
                 └── rewrite/
-                    ├── kroxylicious.yml  # Aggregator: UpgradeToLatest
+                    ├── MigrateToLatest.yml  # Aggregator: MigrateTo
                     ├── v0_24.yml         # 0.24.0 recipes (e.g., MigrateTo0_24)
                     └── v1_0.yml          # 1.0.0 recipes
 
@@ -25,7 +25,7 @@ kroxylicious-migrations/
 
 * **Atomic Recipes (`Use...`):** Focus on a single structural change (e.g., `io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousKafkaTypes`).
 * **Version Aggregators (`MigrateTo...`):** Combines all atomic recipes for a specific release (e.g., `io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24`).
-* **Latest Aggregator (`UpgradeToLatest`):** Combines all historical version aggregators in `kroxylicious.yml` so downstream projects can jump across multiple minor versions in one step.
+* **Latest Aggregator (`MigrateToLatest`):** Combines all historical version aggregators in `kroxylicious.yml` so downstream projects can jump across multiple minor versions in one step.
 
 ---
 
@@ -47,7 +47,7 @@ mvn org.openrewrite.maven:rewrite-maven-plugin:run \
 ```bash
 mvn org.openrewrite.maven:rewrite-maven-plugin:run \
   -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:<RELEASE_VERSION> \
-  -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.UpgradeToLatest
+  -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.MigrateToLatest
 
 ```
 
