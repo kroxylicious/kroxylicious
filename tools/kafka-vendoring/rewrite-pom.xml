@@ -43,6 +43,11 @@
          symbols we're intentionally relocating are left unresolved. -->
     <dependencies>
         <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>4.3.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>5.14.4</version>
@@ -82,6 +87,11 @@
             <artifactId>snappy-java</artifactId>
             <version>1.1.10.7</version>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kafka-vendoring</artifactId>
+            <version>0.24.0-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -90,9 +100,16 @@
                 <groupId>org.openrewrite.maven</groupId>
                 <artifactId>rewrite-maven-plugin</artifactId>
                 <version>6.46.1</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>io.kroxylicious</groupId>
+                        <artifactId>kroxylicious-kafka-vendoring</artifactId>
+                        <version>0.24.0-SNAPSHOT</version>
+                    </dependency>
+                </dependencies>
                 <configuration>
                     <activeRecipes>
-                        <recipe>io.kroxylicious.RewriteCopiedKafka</recipe>
+                        <recipe>io.kroxylicious.vendoring.rewrite.VendorKafkaClients</recipe>
                     </activeRecipes>
                 </configuration>
             </plugin>
