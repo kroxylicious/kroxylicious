@@ -33,7 +33,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Applies the required edits to Apache Kafka's hand rolled Errors enum to make it part of the Kroxylicious API
+ * Strips client exception builders, fields, methods, and imports from Kafka Errors enum.to Apache Kafka's hand rolled Errors enum to make it part of the Kroxylicious API
  */
 public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
@@ -268,7 +268,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
                 if (host instanceof J.MethodDeclaration method && method.getSimpleName().equals("forCode")) {
                     if (docComment.print(getCursor()).contains(EXCEPTION)) {
-                        List<Javadoc> newBody = buildReplacmentForCodeComment(docComment, method, body);
+                        List<Javadoc> newBody = buildReplacementForCodeComment(docComment, method, body);
                         return originalComment.withBody(newBody);
                     }
                 }
@@ -285,7 +285,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             }
 
             @NonNull
-            private List<Javadoc> buildReplacmentForCodeComment(@NonNull Javadoc.DocComment docComment, J.MethodDeclaration method, List<Javadoc> body) {
+            private List<Javadoc> buildReplacementForCodeComment(@NonNull Javadoc.DocComment docComment, J.MethodDeclaration method, List<Javadoc> body) {
                 String margin = extractMargin(body);
                 J.Identifier codeParamName = findParameterNamed(method, "code");
                 Markers markers = existingMarkers(docComment);
