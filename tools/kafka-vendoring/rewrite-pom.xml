@@ -109,7 +109,7 @@
                 </dependencies>
                 <configuration>
                     <activeRecipes>
-                        <recipe>io.kroxylicious.vendoring.RewriteCopiedKafka</recipe>
+                        <recipe>io.kroxylicious.vendoring.rewrite.VendorKafkaClients</recipe>
                     </activeRecipes>
                 </configuration>
             </plugin>

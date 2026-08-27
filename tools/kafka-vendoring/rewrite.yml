@@ -18,7 +18,7 @@
 # package.
 ---
 type: specs.openrewrite.org/v1beta/recipe
-name: io.kroxylicious.vendoring.RewriteCopiedKafka
+name: io.kroxylicious.vendoring.rewrite.VendorKafkaClients
 displayName: Relocate vendored/forked Kafka classes to io.kroxylicious.kafka
 description: >-
   Rewrites copied org.apache.kafka.* classes into the io.kroxylicious.kafka.* namespace so the
