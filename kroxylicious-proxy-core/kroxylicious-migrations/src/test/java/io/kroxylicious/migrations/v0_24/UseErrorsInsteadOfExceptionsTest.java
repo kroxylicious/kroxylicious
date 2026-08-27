@@ -20,52 +20,53 @@ class UseErrorsInsteadOfExceptionsTest implements RewriteTest {
         spec.recipe(new UseErrorsInsteadOfExceptions())
                 .parser(JavaParser.fromJavaVersion()
                         .dependsOn(
+                                // We have to supply just enough type information to make things compile for open rewrite to run.
                                 """
                                         package io.kroxylicious.proxy.filter;
-                                        
+
                                         public interface RequestFilterResult {}
                                         """,
                                 """
                                         package io.kroxylicious.proxy.filter;
-                                        
+
                                         import org.apache.kafka.common.errors.ApiException;
                                         import org.apache.kafka.common.message.ProduceRequestData;
                                         import org.apache.kafka.common.message.RequestHeaderData;
                                         import org.apache.kafka.common.protocol.Errors;
-                                        
+
                                         public interface RequestFilterResultBuilder {
                                             // Old overload used in "Before" code
                                             RequestFilterResultBuilder errorResponse(RequestHeaderData header, ProduceRequestData request, ApiException exception);
-                                        
+
                                             // New overload used in "After" code
                                             RequestFilterResultBuilder errorResponse(RequestHeaderData header, ProduceRequestData request, Errors error);
-                                        
+
                                             RequestFilterResult completed();
                                         }
                                         """,
                                 """
                                         package io.kroxylicious.proxy.filter;
-                                        
+
                                         public interface FilterContext {
                                             RequestFilterResultBuilder requestFilterResultBuilder();
                                         }
                                         """,
                                 """
                                         package io.kroxylicious.proxy.filter;
-                                        
+
                                         import java.util.concurrent.CompletionStage;
-                                        
+
                                         import org.apache.kafka.common.message.ProduceRequestData;
                                         import org.apache.kafka.common.message.RequestHeaderData;
-                                        
+
                                         public interface ProduceRequestFilter extends Filter {
-                                        
+
                                             default boolean shouldHandleProduceRequest(short apiVersion) {
                                                 return true;
                                             }
-                                        
+
                                              CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context);
-                                        
+
                                         }
                                         """)
                         .classpath("kafka-clients"));
@@ -78,19 +79,19 @@ class UseErrorsInsteadOfExceptionsTest implements RewriteTest {
                         // Before (Input code)
                         """
                                 package com.example;
-                                
+
                                 import java.util.concurrent.CompletionStage;
-                                
+
                                 import org.apache.kafka.common.message.ProduceRequestData;
                                 import org.apache.kafka.common.message.RequestHeaderData;
                                 import org.apache.kafka.common.protocol.Errors;
-                                
+
                                 import io.kroxylicious.proxy.filter.FilterContext;
                                 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
                                 import io.kroxylicious.proxy.filter.RequestFilterResult;
-                                
+
                                 public class SampleFilter implements ProduceRequestFilter {
-                                
+
                                     @Override
                                     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
                                         return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
@@ -100,19 +101,19 @@ class UseErrorsInsteadOfExceptionsTest implements RewriteTest {
                         // After (Expected transformed code)
                         """
                                 package com.example;
-                                
+
                                 import java.util.concurrent.CompletionStage;
-                                
+
                                 import org.apache.kafka.common.message.ProduceRequestData;
                                 import org.apache.kafka.common.message.RequestHeaderData;
                                 import org.apache.kafka.common.protocol.Errors;
-                                
+
                                 import io.kroxylicious.proxy.filter.FilterContext;
                                 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
                                 import io.kroxylicious.proxy.filter.RequestFilterResult;
-                                
+
                                 public class SampleFilter implements ProduceRequestFilter {
-                                
+
                                     @Override
                                     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
                                         return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();

@@ -14,15 +14,19 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.JavaIsoVisitor;
-import org.openrewrite.java.MethodMatcher;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 
+/**
+ * Removes calls to `exception()` from Apaches Error enum. That is it transforms @{code Errors.GROUP_AUTHORIZATION_FAILED.exception()} into @{code Errors.GROUP_AUTHORIZATION_FAILED}
+ */
 public class UseErrorsInsteadOfExceptions extends Recipe {
 
-    // Matcher for the .exception() call on the Errors class/enum
-    private static final MethodMatcher EXCEPTION_CALL =
-            new MethodMatcher("*.Errors exception()");
+    /**
+     * Instantiates an instance
+     */
+    public UseErrorsInsteadOfExceptions() {
+    }
 
     @Override
     public String getDisplayName() {
@@ -62,4 +66,3 @@ public class UseErrorsInsteadOfExceptions extends Recipe {
         }
     }
 }
-
