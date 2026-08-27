@@ -278,9 +278,10 @@ class RequestFilterResultBuilderTest {
     void errorResponseFromErrorsRejectsNone() {
         // Given
         var header = apiVersionsHeader();
+        var requestMessage = new ApiVersionsRequestData();
 
         // When / Then
-        assertThatThrownBy(() -> builder.errorResponse(header, new ApiVersionsRequestData(), Errors.NONE))
+        assertThatThrownBy(() -> builder.errorResponse(header, requestMessage, Errors.NONE))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -288,9 +289,10 @@ class RequestFilterResultBuilderTest {
     void errorResponseFromErrorsWithMessageRejectsNone() {
         // Given
         var header = apiVersionsHeader();
+        var requestMessage = new ApiVersionsRequestData();
 
         // When / Then
-        assertThatThrownBy(() -> builder.errorResponse(header, new ApiVersionsRequestData(), Errors.NONE, "some message"))
+        assertThatThrownBy(() -> builder.errorResponse(header, requestMessage, Errors.NONE, "some message"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -298,9 +300,10 @@ class RequestFilterResultBuilderTest {
     void errorResponseFromErrorsRejectsNullError() {
         // Given
         var header = apiVersionsHeader();
+        var requestMessage = new ApiVersionsRequestData();
 
         // When / Then
-        assertThatThrownBy(() -> builder.errorResponse(header, new ApiVersionsRequestData(), null))
+        assertThatThrownBy(() -> builder.errorResponse(header, requestMessage, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -308,9 +311,10 @@ class RequestFilterResultBuilderTest {
     void errorResponseFromErrorsWithMessageRejectsNullError() {
         // Given
         var header = apiVersionsHeader();
+        var requestMessage = new ApiVersionsRequestData();
 
         // When / Then
-        assertThatThrownBy(() -> builder.errorResponse(header, new ApiVersionsRequestData(), null, "some message"))
+        assertThatThrownBy(() -> builder.errorResponse(header, requestMessage, null, "some message"))
                 .isInstanceOf(NullPointerException.class);
     }
 
