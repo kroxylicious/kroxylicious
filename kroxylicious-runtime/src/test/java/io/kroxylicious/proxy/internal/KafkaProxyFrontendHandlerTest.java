@@ -12,8 +12,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
@@ -621,6 +623,39 @@ class KafkaProxyFrontendHandlerTest {
 
         // Then
         assertThat(handler.clientChannel()).isSameAs(inboundChannel);
+    }
+
+    @Test
+    void buildErrorResponseFrameReturnsNullForApiKeyThatSendsNoResponse() {
+        // Given
+        var frame = produceFrame(42, (short) 0);
+
+        // When
+        var result = KafkaProxyFrontendHandler.buildErrorResponseFrame(frame, new UnknownServerException("boom"));
+
+        // Then
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void buildErrorResponseFrameBuildsFrameForApiKeyThatSendsResponse() {
+        // Given
+        var frame = produceFrame(42, (short) 1);
+
+        // When
+        var result = KafkaProxyFrontendHandler.buildErrorResponseFrame(frame, new UnknownServerException("boom"));
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.correlationId()).isEqualTo(42);
+    }
+
+    private static DecodedRequestFrame<ProduceRequestData> produceFrame(int correlationId, short acks) {
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiVersion((short) 9)
+                .setCorrelationId(correlationId);
+        return new DecodedRequestFrame<>((short) 9, correlationId, true, header, new ProduceRequestData().setAcks(acks));
     }
 
 }
