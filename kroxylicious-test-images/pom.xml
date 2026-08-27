@@ -37,7 +37,11 @@
              kroxylicious-operator/webhook image names are kept in sync with their Environment.java
              defaults. -->
         <strimzi.test.clients.base.image>quay.io/strimzi-test-clients/test-clients:0.14.0-kafka-${kafka.version}</strimzi.test.clients.base.image>
-        <io.kroxylicious.oauth.test.clients.image.name>localhost/kroxylicious/oauth-test-clients:latest</io.kroxylicious.oauth.test.clients.image.name>
+        <!-- Deliberately NOT tagged "latest": ContainerTemplates.baseImageBuilder in kroxylicious-systemtests
+             forces imagePullPolicy=Always the first time it sees a "latest"/"snapshot" image, which breaks
+             this image since it only ever exists in minikube's local cache (loaded via `minikube image load`)
+             and isn't served by any real registry. -->
+        <io.kroxylicious.oauth.test.clients.image.name>localhost/kroxylicious/oauth-test-clients:${project.version}</io.kroxylicious.oauth.test.clients.image.name>
         <io.kroxylicious.oauth.test.clients.image.archive>target/oauth-test-clients.img.tar.gz</io.kroxylicious.oauth.test.clients.image.archive>
     </properties>
 

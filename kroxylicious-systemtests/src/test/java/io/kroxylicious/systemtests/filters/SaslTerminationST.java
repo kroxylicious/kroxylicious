@@ -80,6 +80,7 @@ class SaslTerminationST extends AbstractSystemTests {
     @BeforeAll
     void setUp() {
         KafkaClients.getKafkaClient().preloadImage();
+        KafkaClients.getKafkaClient().withImage(Environment.TEST_CLIENTS_OAUTH_IMAGE).preloadImage();
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.atInfo().log("Skipping kafka deployment. It is already deployed!");

@@ -113,8 +113,13 @@ public class Environment {
      * kroxylicious-test-images module. Needed because Kafka 4.1+ eagerly loads jose4j during OAUTHBEARER
      * SASL client login but Kafka incorrectly omits jose4j as a runtime dependency of kafka-clients (KAFKA-20184),
      * and the upstream Strimzi test-clients image does not bundle it.
+     * <p>
+     * Deliberately NOT tagged {@code latest}: {@link io.kroxylicious.systemtests.templates.ContainerTemplates#baseImageBuilder}
+     * forces {@code imagePullPolicy=Always} the first time it sees a "latest"/"snapshot" image, which
+     * breaks this image since it only ever exists in minikube's local cache (loaded via
+     * {@code minikube image load}) and isn't served by any real registry.
      */
-    private static final String TEST_CLIENTS_OAUTH_IMAGE_DEFAULT = "localhost/kroxylicious/oauth-test-clients:latest";
+    private static final String TEST_CLIENTS_OAUTH_IMAGE_DEFAULT = "localhost/kroxylicious/oauth-test-clients:" + KROXYLICIOUS_VERSION_DEFAULT;
     private static final String OLM_OPERATOR_CHANNEL_DEFAULT = "alpha";
     private static final String CATALOG_SOURCE_NAME_DEFAULT = "kroxylicious-source";
     private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT = "kroxylicious-operator";
