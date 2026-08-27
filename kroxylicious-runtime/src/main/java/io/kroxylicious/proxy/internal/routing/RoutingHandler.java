@@ -16,7 +16,6 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.AbstractResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -600,11 +599,11 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 deliverResponseFrame(ctx, apiVersion, correlationId, header, body, sequence);
             }
             case RouterResponseImpl.RespondWithError rwe -> {
-                AbstractResponse errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
+                ApiMessage errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
                         rwe.requestHeader(), rwe.request(), rwe.exception());
                 ResponseHeaderData header = new ResponseHeaderData();
                 header.setCorrelationId(correlationId);
-                deliverResponseFrame(ctx, apiVersion, correlationId, header, errorResponse.data(), sequence);
+                deliverResponseFrame(ctx, apiVersion, correlationId, header, errorResponse, sequence);
             }
             case RouterResponseImpl.RespondWithoutReply ignored -> {
                 LOGGER.atTrace()
@@ -655,7 +654,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
         var header = new ResponseHeaderData();
         header.setCorrelationId(requestFrame.correlationId());
         ApiMessage body = KafkaProxyExceptionMapper.errorResponseForMessage(
-                requestFrame.header(), requestFrame.body(), new UnknownServerException(error.getMessage())).data();
+                requestFrame.header(), requestFrame.body(), new UnknownServerException(error.getMessage()));
         var responseFrame = new DecodedResponseFrame<>(requestFrame.apiVersion(), requestFrame.correlationId(), header, body);
         if (requestSource instanceof RouterRequestSource rs) {
             responseFrame.setRouteName(rs.activationRoute());
