@@ -160,6 +160,9 @@ def apply_edit(root, entry):
         path.write_text(text, encoding='utf-8')
         print(f"edited {entry['file']}")
 
+    except FileNotFoundError:
+        print(f"COULD NOT FIND {entry['file']}")
+        exit(1)
     except (UnicodeDecodeError, OSError) as e:
         print(f"Skipping {entry['file']} due to error: {e}")
 
