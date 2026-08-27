@@ -1,0 +1,65 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.migrations.v0_24;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+import org.openrewrite.ExecutionContext;
+import org.openrewrite.Recipe;
+import org.openrewrite.TreeVisitor;
+import org.openrewrite.java.JavaIsoVisitor;
+import org.openrewrite.java.MethodMatcher;
+import org.openrewrite.java.tree.Expression;
+import org.openrewrite.java.tree.J;
+
+public class UseErrorsInsteadOfExceptions extends Recipe {
+
+    // Matcher for the .exception() call on the Errors class/enum
+    private static final MethodMatcher EXCEPTION_CALL =
+            new MethodMatcher("*.Errors exception()");
+
+    @Override
+    public String getDisplayName() {
+        return "Unwrap `.exception()` calls in `errorResponse`";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Removes redundant `.exception()` invocations passed as the third argument to `errorResponse(...)`.";
+    }
+
+    @Override
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
+        return new ErrorsConverterJavaIsoVisitor();
+    }
+
+    private static class ErrorsConverterJavaIsoVisitor extends JavaIsoVisitor<ExecutionContext> {
+
+        @Override
+        public J.MethodInvocation visitMethodInvocation(J.MethodInvocation method, ExecutionContext ctx) {
+            J.MethodInvocation mi = super.visitMethodInvocation(method, ctx);
+
+            // Target errorResponse invocations with 3 arguments
+            if ("errorResponse".equals(mi.getSimpleName())) {
+                Expression thirdArg = mi.getArguments().get(2);
+                if (thirdArg instanceof J.MethodInvocation invocation) {
+                    Expression innerExpression = invocation.getSelect();
+                    List<Expression> newArgs = new ArrayList<>(mi.getArguments());
+                    newArgs.set(2, Objects.requireNonNull(innerExpression).withPrefix(thirdArg.getPrefix()));
+
+                    maybeRemoveImport("org.apache.kafka.common.protocol.Errors");
+                    maybeAddImport("io.kroxylicious.kafka.common.protocol.Errors");
+                    return mi.withArguments(newArgs);
+                }
+            }
+            return mi;
+        }
+    }
+}
+
