@@ -259,15 +259,16 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 Javadoc.DocComment originalComment = (Javadoc.DocComment) super.visitDocComment(docComment, ctx);
                 List<Javadoc> body = originalComment.getBody();
                 J host = getCursor().firstEnclosing(J.class);
+                String margin = extractMargin(body);
 
                 if (host instanceof J.MethodDeclaration method && method.getSimpleName().equals("forCode")) {
                     if (docComment.print(getCursor()).contains(EXCEPTION)) {
-                        List<Javadoc> newBody = buildReplacementForCodeComment(docComment, method, body);
+                        List<Javadoc> newBody = buildReplacementForCodeComment(docComment, method, margin);
                         return originalComment.withBody(newBody);
                     }
                 }
                 else if (host instanceof J.ClassDeclaration) {
-                    List<Javadoc> cleanedBody = pruneLineBreaks(body);
+                    List<Javadoc> cleanedBody = trailingLineBreaks(body, margin);
 
                     if (cleanedBody.size() == body.size()) {
                         return originalComment;
@@ -279,8 +280,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             }
 
             @NonNull
-            private List<Javadoc> buildReplacementForCodeComment(@NonNull Javadoc.DocComment docComment, J.MethodDeclaration method, List<Javadoc> body) {
-                String margin = extractMargin(body);
+            private List<Javadoc> buildReplacementForCodeComment(@NonNull Javadoc.DocComment docComment, J.MethodDeclaration method, String margin) {
                 J.Identifier codeParamName = findParameterNamed(method, "code");
                 Markers markers = existingMarkers(docComment);
                 Javadoc.Text returnText = new Javadoc.Text(Tree.randomId(), Markers.EMPTY,
@@ -294,7 +294,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                         new Javadoc.LineBreak(Tree.randomId(), margin + " ", Markers.EMPTY),
                         new Javadoc.Return(Tree.randomId(), Markers.EMPTY, List.of(returnText)),
                         new Javadoc.LineBreak(Tree.randomId(), margin, Markers.EMPTY),
-                        new Javadoc.LineBreak(Tree.randomId(), margin.substring(0, margin.lastIndexOf('*')), Markers.EMPTY));
+                        newTerminalLineBreak(margin));
             }
 
             @NonNull
@@ -313,22 +313,32 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
             }
 
             @NonNull
-            private static List<Javadoc> pruneLineBreaks(List<Javadoc> body) {
-                List<Javadoc> cleanedBody = new ArrayList<>(body);
-                if (body.isEmpty()) {
-                    return body;
+            private static List<Javadoc> trailingLineBreaks(List<Javadoc> elements, String margin) {
+                if (elements.isEmpty()) {
+                    return elements;
                 }
-                if (cleanedBody.getLast() instanceof Javadoc.Text text && text.getText().trim().isEmpty()) {
-                    cleanedBody.removeLast();
-                }
-                if (cleanedBody.getLast() instanceof Javadoc.LineBreak lastLine) {
-                    String margin = lastLine.getMargin();
-                    if (margin.endsWith("*")) {
-                        cleanedBody.removeLast();
-                        cleanedBody.addLast(lastLine.withMargin(margin.substring(0, margin.lastIndexOf('*'))));
+
+                int end = elements.size() - 1;
+                while (end >= 0) {
+                    Javadoc item = elements.get(end);
+                    if (item instanceof Javadoc.LineBreak) {
+                        end--;
+                    }
+                    else if (item instanceof Javadoc.Text textItem && textItem.getText().trim().isEmpty()) {
+                        end--;
+                    }
+                    else {
+                        break;
                     }
                 }
-                return cleanedBody;
+                ArrayList<Javadoc> cleaned = new ArrayList<>(elements.subList(0, end + 1));
+                cleaned.addLast(newTerminalLineBreak(margin));
+                return cleaned;
+            }
+
+            @NonNull
+            private static Javadoc.LineBreak newTerminalLineBreak(String margin) {
+                return new Javadoc.LineBreak(Tree.randomId(), margin.substring(0, margin.lastIndexOf('*')), Markers.EMPTY);
             }
 
         }

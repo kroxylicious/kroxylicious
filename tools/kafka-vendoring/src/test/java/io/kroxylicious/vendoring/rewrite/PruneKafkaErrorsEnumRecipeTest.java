@@ -286,4 +286,39 @@ class PruneKafkaErrorsEnumRecipeTest implements RewriteTest {
                                 }
                                 """));
     }
+
+    @Test
+    void shouldRemoveTrailingLineBreaksFromJavadoc() {
+        rewriteRun(
+                java(
+                        """
+                                package org.apache.kafka.common.protocol;
+
+                                /**
+                                 * javadoc text line 1
+                                 *
+                                 * line 2
+                                 *
+                                 * @see org.apache.kafka.common.network.SslTransportLayer
+                                 *
+                                 */
+                                public enum Errors {
+                                    UNKNOWN_SERVER_ERROR(-1, "Unexpected error"),
+                                    INVALID_REQUEST(42, "Invalid request");
+                                }
+                                """,
+                        """
+                                package org.apache.kafka.common.protocol;
+
+                                /**
+                                 * javadoc text line 1
+                                 *
+                                 * line 2
+                                 */
+                                public enum Errors {
+                                    UNKNOWN_SERVER_ERROR(-1, "Unexpected error"),
+                                    INVALID_REQUEST(42, "Invalid request");
+                                }
+                                """));
+    }
 }
