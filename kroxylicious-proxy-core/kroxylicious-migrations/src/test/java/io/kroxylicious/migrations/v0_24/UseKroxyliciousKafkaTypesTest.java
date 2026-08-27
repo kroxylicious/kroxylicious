@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.migrations.v0_24;
+package io.kroxylicious.migrations.rewrite.v0_24;
 
 import org.junit.jupiter.api.Test;
 import org.openrewrite.java.JavaParser;
@@ -18,7 +18,7 @@ class UseKroxyliciousKafkaTypesTest implements RewriteTest {
 
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipeFromResources("io.kroxylicious.migrations.v0_24.UseKroxyliciousKafkaTypes");
+        spec.recipeFromResources("io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousKafkaTypes");
         spec.parser(JavaParser
                 .fromJavaVersion()
                 .classpath("kafka-clients"));

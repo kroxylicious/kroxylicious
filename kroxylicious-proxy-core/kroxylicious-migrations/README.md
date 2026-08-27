@@ -23,8 +23,8 @@ kroxylicious-migrations/
 
 ### Recipe Design Guidelines
 
-* **Atomic Recipes (`Use...`):** Focus on a single structural change (e.g., `io.kroxylicious.migrations.v0_24.UseKroxyliciousKafkaTypes`).
-* **Version Aggregators (`MigrateTo...`):** Combines all atomic recipes for a specific release (e.g., `io.kroxylicious.migrations.v0_24.MigrateTo0_24`).
+* **Atomic Recipes (`Use...`):** Focus on a single structural change (e.g., `io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousKafkaTypes`).
+* **Version Aggregators (`MigrateTo...`):** Combines all atomic recipes for a specific release (e.g., `io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24`).
 * **Latest Aggregator (`UpgradeToLatest`):** Combines all historical version aggregators in `kroxylicious.yml` so downstream projects can jump across multiple minor versions in one step.
 
 ---
@@ -38,7 +38,7 @@ Downstream filter projects do not need to modify their `pom.xml` to execute publ
 ```bash
 mvn org.openrewrite.maven:rewrite-maven-plugin:run \
   -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:<RELEASE_VERSION> \
-  -Drewrite.activeRecipes=io.kroxylicious.migrations.v0_24.MigrateTo0_24
+  -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24
 
 ```
 
@@ -47,7 +47,7 @@ mvn org.openrewrite.maven:rewrite-maven-plugin:run \
 ```bash
 mvn org.openrewrite.maven:rewrite-maven-plugin:run \
   -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:<RELEASE_VERSION> \
-  -Drewrite.activeRecipes=io.kroxylicious.migrations.UpgradeToLatest
+  -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.UpgradeToLatest
 
 ```
 
@@ -64,7 +64,7 @@ When developing or validating recipes against the local Kroxylicious repository,
 ```bash
 mvn -Djava.version=21 org.openrewrite.maven:rewrite-maven-plugin:dryRun \
   -Drewrite.configLocation=$(pwd)/kroxylicious-proxy-core/kroxylicious-migrations/src/main/resources/META-INF/rewrite/v0_24.yml \
-  -Drewrite.activeRecipes=io.kroxylicious.migrations.v0_24.MigrateTo0_24 \
+  -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24 \
   -Drewrite.exclusions="**/pom.xml,changelog/unreleased/**,kroxylicious-proxy-core/kroxylicious-migrations/**"
 
 ```
@@ -76,7 +76,7 @@ mvn -Djava.version=21 org.openrewrite.maven:rewrite-maven-plugin:dryRun \
 ```bash
 mvn -Djava.version=21 org.openrewrite.maven:rewrite-maven-plugin:run \
   -Drewrite.configLocation=$(pwd)/kroxylicious-proxy-core/kroxylicious-migrations/src/main/resources/META-INF/rewrite/v0_24.yml \
-  -Drewrite.activeRecipes=io.kroxylicious.migrations.v0_24.MigrateTo0_24 \
+  -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24 \
   -Drewrite.exclusions="**/pom.xml,changelog/unreleased/**,kroxylicious-proxy-core/kroxylicious-migrations/**"
 
 ```

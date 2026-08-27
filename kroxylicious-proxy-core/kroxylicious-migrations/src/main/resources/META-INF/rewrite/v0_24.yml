@@ -6,7 +6,7 @@
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
-name: io.kroxylicious.migrations.v0_24.UseKroxyliciousKafkaTypes
+name: io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousKafkaTypes
 displayName: Use Kroxylicious-managed Kafka API types
 description: Replaces org.apache.kafka generated message packages with io.kroxylicious.kafka.
 recipeList:
@@ -73,9 +73,9 @@ recipeList:
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
-name: io.kroxylicious.migrations.v0_24.MigrateTo0_24
+name: io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24
 displayName: Upgrade Kroxylicious Filter API to 0.24.0
 description: Applies all deprecations, renames, and breaking changes introduced in Kroxylicious 0.24.0.
 recipeList:
-  - io.kroxylicious.migrations.v0_24.UseErrorsInsteadOfExceptions
-  - io.kroxylicious.migrations.v0_24.UseKroxyliciousKafkaTypes
+  - io.kroxylicious.migrations.rewrite.v0_24.UseErrorsInsteadOfExceptions
+  - io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousKafkaTypes

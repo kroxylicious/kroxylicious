@@ -96,7 +96,7 @@
                             ${maven.multiModuleProjectDirectory}/kroxylicious-migrations/src/main/resources/META-INF/rewrite/v0_24.yml
                         </configLocation>
                         <activeRecipes>
-                            <recipe>io.kroxylicious.migrations.v0_24.MigrateTo0_24</recipe>
+                            <recipe>io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24</recipe>
                         </activeRecipes>
                     </configuration>
                 </plugin>
