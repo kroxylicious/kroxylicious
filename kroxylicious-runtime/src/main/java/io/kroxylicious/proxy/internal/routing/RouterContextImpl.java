@@ -9,10 +9,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -115,8 +115,21 @@ class RouterContextImpl implements RouterContext {
     @Override
     public CloseOrTerminalStage respondWithError(RequestHeaderData header,
                                                  ApiMessage request,
-                                                 ApiException exception) {
-        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWithError(header, request, exception, false));
+                                                 Errors error) {
+        return respondWithError(header, request, error, null);
+    }
+
+    @Override
+    public CloseOrTerminalStage respondWithError(RequestHeaderData header,
+                                                 ApiMessage request,
+                                                 Errors error,
+                                                 @Nullable String message) {
+        Objects.requireNonNull(error, "error must not be null");
+        if (error == Errors.NONE) {
+            throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
+        }
+        // Errors.exception(String) returns the default-message exception when message is null.
+        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWithError(header, request, error.exception(message), false));
     }
 
     @Override

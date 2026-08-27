@@ -9,12 +9,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -199,21 +198,41 @@ class RouterContextImplTest {
     }
 
     @Test
-    void respondWithErrorShouldBuildErrorResult() {
+    void respondWithErrorFromErrorsShouldBuildErrorResult() {
         // Given
         var ctx = createContext();
         var header = new RequestHeaderData();
         var request = new MetadataRequestData();
-        ApiException exception = new UnknownServerException("test error");
 
         // When
-        RouterResponse response = ctx.respondWithError(header, request, exception).build();
+        RouterResponse response = ctx.respondWithError(header, request, Errors.INVALID_REQUEST).build();
 
         // Then
         assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
         var rwe = (RouterResponseImpl.RespondWithError) response;
-        assertThat(rwe.exception()).isSameAs(exception);
+        assertThat(rwe.exception())
+                .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
+                .hasMessage(Errors.INVALID_REQUEST.message());
         assertThat(rwe.closeConnection()).isFalse();
+    }
+
+    @Test
+    void respondWithErrorFromErrorsWithMessageShouldSetMessage() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+        var message = "custom explanation";
+
+        // When
+        RouterResponse response = ctx.respondWithError(header, request, Errors.INVALID_REQUEST, message).build();
+
+        // Then
+        assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
+        var rwe = (RouterResponseImpl.RespondWithError) response;
+        assertThat(rwe.exception())
+                .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
+                .hasMessage(message);
     }
 
     @Test
@@ -275,15 +294,62 @@ class RouterContextImplTest {
     void respondWithErrorWithCloseConnectionShouldSetFlag() {
         // Given
         var ctx = createContext();
-        ApiException exception = new UnknownServerException("test error");
 
         // When
-        RouterResponse response = ctx.respondWithError(new RequestHeaderData(), new MetadataRequestData(), exception)
+        RouterResponse response = ctx.respondWithError(new RequestHeaderData(), new MetadataRequestData(), Errors.UNKNOWN_SERVER_ERROR)
                 .withCloseConnection().build();
 
         // Then
         assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
         assertThat(((RouterResponseImpl.RespondWithError) response).closeConnection()).isTrue();
+    }
+
+    @Test
+    void respondWithErrorFromErrorsRejectsNone() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, Errors.NONE))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void respondWithErrorFromErrorsWithMessageRejectsNone() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, Errors.NONE, "some message"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void respondWithErrorFromErrorsRejectsNullError() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void respondWithErrorFromErrorsWithMessageRejectsNullError() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, null, "some message"))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test

@@ -181,7 +181,7 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
         if (!bufferedRequests.isEmpty()) {
             BufferedRequest bufferedRequest = bufferedRequests.get(0);
             bufferedRequest.fut().complete(context.requestFilterResultBuilder()
-                    .errorResponse(bufferedRequest.header(), bufferedRequest.request(), Errors.UNKNOWN_SERVER_ERROR.exception())
+                    .errorResponse(bufferedRequest.header(), bufferedRequest.request(), Errors.UNKNOWN_SERVER_ERROR)
                     .build());
         }
         return context.responseFilterResultBuilder().withCloseConnection().completed();

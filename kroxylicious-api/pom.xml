@@ -384,6 +384,20 @@
                                         io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String,
                                         java.lang.String)
                                     </exclude>
+                                    <!-- The ApiException-typed error-response entry points were removed at 0.24.0 and replaced by overloads
+                                         taking an org.apache.kafka.common.protocol.Errors code (with an optional message), so the kafka-clients
+                                         exception hierarchy no longer leaks into the API. Removing the released overloads is binary-incompatible.
+                                         See https://github.com/kroxylicious/kroxylicious/issues/4756 -->
+                                    <exclude>
+                                        io.kroxylicious.proxy.filter.RequestFilterResultBuilder#errorResponse(org.apache.kafka.common.message.RequestHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        org.apache.kafka.common.errors.ApiException)
+                                    </exclude>
+                                    <exclude>
+                                        io.kroxylicious.proxy.router.RouterContext#respondWithError(org.apache.kafka.common.message.RequestHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        org.apache.kafka.common.errors.ApiException)
+                                    </exclude>
                                 </excludes>
                                 <!-- see documentation -->
                             </parameter>

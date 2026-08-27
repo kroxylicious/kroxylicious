@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
@@ -368,7 +367,7 @@ class RoutingContextContractIT {
     void respondWithErrorDeliversApiSpecificErrorResponseToClient(KafkaCluster cluster) {
         // Given: router returns an error for every API_VERSIONS request
         ContextCapturingRouterFactory.currentAction
-                .set((apiKey, apiVersion, header, request, ctx) -> ctx.respondWithError(header, request, new UnknownServerException("routing failed")).completed());
+                .set((apiKey, apiVersion, header, request, ctx) -> ctx.respondWithError(header, request, Errors.UNKNOWN_SERVER_ERROR, "routing failed").completed());
 
         try (var tester = KroxyliciousTesters.newBuilder(config(cluster))
                 .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
