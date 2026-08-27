@@ -13,36 +13,18 @@ import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.java.Assertions.java;
 
+@SuppressWarnings("java:S2699") // rewriteRun contains assertions
 class UseKroxyliciousKafkaTypesTest implements RewriteTest {
+
     @Override
     public void defaults(RecipeSpec spec) {
         spec.recipeFromResources("io.kroxylicious.migrations.v0_24.UseKroxyliciousKafkaTypes");
         spec.parser(JavaParser
                 .fromJavaVersion()
-                .dependsOn("""
-                        package org.apache.kafka.common.message;
-                        public class ProduceRequestData {}
-                        """,
-                        """
-                                package io.kroxylicious.kafka.common.message;
-                                public class ProduceRequestData {}
-                                """,
-                        """
-                                package org.apache.kafka.common.protocol;
-                                public interface Readable {}
-                                """,
-                        """
-                                package org.apache.kafka.common.protocol;
-                                public class ByteBufferAccessor implements Readable {}
-                                """,
-                        """
-                                package io.kroxylicious.kafka.common.protocol;
-                                public class ByteBufferAccessor {}
-                                """));
+                .classpath("kafka-clients"));
     }
 
     @Test
-    @SuppressWarnings("java:S2699") // rewriteRun contains assertions
     void shouldMigrateApacheMessagePackageToKroxyliciousPackage() {
         rewriteRun(
                 java(
@@ -69,7 +51,6 @@ class UseKroxyliciousKafkaTypesTest implements RewriteTest {
     }
 
     @Test
-    @SuppressWarnings("java:S2699") // rewriteRun contains assertions
     void shouldMigrateApacheProtocolPackageToKroxyliciousPackage() {
         rewriteRun(
                 java(

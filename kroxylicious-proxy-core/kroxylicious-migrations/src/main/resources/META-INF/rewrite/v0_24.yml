@@ -32,3 +32,4 @@ displayName: Upgrade Kroxylicious Filter API to 0.24.0
 description: Applies all deprecations, renames, and breaking changes introduced in Kroxylicious 0.24.0.
 recipeList:
   - io.kroxylicious.migrations.v0_24.UseKroxyliciousKafkaTypes
+  - io.kroxylicious.migrations.v0_24.UseErrorsInsteadOfExceptions

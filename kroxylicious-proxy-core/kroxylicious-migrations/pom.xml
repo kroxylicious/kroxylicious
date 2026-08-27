@@ -39,29 +39,26 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Provides RewriteTest interface and test runner -->
-        <dependency>
-            <groupId>org.openrewrite</groupId>
-            <artifactId>rewrite-test</artifactId>
-            <scope>test</scope>
-        </dependency>
 
-        <!-- Required for java(...) source code template assertions -->
         <dependency>
             <groupId>org.openrewrite</groupId>
             <artifactId>rewrite-java</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.openrewrite</groupId>
             <artifactId>rewrite-core</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.openrewrite</groupId>
             <artifactId>rewrite-java-${java.version}</artifactId>
+        </dependency>
+
+        <!-- Provides RewriteTest interface and test runner -->
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-test</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -76,6 +73,17 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
