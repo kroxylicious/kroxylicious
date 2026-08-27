@@ -452,7 +452,7 @@ class MockFilterContextTest {
                 .isErrorResponse()
                 .isNotDropRequest()
                 .errorResponse()
-                .isInstanceOf(Errors.UNKNOWN_SERVER_ERROR.exception().getClass())
+                .hasError(Errors.UNKNOWN_SERVER_ERROR)
                 .hasMessage(Errors.UNKNOWN_SERVER_ERROR.message());
     }
 
@@ -473,7 +473,7 @@ class MockFilterContextTest {
                 .isErrorResponse()
                 .isNotDropRequest()
                 .errorResponse()
-                .isInstanceOf(Errors.UNKNOWN_SERVER_ERROR.exception().getClass())
+                .hasError(Errors.UNKNOWN_SERVER_ERROR)
                 .hasMessage(Errors.UNKNOWN_SERVER_ERROR.message()));
     }
 
@@ -495,7 +495,7 @@ class MockFilterContextTest {
                 .isErrorResponse()
                 .isNotDropRequest()
                 .errorResponse()
-                .isInstanceOf(Errors.UNKNOWN_SERVER_ERROR.exception().getClass())
+                .hasError(Errors.UNKNOWN_SERVER_ERROR)
                 .hasMessage(Errors.UNKNOWN_SERVER_ERROR.message());
     }
 
@@ -518,7 +518,7 @@ class MockFilterContextTest {
                 .isErrorResponse()
                 .isNotDropRequest()
                 .errorResponse()
-                .isInstanceOf(Errors.UNKNOWN_SERVER_ERROR.exception().getClass())
+                .hasError(Errors.UNKNOWN_SERVER_ERROR)
                 .hasMessage(Errors.UNKNOWN_SERVER_ERROR.message()));
     }
 
@@ -539,7 +539,7 @@ class MockFilterContextTest {
                 .isErrorResponse()
                 .isNotDropRequest()
                 .errorResponse()
-                .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
+                .hasError(Errors.INVALID_REQUEST)
                 .hasMessage(Errors.INVALID_REQUEST.message());
     }
 
@@ -561,7 +561,7 @@ class MockFilterContextTest {
                 .isErrorResponse()
                 .isNotDropRequest()
                 .errorResponse()
-                .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
+                .hasError(Errors.INVALID_REQUEST)
                 .hasMessage(message);
     }
 
