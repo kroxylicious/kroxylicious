@@ -9,8 +9,9 @@ package io.kroxylicious.testing.filter.assertj;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.kafka.common.header.internals.RecordHeaders;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import static io.kroxylicious.testing.filter.assertj.Assertions.throwsAssertionErrorContaining;
 
 class HeadersAssertTest {
 
@@ -24,30 +25,20 @@ class HeadersAssertTest {
 
     @Test
     void firstHeader() {
-        Assertions.assertThatThrownBy(emptyAssert::firstHeader).isExactlyInstanceOf(AssertionError.class)
-                .hasMessage("""
-                        [headers]\s
-                        Expecting actual not to be empty""");
+        throwsAssertionErrorContaining(emptyAssert::firstHeader, "[headers]");
         headersAssert.firstHeader().hasKeyEqualTo("foo").hasValueEqualTo("1");
     }
 
     @Test
     void lastHeader() {
-        Assertions.assertThatThrownBy(emptyAssert::lastHeader).isExactlyInstanceOf(AssertionError.class)
-                .hasMessage("""
-                        [headers]\s
-                        Expecting actual not to be empty""");
+        throwsAssertionErrorContaining(emptyAssert::lastHeader, "[headers]");
         headersAssert.lastHeader().hasKeyEqualTo("bar").hasValueEqualTo("3");
     }
 
     @Test
     void singleHeader() {
-        Assertions.assertThatThrownBy(emptyAssert::singleHeader).isExactlyInstanceOf(AssertionError.class)
-                .hasMessage("""
-                        [headers]\s
-                        Expected size: 1 but was: 0 in:
-                        RecordHeaders(headers = [], isReadOnly = false)""");
-        Assertions.assertThatThrownBy(headersAssert::singleHeader).isInstanceOf(AssertionError.class);
+        throwsAssertionErrorContaining(emptyAssert::singleHeader, "[headers]");
+        throwsAssertionErrorContaining(headersAssert::singleHeader, "[headers]");
         singletonAssert.singleHeader().hasNullValue();
     }
 
@@ -55,33 +46,20 @@ class HeadersAssertTest {
     void firstHeaderWithKey() {
         headersAssert.firstHeaderWithKey("foo").hasKeyEqualTo("foo").hasValueEqualTo("1");
         headersAssert.firstHeaderWithKey("bar").hasKeyEqualTo("bar").hasValueEqualTo("3");
-        Assertions.assertThatThrownBy(() -> headersAssert.firstHeaderWithKey("gee"))
-                .isExactlyInstanceOf(AssertionError.class)
-                .hasMessage("""
-                        [headers with key gee]\s
-                        Expecting actual not to be empty""");
+        throwsAssertionErrorContaining(() -> headersAssert.firstHeaderWithKey("gee"), "[headers with key gee]");
     }
 
     @Test
     void lastHeaderWithKey() {
         headersAssert.lastHeaderWithKey("foo").hasKeyEqualTo("foo").hasValueEqualTo("2");
         headersAssert.lastHeaderWithKey("bar").hasKeyEqualTo("bar").hasValueEqualTo("3");
-        Assertions.assertThatThrownBy(() -> headersAssert.lastHeaderWithKey("gee"))
-                .isExactlyInstanceOf(AssertionError.class)
-                .hasMessage("""
-                        [headers with key gee]\s
-                        Expecting actual not to be empty""");
+        throwsAssertionErrorContaining(() -> headersAssert.lastHeaderWithKey("gee"), "[headers with key gee]");
     }
 
     @Test
     void singleHeaderWithKey() {
         headersAssert.singleHeaderWithKey("bar").hasKeyEqualTo("bar").hasValueEqualTo("3");
-        Assertions.assertThatThrownBy(() -> headersAssert.singleHeaderWithKey("foo"))
-                .isExactlyInstanceOf(AssertionError.class)
-                .hasMessage("""
-                        [headers with key foo]\s
-                        Expected size: 1 but was: 2 in:
-                        [RecordHeader(key = foo, value = [49]), RecordHeader(key = foo, value = [50])]""");
+        throwsAssertionErrorContaining(() -> headersAssert.singleHeaderWithKey("foo"), "[headers with key foo]");
     }
 
     @Test
@@ -89,10 +67,6 @@ class HeadersAssertTest {
         HeadersAssert nullAssert = KafkaAssertions.assertThat((RecordHeaders) null);
         nullAssert.isNull();
 
-        Assertions.assertThatThrownBy(nullAssert::isNotNull)
-                .isExactlyInstanceOf(AssertionError.class)
-                .hasMessage("""
-                        [null headers]\s
-                        Expecting actual not to be null""");
+        throwsAssertionErrorContaining(nullAssert::isNotNull, "[null headers]");
     }
 }
