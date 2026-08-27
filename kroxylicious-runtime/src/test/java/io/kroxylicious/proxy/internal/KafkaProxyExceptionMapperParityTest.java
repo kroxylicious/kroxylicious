@@ -218,7 +218,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Differential test: for every {@link ApiKeys} that {@link ErrorResponseFactory} currently handles, across every
+ * Differential test: for every {@link ApiKeys} that {@link KafkaProxyExceptionMapper} currently handles, across every
  * version that {@code ApiKeys} supports, asserts that the factory's output is identical to kafka-clients' own
  * {@code AbstractRequest.getErrorResponse(int, Throwable)} oracle (constructed the same way
  * {@code KafkaProxyExceptionMapper}'s switch used to build it).
@@ -227,11 +227,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code io.kroxylicious.kafka.*} migration has not yet reached the router/filter API), so the comparison is a
  * plain recursive equality check on the generated {@code *ResponseData} objects rather than a cross-family
  * wire round-trip via {@code kroxylicious-fidelity-harness} — there is no second wire format to round-trip
- * through yet. Once the migration lands and {@link ErrorResponseFactory} is repointed at
+ * through yet. Once the migration lands and {@link KafkaProxyExceptionMapper} is repointed at
  * {@code io.kroxylicious.kafka.*} types, this test's oracle side (still kafka-clients) will need pairing with a
  * genuine cross-family fidelity check.
  */
-class ErrorResponseFactoryTest {
+class KafkaProxyExceptionMapperParityTest {
 
     private static final Errors ERROR = Errors.UNKNOWN_SERVER_ERROR;
     private static final String MESSAGE = "boom";
@@ -249,7 +249,7 @@ class ErrorResponseFactoryTest {
         ApiMessage expected = oracleRequest.getErrorResponse(0, new UnknownServerException(MESSAGE)).data();
 
         // When
-        ApiMessage actual = ErrorResponseFactory.errorResponseData(apiKey, request, version, ERROR, MESSAGE);
+        ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(apiKey, request, version, ERROR, MESSAGE);
 
         // Then
         assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
@@ -262,7 +262,7 @@ class ErrorResponseFactoryTest {
         ProduceRequestData request = new ProduceRequestData().setAcks((short) 0).setTimeoutMs(1000);
 
         // When
-        ApiMessage actual = ErrorResponseFactory.errorResponseData(ApiKeys.PRODUCE, request, version, ERROR, MESSAGE);
+        ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(ApiKeys.PRODUCE, request, version, ERROR, MESSAGE);
 
         // Then
         assertThat(actual).isNull();
@@ -277,7 +277,7 @@ class ErrorResponseFactoryTest {
         ApiMessage expected = oracleRequest.getErrorResponse(0, new UnsupportedVersionException(MESSAGE)).data();
 
         // When
-        ApiMessage actual = ErrorResponseFactory.errorResponseData(ApiKeys.API_VERSIONS, request, version, Errors.UNSUPPORTED_VERSION, MESSAGE);
+        ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(ApiKeys.API_VERSIONS, request, version, Errors.UNSUPPORTED_VERSION, MESSAGE);
 
         // Then
         assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
