@@ -77,7 +77,6 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
         if (error == Errors.NONE) {
             throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
         }
-        // Errors.exception(String) returns the default-message exception when message is null.
         return errorResponseForException(header, requestMessage, error, message);
     }
 
