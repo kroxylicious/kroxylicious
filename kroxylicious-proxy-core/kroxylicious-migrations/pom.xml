@@ -114,7 +114,7 @@
                         </goals>
                         <configuration>
                             <ignoredUnusedDeclaredDependencies>
-                                org.openrewrite:rewrite-java-${java.version}
+                                org.openrewrite:rewrite-java-${java.version},org.apache.kafka:kafka-clients
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
                     </execution>
