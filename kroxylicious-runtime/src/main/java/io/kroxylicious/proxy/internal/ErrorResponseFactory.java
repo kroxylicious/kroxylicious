@@ -1,0 +1,356 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.proxy.internal;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
+import org.apache.kafka.common.message.AddRaftVoterResponseData;
+import org.apache.kafka.common.message.AllocateProducerIdsResponseData;
+import org.apache.kafka.common.message.AlterPartitionResponseData;
+import org.apache.kafka.common.message.AssignReplicasToDirsResponseData;
+import org.apache.kafka.common.message.BeginQuorumEpochResponseData;
+import org.apache.kafka.common.message.BrokerHeartbeatResponseData;
+import org.apache.kafka.common.message.BrokerRegistrationResponseData;
+import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
+import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData;
+import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
+import org.apache.kafka.common.message.ControllerRegistrationResponseData;
+import org.apache.kafka.common.message.CreateAclsRequestData;
+import org.apache.kafka.common.message.CreateAclsResponseData;
+import org.apache.kafka.common.message.CreatePartitionsRequestData;
+import org.apache.kafka.common.message.CreatePartitionsResponseData;
+import org.apache.kafka.common.message.CreateTopicsRequestData;
+import org.apache.kafka.common.message.CreateTopicsResponseData;
+import org.apache.kafka.common.message.DeleteAclsRequestData;
+import org.apache.kafka.common.message.DeleteAclsResponseData;
+import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
+import org.apache.kafka.common.message.DeleteShareGroupStateResponseData;
+import org.apache.kafka.common.message.DescribeClientQuotasResponseData;
+import org.apache.kafka.common.message.DescribeClusterResponseData;
+import org.apache.kafka.common.message.DescribeConfigsRequestData;
+import org.apache.kafka.common.message.DescribeConfigsResponseData;
+import org.apache.kafka.common.message.DescribeLogDirsResponseData;
+import org.apache.kafka.common.message.DescribeProducersRequestData;
+import org.apache.kafka.common.message.DescribeProducersResponseData;
+import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
+import org.apache.kafka.common.message.DescribeTopicPartitionsResponseData;
+import org.apache.kafka.common.message.DescribeTransactionsRequestData;
+import org.apache.kafka.common.message.DescribeTransactionsResponseData;
+import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
+import org.apache.kafka.common.message.DescribeUserScramCredentialsResponseData;
+import org.apache.kafka.common.message.EndQuorumEpochResponseData;
+import org.apache.kafka.common.message.EnvelopeResponseData;
+import org.apache.kafka.common.message.ExpireDelegationTokenResponseData;
+import org.apache.kafka.common.message.FetchSnapshotResponseData;
+import org.apache.kafka.common.message.GetTelemetrySubscriptionsResponseData;
+import org.apache.kafka.common.message.HeartbeatResponseData;
+import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
+import org.apache.kafka.common.message.InitializeShareGroupStateResponseData;
+import org.apache.kafka.common.message.ListGroupsResponseData;
+import org.apache.kafka.common.message.ListTransactionsResponseData;
+import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
+import org.apache.kafka.common.message.ReadShareGroupStateResponseData;
+import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
+import org.apache.kafka.common.message.ReadShareGroupStateSummaryResponseData;
+import org.apache.kafka.common.message.RemoveRaftVoterResponseData;
+import org.apache.kafka.common.message.RenewDelegationTokenResponseData;
+import org.apache.kafka.common.message.SaslAuthenticateResponseData;
+import org.apache.kafka.common.message.SaslHandshakeResponseData;
+import org.apache.kafka.common.message.ShareAcknowledgeResponseData;
+import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
+import org.apache.kafka.common.message.ShareGroupDescribeResponseData;
+import org.apache.kafka.common.message.ShareGroupHeartbeatResponseData;
+import org.apache.kafka.common.message.StreamsGroupDescribeRequestData;
+import org.apache.kafka.common.message.StreamsGroupDescribeResponseData;
+import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
+import org.apache.kafka.common.message.UnregisterBrokerResponseData;
+import org.apache.kafka.common.message.UpdateRaftVoterResponseData;
+import org.apache.kafka.common.message.VoteResponseData;
+import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
+import org.apache.kafka.common.message.WriteShareGroupStateResponseData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
+
+/**
+ * Builds error {@code *ResponseData} bodies directly from a request {@code *ResponseData}, an {@link ApiKeys}
+ * and an {@link Errors} code, without constructing an {@code org.apache.kafka.common.requests.AbstractRequest}
+ * and delegating to its {@code getErrorResponse(Throwable)}.
+ * <p>
+ * Kafka's own per-RPC {@code getErrorResponse} bodies are hand-written, not generated, so this factory ports
+ * that logic across explicitly, one {@link ApiKeys} case at a time, rather than depending on kafka-clients'
+ * request/response wrapper classes ({@code AbstractRequest}/{@code AbstractResponse}) which are out of scope
+ * for the {@code io.kroxylicious.kafka.*} migration (see kroxylicious/kroxylicious#4748).
+ * <p>
+ * kafka-clients always synthesises error responses with a throttle time of 0 (see
+ * {@code AbstractRequest.getErrorResponse(Throwable)} delegating to {@code AbstractResponse.DEFAULT_THROTTLE_TIME}),
+ * so this factory does the same rather than taking a throttleTimeMs parameter.
+ * <p>
+ * Coverage is partial: unhandled {@link ApiKeys} throw {@link UnsupportedOperationException}. Full coverage is
+ * tracked incrementally; see the class's test coverage for the current state.
+ */
+public final class ErrorResponseFactory {
+
+    private static final int THROTTLE_TIME_MS = 0;
+
+    private ErrorResponseFactory() {
+    }
+
+    public static ApiMessage errorResponseData(ApiKeys apiKey, ApiMessage requestBody, short apiVersion, Errors error, String message) {
+        short code = error.code();
+        return switch (apiKey) {
+            case ADD_OFFSETS_TO_TXN -> new AddOffsetsToTxnResponseData().setErrorCode(code).setThrottleTimeMs(THROTTLE_TIME_MS);
+            case ADD_RAFT_VOTER -> new AddRaftVoterResponseData().setErrorCode(code).setErrorMessage(error.message()).setThrottleTimeMs(THROTTLE_TIME_MS);
+            case ALLOCATE_PRODUCER_IDS -> new AllocateProducerIdsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case ALTER_PARTITION -> new AlterPartitionResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case ASSIGN_REPLICAS_TO_DIRS -> new AssignReplicasToDirsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case BEGIN_QUORUM_EPOCH -> new BeginQuorumEpochResponseData().setErrorCode(code);
+            case BROKER_HEARTBEAT -> new BrokerHeartbeatResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case BROKER_REGISTRATION -> new BrokerRegistrationResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case CONSUMER_GROUP_HEARTBEAT -> new ConsumerGroupHeartbeatResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case CONTROLLER_REGISTRATION -> new ControllerRegistrationResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code)
+                    .setErrorMessage(error.message());
+            case DESCRIBE_CLIENT_QUOTAS -> new DescribeClientQuotasResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code)
+                    .setErrorMessage(apiErrorMessage(error, message)).setEntries(null);
+            case DESCRIBE_CLUSTER -> new DescribeClusterResponseData().setErrorCode(code).setErrorMessage(apiErrorMessage(error, message));
+            case DESCRIBE_LOG_DIRS -> new DescribeLogDirsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case END_QUORUM_EPOCH -> new EndQuorumEpochResponseData().setErrorCode(code);
+            case ENVELOPE -> new EnvelopeResponseData().setErrorCode(code);
+            case EXPIRE_DELEGATION_TOKEN -> new ExpireDelegationTokenResponseData().setErrorCode(code).setThrottleTimeMs(THROTTLE_TIME_MS);
+            case FETCH_SNAPSHOT -> new FetchSnapshotResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case GET_TELEMETRY_SUBSCRIPTIONS -> new GetTelemetrySubscriptionsResponseData().setErrorCode(code).setThrottleTimeMs(THROTTLE_TIME_MS);
+            case HEARTBEAT -> heartbeatErrorResponse(apiVersion, code);
+            case LIST_GROUPS -> listGroupsErrorResponse(apiVersion, code);
+            case LIST_TRANSACTIONS -> new ListTransactionsResponseData().setErrorCode(code).setThrottleTimeMs(THROTTLE_TIME_MS);
+            case REMOVE_RAFT_VOTER -> new RemoveRaftVoterResponseData().setErrorCode(code).setErrorMessage(error.message()).setThrottleTimeMs(THROTTLE_TIME_MS);
+            case RENEW_DELEGATION_TOKEN -> new RenewDelegationTokenResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case SASL_AUTHENTICATE -> new SaslAuthenticateResponseData().setErrorCode(code).setErrorMessage(apiErrorMessage(error, message));
+            case SASL_HANDSHAKE -> new SaslHandshakeResponseData().setErrorCode(code);
+            case SHARE_ACKNOWLEDGE -> new ShareAcknowledgeResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case SHARE_GROUP_HEARTBEAT -> new ShareGroupHeartbeatResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case STREAMS_GROUP_HEARTBEAT -> new StreamsGroupHeartbeatResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code);
+            case UNREGISTER_BROKER -> new UnregisterBrokerResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setErrorCode(code).setErrorMessage(message);
+            case UPDATE_RAFT_VOTER -> new UpdateRaftVoterResponseData().setErrorCode(code).setThrottleTimeMs(THROTTLE_TIME_MS);
+            case VOTE -> new VoteResponseData().setErrorCode(code);
+
+            case CONSUMER_GROUP_DESCRIBE -> consumerGroupDescribeErrorResponse((ConsumerGroupDescribeRequestData) requestBody, code);
+            case SHARE_GROUP_DESCRIBE -> shareGroupDescribeErrorResponse((ShareGroupDescribeRequestData) requestBody, code);
+            case STREAMS_GROUP_DESCRIBE -> streamsGroupDescribeErrorResponse((StreamsGroupDescribeRequestData) requestBody, code);
+            case CREATE_ACLS -> createAclsErrorResponse((CreateAclsRequestData) requestBody, code, apiErrorMessage(error, message));
+            case DELETE_ACLS -> deleteAclsErrorResponse((DeleteAclsRequestData) requestBody, code, apiErrorMessage(error, message));
+            case DESCRIBE_USER_SCRAM_CREDENTIALS -> describeUserScramCredentialsErrorResponse((DescribeUserScramCredentialsRequestData) requestBody, code,
+                    apiErrorMessage(error, message));
+            case CREATE_PARTITIONS -> createPartitionsErrorResponse((CreatePartitionsRequestData) requestBody, code, apiErrorMessage(error, message));
+            case CREATE_TOPICS -> createTopicsErrorResponse((CreateTopicsRequestData) requestBody, apiVersion, code, apiErrorMessage(error, message));
+            case DESCRIBE_CONFIGS -> describeConfigsErrorResponse((DescribeConfigsRequestData) requestBody, code, error.message());
+            case DESCRIBE_TRANSACTIONS -> describeTransactionsErrorResponse((DescribeTransactionsRequestData) requestBody, code);
+            case DESCRIBE_PRODUCERS -> describeProducersErrorResponse((DescribeProducersRequestData) requestBody, code);
+            case DESCRIBE_TOPIC_PARTITIONS -> describeTopicPartitionsErrorResponse((DescribeTopicPartitionsRequestData) requestBody, code);
+            case READ_SHARE_GROUP_STATE -> readShareGroupStateErrorResponse((ReadShareGroupStateRequestData) requestBody, code, error.message());
+            case WRITE_SHARE_GROUP_STATE -> writeShareGroupStateErrorResponse((WriteShareGroupStateRequestData) requestBody, code, error.message());
+            case INITIALIZE_SHARE_GROUP_STATE -> initializeShareGroupStateErrorResponse((InitializeShareGroupStateRequestData) requestBody, code);
+            case DELETE_SHARE_GROUP_STATE -> deleteShareGroupStateErrorResponse((DeleteShareGroupStateRequestData) requestBody, code);
+            case READ_SHARE_GROUP_STATE_SUMMARY -> readShareGroupStateSummaryErrorResponse((ReadShareGroupStateSummaryRequestData) requestBody, code,
+                    error.message());
+
+            default -> throw new UnsupportedOperationException("ErrorResponseFactory does not yet handle APIKey: " + apiKey);
+        };
+    }
+
+    /**
+     * Mirrors kafka-clients' {@code ApiError.fromThrowable(Throwable)}: the message is suppressed (set to
+     * {@code null}) for {@link Errors#UNKNOWN_SERVER_ERROR} or when it's identical to the error code's own
+     * canned message, to avoid leaking arbitrary exception text for opaque server errors.
+     */
+    private static String apiErrorMessage(Errors error, String message) {
+        return error == Errors.UNKNOWN_SERVER_ERROR || error.message().equals(message) ? null : message;
+    }
+
+    private static HeartbeatResponseData heartbeatErrorResponse(short apiVersion, short code) {
+        HeartbeatResponseData response = new HeartbeatResponseData().setErrorCode(code);
+        if (apiVersion >= 1) {
+            response.setThrottleTimeMs(THROTTLE_TIME_MS);
+        }
+        return response;
+    }
+
+    private static ListGroupsResponseData listGroupsErrorResponse(short apiVersion, short code) {
+        ListGroupsResponseData response = new ListGroupsResponseData().setGroups(Collections.emptyList()).setErrorCode(code);
+        if (apiVersion >= 1) {
+            response.setThrottleTimeMs(THROTTLE_TIME_MS);
+        }
+        return response;
+    }
+
+    private static ConsumerGroupDescribeResponseData consumerGroupDescribeErrorResponse(ConsumerGroupDescribeRequestData request, short code) {
+        ConsumerGroupDescribeResponseData response = new ConsumerGroupDescribeResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
+        request.groupIds().forEach(groupId -> response.groups().add(
+                new ConsumerGroupDescribeResponseData.DescribedGroup().setGroupId(groupId).setErrorCode(code)));
+        return response;
+    }
+
+    private static ShareGroupDescribeResponseData shareGroupDescribeErrorResponse(ShareGroupDescribeRequestData request, short code) {
+        ShareGroupDescribeResponseData response = new ShareGroupDescribeResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
+        request.groupIds().forEach(groupId -> response.groups().add(
+                new ShareGroupDescribeResponseData.DescribedGroup().setGroupId(groupId).setErrorCode(code)));
+        return response;
+    }
+
+    private static StreamsGroupDescribeResponseData streamsGroupDescribeErrorResponse(StreamsGroupDescribeRequestData request, short code) {
+        StreamsGroupDescribeResponseData response = new StreamsGroupDescribeResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
+        request.groupIds().forEach(groupId -> response.groups().add(
+                new StreamsGroupDescribeResponseData.DescribedGroup().setGroupId(groupId).setErrorCode(code)));
+        return response;
+    }
+
+    private static CreateAclsResponseData createAclsErrorResponse(CreateAclsRequestData request, short code, String message) {
+        List<CreateAclsResponseData.AclCreationResult> results = Collections.nCopies(request.creations().size(),
+                new CreateAclsResponseData.AclCreationResult().setErrorCode(code).setErrorMessage(message));
+        return new CreateAclsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setResults(results);
+    }
+
+    private static DeleteAclsResponseData deleteAclsErrorResponse(DeleteAclsRequestData request, short code, String message) {
+        List<DeleteAclsResponseData.DeleteAclsFilterResult> results = Collections.nCopies(request.filters().size(),
+                new DeleteAclsResponseData.DeleteAclsFilterResult().setErrorCode(code).setErrorMessage(message));
+        return new DeleteAclsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setFilterResults(results);
+    }
+
+    private static DescribeUserScramCredentialsResponseData describeUserScramCredentialsErrorResponse(DescribeUserScramCredentialsRequestData request, short code,
+                                                                                                      String message) {
+        DescribeUserScramCredentialsResponseData response = new DescribeUserScramCredentialsResponseData()
+                .setThrottleTimeMs(THROTTLE_TIME_MS)
+                .setErrorCode(code)
+                .setErrorMessage(message);
+        request.users().forEach(user -> response.results().add(
+                new DescribeUserScramCredentialsResponseData.DescribeUserScramCredentialsResult().setErrorCode(code).setErrorMessage(message)));
+        return response;
+    }
+
+    private static CreatePartitionsResponseData createPartitionsErrorResponse(CreatePartitionsRequestData request, short code, String message) {
+        CreatePartitionsResponseData response = new CreatePartitionsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
+        request.topics().forEach(topic -> response.results().add(
+                new CreatePartitionsResponseData.CreatePartitionsTopicResult().setName(topic.name()).setErrorCode(code).setErrorMessage(message)));
+        return response;
+    }
+
+    private static CreateTopicsResponseData createTopicsErrorResponse(CreateTopicsRequestData request, short apiVersion, short code, String message) {
+        CreateTopicsResponseData response = new CreateTopicsResponseData();
+        if (apiVersion >= 2) {
+            response.setThrottleTimeMs(THROTTLE_TIME_MS);
+        }
+        request.topics().forEach(topic -> response.topics().add(
+                new CreateTopicsResponseData.CreatableTopicResult().setName(topic.name()).setErrorCode(code).setErrorMessage(message)));
+        return response;
+    }
+
+    private static DescribeConfigsResponseData describeConfigsErrorResponse(DescribeConfigsRequestData request, short code, String message) {
+        List<DescribeConfigsResponseData.DescribeConfigsResult> results = request.resources().stream()
+                .map(resource -> new DescribeConfigsResponseData.DescribeConfigsResult()
+                        .setErrorCode(code)
+                        .setErrorMessage(message)
+                        .setResourceName(resource.resourceName())
+                        .setResourceType(resource.resourceType()))
+                .toList();
+        return new DescribeConfigsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS).setResults(results);
+    }
+
+    private static DescribeTransactionsResponseData describeTransactionsErrorResponse(DescribeTransactionsRequestData request, short code) {
+        DescribeTransactionsResponseData response = new DescribeTransactionsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
+        request.transactionalIds().forEach(transactionalId -> response.transactionStates().add(
+                new DescribeTransactionsResponseData.TransactionState().setTransactionalId(transactionalId).setErrorCode(code)));
+        return response;
+    }
+
+    private static DescribeProducersResponseData describeProducersErrorResponse(DescribeProducersRequestData request, short code) {
+        DescribeProducersResponseData response = new DescribeProducersResponseData();
+        request.topics().forEach(topicRequest -> {
+            DescribeProducersResponseData.TopicResponse topicResponse = new DescribeProducersResponseData.TopicResponse().setName(topicRequest.name());
+            topicRequest.partitionIndexes().forEach(partitionId -> topicResponse.partitions().add(
+                    new DescribeProducersResponseData.PartitionResponse().setPartitionIndex(partitionId).setErrorCode(code)));
+            response.topics().add(topicResponse);
+        });
+        return response;
+    }
+
+    private static DescribeTopicPartitionsResponseData describeTopicPartitionsErrorResponse(DescribeTopicPartitionsRequestData request, short code) {
+        DescribeTopicPartitionsResponseData response = new DescribeTopicPartitionsResponseData().setThrottleTimeMs(THROTTLE_TIME_MS);
+        request.topics().forEach(topic -> response.topics().add(
+                new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic()
+                        .setName(topic.name())
+                        .setErrorCode(code)
+                        .setIsInternal(false)
+                        .setPartitions(Collections.emptyList())));
+        return response;
+    }
+
+    private static ReadShareGroupStateResponseData readShareGroupStateErrorResponse(ReadShareGroupStateRequestData request, short code, String message) {
+        List<ReadShareGroupStateResponseData.ReadStateResult> results = new ArrayList<>();
+        request.topics().forEach(topicResult -> results.add(new ReadShareGroupStateResponseData.ReadStateResult()
+                .setTopicId(topicResult.topicId())
+                .setPartitions(topicResult.partitions().stream()
+                        .map(partitionData -> new ReadShareGroupStateResponseData.PartitionResult()
+                                .setPartition(partitionData.partition())
+                                .setErrorCode(code)
+                                .setErrorMessage(message))
+                        .toList())));
+        return new ReadShareGroupStateResponseData().setResults(results);
+    }
+
+    private static WriteShareGroupStateResponseData writeShareGroupStateErrorResponse(WriteShareGroupStateRequestData request, short code, String message) {
+        List<WriteShareGroupStateResponseData.WriteStateResult> results = new ArrayList<>();
+        request.topics().forEach(topicResult -> results.add(new WriteShareGroupStateResponseData.WriteStateResult()
+                .setTopicId(topicResult.topicId())
+                .setPartitions(topicResult.partitions().stream()
+                        .map(partitionData -> new WriteShareGroupStateResponseData.PartitionResult()
+                                .setPartition(partitionData.partition())
+                                .setErrorCode(code)
+                                .setErrorMessage(message))
+                        .toList())));
+        return new WriteShareGroupStateResponseData().setResults(results);
+    }
+
+    private static InitializeShareGroupStateResponseData initializeShareGroupStateErrorResponse(InitializeShareGroupStateRequestData request, short code) {
+        List<InitializeShareGroupStateResponseData.InitializeStateResult> results = new ArrayList<>();
+        request.topics().forEach(topicResult -> results.add(new InitializeShareGroupStateResponseData.InitializeStateResult()
+                .setTopicId(topicResult.topicId())
+                .setPartitions(topicResult.partitions().stream()
+                        .map(partitionData -> new InitializeShareGroupStateResponseData.PartitionResult()
+                                .setPartition(partitionData.partition())
+                                .setErrorCode(code))
+                        .toList())));
+        return new InitializeShareGroupStateResponseData().setResults(results);
+    }
+
+    private static DeleteShareGroupStateResponseData deleteShareGroupStateErrorResponse(DeleteShareGroupStateRequestData request, short code) {
+        List<DeleteShareGroupStateResponseData.DeleteStateResult> results = new ArrayList<>();
+        request.topics().forEach(topicResult -> results.add(new DeleteShareGroupStateResponseData.DeleteStateResult()
+                .setTopicId(topicResult.topicId())
+                .setPartitions(topicResult.partitions().stream()
+                        .map(partitionData -> new DeleteShareGroupStateResponseData.PartitionResult()
+                                .setPartition(partitionData.partition())
+                                .setErrorCode(code))
+                        .toList())));
+        return new DeleteShareGroupStateResponseData().setResults(results);
+    }
+
+    private static ReadShareGroupStateSummaryResponseData readShareGroupStateSummaryErrorResponse(ReadShareGroupStateSummaryRequestData request, short code,
+                                                                                                  String message) {
+        List<ReadShareGroupStateSummaryResponseData.ReadStateSummaryResult> results = new ArrayList<>();
+        request.topics().forEach(topicResult -> results.add(new ReadShareGroupStateSummaryResponseData.ReadStateSummaryResult()
+                .setTopicId(topicResult.topicId())
+                .setPartitions(topicResult.partitions().stream()
+                        .map(partitionData -> new ReadShareGroupStateSummaryResponseData.PartitionResult()
+                                .setPartition(partitionData.partition())
+                                .setErrorCode(code)
+                                .setErrorMessage(message))
+                        .toList())));
+        return new ReadShareGroupStateSummaryResponseData().setResults(results);
+    }
+}
