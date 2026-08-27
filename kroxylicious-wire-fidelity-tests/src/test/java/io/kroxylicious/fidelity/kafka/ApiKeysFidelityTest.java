@@ -38,6 +38,17 @@ class ApiKeysFidelityTest {
     }
 
     @Test
+    void sameApiKeyOrder() {
+        // Given
+        var kafkaNames = Arrays.stream(ApiKeys.values()).map(Enum::name).toList();
+        var kroxyliciousNames = Arrays.stream(io.kroxylicious.kafka.common.protocol.ApiKeys.values())
+                .map(Enum::name).toList();
+
+        // When / Then
+        assertThat(kroxyliciousNames).containsExactlyElementsOf(kafkaNames);
+    }
+
+    @Test
     void produceApiVersionsResponseMinVersionMatches() {
         // When / Then
         assertThat(io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION)
@@ -59,6 +70,30 @@ class ApiKeysFidelityTest {
         assertThat(kroxylicious.latestVersion(true)).isEqualTo(kafka.latestVersion(true));
         assertThat(kroxylicious.hasValidVersion()).isEqualTo(kafka.hasValidVersion());
         assertThat(kroxylicious.allVersions()).isEqualTo(kafka.allVersions());
+        assertThat(kroxylicious.messageType.apiKey()).isEqualTo(kroxylicious.id);
+        assertThat(kroxylicious.messageType.name).isEqualTo(kafka.name);
+    }
+
+    @ParameterizedTest
+    @EnumSource(ApiKeys.class)
+    void isVersionSupportedMatchesKafka(ApiKeys kafka) {
+        // Given
+        var kroxylicious = io.kroxylicious.kafka.common.protocol.ApiKeys.valueOf(kafka.name());
+        short belowRange = (short) (kafka.oldestVersion() - 1);
+        short aboveRange = (short) (kafka.latestVersion() + 1);
+
+        // When / Then
+        for (short version : kafka.allVersions()) {
+            assertThat(kroxylicious.isVersionSupported(version))
+                    .as("isVersionSupported(%d) for %s", version, kafka.name())
+                    .isTrue();
+        }
+        assertThat(kroxylicious.isVersionSupported(belowRange))
+                .as("isVersionSupported(%d) for %s", belowRange, kafka.name())
+                .isFalse();
+        assertThat(kroxylicious.isVersionSupported(aboveRange))
+                .as("isVersionSupported(%d) for %s", aboveRange, kafka.name())
+                .isFalse();
     }
 
     @ParameterizedTest
