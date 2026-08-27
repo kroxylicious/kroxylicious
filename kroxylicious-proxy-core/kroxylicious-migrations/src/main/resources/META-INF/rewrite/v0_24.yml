@@ -24,6 +24,9 @@ recipeList:
   - org.openrewrite.java.ChangePackageInStringLiteral:
       oldPackageName: org.apache.kafka.common.protocol
       newPackageName: io.kroxylicious.kafka.common.protocol
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.protocol.Errors
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.protocol.Errors
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
