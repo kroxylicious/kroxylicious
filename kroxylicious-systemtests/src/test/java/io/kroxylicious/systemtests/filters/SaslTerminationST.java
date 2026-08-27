@@ -203,9 +203,10 @@ class SaslTerminationST extends AbstractSystemTests {
         Map<String, String> allowedUrlsSystemProps = Map.of(
                 "org.apache.kafka.sasl.oauthbearer.allowed.urls", tokenUrl + "," + jwksUrl);
 
-        // Kafka 4.1+ clients eagerly load jose4j during OAUTHBEARER login (KAFKA-20184), but the
-        // upstream Strimzi test-clients image doesn't bundle it, so use our jose4j-augmented build
-        // of that image for this test only.
+        // Kafka 4.1+ clients eagerly load jose4j during OAUTHBEARER login (KAFKA-20184), but
+        // due to https://issues.apache.org/jira/browse/KAFKA-20184 jose4j is not treated
+        // as a runtime dependency of kafka-clients. The upstream Strimzi test-clients image
+        // doesn't bundle it, so use our jose4j-augmented build of that image for this test only.
         KafkaClient client = KafkaClients.getKafkaClient().inNamespace(namespace).withImage(Environment.TEST_CLIENTS_OAUTH_IMAGE);
         client.preloadImage();
 

@@ -5,8 +5,9 @@
 #
 
 # Augments the upstream Strimzi test-clients image with jose4j on the classpath.
-# Kafka clients 4.1+ eagerly load jose4j during OAUTHBEARER SASL login (KAFKA-20184),
-# but the upstream image does not bundle it. Its run.sh exports CLASSPATH and passes it
+# Kafka clients 4.1+ eagerly load jose4j during OAUTHBEARER SASL login
+# but Kafka incorrectly omits jose4j as a runtime dependency of kafka-clients (KAFKA-20184),
+# and the upstream image does not bundle it. Its run.sh exports CLASSPATH and passes it
 # straight to `java -cp`, so adding the jar here and pointing CLASSPATH at it is enough.
 ARG TEST_CLIENTS_IMAGE
 FROM ${TEST_CLIENTS_IMAGE}

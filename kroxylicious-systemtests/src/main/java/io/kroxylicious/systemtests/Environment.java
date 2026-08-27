@@ -111,7 +111,8 @@ public class Environment {
     /**
      * A build of {@link #TEST_CLIENTS_IMAGE_DEFAULT} with jose4j added to the classpath, built by the
      * kroxylicious-test-images module. Needed because Kafka 4.1+ eagerly loads jose4j during OAUTHBEARER
-     * SASL client login (KAFKA-20184), but the upstream Strimzi test-clients image does not bundle it.
+     * SASL client login but Kafka incorrectly omits jose4j as a runtime dependency of kafka-clients (KAFKA-20184),
+     * and the upstream Strimzi test-clients image does not bundle it.
      */
     private static final String TEST_CLIENTS_OAUTH_IMAGE_DEFAULT = "localhost/kroxylicious/oauth-test-clients:latest";
     private static final String OLM_OPERATOR_CHANNEL_DEFAULT = "alpha";
