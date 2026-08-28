@@ -20,9 +20,10 @@
     </parent>
     <artifactId>kroxylicious-kafka-message-json</artifactId>
     <name>Kafka message JSON converter</name>
-    <description>KafkaApiMessageConverter: converts Kafka protocol request/response messages
-        between org.apache.kafka.common.protocol.ApiMessage and their JSON representation,
-        keyed by ApiMessageType.</description>
+    <description>KafkaApiMessageConverter and VendoredKafkaApiMessageConverter: convert Kafka
+        protocol request/response messages between ApiMessage and their JSON representation,
+        keyed by ApiMessageType, for the org.apache.kafka.* and vendored io.kroxylicious.kafka.*
+        message classes respectively.</description>
 
     <dependencies>
         <dependency>
@@ -37,6 +38,21 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -164,6 +180,29 @@
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>KafkaApiMessageConverter.ftl</templateNames>
+                            <!--suppress MavenModelInspection -->
+                            <outputFilePattern>${templateName}.java</outputFilePattern>
+                            <outputPackage>io.kroxylicious.kafka.message.json</outputPackage>
+                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <!-- VendoredKafkaApiMessageConverter targets io.kroxylicious.kafka.common.message,
+                         generated from kafka.message-spec.version specs (see
+                         unpack-data-class-message-specs above), which can differ from kafka.version
+                         used by generate-converters above. Kept as its own execution so each template
+                         is generated from the spec set matching the classes it actually targets. -->
+                    <execution>
+                        <id>generate-vendored-converter</id>
+                        <goals>
+                            <goal>generate-multi</goal>
+                        </goals>
+                        <phase>process-sources</phase>
+                        <configuration>
+                            <messageSpecDirectory>${project.build.directory}/data-class-message-specs/common/message
+                            </messageSpecDirectory>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>VendoredKafkaApiMessageConverter.ftl</templateNames>
                             <!--suppress MavenModelInspection -->
                             <outputFilePattern>${templateName}.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.kafka.message.json</outputPackage>
