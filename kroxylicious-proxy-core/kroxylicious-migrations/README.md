@@ -65,8 +65,7 @@ When developing or validating recipes against the local Kroxylicious repository,
 mvn -Djava.version=21 org.openrewrite.maven:rewrite-maven-plugin:dryRun \
   -Drewrite.configLocation=$(pwd)/kroxylicious-proxy-core/kroxylicious-migrations/src/main/resources/META-INF/rewrite/v0_24.yml \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24 \
-  -Drewrite.exclusions="**/pom.xml,changelog/unreleased/**,kroxylicious-proxy-core/kroxylicious-migrations/**"
-
+  -Drewrite.exclusions="**/pom.xml,changelog/unreleased/**,kroxylicious-proxy-core/kroxylicious-migrations/**,tools/**,kroxylicious-wire-fidelity-tests/**"
 ```
 
 > NOTE: the `kroxylicious-migrations` module is excluded because the recipes would otherwise rewrite the package names embedded in the recipes' own source and in the `String` literals of their tests.
@@ -77,7 +76,7 @@ mvn -Djava.version=21 org.openrewrite.maven:rewrite-maven-plugin:dryRun \
 mvn -Djava.version=21 org.openrewrite.maven:rewrite-maven-plugin:run \
   -Drewrite.configLocation=$(pwd)/kroxylicious-proxy-core/kroxylicious-migrations/src/main/resources/META-INF/rewrite/v0_24.yml \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24 \
-  -Drewrite.exclusions="**/pom.xml,changelog/unreleased/**,kroxylicious-proxy-core/kroxylicious-migrations/**"
+  -Drewrite.exclusions="**/pom.xml,changelog/unreleased/**,kroxylicious-proxy-core/kroxylicious-migrations/**,tools/**,kroxylicious-wire-fidelity-tests/**"
 
 ```
 
