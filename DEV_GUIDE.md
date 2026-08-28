@@ -717,7 +717,7 @@ important_notes:
   - "**Behaviour change**: `OldClass.method()` now throws `SomeException` if Z."
 ```
 
-`CHANGELOG.md` is regenerated automatically during the release process - contributors do not need to update it. The CI lint step runs `mvn logchange:lint` on every PR to catch malformed YAML.
+`CHANGELOG.md` is regenerated automatically during the release process - contributors do not need to update it. The Maven `validate` phase lints changelog entries and checks their filenames, so contributors receive the same feedback locally as in CI.
 
 # Deprecation Policy
 
