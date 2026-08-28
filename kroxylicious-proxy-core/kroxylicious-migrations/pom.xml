@@ -62,13 +62,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!--        &lt;!&ndash; Required for recipeFromResources() to parse declarative .yml files &ndash;&gt;-->
-        <!--        <dependency>-->
-        <!--            <groupId>org.openrewrite</groupId>-->
-        <!--            <artifactId>rewrite-yaml</artifactId>-->
-        <!--            <scope>test</scope>-->
-        <!--        </dependency>-->
-
         <!-- JUnit 5 test framework -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -84,24 +77,6 @@
     </dependencies>
 
     <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.openrewrite.maven</groupId>
-                    <artifactId>rewrite-maven-plugin</artifactId>
-                    <version>${rewrite-maven-plugin.version}</version>
-                    <configuration>
-                        <!-- Points directly to local source tree, skipping mvn install requirement -->
-                        <configLocation>
-                            ${maven.multiModuleProjectDirectory}/kroxylicious-migrations/src/main/resources/META-INF/rewrite/v0_24.yml
-                        </configLocation>
-                        <activeRecipes>
-                            <recipe>io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24</recipe>
-                        </activeRecipes>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
