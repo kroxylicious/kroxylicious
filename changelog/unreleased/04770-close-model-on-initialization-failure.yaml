@@ -1,0 +1,4 @@
+title: "fix(runtime): close virtual cluster model when initialization fails, releasing filter and router resources"
+type: fixed
+issues:
+  - 4770

@@ -901,6 +901,50 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
+    void shouldCloseModelOnInitializationFailure() {
+        // initializationFailed drives the lifecycle straight to Stopped; shutdownCluster
+        // short-circuits on Stopped without closing, so initializationFailed itself must close
+        // the model or the filters/routers initialized during model construction leak forever.
+        var model = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
+
+        registry.initializationFailed(CLUSTER_A, new RuntimeException("bind failed"));
+
+        verify(model).close();
+    }
+
+    @Test
+    void shouldNotCloseModelAgainOnShutdownAfterInitializationFailure() {
+        var model = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
+        registry.initializationFailed(CLUSTER_A, new RuntimeException("bind failed"));
+        verify(model, times(1)).close();
+
+        registry.shutdownAllClusters();
+
+        verify(model, times(1)).close();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldFireCallbackWithInitializationCauseEvenWhenModelCloseThrows() {
+        // The close failure is secondary (logged by closeModel); the callback still fires with
+        // the original initialization cause — the failure the operator needs to see — and
+        // initializationFailed itself must not throw so callers can proceed with rollback.
+        var initFailure = new RuntimeException("bind failed");
+        var model = mockModel(CLUSTER_A);
+        doThrow(new RuntimeException("close failed")).when(model).close();
+        BiConsumer<String, Optional<Throwable>> callback = mock(BiConsumer.class);
+        var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, callback);
+
+        assertThatCode(() -> registry.initializationFailed(CLUSTER_A, initFailure))
+                .doesNotThrowAnyException();
+
+        verify(model).close();
+        verify(callback).accept(CLUSTER_A, Optional.of(initFailure));
+    }
+
+    @Test
     void shouldCloseModelWhenDrainingClusterCompletesDrain() {
         // Close must fire only after the drain completes — not at drain start. Mocks the connection's
         // drain future so we can hold the cluster in Draining and assert close has not yet fired.
