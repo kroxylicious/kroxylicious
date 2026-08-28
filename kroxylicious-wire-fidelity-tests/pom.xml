@@ -42,6 +42,16 @@
             <artifactId>kroxylicious-api</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kafka-message-json</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- Pinned to kafka.message-spec.version rather than the project's managed kafka.version:
              our *Data classes are generated from the IDL specs bundled in this exact kafka-clients
              jar, so fidelity must be proven against that same jar's actual implementations. Mirrors
