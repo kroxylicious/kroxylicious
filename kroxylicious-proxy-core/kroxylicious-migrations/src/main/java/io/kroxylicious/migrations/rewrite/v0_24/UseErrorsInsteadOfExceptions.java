@@ -54,7 +54,7 @@ public class UseErrorsInsteadOfExceptions extends Recipe {
             List<Expression> arguments = mi.getArguments();
             if ("errorResponse".equals(mi.getSimpleName()) && arguments.size() == 3) {
                 Expression thirdArg = arguments.get(2);
-                if (thirdArg instanceof J.MethodInvocation invocation) {
+                if (thirdArg instanceof J.MethodInvocation invocation && "exception".equals(invocation.getSimpleName()) && invocation.getSelect() != null) {
                     Expression innerExpression = invocation.getSelect();
                     List<Expression> newArgs = new ArrayList<>(arguments);
                     newArgs.set(2, Objects.requireNonNull(innerExpression).withPrefix(thirdArg.getPrefix()));

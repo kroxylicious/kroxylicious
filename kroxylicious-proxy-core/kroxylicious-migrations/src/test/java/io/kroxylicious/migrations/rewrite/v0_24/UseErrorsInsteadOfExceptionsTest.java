@@ -122,4 +122,37 @@ class UseErrorsInsteadOfExceptionsTest implements RewriteTest {
                                 """));
     }
 
+    @Test
+    void shouldNotTouchArgumentsWhichAreNotErrors() {
+        // A single entry to java implies it doesn't make changes.
+        rewriteRun(
+                java(
+                        """
+                                package com.example;
+
+                                import java.util.concurrent.CompletionStage;
+
+                                import org.apache.kafka.common.errors.ApiException;
+                                import org.apache.kafka.common.message.ProduceRequestData;
+                                import org.apache.kafka.common.message.RequestHeaderData;
+                                import org.apache.kafka.common.protocol.Errors;
+
+                                import io.kroxylicious.proxy.filter.FilterContext;
+                                import io.kroxylicious.proxy.filter.ProduceRequestFilter;
+                                import io.kroxylicious.proxy.filter.RequestFilterResult;
+
+                                public class SampleFilter implements ProduceRequestFilter {
+
+                                    @Override
+                                    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
+                                        return context.requestFilterResultBuilder().errorResponse(header, request, getException()).completed();
+                                    }
+
+                                    private static ApiException getException() {
+                                        return Errors.GROUP_AUTHORIZATION_FAILED.exception();
+                                    }
+                                }
+                                """));
+    }
+
 }
