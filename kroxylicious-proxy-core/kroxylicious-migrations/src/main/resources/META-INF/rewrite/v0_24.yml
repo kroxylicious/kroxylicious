@@ -1,0 +1,117 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousKafkaTypes
+displayName: Use Kroxylicious-managed Kafka API types
+description: Replaces org.apache.kafka generated message packages with io.kroxylicious.kafka.
+recipeList:
+  - org.openrewrite.java.ChangePackage:
+      oldPackageName: org.apache.kafka.common.message
+      newPackageName: io.kroxylicious.kafka.common.message
+      recursive: true
+  - org.openrewrite.java.ChangePackageInStringLiteral:
+      oldPackageName: org.apache.kafka.common.message
+      newPackageName: io.kroxylicious.kafka.common.message
+  - org.openrewrite.java.ChangePackage:
+        oldPackageName: org.apache.kafka.common.protocol
+        newPackageName: io.kroxylicious.kafka.common.protocol
+        recursive: true
+  - org.openrewrite.java.ChangePackageInStringLiteral:
+      oldPackageName: org.apache.kafka.common.protocol
+      newPackageName: io.kroxylicious.kafka.common.protocol
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.protocol.Errors
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.protocol.Errors
+  - org.openrewrite.java.ChangePackage:
+      oldPackageName: org.apache.kafka.common.compress
+      newPackageName: io.kroxylicious.kafka.common.compress
+      recursive: true
+  - org.openrewrite.java.ChangePackageInStringLiteral:
+      oldPackageName: org.apache.kafka.common.compress
+      newPackageName: io.kroxylicious.kafka.common.compress
+  - org.openrewrite.java.ChangePackage:
+      oldPackageName: org.apache.kafka.common.header
+      newPackageName: io.kroxylicious.kafka.common.header
+      recursive: true
+  - org.openrewrite.java.ChangePackageInStringLiteral:
+      oldPackageName: org.apache.kafka.common.header
+      newPackageName: io.kroxylicious.kafka.common.header
+  # We only vendor the subset of commun.utils required by the *Data classes
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.AbstractIterator
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.AbstractIterator
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.BufferSupplier
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.BufferSupplier
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.ByteBufferInputStream
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.ByteBufferInputStream
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.ByteBufferOutputStream
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.ByteBufferOutputStream
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.Bytes
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.Bytes
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.ByteUtils
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.ByteUtils
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.Checksums
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.Checksums
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.ChunkedBytesStream
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.ChunkedBytesStream
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.CloseableIterator
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.CloseableIterator
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.Crc32C
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.Crc32C
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.ImplicitLinkedHashCollection
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.ImplicitLinkedHashCollection
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.ImplicitLinkedHashMultiCollection
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.ImplicitLinkedHashMultiCollection
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.OperatingSystem
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.OperatingSystem
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.utils.Utils
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.utils.Utils
+  # TimestampType is the only record type kept at the top-level package; relocate it before the
+  # package move below sends the remaining record types to the internal package.
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.record.TimestampType
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.record.TimestampType
+  - org.openrewrite.java.ChangePackage:
+      oldPackageName: org.apache.kafka.common.record
+      newPackageName: io.kroxylicious.kafka.common.record.internal
+      recursive: true
+  # No ChangePackageInStringLiteral for the record package: the TimestampType exception above means a
+  # blanket string-literal rename would wrongly send org.apache.kafka.common.record.TimestampType to the
+  # internal package.
+  # Specific top-level classes relocated from org.apache.kafka.common to io.kroxylicious.kafka.common.
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.Uuid
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.Uuid
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.KafkaException
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.KafkaException
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.apache.kafka.common.InvalidRecordException
+      newFullyQualifiedTypeName: io.kroxylicious.kafka.common.InvalidRecordException
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24
+displayName: Upgrade Kroxylicious Filter API to 0.24.0
+description: Applies all deprecations, renames, and breaking changes introduced in Kroxylicious 0.24.0.
+recipeList:
+  - io.kroxylicious.migrations.rewrite.v0_24.UseErrorsInsteadOfExceptions
+  - io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousKafkaTypes

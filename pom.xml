@@ -113,6 +113,7 @@
         <maven.javadoc.skip>${central.publishing.skip}</maven.javadoc.skip>
         <maven.source.skip>${central.publishing.skip}</maven.source.skip>
         <gpg.skip>${central.publishing.skip}</gpg.skip>
+        <rewrite-maven-plugin.version>6.46.1</rewrite-maven-plugin.version>
     </properties>
 
     <name>Parent POM</name>
