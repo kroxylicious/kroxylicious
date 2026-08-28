@@ -12,8 +12,6 @@ import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -441,11 +439,10 @@ class MockFilterContextTest {
     void shouldBuildErrorRequestFilterResult() {
         // given
         MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
-        ApiException exception = new UnknownServerException("Test Error");
 
         // when
         RequestFilterResult result = context.requestFilterResultBuilder()
-                .errorResponse(HEADER, MESSAGE, exception)
+                .errorResponse(HEADER, MESSAGE, Errors.UNKNOWN_SERVER_ERROR)
                 .build();
 
         // then
@@ -454,18 +451,19 @@ class MockFilterContextTest {
                 .isShortCircuitResponse()
                 .isErrorResponse()
                 .isNotDropRequest()
-                .errorResponse().isEqualTo(exception);
+                .errorResponse()
+                .hasError(Errors.UNKNOWN_SERVER_ERROR)
+                .hasMessage(Errors.UNKNOWN_SERVER_ERROR.message());
     }
 
     @Test
     void shouldBuildErrorRequestFilterResultCompleted() {
         // given
         MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
-        ApiException exception = new UnknownServerException("Test Error");
 
         // when
         CompletionStage<RequestFilterResult> result = context.requestFilterResultBuilder()
-                .errorResponse(HEADER, MESSAGE, exception)
+                .errorResponse(HEADER, MESSAGE, Errors.UNKNOWN_SERVER_ERROR)
                 .completed();
 
         // then
@@ -474,18 +472,19 @@ class MockFilterContextTest {
                 .isShortCircuitResponse()
                 .isErrorResponse()
                 .isNotDropRequest()
-                .errorResponse().isEqualTo(exception));
+                .errorResponse()
+                .hasError(Errors.UNKNOWN_SERVER_ERROR)
+                .hasMessage(Errors.UNKNOWN_SERVER_ERROR.message()));
     }
 
     @Test
     void shouldBuildErrorWithCloseConnectionRequestFilterResult() {
         // given
         MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
-        ApiException exception = new UnknownServerException("Test Error");
 
         // when
         RequestFilterResult result = context.requestFilterResultBuilder()
-                .errorResponse(HEADER, MESSAGE, exception)
+                .errorResponse(HEADER, MESSAGE, Errors.UNKNOWN_SERVER_ERROR)
                 .withCloseConnection()
                 .build();
 
@@ -495,18 +494,19 @@ class MockFilterContextTest {
                 .isShortCircuitResponse()
                 .isErrorResponse()
                 .isNotDropRequest()
-                .errorResponse().isEqualTo(exception);
+                .errorResponse()
+                .hasError(Errors.UNKNOWN_SERVER_ERROR)
+                .hasMessage(Errors.UNKNOWN_SERVER_ERROR.message());
     }
 
     @Test
     void shouldBuildErrorWithCloseConnectionRequestFilterResultCompleted() {
         // given
         MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
-        ApiException exception = new UnknownServerException("Test Error");
 
         // when
         CompletionStage<RequestFilterResult> result = context.requestFilterResultBuilder()
-                .errorResponse(HEADER, MESSAGE, exception)
+                .errorResponse(HEADER, MESSAGE, Errors.UNKNOWN_SERVER_ERROR)
                 .withCloseConnection()
                 .completed();
 
@@ -517,7 +517,78 @@ class MockFilterContextTest {
                 .isShortCircuitResponse()
                 .isErrorResponse()
                 .isNotDropRequest()
-                .errorResponse().isEqualTo(exception));
+                .errorResponse()
+                .hasError(Errors.UNKNOWN_SERVER_ERROR)
+                .hasMessage(Errors.UNKNOWN_SERVER_ERROR.message()));
+    }
+
+    @Test
+    void shouldBuildErrorRequestFilterResultFromErrors() {
+        // given
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
+
+        // when
+        RequestFilterResult result = context.requestFilterResultBuilder()
+                .errorResponse(HEADER, MESSAGE, Errors.INVALID_REQUEST)
+                .build();
+
+        // then
+        MockFilterContextAssert.assertThat(result)
+                .isNotCloseConnection()
+                .isShortCircuitResponse()
+                .isErrorResponse()
+                .isNotDropRequest()
+                .errorResponse()
+                .hasError(Errors.INVALID_REQUEST)
+                .hasMessage(Errors.INVALID_REQUEST.message());
+    }
+
+    @Test
+    void shouldBuildErrorRequestFilterResultFromErrorsWithMessage() {
+        // given
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
+        String message = "custom explanation";
+
+        // when
+        RequestFilterResult result = context.requestFilterResultBuilder()
+                .errorResponse(HEADER, MESSAGE, Errors.INVALID_REQUEST, message)
+                .build();
+
+        // then
+        MockFilterContextAssert.assertThat(result)
+                .isNotCloseConnection()
+                .isShortCircuitResponse()
+                .isErrorResponse()
+                .isNotDropRequest()
+                .errorResponse()
+                .hasError(Errors.INVALID_REQUEST)
+                .hasMessage(message);
+    }
+
+    @Test
+    void shouldRejectErrorsNone() {
+        // given
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
+        var builder = context.requestFilterResultBuilder();
+
+        // when / then
+        assertThatThrownBy(() -> builder.errorResponse(HEADER, MESSAGE, Errors.NONE))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.errorResponse(HEADER, MESSAGE, Errors.NONE, "some message"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldRejectNullError() {
+        // given
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
+        var builder = context.requestFilterResultBuilder();
+
+        // when / then
+        assertThatThrownBy(() -> builder.errorResponse(HEADER, MESSAGE, null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> builder.errorResponse(HEADER, MESSAGE, null, "some message"))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test

@@ -14,13 +14,13 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopic;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.Errors;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -122,8 +122,9 @@ public class TopicNameCacheFilter implements MetadataRequestFilter, MetadataResp
                 }
             }
             else {
-                UnknownServerException exception = new UnknownServerException("received an internal topic name request with no topics");
-                return context.requestFilterResultBuilder().errorResponse(header, request, exception).completed();
+                return context.requestFilterResultBuilder()
+                        .errorResponse(header, request, Errors.UNKNOWN_SERVER_ERROR, "received an internal topic name request with no topics")
+                        .completed();
             }
         }
         return context.forwardRequest(header, request);

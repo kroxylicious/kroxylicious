@@ -29,7 +29,7 @@ class KafkaClientHandlerTest {
 
     @AfterEach
     void tearDown() {
-        channel.close();
+        channel.close().syncUninterruptibly();
     }
 
     @Test

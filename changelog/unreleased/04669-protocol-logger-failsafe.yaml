@@ -1,0 +1,4 @@
+title: "fix(filters): make ProtocolLogger filter resilient to formatting exceptions"
+type: fixed
+issues:
+  - 4669

@@ -25,7 +25,7 @@ For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuid
 endif::OpenShiftOnly[]
 * For the `OAUTHBEARER` mechanism, a reachable JWKS endpoint that publishes the public keys used to verify JWT signatures.
 * For the `SCRAM-SHA-256` or `SCRAM-SHA-512` mechanism, a credential store containing the SCRAM credentials for your users.
-The built-in `KeystoreScramCredentialStoreService` uses a proxy SCRAM credential file populated using the SCRAM credential tool.
+The built-in `ScramCredentialFileService` uses a proxy SCRAM credential file populated using the SCRAM credential tool.
 
 .Procedure
 

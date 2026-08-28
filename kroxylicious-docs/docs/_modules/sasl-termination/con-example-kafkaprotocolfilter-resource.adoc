@@ -32,11 +32,11 @@ spec:
         expectedAudience: kafka
         expectedIssuer: https://idp.example.com
       - mechanism: SCRAM-SHA-256
-        credentialStore: KeystoreScramCredentialStoreService
+        credentialStore: ScramCredentialFileService
         credentialStoreConfig:
           file: ${secret:scram-credentials:credentials.p12}
-          storePassword:
-            passwordFile: ${secret:scram-credentials:store-password}
+          filePassword:
+            passwordFile: ${secret:scram-credentials:file-password}
     maxTimeBeforeReauth: 1h
     fixedAuthDelay: 200ms
     subjectBuilder: <class name>
@@ -60,7 +60,7 @@ If omitted, a default subject builder creates a principal with name matching the
 For `OAUTHBEARER` mechanism configuration, see the bare-metal configuration example for a full description of the mechanism-specific fields (`jwksEndpointUrl`, `expectedAudience`, `expectedIssuer`, and others).
 
 For `SCRAM-SHA-256` and `SCRAM-SHA-512` mechanism configuration, see the bare-metal configuration example for a full description of the mechanism-specific fields (`credentialStore`, `credentialStoreConfig`).
-The `${secret:scram-credentials:credentials.p12}` and `${secret:scram-credentials:store-password}` syntax references entries from the Kubernetes Secret named `scram-credentials`.
+The `${secret:scram-credentials:credentials.p12}` and `${secret:scram-credentials:file-password}` syntax references entries from the Kubernetes Secret named `scram-credentials`.
 The operator automatically mounts the referenced Secret entries as files in the proxy container and replaces the interpolation expressions with the corresponding file paths.
 
 For more information about configuration on Kubernetes, see the {OperatorGuide}.

@@ -30,11 +30,11 @@ filterDefinitions:
           expectedAudience: kafka
           expectedIssuer: https://idp.example.com
         - mechanism: SCRAM-SHA-256
-          credentialStore: KeystoreScramCredentialStoreService
+          credentialStore: ScramCredentialFileService
           credentialStoreConfig:
             file: /etc/kroxylicious/scram-credentials.p12
-            storePassword:
-              passwordFile: /etc/kroxylicious/keystore-password.txt
+            filePassword:
+              passwordFile: /etc/kroxylicious/file-password.txt
       maxTimeBeforeReauth: 1h
       fixedAuthDelay: 200ms
       subjectBuilder: <class name>
@@ -77,18 +77,18 @@ The following properties are optional:
 The `SCRAM-SHA-256` and `SCRAM-SHA-512` mechanisms validate client credentials against a pluggable credential store.
 
 * `credentialStore` (required) specifies the name of a plugin implementing `ScramCredentialStoreService`.
-The built-in KeyStore credential store is named `KeystoreScramCredentialStoreService`.
+The built-in credential file store is named `ScramCredentialFileService`.
 * `credentialStoreConfig` (required) provides configuration for the credential store plugin.
 The structure depends on the credential store implementation.
 
-=== KeyStore credential store configuration
+=== Credential file store configuration
 
-The `KeystoreScramCredentialStoreService` credential store loads SCRAM credentials from a proxy SCRAM credential file.
+The `ScramCredentialFileService` credential store loads SCRAM credentials from a proxy SCRAM credential file.
 Use the SCRAM credential tool to create and populate this file.
 See <<proc-managing-scram-credentials-{context}>> for instructions.
 
 * `file` (required) specifies the path to the proxy SCRAM credential file.
-* `storePassword` (required) specifies the password used to access the KeyStore, using a `PasswordProvider`:
+* `filePassword` (required) specifies the password used to access the SCRAM credential file, using a `PasswordProvider`:
 ** `passwordFile` specifies the path to a file containing the password.
 This is the recommended approach for production deployments.
 ** `password` specifies the password inline.

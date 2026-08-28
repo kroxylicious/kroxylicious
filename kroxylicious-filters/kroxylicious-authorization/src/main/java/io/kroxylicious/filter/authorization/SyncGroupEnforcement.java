@@ -49,7 +49,7 @@ public class SyncGroupEnforcement extends ApiEnforcement<SyncGroupRequestData, S
         Action readGroup = new Action(GroupResource.READ, request.groupId());
         return authorizationFilter.authorization(context, List.of(readGroup)).thenCompose(authorizeResult -> {
             if (authorizeResult.denied().contains(readGroup)) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
             }
             else {
                 return context.forwardRequest(header, request);

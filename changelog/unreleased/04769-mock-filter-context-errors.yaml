@@ -1,0 +1,11 @@
+title: "changed(filter-test-support): MockFilterContextAssert.errorResponse asserts on Errors codes"
+type: changed
+issues:
+  - 4769
+important_notes:
+  - |
+    `MockFilterContextAssert.errorResponse()` no longer returns a `ThrowableAssert<ApiException>`.
+    It now returns a `MockErrorResponseAssert` exposing `hasError(Errors)` and `hasMessage(String)`,
+    so the kafka-clients exception hierarchy no longer leaks into the test-support API. Migrate
+    assertions such as `.errorResponse().isInstanceOf(InvalidRecordException.class).hasMessage(msg)`
+    to `.errorResponse().hasError(Errors.INVALID_RECORD).hasMessage(msg)`.

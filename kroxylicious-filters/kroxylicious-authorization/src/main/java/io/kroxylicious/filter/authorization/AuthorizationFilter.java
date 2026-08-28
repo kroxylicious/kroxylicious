@@ -295,7 +295,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         else {
             logUnsupportedVersion(apiKey, header);
             return context.requestFilterResultBuilder()
-                    .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
+                    .errorResponse(header, request, Errors.UNSUPPORTED_VERSION)
                     .completed();
         }
     }

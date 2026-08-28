@@ -28,6 +28,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -196,7 +197,7 @@ class SaslTerminationTest {
                   "mechanisms": [
                     {
                       "mechanism": "SCRAM-SHA-256",
-                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStore": "ScramCredentialFileService",
                       "credentialStoreConfig": {"file": "/path/to/creds.p12"}
                     }
                   ]
@@ -220,7 +221,7 @@ class SaslTerminationTest {
                   "mechanisms": [
                     {
                       "mechanism": "SCRAM-SHA-512",
-                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStore": "ScramCredentialFileService",
                       "credentialStoreConfig": {"file": "/path/to/creds.p12"}
                     }
                   ]
@@ -354,7 +355,7 @@ class SaslTerminationTest {
                   "mechanisms": [
                     {
                       "mechanism": "SCRAM-SHA-256",
-                      "credentialStore": "KeystoreScramCredentialStoreService",
+                      "credentialStore": "ScramCredentialFileService",
                       "credentialStoreConfig": {"file": "/path/to/creds.p12"}
                     },
                     {
@@ -871,7 +872,7 @@ class SaslTerminationTest {
         var result = mock(RequestFilterResult.class);
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
-        when(builder.errorResponse(any(), any(), any())).thenReturn(closeOrTerminal);
+        when(builder.errorResponse(any(), any(), any(Errors.class))).thenReturn(closeOrTerminal);
         when(closeOrTerminal.withCloseConnection()).thenReturn(terminal);
         when(terminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
 
@@ -886,7 +887,7 @@ class SaslTerminationTest {
         var result = mock(RequestFilterResult.class);
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
-        when(builder.errorResponse(any(), any(), any())).thenReturn(closeOrTerminal);
+        when(builder.errorResponse(any(), any(), any(Errors.class), any())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
 
         return filterContext;

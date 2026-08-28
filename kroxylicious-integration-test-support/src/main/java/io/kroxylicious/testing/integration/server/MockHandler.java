@@ -28,6 +28,8 @@ import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.codec.DecodedRequestFrame;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
 /**
  * MockHandler is responsible for:
  * <ol>
@@ -83,7 +85,7 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         logger.error("Exception in Mock Handler", cause);
         // Close the connection when an exception is raised.
-        ctx.close();
+        ctx.close().addListener(logFailure(logger, "close after exception in mock handler"));
     }
 
     /**

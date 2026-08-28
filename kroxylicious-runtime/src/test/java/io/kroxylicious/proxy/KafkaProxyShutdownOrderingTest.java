@@ -9,8 +9,10 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 import org.junit.jupiter.api.Test;
@@ -63,14 +65,16 @@ class KafkaProxyShutdownOrderingTest {
         var vcc = blockingDrainCoordinator(models, drainStarted, drainCanComplete);
 
         try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(), vcc)) {
-            proxy.startup();
+            var lifecycleFuture = proxy.startup();
+            assertThat(lifecycleFuture).isNotDone();
             int proxyPort = proxy.getBootstrapAddress("demo", "default").port();
 
             assertThat(canConnect(proxyPort))
                     .as("port should be reachable before shutdown")
                     .isTrue();
 
-            var shutdownThread = new Thread(proxy::shutdown, "test-shutdown");
+            var capturedShutdown = new AtomicReference<CompletableFuture<Void>>();
+            var shutdownThread = new Thread(() -> capturedShutdown.set(proxy.shutdown()), "test-shutdown");
             shutdownThread.start();
 
             // Wait for drain to start — at this point endpointRegistry.shutdown() must
@@ -87,6 +91,7 @@ class KafkaProxyShutdownOrderingTest {
             drainCanComplete.countDown();
             shutdownThread.join(10_000);
             assertThat(shutdownThread.isAlive()).as("shutdown should have completed").isFalse();
+            assertThat(capturedShutdown.get()).isCompletedWithValue(null);
         }
     }
 
@@ -117,7 +122,8 @@ class KafkaProxyShutdownOrderingTest {
         var vcc = failingDrainCoordinator(models);
 
         try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(), vcc)) {
-            proxy.startup();
+            var shutdownFuture = proxy.startup();
+            assertThat(shutdownFuture).isNotDone();
 
             // Shutdown should complete without throwing — the catch in shutdown()
             // swallows the drain failure and lets the rest of cleanup proceed.
@@ -147,9 +153,10 @@ class KafkaProxyShutdownOrderingTest {
                     throw new UnsupportedOperationException();
                 }, noOpCallback()))) {
             // When
-            proxy.startup();
+            var shutdownFuture = proxy.startup();
 
             // Then - every gateway has a port resolver wired after startup
+            assertThat(shutdownFuture).isNotDone();
             var allGateways = models.stream()
                     .flatMap(vc -> vc.gateways().values().stream())
                     .filter(VirtualClusterGatewayModel.class::isInstance)
@@ -158,7 +165,8 @@ class KafkaProxyShutdownOrderingTest {
             assertThat(allGateways).isNotEmpty();
             assertThat(allGateways).allSatisfy(gw -> assertThat(gw.isPortResolverBound()).isTrue());
 
-            proxy.shutdown();
+            var shutdownResult = proxy.shutdown();
+            assertThat(shutdownResult).isCompletedWithValue(null);
         }
     }
 
@@ -183,7 +191,8 @@ class KafkaProxyShutdownOrderingTest {
                 new VirtualClusterRegistry(models, (cfg, name) -> {
                     throw new UnsupportedOperationException();
                 }, noOpCallback()))) {
-            proxy.startup();
+            var shutdownFuture = proxy.startup();
+            assertThat(shutdownFuture).isNotDone();
 
             // When
             var bootstrapAddress = proxy.getBootstrapAddress("demo", "default");
@@ -214,7 +223,8 @@ class KafkaProxyShutdownOrderingTest {
                 new VirtualClusterRegistry(models, (cfg, name) -> {
                     throw new UnsupportedOperationException();
                 }, noOpCallback()))) {
-            proxy.startup();
+            var shutdownFuture = proxy.startup();
+            assertThat(shutdownFuture).isNotDone();
 
             // When / Then
             assertThatThrownBy(() -> proxy.getBootstrapAddress("unknown", "default"))
@@ -244,7 +254,8 @@ class KafkaProxyShutdownOrderingTest {
                 new VirtualClusterRegistry(models, (cfg, name) -> {
                     throw new UnsupportedOperationException();
                 }, noOpCallback()))) {
-            proxy.startup();
+            var shutdownFuture = proxy.startup();
+            assertThat(shutdownFuture).isNotDone();
 
             // When / Then
             assertThatThrownBy(() -> proxy.getBootstrapAddress("demo", "unknown"))

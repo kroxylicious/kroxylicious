@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
-import io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter;
+import io.kroxylicious.kafka.message.json.KafkaApiMessageConverter;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

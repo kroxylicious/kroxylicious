@@ -15,7 +15,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.UnknownTopicIdException;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -136,7 +135,7 @@ class RecordValidationFilterTest {
                 .satisfies(rfr -> {
                     MockFilterContextAssert.assertThat(rfr)
                             .isErrorResponse()
-                            .errorResponse().isInstanceOf(UnknownTopicIdException.class);
+                            .errorResponse().hasError(Errors.UNKNOWN_TOPIC_ID);
                 });
     }
 

@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.protocollogger;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,7 @@ import org.slf4j.helpers.NOPLogger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.github.sambarker.logsquelcher.CapturedLogs;
 import io.github.sambarker.logsquelcher.LogSquelcherExtension;
@@ -62,7 +64,7 @@ class ProtocolLoggerFilterTest {
 
     private final ProtocolLoggerFilter filter = new ProtocolLoggerFilter(
             EnumSet.allOf(ApiKeys.class), new MessageFormatter(), Level.DEBUG,
-            LoggerFactory.getLogger(ProtocolLoggerFilter.class));
+            LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
 
     static Stream<Arguments> credentialBearingRequestsWithSecrets() {
         return Stream.of(
@@ -233,7 +235,7 @@ class ProtocolLoggerFilterTest {
         // Given
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.of(ApiKeys.METADATA), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
 
         // When / Then
         assertThat(f.shouldHandleRequest(ApiKeys.METADATA, (short) 12)).isTrue();
@@ -244,7 +246,7 @@ class ProtocolLoggerFilterTest {
         // Given
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.of(ApiKeys.METADATA), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
 
         // When / Then
         assertThat(f.shouldHandleResponse(ApiKeys.METADATA, (short) 12)).isTrue();
@@ -255,7 +257,7 @@ class ProtocolLoggerFilterTest {
         // Given
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.of(ApiKeys.METADATA), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
 
         // When / Then
         assertThat(f.shouldHandleRequest(ApiKeys.PRODUCE, (short) 9)).isFalse();
@@ -266,7 +268,7 @@ class ProtocolLoggerFilterTest {
         // Given
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.of(ApiKeys.METADATA), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
 
         // When / Then
         assertThat(f.shouldHandleResponse(ApiKeys.PRODUCE, (short) 9)).isFalse();
@@ -277,7 +279,7 @@ class ProtocolLoggerFilterTest {
         // Given
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.allOf(ApiKeys.class), new MessageFormatter(), Level.DEBUG,
-                NOPLogger.NOP_LOGGER);
+                NOPLogger.NOP_LOGGER, new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
 
         // When / Then
         assertThat(f.shouldHandleRequest(ApiKeys.METADATA, (short) 12)).isFalse();
@@ -288,7 +290,7 @@ class ProtocolLoggerFilterTest {
         // Given
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.allOf(ApiKeys.class), new MessageFormatter(), Level.DEBUG,
-                NOPLogger.NOP_LOGGER);
+                NOPLogger.NOP_LOGGER, new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
 
         // When / Then
         assertThat(f.shouldHandleResponse(ApiKeys.METADATA, (short) 12)).isFalse();
@@ -339,7 +341,7 @@ class ProtocolLoggerFilterTest {
         String customName = "test.custom.logger";
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.of(ApiKeys.METADATA), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(customName));
+                LoggerFactory.getLogger(customName), new LogWarningThrottle(Clock.systemUTC(), customName));
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
         MetadataRequestData request = new MetadataRequestData();
         MockFilterContext context = MockFilterContext.builder(header, request).build();
@@ -362,7 +364,7 @@ class ProtocolLoggerFilterTest {
         // Given
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.of(ApiKeys.METADATA), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
         MetadataRequestData request = new MetadataRequestData();
         MockFilterContext context = MockFilterContext.builder(header, request).build();
@@ -382,7 +384,7 @@ class ProtocolLoggerFilterTest {
         // Given
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.of(ApiKeys.METADATA), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
         ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
         MetadataResponseData response = new MetadataResponseData();
         MockFilterContext context = MockFilterContext.builder(header, response).build();
@@ -403,7 +405,7 @@ class ProtocolLoggerFilterTest {
         String plantedSecret = "PLANTED_SASL_SECRET_VALUE";
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.allOf(ApiKeys.class), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(5).setClientId("c1");
         SaslAuthenticateRequestData request = new SaslAuthenticateRequestData()
                 .setAuthBytes(plantedSecret.getBytes(StandardCharsets.UTF_8));
@@ -429,7 +431,7 @@ class ProtocolLoggerFilterTest {
         String plantedSecret = "PLANTED_DELEGATION_HMAC_SECRET";
         ProtocolLoggerFilter f = new ProtocolLoggerFilter(
                 EnumSet.allOf(ApiKeys.class), new MessageFormatter(), Level.DEBUG,
-                LoggerFactory.getLogger(ProtocolLoggerFilter.class));
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
         ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(7);
         CreateDelegationTokenResponseData response = new CreateDelegationTokenResponseData()
                 .setHmac(plantedSecret.getBytes(StandardCharsets.UTF_8));
@@ -447,6 +449,272 @@ class ProtocolLoggerFilterTest {
         assertThat(entry.path("header").path("apiKey").asText()).isEqualTo("CREATE_DELEGATION_TOKEN");
         assertThat(entry.path("payload").isNull()).isTrue();
         assertThat(entry.path("payloadWithheld").asText()).isEqualTo(MessageFormatter.PAYLOAD_WITHHELD_REASON);
+    }
+
+    // --- Exception handling and suppression tests ---
+
+    private static MessageFormatter throwingFormatter() {
+        return new MessageFormatter() {
+            @Override
+            ObjectNode formatRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage message) {
+                throw new RuntimeException("converter boom");
+            }
+
+            @Override
+            ObjectNode formatResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage message) {
+                throw new RuntimeException("converter boom");
+            }
+        };
+    }
+
+    private static LogWarningThrottle throwingThrottle() {
+        return new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()) {
+            @Override
+            void onFailure(ApiKeys apiKey, short apiVersion, Exception exception) {
+                throw new RuntimeException("throttle boom");
+            }
+        };
+    }
+
+    @Test
+    void requestWhoseFormattingThrowsIsStillForwardedUnchanged() {
+        // Given
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
+        MetadataRequestData request = new MetadataRequestData();
+        MockFilterContext context = MockFilterContext.builder(header, request).build();
+
+        // When
+        RequestFilterResult result = f.onRequest(ApiKeys.METADATA, (short) 13, header, request, context)
+                .toCompletableFuture().join();
+
+        // Then
+        MockFilterContextAssert.assertThat(result)
+                .isForwardRequest()
+                .hasHeaderEqualTo(header)
+                .hasMessageEqualTo(request);
+    }
+
+    @Test
+    void responseWhoseFormattingThrowsIsStillForwardedUnchanged() {
+        // Given
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
+        MetadataResponseData response = new MetadataResponseData();
+        MockFilterContext context = MockFilterContext.builder(header, response).build();
+
+        // When
+        ResponseFilterResult result = f.onResponse(ApiKeys.METADATA, (short) 13, header, response, context)
+                .toCompletableFuture().join();
+
+        // Then
+        MockFilterContextAssert.assertThat(result)
+                .isForwardResponse()
+                .hasHeaderEqualTo(header)
+                .hasMessageEqualTo(response);
+    }
+
+    @Test
+    void formattingFailureEmitsWarningNamingApiKey(CapturedLogs capturedLogs) {
+        // Given
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
+        MetadataRequestData request = new MetadataRequestData();
+        MockFilterContext context = MockFilterContext.builder(header, request).build();
+
+        // When
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, request, context).toCompletableFuture().join();
+
+        // Then
+        var warnings = capturedLogs.logged(LogWarningThrottle.class, Level.WARN);
+        LoggingEventAssert.assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0).getKeyValuePairs())
+                .anyMatch(kv -> "apiKey".equals(kv.key) && ApiKeys.METADATA.equals(kv.value));
+        assertThat(warnings.get(0).getKeyValuePairs())
+                .anyMatch(kv -> "targetLogger".equals(kv.key) && ProtocolLoggerFilter.class.getName().equals(kv.value));
+    }
+
+    @Test
+    void formattingFailureWarningDoesNotAppearAsProtocolEntry(CapturedLogs capturedLogs) {
+        // Given
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
+        MetadataRequestData request = new MetadataRequestData();
+        MockFilterContext context = MockFilterContext.builder(header, request).build();
+
+        // When
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, request, context).toCompletableFuture().join();
+
+        // Then
+        var debugEntries = capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG);
+        LoggingEventAssert.assertThat(debugEntries).isEmpty();
+    }
+
+    @Test
+    void normalMessageEmitsEntryWithNoWarning(CapturedLogs capturedLogs) {
+        // Given
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), new MessageFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(Clock.systemUTC(), ProtocolLoggerFilter.class.getName()));
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
+        MetadataRequestData request = new MetadataRequestData();
+        MockFilterContext context = MockFilterContext.builder(header, request).build();
+
+        // When
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, request, context).toCompletableFuture().join();
+
+        // Then
+        var debugEntries = capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG);
+        LoggingEventAssert.assertThat(debugEntries).hasSize(1);
+        var warnings = capturedLogs.logged(LogWarningThrottle.class, Level.WARN);
+        LoggingEventAssert.assertThat(warnings).isEmpty();
+    }
+
+    @Test
+    void firstFailureWarnsButImmediateSecondIsSuppressed(CapturedLogs capturedLogs) {
+        // Given
+        Clock fixedClock = Clock.fixed(java.time.Instant.ofEpochMilli(1000), java.time.ZoneOffset.UTC);
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(fixedClock, ProtocolLoggerFilter.class.getName()));
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
+        MetadataRequestData request = new MetadataRequestData();
+
+        // When
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, request, MockFilterContext.builder(header, request).build())
+                .toCompletableFuture().join();
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, request, MockFilterContext.builder(header, request).build())
+                .toCompletableFuture().join();
+
+        // Then
+        var warnings = capturedLogs.logged(LogWarningThrottle.class, Level.WARN);
+        LoggingEventAssert.assertThat(warnings).hasSize(1);
+    }
+
+    @Test
+    void failureAfterIntervalWarnsAgainWithSuppressedCount(CapturedLogs capturedLogs) {
+        // Given
+        java.time.Instant start = java.time.Instant.ofEpochMilli(1000);
+        java.util.concurrent.atomic.AtomicReference<java.time.Instant> now = new java.util.concurrent.atomic.AtomicReference<>(start);
+        Clock advanceableClock = new Clock() {
+            @Override
+            public java.time.ZoneId getZone() {
+                return java.time.ZoneOffset.UTC;
+            }
+
+            @Override
+            public Clock withZone(java.time.ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public java.time.Instant instant() {
+                return now.get();
+            }
+        };
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(advanceableClock, ProtocolLoggerFilter.class.getName()));
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
+        MetadataRequestData request = new MetadataRequestData();
+
+        // When
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, request, MockFilterContext.builder(header, request).build())
+                .toCompletableFuture().join();
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, request, MockFilterContext.builder(header, request).build())
+                .toCompletableFuture().join();
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, request, MockFilterContext.builder(header, request).build())
+                .toCompletableFuture().join();
+        now.set(start.plus(LogWarningThrottle.SUPPRESSION_INTERVAL));
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, request, MockFilterContext.builder(header, request).build())
+                .toCompletableFuture().join();
+
+        // Then
+        var warnings = capturedLogs.logged(LogWarningThrottle.class, Level.WARN);
+        LoggingEventAssert.assertThat(warnings).hasSize(2);
+        assertThat(warnings.get(0).getKeyValuePairs())
+                .anyMatch(kv -> "targetLogger".equals(kv.key) && ProtocolLoggerFilter.class.getName().equals(kv.value));
+        assertThat(warnings.get(1).getKeyValuePairs())
+                .anyMatch(kv -> "suppressedCount".equals(kv.key) && Long.valueOf(2).equals(kv.value));
+        assertThat(warnings.get(1).getKeyValuePairs())
+                .anyMatch(kv -> "targetLogger".equals(kv.key) && ProtocolLoggerFilter.class.getName().equals(kv.value));
+    }
+
+    @Test
+    void failuresForDifferentApiKeysWarnIndependently(CapturedLogs capturedLogs) {
+        // Given
+        Clock fixedClock = Clock.fixed(java.time.Instant.ofEpochMilli(1000), java.time.ZoneOffset.UTC);
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), new LogWarningThrottle(fixedClock, ProtocolLoggerFilter.class.getName()));
+
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
+        MetadataRequestData metadataRequest = new MetadataRequestData();
+        org.apache.kafka.common.message.ProduceRequestData produceRequest = new org.apache.kafka.common.message.ProduceRequestData();
+
+        // When
+        f.onRequest(ApiKeys.METADATA, (short) 13, header, metadataRequest, MockFilterContext.builder(header, metadataRequest).build())
+                .toCompletableFuture().join();
+        f.onRequest(ApiKeys.PRODUCE, (short) 9, header, produceRequest, MockFilterContext.builder(header, produceRequest).build())
+                .toCompletableFuture().join();
+
+        // Then
+        var warnings = capturedLogs.logged(LogWarningThrottle.class, Level.WARN);
+        LoggingEventAssert.assertThat(warnings).hasSize(2);
+        assertThat(warnings.get(0).getKeyValuePairs())
+                .anyMatch(kv -> "apiKey".equals(kv.key) && ApiKeys.METADATA.equals(kv.value));
+        assertThat(warnings.get(1).getKeyValuePairs())
+                .anyMatch(kv -> "apiKey".equals(kv.key) && ApiKeys.PRODUCE.equals(kv.value));
+    }
+
+    @Test
+    void requestForwardedEvenWhenBothFormatterAndThrottleThrow() {
+        // Given
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), throwingThrottle());
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
+        MetadataRequestData request = new MetadataRequestData();
+        MockFilterContext context = MockFilterContext.builder(header, request).build();
+
+        // When
+        RequestFilterResult result = f.onRequest(ApiKeys.METADATA, (short) 13, header, request, context)
+                .toCompletableFuture().join();
+
+        // Then
+        MockFilterContextAssert.assertThat(result)
+                .isForwardRequest()
+                .hasHeaderEqualTo(header)
+                .hasMessageEqualTo(request);
+    }
+
+    @Test
+    void responseForwardedEvenWhenBothFormatterAndThrottleThrow() {
+        // Given
+        ProtocolLoggerFilter f = new ProtocolLoggerFilter(
+                EnumSet.allOf(ApiKeys.class), throwingFormatter(), Level.DEBUG,
+                LoggerFactory.getLogger(ProtocolLoggerFilter.class), throwingThrottle());
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
+        MetadataResponseData response = new MetadataResponseData();
+        MockFilterContext context = MockFilterContext.builder(header, response).build();
+
+        // When
+        ResponseFilterResult result = f.onResponse(ApiKeys.METADATA, (short) 13, header, response, context)
+                .toCompletableFuture().join();
+
+        // Then
+        MockFilterContextAssert.assertThat(result)
+                .isForwardResponse()
+                .hasHeaderEqualTo(header)
+                .hasMessageEqualTo(response);
     }
 
 }
