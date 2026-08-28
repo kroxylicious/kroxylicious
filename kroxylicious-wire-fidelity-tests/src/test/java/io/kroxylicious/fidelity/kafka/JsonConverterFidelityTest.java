@@ -32,18 +32,26 @@ class JsonConverterFidelityTest {
     @ParameterizedTest
     @MethodSource("allRequestVersions")
     void requestJsonMatchesKafka(TypePair types, short version) {
+        // Given
+
+        // When
         var kafkaJson = KafkaApiMessageConverter.requestConverterFor(types.kafkaType()).writer().apply(types.kafkaType().newRequest(), version);
         var vendoredJson = VendoredKafkaApiMessageConverter.requestConverterFor(types.vendoredType()).writer().apply(types.vendoredType().newRequest(), version);
 
+        // Then
         assertThat(vendoredJson).isEqualTo(kafkaJson);
     }
 
     @ParameterizedTest
     @MethodSource("allResponseVersions")
     void responseJsonMatchesKafka(TypePair types, short version) {
+        // Given
+
+        // When
         var kafkaJson = KafkaApiMessageConverter.responseConverterFor(types.kafkaType()).writer().apply(types.kafkaType().newResponse(), version);
         var vendoredJson = VendoredKafkaApiMessageConverter.responseConverterFor(types.vendoredType()).writer().apply(types.vendoredType().newResponse(), version);
 
+        // Then
         assertThat(vendoredJson).isEqualTo(kafkaJson);
     }
 

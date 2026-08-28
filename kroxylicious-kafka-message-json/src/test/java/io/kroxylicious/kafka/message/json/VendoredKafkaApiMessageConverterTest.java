@@ -16,12 +16,15 @@ class VendoredKafkaApiMessageConverterTest {
 
     @Test
     void roundTripsThroughJson() {
+        // Given
         var original = new MetadataRequestData().setAllowAutoTopicCreation(false).setIncludeClusterAuthorizedOperations(true);
         var converter = VendoredKafkaApiMessageConverter.requestConverterFor(ApiMessageType.METADATA);
 
+        // When
         var json = converter.writer().apply(original, (short) 9);
         var roundTripped = converter.reader().apply(json, (short) 9);
 
+        // Then
         assertThat(roundTripped).isEqualTo(original);
     }
 }
