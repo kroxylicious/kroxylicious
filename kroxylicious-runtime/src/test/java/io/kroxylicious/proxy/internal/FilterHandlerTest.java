@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -593,7 +594,7 @@ class FilterHandlerTest extends FilterHarness {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> stageFunction.apply(header, request);
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readInbound();
@@ -629,7 +630,7 @@ class FilterHandlerTest extends FilterHarness {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> stageFunction.apply(header, response);
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readOutbound();
@@ -654,7 +655,7 @@ class FilterHandlerTest extends FilterHarness {
         writeRequest(new ApiVersionsRequestData().setClientSoftwareName("should not be processed"));
         // the filter handler will have queued up the second request, awaiting the completion of the first.
         filterFuture.complete(new RequestFilterResultBuilderImpl().withCloseConnection().build());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readOutbound();
@@ -676,7 +677,7 @@ class FilterHandlerTest extends FilterHarness {
         writeArbitraryOpaqueRequest(opaqueBuf);
         // the filter handler will have queued up the opaque request, awaiting the completion of the first.
         filterFuture.complete(new RequestFilterResultBuilderImpl().withCloseConnection().build());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readOutbound();
@@ -699,7 +700,7 @@ class FilterHandlerTest extends FilterHarness {
         writeResponse(new ApiVersionsResponseData().setErrorCode((short) 2));
         // the filter handler will have queued up the second response, awaiting the completion of the first.
         filterFuture.complete(new ResponseFilterResultBuilderImpl().withCloseConnection().build());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readInbound();
@@ -723,7 +724,7 @@ class FilterHandlerTest extends FilterHarness {
         writeResponse(new ApiVersionsResponseData().setErrorCode((short) 2));
         // the filter handler will have queued up the second response, awaiting the completion of the first.
         filterFuture.complete(new ResponseFilterResultBuilderImpl().withCloseConnection().build());
-        channel.runPendingTasks();
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readOutbound();
@@ -781,6 +782,7 @@ class FilterHandlerTest extends FilterHarness {
         };
         buildChannel(filter);
         writeRequest(new ApiVersionsRequestData());
+        runAllPendingTasks();
 
         assertThat(channel.isOpen()).isEqualTo(!withClose);
 
@@ -790,6 +792,52 @@ class FilterHandlerTest extends FilterHarness {
         var forwardedResponseFrame = channel.readOutbound();
         assertThat(forwardedResponseFrame).isNotNull();
         assertThat(((DecodedResponseFrame<?>) forwardedResponseFrame).body()).isEqualTo(shortCircuitResponse);
+    }
+
+    @Test
+    void shortCircuitResponseForClientRequestDecrementsInFlightCount() {
+        // Given: a client request already counted as in-flight by the CCSM
+        var shortCircuitResponse = new ApiVersionsResponseData();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder()
+                .shortCircuitResponse(shortCircuitResponse)
+                .completed();
+        buildChannel(filter);
+        var request = new DecodedRequestFrame<>((short) 3, 1, false, new RequestHeaderData(), new ApiVersionsRequestData());
+        clientConnectionStateMachine.onClientRequest(request);
+
+        // When
+        writeRequest(request);
+        runAllPendingTasks();
+        var closedFuture = clientConnectionStateMachine.drain(Duration.ofSeconds(30));
+        runAllPendingTasks();
+
+        // Then: the in-flight count dropped to zero, so the drain fires immediately rather than
+        // waiting out the full drain timeout
+        assertThat(closedFuture).isCompleted();
+        channel.readOutbound();
+    }
+
+    @Test
+    void shortCircuitResponseForInternalRequestDoesNotDecrementInFlightCount() {
+        // Given: a real client request counted as in-flight, and a separate OOB/internal
+        // request that a filter short-circuits — the OOB request was never counted
+        var shortCircuitResponse = new ApiVersionsResponseData();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder()
+                .shortCircuitResponse(shortCircuitResponse)
+                .completed();
+        buildChannel(filter);
+        var clientRequest = new DecodedRequestFrame<>((short) 3, 1, false, new RequestHeaderData(), new ApiVersionsRequestData());
+        clientConnectionStateMachine.onClientRequest(clientRequest);
+
+        // When
+        writeInternalRequest(new ApiVersionsRequestData(), filter);
+        runAllPendingTasks();
+        var closedFuture = clientConnectionStateMachine.drain(Duration.ofSeconds(30));
+        runAllPendingTasks();
+
+        // Then: the client request's in-flight count is untouched, so the drain does not fire
+        assertThat(closedFuture).isNotCompleted();
+        channel.readOutbound();
     }
 
     @Test

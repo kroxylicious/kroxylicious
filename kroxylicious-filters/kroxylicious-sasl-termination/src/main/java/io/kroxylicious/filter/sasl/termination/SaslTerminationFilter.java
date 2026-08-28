@@ -578,7 +578,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         }
 
         return filterContext.requestFilterResultBuilder()
-                .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED.exception())
+                .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED)
                 .withCloseConnection()
                 .completed();
     }
@@ -596,7 +596,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .addKeyValue(LOG_KEY_REASON, reason)
                 .log("Rejecting unsupported API request");
         return filterContext.requestFilterResultBuilder()
-                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception(reason))
+                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION, reason)
                 .completed();
     }
 
@@ -663,7 +663,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .addKeyValue("apiVersion", apiVersion)
                 .log("Rejecting SASL request with unsupported API version");
         return filterContext.requestFilterResultBuilder()
-                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
+                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION)
                 .withCloseConnection()
                 .completed();
     }

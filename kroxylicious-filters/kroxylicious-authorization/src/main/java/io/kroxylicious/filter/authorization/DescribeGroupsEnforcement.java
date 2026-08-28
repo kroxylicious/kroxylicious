@@ -55,7 +55,7 @@ public class DescribeGroupsEnforcement extends ApiEnforcement<DescribeGroupsRequ
         List<Action> actions = actionsToAuthorize(request, isIncludeAuthorizedOps);
         return authorizationFilter.authorization(context, actions).thenCompose(authorizeResult -> {
             if (authorizeResult.allowed().isEmpty()) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
             }
             // we can only short-circuit if we are not including the proxy authorized operations
             else if (authorizeResult.denied().isEmpty() && !isIncludeAuthorizedOps) {
