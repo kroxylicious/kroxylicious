@@ -81,12 +81,18 @@ for root in main test; do
   [ -d "$REWRITTEN" ] || { echo "ERROR: OpenRewrite did not produce $REWRITTEN" >&2; exit 1; }
 
   DEST="$API_SRC/$root/java/io/kroxylicious/kafka"
+  PRESERVE_FILE="$HERE/$root/preserve-kroxylicious.txt"
+
   echo "==> [$root] syncing into $DEST"
   mkdir -p "$DEST"
-  # Wipe only the vendored/forked (non-message) tree; the generated message.* package is never
-  # committed here.
-  find "$DEST" -mindepth 1 -type d -name message -prune -o -type f -name '*.java' -print | xargs -r rm -f
-  rsync -a --exclude='message/' "$REWRITTEN/" "$DEST/"
+
+  RSYNC_ARGS=(-a --delete --exclude='message/')
+  if [ -f "$PRESERVE_FILE" ]; then
+    RSYNC_ARGS+=(--exclude-from="$PRESERVE_FILE")
+  fi
+  set -x
+  rsync "${RSYNC_ARGS[@]}" "$REWRITTEN/" "$DEST/"
+  set +x
 done
 
 echo "==> formatting (mvn -pl kroxylicious-api -am process-test-sources)"

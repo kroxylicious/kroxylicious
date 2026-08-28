@@ -14,8 +14,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -23,6 +21,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -91,7 +90,7 @@ class TopicNameCacheFilterTest {
         MetadataRequestData request = new MetadataRequestData();
         CompletableFuture<RequestFilterResult> result = CompletableFuture.completedFuture(null);
         when(filterContext.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
-        when(requestFilterResultBuilder.errorResponse(eq(header), eq(request), any())).thenReturn(closeOrTerminalStage);
+        when(requestFilterResultBuilder.errorResponse(eq(header), eq(request), any(Errors.class), any(String.class))).thenReturn(closeOrTerminalStage);
         when(closeOrTerminalStage.completed()).thenReturn(result);
         // when
         CompletionStage<RequestFilterResult> resultStage = topicNameCacheFilter.onMetadataRequest(ApiKeys.METADATA.latestVersion(), header,
@@ -99,9 +98,11 @@ class TopicNameCacheFilterTest {
         // then
         // we respond with an error as it's an illegal state for an internal topic name retrieval request to have an empty topics list
         assertThat(resultStage).isSameAs(result);
-        ArgumentCaptor<ApiException> captor = ArgumentCaptor.forClass(ApiException.class);
-        verify(requestFilterResultBuilder).errorResponse(eq(header), eq(request), captor.capture());
-        assertThat(captor.getValue()).isInstanceOf(UnknownServerException.class).hasMessage("received an internal topic name request with no topics");
+        ArgumentCaptor<Errors> errorsCaptor = ArgumentCaptor.forClass(Errors.class);
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(requestFilterResultBuilder).errorResponse(eq(header), eq(request), errorsCaptor.capture(), messageCaptor.capture());
+        assertThat(errorsCaptor.getValue()).isEqualTo(Errors.UNKNOWN_SERVER_ERROR);
+        assertThat(messageCaptor.getValue()).isEqualTo("received an internal topic name request with no topics");
     }
 
     @Test
@@ -114,7 +115,7 @@ class TopicNameCacheFilterTest {
         request.setTopics(null);
         CompletableFuture<RequestFilterResult> result = CompletableFuture.completedFuture(null);
         when(filterContext.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
-        when(requestFilterResultBuilder.errorResponse(eq(header), eq(request), any())).thenReturn(closeOrTerminalStage);
+        when(requestFilterResultBuilder.errorResponse(eq(header), eq(request), any(Errors.class), any(String.class))).thenReturn(closeOrTerminalStage);
         when(closeOrTerminalStage.completed()).thenReturn(result);
         // when
         CompletionStage<RequestFilterResult> resultStage = topicNameCacheFilter.onMetadataRequest(ApiKeys.METADATA.latestVersion(), header,
@@ -122,9 +123,11 @@ class TopicNameCacheFilterTest {
         // then
         // we respond with an error as it's an illegal state for an internal topic name retrieval request to have an empty topics list
         assertThat(resultStage).isSameAs(result);
-        ArgumentCaptor<ApiException> captor = ArgumentCaptor.forClass(ApiException.class);
-        verify(requestFilterResultBuilder).errorResponse(eq(header), eq(request), captor.capture());
-        assertThat(captor.getValue()).isInstanceOf(UnknownServerException.class).hasMessage("received an internal topic name request with no topics");
+        ArgumentCaptor<Errors> errorsCaptor = ArgumentCaptor.forClass(Errors.class);
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(requestFilterResultBuilder).errorResponse(eq(header), eq(request), errorsCaptor.capture(), messageCaptor.capture());
+        assertThat(errorsCaptor.getValue()).isEqualTo(Errors.UNKNOWN_SERVER_ERROR);
+        assertThat(messageCaptor.getValue()).isEqualTo("received an internal topic name request with no topics");
     }
 
     @Test

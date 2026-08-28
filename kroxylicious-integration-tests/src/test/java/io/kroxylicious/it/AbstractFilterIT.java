@@ -745,8 +745,8 @@ abstract class AbstractFilterIT {
             Request requestB = new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", data);
             var futureA = client.get(requestA);
             var futureB = client.get(requestB);
-            Response responseA = futureA.get(10, TimeUnit.SECONDS);
-            Response responseB = futureB.get(10, TimeUnit.SECONDS);
+            Response responseA = futureA.get(BaseIT.DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            Response responseB = futureB.get(BaseIT.DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             assertThat(responseA.sequenceNumber()).withFailMessage(() -> "responses received out of order").isLessThan(responseB.sequenceNumber());
         }
     }
@@ -789,10 +789,11 @@ abstract class AbstractFilterIT {
             Request requestB = new Request(PRODUCE, PRODUCE.latestVersion(), "client", new ProduceRequestData().setAcks((short) 0));
             Request requestC = new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", data);
             var futureA = client.get(requestA);
-            client.get(requestB);
+            var futureB = client.get(requestB);
             var futureC = client.get(requestC);
-            Response responseA = futureA.get(10, TimeUnit.SECONDS);
-            Response responseC = futureC.get(10, TimeUnit.SECONDS);
+            Response responseA = futureA.get(BaseIT.DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            futureB.get(BaseIT.DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            Response responseC = futureC.get(BaseIT.DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             assertThat(responseA.sequenceNumber()).withFailMessage(() -> "responses received out of order").isLessThan(responseC.sequenceNumber());
         }
     }

@@ -55,6 +55,8 @@ public final class MessageGenerator {
 
     static final String API_MESSAGE_TYPE_JAVA = "ApiMessageType.java";
 
+    static final String API_KEYS_JAVA = "ApiKeys.java";
+
     static final String API_SCOPE_JAVA = "ApiScope.java";
 
     static final String COORDINATOR_RECORD_TYPE_JAVA = "CoordinatorRecordType.java";
@@ -191,6 +193,9 @@ public final class MessageGenerator {
             switch (type) {
                 case "ApiMessageTypeGenerator":
                     generators.add(new ApiMessageTypeGenerator(packageName));
+                    break;
+                case "ApiKeysGenerator":
+                    generators.add(new ApiKeysGenerator(packageName));
                     break;
                 case "MetadataRecordTypeGenerator":
                     generators.add(new MetadataRecordTypeGenerator(packageName));

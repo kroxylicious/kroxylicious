@@ -1,0 +1,4 @@
+title: "refactor(build): extract KafkaApiMessageConverter into standalone kroxylicious-kafka-message-json module"
+type: other
+issues:
+  - 1121

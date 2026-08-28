@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -22,6 +24,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
@@ -130,10 +133,14 @@ class OffsetFetchTopicAuthzIT extends AuthzIT {
                 new KafkaProducer<>(producerConfig));
                 CloseableConsumer<Object, Object> aSuper = new CloseableConsumer<>(new KafkaConsumer<>(consumerConfig))) {
             aSuper.subscribe(ALL_TOPIC_NAMES_IN_TEST);
+            var sendFutures = new ArrayList<Future<RecordMetadata>>();
             for (String topicName : ALL_TOPIC_NAMES_IN_TEST) {
-                producer.send(new ProducerRecord<>(topicName, "value"));
+                sendFutures.add(producer.send(new ProducerRecord<>(topicName, "value")));
             }
             producer.flush();
+            for (var f : sendFutures) {
+                f.get(DEFAULT_SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            }
             int observedRecords = 0;
             while (observedRecords < ALL_TOPIC_NAMES_IN_TEST.size()) {
                 ConsumerRecords<Object, Object> consumerRecords = aSuper.poll(Duration.ofMillis(50));

@@ -30,10 +30,14 @@ interface Action {
         return (ctx, frame) -> writeResponse(message, ctx, frame, apiVersion);
     }
 
+    // FutureReturnValueIgnored: ctx.voidPromise() is a VoidChannelPromise; by Netty's design,
+    // failures on a void-promise write are delivered to the pipeline's exceptionCaught rather
+    // than to a listener.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private static void writeResponse(ApiMessage message, ChannelHandlerContext ctx, DecodedRequestFrame<?> frame, short apiVersion) {
         DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(apiVersion,
                 frame.correlationId(), new ResponseHeaderData().setCorrelationId(frame.correlationId()), message);
-        ctx.write(responseFrame);
+        ctx.write(responseFrame, ctx.voidPromise());
     }
 
 }

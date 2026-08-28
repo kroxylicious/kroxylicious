@@ -28,6 +28,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpHeaderValues.CLOSE;
@@ -152,7 +153,7 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
         LOGGER.atError()
                 .setCause(cause)
                 .log("Exception caught in MetricsServer");
-        ctx.close();
+        ctx.close().addListener(logFailure(LOGGER, "close after exception in admin HTTP server"));
     }
 
     /**

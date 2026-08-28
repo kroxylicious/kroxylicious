@@ -36,12 +36,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.reflect.ClassPath;
 
+import io.kroxylicious.kafka.message.json.KafkaApiMessageConverter;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

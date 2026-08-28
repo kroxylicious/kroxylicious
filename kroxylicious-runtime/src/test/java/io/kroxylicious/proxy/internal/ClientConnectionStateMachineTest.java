@@ -1776,13 +1776,14 @@ class ClientConnectionStateMachineTest {
             // Given — drain in progress with in-flight work pending
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> firstFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
             // When — drain() called again while already draining
             CompletableFuture<Void> secondFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
             // Then — only one timer scheduled in total (from the first drain call), second future pending
             verify(eventLoop, times(1)).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            assertThat(firstFuture).isNotCompleted();
             assertThat(secondFuture).isNotCompleted();
         }
 
@@ -1791,8 +1792,9 @@ class ClientConnectionStateMachineTest {
             // Given — drain in progress with in-flight work, second drain() already called
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> firstFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
             CompletableFuture<Void> secondFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(firstFuture).isNotCompleted();
             assertThat(secondFuture).isNotCompleted();
 
             // When — the in-flight response arrives, completing the drain naturally
@@ -1869,7 +1871,8 @@ class ClientConnectionStateMachineTest {
                     true,
                     Map.of("route", BROKER_ADDRESS));
             bumpClientInFlightCount();
-            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            var drainFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(drainFuture).isNotCompleted();
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
             var msg = new Object();
 
@@ -1888,7 +1891,8 @@ class ClientConnectionStateMachineTest {
             stateMachineInForwarding();
             clientConnectionStateMachine.setUpstreamAddressResolver(id -> Optional.of(BROKER_ADDRESS));
             bumpClientInFlightCount();
-            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            var drainFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(drainFuture).isNotCompleted();
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
             var msg = new Object();
 
@@ -1942,6 +1946,38 @@ class ClientConnectionStateMachineTest {
 
             // Then: no crash, state unchanged
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
+        }
+
+        @Test
+        void onShortCircuitResponseCompleteShouldDecrementAndFireDrainWhenCountReachesZero() {
+            // Given
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When
+            clientConnectionStateMachine.onShortCircuitResponseComplete();
+
+            // Then
+            assertThat(closedFuture).isCompleted();
+        }
+
+        @Test
+        void onShortCircuitResponseCompleteShouldDecrementWithoutFiringDrainWhenCountStillPositive() {
+            // Given
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When
+            clientConnectionStateMachine.onShortCircuitResponseComplete();
+
+            // Then: one decrement, one still in-flight
+            assertThat(closedFuture).isNotCompleted();
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
         }
 
         /**

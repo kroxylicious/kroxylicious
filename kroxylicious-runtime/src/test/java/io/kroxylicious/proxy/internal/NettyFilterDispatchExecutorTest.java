@@ -60,7 +60,7 @@ class NettyFilterDispatchExecutorTest {
             });
         }
         finally {
-            eventLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 
@@ -72,7 +72,7 @@ class NettyFilterDispatchExecutorTest {
             assertThat(dispatchExecutor.isInFilterDispatchThread()).isFalse();
         }
         finally {
-            eventLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 
@@ -86,7 +86,7 @@ class NettyFilterDispatchExecutorTest {
                     .hasMessage("completionStage was null");
         }
         finally {
-            eventLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 
@@ -100,8 +100,8 @@ class NettyFilterDispatchExecutorTest {
             assertThat(inDispatchThreadFuture).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(false);
         }
         finally {
-            eventLoop.shutdownGracefully();
-            anotherEventLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
+            anotherEventLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 
@@ -114,7 +114,7 @@ class NettyFilterDispatchExecutorTest {
             assertThat(inDispatchThreadFuture).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(true);
         }
         finally {
-            eventLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 
@@ -127,7 +127,7 @@ class NettyFilterDispatchExecutorTest {
             assertThat(inDispatchThreadFuture).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(true);
         }
         finally {
-            eventLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 
@@ -143,7 +143,7 @@ class NettyFilterDispatchExecutorTest {
             assertThat(chainStandardCompletableFuture(inDispatchThread)).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(true);
         }
         finally {
-            eventLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 
@@ -170,7 +170,7 @@ class NettyFilterDispatchExecutorTest {
             assertThatObject(inDispatchThread).isNotInstanceOf(CompletableFuture.class);
         }
         finally {
-            eventLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 
@@ -186,7 +186,7 @@ class NettyFilterDispatchExecutorTest {
             assertThat(chainStandardCompletableFuture(chainedAsyncStage)).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(true);
         }
         finally {
-            eventLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 
@@ -203,7 +203,7 @@ class NettyFilterDispatchExecutorTest {
             assertThat(chainStandardCompletableFuture(inDispatchThread)).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(true);
         }
         finally {
-            eventLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 
@@ -226,8 +226,8 @@ class NettyFilterDispatchExecutorTest {
             assertThat(chainStandardCompletableFuture(inExpectedEventLoop)).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(true);
         }
         finally {
-            eventLoop.shutdownGracefully();
-            anotherLoop.shutdownGracefully();
+            eventLoop.shutdownGracefully().syncUninterruptibly();
+            anotherLoop.shutdownGracefully().syncUninterruptibly();
         }
     }
 

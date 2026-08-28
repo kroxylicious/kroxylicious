@@ -59,4 +59,23 @@ class OperatorTestUtilsTest {
         when(builder.build()).thenReturn(null);
         assertThat(OperatorTestUtils.isKubeClientAvailable(builder)).isFalse();
     }
+
+    @Test
+    void uniqueSuffixShouldBeHyphenPrefixed() {
+        // When
+        var suffix = OperatorTestUtils.uniqueSuffix();
+
+        // Then
+        assertThat(suffix).startsWith("-");
+    }
+
+    @Test
+    void uniqueSuffixShouldBeUniquePerInvocation() {
+        // When
+        var first = OperatorTestUtils.uniqueSuffix();
+        var second = OperatorTestUtils.uniqueSuffix();
+
+        // Then
+        assertThat(first).isNotEqualTo(second);
+    }
 }

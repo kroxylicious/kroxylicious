@@ -101,7 +101,7 @@ class ProduceRequestTransformationFilter implements ProduceRequestFilter {
         }
         else {
             logTopicLookupFailure(topicNameMapping, "responding with UNKNOWN_SERVER_ERROR");
-            return ctx.requestFilterResultBuilder().errorResponse(header, req, Errors.UNKNOWN_SERVER_ERROR.exception()).completed();
+            return ctx.requestFilterResultBuilder().errorResponse(header, req, Errors.UNKNOWN_SERVER_ERROR).completed();
         }
     }
 

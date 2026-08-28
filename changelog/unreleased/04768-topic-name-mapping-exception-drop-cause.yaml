@@ -1,0 +1,15 @@
+title: "fix(api)!: stop deriving TopicNameMappingException cause from Errors.exception()"
+type: fixed
+merge_requests:
+  - 4768
+issues:
+  - 4748
+important_notes:
+  - |
+    Small breaking change for filter authors: the `TopicNameMappingException(Errors)` and
+    `TopicNameMappingException(Errors, String)` constructors no longer set the exception cause
+    to `Errors.exception()`. Filters that relied on `TopicNameMappingException.getCause()`
+    returning the corresponding kafka-clients `ApiException` will now see a `null` cause. This
+    removes a dependency on the kafka-clients `Errors.exception()` wrapper API ahead of the move
+    to the vendored `Errors` enum. Use the `TopicNameMappingException(Errors, String, Throwable)`
+    constructor if you need to supply a cause, or `getError()` to obtain the underlying `Errors`.

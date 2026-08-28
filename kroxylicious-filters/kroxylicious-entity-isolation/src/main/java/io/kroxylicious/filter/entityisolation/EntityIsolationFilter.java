@@ -96,7 +96,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                         if (eip.versionIsOutOfRange(apiVersion)) {
                             logUnexpectedApiVersion(filterContext, apiKey, apiVersion, eip.minSupportedVersion(), eip.maxSupportedVersion());
                             return filterContext.requestFilterResultBuilder()
-                                    .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
+                                    .errorResponse(header, request, Errors.UNSUPPORTED_VERSION)
                                     .withCloseConnection()
                                     .completed();
                         }
@@ -117,7 +117,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         catch (EntityMapperException e) {
             logMappingException(filterContext, apiKey, apiVersion, e);
             return filterContext.requestFilterResultBuilder()
-                    .errorResponse(header, request, Errors.UNKNOWN_SERVER_ERROR.exception())
+                    .errorResponse(header, request, Errors.UNKNOWN_SERVER_ERROR)
                     .withCloseConnection()
                     .completed();
         }

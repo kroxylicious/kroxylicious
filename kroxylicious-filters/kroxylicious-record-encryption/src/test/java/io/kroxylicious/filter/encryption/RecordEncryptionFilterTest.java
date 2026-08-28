@@ -22,11 +22,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.LongStream;
 
-import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.errors.NetworkException;
-import org.apache.kafka.common.errors.UnknownTopicIdException;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
@@ -301,7 +299,7 @@ class RecordEncryptionFilterTest {
         assertThat(stage).succeedsWithin(0, TimeUnit.SECONDS).satisfies(requestFilterResult -> {
             MockFilterContextAssert.assertThat(requestFilterResult).isShortCircuitResponse()
                     .isErrorResponse().errorResponse()
-                    .isInstanceOf(UnknownTopicIdException.class);
+                    .hasError(Errors.UNKNOWN_TOPIC_ID);
         });
 
     }
@@ -354,7 +352,7 @@ class RecordEncryptionFilterTest {
         assertThat(stage).succeedsWithin(0, TimeUnit.SECONDS).satisfies(requestFilterResult -> {
             MockFilterContextAssert.assertThat(requestFilterResult).isShortCircuitResponse()
                     .isErrorResponse().errorResponse()
-                    .isInstanceOf(InvalidRecordException.class)
+                    .hasError(Errors.INVALID_RECORD)
                     .hasMessage("failed to resolve key for: [" + UNRESOLVED_TOPIC + "]");
         });
 
@@ -463,7 +461,7 @@ class RecordEncryptionFilterTest {
                             .isErrorResponse()
                             .isShortCircuitResponse()
                             .errorResponse()
-                            .isInstanceOf(NetworkException.class)
+                            .hasError(Errors.NETWORK_EXCEPTION)
                             .hasMessage("could not acquire a DEK");
                 });
     }

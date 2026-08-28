@@ -8,13 +8,12 @@ package io.kroxylicious.testing.filter.assertj;
 
 import java.util.function.Consumer;
 
-import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.BooleanAssert;
 import org.assertj.core.api.ObjectAssert;
-import org.assertj.core.api.ThrowableAssert;
 
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -372,14 +371,14 @@ public class MockFilterContextAssert {
         }
 
         /**
-         * Verifies that the result is an error response and creates an assertion for its exception.
+         * Verifies that the result is an error response and creates an assertion for its error code and message.
          *
-         * @return the exception assertion
+         * @return the error response assertion
          */
-        public ThrowableAssert<ApiException> errorResponse() {
+        public MockErrorResponseAssert errorResponse() {
             isNotNull();
             Assertions.assertThat(actual).isInstanceOf(MockErrorRequestFilterResult.class);
-            return new ThrowableAssert<>(((MockErrorRequestFilterResult) actual).apiException());
+            return new MockErrorResponseAssert((MockErrorRequestFilterResult) actual);
         }
 
         /**
@@ -429,6 +428,42 @@ public class MockFilterContextAssert {
         @NonNull
         private BooleanAssert forwardRequest() {
             return new BooleanAssert(!actual.shortCircuitResponse() && !actual.drop());
+        }
+    }
+
+    /**
+     * Assertions for the error code and message captured by a short-circuit error response.
+     */
+    public static class MockErrorResponseAssert {
+
+        private final MockErrorRequestFilterResult actual;
+
+        private MockErrorResponseAssert(MockErrorRequestFilterResult actual) {
+            this.actual = actual;
+        }
+
+        /**
+         * Verifies that the error response was created with the given error code.
+         *
+         * @param expected the expected error code
+         * @return this assertion
+         */
+        public MockErrorResponseAssert hasError(Errors expected) {
+            Assertions.assertThat(actual.error()).isEqualTo(expected);
+            return this;
+        }
+
+        /**
+         * Verifies that the error response has the given message, resolving to the error's default message
+         * when no explicit message was supplied.
+         *
+         * @param expected the expected message
+         * @return this assertion
+         */
+        public MockErrorResponseAssert hasMessage(String expected) {
+            String effectiveMessage = actual.errorMessage() != null ? actual.errorMessage() : actual.error().message();
+            Assertions.assertThat(effectiveMessage).isEqualTo(expected);
+            return this;
         }
     }
 }

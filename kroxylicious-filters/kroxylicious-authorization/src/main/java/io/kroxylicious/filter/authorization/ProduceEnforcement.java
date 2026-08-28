@@ -90,7 +90,7 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
                                                                                boolean requiresResponse,
                                                                                TopicNameMapping topicNameMapping) {
         if (requiresResponse) {
-            return context.requestFilterResultBuilder().errorResponse(header, request, UNKNOWN_TOPIC_ID.exception()).completed();
+            return context.requestFilterResultBuilder().errorResponse(header, request, UNKNOWN_TOPIC_ID).completed();
         }
         else {
             LOGGER.atWarn()
@@ -113,7 +113,7 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
         if (allowedTopicWrites.isEmpty()) {
             if (requiresResponse) {
                 return context.requestFilterResultBuilder()
-                        .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
+                        .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED)
                         .completed();
             }
             else {
@@ -155,7 +155,7 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
     private static CompletionStage<RequestFilterResult> transactionalIdErrorResponse(FilterContext context, RequestHeaderData header, ProduceRequestData produceRequest,
                                                                                      boolean requiresResponse) {
         if (requiresResponse) {
-            return context.requestFilterResultBuilder().errorResponse(header, produceRequest, TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception()).completed();
+            return context.requestFilterResultBuilder().errorResponse(header, produceRequest, TRANSACTIONAL_ID_AUTHORIZATION_FAILED).completed();
         }
         else {
             return context.requestFilterResultBuilder().drop().completed();

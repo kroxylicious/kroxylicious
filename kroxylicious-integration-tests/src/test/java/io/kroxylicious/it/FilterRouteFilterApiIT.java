@@ -8,6 +8,7 @@ package io.kroxylicious.it;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,8 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.kroxylicious.filter.simpletransform.FetchResponseTransformation;
 import io.kroxylicious.filter.simpletransform.ProduceRequestTransformation;
 import io.kroxylicious.it.testplugins.ForwardingStyle;
+import io.kroxylicious.it.testplugins.ProtocolCounter;
+import io.kroxylicious.it.testplugins.ProtocolCounterFilter;
 import io.kroxylicious.it.testplugins.RejectingCreateTopicFilter;
 import io.kroxylicious.it.testplugins.RejectingCreateTopicFilterFactory;
 import io.kroxylicious.it.testplugins.RequestCountingFilter;
@@ -270,25 +273,40 @@ class FilterRouteFilterApiIT {
 
     @Test
     void routeFilterReceivesRequestAndResponseForSameExchange(KafkaCluster cluster, Topic topic) throws Exception {
-        var filterName = "req-resp-marker";
+        var filterName = ProtocolCounter.class.getName();
 
-        // Given
-        var filterDef = new NamedFilterDefinitionBuilder(filterName, RequestResponseMarkingFilterFactory.class.getName())
-                .withConfig("keysToMark", Set.of(ApiKeys.PRODUCE),
-                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST,
-                                RequestResponseMarkingFilterFactory.Direction.RESPONSE),
-                        "name", filterName,
-                        "forwardingStyle", ForwardingStyle.SYNCHRONOUS)
+        // Given: a route filter that stamps the current request/response counts onto every
+        // PRODUCE record it forwards, so a later record's headers reveal what the filter had
+        // already observed by the time it was sent.
+        var filterDef = new NamedFilterDefinitionBuilder(filterName, ProtocolCounter.class.getName())
+                .withConfig("countRequests", Set.of(ApiKeys.PRODUCE), "countResponses", Set.of(ApiKeys.PRODUCE))
                 .build();
         var config = routedConfigWithRouteFilter(cluster.getBootstrapServers(), filterDef);
 
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
-                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "test", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "test", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, "req-resp-exchange", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
 
-            // When
-            producer.send(new ProducerRecord<>(topic.name(), "key", "value")).get();
+            // When: the second PRODUCE is only sent once the first has been fully acknowledged
+            producer.send(new ProducerRecord<>(topic.name(), "key", "first")).get();
+            producer.send(new ProducerRecord<>(topic.name(), "key", "second")).get();
 
-            // Then: no exception means both request and response paths completed correctly through the route filter
+            // Then: the second record's counts prove the route filter's onResponse fired for the
+            // first exchange before the second request was even sent — not just that a response
+            // eventually arrived for some request.
+            consumer.subscribe(Set.of(topic.name()));
+            List<ConsumerRecord<String, String>> records = new ArrayList<>();
+            consumer.poll(Duration.ofSeconds(10)).records(topic.name()).forEach(records::add);
+            assertThat(records).hasSize(2);
+            var secondRecordHeaders = records.get(1).headers();
+            assertThat(ProtocolCounterFilter.fromBytes(
+                    secondRecordHeaders.lastHeader(ProtocolCounterFilter.requestCountHeaderKey(ApiKeys.PRODUCE)).value()))
+                    .as("route filter onRequest must have seen both PRODUCE requests")
+                    .isEqualTo(2);
+            assertThat(ProtocolCounterFilter.fromBytes(
+                    secondRecordHeaders.lastHeader(ProtocolCounterFilter.responseCountHeaderKey(ApiKeys.PRODUCE)).value()))
+                    .as("route filter onResponse must have completed for the first exchange before the second request was sent")
+                    .isEqualTo(1);
         }
     }
 

@@ -23,14 +23,25 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 /**
  * An internal filter that causes the system to eagerly learn the cluster's topology by spontaneously emitting
- * an out-of-band Metadata request at the earliest legal point in the Kafka conversation.  The response to allows
- * the Endpoint reconciliation to take place so that restricted upstream bindings are replaced by true bindings to
- * the actual upstream brokers.
- * <br/>
- * Once the bindings are made, the filter causes the client's connection to close.   This is done
+ * an out-of-band Metadata request at the earliest legal point in the Kafka conversation.  The response allows
+ * endpoint reconciliation to take place so that restricted upstream bindings are replaced by true bindings to
+ * the actual upstream brokers.  Once the bindings are made, the filter causes the client's connection to close
  * in order to force the client to reconnect, thus ensuring the client has a connection to the intended broker.
  *
+ * <p><strong>Direct routing only.</strong> This filter must only be installed for virtual clusters using
+ * {@link io.kroxylicious.proxy.internal.routing.DirectRouting}. Direct routing binds listening ports to
+ * specific broker node IDs but cannot know the real upstream broker addresses at startup; this filter exists
+ * to learn those addresses before real client traffic flows.
+ *
+ * <p>Dynamic routing virtual clusters do not have this problem: their
+ * {@link io.kroxylicious.proxy.internal.routing.RoutingHandler} resolves upstream addresses per-request
+ * through the router's own node-ID mapping, so there is no bootstrap placeholder to replace. Installing
+ * this filter on a dynamic routing connection would cause an {@link IllegalStateException} when it
+ * attempts to use the upstream target of a
+ * {@link io.kroxylicious.proxy.internal.net.MetadataDiscoveryBrokerEndpointBinding}.
+ *
  * @see io.kroxylicious.proxy.internal.net.EndpointRegistry
+ * @see io.kroxylicious.proxy.internal.net.MetadataDiscoveryBrokerEndpointBinding
  */
 public class EagerMetadataLearner implements RequestFilter {
 

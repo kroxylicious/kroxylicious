@@ -13,6 +13,9 @@ import java.util.Set;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.message.ListGroupsResponseData;
+import org.apache.kafka.common.message.ListTransactionsRequestData;
+import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -29,6 +32,7 @@ import io.kroxylicious.it.testplugins.ForwardingStyle;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.it.testplugins.router.DynamicProduceRouterFactory;
+import io.kroxylicious.it.testplugins.router.PassThroughRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -42,16 +46,21 @@ import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.filter.record.RecordTestUtils;
 import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS;
+import static org.apache.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests verifying that dynamic routing ({@code Router.onRequest()})
@@ -94,6 +103,7 @@ class RoutingDynamicIT {
     }
 
     @Test
+    @SuppressWarnings("FutureReturnValueIgnored") // acks=0 fire-and-forget: send() returns before broker acknowledgement; see producer config in the try block below
     void shouldForwardFireAndForgetProduceToUpstream(KafkaCluster cluster, Topic topic) {
         // Given
         var config = dynamicRoutingConfig(cluster);
@@ -212,6 +222,142 @@ class RoutingDynamicIT {
                         .satisfies(r -> assertThat(r.partitionResponses()).singleElement()
                                 .satisfies(p -> assertThat(p.errorCode()).isEqualTo(Errors.NONE.code())));
             }
+        }
+    }
+
+    /**
+     * When {@code Router.onRequest()} throws synchronously (rather than returning a failed
+     * {@code CompletionStage}), the runtime must still close the connection per
+     * {@code RouterContext}'s documented contract, rather than leaving it open with the request
+     * unanswered forever.
+     */
+    @Test
+    void regularRequestShouldCloseConnectionWhenRouterThrowsSynchronously(KafkaCluster cluster) {
+        // Given
+        var clusterDef = new ClusterDefinition(TARGET_CLUSTER_NAME, cluster.getBootstrapServers(), null);
+        var route = new RouteDefinition(ROUTE_NAME, 0, List.of(), new RouteTarget(TARGET_CLUSTER_NAME, null));
+        var routerDef = new RouterDefinition(ROUTER_NAME, ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config(ROUTE_NAME), List.of(route));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+        ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
+            throw new RuntimeException("boom");
+        });
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var client = tester.simpleTestClient()) {
+
+            // When
+            var future = client.get(new Request(ApiKeys.METADATA, (short) 12, "client", new MetadataRequestData()));
+
+            // Then: the request must not hang forever, and the connection must actually be closed
+            // (not merely that the future failed for some other reason)
+            assertThat(future).failsWithin(Duration.ofSeconds(10));
+            await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> assertThat(client.isOpen()).isFalse());
+        }
+    }
+
+    /**
+     * Same as above, but the throw happens while completing a VC-level filter's out-of-band
+     * request rather than the client's own request.
+     */
+    @Test
+    void vcFilterOobShouldCloseConnectionWhenRouterThrowsSynchronously(KafkaCluster cluster, Topic topic) {
+        var filterName = "oob-filter";
+
+        // Given
+        var filterDef = new NamedFilterDefinitionBuilder(filterName, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(ApiKeys.PRODUCE),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", filterName,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+        var config = contextCapturingConfigWithVcFilter(cluster, filterDef);
+        ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
+            throw new RuntimeException("boom");
+        });
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var client = tester.simpleTestClient()) {
+
+            // When
+            var future = client.get(produceRequest(topic.name(), (short) 1));
+
+            // Then: the request must not hang forever, and the connection must actually be closed
+            // (not merely that the future failed for some other reason)
+            assertThat(future).failsWithin(Duration.ofSeconds(10));
+            await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> assertThat(client.isOpen()).isFalse());
+        }
+    }
+
+    /**
+     * Same failure mode as above, but the throwing router is a nested one, reached via an
+     * outer-route filter's out-of-band request. Exercises {@code handleNestedOobCompletion}'s
+     * exception handling specifically, rather than the top-level {@code handleOobCompletion}.
+     *
+     * <p>Topology:
+     * <pre>
+     * Client → demo VC
+     *   → outer router (PassThrough → "to-inner")
+     *   → outer route "to-inner" [RequestResponseMarkingFilter, sends OOB LIST_GROUPS]
+     *   → inner router (ContextCapturing, onRequest throws)
+     *   → inner route "backend"
+     *   → mock server
+     * </pre>
+     */
+    @Test
+    void nestedOobShouldCloseConnectionWhenRouterThrowsSynchronously() {
+        // Given
+        var filterName = "outer-oob-filter";
+        var filterDef = new NamedFilterDefinitionBuilder(filterName, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", filterName,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+        var innerRoute = new RouteDefinition("backend", 0, List.of(), new RouteTarget("mock-cluster", null));
+        var innerRouter = new RouterDefinition("inner", ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config("backend"), List.of(innerRoute));
+        var outerRoute = new RouteDefinition("to-inner", 0, List.of(filterName), new RouteTarget(null, "inner"));
+        var outerRouter = new RouterDefinition("outer", PassThroughRouterFactory.class.getName(),
+                new PassThroughRouterFactory.Config("to-inner"), List.of(outerRoute));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, "outer"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
+                .build();
+
+        ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
+            throw new RuntimeException("boom");
+        });
+
+        try (var tester = KroxyliciousTesters.mockKafkaKroxyliciousTester(s -> {
+            var clusterDef = new ClusterDefinition("mock-cluster", s, null);
+            return baseConfigurationBuilder()
+                    .addToClusterDefinitions(clusterDef)
+                    .addToFilterDefinitions(filterDef)
+                    .addToRouterDefinitions(outerRouter, innerRouter)
+                    .addToVirtualClusters(vc);
+        }, ROUTING_ENABLED);
+                var client = tester.simpleTestClient()) {
+
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+
+            // When
+            var future = client.get(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+
+            // Then: the request must not hang forever — the connection closes and the future fails
+            assertThat(future).failsWithin(Duration.ofSeconds(10));
         }
     }
 
