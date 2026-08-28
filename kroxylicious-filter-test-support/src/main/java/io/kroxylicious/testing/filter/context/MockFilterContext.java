@@ -19,7 +19,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -542,8 +541,7 @@ public class MockFilterContext implements FilterContext {
             if (error == Errors.NONE) {
                 throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
             }
-            // Errors.exception(String) returns the default-message exception when message is null.
-            return new MockErrorCloseOrTerminalRequestStage(header, requestMessage, error.exception(message));
+            return new MockErrorCloseOrTerminalRequestStage(header, requestMessage, error, message);
         }
 
         @Override
@@ -574,12 +572,14 @@ public class MockFilterContext implements FilterContext {
      *
      * @param header the request header passed to errorResponse
      * @param message the request message passed to errorResponse
-     * @param apiException the exception passed to errorResponse
+     * @param error the error code passed to errorResponse
+     * @param errorMessage the error message passed to errorResponse, or {@code null} to use the error's default message
      * @param closeConnection whether the connection should be closed
      */
     public record MockErrorRequestFilterResult(ApiMessage header,
                                                ApiMessage message,
-                                               ApiException apiException,
+                                               Errors error,
+                                               @Nullable String errorMessage,
                                                boolean closeConnection)
             implements RequestFilterResult {
         @Override
@@ -638,13 +638,14 @@ public class MockFilterContext implements FilterContext {
 
     private record MockErrorTerminalRequestStage(RequestHeaderData header,
                                                  ApiMessage requestMessage,
-                                                 ApiException apiException,
+                                                 Errors error,
+                                                 @Nullable String errorMessage,
                                                  boolean closeConnection)
             implements TerminalStage<RequestFilterResult> {
 
         @Override
         public RequestFilterResult build() {
-            return new MockErrorRequestFilterResult(header, requestMessage, apiException, closeConnection);
+            return new MockErrorRequestFilterResult(header, requestMessage, error, errorMessage, closeConnection);
         }
 
         @Override
@@ -655,12 +656,13 @@ public class MockFilterContext implements FilterContext {
 
     private record MockErrorCloseOrTerminalRequestStage(RequestHeaderData header,
                                                         ApiMessage requestMessage,
-                                                        ApiException apiException)
+                                                        Errors error,
+                                                        @Nullable String errorMessage)
             implements CloseOrTerminalStage<RequestFilterResult> {
 
         @Override
         public RequestFilterResult build() {
-            return new MockErrorRequestFilterResult(header, requestMessage, apiException, false);
+            return new MockErrorRequestFilterResult(header, requestMessage, error, errorMessage, false);
         }
 
         @Override
@@ -670,7 +672,7 @@ public class MockFilterContext implements FilterContext {
 
         @Override
         public TerminalStage<RequestFilterResult> withCloseConnection() {
-            return new MockErrorTerminalRequestStage(header, requestMessage, apiException, true);
+            return new MockErrorTerminalRequestStage(header, requestMessage, error, errorMessage, true);
         }
     }
 
