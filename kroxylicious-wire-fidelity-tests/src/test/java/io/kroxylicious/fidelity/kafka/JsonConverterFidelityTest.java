@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class JsonConverterFidelityTest {
 
-    private record TypePair(org.apache.kafka.common.message.ApiMessageType kafkaType, io.kroxylicious.kafka.common.message.ApiMessageType vendoredType) {}
+    record TypePair(org.apache.kafka.common.message.ApiMessageType kafkaType, io.kroxylicious.kafka.common.message.ApiMessageType vendoredType) {}
 
     @ParameterizedTest
     @MethodSource("allRequestVersions")

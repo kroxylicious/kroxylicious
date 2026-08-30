@@ -27,7 +27,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 /**
  * Provides converters between the JSON representation of Kafka API messages and the
  * corresponding {@link ApiMessage} instances.
+ * @deprecated we will only support conversion of kroxylicious ApiMessages in the future.
+ * Use {@link io.kroxylicious.kafka.message.json.VendoredKafkaApiMessageConverter} instead.
  */
+@Deprecated(forRemoval = true, since = "0.24.0")
 public class KafkaApiMessageConverter {
 
     /**
