@@ -127,7 +127,6 @@ import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
 import org.apache.kafka.common.message.ReadShareGroupStateSummaryResponseData;
 import org.apache.kafka.common.message.RemoveRaftVoterResponseData;
 import org.apache.kafka.common.message.RenewDelegationTokenResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.message.ShareAcknowledgeResponseData;
@@ -170,21 +169,6 @@ public class KafkaProxyExceptionMapper {
     private static final int THROTTLE_TIME_MS = 0;
 
     private KafkaProxyExceptionMapper() {
-    }
-
-    /**
-     * Builds an error response answering the given request message, with error codes set
-     * according to the given exception.
-     * @param requestHeaders the headers of the request being answered
-     * @param message the body of the request being answered
-     * @param error the error to convey to the client
-     * @param errorMessage the optional error message to convey to the client (if the RPC version supports messages)
-     * @return the error response
-     */
-    @Nullable
-    public static ApiMessage errorResponseForMessage(RequestHeaderData requestHeaders, ApiMessage message, Errors error, @Nullable String errorMessage) {
-        ApiKeys apiKey = ApiKeys.forId(message.apiKey());
-        return errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), error, errorMessage);
     }
 
     /**

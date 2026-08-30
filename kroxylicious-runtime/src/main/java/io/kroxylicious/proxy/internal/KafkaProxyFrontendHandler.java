@@ -20,7 +20,10 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +52,7 @@ import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.ClientActive;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
+import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
@@ -530,7 +534,12 @@ public class KafkaProxyFrontendHandler
     static @Nullable ResponseFrame buildErrorResponseFrame(
                                                            DecodedRequestFrame<?> triggerFrame,
                                                            Throwable error) {
-        var responseData = KafkaProxyExceptionMapper.errorResponseForMessage(triggerFrame.header(), triggerFrame.body(), Errors.UNKNOWN_SERVER_ERROR, error.getMessage());
+        RequestHeaderData requestHeaders = triggerFrame.header();
+        ApiMessage message = triggerFrame.body();
+        String errorMessage = error.getMessage();
+        ApiKeys apiKey = ApiKeys.forId(message.apiKey());
+        Errors responseError = error instanceof FrameOversizedException ? Errors.INVALID_REQUEST: Errors.UNKNOWN_SERVER_ERROR;
+        var responseData = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), responseError, errorMessage);
         if (responseData == null) {
             // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
             LOGGER.atTrace()

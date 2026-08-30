@@ -42,7 +42,10 @@ class KafkaProxyExceptionMapperTest {
     void shouldGenerateErrorMessage(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), Errors.UNKNOWN_SERVER_ERROR, null);
+        RequestHeaderData requestHeaders = request.header();
+        ApiMessage message = request.body();
+        ApiKeys apiKey = ApiKeys.forId(message.apiKey());
+        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), Errors.UNKNOWN_SERVER_ERROR, null);
 
         // Then
         assertThat(response).isNotNull();

@@ -11,6 +11,7 @@ import java.util.Objects;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
@@ -82,7 +83,8 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
 
     private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, Errors error,
                                                                                 @Nullable String message) {
-        final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, error, message);
+        ApiKeys apiKey = ApiKeys.forId(requestMessage.apiKey());
+        final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseData(apiKey, requestMessage, header.requestApiVersion(), error, message);
         validateShortCircuitResponse(errorResponseMessage);
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();
         responseHeaders.setCorrelationId(header.correlationId());

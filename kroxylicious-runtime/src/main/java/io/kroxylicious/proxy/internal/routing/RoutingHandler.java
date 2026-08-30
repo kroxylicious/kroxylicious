@@ -23,6 +23,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.kafka.common.errors.ApiException;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -438,7 +439,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
             }
             else {
                 Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
-                        ? new RoutingDispatchException(rwe.error(), rwe.message())
+                        ? new ApiException(rwe.message())
                         : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
                 oobFrame.promise().completeExceptionally(cause);
                 if (rri.closeConnection()) {
@@ -517,7 +518,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
         else {
             Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
-                    ? new RoutingDispatchException(rwe.error(), rwe.message())
+                    ? new ApiException(rwe.message())
                     : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
             oobFrame.promise().completeExceptionally(cause);
             // Nested handlers ignore andCloseConnection() — they do not own the client connection
@@ -599,8 +600,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 deliverResponseFrame(ctx, apiVersion, correlationId, header, body, sequence);
             }
             case RouterResponseImpl.RespondWithError rwe -> {
-                ApiMessage errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
-                        rwe.requestHeader(), rwe.request(), rwe.error(), rwe.message());
+                ApiMessage message = rwe.request();
+                ApiKeys apiKey1 = ApiKeys.forId(message.apiKey());
+                ApiMessage errorResponse = KafkaProxyExceptionMapper.errorResponseData(apiKey1, message, rwe.requestHeader().requestApiVersion(), rwe.error(),
+                        rwe.message());
                 if (errorResponse == null) {
                     // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
                     LOGGER.atTrace()
@@ -665,8 +668,11 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private void writeErrorResponseUpstream(ChannelHandlerContext ctx,
                                             DecodedRequestFrame<?> requestFrame,
                                             Throwable error) {
-        ApiMessage body = KafkaProxyExceptionMapper.errorResponseForMessage(
-                requestFrame.header(), requestFrame.body(), Errors.UNKNOWN_SERVER_ERROR, error.getMessage());
+        RequestHeaderData requestHeaders = requestFrame.header();
+        ApiMessage message = requestFrame.body();
+        String errorMessage = error.getMessage();
+        ApiKeys apiKey = ApiKeys.forId(message.apiKey());
+        ApiMessage body = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), Errors.UNKNOWN_SERVER_ERROR, errorMessage);
         if (body == null) {
             // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
             LOGGER.atTrace()
