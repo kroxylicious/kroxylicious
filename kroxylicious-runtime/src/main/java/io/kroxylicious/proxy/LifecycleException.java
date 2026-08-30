@@ -11,10 +11,21 @@ package io.kroxylicious.proxy;
  * of the proxy.
  */
 public class LifecycleException extends RuntimeException {
+    /**
+     * Creates the exception with the given message and cause.
+     *
+     * @param message the detail message
+     * @param cause the underlying cause of the lifecycle failure
+     */
     public LifecycleException(String message, Throwable cause) {
         super(message, cause);
     }
 
+    /**
+     * Creates the exception with the given message.
+     *
+     * @param message the detail message
+     */
     public LifecycleException(String message) {
         super(message);
     }

@@ -23,12 +23,27 @@ import io.kroxylicious.proxy.plugin.Plugins;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * The default {@link SaslSubjectBuilderService} plugin. It builds {@link io.kroxylicious.proxy.authentication.Subject}s
+ * from the client's SASL authorization id, transforming it through configured mapping rules and
+ * turning the results into principals.
+ */
 @Plugin(configType = DefaultSaslSubjectBuilderService.Config.class)
 public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderService<DefaultSaslSubjectBuilderService.Config> {
 
+    /** {@code from} value selecting the authorization id established by the SASL exchange. */
     public static final String SASL_AUTHORIZED_ID = "saslAuthorizedId";
+    /** {@code else} mapping value that passes the extracted name through unchanged. */
     public static final String ELSE_IDENTITY = "identity";
+    /** {@code else} mapping value that discards the extracted name, contributing no principal. */
     public static final String ELSE_ANONYMOUS = "anonymous";
+
+    /**
+     * Constructor invoked by the plugin service loading machinery.
+     */
+    public DefaultSaslSubjectBuilderService() {
+        // Intentionally empty
+    }
 
     /*
      * subjectBuilder:
@@ -50,7 +65,17 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
      * - sedLike: #.*,OU=(.*?).*#$1#
      * - else: anonymous
      */
+    /**
+     * Configuration for the {@link DefaultSaslSubjectBuilderService} plugin.
+     *
+     * @param addPrincipals the principal adder configurations, each describing where to extract names from,
+     *        how to map them and which principal factory to use.
+     */
     public record Config(List<PrincipalAdderConf> addPrincipals) {
+        /**
+         * Validates each principal adder configuration eagerly, rejecting invalid
+         * {@code from}, {@code map} or {@code principalFactory} values.
+         */
         public Config {
             for (PrincipalAdderConf adder : addPrincipals) {
                 // call methods for validation side-effect

@@ -35,6 +35,8 @@ public interface PluginFactory<P> {
     /**
      * Returns the names of the registered instances of this plugin.
      * The set is immutable.
+     *
+     * @return the registered plugin instance names
      */
     Set<String> registeredInstanceNames();
 

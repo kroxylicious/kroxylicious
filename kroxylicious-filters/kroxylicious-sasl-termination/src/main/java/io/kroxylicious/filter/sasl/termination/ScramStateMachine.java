@@ -1,0 +1,295 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.filter.sasl.termination;
+
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.NameCallback;
+import javax.security.auth.callback.UnsupportedCallbackException;
+import javax.security.sasl.Sasl;
+import javax.security.sasl.SaslException;
+import javax.security.sasl.SaslServer;
+
+import org.apache.kafka.common.security.scram.ScramCredentialCallback;
+import org.apache.kafka.common.security.scram.internals.ScramFormatter;
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
+import org.apache.kafka.common.security.scram.internals.ScramMessages;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
+import io.kroxylicious.scram.credentialstore.ScramCredential;
+import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+/**
+ * <p>Handles SCRAM authentication for SHA-256 and SHA-512.</p>
+ * <p>
+ * This state machine uses Kafka's {@link SaslServer} implementation to process
+ * the SCRAM protocol exchange. It asynchronously fetches credentials from
+ * the credential store on first use, then handles subsequent rounds synchronously.
+ * </p>
+ * <h2>Thread Safety</h2>
+ * <p>
+ * Not thread-safe. Each instance is used for a single connection
+ * on that connection's event loop thread.
+ * </p>
+ */
+class ScramStateMachine implements MechanismStateMachine {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScramStateMachine.class);
+
+    static final int MAX_USERNAME_LENGTH = 255;
+    private static final int PHANTOM_SALT_LENGTH = 20;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final String LOG_KEY_USERNAME = "username";
+
+    private final ScramMechanism mechanism;
+    private final ScramCredentialStore credentialStore;
+    private final int phantomIterations;
+    private final byte[] phantomSaltKey;
+    private final FilterDispatchExecutor filterDispatchExecutor;
+
+    // Set during the first round when the credential lookup finds the user
+    @Nullable
+    private SaslServer saslServer;
+
+    // Set during the first round by parsing the client-first-message
+    @Nullable
+    private String extractedUsername;
+
+    // Set during the first round when the credential lookup does not find the user
+    private boolean phantomUser;
+
+    /**
+     * Create a SCRAM state machine for the specified mechanism.
+     *
+     * @param mechanism the SCRAM mechanism (SHA-256 or SHA-512)
+     * @param credentialStore the credential store for looking up user credentials
+     * @param phantomIterations PBKDF2 iteration count for phantom user challenges
+     * @param filterDispatchExecutor executor for returning to the filter dispatch thread after async credential lookup
+     */
+    ScramStateMachine(ScramMechanism mechanism, ScramCredentialStore credentialStore, int phantomIterations, FilterDispatchExecutor filterDispatchExecutor) {
+        this.mechanism = Objects.requireNonNull(mechanism);
+        this.credentialStore = Objects.requireNonNull(credentialStore);
+        this.phantomIterations = phantomIterations;
+        this.phantomSaltKey = credentialStore.phantomSaltKey();
+        this.filterDispatchExecutor = Objects.requireNonNull(filterDispatchExecutor);
+    }
+
+    @Override
+    public String mechanismName() {
+        return mechanism.mechanismName();
+    }
+
+    @Override
+    public int maxAuthBytes() {
+        return 4 * 1024;
+    }
+
+    @Override
+    public CompletionStage<RoundResult> evaluateRound(byte[] authBytes) {
+        if (saslServer == null && !phantomUser) {
+            return handleFirstRound(authBytes);
+        }
+        else {
+            return handleSubsequentRound(authBytes);
+        }
+    }
+
+    @Override
+    public void dispose() {
+        if (saslServer != null) {
+            try {
+                saslServer.dispose();
+            }
+            catch (SaslException e) {
+                // Log but don't throw - dispose must be idempotent and safe
+                LOGGER.atDebug()
+                        .setCause(e)
+                        .addKeyValue("mechanism", mechanismName())
+                        .log("Error disposing SASL server");
+            }
+            finally {
+                saslServer = null;
+            }
+        }
+    }
+
+    private CompletionStage<RoundResult> handleFirstRound(byte[] authBytes) {
+        try {
+            ClientFirst clientFirst = parseClientFirst(authBytes);
+            extractedUsername = clientFirst.username();
+
+            return filterDispatchExecutor.completeOnFilterDispatchThread(credentialStore.lookupCredential(extractedUsername))
+                    .thenCompose(credential -> {
+                        if (credential == null) {
+                            return generatePhantomChallenge(clientFirst.nonce());
+                        }
+                        return processWithCredential(authBytes, credential);
+                    })
+                    .exceptionally(throwable -> {
+                        Throwable cause = throwable instanceof CompletionException ce ? ce.getCause() : throwable;
+                        Exception exception = cause instanceof Exception e ? e : new RuntimeException(cause);
+                        return RoundResult.failure(new byte[0], exception);
+                    });
+        }
+        catch (Exception e) {
+            return CompletableFuture.completedFuture(
+                    RoundResult.failure(new byte[0], e));
+        }
+    }
+
+    private CompletionStage<RoundResult> processWithCredential(
+                                                               byte[] authBytes,
+                                                               ScramCredential credential) {
+        try {
+            CallbackHandler callbackHandler = callbacks -> {
+                for (Callback callback : callbacks) {
+                    switch (callback) {
+                        case NameCallback nameCallback -> nameCallback.setName(extractedUsername);
+                        case ScramCredentialCallback scramCallback -> scramCallback.scramCredential(convertCredential(credential));
+                        default -> throw new UnsupportedCallbackException(callback);
+                    }
+                }
+            };
+
+            saslServer = Sasl.createSaslServer(
+                    mechanismName(),
+                    "kafka",
+                    null,
+                    Map.<String, String> of(),
+                    callbackHandler);
+
+            if (saslServer == null) {
+                return CompletableFuture.completedFuture(
+                        RoundResult.failure(new byte[0], new SaslException("Failed to create SASL server")));
+            }
+
+            return evaluateResponse(authBytes);
+        }
+        catch (Exception e) {
+            return CompletableFuture.completedFuture(
+                    RoundResult.failure(new byte[0], e));
+        }
+    }
+
+    private CompletionStage<RoundResult> handleSubsequentRound(byte[] authBytes) {
+        if (phantomUser) {
+            LOGGER.atDebug()
+                    .addKeyValue(LOG_KEY_USERNAME, extractedUsername)
+                    .log("Completing phantom user authentication with failure");
+            return CompletableFuture.completedFuture(
+                    RoundResult.failure(new byte[0], new SaslException("Authentication failed")));
+        }
+        return evaluateResponse(authBytes);
+    }
+
+    private CompletionStage<RoundResult> evaluateResponse(byte[] authBytes) {
+        try {
+            byte[] response = Objects.requireNonNull(saslServer).evaluateResponse(authBytes);
+
+            if (saslServer.isComplete()) {
+                String authorizationId = saslServer.getAuthorizationID();
+                return CompletableFuture.completedFuture(
+                        RoundResult.success(response, authorizationId));
+            }
+            else {
+                return CompletableFuture.completedFuture(
+                        RoundResult.challenge(response));
+            }
+        }
+        catch (SaslException e) {
+            LOGGER.atWarn()
+                    .addKeyValue(LOG_KEY_USERNAME, extractedUsername)
+                    .addKeyValue("error", e.getMessage())
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .log(LOGGER.isDebugEnabled()
+                            ? "Could not evaluate a SASL response"
+                            : "Could not evaluate a SASL response, increase log level to DEBUG for stacktrace");
+            return CompletableFuture.completedFuture(
+                    RoundResult.failure(new byte[0], e));
+        }
+    }
+
+    private CompletionStage<RoundResult> generatePhantomChallenge(String clientNonce) {
+        phantomUser = true;
+        LOGGER.atDebug()
+                .addKeyValue(LOG_KEY_USERNAME, extractedUsername)
+                .log("User not found in credential store, generating phantom challenge");
+
+        byte[] salt = derivePhantomSalt(Objects.requireNonNull(extractedUsername));
+
+        String serverNonce = ScramFormatter.secureRandomString(SECURE_RANDOM);
+
+        String serverFirstMessage = "r=" + clientNonce + serverNonce
+                + ",s=" + Base64.getEncoder().encodeToString(salt)
+                + ",i=" + phantomIterations;
+
+        return CompletableFuture.completedFuture(
+                RoundResult.challenge(serverFirstMessage.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private byte[] derivePhantomSalt(String username) {
+        try {
+            String hmacAlgorithm = mechanism.macAlgorithm();
+            Mac mac = Mac.getInstance(hmacAlgorithm);
+            mac.init(new SecretKeySpec(phantomSaltKey, hmacAlgorithm));
+            return Arrays.copyOf(mac.doFinal(username.getBytes(StandardCharsets.UTF_8)), PHANTOM_SALT_LENGTH);
+        }
+        catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new IllegalStateException("Failed to compute HMAC for phantom salt", e);
+        }
+    }
+
+    record ClientFirst(String username, String nonce) {}
+
+    // Both the phantom and real-user paths share this single parsing entry point, which delegates
+    // to the same Kafka SCRAM classes that Kafka's ScramSaslServer uses internally. This is critical
+    // for anti-enumeration: if the proxy were more lenient than Kafka, an attacker could craft input
+    // that the proxy accepts (phantom challenge returned) but Kafka rejects (error returned),
+    // revealing whether a user exists.
+    static ClientFirst parseClientFirst(byte[] clientFirstMessage) throws SaslException {
+        ScramMessages.ClientFirstMessage parsed = new ScramMessages.ClientFirstMessage(clientFirstMessage);
+
+        String username = ScramFormatter.username(parsed.saslName());
+        if (username.length() > MAX_USERNAME_LENGTH) {
+            throw new SaslException("Invalid SCRAM message: username exceeds maximum length of " + MAX_USERNAME_LENGTH + " characters");
+        }
+
+        String authzid = parsed.authorizationId();
+        if (!authzid.isEmpty() && !authzid.equals(username)) {
+            throw new SaslException("Authentication failed: authorization id differs from username");
+        }
+
+        return new ClientFirst(username, parsed.nonce());
+    }
+
+    private static org.apache.kafka.common.security.scram.ScramCredential convertCredential(
+                                                                                            ScramCredential credential) {
+        return new org.apache.kafka.common.security.scram.ScramCredential(
+                credential.salt(),
+                credential.storedKey(),
+                credential.serverKey(),
+                credential.iterations());
+    }
+}

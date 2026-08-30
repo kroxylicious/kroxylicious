@@ -22,14 +22,14 @@
     <name>Filter unit test support</name>
     <description>Support code to simplify writing unit tests for filter implementations</description>
 
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kafka-message-json</artifactId>
         </dependency>
 
         <!-- third party dependencies - runtime and compile -->
@@ -112,24 +112,6 @@
                 <artifactId>kroxylicious-krpc-plugin</artifactId>
                 <executions>
 
-                    <execution>
-                        <id>generate-converters</id>
-                        <goals>
-                            <goal>generate-multi</goal>
-                        </goals>
-                        <phase>process-sources</phase>
-                        <configuration>
-                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message
-                            </messageSpecDirectory>
-                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
-                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
-                            <templateNames>KafkaApiMessageConverter.ftl</templateNames>
-                            <!--suppress MavenModelInspection -->
-                            <outputFilePattern>${templateName}.java</outputFilePattern>
-                            <outputPackage>io.kroxylicious.testing.filter.requestresponsetestdef</outputPackage>
-                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
-                        </configuration>
-                    </execution>
                     <execution>
                         <id>generate-conditions</id>
                         <goals>

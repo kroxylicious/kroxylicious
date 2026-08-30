@@ -44,17 +44,46 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
         </dependency>
+        <!-- Compile-scope dependencies of the vendored io.kroxylicious.kafka.common.* support
+             classes. jackson-databind backs the generated *JsonConverter classes; jackson-core is
+             also referenced directly (e.g. MessageUtil implements a jackson-core TreeNode-based
+             interface) rather than only transitively through jackson-databind, so it needs its own
+             explicit declaration — an explicit scope on a transitive dependency overrides Maven's
+             mediation, so declaring it test-scoped (it's also used by the forked MessageUtilTest)
+             would have hidden it from the main compile classpath. slf4j-api and the native codecs
+             back the vendored compress/record code. kafka-clients brings the codecs transitively at
+             runtime only, so they are declared here to lift them onto the compile classpath. See
+             tools/kafka-vendoring/README.md. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>at.yawk.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+        </dependency>
 
         <!-- third party dependencies - test -->
         <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-slf4j-impl -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j2-impl</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -93,7 +122,102 @@
                         <id>unpack-message-specs</id>
                         <phase>generate-sources</phase>
                     </execution>
+                    <execution>
+                        <id>unpack-data-class-message-specs</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.apache.kafka</groupId>
+                                    <artifactId>kafka-clients</artifactId>
+                                    <version>${kafka.message-spec.version}</version>
+                                    <overWrite>false</overWrite>
+                                    <includes>common/message/*.json</includes>
+                                    <outputDirectory>${project.build.directory}/data-class-message-specs
+                                    </outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
                 </executions>
+            </plugin>
+            <!-- Generate io.kroxylicious.kafka.common.message.*Data classes from the Kafka
+                 protocol JSON specs on every build. The forked generator is a plugin-scoped
+                 dependency so it stays off this module's own dependency graph. Declared after
+                 unpack-data-class-message-specs so it runs after the specs are unpacked within the
+                 generate-sources phase. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-data-classes</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>io.kroxylicious.kafka.message.MessageGenerator</mainClass>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <arguments>
+                                <argument>-p</argument>
+                                <argument>io.kroxylicious.kafka.common.message</argument>
+                                <argument>-i</argument>
+                                <argument>${project.build.directory}/data-class-message-specs/common/message</argument>
+                                <!-- Write into the package directory so the generated tree has a
+                                     normal Java layout. This keeps the added source root at
+                                     .../kafka-messages while the files live under their declared
+                                     io.kroxylicious.kafka.common.message package, which lets Javadoc
+                                     exclude them by package name (see maven-javadoc-plugin config). -->
+                                <argument>-o</argument>
+                                <argument>
+                                    ${project.build.directory}/generated-sources/kafka-messages/io/kroxylicious/kafka/common/message
+                                </argument>
+                                <argument>-t</argument>
+                                <argument>ApiMessageTypeGenerator</argument>
+                                <argument>-m</argument>
+                                <argument>MessageDataGenerator</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <!-- Generate the owned io.kroxylicious.kafka.common.protocol.ApiKeys enum as a
+                         veneer over the generated ApiMessageType. ApiKeys lives in the protocol
+                         package (mirroring Kafka), which differs from ApiMessageType's message
+                         package, so it needs its own MessageGenerator run with a distinct -p/-o. -->
+                    <execution>
+                        <id>generate-api-keys</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>io.kroxylicious.kafka.message.MessageGenerator</mainClass>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <arguments>
+                                <argument>-p</argument>
+                                <argument>io.kroxylicious.kafka.common.protocol</argument>
+                                <argument>-i</argument>
+                                <argument>${project.build.directory}/data-class-message-specs/common/message</argument>
+                                <argument>-o</argument>
+                                <argument>
+                                    ${project.build.directory}/generated-sources/kafka-messages/io/kroxylicious/kafka/common/protocol
+                                </argument>
+                                <argument>-t</argument>
+                                <argument>ApiKeysGenerator</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>io.kroxylicious</groupId>
+                        <artifactId>kroxylicious-kafka-message-generator</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <!-- This actually shouldn't be needed, as the plug-in itself adds that directory as a source directory;
                  Unfortunately, Eclipse/M2E doesn't reliably pick it up without this helper plug-in -->
@@ -110,10 +234,59 @@
                         <configuration>
                             <sources>
                                 <source>${project.build.directory}/generated-sources/krpc</source>
+                                <source>${project.build.directory}/generated-sources/kafka-messages</source>
                             </sources>
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <!-- The vendored/forked io.kroxylicious.kafka.* classes (see tools/kafka-vendoring —
+                 io.kroxylicious.kafka.common.* support classes under src/main, plus their forked
+                 Apache Kafka unit tests and test-support helper under src/test) are copied verbatim
+                 from Apache Kafka and carry ASF copyright headers; give them their own licenseSet
+                 with the ASF header instead of the parent's Kroxylicious header. combine.self="override"
+                 prevents the parent's licenseSet from merging in at module scope, so the Kroxylicious
+                 set below has to be restated. Mirrors kroxylicious-kafka-message-generator/pom.xml,
+                 which is fully forked and so needs no second (Kroxylicious) licenseSet. -->
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <configuration combine.self="override">
+                    <strictCheck>true</strictCheck>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>${rootdir}/etc/license.txt</header>
+                            <excludes>
+                                <exclude>src/main/java/io/kroxylicious/kafka/**</exclude>
+                                <exclude>src/test/java/io/kroxylicious/kafka/**</exclude>
+                                <!-- The raw ASF header document itself; a header file is never
+                                     checked against itself, but that's per-licenseSet, so with two
+                                     sets it still needs excluding from this one explicitly. -->
+                                <exclude>etc/asf-license.txt</exclude>
+                            </excludes>
+                        </licenseSet>
+                        <licenseSet>
+                            <header>${project.basedir}/etc/asf-license.txt</header>
+                            <includes>
+                                <include>src/main/java/io/kroxylicious/kafka/**</include>
+                                <include>src/test/java/io/kroxylicious/kafka/**</include>
+                            </includes>
+                        </licenseSet>
+                    </licenseSets>
+                </configuration>
+            </plugin>
+            <!-- The vendored (io.kroxylicious.kafka.common.*) and generated (…​.common.message.*)
+                 Kafka protocol classes carry Kafka's own Javadoc, which does not satisfy this
+                 project's doclint/failOnWarnings gate and is not something we publish API docs for.
+                 Exclude the whole io.kroxylicious.kafka.* tree; the public Filter API
+                 (io.kroxylicious.proxy.filter) is unaffected. (The maven-javadoc-plugin only
+                 processes src/main by default, so this doesn't need a src/test equivalent.) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <excludePackageNames>io.kroxylicious.kafka:io.kroxylicious.kafka.*</excludePackageNames>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>io.kroxylicious</groupId>
@@ -126,7 +299,8 @@
                         </goals>
                         <phase>generate-sources</phase>
                         <configuration>
-                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message
+                            </messageSpecDirectory>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>Kproxy/Filter.ftl</templateNames>
@@ -168,20 +342,62 @@
                             <parameter>
                                 <accessModifier>public</accessModifier>
                                 <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
-                                <breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
-                                <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
+                                <breakBuildOnBinaryIncompatibleModifications>false
+                                </breakBuildOnBinaryIncompatibleModifications>
+                                <breakBuildBasedOnSemanticVersioningForMajorVersionZero>
+                                    ${ApiCompatability.EnforceForMajorVersionZero}
+                                </breakBuildBasedOnSemanticVersioningForMajorVersionZero>
                                 <excludes>
                                     <!-- The following filter exclusions relate to RPCs that were renamed in kafka-clients 4.1 -->
-                                    <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesResponseFilter</exclude>
-                                    <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesRequestFilter</exclude>
+                                    <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesResponseFilter
+                                    </exclude>
+                                    <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesRequestFilter
+                                    </exclude>
                                     <!-- The following four-argument methods were deprecated at 0.19.0 and removed at 0.24.0, see https://github.com/kroxylicious/kroxylicious/issues/4494 -->
-                                    <exclude>io.kroxylicious.proxy.filter.RequestFilter#onRequest(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
-                                    <exclude>io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
+                                    <exclude>
+                                        io.kroxylicious.proxy.filter.RequestFilter#onRequest(org.apache.kafka.common.protocol.ApiKeys,
+                                        org.apache.kafka.common.message.RequestHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        io.kroxylicious.proxy.filter.FilterContext)
+                                    </exclude>
+                                    <exclude>
+                                        io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys,
+                                        org.apache.kafka.common.message.ResponseHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        io.kroxylicious.proxy.filter.FilterContext)
+                                    </exclude>
                                     <!-- The replacement five-argument methods became required at 0.24.0, see https://github.com/kroxylicious/kroxylicious/issues/4494 -->
-                                    <exclude>io.kroxylicious.proxy.filter.RequestFilter#onRequest(org.apache.kafka.common.protocol.ApiKeys, short, org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
-                                    <exclude>io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys, short, org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
+                                    <exclude>
+                                        io.kroxylicious.proxy.filter.RequestFilter#onRequest(org.apache.kafka.common.protocol.ApiKeys,
+                                        short, org.apache.kafka.common.message.RequestHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        io.kroxylicious.proxy.filter.FilterContext)
+                                    </exclude>
+                                    <exclude>
+                                        io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys,
+                                        short, org.apache.kafka.common.message.ResponseHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        io.kroxylicious.proxy.filter.FilterContext)
+                                    </exclude>
                                     <!-- The following method was deprecated since 0.18 and removed at 0.21.0, see https://github.com/kroxylicious/kroxylicious/issues/3620 -->
-                                    <exclude>io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String, java.lang.String)</exclude>
+                                    <exclude>
+                                        io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String,
+                                        java.lang.String)
+                                    </exclude>
+                                    <!-- The ApiException-typed error-response entry points were removed at 0.24.0 and replaced by overloads
+                                         taking an org.apache.kafka.common.protocol.Errors code (with an optional message), so the kafka-clients
+                                         exception hierarchy no longer leaks into the API. Removing the released overloads is binary-incompatible.
+                                         See https://github.com/kroxylicious/kroxylicious/issues/4756 -->
+                                    <exclude>
+                                        io.kroxylicious.proxy.filter.RequestFilterResultBuilder#errorResponse(org.apache.kafka.common.message.RequestHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        org.apache.kafka.common.errors.ApiException)
+                                    </exclude>
+                                    <exclude>
+                                        io.kroxylicious.proxy.router.RouterContext#respondWithError(org.apache.kafka.common.message.RequestHeaderData,
+                                        org.apache.kafka.common.protocol.ApiMessage,
+                                        org.apache.kafka.common.errors.ApiException)
+                                    </exclude>
                                 </excludes>
                                 <!-- see documentation -->
                             </parameter>

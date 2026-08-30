@@ -120,10 +120,10 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void modelForFollowsRuntimeAddAndRemove() {
+    void modelForFollowsRuntimeAddAndRemove() throws Exception {
         // After addVirtualCluster, modelFor returns the new model.
         var added = mockModel(CLUSTER_B);
-        vcc.addVirtualCluster(added);
+        vcc.addVirtualCluster(added).get(5, TimeUnit.SECONDS);
         assertThat(vcc.modelFor(CLUSTER_B)).isSameAs(added);
 
         // After removeVirtualCluster, the entry is retained (append-only policy) so modelFor
@@ -428,12 +428,14 @@ class VirtualClusterRegistryTest {
         // Given — cluster already draining (e.g. from hot-reload) with no active connections
         vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A)), NO_OP_RESOLVER, noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
-        requireLifecycle(CLUSTER_A).startDraining();
+        var drainFuture = requireLifecycle(CLUSTER_A).startDraining();
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
 
         // When
         vcc.shutdownAllClusters();
 
         // Then — shutdown joins the in-progress drain rather than leaving it in Draining
+        assertThat(drainFuture).isCompleted(); // drain completed when shutdown drove cluster to Stopped
         assertThat(vcc.lifecycleFor(CLUSTER_A))
                 .isNotNull()
                 .extracting(VirtualClusterLifecycle::state)
@@ -445,12 +447,14 @@ class VirtualClusterRegistryTest {
         // Given
         vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A)), NO_OP_RESOLVER, noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
-        requireLifecycle(CLUSTER_A).startDraining();
+        var drainFuture = requireLifecycle(CLUSTER_A).startDraining();
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
 
         // When
         vcc.shutdownAllClusters();
 
         // Then
+        assertThat(drainFuture).isCompleted(); // still completed after shutdown
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
     }
 
@@ -464,7 +468,8 @@ class VirtualClusterRegistryTest {
         var ccsm = mock(ClientConnectionStateMachine.class);
         when(ccsm.drain(any())).thenReturn(pendingDrain);
         vcc.registerConnection(CLUSTER_A, ccsm);
-        requireLifecycle(CLUSTER_A).startDraining();
+        var drainFuture = requireLifecycle(CLUSTER_A).startDraining();
+        assertThat(drainFuture).isNotDone(); // drain is pending — active connection blocks completion
 
         // shutdownAllClusters() blocks, so run it asynchronously
         var shutdown = CompletableFuture.runAsync(() -> vcc.shutdownAllClusters());
@@ -538,7 +543,8 @@ class VirtualClusterRegistryTest {
         // auto-stop logic to simulate states that will be reachable via the normal API
         // once hot-reload and retry/rollback are implemented.
         requireLifecycle(draining).initializationSucceeded();
-        requireLifecycle(draining).startDraining();
+        var drainFuture = requireLifecycle(draining).startDraining();
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
         requireLifecycle(failed).initializationFailed(failureCause);
         requireLifecycle(stopped).initializationFailed(failureCause);
         requireLifecycle(stopped).stop();
@@ -815,12 +821,12 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void virtualClusterModelsReflectsRuntimeAddedModel() {
+    void virtualClusterModelsReflectsRuntimeAddedModel() throws Exception {
         // Contract relied on by OperationsPlanner: a model handed to addVirtualCluster appears
         // in virtualClusterModels() so a subsequent reconfigure can resolve it by name.
         var addedModel = mockModel(CLUSTER_B);
 
-        vcc.addVirtualCluster(addedModel);
+        vcc.addVirtualCluster(addedModel).get(5, TimeUnit.SECONDS);
 
         // Order is unspecified (backing map is ConcurrentHashMap); both the constructor-supplied
         // model and the runtime-added one must be present.
@@ -924,7 +930,7 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void shouldCloseFreshModelAfterReAddOfStoppedCluster() {
+    void shouldCloseFreshModelAfterReAddOfStoppedCluster() throws Exception {
         // Hot-reload scenario: cluster goes Serving → Stopped (model M1 closed and tracked as
         // closed by name), then a re-add via addVirtualCluster replaces the entry with a fresh
         // model M2. A subsequent shutdown of the re-added cluster MUST close M2 — the
@@ -938,7 +944,7 @@ class VirtualClusterRegistryTest {
 
         // Re-add with a fresh model under the same cluster name (ReplaceCluster's add half).
         var freshModel = mockModel(CLUSTER_A);
-        registry.addVirtualCluster(freshModel);
+        registry.addVirtualCluster(freshModel).get(5, TimeUnit.SECONDS);
         registry.initializationSucceeded(CLUSTER_A);
 
         // Drive the re-added cluster to Stopped — its fresh model must be closed.

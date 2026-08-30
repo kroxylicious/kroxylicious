@@ -99,7 +99,7 @@ class SaslInspectionFilter
                 }
                 else {
                     yield context.requestFilterResultBuilder()
-                            .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED.exception())
+                            .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED)
                             .withCloseConnection()
                             .completed();
                 }

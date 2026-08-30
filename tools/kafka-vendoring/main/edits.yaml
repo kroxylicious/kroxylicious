@@ -1,0 +1,102 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Declarative content-based edits applied by apply-edits.py to freshly copied Kafka files, cutting
+# the server-side/config/file edges that would otherwise drag org.apache.kafka packages we
+# deliberately do not vendor into the copy-closure. Matching is by content (signature regex + brace
+# balancing), so it survives line-number drift between Kafka releases; if a target can no longer be
+# found, apply-edits.py fails loudly, which is the correct signal for a human to re-review the edit
+# against the new source. See README.md for the "what is cut and why" narrative.
+#
+# Schema, per entry:
+#   file:         path relative to the copy root (the java/ source root, e.g. org/apache/kafka/common/...)
+#   stripImports: regex patterns; any import line matching one is dropped
+#   removeBlocks: declarations to remove entirely (leading javadoc/annotations + brace-balanced body)
+#     signature:  regex matching the declaration header
+#     label:      human-readable name used in "SURGERY MISS" error messages
+#     count:      how many matches to remove, in order found (default 1)
+#   preserveBlocks: keep ONLY the declarations matching these signatures, drop everything else in
+#     the file. The inverse of removeBlocks: use this to fork one file's specific methods rather
+#     than the whole thing (see test/edits.yaml for the TestUtils case).
+#   qualifyNestedImports: fully-qualified nested-class names (e.g. Outer.Inner) whose import gets
+#     dropped and whose bare uses get replaced with the qualified Outer.Inner form. Works around an
+#     OpenRewrite ChangePackage limitation where a nested-class import gets stripped as "redundant"
+#     once its enclosing type ends up in the same package as the importing file (see test/edits.yaml).
+
+- file: org/apache/kafka/common/record/internal/CompressionType.java
+  removeBlocks:
+    - signature: 'public\s+ConfigDef\.Validator\s+levelValidator\s*\(\s*\)'
+      label: CompressionType.levelValidator
+      count: 4 # base declaration + 3 enum-constant overrides
+
+- file: org/apache/kafka/common/utils/Utils.java
+  # Only the config-machinery methods pull org.apache.kafka.common.config into the closure. The
+  # nio.file methods are pure JDK (kept). tryWriteTo is cut below along with the rest of the
+  # zero-copy send machinery it exists to support (see the comment further down this file).
+  removeBlocks:
+    - signature: 'public static Map<String, Object> propsToMap\('
+      label: Utils.propsToMap
+    - signature: 'public static Map<String, Object> castToStringObjectMap\('
+      label: Utils.castToStringObjectMap
+    - signature: 'public static void ensureConcreteSubclass\('
+      label: Utils.ensureConcreteSubclass
+    - signature: 'public static ConfigDef mergeConfigs\('
+      label: Utils.mergeConfigs
+    - signature: 'public\s+static\s+int\s+tryWriteTo\s*\(\s*TransferableChannel\s+destChannel\s*,'
+      label: Utils.tryWriteTo
+
+- file: org/apache/kafka/common/record/internal/DefaultRecordBatch.java
+  removeBlocks:
+    - signature: 'static class DefaultFileChannelRecordBatch extends FileLogInputStream'
+      label: DefaultRecordBatch.DefaultFileChannelRecordBatch
+
+- file: org/apache/kafka/common/record/internal/AbstractLegacyRecordBatch.java
+  removeBlocks:
+    - signature: 'static class LegacyFileChannelRecordBatch extends FileLogInputStream'
+      label: AbstractLegacyRecordBatch.LegacyFileChannelRecordBatch
+
+# The following five entries (plus Utils.tryWriteTo above) cut Kafka's zero-copy "send to a socket
+# channel" machinery: a real broker/client concern with no relevance to a protocol data-class
+# library. Nothing in the vendored or generated code ever calls
+# BaseRecords.toSend()/TransferableRecords.writeTo() (confirmed by grepping the whole
+# main+test+generated tree for call sites, not just declarations) — they exist purely to satisfy
+# interface signatures, which is why a compile-error-driven or jdeps-driven closure both vendor the
+# whole network.Send/TransferableChannel/*RecordsSend subsystem regardless: class-level dependency
+# analysis can prove a type is needed to satisfy a signature, but not whether any code path actually
+# invokes it. Removing these interface methods (and the concrete overrides in
+# MemoryRecords/UnalignedMemoryRecords/Utils that only exist to implement them) lets
+# network/Send.java, network/TransferableChannel.java, record/internal/RecordsSend.java,
+# record/internal/DefaultRecordsSend.java and record/internal/MultiRecordsSend.java drop out of
+# main/vendored-files.txt entirely.
+- file: org/apache/kafka/common/record/internal/BaseRecords.java
+  removeBlocks:
+    - signature: 'RecordsSend<\?\s+extends\s+BaseRecords>\s+toSend\s*\(\s*\)'
+      label: BaseRecords.toSend
+
+- file: org/apache/kafka/common/record/internal/TransferableRecords.java
+  removeBlocks:
+    - signature: 'int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
+      label: TransferableRecords.writeTo
+
+- file: org/apache/kafka/common/record/internal/AbstractRecords.java
+  removeBlocks:
+    - signature: 'public\s+DefaultRecordsSend<Records>\s+toSend\s*\(\s*\)'
+      label: AbstractRecords.toSend
+
+- file: org/apache/kafka/common/record/internal/UnalignedRecords.java
+  removeBlocks:
+    - signature: 'default\s+RecordsSend<\?\s+extends\s+BaseRecords>\s+toSend\s*\(\s*\)'
+      label: UnalignedRecords.toSend
+
+- file: org/apache/kafka/common/record/internal/MemoryRecords.java
+  removeBlocks:
+    - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
+      label: MemoryRecords.writeTo
+
+- file: org/apache/kafka/common/record/internal/UnalignedMemoryRecords.java
+  removeBlocks:
+    - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
+      label: UnalignedMemoryRecords.writeTo

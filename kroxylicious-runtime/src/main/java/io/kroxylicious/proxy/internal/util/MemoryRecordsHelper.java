@@ -21,6 +21,16 @@ public class MemoryRecordsHelper {
     private MemoryRecordsHelper() {
     }
 
+    /**
+     * Creates a {@link MemoryRecordsBuilder} writing to the given stream, using the current magic
+     * value and defaults suitable for non-transactional, non-control batches.
+     *
+     * @param stream the stream the records are written to
+     * @param compression the compression type to use
+     * @param timestampType the timestamp type of the records
+     * @param baseOffset the initial offset of the batch
+     * @return the builder
+     */
     public static MemoryRecordsBuilder builder(ByteBufferOutputStream stream,
                                                Compression compression,
                                                TimestampType timestampType,

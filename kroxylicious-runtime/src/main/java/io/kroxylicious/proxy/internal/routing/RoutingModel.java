@@ -19,6 +19,8 @@ public sealed interface RoutingModel extends AutoCloseable permits DirectRouting
 
     /**
      * Returns the {@link UpstreamClusterModel} for the given route name
+     * @param routeName the name of the route
+     * @return the upstream cluster model for the route
      * @throws NoUpstreamClusterForRouteException if no upstream exists for this routeName
      */
     UpstreamClusterModel upstreamClusterFor(String routeName);

@@ -15,7 +15,7 @@ This section compares the PLAIN, SCRAM, and OAUTHBEARER mechanisms across severa
 
 The choice of SASL mechanism is independent of the choice of xref:con-choosing-authentication-approach-{context}[authentication approach] (Passthrough, Inspection, Termination, or OAuthBearer Validation).
 However, some authentication approaches constrain the available mechanisms.
-For example, SASL Termination currently supports only the `OAUTHBEARER` mechanism.
+For information about the mechanisms supported by each authentication approach, see xref:con-choosing-authentication-approach-{context}[]
 
 This section uses _server_ to refer to whichever component performs SASL authentication — either the Kafka broker or the Kroxylicious proxy, depending on your authentication approach.
 Where a point applies specifically to Apache Kafka brokers or to the proxy, the more specific term is used.

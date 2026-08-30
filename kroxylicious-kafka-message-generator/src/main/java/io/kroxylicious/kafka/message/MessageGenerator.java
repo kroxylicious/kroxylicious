@@ -55,6 +55,8 @@ public final class MessageGenerator {
 
     static final String API_MESSAGE_TYPE_JAVA = "ApiMessageType.java";
 
+    static final String API_KEYS_JAVA = "ApiKeys.java";
+
     static final String API_SCOPE_JAVA = "ApiScope.java";
 
     static final String COORDINATOR_RECORD_TYPE_JAVA = "CoordinatorRecordType.java";
@@ -65,15 +67,15 @@ public final class MessageGenerator {
 
     static final String METADATA_JSON_CONVERTERS_JAVA = "MetadataJsonConverters.java";
 
-    static final String API_MESSAGE_CLASS = "org.apache.kafka.common.protocol.ApiMessage";
+    static final String API_MESSAGE_CLASS = "io.kroxylicious.kafka.common.protocol.ApiMessage";
 
-    static final String MESSAGE_CLASS = "org.apache.kafka.common.protocol.Message";
+    static final String MESSAGE_CLASS = "io.kroxylicious.kafka.common.protocol.Message";
 
-    static final String MESSAGE_UTIL_CLASS = "org.apache.kafka.common.protocol.MessageUtil";
+    static final String MESSAGE_UTIL_CLASS = "io.kroxylicious.kafka.common.protocol.MessageUtil";
 
-    static final String READABLE_CLASS = "org.apache.kafka.common.protocol.Readable";
+    static final String READABLE_CLASS = "io.kroxylicious.kafka.common.protocol.Readable";
 
-    static final String WRITABLE_CLASS = "org.apache.kafka.common.protocol.Writable";
+    static final String WRITABLE_CLASS = "io.kroxylicious.kafka.common.protocol.Writable";
 
     static final String ARRAYS_CLASS = "java.util.Arrays";
 
@@ -83,53 +85,53 @@ public final class MessageGenerator {
 
     static final String ARRAYLIST_CLASS = "java.util.ArrayList";
 
-    static final String IMPLICIT_LINKED_HASH_COLLECTION_CLASS = "org.apache.kafka.common.utils.ImplicitLinkedHashCollection";
+    static final String IMPLICIT_LINKED_HASH_COLLECTION_CLASS = "io.kroxylicious.kafka.common.utils.ImplicitLinkedHashCollection";
 
-    static final String IMPLICIT_LINKED_HASH_MULTI_COLLECTION_CLASS = "org.apache.kafka.common.utils.ImplicitLinkedHashMultiCollection";
+    static final String IMPLICIT_LINKED_HASH_MULTI_COLLECTION_CLASS = "io.kroxylicious.kafka.common.utils.ImplicitLinkedHashMultiCollection";
 
-    static final String UNSUPPORTED_VERSION_EXCEPTION_CLASS = "org.apache.kafka.common.errors.UnsupportedVersionException";
+    static final String UNSUPPORTED_VERSION_EXCEPTION_CLASS = "io.kroxylicious.kafka.common.errors.UnsupportedVersionException";
 
     static final String ITERATOR_CLASS = "java.util.Iterator";
 
     static final String ENUM_SET_CLASS = "java.util.EnumSet";
 
-    static final String TYPE_CLASS = "org.apache.kafka.common.protocol.types.Type";
+    static final String TYPE_CLASS = "io.kroxylicious.kafka.common.protocol.types.Type";
 
-    static final String FIELD_CLASS = "org.apache.kafka.common.protocol.types.Field";
+    static final String FIELD_CLASS = "io.kroxylicious.kafka.common.protocol.types.Field";
 
-    static final String SCHEMA_CLASS = "org.apache.kafka.common.protocol.types.Schema";
+    static final String SCHEMA_CLASS = "io.kroxylicious.kafka.common.protocol.types.Schema";
 
-    static final String NULLABLE_SCHEMA_CLASS = "org.apache.kafka.common.protocol.types.NullableSchema";
+    static final String NULLABLE_SCHEMA_CLASS = "io.kroxylicious.kafka.common.protocol.types.NullableSchema";
 
-    static final String ARRAYOF_CLASS = "org.apache.kafka.common.protocol.types.ArrayOf";
+    static final String ARRAYOF_CLASS = "io.kroxylicious.kafka.common.protocol.types.ArrayOf";
 
-    static final String COMPACT_ARRAYOF_CLASS = "org.apache.kafka.common.protocol.types.CompactArrayOf";
+    static final String COMPACT_ARRAYOF_CLASS = "io.kroxylicious.kafka.common.protocol.types.CompactArrayOf";
 
-    static final String BYTES_CLASS = "org.apache.kafka.common.utils.Bytes";
+    static final String BYTES_CLASS = "io.kroxylicious.kafka.common.utils.Bytes";
 
-    static final String UUID_CLASS = "org.apache.kafka.common.Uuid";
+    static final String UUID_CLASS = "io.kroxylicious.kafka.common.Uuid";
 
-    static final String BASE_RECORDS_CLASS = "org.apache.kafka.common.record.internal.BaseRecords";
+    static final String BASE_RECORDS_CLASS = "io.kroxylicious.kafka.common.record.internal.BaseRecords";
 
-    static final String MEMORY_RECORDS_CLASS = "org.apache.kafka.common.record.internal.MemoryRecords";
+    static final String MEMORY_RECORDS_CLASS = "io.kroxylicious.kafka.common.record.internal.MemoryRecords";
 
     static final String REQUEST_SUFFIX = "Request";
 
     static final String RESPONSE_SUFFIX = "Response";
 
-    static final String BYTE_UTILS_CLASS = "org.apache.kafka.common.utils.ByteUtils";
+    static final String BYTE_UTILS_CLASS = "io.kroxylicious.kafka.common.utils.ByteUtils";
 
     static final String STANDARD_CHARSETS = "java.nio.charset.StandardCharsets";
 
-    static final String TAGGED_FIELDS_SECTION_CLASS = "org.apache.kafka.common.protocol.types.Field.TaggedFieldsSection";
+    static final String TAGGED_FIELDS_SECTION_CLASS = "io.kroxylicious.kafka.common.protocol.types.Field.TaggedFieldsSection";
 
-    static final String OBJECT_SERIALIZATION_CACHE_CLASS = "org.apache.kafka.common.protocol.ObjectSerializationCache";
+    static final String OBJECT_SERIALIZATION_CACHE_CLASS = "io.kroxylicious.kafka.common.protocol.ObjectSerializationCache";
 
-    static final String MESSAGE_SIZE_ACCUMULATOR_CLASS = "org.apache.kafka.common.protocol.MessageSizeAccumulator";
+    static final String MESSAGE_SIZE_ACCUMULATOR_CLASS = "io.kroxylicious.kafka.common.protocol.MessageSizeAccumulator";
 
-    static final String RAW_TAGGED_FIELD_CLASS = "org.apache.kafka.common.protocol.types.RawTaggedField";
+    static final String RAW_TAGGED_FIELD_CLASS = "io.kroxylicious.kafka.common.protocol.types.RawTaggedField";
 
-    static final String RAW_TAGGED_FIELD_WRITER_CLASS = "org.apache.kafka.common.protocol.types.RawTaggedFieldWriter";
+    static final String RAW_TAGGED_FIELD_WRITER_CLASS = "io.kroxylicious.kafka.common.protocol.types.RawTaggedFieldWriter";
 
     static final String TREE_MAP_CLASS = "java.util.TreeMap";
 
@@ -191,6 +193,9 @@ public final class MessageGenerator {
             switch (type) {
                 case "ApiMessageTypeGenerator":
                     generators.add(new ApiMessageTypeGenerator(packageName));
+                    break;
+                case "ApiKeysGenerator":
+                    generators.add(new ApiKeysGenerator(packageName));
                     break;
                 case "MetadataRecordTypeGenerator":
                     generators.add(new MetadataRecordTypeGenerator(packageName));

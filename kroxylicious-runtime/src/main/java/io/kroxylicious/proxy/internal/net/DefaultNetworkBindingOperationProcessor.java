@@ -19,9 +19,21 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.bootstrap.ServerBootstrap;
 
+/**
+ * Default {@link NetworkBindingOperationProcessor} implementation that processes queued
+ * {@link NetworkBindingOperation}s sequentially on a dedicated daemon thread, applying each
+ * operation to the plain or TLS {@link ServerBootstrap} as appropriate.
+ */
 public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOperationProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultNetworkBindingOperationProcessor.class);
+
+    /**
+     * Creates a network binding operation processor.
+     */
+    public DefaultNetworkBindingOperationProcessor() {
+        // Intentionally empty
+    }
 
     /** Queue of network binding operations */
     private final BlockingQueue<NetworkBindingOperation<?>> queue = new LinkedBlockingQueue<>();
@@ -61,7 +73,11 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
 
     @Override
     // identity check: POISON_PILL shutdown signal must match by instance
-    @SuppressWarnings("ReferenceEquality")
+    // FutureReturnValueIgnored: the submitted task handles its own failures —
+    // performBindingOperation catches and logs, and the sole escaping exception
+    // (interrupt) is logged immediately before it is thrown. The returned Future
+    // therefore carries no information that is not already logged.
+    @SuppressWarnings({ "ReferenceEquality", "FutureReturnValueIgnored" })
     public void start(ServerBootstrap plainServerBootstrap, ServerBootstrap tlsServerBootstrap) {
         if (!running.compareAndSet(false, true)) {
             return;
@@ -81,6 +97,9 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
             }
             catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                LOGGER.atWarn()
+                        .setCause(e)
+                        .log("Network event processor interrupted while awaiting binding operations; shutting down");
                 throw new RuntimeException(e);
             }
             finally {

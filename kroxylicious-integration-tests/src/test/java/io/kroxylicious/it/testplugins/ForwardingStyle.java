@@ -30,6 +30,7 @@ public enum ForwardingStyle implements Function<ForwardingContext, CompletionSta
     },
     ASYNCHRONOUS_DELAYED {
         @Override
+        @SuppressWarnings("FutureReturnValueIgnored") // callback completes `result`; executor.shutdown() in finally allows the task to complete; the ScheduledFuture carries no unobserved failure
         public CompletionStage<ApiMessage> apply(ForwardingContext context) {
             CompletableFuture<ApiMessage> result = new CompletableFuture<>();
             ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
@@ -46,6 +47,7 @@ public enum ForwardingStyle implements Function<ForwardingContext, CompletionSta
     },
     ASYNCHRONOUS_DELAYED_ON_EVENTlOOP {
         @Override
+        @SuppressWarnings("FutureReturnValueIgnored") // callback completes `result`; the ScheduledFuture carries no unobserved failure — all outcomes are captured by `result`
         public CompletionStage<ApiMessage> apply(ForwardingContext context) {
             ScheduledExecutorService executor = context.constructionContext().filterDispatchExecutor();
             CompletableFuture<ApiMessage> result = new CompletableFuture<>();

@@ -12,10 +12,17 @@ import io.kroxylicious.proxy.frame.ResponseFrame;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Encodes {@link ResponseFrame}s for sending to the downstream client.
+ */
 public class KafkaResponseEncoder extends KafkaMessageEncoder<ResponseFrame> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaResponseEncoder.class);
 
+    /**
+     * Constructs a response encoder.
+     * @param listener Listener notified of each encoded message, or null.
+     */
     public KafkaResponseEncoder(@Nullable KafkaMessageListener listener) {
         super(listener);
     }

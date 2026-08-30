@@ -33,6 +33,12 @@ public class ManagementClient implements Closeable {
         this.uri = uri;
     }
 
+    /**
+     * Performs an HTTP GET against the given endpoint of the admin HTTP interface.
+     *
+     * @param endpoint the endpoint path, relative to the admin interface's base URI
+     * @return the HTTP response
+     */
     public HttpResponse<String> getFromAdminEndpoint(String endpoint) {
         try {
             HttpRequest request = HttpRequest.newBuilder(uri.resolve(endpoint)).GET().build();
@@ -57,6 +63,11 @@ public class ManagementClient implements Closeable {
         return SimpleMetric.parse(text);
     }
 
+    /**
+     * The base URI of the admin HTTP interface.
+     *
+     * @return the base URI
+     */
     public URI getUri() {
         return uri;
     }

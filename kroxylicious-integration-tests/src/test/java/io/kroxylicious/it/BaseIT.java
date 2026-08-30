@@ -51,6 +51,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(NettyLeakDetectorExtension.class)
 public abstract class BaseIT {
 
+    public static final long DEFAULT_SEND_TIMEOUT_SECONDS = 5L;
+    public static final long DEFAULT_REQUEST_TIMEOUT_SECONDS = 10L;
+
     static ConfigurationBuilder buildProxyConfigWithSaslInspection(KafkaCluster cluster, @Nullable Set<String> enableMechanisms,
                                                                    @Nullable DefaultSaslSubjectBuilderService.Config subjectBuilderConfig) {
         var saslInspection = buildSaslInspector(enableMechanisms, subjectBuilderConfig);

@@ -53,6 +53,11 @@ import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 
+/**
+ * Default implementation of {@link KroxyliciousTester}. Runs a Kroxylicious server
+ * from a given configuration and manages the lifecycle of the Kafka clients handed
+ * out to tests.
+ */
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
 
@@ -71,12 +76,19 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private final ClientFactory clientFactory;
 
     private final List<Closeable> closeables = new ArrayList<>();
+    private final AtomicReference<Throwable> proxyDeathCause = new AtomicReference<>();
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultKroxyliciousTester.class);
 
     DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory,
                               @Nullable KroxyliciousTesterBuilder.TrustStoreConfiguration trustStoreConfiguration) {
         this.kroxyliciousConfig = new AtomicReference<>(configurationBuilder.build());
         this.proxy = kroxyliciousFactory.apply(kroxyliciousConfig.get());
+        // Death detection only applies when the factory produces a real KafkaProxy.
+        // startup() was already called by the factory; this second idempotent call retrieves
+        // the same shutdown future since the factory interface does not expose it directly.
+        if (this.proxy instanceof KafkaProxy kp) {
+            registerDeathCallback(kp.startup());
+        }
         this.trustStoreConfiguration = Optional.ofNullable(trustStoreConfiguration);
         this.clients = new ConcurrentHashMap<>();
         this.clientFactory = clientFactory;
@@ -311,8 +323,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
                             "reconnect. Use fixed ports in the gateway configuration when restartProxy() is needed.");
         }
         try {
+            proxyDeathCause.set(null); // reset before closing so the old proxy's death is not attributed to the new one
             proxy.close();
-            proxy = spawnProxy(kroxyliciousConfig.get(), Features.defaultFeatures());
+            var started = createAndStart(kroxyliciousConfig.get(), Features.defaultFeatures());
+            proxy = started.proxy();
+            registerDeathCallback(started.startupFuture());
         }
         catch (Exception e) {
             throw new IllegalStateException(e);
@@ -323,8 +338,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     public void restartProxy(ConfigurationBuilder configForRestart) {
         try {
             var config = configForRestart.build();
+            proxyDeathCause.set(null); // reset before closing so the old proxy's death is not attributed to the new one
             proxy.close();
-            proxy = spawnProxy(config, Features.defaultFeatures());
+            var started = createAndStart(config, Features.defaultFeatures());
+            proxy = started.proxy();
+            registerDeathCallback(started.startupFuture());
             kroxyliciousConfig.set(config);
         }
         catch (Exception e) {
@@ -378,6 +396,10 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             }
             closeables.forEach(c -> closeCloseable(c).ifPresent(exceptions::add));
             proxy.close();
+            Throwable death = proxyDeathCause.get();
+            if (death != null) {
+                exceptions.add(new IllegalStateException("Proxy died unexpectedly during test", death));
+            }
             if (!exceptions.isEmpty()) {
                 // if we encountered any exceptions while closing, log them all and then throw whichever one came first.
                 exceptions.forEach(e -> LOGGER.error(e.getMessage(), e));
@@ -399,10 +421,29 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
     }
 
+    private record StartedProxy(KafkaProxy proxy, CompletableFuture<Void> startupFuture) {}
+
+    private static StartedProxy createAndStart(Configuration config, Features features) {
+        KafkaProxy proxy = new KafkaProxy(new ServiceBasedPluginFactoryRegistry(), config, features);
+        return new StartedProxy(proxy, proxy.startup());
+    }
+
     static KafkaProxy spawnProxy(Configuration config, Features features) {
-        KafkaProxy kafkaProxy = new KafkaProxy(new ServiceBasedPluginFactoryRegistry(), config, features);
-        kafkaProxy.startup();
-        return kafkaProxy;
+        return createAndStart(config, features).proxy();
+    }
+
+    // FutureReturnValueIgnored: the whenComplete callback both logs at ERROR and stores the
+    // cause in proxyDeathCause; the derived stage carries no additional information.
+    @SuppressWarnings("FutureReturnValueIgnored")
+    private void registerDeathCallback(CompletableFuture<Void> startupFuture) {
+        startupFuture.whenComplete((v, t) -> {
+            if (t != null) {
+                LOGGER.atError()
+                        .setCause(t)
+                        .log("Proxy startup or shutdown completed exceptionally during test");
+                proxyDeathCause.compareAndSet(null, t);
+            }
+        });
     }
 
     @Override

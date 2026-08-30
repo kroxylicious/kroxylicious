@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
@@ -48,9 +48,9 @@ jobs:
           shellcheck scripts/stage-docs.sh scripts/update-latest-docs-release.sh scripts/update-latest-docs-release-test.sh
           ./scripts/update-latest-docs-release-test.sh
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Compile and lint the project'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -77,19 +77,6 @@ jobs:
         run: sudo apt-get install -y libxml2-utils
       - name: 'Validate module-profile structure'
         run: bash scripts/validate-module-structure.sh
-      - name: 'Lint changelog entries'
-        run: mvn --batch-mode logchange:lint
-      - name: 'Validate changelog entry filenames'
-        run: |
-          ERRORS=0
-          for f in changelog/unreleased/*.yaml; do
-            [ -f "$f" ] || continue
-            if ! basename "$f" | grep -qP '^\d{5}-'; then
-              echo "ERROR: $f must use a zero-padded 5-digit issue/PR number prefix (e.g. 01234-short-slug.yaml)"
-              ERRORS=$((ERRORS + 1))
-            fi
-          done
-          exit $ERRORS
       - name: Save PR number to file
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number

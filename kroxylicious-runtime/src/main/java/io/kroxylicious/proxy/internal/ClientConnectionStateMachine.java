@@ -49,7 +49,6 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -120,7 +119,10 @@ import static org.slf4j.LoggerFactory.getLogger;
  *   <li>When the client channel becomes unwritable, reads are paused on all server channels (don't accept responses we can't deliver).</li>
  * </ul>
  */
-@SuppressWarnings({ "java:S1133", "java:S1172" }) // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller
+@SuppressWarnings({
+        "java:S1133",
+        // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller
+        "java:S1172" })
 public class ClientConnectionStateMachine {
     private static final Logger LOGGER = getLogger(ClientConnectionStateMachine.class);
 
@@ -145,6 +147,10 @@ public class ClientConnectionStateMachine {
             this.label = label;
         }
 
+        /**
+         * Returns the label used to tag disconnect metrics with this cause.
+         * @return the metric label for this disconnect cause
+         */
         public String label() {
             return label;
         }
@@ -225,6 +231,12 @@ public class ClientConnectionStateMachine {
     @Nullable
     private Function<Integer, Optional<HostPort>> upstreamAddressResolver;
 
+    /**
+     * Creates a state machine for a single client connection.
+     * @param endpointBinding the binding identifying the virtual cluster endpoint the client connected to
+     * @param transportSubjectBuilder builder used to derive the client {@link Subject} from transport-level information
+     * @param kafkaSession the session associated with this connection
+     */
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
                                         KafkaSession kafkaSession) {
@@ -311,6 +323,10 @@ public class ClientConnectionStateMachine {
                 '}';
     }
 
+    /**
+     * Returns the simple class name of the current session state, for reporting purposes.
+     * @return the simple name of the current state class
+     */
     public String currentState() {
         return this.state().getClass().getSimpleName();
     }
@@ -320,7 +336,11 @@ public class ClientConnectionStateMachine {
         return endpointBinding.nodeId();
     }
 
-    String clusterName() {
+    /**
+     * Return the virtual cluster name.
+     * @return the virtual cluster name
+     */
+    public String clusterName() {
         return virtualCluster().getClusterName();
     }
 
@@ -591,6 +611,29 @@ public class ClientConnectionStateMachine {
     }
 
     /**
+     * Requests a graceful close of this connection, using the virtual cluster's configured
+     * drain timeout. The reason is logged (with {@code sessionId} and {@code virtualCluster})
+     * at the point drain begins. Delegates to {@link #drain(Duration)}.
+     * <p>
+     * Safe to call from any thread; idempotent (subsequent calls chain to the existing drain).
+     *
+     * @param reason why the close was requested — logged for debugging
+     */
+    // FutureReturnValueIgnored: requestClose() is fire-and-forget; callers are not expected to
+    // wait for the connection to fully close, and drain()'s returned future only ever completes
+    // exceptionally by propagating from another drain() call's future, which itself never does.
+    @SuppressWarnings("FutureReturnValueIgnored")
+    public void requestClose(CloseReason reason) {
+        LOGGER.atInfo()
+                .addKeyValue("sessionId", kafkaSession.sessionId())
+                .addKeyValue("virtualCluster", clusterName())
+                .addKeyValue("closeCategory", reason.category())
+                .addKeyValue("closeReason", reason.detail())
+                .log("Connection close requested");
+        drain(virtualCluster().drainTimeout());
+    }
+
+    /**
      * Begin draining this connection and return a future that completes once the connection has
      * fully closed — either naturally (all in-flight responses delivered) or after the
      * {@code timeout} force-closes it. Safe to call from any thread; orchestration is dispatched
@@ -614,6 +657,10 @@ public class ClientConnectionStateMachine {
      * @param timeout maximum time to wait for in-flight responses before force-closing
      * @return future that completes when this connection has reached {@link Closed}
      */
+    // FutureReturnValueIgnored: the failure is handled inside the callback; both branches
+    // complete `promise` (exceptionally or successfully), and the derived stage can only fail
+    // if the callback itself throws.
+    @SuppressWarnings("FutureReturnValueIgnored")
     CompletableFuture<Void> drain(Duration timeout) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         // registerConnection can add this CCSM before Netty fires channelActive, so
@@ -783,6 +830,7 @@ public class ClientConnectionStateMachine {
 
     /**
      * Returns the session ID which connects a frontend channel with a backend channel.
+     * @return the session ID
      */
     public String sessionId() {
         return kafkaSession.sessionId();
@@ -790,37 +838,66 @@ public class ClientConnectionStateMachine {
 
     /**
      * Returns the session for this connection.
+     * @return the session
      */
     public KafkaSession kafkaSession() {
         return kafkaSession;
     }
 
+    /**
+     * Records that the session has been authenticated at the transport level (e.g. via a TLS client certificate)
+     * and notifies the frontend handler.
+     */
     public void onSessionTransportAuthenticated() {
         this.kafkaSession.transitionTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
+    /**
+     * Records that the session has been authenticated via SASL and notifies the frontend handler.
+     */
     public void onSessionSaslAuthenticated() {
         this.kafkaSession.transitionTo(KafkaSessionState.SASL_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
+    /**
+     * Returns the TLS context of the downstream client connection, if TLS is in use.
+     * @return the client TLS context, or empty if the client connection does not use TLS
+     */
     public Optional<ClientTlsContext> clientTlsContext() {
         return clientSubjectManager.clientTlsContext();
     }
 
+    /**
+     * Records a successful SASL authentication of the downstream client.
+     * @param mechanism the SASL mechanism used
+     * @param subject the subject established by the SASL exchange
+     */
     public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
         clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
     }
 
+    /**
+     * Returns the SASL context of the downstream client connection, if the client has successfully authenticated via SASL.
+     * @return the client SASL context, or empty if the client has not authenticated via SASL
+     */
     public Optional<ClientSaslContext> clientSaslContext() {
         return clientSubjectManager.clientSaslContext();
     }
 
+    /**
+     * Records a failed SASL authentication of the downstream client, discarding any previously established SASL context.
+     */
     public void clientSaslAuthenticationFailure() {
         clientSubjectManager.clientSaslAuthenticationFailure();
     }
 
+    /**
+     * Notifies the state machine that the TLS handshake with the downstream client succeeded,
+     * triggering asynchronous construction of the transport-level {@link Subject}.
+     * @param sslSession the negotiated TLS session
+     */
     public void onClientTlsHandshakeSuccess(SSLSession sslSession) {
         this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder,
                 Objects.requireNonNull(frontendHandler).eventLoopExecutor(), this::onTransportSubjectBuilt);
@@ -851,10 +928,18 @@ public class ClientConnectionStateMachine {
         tryUnblockClient();
     }
 
+    /**
+     * Returns the currently authenticated subject for this connection.
+     * @return the authenticated subject (anonymous if the client has not authenticated)
+     */
     public Subject authenticatedSubject() {
         return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
     }
 
+    /**
+     * Returns the Netty channel connected to the downstream client.
+     * @return the client channel, or {@code null} if the client is not yet active
+     */
     @Nullable
     public Channel clientChannel() {
         return frontendHandler != null ? frontendHandler.clientChannel() : null;
@@ -903,9 +988,9 @@ public class ClientConnectionStateMachine {
             throw new IllegalStateException(
                     "toForwardingWithRoutes called but virtualCluster has no router — this is a bug");
         }
-        var descriptors = dr.routeDescriptors();
+        var allDescriptors = dr.allRouteDescriptors();
         routeTargets = new HashMap<>();
-        for (var entry : descriptors.entrySet()) {
+        for (var entry : allDescriptors.entrySet()) {
             RouteDescriptor rd = entry.getValue();
             if (rd.targetsCluster()) {
                 routeTargets.put(entry.getKey(), Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
@@ -917,7 +1002,7 @@ public class ClientConnectionStateMachine {
         // Server connections are opened lazily in forwardToRoute().
         if (endpointBinding instanceof BrokerEndpointBinding beb) {
             var routeAndNode = dr.nodeIdMapping().fromVirtual(beb.nodeId());
-            RouteDescriptor owningDesc = descriptors.get(routeAndNode.route());
+            RouteDescriptor owningDesc = dr.topLevelRouteDescriptors().get(routeAndNode.route());
             if (owningDesc != null && owningDesc.targetsCluster()) {
                 routeTargets.put(routeAndNode.route(), beb.upstreamTarget());
             }
@@ -932,8 +1017,10 @@ public class ClientConnectionStateMachine {
 
     /**
      * Forward a message to the backend connection for the named route.
-     * Used by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * Used by {@link io.kroxylicious.proxy.internal.routing.RoutingHandler}
      * for both static and dynamic routing paths.
+     * @param routeName the name of the route identifying the target upstream
+     * @param msg the message to forward to the route's backend connection
      */
     public void forwardToRoute(String routeName, Object msg) {
         if (!(virtualCluster().routing() instanceof DynamicRouting)) {
@@ -961,7 +1048,7 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Signals that a {@link RouterDispatchHandler} is active on this connection's pipeline.
+     * Signals that a {@link io.kroxylicious.proxy.internal.routing.RoutingHandler} is active on this connection's pipeline.
      * When active, responses bearing routing-range correlation IDs are not counted
      * against the client in-flight limit (because they are synthetic, not client requests).
      */
@@ -972,6 +1059,7 @@ public class ClientConnectionStateMachine {
     /**
      * Sets the resolver used by {@link #forwardToNode} to translate a virtual node ID to
      * an upstream address. Must be set before any per-broker requests are sent.
+     * @param resolver function mapping a virtual node ID to the upstream address, if known
      */
     public void setUpstreamAddressResolver(Function<Integer, Optional<HostPort>> resolver) {
         this.upstreamAddressResolver = Objects.requireNonNull(resolver);
@@ -979,7 +1067,7 @@ public class ClientConnectionStateMachine {
 
     /**
      * Signals that a dynamically-routed client request has been fully handled.
-     * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * Called by {@link io.kroxylicious.proxy.internal.routing.RoutingHandler}
      * when the router's {@code onRequest} future completes and the response has been
      * delivered to the client. Decrements the in-flight request count to maintain the
      * 1:1 invariant even during fan-out routing.
@@ -989,9 +1077,23 @@ public class ClientConnectionStateMachine {
     }
 
     /**
+     * Signals that a client request has been fully handled by a filter's short-circuit
+     * response, without a broker round-trip. Called by {@link io.kroxylicious.proxy.internal.FilterHandler}
+     * once the response has been written to the client. Decrements the in-flight request
+     * count so that a {@link #requestClose} triggered by the same filter can drain
+     * promptly instead of waiting out the full drain timeout.
+     */
+    public void onShortCircuitResponseComplete() {
+        decrementInFlightCount();
+    }
+
+    /**
      * Forward a message to the backend broker identified by the virtual node ID.
      * Creates a new server connection if one does not already exist for the
      * resolved upstream address.
+     * @param virtualNodeId the virtual node ID identifying the target broker
+     * @param routeName the name of the route the request belongs to
+     * @param msg the message to forward to the broker
      */
     public void forwardToNode(int virtualNodeId, String routeName, Object msg) {
         if (!(state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining)) {
@@ -1022,6 +1124,7 @@ public class ClientConnectionStateMachine {
 
     /**
      * A message has emerged from the filter chain and is ready to be forwarded to the upstream node.
+     * @param msg the RPC to be forwarded to the upstream node
      */
     public void onClientFilterChainComplete(Object msg) {
         if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
@@ -1203,5 +1306,4 @@ public class ClientConnectionStateMachine {
         }
         return ch;
     }
-
 }

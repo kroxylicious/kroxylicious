@@ -4,6 +4,10 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+/**
+ * A mock implementation of the {@link io.kroxylicious.proxy.filter.FilterContext} to simplify
+ * writing unit tests for filter implementations.
+ */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)

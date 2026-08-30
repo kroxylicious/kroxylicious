@@ -26,6 +26,8 @@
     <properties>
         <!-- derived from snappy's resource-config.json -->
         <native.library.include.patterns>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</native.library.include.patterns>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
     </properties>
 
     <dependencies>
@@ -407,7 +409,7 @@
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
-                    <artifactId>kroxylicious-scram-credential-store-provider-keystore</artifactId>
+                    <artifactId>kroxylicious-scram-credential-store-provider-file</artifactId>
                     <scope>runtime</scope>
                 </dependency>
                 <dependency>

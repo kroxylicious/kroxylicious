@@ -20,16 +20,36 @@ import org.assertj.core.api.IterableAssert;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * AssertJ assertions for {@link RecordBatch}.
+ */
 public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordBatch> {
+    /**
+     * Constructs an assertion for the given RecordBatch.
+     *
+     * @param batch the actual RecordBatch
+     */
     protected RecordBatchAssert(RecordBatch batch) {
         super(batch, RecordBatchAssert.class);
         describedAs(batch == null ? "null record batch" : "record batch");
     }
 
+    /**
+     * Creates an assertion for the given RecordBatch.
+     *
+     * @param actual the actual RecordBatch
+     * @return the assertion
+     */
     public static RecordBatchAssert assertThat(RecordBatch actual) {
         return new RecordBatchAssert(actual);
     }
 
+    /**
+     * Verifies that the batch has the expected size in bytes.
+     *
+     * @param expected the expected size in bytes
+     * @return this assertion
+     */
     public RecordBatchAssert hasSizeInBytes(int expected) {
         isNotNull();
         Assertions.assertThat(actual.sizeInBytes())
@@ -38,6 +58,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected base offset.
+     *
+     * @param expected the expected base offset
+     * @return this assertion
+     */
     public RecordBatchAssert hasBaseOffset(long expected) {
         isNotNull();
         Assertions.assertThat(actual.baseOffset())
@@ -46,6 +72,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected base sequence.
+     *
+     * @param expected the expected base sequence
+     * @return this assertion
+     */
     public RecordBatchAssert hasBaseSequence(int expected) {
         isNotNull();
         Assertions.assertThat(actual.baseSequence())
@@ -54,6 +86,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected compression type.
+     *
+     * @param expected the expected compression type
+     * @return this assertion
+     */
     public RecordBatchAssert hasCompressionType(CompressionType expected) {
         isNotNull();
         Assertions.assertThat(actual.compressionType())
@@ -63,6 +101,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch contains the expected number of records.
+     *
+     * @param expected the expected number of records
+     * @return this assertion
+     */
     public RecordBatchAssert hasNumRecords(int expected) {
         isNotNull();
         Assertions.assertThat(actual)
@@ -71,6 +115,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected magic byte.
+     *
+     * @param magic the expected magic byte
+     * @return this assertion
+     */
     public RecordBatchAssert hasMagic(byte magic) {
         isNotNull();
         Assertions.assertThat(actual.magic())
@@ -79,6 +129,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies whether the batch is a control batch.
+     *
+     * @param expected whether the batch is expected to be a control batch
+     * @return this assertion
+     */
     public RecordBatchAssert isControlBatch(boolean expected) {
         isNotNull();
         Assertions.assertThat(actual.isControlBatch())
@@ -87,6 +143,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies whether the batch is transactional.
+     *
+     * @param expected whether the batch is expected to be transactional
+     * @return this assertion
+     */
     public RecordBatchAssert isTransactional(boolean expected) {
         isNotNull();
         Assertions.assertThat(actual.isTransactional())
@@ -95,6 +157,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected partition leader epoch.
+     *
+     * @param expected the expected partition leader epoch
+     * @return this assertion
+     */
     public RecordBatchAssert hasPartitionLeaderEpoch(int expected) {
         isNotNull();
         Assertions.assertThat(actual.partitionLeaderEpoch())
@@ -103,6 +171,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected delete horizon.
+     *
+     * @param expected the expected delete horizon in milliseconds
+     * @return this assertion
+     */
     public RecordBatchAssert hasDeleteHorizonMs(OptionalLong expected) {
         isNotNull();
         Assertions.assertThat(actual.deleteHorizonMs())
@@ -112,6 +186,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected last offset.
+     *
+     * @param expected the expected last offset
+     * @return this assertion
+     */
     public RecordBatchAssert hasLastOffset(long expected) {
         isNotNull();
         Assertions.assertThat(actual.lastOffset())
@@ -120,6 +200,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the same metadata as the given batch.
+     *
+     * @param batch the batch with the expected metadata
+     * @return this assertion
+     */
     public RecordBatchAssert hasMetadataMatching(RecordBatch batch) {
         isNotNull();
         hasBaseOffset(batch.baseOffset());
@@ -139,6 +225,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected last sequence.
+     *
+     * @param expected the expected last sequence
+     * @return this assertion
+     */
     public RecordBatchAssert hasLastSequence(int expected) {
         isNotNull();
         Assertions.assertThat(actual.lastSequence())
@@ -147,6 +239,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected producer epoch.
+     *
+     * @param expected the expected producer epoch
+     * @return this assertion
+     */
     public RecordBatchAssert hasProducerEpoch(short expected) {
         isNotNull();
         Assertions.assertThat(actual.producerEpoch())
@@ -155,6 +253,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected producer id.
+     *
+     * @param expected the expected producer id
+     * @return this assertion
+     */
     public RecordBatchAssert hasProducerId(long expected) {
         isNotNull();
         Assertions.assertThat(actual.producerId())
@@ -163,6 +267,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected max timestamp.
+     *
+     * @param expected the expected max timestamp
+     * @return this assertion
+     */
     public RecordBatchAssert hasMaxTimestamp(long expected) {
         isNotNull();
         Assertions.assertThat(actual.maxTimestamp())
@@ -171,6 +281,12 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return this;
     }
 
+    /**
+     * Verifies that the batch has the expected timestamp type.
+     *
+     * @param expected the expected timestamp type
+     * @return this assertion
+     */
     public RecordBatchAssert hasTimestampType(TimestampType expected) {
         isNotNull();
         Assertions.assertThat(actual.timestampType())
@@ -185,6 +301,11 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
                 .describedAs("records");
     }
 
+    /**
+     * Verifies that the batch has records and creates an assertion for the first one.
+     *
+     * @return the first record assertion
+     */
     public RecordAssert firstRecord() {
         isNotNull();
         isNotEmpty();
@@ -193,6 +314,11 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
                 .describedAs("first record");
     }
 
+    /**
+     * Verifies that the batch has records and creates an assertion for the last one.
+     *
+     * @return the last record assertion
+     */
     public RecordAssert lastRecord() {
         isNotNull();
         isNotEmpty();
@@ -206,6 +332,11 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return Assertions.assertThat(actual).describedAs(descriptionText()).hasSizeGreaterThan(0);
     }
 
+    /**
+     * Returns an iterable of assertions, one for each record in the batch.
+     *
+     * @return the record assertions
+     */
     public Iterable<RecordAssert> records() {
         isNotNull();
         return () -> new Iterator<>() {

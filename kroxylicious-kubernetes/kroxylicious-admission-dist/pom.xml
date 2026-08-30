@@ -23,6 +23,8 @@
 
     <properties>
         <errorprone.skip>true</errorprone.skip>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
     </properties>
 
     <dependencies>

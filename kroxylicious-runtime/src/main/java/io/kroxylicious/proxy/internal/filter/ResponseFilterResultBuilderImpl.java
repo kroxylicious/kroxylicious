@@ -14,10 +14,21 @@ import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Builder of {@link ResponseFilterResult} instances, validating that forwarded messages
+ * are Kafka response data classes.
+ */
 public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<ResponseHeaderData, ResponseFilterResult>
         implements ResponseFilterResultBuilder {
 
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
+
+    /**
+     * Creates an empty builder.
+     */
+    public ResponseFilterResultBuilderImpl() {
+        // Intentionally empty
+    }
 
     @Override
     protected void validateForward(ResponseHeaderData header, ApiMessage message) {

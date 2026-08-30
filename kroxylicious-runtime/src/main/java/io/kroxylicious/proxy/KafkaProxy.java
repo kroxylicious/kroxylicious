@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -78,6 +79,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Entry point for running the proxy as an embedded component. Owns the proxy's lifecycle
+ * ({@link #startup()}, {@link #shutdown()}), the Netty event loop groups and port bindings,
+ * the virtual cluster registry, the optional management (metrics/admin) listener, and dynamic
+ * reconfiguration via {@link #reconfigure(Configuration)}. Instances are single-use: once
+ * stopped, a proxy cannot be restarted.
+ */
 public final class KafkaProxy implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
@@ -209,6 +217,17 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
 
+    /**
+     * Creates a proxy for the given configuration. The configuration is validated against the
+     * enabled features and the virtual cluster models (including their filter chains) are built
+     * eagerly; the proxy does not accept connections until {@link #startup()} is called.
+     *
+     * @param pfr the plugin factory registry used to resolve filter and other plugins
+     * @param config the proxy configuration
+     * @param features the enabled feature set used to validate the configuration
+     * @throws IllegalConfigurationException if the configuration is not supported by the enabled features
+     * @throws LifecycleException if a filter factory fails to initialise
+     */
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
         this(pfr, config, features, defaultRegistry(config, pfr));
     }
@@ -676,9 +695,25 @@ public final class KafkaProxy implements AutoCloseable {
         return address;
     }
 
+    /**
+     * Shuts down the proxy and blocks until shutdown has fully completed, guaranteeing that
+     * bound ports are released before this method returns. A shutdown failure is logged at
+     * ERROR rather than propagated, so this method is safe to call from try-with-resources
+     * after an explicit {@link #shutdown()} without risk of a second exception. Idempotent.
+     */
     @Override
     public void close() {
-        shutdown();
+        try {
+            shutdown().get();
+        }
+        catch (ExecutionException e) {
+            STARTUP_SHUTDOWN_LOGGER.atError()
+                    .setCause(e.getCause())
+                    .log("Proxy shutdown completed with a failure");
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
 }

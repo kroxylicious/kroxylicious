@@ -6,10 +6,13 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.Objects;
+
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.AbstractResponse;
 
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -19,6 +22,11 @@ import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Builder of {@link RequestFilterResult} instances. In addition to forwarding, supports
+ * short-circuit responses (answering the client without forwarding the request upstream),
+ * including error responses derived from an {@link ApiException}.
+ */
 public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<RequestHeaderData, RequestFilterResult>
         implements RequestFilterResultBuilder {
 
@@ -26,6 +34,13 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
     private @Nullable ResponseHeaderData shortCircuitHeader;
     private @Nullable ApiMessage shortCircuitResponse;
+
+    /**
+     * Creates an empty builder.
+     */
+    public RequestFilterResultBuilderImpl() {
+        // Intentionally empty
+    }
 
     @Override
     protected void validateForward(RequestHeaderData header, ApiMessage message) {
@@ -51,8 +66,23 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException)
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error)
             throws IllegalArgumentException {
+        return errorResponse(header, requestMessage, error, null);
+    }
+
+    @Override
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error, @Nullable String message)
+            throws IllegalArgumentException {
+        Objects.requireNonNull(error, "error must not be null");
+        if (error == Errors.NONE) {
+            throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
+        }
+        // Errors.exception(String) returns the default-message exception when message is null.
+        return errorResponseForException(header, requestMessage, error.exception(message));
+    }
+
+    private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException) {
         final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, apiException);
         validateShortCircuitResponse(errorResponseMessage.data());
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();

@@ -46,6 +46,11 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
     private static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(10);
 
+    /**
+     * Validates the virtual cluster: the name must be a DNS label, exactly one of
+     * {@code targetCluster} or {@code target} must be given, at least one uniquely-named
+     * gateway must be configured, and any explicit {@code drainTimeout} must be positive.
+     */
     @SuppressWarnings("java:S2789") // S2789 - checking for null tls is the intent
     public VirtualCluster {
         Objects.requireNonNull(name);
@@ -72,6 +77,17 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         }
     }
 
+    /**
+     * Convenience constructor for a virtual cluster with an inline target cluster and all
+     * optional components defaulted.
+     *
+     * @param name virtual cluster name
+     * @param targetCluster inline target cluster definition
+     * @param gateways virtual cluster gateways
+     * @param logNetwork if true, network will be logged
+     * @param logFrames if true, kafka rpcs will be logged
+     * @param filters filters applied to requests
+     */
     public VirtualCluster(String name,
                           TargetCluster targetCluster,
                           List<VirtualClusterGateway> gateways,
@@ -81,11 +97,21 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         this(name, targetCluster, null, gateways, logNetwork, logFrames, filters, null, null, null);
     }
 
+    /**
+     * The name of the router this cluster targets, if any.
+     *
+     * @return the router name from {@code target}, or {@code null} if this cluster does not target a router
+     */
     @Nullable
     public String router() {
         return target != null ? target.router() : null;
     }
 
+    /**
+     * The name of the cluster definition this cluster targets, if any.
+     *
+     * @return the cluster name from {@code target}, or {@code null} if this cluster does not target a named cluster
+     */
     @Nullable
     public String namedTargetCluster() {
         return target != null ? target.cluster() : null;
@@ -153,6 +179,9 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * so reordering YAML entries is a no-op and must not produce a false positive. All
      * other components (including any added in the future) are compared by the record's
      * auto-equals, so this method extends automatically.
+     *
+     * @param other the virtual cluster to compare against, may be {@code null}
+     * @return true if the two configurations are semantically identical
      */
     // identity check: reflexivity fast-path, same idiom as equals()
     @SuppressWarnings("ReferenceEquality")

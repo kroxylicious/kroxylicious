@@ -15,6 +15,8 @@ import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
 
 /**
  * A decoded request frame.
+ *
+ * @param <B> the type of the request body
  */
 public class DecodedRequestFrame<B extends ApiMessage>
         extends DecodedFrame<RequestHeaderData, B>
@@ -22,6 +24,15 @@ public class DecodedRequestFrame<B extends ApiMessage>
 
     private final boolean decodeResponse;
 
+    /**
+     * Creates a decoded request frame.
+     *
+     * @param apiVersion the API version of the request
+     * @param correlationId the correlation id of the request
+     * @param decodeResponse whether the corresponding response should be decoded
+     * @param header the request header
+     * @param body the request body
+     */
     public DecodedRequestFrame(short apiVersion,
                                int correlationId,
                                boolean decodeResponse,
@@ -50,6 +61,13 @@ public class DecodedRequestFrame<B extends ApiMessage>
         return apiKeyId() == PRODUCE.id && ((ProduceRequestData) body).acks() == 0;
     }
 
+    /**
+     * Creates a response frame corresponding to this request.
+     *
+     * @param header the response header
+     * @param message the response body, which must have the same API key as this request
+     * @return the response frame
+     */
     // we don't know the response type
     @SuppressWarnings("java:S1452")
     public DecodedResponseFrame<? extends ApiMessage> responseFrame(ResponseHeaderData header, ApiMessage message) {
@@ -61,6 +79,13 @@ public class DecodedRequestFrame<B extends ApiMessage>
         return createResponseFrame(header, message);
     }
 
+    /**
+     * Creates the response frame instance for this request type.
+     *
+     * @param header the response header
+     * @param message the response body
+     * @return the response frame
+     */
     // we don't know the response type
     @SuppressWarnings("java:S1452")
     protected DecodedResponseFrame<? extends ApiMessage> createResponseFrame(ResponseHeaderData header, ApiMessage message) {

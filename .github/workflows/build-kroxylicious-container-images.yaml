@@ -1,0 +1,453 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+# build-kroxylicious-container-images.yaml — the single canonical place for building
+# Kroxylicious container images.
+#
+# Multi-arch proxy images are built as a 4-phase process:
+#   1. mvn install  — compile and install all module JARs into ~/.m2 once
+#   2. mvn + docker — dist packaging and image build for linux/amd64
+#   3. mvn + docker — dist packaging (with -Paarch64) and image build for linux/arm64
+#   4. manifest     — merge per-arch images into a multi-arch manifest list
+#
+# The operator and admission webhook have no architecture-specific native JARs,
+# so a single multi-arch Docker Buildx build covers both platforms.
+#
+# Callers:
+#   - maven.yaml          — CI validation (PR) and snapshot image pushes (main/release branches)
+#   - build-kroxylicious-artifacts.yaml — produce tarballs for system tests
+#   - stage_release.yaml  — dispatch on release branch to build and push staged images
+#
+# Required repository variables (when push-images=true):
+#   REGISTRY_SERVER       — container registry server, e.g. quay.io
+#   REGISTRY_ORGANISATION — organisation/namespace within the registry
+#   REGISTRY_USERNAME     — registry username or robot-account username
+#   PROXY_IMAGE_NAME      — proxy image name (without tag)
+#   OPERATOR_IMAGE_NAME   — operator image name (without tag)
+#   ADMISSION_IMAGE_NAME  — admission webhook image name (without tag)
+# Required repository secret (when push-images=true):
+#   REGISTRY_TOKEN        — access token for REGISTRY_USERNAME
+
+name: Build Kroxylicious Container Images
+
+on:
+  workflow_call:
+    inputs:
+      push-images:
+        description: 'Push images to the container registry'
+        type: boolean
+        default: false
+      multi-arch:
+        description: 'Build linux/amd64 and linux/arm64 images (proxy only; operator and admission are always multi-arch)'
+        type: boolean
+        default: false
+      additional-tags:
+        description: 'Extra comma-separated image tags alongside the commit-SHA tag (e.g. "0.23.0-SNAPSHOT"). Leave empty for SHA-only.'
+        type: string
+        default: ''
+      output-tarballs:
+        description: 'Export amd64 images as Docker-format gzip tarballs and upload them as GitHub Actions artifacts for use by system tests. Mutually exclusive with push-images.'
+        type: boolean
+        default: false
+    secrets:
+      REGISTRY_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      push-images:
+        description: 'Push images to the container registry'
+        type: boolean
+        default: false
+      multi-arch:
+        description: 'Build linux/amd64 and linux/arm64 images'
+        type: boolean
+        default: false
+      additional-tags:
+        description: 'Extra comma-separated image tags alongside the commit-SHA tag (e.g. "0.23.0-SNAPSHOT"). Leave empty for SHA-only.'
+        required: false
+        default: ''
+      output-tarballs:
+        description: 'Export amd64 images as Docker-format gzip tarballs and upload them as GitHub Actions artifacts for use by system tests. Mutually exclusive with push-images.'
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
+
+      - name: Setup Java
+        uses: $/.github/actions/common/setup-java
+
+      - name: 'Cache Maven packages'
+        uses: $/.github/actions/common/cache-maven-packages
+
+      - name: Determine Build Configuration
+        id: build_configuration
+        env:
+          ADDITIONAL_TAGS: ${{ inputs.additional-tags }}
+        run: |
+          if [[ "${{ inputs.output-tarballs }}" == "true" && "${{ inputs.push-images }}" == "true" ]]; then
+            echo "::error::output-tarballs and push-images are mutually exclusive; set at most one to true." >&2
+            exit 1
+          fi
+
+          POMS_VERSION=$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)
+          echo "release_version=${POMS_VERSION}" >> $GITHUB_OUTPUT
+          echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+          echo "output_tarballs=${{ inputs.output-tarballs }}" >> $GITHUB_OUTPUT
+          SHA_TAG="commit-$(git rev-parse --short "${GITHUB_SHA}")"
+
+          if [[ "${{ inputs.output-tarballs }}" == "true" ]]; then
+            # Tarball mode: amd64-only, no push, use Maven image names for compatibility
+            # with system-test tooling that verifies image names via Maven properties.
+            echo "push_images=false" >> $GITHUB_OUTPUT
+            echo "multi_arch=false" >> $GITHUB_OUTPUT
+            echo "proxy_amd64_tag=quay.io/kroxylicious/proxy:${POMS_VERSION}" >> $GITHUB_OUTPUT
+            echo "proxy_arm64_tag=" >> $GITHUB_OUTPUT
+            echo "proxy_final_tags=" >> $GITHUB_OUTPUT
+            echo "operator_platforms=linux/amd64" >> $GITHUB_OUTPUT
+            echo "operator_tags=quay.io/kroxylicious/operator:${POMS_VERSION}" >> $GITHUB_OUTPUT
+            echo "admission_platforms=linux/amd64" >> $GITHUB_OUTPUT
+            echo "admission_tags=quay.io/kroxylicious/webhook:${POMS_VERSION}" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.push-images }}" != "true" || "${{ vars.REGISTRY_SERVER }}" == "" ]]; then
+            # No-push mode: amd64-only validation build (CI PRs or forks without registry vars).
+            echo "push_images=false" >> $GITHUB_OUTPUT
+            echo "multi_arch=false" >> $GITHUB_OUTPUT
+            echo "proxy_amd64_tag=kroxylicious-proxy:${SHA_TAG}" >> $GITHUB_OUTPUT
+            echo "proxy_arm64_tag=" >> $GITHUB_OUTPUT
+            echo "proxy_final_tags=" >> $GITHUB_OUTPUT
+            echo "operator_platforms=linux/amd64" >> $GITHUB_OUTPUT
+            echo "operator_tags=kroxylicious-operator:${SHA_TAG}" >> $GITHUB_OUTPUT
+            echo "admission_platforms=linux/amd64" >> $GITHUB_OUTPUT
+            echo "admission_tags=kroxylicious-admission:${SHA_TAG}" >> $GITHUB_OUTPUT
+          else
+            PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
+            OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
+            ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
+
+            # Per-arch intermediate tags are pushed individually then merged into the
+            # final manifest list.
+            echo "push_images=true" >> $GITHUB_OUTPUT
+            echo "multi_arch=${{ inputs.multi-arch }}" >> $GITHUB_OUTPUT
+            echo "proxy_amd64_tag=${PROXY_IMAGE}:${SHA_TAG}-amd64" >> $GITHUB_OUTPUT
+            echo "proxy_arm64_tag=${PROXY_IMAGE}:${SHA_TAG}-arm64" >> $GITHUB_OUTPUT
+
+            # All builds get a commit SHA tag. Callers may also pass arbitrary
+            # additional-tags (e.g. maven.yaml adds the POM version on pushes
+            # to main/release; staging dispatches pass none).
+            TAG_SUFFIXES=("${SHA_TAG}")
+            if [[ -n "${ADDITIONAL_TAGS}" ]]; then
+              IFS=',' read -ra EXTRA_TAGS <<< "${ADDITIONAL_TAGS}"
+              for extra_tag in "${EXTRA_TAGS[@]}"; do
+                TAG_SUFFIXES+=("${extra_tag// /}")
+              done
+            fi
+
+            PROXY_FINAL_TAGS=""
+            OPERATOR_TAGS=""
+            ADMISSION_TAGS=""
+            for suffix in "${TAG_SUFFIXES[@]}"; do
+              PROXY_FINAL_TAGS="${PROXY_FINAL_TAGS:+${PROXY_FINAL_TAGS},}${PROXY_IMAGE}:${suffix}"
+              OPERATOR_TAGS="${OPERATOR_TAGS:+${OPERATOR_TAGS},}${OPERATOR_IMAGE}:${suffix}"
+              ADMISSION_TAGS="${ADMISSION_TAGS:+${ADMISSION_TAGS},}${ADMISSION_IMAGE}:${suffix}"
+            done
+
+            echo "proxy_final_tags=${PROXY_FINAL_TAGS}" >> $GITHUB_OUTPUT
+            echo "operator_platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+            echo "operator_tags=${OPERATOR_TAGS}" >> $GITHUB_OUTPUT
+            echo "admission_platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+            echo "admission_tags=${ADMISSION_TAGS}" >> $GITHUB_OUTPUT
+          fi
+
+      # Install (not just package) so the per-arch dist steps can resolve local
+      # module JARs from ~/.m2 without needing --also-make.
+
+      - name: Compile and install all modules
+        run: |
+          mvn --quiet \
+            --batch-mode \
+            --activate-profiles 'dist,!qa' \
+            --also-make \
+            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist,:kroxylicious-admission \
+            -Derrorprone.skip=true \
+            -DskipTests \
+            -Dmaven.javadoc.skip=true \
+            -DskipDocs=true \
+            -DskipContainerImageBuild=true \
+            install
+
+      - name: Login to container registry
+        if: steps.build_configuration.outputs.push_images == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Build amd64 distribution artifacts
+        run: |
+          mvn --quiet \
+            --batch-mode \
+            --activate-profiles 'dist,!qa' \
+            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist,:kroxylicious-admission \
+            -Derrorprone.skip=true \
+            -DskipTests \
+            -Dmaven.javadoc.skip=true \
+            -DskipDocs=true \
+            -DskipContainerImageBuild=true \
+            package
+
+      - name: Build and maybe push amd64 proxy image
+        if: steps.build_configuration.outputs.output_tarballs != 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          context: ./kroxylicious-app
+          file: ./kroxylicious-app/src/main/docker/proxy.dockerfile
+          platforms: linux/amd64
+          push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
+          build-args: |
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
+          tags: ${{ steps.build_configuration.outputs.proxy_amd64_tag }}
+          cache-from: type=gha,scope=proxy-amd64
+          cache-to: type=gha,mode=max,compression=zstd,scope=proxy-amd64
+
+      - name: Export amd64 proxy image as tarball
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          context: ./kroxylicious-app
+          file: ./kroxylicious-app/src/main/docker/proxy.dockerfile
+          platforms: linux/amd64
+          push: false
+          outputs: type=docker,dest=/tmp/kroxylicious-proxy.img.tar
+          build-args: |
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
+          tags: ${{ steps.build_configuration.outputs.proxy_amd64_tag }}
+          cache-from: type=gha,scope=proxy-amd64
+          cache-to: type=gha,mode=max,compression=zstd,scope=proxy-amd64
+
+      - name: Build and maybe push operator image
+        if: steps.build_configuration.outputs.output_tarballs != 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          context: ./kroxylicious-kubernetes/kroxylicious-operator
+          file: ./kroxylicious-kubernetes/kroxylicious-operator/src/main/docker/operator.dockerfile
+          platforms: ${{ steps.build_configuration.outputs.operator_platforms }}
+          push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
+          build-args: |
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
+          tags: ${{ steps.build_configuration.outputs.operator_tags }}
+          cache-from: type=gha,scope=operator
+          cache-to: type=gha,mode=max,compression=zstd,scope=operator
+
+      - name: Export operator image as tarball
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          context: ./kroxylicious-kubernetes/kroxylicious-operator
+          file: ./kroxylicious-kubernetes/kroxylicious-operator/src/main/docker/operator.dockerfile
+          platforms: linux/amd64
+          push: false
+          outputs: type=docker,dest=/tmp/kroxylicious-operator.img.tar
+          build-args: |
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
+          tags: ${{ steps.build_configuration.outputs.operator_tags }}
+          cache-from: type=gha,scope=operator
+          cache-to: type=gha,mode=max,compression=zstd,scope=operator
+
+      - name: Build and maybe push Admission webhook image
+        if: steps.build_configuration.outputs.output_tarballs != 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          context: ./kroxylicious-kubernetes/kroxylicious-admission
+          file: ./kroxylicious-kubernetes/kroxylicious-admission/src/main/docker/webhook.dockerfile
+          platforms: ${{ steps.build_configuration.outputs.admission_platforms }}
+          push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
+          build-args: |
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
+          tags: ${{ steps.build_configuration.outputs.admission_tags }}
+          cache-from: type=gha,scope=admission
+          cache-to: type=gha,mode=max,compression=zstd,scope=admission
+
+      - name: Export Admission webhook image as tarball
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          context: ./kroxylicious-kubernetes/kroxylicious-admission
+          file: ./kroxylicious-kubernetes/kroxylicious-admission/src/main/docker/webhook.dockerfile
+          platforms: linux/amd64
+          push: false
+          outputs: type=docker,dest=/tmp/kroxylicious-webhook.img.tar
+          build-args: |
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
+          tags: ${{ steps.build_configuration.outputs.admission_tags }}
+          cache-from: type=gha,scope=admission
+          cache-to: type=gha,mode=max,compression=zstd,scope=admission
+
+      - name: Gzip image tarballs
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
+        run: |
+          gzip /tmp/kroxylicious-proxy.img.tar
+          gzip /tmp/kroxylicious-operator.img.tar
+          gzip /tmp/kroxylicious-webhook.img.tar
+
+      # `clean package` on runtime+app wipes their target/ directories so the
+      # aarch64 assembly contains only linux-aarch_64 Netty native binaries (no
+      # amd64 leftovers). Scope limited to runtime+app: the operator and admission
+      # webhook have no platform-specific native binaries.
+
+      - name: Build arm64 distribution artifacts
+        if: steps.build_configuration.outputs.multi_arch == 'true'
+        run: |
+          mvn --quiet \
+            --batch-mode \
+            --activate-profiles 'dist,aarch64,!qa' \
+            --projects :kroxylicious-runtime,:kroxylicious-app \
+            -Derrorprone.skip=true \
+            -DskipTests \
+            -Dmaven.javadoc.skip=true \
+            -DskipDocs=true \
+            -DskipContainerImageBuild=true \
+            clean package
+
+      - name: Build and push arm64 proxy image
+        if: steps.build_configuration.outputs.multi_arch == 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          context: ./kroxylicious-app
+          file: ./kroxylicious-app/src/main/docker/proxy.dockerfile
+          platforms: linux/arm64
+          push: true
+          build-args: |
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}
+          tags: ${{ steps.build_configuration.outputs.proxy_arm64_tag }}
+          cache-from: type=gha,scope=proxy-arm64
+          cache-to: type=gha,mode=max,compression=zstd,scope=proxy-arm64
+
+      - name: Verify arm64 proxy image native libraries
+        if: steps.build_configuration.outputs.multi_arch == 'true'
+        run: |
+          ARM64_TAG="${{ steps.build_configuration.outputs.proxy_arm64_tag }}"
+          echo "Verifying arm64 native libs in ${ARM64_TAG}..."
+          _CONTAINER_ID=$(docker create --platform linux/arm64 "${ARM64_TAG}")
+          _NATIVE_DIR=$(mktemp -d)
+          docker cp "${_CONTAINER_ID}:/opt/kroxylicious/libs/native/netty/." "${_NATIVE_DIR}/"
+          docker rm "${_CONTAINER_ID}" > /dev/null
+          _AARCH64_COUNT=$(find "${_NATIVE_DIR}" -name '*aarch_64*' | wc -l | tr -d ' ')
+          _X86_64_COUNT=$(find "${_NATIVE_DIR}" -name '*x86_64*' | wc -l | tr -d ' ')
+          rm -rf "${_NATIVE_DIR}"
+          if [[ "${_AARCH64_COUNT}" -gt 0 && "${_X86_64_COUNT}" -eq 0 ]]; then
+            echo "arm64 proxy image OK: ${_AARCH64_COUNT} aarch_64 native lib(s), no x86_64 libs."
+          else
+            echo "ERROR: arm64 native lib check failed (aarch_64=${_AARCH64_COUNT}, x86_64=${_X86_64_COUNT})." >&2
+            exit 1
+          fi
+
+      - name: Create and push proxy multi-arch manifest
+        if: steps.build_configuration.outputs.multi_arch == 'true'
+        run: |
+          for TAG in $(echo "${{ steps.build_configuration.outputs.proxy_final_tags }}" | tr ',' ' '); do
+            docker buildx imagetools create \
+              --annotation "index:org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}" \
+              --annotation "index:org.opencontainers.image.revision=${{ github.sha }}" \
+              --annotation "index:org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious" \
+              --annotation "index:org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}" \
+              -t "${TAG}" \
+              "${{ steps.build_configuration.outputs.proxy_amd64_tag }}" \
+              "${{ steps.build_configuration.outputs.proxy_arm64_tag }}"
+          done
+
+      - name: Slack Notification on Failure
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
+        uses: $/.github/actions/common/slack-notification
+        with:
+          name: kroxylicious-proxy
+          path: /tmp/kroxylicious-proxy.img.tar.gz
+          retention-days: 1
+
+      - name: Archive proxy image tarball
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: kroxylicious-proxy
+          path: /tmp/kroxylicious-proxy.img.tar.gz
+          retention-days: 1
+
+      - name: Archive operator image tarball
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: kroxylicious-operator
+          path: /tmp/kroxylicious-operator.img.tar.gz
+          retention-days: 1
+
+      - name: Archive admission webhook image tarball
+        if: steps.build_configuration.outputs.output_tarballs == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: kroxylicious-admission-webhook
+          path: /tmp/kroxylicious-webhook.img.tar.gz
+          retention-days: 1

@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -27,6 +28,8 @@ import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.security.oauthbearer.BrokerJwtValidator;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.apache.kafka.common.security.oauthbearer.internals.OAuthBearerSaslServerProvider;
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
+import org.apache.kafka.common.security.scram.internals.ScramSaslServerProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +43,8 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
+import io.kroxylicious.scram.credentialstore.ScramCredentialStoreService;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -81,6 +86,8 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      *
      * @param oauthCallbackHandler initialized callback handler for OAUTHBEARER, null if not configured
      * @param oauthMaxAuthBytes maximum auth payload size for OAUTHBEARER
+     * @param scramCredentialStores map of SCRAM mechanism to credential store
+     * @param scramPhantomIterations map of SCRAM mechanism to phantom user iteration count
      * @param supportedMechanisms set of configured mechanism names
      * @param maxTimeBeforeReauth maximum session lifetime, null if disabled
      * @param clock clock for session expiry computation
@@ -91,6 +98,8 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
     public record SaslTerminationContext(
                                          @Nullable OAuthBearerValidatorCallbackHandler oauthCallbackHandler,
                                          int oauthMaxAuthBytes,
+                                         Map<ScramMechanism, ScramCredentialStore> scramCredentialStores,
+                                         Map<ScramMechanism, Integer> scramPhantomIterations,
                                          Set<String> supportedMechanisms,
                                          List<AutoCloseable> closeables,
                                          @Nullable Duration maxTimeBeforeReauth,
@@ -144,6 +153,8 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
 
         OAuthBearerValidatorCallbackHandler oauthCallbackHandler = null;
         int oauthMaxAuthBytes = OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES;
+        Map<ScramMechanism, ScramCredentialStore> scramCredentialStores = new EnumMap<>(ScramMechanism.class);
+        Map<ScramMechanism, Integer> scramPhantomIterations = new EnumMap<>(ScramMechanism.class);
         Set<String> supportedMechanisms = new LinkedHashSet<>();
         Duration fixedAuthDelay = config.effectiveFixedAuthDelay();
 
@@ -155,6 +166,15 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
                 case OauthBearerMechanismConfig oauthConfig -> {
                     oauthCallbackHandler = initializeOauthBearer(oauthConfig, closeables);
                     oauthMaxAuthBytes = oauthConfig.effectiveMaxAuthBytes();
+                }
+                case ScramMechanismConfig scramConfig -> {
+                    ScramSaslServerProvider.initialize();
+                    ScramCredentialStoreService<Object> service = initScramCredentialStoreService(scramConfig, context);
+                    closeables.add(service);
+                    ScramCredentialStore store = service.buildCredentialStore();
+                    ScramMechanism mechanism = ScramMechanism.forMechanismName(mechanismConfig.mechanismName());
+                    scramCredentialStores.put(mechanism, store);
+                    scramPhantomIterations.put(mechanism, scramConfig.effectivePhantomIterations());
                 }
             }
         }
@@ -168,8 +188,16 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
             closeables.add(builderService);
             subjectBuilder = builderService.build();
         }
-        return new SaslTerminationContext(oauthCallbackHandler, oauthMaxAuthBytes, supportedMechanisms, closeables,
-                config.maxTimeBeforeReauth(), clock, fixedAuthDelay, subjectBuilder);
+        return new SaslTerminationContext(oauthCallbackHandler,
+                oauthMaxAuthBytes,
+                scramCredentialStores,
+                scramPhantomIterations,
+                supportedMechanisms,
+                closeables,
+                config.maxTimeBeforeReauth(),
+                clock,
+                fixedAuthDelay,
+                subjectBuilder);
     }
 
     private static OAuthBearerValidatorCallbackHandler initializeOauthBearer(
@@ -192,6 +220,14 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
                 .log("Initialized OAUTHBEARER mechanism");
 
         return callbackHandler;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ScramCredentialStoreService<Object> initScramCredentialStoreService(ScramMechanismConfig config, FilterFactoryContext context) {
+        ScramCredentialStoreService<Object> service = context.pluginInstance(
+                ScramCredentialStoreService.class, config.credentialStore());
+        service.initialize(config.credentialStoreConfig());
+        return service;
     }
 
     @SuppressWarnings("unchecked")

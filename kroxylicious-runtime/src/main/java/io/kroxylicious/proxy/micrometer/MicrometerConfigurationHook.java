@@ -7,6 +7,10 @@ package io.kroxylicious.proxy.micrometer;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
+/**
+ * A hook that customises a micrometer {@link MeterRegistry} at proxy start-up,
+ * for example by adding common tags, meter binders or a pause detector.
+ */
 public interface MicrometerConfigurationHook extends AutoCloseable {
     /**
      * Configures this hook into the given registry.

@@ -30,6 +30,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThatCode;
 
+/**
+ * Utilities for executing external commands from tests and validating their output.
+ */
 public final class ShellUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(ShellUtils.class);
 
@@ -41,10 +44,23 @@ public final class ShellUtils {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * Executes a command, asserting that it exits with a zero exit code.
+     *
+     * @param args the command and its arguments
+     */
     public static void exec(String... args) {
         execValidate(ALWAYS_VALID, ALWAYS_VALID, args);
     }
 
+    /**
+     * Executes a command, asserting that it exits with a zero exit code, and validates its output.
+     *
+     * @param stdOutValidator predicate applied to the lines of standard output
+     * @param stdErrValidator predicate applied to the lines of standard error
+     * @param args the command and its arguments
+     * @return true if both validators accepted the command's output, false otherwise
+     */
     public static boolean execValidate(
                                        Predicate<Stream<String>> stdOutValidator,
                                        Predicate<Stream<String>> stdErrValidator,
@@ -113,6 +129,12 @@ public final class ShellUtils {
         }
     }
 
+    /**
+     * Determines whether a tool is available on the path, aborting the test otherwise.
+     *
+     * @param tool the name of the tool
+     * @return true if the tool is available on the path, false otherwise
+     */
     public static boolean isToolOnPath(String tool) {
         LOGGER.info("Checking whether {} is available", tool);
         try {
@@ -127,6 +149,12 @@ public final class ShellUtils {
         }
     }
 
+    /**
+     * Determines whether all the given tools are available on the path.
+     *
+     * @param additionalTools the names of the tools
+     * @return true if all the tools are available on the path, false otherwise
+     */
     public static boolean validateToolsOnPath(String... additionalTools) {
         Set<String> tools = Sets.newLinkedHashSet(additionalTools);
         try {
@@ -138,6 +166,12 @@ public final class ShellUtils {
         return false;
     }
 
+    /**
+     * Determines whether the current kubectl context matches the expected context.
+     *
+     * @param expectedContext the expected kubectl context name
+     * @return true if kubectl is available and its current context matches, false otherwise
+     */
     public static boolean validateKubeContext(String expectedContext) {
         return validateToolsOnPath("kubectl")
                 && execValidate(lines -> lines.anyMatch(line -> line.contains(expectedContext)), ALWAYS_VALID, "kubectl", "config", "current-context");

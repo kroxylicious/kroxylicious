@@ -18,6 +18,8 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
 /**
  * Uses {@link HAProxyMessageDecoder#detectProtocol(ByteBuf)} on the first bytes
  * of a connection to decide whether to install the PROXY protocol decoder.
@@ -45,6 +47,11 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
     @Nullable
     private ByteBuf cumulation;
 
+    /**
+     * Creates a PROXY protocol detection handler.
+     * @param mode how the PROXY protocol is accepted on this connection ({@code ALLOWED} or {@code REQUIRED})
+     * @param kafkaSession the session in which any decoded PROXY context will be stored
+     */
     public HaProxyProtocolDetectionHandler(ProxyProtocolMode mode, KafkaSession kafkaSession) {
         this.mode = mode;
         this.kafkaSession = kafkaSession;
@@ -89,7 +96,7 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
                                     + "or set proxyProtocol mode to 'allowed' or 'disabled'.");
                     cumulation.release();
                     cumulation = null;
-                    ctx.close();
+                    ctx.close().addListener(logFailure(LOGGER, "close after PROXY protocol rejection"));
                 }
                 else {
                     // ALLOWED mode — no PROXY header, pass through to Kafka decoder

@@ -17,15 +17,27 @@ import io.kroxylicious.proxy.internal.InternalRequestFrame;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Encodes {@link RequestFrame}s for sending to the upstream broker, rewriting the
+ * correlation id to one allocated by the {@link CorrelationManager}.
+ */
 public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestEncoder.class);
 
+    /** Number of bytes used by the frame size prefix. */
     public static final int LENGTH = 4;
+    /** Number of bytes used by the api key field. */
     public static final int API_KEY = 2;
+    /** Number of bytes used by the api version field. */
     public static final int API_VERSION = 2;
     private final CorrelationManager correlationManager;
 
+    /**
+     * Constructs a request encoder.
+     * @param correlationManager The manager used to allocate upstream correlation ids.
+     * @param listener Listener notified of each encoded message, or null.
+     */
     public KafkaRequestEncoder(CorrelationManager correlationManager,
                                @Nullable KafkaMessageListener listener) {
         super(listener);

@@ -129,12 +129,6 @@ public record Configuration(
 
         for (var router : routerDefinitions) {
             for (var route : router.routes()) {
-                if (route.router() != null) {
-                    throw new IllegalConfigurationException(
-                            "Router '" + router.name() + "' route '" + route.name()
-                                    + "' targets router '" + route.router()
-                                    + "': nested routers are not yet supported");
-                }
                 if (route.filters() != null) {
                     checkNamedFiltersAreDefined(filterDefsByName, route.filters(),
                             "routerDefinitions." + router.name() + ".routes." + route.name() + ".filters");
@@ -266,14 +260,15 @@ public record Configuration(
         RoutingModel routing;
         if (virtualCluster.router() != null) {
             var routeDescriptors = resolveRouteDescriptors(virtualCluster, filterDefinitionsByName, routersByName, clustersByName);
+            var allRouteDescriptors = resolveAllRouteDescriptors(virtualCluster, filterDefinitionsByName, routersByName, clustersByName);
             var routerChainFactory = RouterChainFactory.forVirtualCluster(pfr, virtualCluster, routersByName);
             var clusterModels = new HashMap<String, UpstreamClusterModel>();
-            for (var entry : routeDescriptors.entrySet()) {
+            for (var entry : allRouteDescriptors.entrySet()) {
                 if (entry.getValue().targetsCluster()) {
                     clusterModels.put(entry.getKey(), UpstreamClusterModel.build(entry.getValue().targetCluster(), pfr));
                 }
             }
-            routing = new DynamicRouting(virtualCluster.router(), routeDescriptors, routerChainFactory, clusterModels);
+            routing = new DynamicRouting(virtualCluster.router(), routeDescriptors, allRouteDescriptors, routerChainFactory, clusterModels);
         }
         else {
             var targetCluster = resolveDirectTargetCluster(virtualCluster, clustersByName);
@@ -328,6 +323,13 @@ public record Configuration(
                     "Virtual cluster '" + virtualCluster.name() + "' references unknown router '"
                             + virtualCluster.router() + "'");
         }
+        return resolveRouterRoutes(rd, filterDefinitionsByName, clustersByName);
+    }
+
+    private Map<String, RouteDescriptor> resolveRouterRoutes(
+                                                             RouterDefinition rd,
+                                                             Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                                             Map<String, ClusterDefinition> clustersByName) {
         return rd.routes().stream()
                 .collect(Collectors.toMap(
                         RouteDefinition::name,
@@ -340,6 +342,64 @@ public record Configuration(
                                     : List.of();
                             return new RouteDescriptor(route.name(), route.id(), tc, route.router(), routeFilters);
                         }));
+    }
+
+    /**
+     * Resolves route descriptors for all routers reachable from the virtual cluster's
+     * router graph. Top-level routes use their local (unqualified) names to match existing
+     * frame routing behaviour. Nested routes use qualified names ({@code routerName/routeName})
+     * to avoid collisions since route names are only unique within a single router.
+     */
+    private Map<String, RouteDescriptor> resolveAllRouteDescriptors(
+                                                                    VirtualCluster virtualCluster,
+                                                                    Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                                                    Map<String, RouterDefinition> routersByName,
+                                                                    Map<String, ClusterDefinition> clustersByName) {
+        RouterDefinition topRouter = routersByName.get(virtualCluster.router());
+        if (topRouter == null) {
+            throw new IllegalStateException(
+                    "Virtual cluster '" + virtualCluster.name() + "' references router '" + virtualCluster.router()
+                            + "' that was not found in routersByName — this is a bug");
+        }
+        Map<String, RouteDescriptor> topLevel = resolveRouterRoutes(topRouter, filterDefinitionsByName, clustersByName);
+        Map<String, RouteDescriptor> all = new HashMap<>(topLevel);
+        for (var entry : topLevel.entrySet()) {
+            if (entry.getValue().targetsRouter()) {
+                String nestedRouterName = entry.getValue().routerName();
+                RouterDefinition nested = routersByName.get(nestedRouterName);
+                if (nested == null) {
+                    throw new IllegalStateException(
+                            "Route '" + entry.getKey() + "' references router '" + nestedRouterName
+                                    + "' that was not found in routersByName — this is a bug");
+                }
+                collectNestedRouteDescriptors(nested, routersByName, filterDefinitionsByName, clustersByName, all);
+            }
+        }
+        return all;
+    }
+
+    private void collectNestedRouteDescriptors(
+                                               RouterDefinition router,
+                                               Map<String, RouterDefinition> routersByName,
+                                               Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                               Map<String, ClusterDefinition> clustersByName,
+                                               Map<String, RouteDescriptor> collector) {
+        Map<String, RouteDescriptor> routerRoutes = resolveRouterRoutes(router, filterDefinitionsByName, clustersByName);
+        for (var entry : routerRoutes.entrySet()) {
+            String qualifiedName = router.name() + "/" + entry.getKey();
+            collector.put(qualifiedName, entry.getValue());
+            RouteDescriptor desc = entry.getValue();
+            if (desc.targetsRouter()) {
+                String nestedRouterName = desc.routerName();
+                RouterDefinition nested = routersByName.get(nestedRouterName);
+                if (nested == null) {
+                    throw new IllegalStateException(
+                            "Route '" + entry.getKey() + "' in router '" + router.name() + "' references router '"
+                                    + nestedRouterName + "' that was not found in routersByName — this is a bug");
+                }
+                collectNestedRouteDescriptors(nested, routersByName, filterDefinitionsByName, clustersByName, collector);
+            }
+        }
     }
 
     private static void addGateways(List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
@@ -357,18 +417,39 @@ public record Configuration(
         });
     }
 
+    /**
+     * The micrometer configuration hook definitions.
+     *
+     * @return the configured micrometer definitions, or an empty list if none were configured
+     */
     public List<MicrometerDefinition> getMicrometer() {
         return micrometer() == null ? List.of() : micrometer();
     }
 
+    /**
+     * Whether the proxy should use the io_uring based Netty transport.
+     *
+     * @return true if io_uring is to be used
+     */
     public boolean isUseIoUring() {
         return useIoUring();
     }
 
+    /**
+     * The effective PROXY protocol mode.
+     *
+     * @return the configured mode, or {@link ProxyProtocolMode#DISABLED} if no PROXY protocol configuration was given
+     */
     public ProxyProtocolMode proxyProtocolMode() {
         return proxyProtocol != null ? proxyProtocol.mode() : ProxyProtocolMode.DISABLED;
     }
 
+    /**
+     * Builds the runtime {@link VirtualClusterModel} for every virtual cluster in this configuration.
+     *
+     * @param pfr registry used to resolve plugin (e.g. filter and router) implementations
+     * @return the virtual cluster models
+     */
     public List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
         var filterDefinitionsByName = buildFilterDefinitionsByName();
         var routersByName = buildDefinitionsByName(routerDefinitions, RouterDefinition::name);
@@ -391,6 +472,9 @@ public record Configuration(
      * other than the one requested. Used by {@code OperationsPlanner} so a reconfigure that
      * targets one cluster doesn't orphan-initialise the filters of unrelated clusters.
      *
+     * @param pfr registry used to resolve plugin (e.g. filter and router) implementations
+     * @param clusterName name of the virtual cluster whose model is to be built
+     * @return the virtual cluster model for the named cluster
      * @throws IllegalArgumentException if no virtual cluster with that name exists in this configuration
      */
     public VirtualClusterModel virtualClusterModel(PluginFactoryRegistry pfr, String clusterName) {

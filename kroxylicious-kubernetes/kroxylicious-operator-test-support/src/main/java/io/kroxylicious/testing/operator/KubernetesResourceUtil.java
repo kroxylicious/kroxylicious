@@ -17,6 +17,12 @@ public final class KubernetesResourceUtil {
     private KubernetesResourceUtil() {
     }
 
+    /**
+     * Returns the metadata name of the given resource.
+     *
+     * @param resource the resource
+     * @return the resource's metadata name
+     */
     public static String name(HasMetadata resource) {
         return resource.getMetadata().getName();
     }

@@ -1,0 +1,126 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Declarative content-based edits applied by apply-edits.py to freshly copied Kafka test files.
+# See main/edits.yaml for the stripImports/removeBlocks schema shared with the production edits.
+#
+# preserveBlocks is the inverse operation, used here for org/apache/kafka/test/TestUtils.java: keep
+# ONLY the named fields/methods and the given imports, dropping everything else in the file. Kafka's
+# TestUtils is a 60+ method grab-bag test helper; the five forked tests here only need a handful of
+# its methods (plus the private fields/overloads those methods call internally). Schema:
+#   preserveBlocks.imports:  fully-qualified names to keep as import statements (prefix a static
+#                             import with "static "); everything else in the original file's import
+#                             list is dropped.
+#   preserveBlocks.members:  fields/methods to keep, each matched the same way as removeBlocks
+#                             (signature regex + brace/semicolon-terminated body), assembled into the
+#                             output in the order listed.
+#
+# qualifyNestedImports works around an OpenRewrite ChangePackage limitation: some forked tests
+# import a nested class from another type in the same package (e.g. `MemoryRecordsTest` imports
+# `MemoryRecords.RecordFilter` — both end up in `io.kroxylicious.kafka.common.record.internal`).
+# ChangePackage treats that as a now-redundant same-package import and strips it — correct for a
+# top-level type, wrong for a nested one, which still needs either an import or full qualification.
+# Confirmed by running vendor.sh and hitting "cannot find symbol" on the bare nested name. Listing
+# the fully-qualified nested name here drops the import and fully qualifies every bare use instead,
+# so nothing depends on what OpenRewrite decides to do with the import.
+
+- file: org/apache/kafka/common/compress/GzipCompressionTest.java
+  removeBlocks:
+    - signature: 'public\s+void\s+testLevelValidator\s*\(\s*\)'
+      label: GzipCompressionTest.testLevelValidator
+
+- file: org/apache/kafka/common/utils/UtilsTest.java
+  # These ten methods test the four Utils methods (propsToMap, castToStringObjectMap,
+  # ensureConcreteSubclass, mergeConfigs) that main/edits.yaml already strips from Utils.java.
+  removeBlocks:
+    - signature: 'public\s+void\s+testPropsToMap\s*\(\s*\)'
+      label: UtilsTest.testPropsToMap
+    - signature: 'public\s+void\s+testPropsToMapNonStringKey\s*\(\s*\)'
+      label: UtilsTest.testPropsToMapNonStringKey
+    - signature: 'public\s+void\s+testPropsToMapWithDefaults\s*\(\s*\)'
+      label: UtilsTest.testPropsToMapWithDefaults
+    - signature: 'public\s+void\s+testPropsToMapWithDefaultsAndSameKey\s*\(\s*\)'
+      label: UtilsTest.testPropsToMapWithDefaultsAndSameKey
+    - signature: 'public\s+void\s+testCastToStringObjectMap\s*\(\s*\)'
+      label: UtilsTest.testCastToStringObjectMap
+    - signature: 'public\s+void\s+testCastToStringObjectMapNonStringKey\s*\(\s*\)'
+      label: UtilsTest.testCastToStringObjectMapNonStringKey
+    - signature: 'public\s+void\s+testCastToStringObjectMapPropertiesAsInput\s*\(\s*\)'
+      label: UtilsTest.testCastToStringObjectMapPropertiesAsInput
+    - signature: 'public\s+void\s+testCastToStringObjectMapPropertiesNonStringKey\s*\(\s*\)'
+      label: UtilsTest.testCastToStringObjectMapPropertiesNonStringKey
+    - signature: 'public\s+void\s+testCastToStringObjectMapPropertiesWithDefaults\s*\(\s*\)'
+      label: UtilsTest.testCastToStringObjectMapPropertiesWithDefaults
+    - signature: 'public\s+void\s+testCastToStringObjectMapPropertiesWithDefaultsAndSameKey\s*\(\s*\)'
+      label: UtilsTest.testCastToStringObjectMapPropertiesWithDefaultsAndSameKey
+    - signature: 'private\s+static\s+void\s+assertValue\s*\(\s*Object\s+value\s*\)'
+      label: UtilsTest.assertValue
+
+- file: org/apache/kafka/common/record/internal/AbstractLegacyRecordBatchTest.java
+  qualifyNestedImports:
+    - org.apache.kafka.common.record.internal.AbstractLegacyRecordBatch.ByteBufferLegacyRecordBatch
+
+- file: org/apache/kafka/common/record/internal/MemoryRecordsTest.java
+  qualifyNestedImports:
+    - org.apache.kafka.common.record.internal.MemoryRecords.RecordFilter
+    - org.apache.kafka.common.record.internal.MemoryRecords.RecordFilter.BatchRetention
+
+- file: org/apache/kafka/common/utils/ImplicitLinkedHashMultiCollectionTest.java
+  qualifyNestedImports:
+    - org.apache.kafka.common.utils.ImplicitLinkedHashCollectionTest.TestElement
+
+- file: org/apache/kafka/test/TestUtils.java
+  # tempDirectory(Path, String) registers a JVM shutdown hook to delete the directory on exit,
+  # via org.apache.kafka.common.utils.Exit — a class we don't vendor (it exists so tests can swap
+  # out System.exit()/Runtime.halt() behaviour, orthogonal to what our forked tests need). None of
+  # the five tests that reach this method care about that cleanup, so cut the registration before
+  # preserveBlocks extracts the method — the same "cut an out-of-scope edge" pattern main/edits.yaml
+  # already applies to the vendored production classes.
+  removeBlocks:
+    - signature: 'Exit\.addShutdownHook\('
+      label: TestUtils.tempDirectory.shutdownHookRegistration
+  preserveBlocks:
+    imports:
+      # org.apache.kafka.common.utils.Utils is genuinely used (checkEquals(Iterator, Iterator)
+      # delegates to it) and is already vendored, so it survives the package rewrite along with
+      # everything else here.
+      - org.apache.kafka.common.utils.Utils
+      - java.io.File
+      - java.io.IOException
+      - java.nio.file.Files
+      - java.nio.file.Path
+      - java.util.ArrayList
+      - java.util.Iterator
+      - java.util.List
+      - java.util.Random
+      - static org.junit.jupiter.api.Assertions.assertEquals
+    members:
+      - signature: 'public static final String LETTERS = '
+        label: TestUtils.LETTERS
+      - signature: 'public static final String DIGITS = '
+        label: TestUtils.DIGITS
+      - signature: 'public static final String LETTERS_AND_DIGITS = '
+        label: TestUtils.LETTERS_AND_DIGITS
+      - signature: 'public static final Random SEEDED_RANDOM = '
+        label: TestUtils.SEEDED_RANDOM
+      - signature: 'public static String randomString\(final int len\)'
+        label: TestUtils.randomString
+      - signature: 'public static File tempFile\(final String prefix, final String suffix\)'
+        label: 'TestUtils.tempFile(prefix,suffix)'
+      - signature: 'public static File tempFile\(\)'
+        label: 'TestUtils.tempFile()'
+      - signature: 'public static File tempDirectory\(final String prefix\)'
+        label: 'TestUtils.tempDirectory(prefix)'
+      - signature: 'public static File tempDirectory\(\)'
+        label: 'TestUtils.tempDirectory()'
+      - signature: 'public static File tempDirectory\(final Path parent, String prefix\)'
+        label: 'TestUtils.tempDirectory(parent,prefix)'
+      - signature: 'public static <T> void checkEquals\(Iterable<T> it1, Iterable<T> it2\)'
+        label: 'TestUtils.checkEquals(Iterable,Iterable)'
+      - signature: 'public static <T> void checkEquals\(Iterator<T> it1, Iterator<T> it2\)'
+        label: 'TestUtils.checkEquals(Iterator,Iterator)'
+      - signature: 'public static <T> List<T> toList\(Iterable<\? extends T> iterable\)'
+        label: TestUtils.toList

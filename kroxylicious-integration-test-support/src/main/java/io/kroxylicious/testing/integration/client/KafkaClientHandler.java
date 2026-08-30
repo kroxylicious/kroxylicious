@@ -17,11 +17,20 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import io.kroxylicious.testing.integration.codec.RequestFrame;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
 /**
  * Simple kafka handle capable of sending one or more requests to a server side.
  */
 public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClientHandler.class);
+
+    /**
+     * Creates a KafkaClientHandler
+     */
+    public KafkaClientHandler() {
+        // explicit default constructor for javadoc
+    }
 
     private final Deque<RequestFrame> queue = new ConcurrentLinkedDeque<>();
     private ChannelHandlerContext ctx;
@@ -57,7 +66,7 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         LOGGER.warn("Kafka test client received unexpected exception, closing connection.", cause);
         failQueuedRequests(cause);
-        ctx.close();
+        ctx.close().addListener(logFailure(LOGGER, "close after unexpected exception in Kafka test client"));
     }
 
     private void failQueuedRequests(Throwable cause) {

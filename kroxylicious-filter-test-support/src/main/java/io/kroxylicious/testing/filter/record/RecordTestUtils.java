@@ -33,8 +33,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class RecordTestUtils {
 
+    /** The magic value used when none is specified. */
     public static final byte DEFAULT_MAGIC_VALUE = RecordBatch.CURRENT_MAGIC_VALUE;
+    /** The offset used when none is specified. */
     public static final long DEFAULT_OFFSET = 0;
+    /** The timestamp used when none is specified. */
     public static final long DEFAULT_TIMESTAMP = 0;
     private static final byte[] DEFAULT_KEY_BYTES = null;
     private static final ByteBuffer DEFAULT_KEY_BUFFER = null;
@@ -60,10 +63,22 @@ public class RecordTestUtils {
         return result;
     }
 
+    /**
+     * Return the hexadecimal representation of the bytes between {@code buffer}'s position and its limit,
+     * leaving {@code buffer}'s position unchanged.
+     * @param buffer The buffer to get the bytes of
+     * @return The hexadecimal representation of the bytes in the buffer
+     */
     public static String asHex(ByteBuffer buffer) {
         return HexFormat.of().formatHex(RecordTestUtils.bytesOf(buffer));
     }
 
+    /**
+     * Return the UTF-8 decoding of the bytes between {@code buffer}'s position and its limit,
+     * leaving {@code buffer}'s position unchanged.
+     * @param buffer The buffer to get the bytes of
+     * @return The string decoded from the buffer, or null if the buffer is null
+     */
     public static String asString(ByteBuffer buffer) {
         return buffer == null ? null : new String(bytesOf(buffer), StandardCharsets.UTF_8);
     }
@@ -78,14 +93,32 @@ public class RecordTestUtils {
         return bytesOf(record.value());
     }
 
+    /**
+     * Get the given {@code record}'s value, decoded as a UTF-8 string, without changing the
+     * {@code record}'s {@link ByteBuffer#position() position}, {@link ByteBuffer#limit() limit} or {@link ByteBuffer#mark() mark}.
+     * @param record The record
+     * @return The record's value as a string, or null if the value is null
+     */
     public static String recordValueAsString(Record record) {
         return asString(record.value());
     }
 
+    /**
+     * Get a copy of the bytes contained in the given {@code record}'s key, without changing the
+     * {@code record}'s {@link ByteBuffer#position() position}, {@link ByteBuffer#limit() limit} or {@link ByteBuffer#mark() mark}.
+     * @param record The record
+     * @return The record's key bytes
+     */
     public static byte[] recordKeyAsBytes(Record record) {
         return bytesOf(record.key());
     }
 
+    /**
+     * Get the given {@code record}'s key, decoded as a UTF-8 string, without changing the
+     * {@code record}'s {@link ByteBuffer#position() position}, {@link ByteBuffer#limit() limit} or {@link ByteBuffer#mark() mark}.
+     * @param record The record
+     * @return The record's key as a string, or null if the key is null
+     */
     public static String recordKeyAsString(Record record) {
         return asString(record.key());
     }
@@ -256,14 +289,41 @@ public class RecordTestUtils {
         return MemoryRecords.readableRecords(mr.buffer()).records().iterator().next();
     }
 
+    /**
+     * Return a Record with the given properties. The batch will use the current magic.
+     * @param offset the record offset
+     * @param timestamp the record timestamp
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
+     * @return The record
+     */
     public static Record record(long offset, long timestamp, ByteBuffer key, ByteBuffer value, Header[] headers) {
         return record(RecordBatch.CURRENT_MAGIC_VALUE, offset, timestamp, key, value, headers);
     }
 
+    /**
+     * Return a Record with the given properties. The batch will use the current magic.
+     * @param offset the record offset
+     * @param timestamp the record timestamp
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
+     * @return The record
+     */
     public static Record record(long offset, long timestamp, String key, String value, Header[] headers) {
         return record(RecordBatch.CURRENT_MAGIC_VALUE, offset, timestamp, key, value, headers);
     }
 
+    /**
+     * Return a Record with the given properties. The batch will use the current magic.
+     * @param offset the record offset
+     * @param timestamp the record timestamp
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
+     * @return The record
+     */
     public static Record record(long offset, long timestamp, byte[] key, byte[] value, Header[] headers) {
         return record(RecordBatch.CURRENT_MAGIC_VALUE, offset, timestamp, key, value, headers);
     }
@@ -271,6 +331,10 @@ public class RecordTestUtils {
     /**
      * Return a singleton RecordBatch containing a single Record with the given key, value and headers.
      * The batch will use the current magic. The baseOffset and offset of the record will be 0
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
+     * @return The record batch
      * @see RecordTestUtils#singleElementRecordBatch(long, String, String, Header[])
      */
     public static MutableRecordBatch singleElementRecordBatch(String key,
@@ -302,10 +366,22 @@ public class RecordTestUtils {
      * Return a singleton RecordBatch containing a single Record with the given key, value and headers.
      * The batch will use the current magic.
      *
-     * @param recordTimestamp timestamp of the record, note that this can determine whether a segment
-     * is eligible for deletion, relative to the current system time. This depends on the TimestampType.
+     * @param magic the record batch magic byte
      * @param baseOffset baseOffset of the single batch and offset of the single record within it
      * @param compression the compression type of the batch
+     * @param timestampType the timestamp type of the batch
+     * @param logAppendTime the log append time of the batch
+     * @param producerId the producer id of the batch
+     * @param producerEpoch the producer epoch of the batch
+     * @param baseSequence the base sequence of the batch
+     * @param isTransactional whether the batch is transactional
+     * @param isControlBatch whether the batch is a control batch
+     * @param partitionLeaderEpoch the partition leader epoch of the batch
+     * @param key the record key
+     * @param value the record value
+     * @param recordTimestamp timestamp of the record, note that this can determine whether a segment
+     * is eligible for deletion, relative to the current system time. This depends on the TimestampType.
+     * @param headers the record headers
      * @return The record batch
      */
     public static MutableRecordBatch singleElementRecordBatch(byte magic,
@@ -375,6 +451,8 @@ public class RecordTestUtils {
 
     /**
      * Return a MemoryRecords containing the specified batches
+     * @param batches the batches to include
+     * @return The MemoryRecords
      */
     public static MemoryRecords memoryRecords(MutableRecordBatch... batches) {
         try (ByteBufferOutputStream outputStream = new ByteBufferOutputStream(1000)) {
@@ -483,6 +561,7 @@ public class RecordTestUtils {
     /**
      * Simulates a MemoryRecords that contained some records, but then had all it's records removed by log compaction. Sets
      * the baseOffset of the single batch within the MemoryRecords to 0.
+     * @return The MemoryRecords
      * @see RecordTestUtils#memoryRecordsWithAllRecordsRemoved(long)
      */
     public static MemoryRecords memoryRecordsWithAllRecordsRemoved() {
@@ -501,6 +580,7 @@ public class RecordTestUtils {
      * a producer's last sequence number.
      * </p>
      * @param baseOffset the baseOffset of the single batch contained in the output MemoryRecords
+     * @return The MemoryRecords
      * @see <a href="https://kafka.apache.org/documentation/#recordbatch">Apache Kafka RecordBatch documentation</a>
      */
     @NonNull

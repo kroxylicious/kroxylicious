@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -53,20 +54,33 @@ import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
 import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.impl.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
+import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RoutingHandler;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Netty handler for the downstream (client-facing) side of the proxy. Feeds channel lifecycle
+ * and read events into the {@link ClientConnectionStateMachine}, buffers client requests until
+ * the session is ready to forward them, and writes responses back to the client.
+ */
 @SuppressWarnings("java:S1192") // ignore dupe string literals is due to logger keys
 public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
+    /** Default idle timeout, in seconds, applied to a client connection before it has authenticated. */
     public static final int DEFAULT_IDLE_TIME_SECONDS = 31;
+    /** Default idle timeout, in seconds, as a {@code long} value. */
     public static final long DEFAULT_IDLE_SECONDS = 31L;
     private static final Long NO_TIMEOUT = null;
     private static final String AUTH_IDLE_HANDLER_NAME = "authenticatedSessionIdleHandler";
@@ -273,19 +287,78 @@ public class KafkaProxyFrontendHandler
         }
         var filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
         var allRouteFilters = new ArrayList<FilterAndInvoker>();
-        for (var entry : dr.routeDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+
+        // Install route filters for top-level routes first, inserting nested RoutingHandlers
+        // after each router-targeting route's filters, then install nested route filters.
+        for (var entry : dr.topLevelRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             String routeName = entry.getKey();
-            List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routeName, filterContext);
-            allRouteFilters.addAll(routeFilters);
-            for (int i = 0; i < routeFilters.size(); i++) {
-                FilterAndInvoker fi = routeFilters.get(i);
-                String handlerName = "routeFilter-" + routeName + "-" + i + "-" + fi.filterName();
-                pipeline.addBefore("routingTerminalHandler", handlerName,
-                        new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
-                                clientConnectionStateMachine, routeName));
+            RouteDescriptor rd = entry.getValue();
+            allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, routeName));
+            if (rd.targetsRouter()) {
+                installNestedRoutingHandler(pipeline, dr, rd.routerName(), routeName);
+            }
+        }
+        // Install filters for nested routes (qualified names), inserting nested RoutingHandlers
+        // after each router-targeting nested route's filters to support arbitrary nesting depth.
+        for (var entry : dr.allRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+            String qualifiedName = entry.getKey();
+            if (qualifiedName.contains("/")) {
+                RouteDescriptor nestedRd = entry.getValue();
+                allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, qualifiedName));
+                if (nestedRd.targetsRouter()) {
+                    installNestedRoutingHandler(pipeline, dr, nestedRd.routerName(), qualifiedName);
+                }
             }
         }
         return allRouteFilters;
+    }
+
+    private List<FilterAndInvoker> installFiltersForRoute(ChannelPipeline pipeline, Channel clientChannel,
+                                                          NettyFilterContext filterContext,
+                                                          VirtualClusterModel vc, String routeName) {
+        List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routeName, filterContext);
+        for (int i = 0; i < routeFilters.size(); i++) {
+            FilterAndInvoker fi = routeFilters.get(i);
+            String handlerName = "routeFilter-" + routeName + "-" + i + "-" + fi.filterName();
+            pipeline.addBefore("routingTerminalHandler", handlerName,
+                    new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
+                            clientConnectionStateMachine, routeName));
+        }
+        return routeFilters;
+    }
+
+    private void installNestedRoutingHandler(ChannelPipeline pipeline,
+                                             DynamicRouting dr,
+                                             String nestedRouterName,
+                                             String activationRoute) {
+        var routerChainFactory = dr.routerChainFactory();
+        // Build the nested router's routes and NodeIdMapping from allRouteDescriptors
+        var nestedRoutes = new LinkedHashMap<String, RouteDescriptor>();
+        String prefix = nestedRouterName + "/";
+        for (var entry : dr.allRouteDescriptors().entrySet()) {
+            if (entry.getKey().startsWith(prefix)) {
+                String localName = entry.getKey().substring(prefix.length());
+                if (!localName.contains("/")) {
+                    nestedRoutes.put(localName, entry.getValue());
+                }
+            }
+        }
+        NodeIdMapping nestedNodeIdMapping = NodeIdMapping.build(nestedRoutes);
+        var topLevel = (RoutingHandler) pipeline.get("routerDispatchHandler");
+        String handlerName = "nestedRoutingHandler-" + activationRoute;
+        pipeline.addBefore("routingTerminalHandler", handlerName,
+                RoutingHandler.nested(
+                        activationRoute,
+                        nestedRouterName,
+                        clientConnectionStateMachine.clusterName(),
+                        routerChainFactory,
+                        nestedRoutes,
+                        nestedNodeIdMapping,
+                        topLevel.correlationIdAllocator(),
+                        topLevel.routerNodeAddresses(),
+                        clientConnectionStateMachine.sessionId(),
+                        clientConnectionStateMachine.authenticatedSubject(),
+                        clientConnectionStateMachine.endpointBinding() instanceof BrokerEndpointBinding beb ? beb.nodeId() : null));
     }
 
     private List<FilterAndInvoker> buildFilters() {
@@ -300,7 +373,11 @@ public class KafkaProxyFrontendHandler
                 .createFilters(filterContext);
         filterAndInvokers.addAll(filterChain);
 
-        if (clientConnectionStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()) {
+        // EagerMetadataLearner is only applicable to direct-routing VCs. MetadataDiscoveryBrokerEndpointBinding
+        // returns restrictUpstreamToMetadataDiscovery()=true for any VC type with per-node ports, but its
+        // upstreamTarget() throws for dynamic routing — so the routing type must be checked explicitly here.
+        if (clientConnectionStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()
+                && clientConnectionStateMachine.virtualCluster().routing() instanceof DirectRouting) {
             filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
         }
         filterAndInvokers
@@ -344,6 +421,11 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link ClientConnectionStateMachine} to propagate an RPC to the downstream client.
      * @param msg the RPC to forward.
      */
+    // FutureReturnValueIgnored: clientCtx().voidPromise() is a VoidChannelPromise; by Netty's
+    // design, failures on a void-promise write are delivered to the pipeline's exceptionCaught
+    // rather than to a listener. Void promises are used deliberately on this hot data path to
+    // avoid per-write promise allocation.
+    @SuppressWarnings("FutureReturnValueIgnored")
     void forwardToClient(Object msg) {
         final Channel inboundChannel = clientCtx().channel();
         if (inboundChannel.isWritable()) {
@@ -483,6 +565,10 @@ public class KafkaProxyFrontendHandler
         return channel != null ? channel.id() : null;
     }
 
+    /**
+     * Notifies this handler that the session has authenticated: removes the pre-session idle
+     * handler and, if configured, installs the (longer) authenticated-session idle handler.
+     */
     public void onSessionAuthenticated() {
         ChannelPipeline channelPipeline = Objects.requireNonNull(clientCtx).pipeline();
         ChannelHandler preSessionHandler = channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER);
@@ -496,6 +582,10 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    /**
+     * Returns the host address of the connected client.
+     * @return the client's host address, or the string form of the socket address if it is not an inet address
+     */
     protected String remoteHost() {
         SocketAddress socketAddress = clientCtx().channel().remoteAddress();
         if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
@@ -506,6 +596,10 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    /**
+     * Returns the port of the connected client.
+     * @return the client's port, or {@code -1} if the socket address is not an inet address
+     */
     protected int remotePort() {
         SocketAddress socketAddress = clientCtx().channel().remoteAddress();
         if (socketAddress instanceof InetSocketAddress inetSocketAddress) {

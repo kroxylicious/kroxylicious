@@ -53,6 +53,12 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     private final EndpointGateway listenerModel;
     private final EndpointReconciler reconciler;
 
+    /**
+     * Creates a broker address filter.
+     *
+     * @param listenerModel the gateway used to compute the proxy address advertised for each upstream broker
+     * @param reconciler used to reconcile the virtual cluster's endpoints with the discovered upstream brokers
+     */
     public BrokerAddressFilter(EndpointGateway listenerModel, EndpointReconciler reconciler) {
         this.listenerModel = listenerModel;
         this.reconciler = reconciler;

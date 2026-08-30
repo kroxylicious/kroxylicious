@@ -16,11 +16,11 @@ import java.util.stream.StreamSupport;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
@@ -205,7 +205,7 @@ class ProduceRequestTransformationFilterTest {
         var stage = filter.onProduceRequest(produceRequest.apiKey(), header, produceRequest, mockFilterContext);
         assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(requestFilterResult -> {
             MockFilterContextAssert.assertThat(requestFilterResult).isShortCircuitResponse().isErrorResponse()
-                    .errorResponse().isInstanceOf(UnknownServerException.class);
+                    .errorResponse().hasError(Errors.UNKNOWN_SERVER_ERROR);
         });
     }
 

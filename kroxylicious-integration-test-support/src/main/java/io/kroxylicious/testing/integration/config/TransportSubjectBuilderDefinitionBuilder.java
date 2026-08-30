@@ -14,7 +14,16 @@ import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 
+/**
+ * Builder for {@link TransportSubjectBuilderConfig}s, resolving the configuration type from
+ * the named transport subject builder plugin.
+ */
 public class TransportSubjectBuilderDefinitionBuilder extends AbstractDefinitionBuilder<TransportSubjectBuilderConfig> {
+    /**
+     * Creates a TransportSubjectBuilderDefinitionBuilder.
+     *
+     * @param type the name of the transport subject builder plugin
+     */
     public TransportSubjectBuilderDefinitionBuilder(String type) {
         super(type);
     }

@@ -24,7 +24,6 @@
     <properties>
         <libs.dir>libs</libs.dir>
         <release.version>${project.version}</release.version>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
     </properties>
 
     <name>Proxy runtime</name>
@@ -46,6 +45,11 @@
         </dependency>
 
         <!-- project dependencies - test -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kafka-message-json</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-filter-test-support</artifactId>

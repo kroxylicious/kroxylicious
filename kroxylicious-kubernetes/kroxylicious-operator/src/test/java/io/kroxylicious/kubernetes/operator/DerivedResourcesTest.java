@@ -38,6 +38,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
@@ -319,6 +320,7 @@ class DerivedResourcesTest {
                                                     List<Route> routes)
             throws IOException {
         Context<KafkaProxy> context = mock(Context.class);
+        doReturn(mock(KubernetesClient.class)).when(context).getClient();
 
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);
         resourceContext.put(Crc32ChecksumGenerator.CHECKSUM_CONTEXT_KEY, new FixedChecksumGenerator(123654L));

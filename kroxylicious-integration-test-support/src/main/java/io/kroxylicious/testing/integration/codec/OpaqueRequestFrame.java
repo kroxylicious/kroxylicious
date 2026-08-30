@@ -29,7 +29,9 @@ public class OpaqueRequestFrame implements RequestFrame {
      */
     private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
 
+    /** The length of the frame within {@link #buf}. */
     protected final int length;
+    /** The correlation id of the request. */
     protected final int correlationId;
     /** The message buffer excluding the frame size, including the header and body. */
     protected final ByteBuf buf;
@@ -40,6 +42,8 @@ public class OpaqueRequestFrame implements RequestFrame {
     private final short responseApiVersion;
 
     /**
+     * Creates an OpaqueRequestFrame whose response is expected with the same api version as the request.
+     *
      * @param buf The message buffer (excluding the frame size)
      * @param correlationId The correlation id
      * @param length The length of the frame within {@code buf}.
@@ -53,7 +57,7 @@ public class OpaqueRequestFrame implements RequestFrame {
 
     /**
      * This is a special case for testing API Versions RPCs. In general, we should use {@link OpaqueRequestFrame#OpaqueRequestFrame(ByteBuf, int, int, boolean, ApiKeys, short)}
-     * <p>
+     *
      * @param buf The message buffer (excluding the frame size)
      * @param correlationId The correlation id
      * @param length The length of the frame within {@code buf}.

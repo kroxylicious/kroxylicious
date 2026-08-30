@@ -22,6 +22,8 @@
 
     <properties>
         <errorprone.skip>true</errorprone.skip>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
     </properties>
 
     <dependencies>
@@ -65,6 +67,16 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-sasl-inspection</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-sasl-termination</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-scram-credential-store-provider-file</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -134,11 +146,6 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-sasl-termination</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-authorization</artifactId>
             <scope>runtime</scope>
         </dependency>
@@ -181,6 +188,11 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kafka-message-tools</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kafka-message-json</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

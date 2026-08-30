@@ -27,6 +27,8 @@
     <properties>
         <!-- Override for kafka version - used when Apache Kafka is ahead of the Strimzi release  -->
         <!-- <kafka.version>4.1.0</kafka.version> -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
     </properties>
 
     <dependencies>
@@ -227,6 +229,14 @@
             <artifactId>kroxylicious-sasl-inspection</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-sasl-termination</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-scram-credential-store-provider-file</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
         </dependency>
@@ -239,20 +249,20 @@
             <artifactId>moby-names-generator</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.skodjob</groupId>
-            <artifactId>test-frame-common</artifactId>
+            <groupId>io.skodjob.kubetest4j</groupId>
+            <artifactId>kubetest4j</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.skodjob</groupId>
-            <artifactId>test-frame-kubernetes</artifactId>
+            <groupId>io.skodjob.kubetest4j</groupId>
+            <artifactId>kubernetes-resources</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.skodjob</groupId>
-            <artifactId>test-frame-openshift</artifactId>
+            <groupId>io.skodjob.kubetest4j</groupId>
+            <artifactId>openshift-resources</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.skodjob</groupId>
-            <artifactId>test-frame-log-collector</artifactId>
+            <groupId>io.skodjob.kubetest4j</groupId>
+            <artifactId>log-collector</artifactId>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
