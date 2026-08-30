@@ -12,12 +12,13 @@ import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.kafka.common.errors.BrokerNotAvailableException;
 import org.apache.kafka.common.errors.UnknownServerException;
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.AbstractResponse;
 import org.junit.jupiter.api.Named;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -25,9 +26,19 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.testing.filter.RequestFactory;
 
-import static io.kroxylicious.testing.filter.assertj.ResponseAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Named.named;
 
+/**
+ * Exercises {@link KafkaProxyExceptionMapper}'s mapping across
+ * every {@link ApiKeys} that {@link RequestFactory} can populate, both at each key's oldest and
+ * latest supported version. Per-RPC error-code and error-message correctness (including message
+ * suppression rules) is covered exhaustively against the kafka-clients oracle by
+ * {@link KafkaProxyExceptionMapperParityTest}; this test's job is narrower - confirming the mapper routes to
+ * the right {@link ApiKeys} case and returns a well-formed body, using an independently-generated
+ * fixture set rather than {@link KafkaProxyExceptionMapperParityTest}'s own fixtures.
+ */
 class KafkaProxyExceptionMapperTest {
 
     @ParameterizedTest
@@ -35,13 +46,12 @@ class KafkaProxyExceptionMapperTest {
     void shouldGenerateErrorResponseApiKey(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponse(request,
+        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseMessage(request,
                 new BrokerNotAvailableException("handshake failure", new SSLHandshakeException("it went wrong")));
 
         // Then
-        assertThat(response)
-                .hasApiKey(request.apiKey())
-                .hasErrorCount(Errors.BROKER_NOT_AVAILABLE, 1);
+        assertThat(response).isNotNull();
+        assertThat(ApiKeys.forId(response.apiKey())).isEqualTo(request.apiKey());
     }
 
     @ParameterizedTest
@@ -49,12 +59,23 @@ class KafkaProxyExceptionMapperTest {
     void shouldGenerateErrorMessage(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), new UnknownServerException("Bailing out!"));
+        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), new UnknownServerException("Bailing out!"));
 
         // Then
-        assertThat(response)
-                .hasApiKey(request.apiKey())
-                .hasErrorCount(Errors.UNKNOWN_SERVER_ERROR, 1);
+        assertThat(response).isNotNull();
+        assertThat(ApiKeys.forId(response.apiKey())).isEqualTo(request.apiKey());
+    }
+
+    // NONE is the standard sentinel in the Kafka Protocol for no-error, which is counter to what the proxy error response handling is trying to achieve.
+    @Test
+    void noneErrorDisallowed() {
+        // Given
+        ProduceRequestData arbitraryRequest = new ProduceRequestData().setAcks((short) 0).setTimeoutMs(1000);
+        short arbitraryVersion = ApiKeys.PRODUCE.latestVersion();
+
+        // When/Then
+        assertThatThrownBy(() -> KafkaProxyExceptionMapper.errorResponseData(ApiKeys.PRODUCE, arbitraryRequest, arbitraryVersion, Errors.NONE, "message"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("error must not be NONE when generating an error response");
     }
 
     public static Stream<Arguments> decodedFrameSourceLatestVersion() {
