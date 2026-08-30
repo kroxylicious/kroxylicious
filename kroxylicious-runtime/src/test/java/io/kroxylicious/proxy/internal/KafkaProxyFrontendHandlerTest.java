@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -21,6 +22,7 @@ import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -648,6 +650,29 @@ class KafkaProxyFrontendHandlerTest {
         // Then
         assertThat(result).isNotNull();
         assertThat(result.correlationId()).isEqualTo(42);
+    }
+
+    @Test
+    void buildErrorResponseFrameHandlesFrameOversizedException() {
+        // Given
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.API_VERSIONS.id)
+                .setRequestApiVersion(ApiKeys.API_VERSIONS.latestVersion())
+                .setCorrelationId(42);
+        var frame = new DecodedRequestFrame<>((short) 9, 42, true, header, new ApiVersionsRequestData());
+        DecoderException exception = new DecoderException(new FrameOversizedException(1, 2));
+
+        // When
+        var result = KafkaProxyFrontendHandler.buildErrorResponseFrame(frame, exception);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.correlationId()).isEqualTo(42);
+        assertThat(result).isInstanceOfSatisfying(DecodedFrame.class, decodedFrame -> {
+            assertThat(decodedFrame.body()).isInstanceOfSatisfying(ApiVersionsResponseData.class, responseData -> {
+                assertThat(responseData.errorCode()).isEqualTo(Errors.INVALID_REQUEST.code());
+            });
+        });
     }
 
     private static DecodedRequestFrame<ProduceRequestData> produceFrame(int correlationId, short acks) {

@@ -36,6 +36,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
@@ -538,7 +539,10 @@ public class KafkaProxyFrontendHandler
         ApiMessage message = triggerFrame.body();
         String errorMessage = error.getMessage();
         ApiKeys apiKey = ApiKeys.forId(message.apiKey());
-        Errors responseError = error instanceof FrameOversizedException ? Errors.INVALID_REQUEST: Errors.UNKNOWN_SERVER_ERROR;
+        var responseError = Errors.UNKNOWN_SERVER_ERROR;
+        if (error instanceof DecoderException && error.getCause() instanceof FrameOversizedException) {
+            responseError = Errors.INVALID_REQUEST;
+        }
         var responseData = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), responseError, errorMessage);
         if (responseData == null) {
             // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
