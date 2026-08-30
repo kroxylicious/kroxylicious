@@ -525,10 +525,18 @@ public class KafkaProxyFrontendHandler
         return this.clientCtx != null ? this.clientCtx.channel() : null;
     }
 
-    private static ResponseFrame buildErrorResponseFrame(
-                                                         DecodedRequestFrame<?> triggerFrame,
-                                                         Throwable error) {
+    @VisibleForTesting
+    static @Nullable ResponseFrame buildErrorResponseFrame(
+                                                           DecodedRequestFrame<?> triggerFrame,
+                                                           Throwable error) {
         var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
+        if (responseData == null) {
+            // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
+            LOGGER.atTrace()
+                    .addKeyValue("clientCorrelationId", triggerFrame.correlationId())
+                    .log("Not sending an error response for an API key that does not send a response");
+            return null;
+        }
         final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
         responseHeaderData.setCorrelationId(triggerFrame.correlationId());
         return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);

@@ -13,7 +13,6 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.AbstractResponse;
 
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
@@ -83,12 +82,12 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException) {
-        final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, apiException);
-        validateShortCircuitResponse(errorResponseMessage.data());
+        final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, apiException);
+        validateShortCircuitResponse(errorResponseMessage);
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();
         responseHeaders.setCorrelationId(header.correlationId());
         this.shortCircuitHeader = responseHeaders;
-        this.shortCircuitResponse = errorResponseMessage.data();
+        this.shortCircuitResponse = errorResponseMessage;
         return this;
     }
 
