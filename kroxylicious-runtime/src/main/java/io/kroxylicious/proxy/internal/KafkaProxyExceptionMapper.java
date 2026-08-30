@@ -215,6 +215,9 @@ public class KafkaProxyExceptionMapper {
      */
     @Nullable
     public static ApiMessage errorResponseData(ApiKeys apiKey, ApiMessage requestBody, short apiVersion, Errors error, String message) {
+        if (error == Errors.NONE) {
+            throw new IllegalArgumentException("error must not be NONE when generating an error response");
+        }
         short code = error.code();
         return switch (apiKey) {
             case ADD_OFFSETS_TO_TXN -> new AddOffsetsToTxnResponseData().setErrorCode(code).setThrottleTimeMs(THROTTLE_TIME_MS);

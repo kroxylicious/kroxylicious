@@ -214,7 +214,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -255,8 +254,12 @@ class KafkaProxyExceptionMapperParityTest {
         assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
     }
 
+    public static Stream<Arguments> produceVersions() {
+        return ApiKeys.PRODUCE.allVersions().stream().map(version -> Arguments.argumentSet("version " + version, version));
+    }
+
     @ParameterizedTest
-    @ValueSource(shorts = { 3, 13 })
+    @MethodSource("produceVersions")
     void produceReturnsNullWhenAcksZero(short version) {
         // Given
         ProduceRequestData request = new ProduceRequestData().setAcks((short) 0).setTimeoutMs(1000);
@@ -592,17 +595,17 @@ class KafkaProxyExceptionMapperParityTest {
                 new AlterReplicaLogDirsRequestData().setDirs(
                         new AlterReplicaLogDirsRequestData.AlterReplicaLogDirCollection(
                                 List.of(new AlterReplicaLogDirsRequestData.AlterReplicaLogDir().setPath("/data/1").setTopics(
-                                                new AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopicCollection(
-                                                        List.of(new AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopic().setName("topic-a").setPartitions(List.of(0, 1)))
-                                                                .iterator())))
+                                        new AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopicCollection(
+                                                List.of(new AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopic().setName("topic-a").setPartitions(List.of(0, 1)))
+                                                        .iterator())))
                                         .iterator())),
                 new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData().setDirs(
                         new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirCollection(
                                 List.of(new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDir().setPath("/data/1").setTopics(
-                                                new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopicCollection(
-                                                        List.of(new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopic().setName("topic-a")
-                                                                        .setPartitions(List.of(0, 1)))
-                                                                .iterator())))
+                                        new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopicCollection(
+                                                List.of(new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopic().setName("topic-a")
+                                                        .setPartitions(List.of(0, 1)))
+                                                        .iterator())))
                                         .iterator())));
     }
 
@@ -622,8 +625,8 @@ class KafkaProxyExceptionMapperParityTest {
     private static MatchedInput deleteTopicsInput(short version) {
         return version < 6
                 ? new MatchedInput(
-                new DeleteTopicsRequestData().setTopicNames(List.of("topic-a", "topic-b")),
-                new org.apache.kafka.common.message.DeleteTopicsRequestData().setTopicNames(List.of("topic-a", "topic-b")))
+                        new DeleteTopicsRequestData().setTopicNames(List.of("topic-a", "topic-b")),
+                        new org.apache.kafka.common.message.DeleteTopicsRequestData().setTopicNames(List.of("topic-a", "topic-b")))
                 : new MatchedInput(
                         new DeleteTopicsRequestData().setTopics(List.of(
                                 new DeleteTopicsRequestData.DeleteTopicState().setName("topic-a").setTopicId(TOPIC_ID),
@@ -658,13 +661,13 @@ class KafkaProxyExceptionMapperParityTest {
         return new MatchedInput(
                 new ProduceRequestData().setAcks((short) 1).setTimeoutMs(1000).setTopicData(
                         new ProduceRequestData.TopicProduceDataCollection(List.of(new ProduceRequestData.TopicProduceData().setName("topic-a").setTopicId(TOPIC_ID)
-                                        .setPartitionData(List.of(new ProduceRequestData.PartitionProduceData().setIndex(0).setRecords(MemoryRecords.EMPTY))))
+                                .setPartitionData(List.of(new ProduceRequestData.PartitionProduceData().setIndex(0).setRecords(MemoryRecords.EMPTY))))
                                 .iterator())),
                 new org.apache.kafka.common.message.ProduceRequestData().setAcks((short) 1).setTimeoutMs(1000).setTopicData(
                         new org.apache.kafka.common.message.ProduceRequestData.TopicProduceDataCollection(
                                 List.of(new org.apache.kafka.common.message.ProduceRequestData.TopicProduceData().setName("topic-a").setTopicId(KAFKA_TOPIC_ID)
-                                                .setPartitionData(List.of(new org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData().setIndex(0)
-                                                        .setRecords(org.apache.kafka.common.record.MemoryRecords.EMPTY))))
+                                        .setPartitionData(List.of(new org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData().setIndex(0)
+                                                .setRecords(org.apache.kafka.common.record.MemoryRecords.EMPTY))))
                                         .iterator())));
     }
 
@@ -761,8 +764,8 @@ class KafkaProxyExceptionMapperParityTest {
                 new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData().setTopics(
                         new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopicCollection(
                                 List.of(new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopic().setTopic("topic-a").setPartitions(
-                                                List.of(new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderPartition().setPartition(0)
-                                                        .setLeaderEpoch(5))))
+                                        List.of(new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderPartition().setPartition(0)
+                                                .setLeaderEpoch(5))))
                                         .iterator())));
     }
 
@@ -966,7 +969,7 @@ class KafkaProxyExceptionMapperParityTest {
         builders.put(ApiKeys.END_TXN,
                 (data,
                  v) -> new EndTxnRequest.Builder((org.apache.kafka.common.message.EndTxnRequestData) data, v > EndTxnRequest.LAST_STABLE_VERSION_BEFORE_TRANSACTION_V2)
-                        .build(v));
+                         .build(v));
         builders.put(ApiKeys.LEAVE_GROUP, (data, v) -> {
             org.apache.kafka.common.message.LeaveGroupRequestData leaveGroupRequestData = (org.apache.kafka.common.message.LeaveGroupRequestData) data;
             return new LeaveGroupRequest.Builder(leaveGroupRequestData.groupId(), leaveGroupRequestData.members()).build(v);
@@ -986,7 +989,7 @@ class KafkaProxyExceptionMapperParityTest {
             return new ElectLeadersRequest.Builder(
                     ElectionType.valueOf(electLeaders.electionType()),
                     electLeaders.topicPartitions().stream().flatMap(
-                                    t -> t.partitions().stream().map(p -> new org.apache.kafka.common.TopicPartition(t.topic(), p)))
+                            t -> t.partitions().stream().map(p -> new org.apache.kafka.common.TopicPartition(t.topic(), p)))
                             .toList(),
                     electLeaders.timeoutMs())
                     .build(v);

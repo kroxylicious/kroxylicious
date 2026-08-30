@@ -12,10 +12,13 @@ import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.kafka.common.errors.BrokerNotAvailableException;
 import org.apache.kafka.common.errors.UnknownServerException;
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Named;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -24,6 +27,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.testing.filter.RequestFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Named.named;
 
 /**
@@ -60,6 +64,18 @@ class KafkaProxyExceptionMapperTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(ApiKeys.forId(response.apiKey())).isEqualTo(request.apiKey());
+    }
+
+    // NONE is the standard sentinel in the Kafka Protocol for no-error, which is counter to what the proxy error response handling is trying to achieve.
+    @Test
+    void noneErrorDisallowed() {
+        // Given
+        ProduceRequestData arbitraryRequest = new ProduceRequestData().setAcks((short) 0).setTimeoutMs(1000);
+        short arbitraryVersion = ApiKeys.PRODUCE.latestVersion();
+
+        // When/Then
+        assertThatThrownBy(() -> KafkaProxyExceptionMapper.errorResponseData(ApiKeys.PRODUCE, arbitraryRequest, arbitraryVersion, Errors.NONE, "message"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("error must not be NONE when generating an error response");
     }
 
     public static Stream<Arguments> decodedFrameSourceLatestVersion() {
