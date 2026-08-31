@@ -25,12 +25,12 @@ import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
 
 import org.apache.kafka.common.errors.SaslAuthenticationException;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,10 +50,10 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static org.apache.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
-import static org.apache.kafka.common.protocol.Errors.NONE;
-import static org.apache.kafka.common.protocol.Errors.SASL_AUTHENTICATION_FAILED;
-import static org.apache.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR;
+import static io.kroxylicious.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
+import static io.kroxylicious.kafka.common.protocol.Errors.NONE;
+import static io.kroxylicious.kafka.common.protocol.Errors.SASL_AUTHENTICATION_FAILED;
+import static io.kroxylicious.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR;
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 
 /**
