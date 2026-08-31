@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.filter.metadata;
 
 import java.util.Objects;
 
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 /**
  * Indicates there was some problem obtaining a name for a topic id

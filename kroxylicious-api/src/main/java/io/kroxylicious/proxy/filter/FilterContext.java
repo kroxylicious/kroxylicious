@@ -9,12 +9,11 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
-
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
