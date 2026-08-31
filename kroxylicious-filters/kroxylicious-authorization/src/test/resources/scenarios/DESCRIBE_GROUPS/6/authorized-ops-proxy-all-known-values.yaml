@@ -35,7 +35,7 @@ given:
             protocolType: "consumer"
             protocolData: "consumer"
             members: []
-            authorizedOperations: 65535 # All io.kroxylicious.kafka.common.acl.AclOperation up to ordinal 15
+            authorizedOperations: 65535 # All org.apache.kafka.common.acl.AclOperation up to ordinal 15
   authorizerRules:
     allowed:
       - subject: "alice"

@@ -41,6 +41,7 @@ import io.kroxylicious.kafka.common.message.ExpireDelegationTokenRequestData;
 import io.kroxylicious.kafka.common.message.ExpireDelegationTokenResponseData;
 import io.kroxylicious.kafka.common.message.MetadataRequestData;
 import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
 import io.kroxylicious.kafka.common.message.RenewDelegationTokenRequestData;
 import io.kroxylicious.kafka.common.message.RenewDelegationTokenResponseData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
@@ -658,7 +659,7 @@ class ProtocolLoggerFilterTest {
 
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
         MetadataRequestData metadataRequest = new MetadataRequestData();
-        io.kroxylicious.kafka.common.message.ProduceRequestData produceRequest = new io.kroxylicious.kafka.common.message.ProduceRequestData();
+        ProduceRequestData produceRequest = new ProduceRequestData();
 
         // When
         f.onRequest(ApiKeys.METADATA, (short) 13, header, metadataRequest, MockFilterContext.builder(header, metadataRequest).build())

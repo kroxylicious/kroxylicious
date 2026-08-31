@@ -340,7 +340,7 @@ class RoutingContextContractIT {
         // Given: router provides an explicit response header with an unknown tagged field.
         // API_VERSIONS always uses response header v0 (no tagged fields); LIST_GROUPS v3+ uses
         // flexible versioning (response header v1) so tagged fields can be encoded.
-        var customBody = new io.kroxylicious.kafka.common.message.LeaveGroupResponseData();
+        var customBody = new io.kroxylicious.kafka.common.message.ListGroupsResponseData();
 
         ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
             var customHeader = new io.kroxylicious.kafka.common.message.ResponseHeaderData();
@@ -354,7 +354,7 @@ class RoutingContextContractIT {
 
             // When: the client receives a response built with a custom header
             Response response = client.getSync(
-                    new Request(ApiKeys.LIST_GROUPS, (short) 4, "client", new ListGroupsRequestData()));
+                    new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
 
             // Then: the response body is the one the router set; the header tagged field did not
             // cause an encoding error (the Kafka client silently ignores unknown header tags)
