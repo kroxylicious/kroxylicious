@@ -229,7 +229,7 @@ class OffsetCommitTopicAuthzIT extends AuthzIT {
         // Compute the n-fold Cartesian product of the tuples (except for pruning)
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : apiVersions) {
-            if (!AuthorizationFilter.isApiVersionSupported(ApiKeys.OFFSET_COMMIT, apiVersion)) {
+            if (!AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.OFFSET_COMMIT, apiVersion)) {
                 UnsupportedApiVersion<ApiMessage, ApiMessage> apiMessageApiMessageUnsupportedApiVersion = new UnsupportedApiVersion<>(ApiKeys.OFFSET_COMMIT, apiVersion);
                 result.add(
                         Arguments.of(apiMessageApiMessageUnsupportedApiVersion));

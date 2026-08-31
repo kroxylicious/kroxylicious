@@ -44,7 +44,7 @@ import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.testing.filter.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.record.KafkaRecordTestUtils;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
@@ -401,7 +401,7 @@ class RoutingDynamicIT {
     }
 
     private static Request produceRequest(String topicName, short acks) {
-        var records = RecordTestUtils.singleElementMemoryRecords("key", "value");
+        var records = KafkaRecordTestUtils.singleElementMemoryRecords("key", "value");
         var partitionData = new ProduceRequestData.PartitionProduceData()
                 .setIndex(0)
                 .setRecords(records);

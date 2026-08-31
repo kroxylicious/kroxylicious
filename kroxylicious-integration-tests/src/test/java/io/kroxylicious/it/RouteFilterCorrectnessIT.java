@@ -41,7 +41,7 @@ import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
-import io.kroxylicious.testing.filter.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.record.KafkaRecordTestUtils;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
@@ -130,7 +130,7 @@ class RouteFilterCorrectnessIT {
         }
 
         // Then
-        assertThat(RequestCountingFilter.countFor(counterId, ApiKeys.PRODUCE))
+        assertThat(RequestCountingFilter.countFor(counterId, io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE))
                 .as("route filter should see the router's PRODUCE forwarded via sendRequest()")
                 .isGreaterThanOrEqualTo(1);
     }
@@ -254,7 +254,7 @@ class RouteFilterCorrectnessIT {
         }
 
         // Then
-        assertThat(RequestCountingFilter.countFor(counterId, ApiKeys.LIST_GROUPS))
+        assertThat(RequestCountingFilter.countFor(counterId, io.kroxylicious.kafka.common.protocol.ApiKeys.LIST_GROUPS))
                 .as("route-b filter must not process InternalRequestFrame from route-a's filter")
                 .isZero();
     }
@@ -301,10 +301,10 @@ class RouteFilterCorrectnessIT {
         }
 
         // Then
-        assertThat(RequestCountingFilter.countFor(counterIdA, ApiKeys.LIST_GROUPS))
+        assertThat(RequestCountingFilter.countFor(counterIdA, io.kroxylicious.kafka.common.protocol.ApiKeys.LIST_GROUPS))
                 .as("route-a's counting filter should see the internal LIST_GROUPS from the marking filter on the same route")
                 .isPositive();
-        assertThat(RequestCountingFilter.countFor(counterIdB, ApiKeys.LIST_GROUPS))
+        assertThat(RequestCountingFilter.countFor(counterIdB, io.kroxylicious.kafka.common.protocol.ApiKeys.LIST_GROUPS))
                 .as("route-b's counting filter must not see internal LIST_GROUPS from route-a's filter, even though it uses the same factory type")
                 .isZero();
     }
@@ -370,7 +370,7 @@ class RouteFilterCorrectnessIT {
     }
 
     private static Request produceRequest(String topicName, short acks) {
-        var records = RecordTestUtils.singleElementMemoryRecords("key", "value");
+        var records = KafkaRecordTestUtils.singleElementMemoryRecords("key", "value");
         var partitionData = new ProduceRequestData.PartitionProduceData()
                 .setIndex(0)
                 .setRecords(records);

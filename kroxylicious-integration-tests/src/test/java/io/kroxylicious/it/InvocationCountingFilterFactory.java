@@ -12,10 +12,10 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -46,7 +46,8 @@ public class InvocationCountingFilterFactory implements FilterFactory<Invocation
     public Filter createFilter(FilterFactoryContext context, Config initializationData) {
         return new RequestFilter() {
             @Override
-            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
+            public CompletionStage<RequestFilterResult> onRequest(io.kroxylicious.kafka.common.protocol.ApiKeys apiKey, short apiVersion, RequestHeaderData header,
+                                                                  ApiMessage request, FilterContext context) {
                 return context.forwardRequest(header, request);
             }
         };

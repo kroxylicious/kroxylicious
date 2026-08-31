@@ -160,9 +160,9 @@ class OffsetFetchTopicAuthzIT extends AuthzIT {
 
     List<Arguments> shouldEnforceAccessToTopics() {
         var result = new ArrayList<Arguments>();
-        for (short apiVersion = AuthorizationFilter.minSupportedApiVersion(ApiKeys.OFFSET_FETCH); apiVersion <= AuthorizationFilter
-                .maxSupportedApiVersion(ApiKeys.OFFSET_FETCH); apiVersion++) {
-            if (AuthorizationFilter.isApiVersionSupported(ApiKeys.OFFSET_FETCH, apiVersion)) {
+        for (short apiVersion = AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.OFFSET_FETCH); apiVersion <= AuthorizationFilter
+                .maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.OFFSET_FETCH); apiVersion++) {
+            if (AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.OFFSET_FETCH, apiVersion)) {
                 if (apiVersion < FIRST_VERSION_USING_GROUP_BATCHING) {
                     if (apiVersion >= FIRST_VERSION_SUPPORTING_ALL_TOPICS) {
                         result.add(Arguments.argumentSet("api version " + apiVersion + " (before batching), all topics",

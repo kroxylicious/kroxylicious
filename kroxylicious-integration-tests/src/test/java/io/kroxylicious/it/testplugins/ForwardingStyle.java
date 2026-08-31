@@ -18,7 +18,6 @@ import io.kroxylicious.kafka.common.message.ListGroupsResponseData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.common.protocol.Errors;
-
 import io.kroxylicious.proxy.filter.FilterContext;
 
 public enum ForwardingStyle implements Function<ForwardingContext, CompletionStage<ApiMessage>> {

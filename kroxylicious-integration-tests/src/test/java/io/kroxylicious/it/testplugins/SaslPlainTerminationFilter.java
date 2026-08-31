@@ -13,6 +13,11 @@ import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
 
+import org.apache.kafka.common.errors.SaslAuthenticationException;
+import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
@@ -21,12 +26,6 @@ import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.common.protocol.Errors;
-
-import org.apache.kafka.common.errors.SaslAuthenticationException;
-import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;

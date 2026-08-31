@@ -165,14 +165,15 @@ class DescribeConfigsGroupAuthzIT extends AuthzIT {
     List<Arguments> shouldEnforceAccessToTopics() {
         DescribeConfigsRequestData specificGroups = new DescribeConfigsRequestData();
         List.of(ALICE_GROUP_NAME, BOB_GROUP_NAME).forEach(group -> specificGroups.resources().add(groupResource(group)));
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.DESCRIBE_CONFIGS),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.DESCRIBE_CONFIGS))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_CONFIGS),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_CONFIGS))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " specific topics request",
                                 new DescribeConfigsEquivalence((short) (int) apiVersion, specificGroups))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.DESCRIBE_CONFIGS.oldestVersion(), ApiKeys.DESCRIBE_CONFIGS.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.DESCRIBE_CONFIGS, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_CONFIGS, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.DESCRIBE_CONFIGS, (short) apiVersion)));

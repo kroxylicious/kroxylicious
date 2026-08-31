@@ -10,7 +10,6 @@ import java.util.concurrent.CompletionStage;
 
 import io.kroxylicious.kafka.common.message.MetadataResponseData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
-
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactory;

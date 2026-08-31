@@ -107,8 +107,8 @@ class EndTxnTxnlIdAuthzIT extends AuthzIT {
 
     List<Arguments> shouldEnforceAccessToTransactionalIds() {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(
-                AuthorizationFilter.minSupportedApiVersion(ApiKeys.END_TXN),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.END_TXN))
+                AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.END_TXN),
+                AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.END_TXN))
                 .boxed()
                 .flatMap(apiVersion -> ALL_TRANSACTIONAL_ID_PREFIXES.stream()
                         .map(prefix -> Arguments.argumentSet("api version " + apiVersion + " transactional id prefix " + prefix,
@@ -117,7 +117,7 @@ class EndTxnTxnlIdAuthzIT extends AuthzIT {
                 .rangeClosed(
                         ApiKeys.END_TXN.oldestVersion(),
                         ApiKeys.END_TXN.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.END_TXN, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.END_TXN, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.END_TXN, (short) apiVersion)));

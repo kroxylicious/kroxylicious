@@ -218,7 +218,7 @@ class LeaveGroupAuthzIT extends AuthzIT {
         // Compute the n-fold Cartesian product of the tuples (except for pruning)
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : apiVersions) {
-            if (!AuthorizationFilter.isApiVersionSupported(ApiKeys.LEAVE_GROUP, apiVersion)) {
+            if (!AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.LEAVE_GROUP, apiVersion)) {
                 UnsupportedApiVersion<ApiMessage, ApiMessage> apiMessageApiMessageUnsupportedApiVersion = new UnsupportedApiVersion<>(ApiKeys.LEAVE_GROUP,
                         apiVersion);
                 result.add(

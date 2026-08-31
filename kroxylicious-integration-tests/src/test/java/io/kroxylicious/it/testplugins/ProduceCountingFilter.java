@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.LongAdder;
 
 import io.kroxylicious.kafka.common.message.ProduceRequestData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
-
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
