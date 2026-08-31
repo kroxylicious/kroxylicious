@@ -7,10 +7,9 @@
 package io.kroxylicious.testing.filter.assertj;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Headers;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.InstanceOfAssertFactory;
-
-import io.kroxylicious.kafka.common.header.Headers;
 
 /**
  * AssertJ assertions for {@link ConsumerRecord}.
@@ -40,9 +39,9 @@ public class ConsumerRecordAssert extends AbstractAssert<ConsumerRecordAssert, C
      *
      * @return the headers assertion
      */
-    public HeadersAssert headers() {
+    public KafkaHeadersAssert headers() {
         isNotNull();
         return extracting(ConsumerRecord::headers,
-                new InstanceOfAssertFactory<>(Headers.class, HeadersAssert::assertThat));
+                new InstanceOfAssertFactory<>(Headers.class, KafkaHeadersAssert::assertThat));
     }
 }
