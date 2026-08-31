@@ -17,7 +17,7 @@ import javax.security.auth.login.AppConfigurationEntry;
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.apache.kafka.common.security.plain.PlainAuthenticateCallback;
 import org.apache.kafka.common.security.plain.internals.PlainSaslServerProvider;
-import org.apache.kafka.common.utils.Utils;
+import io.kroxylicious.kafka.common.utils.Utils;
 
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;

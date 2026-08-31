@@ -15,7 +15,7 @@ import java.util.function.Function;
 
 import javax.security.auth.x500.X500Principal;
 
-import org.apache.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.filter.FilterContext;
