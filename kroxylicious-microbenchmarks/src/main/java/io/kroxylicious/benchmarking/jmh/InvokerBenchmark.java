@@ -8,7 +8,6 @@ package io.kroxylicious.benchmarking.jmh;
 
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
@@ -20,6 +19,7 @@ import io.kroxylicious.benchmarking.jmh.filters.EightInterfaceFilter;
 import io.kroxylicious.benchmarking.jmh.filters.FourInterfaceFilter;
 import io.kroxylicious.benchmarking.jmh.filters.OneInterfaceFilter;
 import io.kroxylicious.benchmarking.jmh.filters.TwoInterfaceFilter;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.internal.filter.FilterInvoker;
 import io.kroxylicious.proxy.internal.filter.FilterInvokers;
 

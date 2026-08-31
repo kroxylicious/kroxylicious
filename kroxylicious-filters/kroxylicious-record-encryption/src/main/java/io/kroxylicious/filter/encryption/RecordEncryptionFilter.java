@@ -101,7 +101,9 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
         else {
             return maybeEncodeProduce(request, context, topicNameMapping).thenCompose(yy -> context.forwardRequest(header, request)).exceptionallyCompose(throwable -> {
                 final ApiException clientFacingException = getClientFacingException(throwable);
-                org.apache.kafka.common.protocol.Errors kafkaError = org.apache.kafka.common.protocol.Errors.forException(clientFacingException);
+                org.apache.kafka.common.protocol.Errors kafkaError = clientFacingException == null
+                        ? org.apache.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR
+                        : org.apache.kafka.common.protocol.Errors.forException(clientFacingException);
                 Errors clientError = Errors.forCode(kafkaError.code());
                 if (clientFacingException != null) {
                     return context.requestFilterResultBuilder()
