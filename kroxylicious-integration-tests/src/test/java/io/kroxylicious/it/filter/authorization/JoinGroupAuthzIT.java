@@ -196,8 +196,8 @@ public class JoinGroupAuthzIT extends AuthzIT {
 
     List<Arguments> shouldEnforceAccessToTopics() {
 
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.JOIN_GROUP),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.JOIN_GROUP))
+        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.JOIN_GROUP),
+                AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.JOIN_GROUP))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " alice group request",
                                 new JoinGroupEquivalence((short) (int) apiVersion, ALICE_GROUP_PREFIX)),
@@ -205,7 +205,7 @@ public class JoinGroupAuthzIT extends AuthzIT {
                                 new JoinGroupEquivalence((short) (int) apiVersion, BOB_GROUP_PREFIX))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.JOIN_GROUP.oldestVersion(), ApiKeys.JOIN_GROUP.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.JOIN_GROUP, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.JOIN_GROUP, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.JOIN_GROUP, (short) apiVersion)));

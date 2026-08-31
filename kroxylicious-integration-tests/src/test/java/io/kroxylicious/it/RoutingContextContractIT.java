@@ -19,11 +19,9 @@ import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
 import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +31,8 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.it.testplugins.router.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
@@ -246,7 +246,7 @@ class RoutingContextContractIT {
 
             // Router: send via the VirtualNode returned by nodeForId(0), always to broker 0
             ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
-                if (apiKey == ApiKeys.API_VERSIONS) {
+                if (apiKey == io.kroxylicious.kafka.common.protocol.ApiKeys.API_VERSIONS) {
                     var node0 = ctx.nodeForId(0);
                     return ctx.sendRequest(node0, header, request)
                             .thenCompose(body -> ctx.respondWith(body).completed());
@@ -314,8 +314,8 @@ class RoutingContextContractIT {
     @Test
     void respondWithBodyDeliversCustomResponseToClient(KafkaCluster cluster) {
         // Given: router synthesises an API_VERSIONS response with a known set of API keys
-        var customResponse = new ApiVersionsResponseData();
-        customResponse.apiKeys().add(new ApiVersionsResponseData.ApiVersion()
+        var customResponse = new io.kroxylicious.kafka.common.message.ApiVersionsResponseData();
+        customResponse.apiKeys().add(new io.kroxylicious.kafka.common.message.ApiVersionsResponseData.ApiVersion()
                 .setApiKey(ApiKeys.PRODUCE.id).setMinVersion((short) 0).setMaxVersion((short) 9));
 
         ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> ctx.respondWith(customResponse).completed());
@@ -341,10 +341,10 @@ class RoutingContextContractIT {
         // Given: router provides an explicit response header with an unknown tagged field.
         // API_VERSIONS always uses response header v0 (no tagged fields); LIST_GROUPS v3+ uses
         // flexible versioning (response header v1) so tagged fields can be encoded.
-        var customBody = new ListGroupsResponseData();
+        var customBody = new io.kroxylicious.kafka.common.message.ListGroupsRequestData();
 
         ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
-            var customHeader = new ResponseHeaderData();
+            var customHeader = new io.kroxylicious.kafka.common.message.ResponseHeaderData();
             customHeader.unknownTaggedFields().add(new RawTaggedField(99, new byte[]{ 0x42 }));
             return ctx.respondWith(customHeader, customBody).completed();
         });
@@ -367,7 +367,8 @@ class RoutingContextContractIT {
     void respondWithErrorDeliversApiSpecificErrorResponseToClient(KafkaCluster cluster) {
         // Given: router returns an error for every API_VERSIONS request
         ContextCapturingRouterFactory.currentAction
-                .set((apiKey, apiVersion, header, request, ctx) -> ctx.respondWithError(header, request, Errors.UNKNOWN_SERVER_ERROR, "routing failed").completed());
+                .set((apiKey, apiVersion, header, request, ctx) -> ctx
+                        .respondWithError(header, request, io.kroxylicious.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR, "routing failed").completed());
 
         try (var tester = KroxyliciousTesters.newBuilder(config(cluster))
                 .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
@@ -390,7 +391,7 @@ class RoutingContextContractIT {
         // Given: router calls respondWithoutReply() for acks=0 PRODUCE; all other keys pass through
         var produceHandled = new CompletableFuture<Void>();
         ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
-            if (apiKey == ApiKeys.PRODUCE && request instanceof ProduceRequestData pd && pd.acks() == 0) {
+            if (apiKey == io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE && request instanceof ProduceRequestData pd && pd.acks() == 0) {
                 produceHandled.complete(null);
                 return ctx.respondWithoutReply().completed();
             }
@@ -441,14 +442,16 @@ class RoutingContextContractIT {
             mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
             mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
 
-            var metadataHeader = new RequestHeaderData()
+            var metadataHeader = new io.kroxylicious.kafka.common.message.RequestHeaderData()
                     .setRequestApiKey(ApiKeys.METADATA.id)
                     .setRequestApiVersion((short) 12);
 
             // Internal METADATA to each route populates routerNodeAddresses before nodeForId(1) resolves.
             ContextCapturingRouterFactory.currentAction
-                    .set((apiKey, apiVersion, header, request, ctx) -> ctx.sendRequest(ctx.anyNode("route-a"), metadataHeader, new MetadataRequestData())
-                            .thenCompose(ignored -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new MetadataRequestData()))
+                    .set((apiKey, apiVersion, header, request, ctx) -> ctx
+                            .sendRequest(ctx.anyNode("route-a"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData())
+                            .thenCompose(
+                                    ignored -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData()))
                             .thenCompose(ignored -> {
                                 var node = ctx.nodeForId(1);
                                 return ctx.sendRequest(node, header, request)
@@ -502,7 +505,7 @@ class RoutingContextContractIT {
             mdB.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockB.port()));
             mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
 
-            var metadataHeader = new RequestHeaderData()
+            var metadataHeader = new io.kroxylicious.kafka.common.message.RequestHeaderData()
                     .setRequestApiKey(ApiKeys.METADATA.id)
                     .setRequestApiVersion((short) 12);
 
@@ -510,7 +513,7 @@ class RoutingContextContractIT {
                 var vn = ctx.virtualNode();
                 if (vn.isEmpty()) {
                     return ctx.sendRequest(ctx.anyNode("route-a"), header, request)
-                            .thenCompose(bodyA -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new MetadataRequestData())
+                            .thenCompose(bodyA -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData())
                                     .thenCompose(bodyB -> {
                                         ((MetadataResponseData) bodyB).brokers()
                                                 .forEach(b -> ((MetadataResponseData) bodyA).brokers().add(b.duplicate()));
@@ -598,13 +601,15 @@ class RoutingContextContractIT {
             mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
             mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
 
-            var metadataHeader = new RequestHeaderData()
+            var metadataHeader = new io.kroxylicious.kafka.common.message.RequestHeaderData()
                     .setRequestApiKey(ApiKeys.METADATA.id)
                     .setRequestApiVersion((short) 12);
 
             ContextCapturingRouterFactory.currentAction
-                    .set((apiKey, apiVersion, header, request, ctx) -> ctx.sendRequest(ctx.anyNode("route-a"), metadataHeader, new MetadataRequestData())
-                            .thenCompose(ignored -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new MetadataRequestData()))
+                    .set((apiKey, apiVersion, header, request, ctx) -> ctx
+                            .sendRequest(ctx.anyNode("route-a"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData())
+                            .thenCompose(
+                                    ignored -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData()))
                             .thenCompose(ignored -> {
                                 var node = ctx.nodeForId(1);
                                 return ctx.sendRequest(node, header, request)
@@ -657,7 +662,7 @@ class RoutingContextContractIT {
                 var vn = ctx.virtualNode();
                 if (vn.isEmpty()) {
                     return ctx.sendRequest(ctx.anyNode("route-a"), header, request)
-                            .thenCompose(bodyA -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new MetadataRequestData())
+                            .thenCompose(bodyA -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData())
                                     .thenCompose(bodyB -> {
                                         ((MetadataResponseData) bodyB).brokers()
                                                 .forEach(b -> ((MetadataResponseData) bodyA).brokers().add(b.duplicate()));

@@ -62,7 +62,7 @@ import io.kroxylicious.it.testplugins.SaslPlainTermination;
 import io.kroxylicious.kafka.message.json.KafkaApiMessageConverter;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.testing.filter.RequestFactory;
+import io.kroxylicious.testing.filter.KafkaRequestFactory;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.client.KafkaClient;
@@ -286,7 +286,7 @@ public abstract class AuthzIT extends BaseIT {
 
         @Override
         public Q requestData(String user, BaseClusterFixture clusterFixture) {
-            return (Q) RequestFactory.apiMessageFor(apiKey(), apiVersion()).apiMessage();
+            return (Q) KafkaRequestFactory.apiMessageFor(apiKey(), apiVersion()).apiMessage();
         }
 
         @Override
@@ -309,7 +309,7 @@ public abstract class AuthzIT extends BaseIT {
             return Map.of(
                     ALICE,
                     new Request(apiKey(), apiVersion(), "test",
-                            RequestFactory.apiMessageFor(apiKey(), apiVersion()).apiMessage()));
+                            KafkaRequestFactory.apiMessageFor(apiKey(), apiVersion()).apiMessage()));
         }
 
         @Override

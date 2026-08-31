@@ -8,12 +8,12 @@ package io.kroxylicious.it.testplugins.router;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
-import io.kroxylicious.kafka.common.message.RequestHeaderData;
-import io.kroxylicious.kafka.common.protocol.ApiKeys;
-import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;

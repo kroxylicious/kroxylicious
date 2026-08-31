@@ -19,7 +19,6 @@ import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 import io.kroxylicious.kafka.common.record.internal.Record;
 import io.kroxylicious.kafka.common.record.internal.RecordBatch;
-
 import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.kafka.transform.RecordTransform;
 import io.kroxylicious.proxy.filter.FilterContext;

@@ -17,6 +17,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import io.kroxylicious.it.UnknownTaggedFields;
 import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
@@ -24,8 +25,6 @@ import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
-
-import io.kroxylicious.it.UnknownTaggedFields;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
@@ -131,6 +130,10 @@ public class TopicIdToNameResponseStamper implements FilterFactory<TopicIdToName
     }
 
     public static String topicNameMapping(Uuid topicId, @Nullable String topicName, @Nullable String error) {
+        return topicId + "::" + topicName + "::" + error;
+    }
+
+    public static String topicNameMapping(org.apache.kafka.common.Uuid topicId, @Nullable String topicName, @Nullable String error) {
         return topicId + "::" + topicName + "::" + error;
     }
 
