@@ -9,7 +9,7 @@ package io.kroxylicious.filter.protocollogger;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

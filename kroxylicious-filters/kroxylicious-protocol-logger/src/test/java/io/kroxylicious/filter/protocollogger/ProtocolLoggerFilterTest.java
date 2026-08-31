@@ -13,24 +13,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.AlterUserScramCredentialsRequestData;
-import org.apache.kafka.common.message.AlterUserScramCredentialsResponseData;
-import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
-import org.apache.kafka.common.message.CreateDelegationTokenResponseData;
-import org.apache.kafka.common.message.DescribeDelegationTokenRequestData;
-import org.apache.kafka.common.message.DescribeDelegationTokenResponseData;
-import org.apache.kafka.common.message.ExpireDelegationTokenRequestData;
-import org.apache.kafka.common.message.ExpireDelegationTokenResponseData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
-import org.apache.kafka.common.message.RenewDelegationTokenResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.AlterUserScramCredentialsRequestData;
+import io.kroxylicious.kafka.common.message.AlterUserScramCredentialsResponseData;
+import io.kroxylicious.kafka.common.message.CreateDelegationTokenRequestData;
+import io.kroxylicious.kafka.common.message.CreateDelegationTokenResponseData;
+import io.kroxylicious.kafka.common.message.DescribeDelegationTokenRequestData;
+import io.kroxylicious.kafka.common.message.DescribeDelegationTokenResponseData;
+import io.kroxylicious.kafka.common.message.ExpireDelegationTokenRequestData;
+import io.kroxylicious.kafka.common.message.ExpireDelegationTokenResponseData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.RenewDelegationTokenRequestData;
+import io.kroxylicious.kafka.common.message.RenewDelegationTokenResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -658,7 +658,7 @@ class ProtocolLoggerFilterTest {
 
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c1");
         MetadataRequestData metadataRequest = new MetadataRequestData();
-        org.apache.kafka.common.message.ProduceRequestData produceRequest = new org.apache.kafka.common.message.ProduceRequestData();
+        io.kroxylicious.kafka.common.message.ProduceRequestData produceRequest = new io.kroxylicious.kafka.common.message.ProduceRequestData();
 
         // When
         f.onRequest(ApiKeys.METADATA, (short) 13, header, metadataRequest, MockFilterContext.builder(header, metadataRequest).build())
