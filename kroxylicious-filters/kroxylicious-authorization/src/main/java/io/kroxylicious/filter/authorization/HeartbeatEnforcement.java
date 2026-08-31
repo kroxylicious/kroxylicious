@@ -9,10 +9,10 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.HeartbeatRequestData;
-import org.apache.kafka.common.message.HeartbeatResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.HeartbeatRequestData;
+import io.kroxylicious.kafka.common.message.HeartbeatResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.proxy.filter.FilterContext;
