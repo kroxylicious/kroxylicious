@@ -77,7 +77,7 @@ class KafkaProxyExceptionMapperTest {
 
         // When/Then
         assertThatThrownBy(() -> KafkaProxyExceptionMapper.errorResponseData(ApiKeys.PRODUCE, arbitraryRequest, arbitraryVersion, Errors.NONE, "message"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessage("error must not be NONE when generating an error response");
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("Error responses must target a specific error code. Using NONE represents a programming error");
     }
 
     public static Stream<Arguments> decodedFrameSourceLatestVersion() {

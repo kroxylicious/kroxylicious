@@ -184,7 +184,7 @@ public class KafkaProxyExceptionMapper {
     @Nullable
     public static ApiMessage errorResponseData(ApiKeys apiKey, ApiMessage requestBody, short apiVersion, Errors error, @Nullable String message) {
         if (error == Errors.NONE) {
-            throw new IllegalArgumentException("error must not be NONE when generating an error response");
+            throw new IllegalArgumentException("Error responses must target a specific error code. Using NONE represents a programming error");
         }
         short code = error.code();
         return switch (apiKey) {
