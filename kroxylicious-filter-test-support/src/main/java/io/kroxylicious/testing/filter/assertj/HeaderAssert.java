@@ -8,13 +8,14 @@ package io.kroxylicious.testing.filter.assertj;
 
 import java.nio.charset.StandardCharsets;
 
-import org.apache.kafka.common.header.Header;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.AbstractByteArrayAssert;
 import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowingConsumer;
+
+import io.kroxylicious.kafka.common.header.Header;
 
 /**
  * AssertJ assertions for {@link Header}.
