@@ -23,7 +23,6 @@ import io.apicurio.registry.serde.kafka.headers.HeadersHandler;
 import io.apicurio.schema.validation.ValidationResult;
 
 import io.kroxylicious.filter.validation.validators.Result;
-import io.kroxylicious.kafka.common.header.internals.RecordHeaders;
 import io.kroxylicious.kafka.common.record.internal.Record;
 
 /**
