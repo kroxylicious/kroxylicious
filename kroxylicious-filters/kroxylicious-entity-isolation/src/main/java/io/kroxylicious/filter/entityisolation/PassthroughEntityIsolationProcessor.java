@@ -6,7 +6,7 @@
 
 package io.kroxylicious.filter.entityisolation;
 
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 /**
  * Passthrough entity isolation processor that performs no entity isolation.
