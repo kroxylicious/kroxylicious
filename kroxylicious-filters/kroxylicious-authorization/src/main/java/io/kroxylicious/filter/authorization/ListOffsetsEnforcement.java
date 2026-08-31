@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.ListOffsetsRequestData;
-import org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic;
-import org.apache.kafka.common.message.ListOffsetsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.ListOffsetsRequestData;
+import io.kroxylicious.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic;
+import io.kroxylicious.kafka.common.message.ListOffsetsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;

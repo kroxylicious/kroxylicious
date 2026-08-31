@@ -11,11 +11,11 @@ import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import org.apache.kafka.common.message.DescribeGroupsRequestData;
-import org.apache.kafka.common.message.DescribeGroupsResponseData;
-import org.apache.kafka.common.message.DescribeGroupsResponseData.DescribedGroup;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.DescribeGroupsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeGroupsResponseData;
+import io.kroxylicious.kafka.common.message.DescribeGroupsResponseData.DescribedGroup;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;

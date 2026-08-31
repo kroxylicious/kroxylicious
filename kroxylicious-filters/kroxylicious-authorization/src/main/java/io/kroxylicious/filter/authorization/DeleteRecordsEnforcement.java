@@ -9,14 +9,14 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.DeleteRecordsRequestData;
-import org.apache.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsPartition;
-import org.apache.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsTopic;
-import org.apache.kafka.common.message.DeleteRecordsResponseData;
-import org.apache.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsPartitionResult;
-import org.apache.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsTopicResult;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.DeleteRecordsRequestData;
+import io.kroxylicious.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsPartition;
+import io.kroxylicious.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsTopic;
+import io.kroxylicious.kafka.common.message.DeleteRecordsResponseData;
+import io.kroxylicious.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsPartitionResult;
+import io.kroxylicious.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsTopicResult;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
