@@ -72,6 +72,8 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
+            <!-- the migration tests depend on kafka-clients 4.2.0 to provide MemoryRecords, tests fail if we upgrade-->
+            <version>4.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
