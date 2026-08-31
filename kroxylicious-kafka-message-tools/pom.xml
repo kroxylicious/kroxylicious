@@ -26,9 +26,8 @@
             <artifactId>kroxylicious-annotations</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-            <scope>provided</scope>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>

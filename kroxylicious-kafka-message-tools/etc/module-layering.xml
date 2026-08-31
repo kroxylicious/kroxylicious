@@ -16,5 +16,5 @@
     <allow pkg="org.slf4j"/>
     <allow pkg="edu.umd.cs.findbugs"/>
     <allow pkg="io.kroxylicious.proxy.tag"/>
-    <allow pkg="org.apache.kafka"/>
+    <allow pkg="io.kroxylicious.kafka"/>
 </import-control>
