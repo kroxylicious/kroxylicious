@@ -11,9 +11,9 @@ import java.util.Objects;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.AbstractResponse;
 
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
@@ -78,21 +78,22 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
         if (error == Errors.NONE) {
             throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
         }
-        // Errors.exception(String) returns the default-message exception when message is null.
-        return errorResponseForException(header, requestMessage, error.exception(message));
+        return errorResponseForException(header, requestMessage, error, message);
     }
 
-    private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException) {
-        final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, apiException);
-        validateShortCircuitResponse(errorResponseMessage.data());
+    private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, Errors error,
+                                                                                @Nullable String message) {
+        ApiKeys apiKey = ApiKeys.forId(requestMessage.apiKey());
+        final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseData(apiKey, requestMessage, header.requestApiVersion(), error, message);
+        validateShortCircuitResponse(errorResponseMessage);
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();
         responseHeaders.setCorrelationId(header.correlationId());
         this.shortCircuitHeader = responseHeaders;
-        this.shortCircuitResponse = errorResponseMessage.data();
+        this.shortCircuitResponse = errorResponseMessage;
         return this;
     }
 
-    private void validateShortCircuitResponse(ApiMessage message) {
+    private void validateShortCircuitResponse(@Nullable ApiMessage message) {
         if (message == null) {
             throw new IllegalArgumentException("message may not be null");
         }

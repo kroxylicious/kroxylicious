@@ -12,7 +12,6 @@ import java.util.Objects;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.Records;
-import org.apache.kafka.common.requests.ProduceRequest;
 
 /**
  * Utility methods for working with Kafka {@code *RequestData} classes.
@@ -28,7 +27,7 @@ public class RequestDataUtils {
 
     /**
      * Mirrors the logic of
-     * {@link org.apache.kafka.common.requests.RequestUtils#hasTransactionalRecords(ProduceRequest)}
+     * kafka-clients {@code org.apache.kafka.common.requests.RequestUtils#hasTransactionalRecords(ProduceRequest)}
      * We prefer to only depend on the *Data classes and their dependencies to try and control our exposure
      * to internal classes.
      * @param requestData request data

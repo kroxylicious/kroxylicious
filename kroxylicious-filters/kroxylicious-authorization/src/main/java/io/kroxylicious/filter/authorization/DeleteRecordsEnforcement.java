@@ -17,7 +17,6 @@ import org.apache.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsPa
 import org.apache.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsTopicResult;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.DeleteRecordsResponse;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
@@ -60,7 +59,7 @@ class DeleteRecordsEnforcement extends ApiEnforcement<DeleteRecordsRequestData, 
                                 DeleteRecordsPartitionResult partitionResult = new DeleteRecordsPartitionResult();
                                 partitionResult.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
                                 partitionResult.setPartitionIndex(partition.partitionIndex());
-                                partitionResult.setLowWatermark(DeleteRecordsResponse.INVALID_LOW_WATERMARK);
+                                partitionResult.setLowWatermark(-1L); // Invalid low watermark
                                 deleteResult.partitions().add(partitionResult);
                             }
                             response.topics().mustAdd(deleteResult);
