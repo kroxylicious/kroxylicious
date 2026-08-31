@@ -16,14 +16,6 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiMessageType;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +35,14 @@ import com.google.common.reflect.ClassPath;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
 import io.kroxylicious.filter.multitenant.config.MultiTenantConfig;
+import io.kroxylicious.kafka.common.message.ApiMessageType;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -55,8 +55,8 @@ import io.kroxylicious.testing.filter.requestresponsetestdef.RequestResponseTest
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.kroxylicious.kafka.message.json.KafkaApiMessageConverter.requestConverterFor;
-import static io.kroxylicious.kafka.message.json.KafkaApiMessageConverter.responseConverterFor;
+import static io.kroxylicious.kafka.message.json.VendoredKafkaApiMessageConverter.requestConverterFor;
+import static io.kroxylicious.kafka.message.json.VendoredKafkaApiMessageConverter.responseConverterFor;
 import static io.kroxylicious.testing.filter.condition.kafka.ApiMessageCondition.forApiKey;
 import static io.kroxylicious.testing.filter.condition.kafka.ProduceRequestDataCondition.produceRequestMatching;
 import static org.assertj.core.api.Assertions.assertThat;
