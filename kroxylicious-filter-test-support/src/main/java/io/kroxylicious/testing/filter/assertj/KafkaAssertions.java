@@ -7,11 +7,12 @@
 package io.kroxylicious.testing.filter.assertj;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.Headers;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.header.Headers;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 
 /**
  * Entry point for AssertJ assertions on Kafka record types.

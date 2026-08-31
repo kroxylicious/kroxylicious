@@ -7,9 +7,10 @@
 package io.kroxylicious.testing.filter.assertj;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Headers;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.InstanceOfAssertFactory;
+
+import io.kroxylicious.kafka.common.header.Headers;
 
 /**
  * AssertJ assertions for {@link ConsumerRecord}.
