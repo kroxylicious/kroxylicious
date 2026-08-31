@@ -17,18 +17,18 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.common.errors.InvalidRequestException;
-import org.apache.kafka.common.errors.SaslAuthenticationException;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
+import javax.security.sasl.AuthenticationException;
+
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -327,7 +327,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .log("Rejecting oversized SASL authenticate payload");
         return rejectAuthenticateAndClose(
                 filterContext, stateMachine,
-                new InvalidRequestException("Authentication payload exceeds maximum size"));
+                new AuthenticationException("Authentication payload exceeds maximum size"));
     }
 
     private CompletionStage<RequestFilterResult> rejectAuthenticateNotExpected(FilterContext filterContext) {
@@ -397,7 +397,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .addKeyValue("newAuthorizationId", authorizationId)
                 .log("Reauthentication rejected: authorization ID changed");
         return rejectAuthenticateAndClose(filterContext, stateMachine,
-                new SaslAuthenticationException("Reauthentication failed: authorization identity changed"));
+                new AuthenticationException("Reauthentication failed: authorization identity changed"));
     }
 
     private CompletionStage<RequestFilterResult> completeSubjectBuild(FilterContext filterContext,
@@ -414,7 +414,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                     .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                     .log("Token expired during authentication");
             return rejectAuthenticateAndClose(filterContext, stateMachine,
-                    new SaslAuthenticationException("Token expired during authentication"));
+                    new AuthenticationException("Token expired during authentication"));
         }
 
         return acceptAuthenticateDone(filterContext, success, subject, mechanism, reauthentication, sessionExpiry);
