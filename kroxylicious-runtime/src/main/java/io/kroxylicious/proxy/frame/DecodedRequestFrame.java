@@ -5,13 +5,13 @@
  */
 package io.kroxylicious.proxy.frame;
 
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
-import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE;
 
 /**
  * A decoded request frame.

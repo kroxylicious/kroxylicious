@@ -10,7 +10,7 @@ package io.kroxylicious.proxy.frame;
  * on the wire as length prefixed bytes (no Kafka protocol header).
  * This frame represents those kinds of request.
  *
- * @see "org.apache.kafka.common.security.authenticator.SaslServerAuthenticator#handleKafkaRequest()"
+ * @see "io.kroxylicious.kafka.common.security.authenticator.SaslServerAuthenticator#handleKafkaRequest()"
  */
 public class BareSaslRequest implements RequestFrame {
 

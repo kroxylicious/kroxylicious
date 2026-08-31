@@ -16,106 +16,13 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.common.ElectionType;
 import org.apache.kafka.common.IsolationLevel;
-import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AccessControlEntryFilter;
 import org.apache.kafka.common.acl.AclBindingFilter;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.errors.UnsupportedVersionException;
-import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
-import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
-import org.apache.kafka.common.message.AddRaftVoterRequestData;
-import org.apache.kafka.common.message.AllocateProducerIdsRequestData;
-import org.apache.kafka.common.message.AlterClientQuotasRequestData;
-import org.apache.kafka.common.message.AlterConfigsRequestData;
-import org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData;
-import org.apache.kafka.common.message.AlterPartitionRequestData;
-import org.apache.kafka.common.message.AlterReplicaLogDirsRequestData;
-import org.apache.kafka.common.message.AlterShareGroupOffsetsRequestData;
-import org.apache.kafka.common.message.AlterUserScramCredentialsRequestData;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.AssignReplicasToDirsRequestData;
-import org.apache.kafka.common.message.BeginQuorumEpochRequestData;
-import org.apache.kafka.common.message.BrokerHeartbeatRequestData;
-import org.apache.kafka.common.message.BrokerRegistrationRequestData;
-import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
-import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.ControllerRegistrationRequestData;
-import org.apache.kafka.common.message.CreateAclsRequestData;
-import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
-import org.apache.kafka.common.message.CreatePartitionsRequestData;
-import org.apache.kafka.common.message.CreateTopicsRequestData;
-import org.apache.kafka.common.message.DeleteAclsRequestData;
-import org.apache.kafka.common.message.DeleteGroupsRequestData;
-import org.apache.kafka.common.message.DeleteRecordsRequestData;
-import org.apache.kafka.common.message.DeleteShareGroupOffsetsRequestData;
-import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
-import org.apache.kafka.common.message.DeleteTopicsRequestData;
-import org.apache.kafka.common.message.DescribeAclsRequestData;
-import org.apache.kafka.common.message.DescribeClientQuotasRequestData;
-import org.apache.kafka.common.message.DescribeClusterRequestData;
-import org.apache.kafka.common.message.DescribeConfigsRequestData;
-import org.apache.kafka.common.message.DescribeDelegationTokenRequestData;
-import org.apache.kafka.common.message.DescribeGroupsRequestData;
-import org.apache.kafka.common.message.DescribeLogDirsRequestData;
-import org.apache.kafka.common.message.DescribeProducersRequestData;
-import org.apache.kafka.common.message.DescribeQuorumRequestData;
-import org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData;
-import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
-import org.apache.kafka.common.message.DescribeTransactionsRequestData;
-import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
-import org.apache.kafka.common.message.ElectLeadersRequestData;
-import org.apache.kafka.common.message.EndQuorumEpochRequestData;
-import org.apache.kafka.common.message.EndTxnRequestData;
-import org.apache.kafka.common.message.EnvelopeRequestData;
-import org.apache.kafka.common.message.ExpireDelegationTokenRequestData;
-import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.FetchSnapshotRequestData;
-import org.apache.kafka.common.message.FindCoordinatorRequestData;
-import org.apache.kafka.common.message.GetTelemetrySubscriptionsRequestData;
-import org.apache.kafka.common.message.HeartbeatRequestData;
-import org.apache.kafka.common.message.IncrementalAlterConfigsRequestData;
-import org.apache.kafka.common.message.InitProducerIdRequestData;
-import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
-import org.apache.kafka.common.message.JoinGroupRequestData;
-import org.apache.kafka.common.message.LeaveGroupRequestData;
-import org.apache.kafka.common.message.ListConfigResourcesRequestData;
-import org.apache.kafka.common.message.ListGroupsRequestData;
-import org.apache.kafka.common.message.ListOffsetsRequestData;
-import org.apache.kafka.common.message.ListPartitionReassignmentsRequestData;
-import org.apache.kafka.common.message.ListTransactionsRequestData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.OffsetCommitRequestData;
-import org.apache.kafka.common.message.OffsetDeleteRequestData;
-import org.apache.kafka.common.message.OffsetFetchRequestData;
-import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.PushTelemetryRequestData;
-import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
-import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
-import org.apache.kafka.common.message.RemoveRaftVoterRequestData;
-import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.message.ShareAcknowledgeRequestData;
-import org.apache.kafka.common.message.ShareFetchRequestData;
-import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
-import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.StreamsGroupDescribeRequestData;
-import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.SyncGroupRequestData;
-import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
-import org.apache.kafka.common.message.UnregisterBrokerRequestData;
-import org.apache.kafka.common.message.UpdateFeaturesRequestData;
-import org.apache.kafka.common.message.UpdateRaftVoterRequestData;
-import org.apache.kafka.common.message.VoteRequestData;
-import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
-import org.apache.kafka.common.message.WriteTxnMarkersRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.requests.AbstractRequest;
 import org.apache.kafka.common.requests.AddOffsetsToTxnRequest;
 import org.apache.kafka.common.requests.AddPartitionsToTxnRequest;
@@ -215,6 +122,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.protocol.Errors;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -232,7 +142,7 @@ class KafkaProxyExceptionMapperParityTest {
     private static final org.apache.kafka.common.Uuid KAFKA_TOPIC_ID = new org.apache.kafka.common.Uuid(TOPIC_ID.getMostSignificantBits(),
             TOPIC_ID.getLeastSignificantBits());
 
-    record MatchedInput(ApiMessage kroxyliciousRequest, org.apache.kafka.common.protocol.ApiMessage kafkaRequest) {
+    record MatchedInput(io.kroxylicious.kafka.common.protocol.ApiMessage kroxyliciousRequest, org.apache.kafka.common.protocol.ApiMessage kafkaRequest) {
 
     }
 
@@ -246,9 +156,10 @@ class KafkaProxyExceptionMapperParityTest {
         MatchedInput requests = REQUEST_BUILDERS.get(apiKey).apply(version);
         AbstractRequest oracleRequest = ORACLE_BUILDERS.get(apiKey).apply(requests.kafkaRequest(), version);
         org.apache.kafka.common.protocol.ApiMessage expected = oracleRequest.getErrorResponse(0, new UnknownServerException(MESSAGE)).data();
-
+        io.kroxylicious.kafka.common.protocol.ApiKeys kroxyliciousKey = io.kroxylicious.kafka.common.protocol.ApiKeys.forId(apiKey.id);
         // When
-        ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(apiKey, requests.kroxyliciousRequest, version, ERROR, MESSAGE);
+        io.kroxylicious.kafka.common.protocol.ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(kroxyliciousKey, requests.kroxyliciousRequest, version,
+                ERROR, MESSAGE);
 
         // Then
         assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
@@ -262,10 +173,12 @@ class KafkaProxyExceptionMapperParityTest {
     @MethodSource("produceVersions")
     void produceReturnsNullWhenAcksZero(short version) {
         // Given
-        ProduceRequestData request = new ProduceRequestData().setAcks((short) 0).setTimeoutMs(1000);
+        io.kroxylicious.kafka.common.message.ProduceRequestData request = new io.kroxylicious.kafka.common.message.ProduceRequestData().setAcks((short) 0)
+                .setTimeoutMs(1000);
 
         // When
-        ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(ApiKeys.PRODUCE, request, version, ERROR, MESSAGE);
+        io.kroxylicious.kafka.common.protocol.ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE,
+                request, version, ERROR, MESSAGE);
 
         // Then
         assertThat(actual).isNull();
@@ -274,14 +187,15 @@ class KafkaProxyExceptionMapperParityTest {
     @Test
     void apiVersionsUnsupportedVersionIncludesSupportedApiKeys() {
         // Given
-        ApiVersionsRequestData request = new ApiVersionsRequestData();
         short version = ApiKeys.API_VERSIONS.latestVersion();
         org.apache.kafka.common.message.ApiVersionsRequestData kafkaRequest = new org.apache.kafka.common.message.ApiVersionsRequestData();
         ApiVersionsRequest oracleRequest = new ApiVersionsRequest(kafkaRequest, version);
         org.apache.kafka.common.protocol.ApiMessage expected = oracleRequest.getErrorResponse(0, new UnsupportedVersionException(MESSAGE)).data();
 
+        io.kroxylicious.kafka.common.message.ApiVersionsRequestData request = new io.kroxylicious.kafka.common.message.ApiVersionsRequestData();
         // When
-        ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(ApiKeys.API_VERSIONS, request, version, Errors.UNSUPPORTED_VERSION, MESSAGE);
+        io.kroxylicious.kafka.common.protocol.ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(io.kroxylicious.kafka.common.protocol.ApiKeys.API_VERSIONS,
+                request, version, Errors.UNSUPPORTED_VERSION, MESSAGE);
 
         // Then
         assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
@@ -301,103 +215,137 @@ class KafkaProxyExceptionMapperParityTest {
         Map<ApiKeys, Function<Short, MatchedInput>> builders = new EnumMap<>(ApiKeys.class);
         // Regular-flat: response content never reads the request body, so an empty instance suffices at every version.
         builders.put(ApiKeys.ADD_OFFSETS_TO_TXN,
-                v -> new MatchedInput(new AddOffsetsToTxnRequestData(), new org.apache.kafka.common.message.AddOffsetsToTxnRequestData()));
-        builders.put(ApiKeys.ADD_RAFT_VOTER, v -> new MatchedInput(new AddRaftVoterRequestData(), new org.apache.kafka.common.message.AddRaftVoterRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AddOffsetsToTxnRequestData(),
+                        new org.apache.kafka.common.message.AddOffsetsToTxnRequestData()));
+        builders.put(ApiKeys.ADD_RAFT_VOTER,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AddRaftVoterRequestData(), new org.apache.kafka.common.message.AddRaftVoterRequestData()));
         builders.put(ApiKeys.ALLOCATE_PRODUCER_IDS,
-                v -> new MatchedInput(new AllocateProducerIdsRequestData(), new org.apache.kafka.common.message.AllocateProducerIdsRequestData()));
-        builders.put(ApiKeys.ALTER_PARTITION, v -> new MatchedInput(new AlterPartitionRequestData(), new org.apache.kafka.common.message.AlterPartitionRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AllocateProducerIdsRequestData(),
+                        new org.apache.kafka.common.message.AllocateProducerIdsRequestData()));
+        builders.put(ApiKeys.ALTER_PARTITION, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AlterPartitionRequestData(),
+                new org.apache.kafka.common.message.AlterPartitionRequestData()));
         builders.put(ApiKeys.ASSIGN_REPLICAS_TO_DIRS,
-                v -> new MatchedInput(new AssignReplicasToDirsRequestData(), new org.apache.kafka.common.message.AssignReplicasToDirsRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AssignReplicasToDirsRequestData(),
+                        new org.apache.kafka.common.message.AssignReplicasToDirsRequestData()));
         builders.put(ApiKeys.BEGIN_QUORUM_EPOCH,
-                v -> new MatchedInput(new BeginQuorumEpochRequestData(), new org.apache.kafka.common.message.BeginQuorumEpochRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.BeginQuorumEpochRequestData(),
+                        new org.apache.kafka.common.message.BeginQuorumEpochRequestData()));
         builders.put(ApiKeys.BROKER_HEARTBEAT,
-                v -> new MatchedInput(new BrokerHeartbeatRequestData(), new org.apache.kafka.common.message.BrokerHeartbeatRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.BrokerHeartbeatRequestData(),
+                        new org.apache.kafka.common.message.BrokerHeartbeatRequestData()));
         builders.put(ApiKeys.BROKER_REGISTRATION,
-                v -> new MatchedInput(new BrokerRegistrationRequestData(), new org.apache.kafka.common.message.BrokerRegistrationRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.BrokerRegistrationRequestData(),
+                        new org.apache.kafka.common.message.BrokerRegistrationRequestData()));
         builders.put(ApiKeys.CONSUMER_GROUP_HEARTBEAT,
-                v -> new MatchedInput(new ConsumerGroupHeartbeatRequestData(), new org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ConsumerGroupHeartbeatRequestData(),
+                        new org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData()));
         builders.put(ApiKeys.CONTROLLER_REGISTRATION,
-                v -> new MatchedInput(new ControllerRegistrationRequestData(), new org.apache.kafka.common.message.ControllerRegistrationRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ControllerRegistrationRequestData(),
+                        new org.apache.kafka.common.message.ControllerRegistrationRequestData()));
         builders.put(ApiKeys.DESCRIBE_CLIENT_QUOTAS,
-                v -> new MatchedInput(new DescribeClientQuotasRequestData(), new org.apache.kafka.common.message.DescribeClientQuotasRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.DescribeClientQuotasRequestData(),
+                        new org.apache.kafka.common.message.DescribeClientQuotasRequestData()));
         builders.put(ApiKeys.DESCRIBE_CLUSTER,
-                v -> new MatchedInput(new DescribeClusterRequestData(), new org.apache.kafka.common.message.DescribeClusterRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.DescribeClusterRequestData(),
+                        new org.apache.kafka.common.message.DescribeClusterRequestData()));
         builders.put(ApiKeys.DESCRIBE_LOG_DIRS,
-                v -> new MatchedInput(new DescribeLogDirsRequestData(), new org.apache.kafka.common.message.DescribeLogDirsRequestData()));
-        builders.put(ApiKeys.END_QUORUM_EPOCH, v -> new MatchedInput(new EndQuorumEpochRequestData(), new org.apache.kafka.common.message.EndQuorumEpochRequestData()));
-        builders.put(ApiKeys.ENVELOPE, v -> new MatchedInput(new EnvelopeRequestData(), new org.apache.kafka.common.message.EnvelopeRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.DescribeLogDirsRequestData(),
+                        new org.apache.kafka.common.message.DescribeLogDirsRequestData()));
+        builders.put(ApiKeys.END_QUORUM_EPOCH, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.EndQuorumEpochRequestData(),
+                new org.apache.kafka.common.message.EndQuorumEpochRequestData()));
+        builders.put(ApiKeys.ENVELOPE,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.EnvelopeRequestData(), new org.apache.kafka.common.message.EnvelopeRequestData()));
         builders.put(ApiKeys.EXPIRE_DELEGATION_TOKEN,
-                v -> new MatchedInput(new ExpireDelegationTokenRequestData(), new org.apache.kafka.common.message.ExpireDelegationTokenRequestData()));
-        builders.put(ApiKeys.FETCH_SNAPSHOT, v -> new MatchedInput(new FetchSnapshotRequestData(), new org.apache.kafka.common.message.FetchSnapshotRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ExpireDelegationTokenRequestData(),
+                        new org.apache.kafka.common.message.ExpireDelegationTokenRequestData()));
+        builders.put(ApiKeys.FETCH_SNAPSHOT, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.FetchSnapshotRequestData(),
+                new org.apache.kafka.common.message.FetchSnapshotRequestData()));
         builders.put(ApiKeys.GET_TELEMETRY_SUBSCRIPTIONS,
-                v -> new MatchedInput(new GetTelemetrySubscriptionsRequestData(), new org.apache.kafka.common.message.GetTelemetrySubscriptionsRequestData()));
-        builders.put(ApiKeys.HEARTBEAT, v -> new MatchedInput(new HeartbeatRequestData(), new org.apache.kafka.common.message.HeartbeatRequestData()));
-        builders.put(ApiKeys.LIST_GROUPS, v -> new MatchedInput(new ListGroupsRequestData(), new org.apache.kafka.common.message.ListGroupsRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.GetTelemetrySubscriptionsRequestData(),
+                        new org.apache.kafka.common.message.GetTelemetrySubscriptionsRequestData()));
+        builders.put(ApiKeys.HEARTBEAT,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.HeartbeatRequestData(), new org.apache.kafka.common.message.HeartbeatRequestData()));
+        builders.put(ApiKeys.LIST_GROUPS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ListGroupsRequestData(), new org.apache.kafka.common.message.ListGroupsRequestData()));
         builders.put(ApiKeys.LIST_TRANSACTIONS,
-                v -> new MatchedInput(new ListTransactionsRequestData(), new org.apache.kafka.common.message.ListTransactionsRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ListTransactionsRequestData(),
+                        new org.apache.kafka.common.message.ListTransactionsRequestData()));
         builders.put(ApiKeys.REMOVE_RAFT_VOTER,
-                v -> new MatchedInput(new RemoveRaftVoterRequestData(), new org.apache.kafka.common.message.RemoveRaftVoterRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.RemoveRaftVoterRequestData(),
+                        new org.apache.kafka.common.message.RemoveRaftVoterRequestData()));
         builders.put(ApiKeys.RENEW_DELEGATION_TOKEN,
-                v -> new MatchedInput(new RenewDelegationTokenRequestData(), new org.apache.kafka.common.message.RenewDelegationTokenRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.RenewDelegationTokenRequestData(),
+                        new org.apache.kafka.common.message.RenewDelegationTokenRequestData()));
         builders.put(ApiKeys.SASL_AUTHENTICATE,
-                v -> new MatchedInput(new SaslAuthenticateRequestData(), new org.apache.kafka.common.message.SaslAuthenticateRequestData()));
-        builders.put(ApiKeys.SASL_HANDSHAKE, v -> new MatchedInput(new SaslHandshakeRequestData(), new org.apache.kafka.common.message.SaslHandshakeRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData(),
+                        new org.apache.kafka.common.message.SaslAuthenticateRequestData()));
+        builders.put(ApiKeys.SASL_HANDSHAKE, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.SaslHandshakeRequestData(),
+                new org.apache.kafka.common.message.SaslHandshakeRequestData()));
         builders.put(ApiKeys.SHARE_ACKNOWLEDGE,
-                v -> new MatchedInput(new ShareAcknowledgeRequestData(), new org.apache.kafka.common.message.ShareAcknowledgeRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ShareAcknowledgeRequestData(),
+                        new org.apache.kafka.common.message.ShareAcknowledgeRequestData()));
         builders.put(ApiKeys.SHARE_GROUP_HEARTBEAT,
-                v -> new MatchedInput(new ShareGroupHeartbeatRequestData(), new org.apache.kafka.common.message.ShareGroupHeartbeatRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ShareGroupHeartbeatRequestData(),
+                        new org.apache.kafka.common.message.ShareGroupHeartbeatRequestData()));
         builders.put(ApiKeys.STREAMS_GROUP_HEARTBEAT,
-                v -> new MatchedInput(new StreamsGroupHeartbeatRequestData(), new org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.StreamsGroupHeartbeatRequestData(),
+                        new org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData()));
         builders.put(ApiKeys.UNREGISTER_BROKER,
-                v -> new MatchedInput(new UnregisterBrokerRequestData(), new org.apache.kafka.common.message.UnregisterBrokerRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.UnregisterBrokerRequestData(),
+                        new org.apache.kafka.common.message.UnregisterBrokerRequestData()));
         builders.put(ApiKeys.UPDATE_RAFT_VOTER,
-                v -> new MatchedInput(new UpdateRaftVoterRequestData(), new org.apache.kafka.common.message.UpdateRaftVoterRequestData()));
-        builders.put(ApiKeys.VOTE, v -> new MatchedInput(new VoteRequestData(), new org.apache.kafka.common.message.VoteRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.UpdateRaftVoterRequestData(),
+                        new org.apache.kafka.common.message.UpdateRaftVoterRequestData()));
+        builders.put(ApiKeys.VOTE,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.VoteRequestData(), new org.apache.kafka.common.message.VoteRequestData()));
 
         // Array-copy: populate with real elements so per-element error stamping is actually exercised.
         builders.put(ApiKeys.DELETE_GROUPS, v -> new MatchedInput(
-                new DeleteGroupsRequestData().setGroupsNames(List.of("group-1", "group-2")),
+                new io.kroxylicious.kafka.common.message.DeleteGroupsRequestData().setGroupsNames(List.of("group-1", "group-2")),
                 new org.apache.kafka.common.message.DeleteGroupsRequestData().setGroupsNames(List.of("group-1", "group-2"))));
         builders.put(ApiKeys.INCREMENTAL_ALTER_CONFIGS, KafkaProxyExceptionMapperParityTest::incrementalAlterConfigsInput);
         builders.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, v -> new MatchedInput(
-                new ConsumerGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")),
+                new io.kroxylicious.kafka.common.message.ConsumerGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")),
                 new org.apache.kafka.common.message.ConsumerGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2"))));
         builders.put(ApiKeys.SHARE_GROUP_DESCRIBE, v -> new MatchedInput(
-                new ShareGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")),
+                new io.kroxylicious.kafka.common.message.ShareGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")),
                 new org.apache.kafka.common.message.ShareGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2"))));
         builders.put(ApiKeys.STREAMS_GROUP_DESCRIBE, v -> new MatchedInput(
-                new StreamsGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")),
+                new io.kroxylicious.kafka.common.message.StreamsGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")),
                 new org.apache.kafka.common.message.StreamsGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2"))));
         builders.put(ApiKeys.CREATE_ACLS, v -> new MatchedInput(
-                new CreateAclsRequestData().setCreations(List.of(validAclCreation("topic-a"), validAclCreation("topic-b"))),
+                new io.kroxylicious.kafka.common.message.CreateAclsRequestData().setCreations(List.of(validAclCreation("topic-a"), validAclCreation("topic-b"))),
                 new org.apache.kafka.common.message.CreateAclsRequestData().setCreations(List.of(validAclCreationKafka("topic-a"), validAclCreationKafka("topic-b")))));
         builders.put(ApiKeys.DELETE_ACLS, v -> new MatchedInput(
-                new DeleteAclsRequestData().setFilters(List.of(validDeleteAclsFilter("topic-a"), validDeleteAclsFilter("topic-b"))),
+                new io.kroxylicious.kafka.common.message.DeleteAclsRequestData().setFilters(List.of(validDeleteAclsFilter("topic-a"), validDeleteAclsFilter("topic-b"))),
                 new org.apache.kafka.common.message.DeleteAclsRequestData()
                         .setFilters(List.of(validDeleteAclsFilterKafka("topic-a"), validDeleteAclsFilterKafka("topic-b")))));
         builders.put(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, KafkaProxyExceptionMapperParityTest::describeUserScramCredentialsInput);
         builders.put(ApiKeys.CREATE_PARTITIONS, KafkaProxyExceptionMapperParityTest::createPartitionsInput);
         builders.put(ApiKeys.CREATE_TOPICS, KafkaProxyExceptionMapperParityTest::createTopicsInput);
         builders.put(ApiKeys.DESCRIBE_CONFIGS, v -> new MatchedInput(
-                new DescribeConfigsRequestData().setResources(
-                        List.of(new DescribeConfigsRequestData.DescribeConfigsResource().setResourceName("topic-a").setResourceType((byte) 2))),
+                new io.kroxylicious.kafka.common.message.DescribeConfigsRequestData().setResources(
+                        List.of(new io.kroxylicious.kafka.common.message.DescribeConfigsRequestData.DescribeConfigsResource().setResourceName("topic-a")
+                                .setResourceType((byte) 2))),
                 new org.apache.kafka.common.message.DescribeConfigsRequestData().setResources(
                         List.of(new org.apache.kafka.common.message.DescribeConfigsRequestData.DescribeConfigsResource().setResourceName("topic-a")
                                 .setResourceType((byte) 2)))));
         builders.put(ApiKeys.DESCRIBE_TRANSACTIONS, v -> new MatchedInput(
-                new DescribeTransactionsRequestData().setTransactionalIds(List.of("txn-1", "txn-2")),
+                new io.kroxylicious.kafka.common.message.DescribeTransactionsRequestData().setTransactionalIds(List.of("txn-1", "txn-2")),
                 new org.apache.kafka.common.message.DescribeTransactionsRequestData().setTransactionalIds(List.of("txn-1", "txn-2"))));
         builders.put(ApiKeys.DESCRIBE_PRODUCERS, v -> new MatchedInput(
-                new DescribeProducersRequestData().setTopics(
-                        List.of(new DescribeProducersRequestData.TopicRequest().setName("topic-a").setPartitionIndexes(List.of(0, 1)))),
+                new io.kroxylicious.kafka.common.message.DescribeProducersRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.DescribeProducersRequestData.TopicRequest().setName("topic-a")
+                                .setPartitionIndexes(List.of(0, 1)))),
                 new org.apache.kafka.common.message.DescribeProducersRequestData().setTopics(
                         List.of(new org.apache.kafka.common.message.DescribeProducersRequestData.TopicRequest().setName("topic-a").setPartitionIndexes(List.of(0, 1))))));
         builders.put(ApiKeys.DESCRIBE_TOPIC_PARTITIONS, v -> new MatchedInput(
-                new DescribeTopicPartitionsRequestData().setTopics(List.of(new DescribeTopicPartitionsRequestData.TopicRequest().setName("topic-a"))),
+                new io.kroxylicious.kafka.common.message.DescribeTopicPartitionsRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.DescribeTopicPartitionsRequestData.TopicRequest().setName("topic-a"))),
                 new org.apache.kafka.common.message.DescribeTopicPartitionsRequestData().setTopics(
                         List.of(new org.apache.kafka.common.message.DescribeTopicPartitionsRequestData.TopicRequest().setName("topic-a")))));
         builders.put(ApiKeys.READ_SHARE_GROUP_STATE, v -> new MatchedInput(
-                new ReadShareGroupStateRequestData().setTopics(shareGroupReadTopics()),
+                new io.kroxylicious.kafka.common.message.ReadShareGroupStateRequestData().setTopics(shareGroupReadTopics()),
                 new org.apache.kafka.common.message.ReadShareGroupStateRequestData().setTopics(shareGroupReadTopicsKafka())));
         builders.put(ApiKeys.WRITE_SHARE_GROUP_STATE, KafkaProxyExceptionMapperParityTest::writeShareGroupStateInput);
         builders.put(ApiKeys.INITIALIZE_SHARE_GROUP_STATE, KafkaProxyExceptionMapperParityTest::initializeShareGroupStateInput);
@@ -410,79 +358,96 @@ class KafkaProxyExceptionMapperParityTest {
         builders.put(ApiKeys.ALTER_PARTITION_REASSIGNMENTS, KafkaProxyExceptionMapperParityTest::alterPartitionReassignmentsInput);
         builders.put(ApiKeys.ALTER_REPLICA_LOG_DIRS, KafkaProxyExceptionMapperParityTest::alterReplicaLogDirsInput);
         builders.put(ApiKeys.ALTER_SHARE_GROUP_OFFSETS,
-                v -> new MatchedInput(new AlterShareGroupOffsetsRequestData(), new org.apache.kafka.common.message.AlterShareGroupOffsetsRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AlterShareGroupOffsetsRequestData(),
+                        new org.apache.kafka.common.message.AlterShareGroupOffsetsRequestData()));
         builders.put(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, KafkaProxyExceptionMapperParityTest::alterUserScramCredentialsInput);
         builders.put(ApiKeys.CREATE_DELEGATION_TOKEN,
-                v -> new MatchedInput(new CreateDelegationTokenRequestData(), new org.apache.kafka.common.message.CreateDelegationTokenRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.CreateDelegationTokenRequestData(),
+                        new org.apache.kafka.common.message.CreateDelegationTokenRequestData()));
         builders.put(ApiKeys.DELETE_SHARE_GROUP_OFFSETS,
-                v -> new MatchedInput(new DeleteShareGroupOffsetsRequestData(), new org.apache.kafka.common.message.DeleteShareGroupOffsetsRequestData()));
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.DeleteShareGroupOffsetsRequestData(),
+                        new org.apache.kafka.common.message.DeleteShareGroupOffsetsRequestData()));
         builders.put(ApiKeys.DELETE_TOPICS, KafkaProxyExceptionMapperParityTest::deleteTopicsInput);
         builders.put(ApiKeys.DESCRIBE_GROUPS, v -> new MatchedInput(
-                new DescribeGroupsRequestData().setGroups(List.of("group-1", "group-2")),
+                new io.kroxylicious.kafka.common.message.DescribeGroupsRequestData().setGroups(List.of("group-1", "group-2")),
                 new org.apache.kafka.common.message.DescribeGroupsRequestData().setGroups(List.of("group-1", "group-2"))));
-        builders.put(ApiKeys.DESCRIBE_QUORUM, v -> new MatchedInput(new DescribeQuorumRequestData(), new org.apache.kafka.common.message.DescribeQuorumRequestData()));
+        builders.put(ApiKeys.DESCRIBE_QUORUM, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.DescribeQuorumRequestData(),
+                new org.apache.kafka.common.message.DescribeQuorumRequestData()));
         builders.put(ApiKeys.DESCRIBE_SHARE_GROUP_OFFSETS, v -> new MatchedInput(
-                new DescribeShareGroupOffsetsRequestData().setGroups(List.of(
-                        new DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-1"),
-                        new DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-2"))),
+                new io.kroxylicious.kafka.common.message.DescribeShareGroupOffsetsRequestData().setGroups(List.of(
+                        new io.kroxylicious.kafka.common.message.DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-1"),
+                        new io.kroxylicious.kafka.common.message.DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-2"))),
                 new org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData().setGroups(List.of(
                         new org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-1"),
                         new org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-2")))));
         builders.put(ApiKeys.LIST_PARTITION_REASSIGNMENTS, KafkaProxyExceptionMapperParityTest::listPartitionReassignmentsInput);
         builders.put(ApiKeys.OFFSET_COMMIT, KafkaProxyExceptionMapperParityTest::offsetCommitInput);
-        builders.put(ApiKeys.OFFSET_DELETE, v -> new MatchedInput(new OffsetDeleteRequestData(), new org.apache.kafka.common.message.OffsetDeleteRequestData()));
-        builders.put(ApiKeys.PUSH_TELEMETRY, v -> new MatchedInput(new PushTelemetryRequestData(), new org.apache.kafka.common.message.PushTelemetryRequestData()));
-        builders.put(ApiKeys.SHARE_FETCH, v -> new MatchedInput(new ShareFetchRequestData(), new org.apache.kafka.common.message.ShareFetchRequestData()));
-        builders.put(ApiKeys.UPDATE_FEATURES, v -> new MatchedInput(new UpdateFeaturesRequestData(), new org.apache.kafka.common.message.UpdateFeaturesRequestData()));
+        builders.put(ApiKeys.OFFSET_DELETE,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.OffsetDeleteRequestData(), new org.apache.kafka.common.message.OffsetDeleteRequestData()));
+        builders.put(ApiKeys.PUSH_TELEMETRY, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.PushTelemetryRequestData(),
+                new org.apache.kafka.common.message.PushTelemetryRequestData()));
+        builders.put(ApiKeys.SHARE_FETCH,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ShareFetchRequestData(), new org.apache.kafka.common.message.ShareFetchRequestData()));
+        builders.put(ApiKeys.UPDATE_FEATURES, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.UpdateFeaturesRequestData(),
+                new org.apache.kafka.common.message.UpdateFeaturesRequestData()));
 
         // Chunk 3: bespoke RPCs (sentinel defaults, conditional responses, multi-era wire shapes).
         builders.put(ApiKeys.PRODUCE, KafkaProxyExceptionMapperParityTest::produceInput);
         builders.put(ApiKeys.FETCH, KafkaProxyExceptionMapperParityTest::fetchInput);
         builders.put(ApiKeys.OFFSET_FETCH, KafkaProxyExceptionMapperParityTest::offsetFetchInput);
         builders.put(ApiKeys.METADATA, v -> new MatchedInput(
-                new MetadataRequestData().setTopics(List.of(new MetadataRequestData.MetadataRequestTopic().setName("topic-a").setTopicId(TOPIC_ID))),
+                new io.kroxylicious.kafka.common.message.MetadataRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.MetadataRequestData.MetadataRequestTopic().setName("topic-a").setTopicId(TOPIC_ID))),
                 new org.apache.kafka.common.message.MetadataRequestData().setTopics(
                         List.of(new org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic().setName("topic-a").setTopicId(KAFKA_TOPIC_ID)))));
         builders.put(ApiKeys.LIST_OFFSETS, KafkaProxyExceptionMapperParityTest::listOffsetsInput);
-        builders.put(ApiKeys.API_VERSIONS, v -> new MatchedInput(new ApiVersionsRequestData(), new org.apache.kafka.common.message.ApiVersionsRequestData()));
-        builders.put(ApiKeys.END_TXN, v -> new MatchedInput(new EndTxnRequestData(), new org.apache.kafka.common.message.EndTxnRequestData()));
+        builders.put(ApiKeys.API_VERSIONS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ApiVersionsRequestData(), new org.apache.kafka.common.message.ApiVersionsRequestData()));
+        builders.put(ApiKeys.END_TXN,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.EndTxnRequestData(), new org.apache.kafka.common.message.EndTxnRequestData()));
         builders.put(ApiKeys.LEAVE_GROUP, v -> new MatchedInput(
-                new LeaveGroupRequestData().setGroupId("group-1").setMembers(List.of(new LeaveGroupRequestData.MemberIdentity().setMemberId("member-1"))),
+                new io.kroxylicious.kafka.common.message.LeaveGroupRequestData().setGroupId("group-1")
+                        .setMembers(List.of(new io.kroxylicious.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("member-1"))),
                 new org.apache.kafka.common.message.LeaveGroupRequestData().setGroupId("group-1").setMembers(
                         List.of(new org.apache.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("member-1")))));
         builders.put(ApiKeys.LIST_CONFIG_RESOURCES, v -> new MatchedInput(
-                new ListConfigResourcesRequestData().setResourceTypes(List.of(org.apache.kafka.common.config.ConfigResource.Type.CLIENT_METRICS.id())),
+                new io.kroxylicious.kafka.common.message.ListConfigResourcesRequestData().setResourceTypes(
+                        List.of(org.apache.kafka.common.config.ConfigResource.Type.CLIENT_METRICS.id())),
                 new org.apache.kafka.common.message.ListConfigResourcesRequestData().setResourceTypes(
                         List.of(org.apache.kafka.common.config.ConfigResource.Type.CLIENT_METRICS.id()))));
         builders.put(ApiKeys.DESCRIBE_ACLS, KafkaProxyExceptionMapperParityTest::describeAclsInput);
         builders.put(ApiKeys.ELECT_LEADERS, KafkaProxyExceptionMapperParityTest::electLeadersInput);
         builders.put(ApiKeys.DESCRIBE_DELEGATION_TOKEN, v -> new MatchedInput(
-                new DescribeDelegationTokenRequestData().setOwners(
-                        List.of(new DescribeDelegationTokenRequestData.DescribeDelegationTokenOwner().setPrincipalType("User").setPrincipalName("alice"))),
+                new io.kroxylicious.kafka.common.message.DescribeDelegationTokenRequestData().setOwners(
+                        List.of(new io.kroxylicious.kafka.common.message.DescribeDelegationTokenRequestData.DescribeDelegationTokenOwner().setPrincipalType("User")
+                                .setPrincipalName("alice"))),
                 new org.apache.kafka.common.message.DescribeDelegationTokenRequestData().setOwners(
                         List.of(new org.apache.kafka.common.message.DescribeDelegationTokenRequestData.DescribeDelegationTokenOwner().setPrincipalType("User")
                                 .setPrincipalName("alice")))));
         builders.put(ApiKeys.ADD_PARTITIONS_TO_TXN, KafkaProxyExceptionMapperParityTest::addPartitionsToTxnInput);
         builders.put(ApiKeys.DELETE_RECORDS, KafkaProxyExceptionMapperParityTest::deleteRecordsInput);
         builders.put(ApiKeys.FIND_COORDINATOR, v -> new MatchedInput(
-                new FindCoordinatorRequestData().setCoordinatorKeys(List.of("key-1")).setKeyType((byte) 0),
+                new io.kroxylicious.kafka.common.message.FindCoordinatorRequestData().setCoordinatorKeys(List.of("key-1")).setKeyType((byte) 0),
                 new org.apache.kafka.common.message.FindCoordinatorRequestData().setCoordinatorKeys(List.of("key-1")).setKeyType((byte) 0)));
-        builders.put(ApiKeys.JOIN_GROUP, v -> new MatchedInput(new JoinGroupRequestData(), new org.apache.kafka.common.message.JoinGroupRequestData()));
+        builders.put(ApiKeys.JOIN_GROUP,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.JoinGroupRequestData(), new org.apache.kafka.common.message.JoinGroupRequestData()));
         builders.put(ApiKeys.OFFSET_FOR_LEADER_EPOCH, KafkaProxyExceptionMapperParityTest::offsetForLeaderEpochInput);
-        builders.put(ApiKeys.SYNC_GROUP, v -> new MatchedInput(new SyncGroupRequestData(), new org.apache.kafka.common.message.SyncGroupRequestData()));
+        builders.put(ApiKeys.SYNC_GROUP,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.SyncGroupRequestData(), new org.apache.kafka.common.message.SyncGroupRequestData()));
         builders.put(ApiKeys.TXN_OFFSET_COMMIT, KafkaProxyExceptionMapperParityTest::txnOffsetCommitInput);
         builders.put(ApiKeys.WRITE_TXN_MARKERS, KafkaProxyExceptionMapperParityTest::writeTxnMarkersInput);
         builders.put(ApiKeys.INIT_PRODUCER_ID, v -> new MatchedInput(
-                new InitProducerIdRequestData().setTransactionTimeoutMs(60000).setTransactionalId("txn-1"),
+                new io.kroxylicious.kafka.common.message.InitProducerIdRequestData().setTransactionTimeoutMs(60000).setTransactionalId("txn-1"),
                 new org.apache.kafka.common.message.InitProducerIdRequestData().setTransactionTimeoutMs(60000).setTransactionalId("txn-1")));
         return builders;
     }
 
     private static MatchedInput incrementalAlterConfigsInput(short version) {
         return new MatchedInput(
-                new IncrementalAlterConfigsRequestData().setResources(
-                        new IncrementalAlterConfigsRequestData.AlterConfigsResourceCollection(
-                                List.of(new IncrementalAlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a").setResourceType((byte) 2)).iterator())),
+                new io.kroxylicious.kafka.common.message.IncrementalAlterConfigsRequestData().setResources(
+                        new io.kroxylicious.kafka.common.message.IncrementalAlterConfigsRequestData.AlterConfigsResourceCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.IncrementalAlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a")
+                                        .setResourceType((byte) 2)).iterator())),
                 new org.apache.kafka.common.message.IncrementalAlterConfigsRequestData().setResources(
                         new org.apache.kafka.common.message.IncrementalAlterConfigsRequestData.AlterConfigsResourceCollection(
                                 List.of(new org.apache.kafka.common.message.IncrementalAlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a")
@@ -491,9 +456,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput describeUserScramCredentialsInput(short version) {
         return new MatchedInput(
-                new DescribeUserScramCredentialsRequestData().setUsers(
-                        List.of(new DescribeUserScramCredentialsRequestData.UserName().setName("alice"),
-                                new DescribeUserScramCredentialsRequestData.UserName().setName("bob"))),
+                new io.kroxylicious.kafka.common.message.DescribeUserScramCredentialsRequestData().setUsers(
+                        List.of(new io.kroxylicious.kafka.common.message.DescribeUserScramCredentialsRequestData.UserName().setName("alice"),
+                                new io.kroxylicious.kafka.common.message.DescribeUserScramCredentialsRequestData.UserName().setName("bob"))),
                 new org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData().setUsers(
                         List.of(new org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData.UserName().setName("alice"),
                                 new org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData.UserName().setName("bob"))));
@@ -501,9 +466,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput createPartitionsInput(short version) {
         return new MatchedInput(
-                new CreatePartitionsRequestData().setTopics(
-                        new CreatePartitionsRequestData.CreatePartitionsTopicCollection(
-                                List.of(new CreatePartitionsRequestData.CreatePartitionsTopic().setName("topic-a")).iterator())),
+                new io.kroxylicious.kafka.common.message.CreatePartitionsRequestData().setTopics(
+                        new io.kroxylicious.kafka.common.message.CreatePartitionsRequestData.CreatePartitionsTopicCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.CreatePartitionsRequestData.CreatePartitionsTopic().setName("topic-a")).iterator())),
                 new org.apache.kafka.common.message.CreatePartitionsRequestData().setTopics(
                         new org.apache.kafka.common.message.CreatePartitionsRequestData.CreatePartitionsTopicCollection(
                                 List.of(new org.apache.kafka.common.message.CreatePartitionsRequestData.CreatePartitionsTopic().setName("topic-a")).iterator())));
@@ -511,9 +476,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput createTopicsInput(short version) {
         return new MatchedInput(
-                new CreateTopicsRequestData().setTopics(
-                        new CreateTopicsRequestData.CreatableTopicCollection(
-                                List.of(new CreateTopicsRequestData.CreatableTopic().setName("topic-a")).iterator())),
+                new io.kroxylicious.kafka.common.message.CreateTopicsRequestData().setTopics(
+                        new io.kroxylicious.kafka.common.message.CreateTopicsRequestData.CreatableTopicCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.CreateTopicsRequestData.CreatableTopic().setName("topic-a")).iterator())),
                 new org.apache.kafka.common.message.CreateTopicsRequestData().setTopics(
                         new org.apache.kafka.common.message.CreateTopicsRequestData.CreatableTopicCollection(
                                 List.of(new org.apache.kafka.common.message.CreateTopicsRequestData.CreatableTopic().setName("topic-a")).iterator())));
@@ -521,9 +486,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput writeShareGroupStateInput(short version) {
         return new MatchedInput(
-                new WriteShareGroupStateRequestData().setTopics(
-                        List.of(new WriteShareGroupStateRequestData.WriteStateData().setTopicId(TOPIC_ID).setPartitions(
-                                List.of(new WriteShareGroupStateRequestData.PartitionData().setPartition(0))))),
+                new io.kroxylicious.kafka.common.message.WriteShareGroupStateRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.WriteShareGroupStateRequestData.WriteStateData().setTopicId(TOPIC_ID).setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.WriteShareGroupStateRequestData.PartitionData().setPartition(0))))),
                 new org.apache.kafka.common.message.WriteShareGroupStateRequestData().setTopics(
                         List.of(new org.apache.kafka.common.message.WriteShareGroupStateRequestData.WriteStateData().setTopicId(KAFKA_TOPIC_ID).setPartitions(
                                 List.of(new org.apache.kafka.common.message.WriteShareGroupStateRequestData.PartitionData().setPartition(0))))));
@@ -531,9 +496,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput initializeShareGroupStateInput(short version) {
         return new MatchedInput(
-                new InitializeShareGroupStateRequestData().setTopics(
-                        List.of(new InitializeShareGroupStateRequestData.InitializeStateData().setTopicId(TOPIC_ID).setPartitions(
-                                List.of(new InitializeShareGroupStateRequestData.PartitionData().setPartition(0))))),
+                new io.kroxylicious.kafka.common.message.InitializeShareGroupStateRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.InitializeShareGroupStateRequestData.InitializeStateData().setTopicId(TOPIC_ID).setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.InitializeShareGroupStateRequestData.PartitionData().setPartition(0))))),
                 new org.apache.kafka.common.message.InitializeShareGroupStateRequestData().setTopics(
                         List.of(new org.apache.kafka.common.message.InitializeShareGroupStateRequestData.InitializeStateData().setTopicId(KAFKA_TOPIC_ID).setPartitions(
                                 List.of(new org.apache.kafka.common.message.InitializeShareGroupStateRequestData.PartitionData().setPartition(0))))));
@@ -541,9 +506,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput deleteShareGroupStateInput(short version) {
         return new MatchedInput(
-                new DeleteShareGroupStateRequestData().setTopics(
-                        List.of(new DeleteShareGroupStateRequestData.DeleteStateData().setTopicId(TOPIC_ID).setPartitions(
-                                List.of(new DeleteShareGroupStateRequestData.PartitionData().setPartition(0))))),
+                new io.kroxylicious.kafka.common.message.DeleteShareGroupStateRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.DeleteShareGroupStateRequestData.DeleteStateData().setTopicId(TOPIC_ID).setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.DeleteShareGroupStateRequestData.PartitionData().setPartition(0))))),
                 new org.apache.kafka.common.message.DeleteShareGroupStateRequestData().setTopics(
                         List.of(new org.apache.kafka.common.message.DeleteShareGroupStateRequestData.DeleteStateData().setTopicId(KAFKA_TOPIC_ID).setPartitions(
                                 List.of(new org.apache.kafka.common.message.DeleteShareGroupStateRequestData.PartitionData().setPartition(0))))));
@@ -551,9 +516,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput readShareGroupStateSummaryInput(short version) {
         return new MatchedInput(
-                new ReadShareGroupStateSummaryRequestData().setTopics(
-                        List.of(new ReadShareGroupStateSummaryRequestData.ReadStateSummaryData().setTopicId(TOPIC_ID).setPartitions(
-                                List.of(new ReadShareGroupStateSummaryRequestData.PartitionData().setPartition(0))))),
+                new io.kroxylicious.kafka.common.message.ReadShareGroupStateSummaryRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.ReadShareGroupStateSummaryRequestData.ReadStateSummaryData().setTopicId(TOPIC_ID).setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.ReadShareGroupStateSummaryRequestData.PartitionData().setPartition(0))))),
                 new org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData().setTopics(
                         List.of(new org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData.ReadStateSummaryData().setTopicId(KAFKA_TOPIC_ID).setPartitions(
                                 List.of(new org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData.PartitionData().setPartition(0))))));
@@ -561,9 +526,10 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput alterClientQuotasInput(short version) {
         return new MatchedInput(
-                new AlterClientQuotasRequestData().setEntries(List.of(
-                        new AlterClientQuotasRequestData.EntryData().setEntity(List.of(
-                                new AlterClientQuotasRequestData.EntityData().setEntityType("client-id").setEntityName("client-a"))))),
+                new io.kroxylicious.kafka.common.message.AlterClientQuotasRequestData().setEntries(List.of(
+                        new io.kroxylicious.kafka.common.message.AlterClientQuotasRequestData.EntryData().setEntity(List.of(
+                                new io.kroxylicious.kafka.common.message.AlterClientQuotasRequestData.EntityData().setEntityType("client-id")
+                                        .setEntityName("client-a"))))),
                 new org.apache.kafka.common.message.AlterClientQuotasRequestData().setEntries(List.of(
                         new org.apache.kafka.common.message.AlterClientQuotasRequestData.EntryData().setEntity(List.of(
                                 new org.apache.kafka.common.message.AlterClientQuotasRequestData.EntityData().setEntityType("client-id").setEntityName("client-a"))))));
@@ -571,9 +537,10 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput alterConfigsInput(short version) {
         return new MatchedInput(
-                new AlterConfigsRequestData().setResources(
-                        new AlterConfigsRequestData.AlterConfigsResourceCollection(
-                                List.of(new AlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a").setResourceType((byte) 2)).iterator())),
+                new io.kroxylicious.kafka.common.message.AlterConfigsRequestData().setResources(
+                        new io.kroxylicious.kafka.common.message.AlterConfigsRequestData.AlterConfigsResourceCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.AlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a")
+                                        .setResourceType((byte) 2)).iterator())),
                 new org.apache.kafka.common.message.AlterConfigsRequestData().setResources(
                         new org.apache.kafka.common.message.AlterConfigsRequestData.AlterConfigsResourceCollection(
                                 List.of(new org.apache.kafka.common.message.AlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a")
@@ -582,9 +549,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput alterPartitionReassignmentsInput(short version) {
         return new MatchedInput(
-                new AlterPartitionReassignmentsRequestData().setTopics(List.of(
-                        new AlterPartitionReassignmentsRequestData.ReassignableTopic().setName("topic-a").setPartitions(List.of(
-                                new AlterPartitionReassignmentsRequestData.ReassignablePartition().setPartitionIndex(0))))),
+                new io.kroxylicious.kafka.common.message.AlterPartitionReassignmentsRequestData().setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.AlterPartitionReassignmentsRequestData.ReassignableTopic().setName("topic-a").setPartitions(List.of(
+                                new io.kroxylicious.kafka.common.message.AlterPartitionReassignmentsRequestData.ReassignablePartition().setPartitionIndex(0))))),
                 new org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData().setTopics(List.of(
                         new org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData.ReassignableTopic().setName("topic-a").setPartitions(List.of(
                                 new org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData.ReassignablePartition().setPartitionIndex(0))))));
@@ -592,11 +559,12 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput alterReplicaLogDirsInput(short version) {
         return new MatchedInput(
-                new AlterReplicaLogDirsRequestData().setDirs(
-                        new AlterReplicaLogDirsRequestData.AlterReplicaLogDirCollection(
-                                List.of(new AlterReplicaLogDirsRequestData.AlterReplicaLogDir().setPath("/data/1").setTopics(
-                                        new AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopicCollection(
-                                                List.of(new AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopic().setName("topic-a").setPartitions(List.of(0, 1)))
+                new io.kroxylicious.kafka.common.message.AlterReplicaLogDirsRequestData().setDirs(
+                        new io.kroxylicious.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDir().setPath("/data/1").setTopics(
+                                        new io.kroxylicious.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopicCollection(
+                                                List.of(new io.kroxylicious.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopic().setName(
+                                                        "topic-a").setPartitions(List.of(0, 1)))
                                                         .iterator())))
                                         .iterator())),
                 new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData().setDirs(
@@ -611,9 +579,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput alterUserScramCredentialsInput(short version) {
         return new MatchedInput(
-                new AlterUserScramCredentialsRequestData()
-                        .setDeletions(List.of(new AlterUserScramCredentialsRequestData.ScramCredentialDeletion().setName("alice")))
-                        .setUpsertions(List.of(new AlterUserScramCredentialsRequestData.ScramCredentialUpsertion().setName("bob"))),
+                new io.kroxylicious.kafka.common.message.AlterUserScramCredentialsRequestData()
+                        .setDeletions(List.of(new io.kroxylicious.kafka.common.message.AlterUserScramCredentialsRequestData.ScramCredentialDeletion().setName("alice")))
+                        .setUpsertions(List.of(new io.kroxylicious.kafka.common.message.AlterUserScramCredentialsRequestData.ScramCredentialUpsertion().setName("bob"))),
                 new org.apache.kafka.common.message.AlterUserScramCredentialsRequestData()
                         .setDeletions(List.of(new org.apache.kafka.common.message.AlterUserScramCredentialsRequestData.ScramCredentialDeletion().setName("alice")))
                         .setUpsertions(List.of(new org.apache.kafka.common.message.AlterUserScramCredentialsRequestData.ScramCredentialUpsertion().setName("bob"))));
@@ -625,12 +593,12 @@ class KafkaProxyExceptionMapperParityTest {
     private static MatchedInput deleteTopicsInput(short version) {
         return version < 6
                 ? new MatchedInput(
-                        new DeleteTopicsRequestData().setTopicNames(List.of("topic-a", "topic-b")),
+                        new io.kroxylicious.kafka.common.message.DeleteTopicsRequestData().setTopicNames(List.of("topic-a", "topic-b")),
                         new org.apache.kafka.common.message.DeleteTopicsRequestData().setTopicNames(List.of("topic-a", "topic-b")))
                 : new MatchedInput(
-                        new DeleteTopicsRequestData().setTopics(List.of(
-                                new DeleteTopicsRequestData.DeleteTopicState().setName("topic-a").setTopicId(TOPIC_ID),
-                                new DeleteTopicsRequestData.DeleteTopicState().setName("topic-b").setTopicId(TOPIC_ID))),
+                        new io.kroxylicious.kafka.common.message.DeleteTopicsRequestData().setTopics(List.of(
+                                new io.kroxylicious.kafka.common.message.DeleteTopicsRequestData.DeleteTopicState().setName("topic-a").setTopicId(TOPIC_ID),
+                                new io.kroxylicious.kafka.common.message.DeleteTopicsRequestData.DeleteTopicState().setName("topic-b").setTopicId(TOPIC_ID))),
                         new org.apache.kafka.common.message.DeleteTopicsRequestData().setTopics(List.of(
                                 new org.apache.kafka.common.message.DeleteTopicsRequestData.DeleteTopicState().setName("topic-a").setTopicId(KAFKA_TOPIC_ID),
                                 new org.apache.kafka.common.message.DeleteTopicsRequestData.DeleteTopicState().setName("topic-b").setTopicId(KAFKA_TOPIC_ID))));
@@ -638,8 +606,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput listPartitionReassignmentsInput(short version) {
         return new MatchedInput(
-                new ListPartitionReassignmentsRequestData().setTopics(List.of(
-                        new ListPartitionReassignmentsRequestData.ListPartitionReassignmentsTopics().setName("topic-a").setPartitionIndexes(List.of(0, 1)))),
+                new io.kroxylicious.kafka.common.message.ListPartitionReassignmentsRequestData().setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.ListPartitionReassignmentsRequestData.ListPartitionReassignmentsTopics().setName("topic-a")
+                                .setPartitionIndexes(List.of(0, 1)))),
                 new org.apache.kafka.common.message.ListPartitionReassignmentsRequestData().setTopics(List.of(
                         new org.apache.kafka.common.message.ListPartitionReassignmentsRequestData.ListPartitionReassignmentsTopics().setName("topic-a")
                                 .setPartitionIndexes(List.of(0, 1)))));
@@ -647,9 +616,11 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput offsetCommitInput(short version) {
         return new MatchedInput(
-                new OffsetCommitRequestData().setTopics(List.of(
-                        new OffsetCommitRequestData.OffsetCommitRequestTopic().setName("topic-a").setTopicId(TOPIC_ID).setPartitions(List.of(
-                                new OffsetCommitRequestData.OffsetCommitRequestPartition().setPartitionIndex(0).setCommittedOffset(10L))))),
+                new io.kroxylicious.kafka.common.message.OffsetCommitRequestData().setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic().setName("topic-a").setTopicId(TOPIC_ID)
+                                .setPartitions(List.of(
+                                        new io.kroxylicious.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestPartition().setPartitionIndex(0)
+                                                .setCommittedOffset(10L))))),
                 new org.apache.kafka.common.message.OffsetCommitRequestData().setTopics(List.of(
                         new org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic().setName("topic-a").setTopicId(KAFKA_TOPIC_ID)
                                 .setPartitions(List.of(
@@ -659,23 +630,25 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput produceInput(short version) {
         return new MatchedInput(
-                new ProduceRequestData().setAcks((short) 1).setTimeoutMs(1000).setTopicData(
-                        new ProduceRequestData.TopicProduceDataCollection(List.of(new ProduceRequestData.TopicProduceData().setName("topic-a").setTopicId(TOPIC_ID)
-                                .setPartitionData(List.of(new ProduceRequestData.PartitionProduceData().setIndex(0).setRecords(MemoryRecords.EMPTY))))
-                                .iterator())),
+                new io.kroxylicious.kafka.common.message.ProduceRequestData().setAcks((short) 1).setTimeoutMs(1000).setTopicData(
+                        new io.kroxylicious.kafka.common.message.ProduceRequestData.TopicProduceDataCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.ProduceRequestData.TopicProduceData().setName("topic-a").setTopicId(TOPIC_ID)
+                                        .setPartitionData(List.of(new io.kroxylicious.kafka.common.message.ProduceRequestData.PartitionProduceData().setIndex(0)
+                                                .setRecords(io.kroxylicious.kafka.common.record.internal.MemoryRecords.EMPTY))))
+                                        .iterator())),
                 new org.apache.kafka.common.message.ProduceRequestData().setAcks((short) 1).setTimeoutMs(1000).setTopicData(
                         new org.apache.kafka.common.message.ProduceRequestData.TopicProduceDataCollection(
                                 List.of(new org.apache.kafka.common.message.ProduceRequestData.TopicProduceData().setName("topic-a").setTopicId(KAFKA_TOPIC_ID)
                                         .setPartitionData(List.of(new org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData().setIndex(0)
-                                                .setRecords(org.apache.kafka.common.record.MemoryRecords.EMPTY))))
+                                                .setRecords(org.apache.kafka.common.record.internal.MemoryRecords.EMPTY))))
                                         .iterator())));
     }
 
     private static MatchedInput fetchInput(short version) {
         return new MatchedInput(
-                new FetchRequestData().setSessionId(5).setTopics(List.of(
-                        new FetchRequestData.FetchTopic().setTopic("topic-a").setTopicId(TOPIC_ID).setPartitions(
-                                List.of(new FetchRequestData.FetchPartition().setPartition(0))))),
+                new io.kroxylicious.kafka.common.message.FetchRequestData().setSessionId(5).setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.FetchRequestData.FetchTopic().setTopic("topic-a").setTopicId(TOPIC_ID).setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.FetchRequestData.FetchPartition().setPartition(0))))),
                 new org.apache.kafka.common.message.FetchRequestData().setSessionId(5).setTopics(List.of(
                         new org.apache.kafka.common.message.FetchRequestData.FetchTopic().setTopic("topic-a").setTopicId(KAFKA_TOPIC_ID).setPartitions(
                                 List.of(new org.apache.kafka.common.message.FetchRequestData.FetchPartition().setPartition(0))))));
@@ -685,10 +658,13 @@ class KafkaProxyExceptionMapperParityTest {
     // populating both shapes unconditionally is safe at every version — kept as a single fixture.
     private static MatchedInput offsetFetchInput(short version) {
         return new MatchedInput(
-                new OffsetFetchRequestData()
-                        .setTopics(List.of(new OffsetFetchRequestData.OffsetFetchRequestTopic().setName("topic-a").setPartitionIndexes(List.of(0))))
-                        .setGroups(List.of(new OffsetFetchRequestData.OffsetFetchRequestGroup().setGroupId("group-1").setTopics(List.of(
-                                new OffsetFetchRequestData.OffsetFetchRequestTopics().setName("topic-a").setTopicId(TOPIC_ID).setPartitionIndexes(List.of(0)))))),
+                new io.kroxylicious.kafka.common.message.OffsetFetchRequestData()
+                        .setTopics(List.of(new io.kroxylicious.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopic().setName("topic-a")
+                                .setPartitionIndexes(List.of(0))))
+                        .setGroups(
+                                List.of(new io.kroxylicious.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestGroup().setGroupId("group-1").setTopics(List.of(
+                                        new io.kroxylicious.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopics().setName("topic-a").setTopicId(TOPIC_ID)
+                                                .setPartitionIndexes(List.of(0)))))),
                 new org.apache.kafka.common.message.OffsetFetchRequestData()
                         .setTopics(List.of(new org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopic().setName("topic-a")
                                 .setPartitionIndexes(List.of(0))))
@@ -699,10 +675,10 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput listOffsetsInput(short version) {
         return new MatchedInput(
-                new ListOffsetsRequestData().setReplicaId(ListOffsetsRequest.CONSUMER_REPLICA_ID)
+                new io.kroxylicious.kafka.common.message.ListOffsetsRequestData().setReplicaId(ListOffsetsRequest.CONSUMER_REPLICA_ID)
                         .setIsolationLevel(IsolationLevel.READ_UNCOMMITTED.id())
-                        .setTopics(List.of(new ListOffsetsRequestData.ListOffsetsTopic().setName("topic-a").setPartitions(
-                                List.of(new ListOffsetsRequestData.ListOffsetsPartition().setPartitionIndex(0).setTimestamp(-1L))))),
+                        .setTopics(List.of(new io.kroxylicious.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic().setName("topic-a").setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.ListOffsetsRequestData.ListOffsetsPartition().setPartitionIndex(0).setTimestamp(-1L))))),
                 new org.apache.kafka.common.message.ListOffsetsRequestData().setReplicaId(ListOffsetsRequest.CONSUMER_REPLICA_ID)
                         .setIsolationLevel(IsolationLevel.READ_UNCOMMITTED.id())
                         .setTopics(List.of(new org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic().setName("topic-a").setPartitions(
@@ -711,7 +687,7 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput describeAclsInput(short version) {
         return new MatchedInput(
-                new DescribeAclsRequestData()
+                new io.kroxylicious.kafka.common.message.DescribeAclsRequestData()
                         .setResourceTypeFilter(ResourceType.TOPIC.code())
                         .setPatternTypeFilter(PatternType.LITERAL.code())
                         .setOperation(AclOperation.ANY.code())
@@ -725,9 +701,10 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput electLeadersInput(short version) {
         return new MatchedInput(
-                new ElectLeadersRequestData().setElectionType((byte) 0).setTimeoutMs(1000).setTopicPartitions(
-                        new ElectLeadersRequestData.TopicPartitionsCollection(
-                                List.of(new ElectLeadersRequestData.TopicPartitions().setTopic("topic-a").setPartitions(List.of(0, 1))).iterator())),
+                new io.kroxylicious.kafka.common.message.ElectLeadersRequestData().setElectionType((byte) 0).setTimeoutMs(1000).setTopicPartitions(
+                        new io.kroxylicious.kafka.common.message.ElectLeadersRequestData.TopicPartitionsCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.ElectLeadersRequestData.TopicPartitions().setTopic("topic-a")
+                                        .setPartitions(List.of(0, 1))).iterator())),
                 new org.apache.kafka.common.message.ElectLeadersRequestData().setElectionType((byte) 0).setTimeoutMs(1000).setTopicPartitions(
                         new org.apache.kafka.common.message.ElectLeadersRequestData.TopicPartitionsCollection(
                                 List.of(new org.apache.kafka.common.message.ElectLeadersRequestData.TopicPartitions().setTopic("topic-a").setPartitions(List.of(0, 1)))
@@ -736,9 +713,10 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput addPartitionsToTxnInput(short version) {
         return new MatchedInput(
-                new AddPartitionsToTxnRequestData().setV3AndBelowTopics(
-                        new AddPartitionsToTxnRequestData.AddPartitionsToTxnTopicCollection(
-                                List.of(new AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic().setName("topic-a").setPartitions(List.of(0, 1))).iterator())),
+                new io.kroxylicious.kafka.common.message.AddPartitionsToTxnRequestData().setV3AndBelowTopics(
+                        new io.kroxylicious.kafka.common.message.AddPartitionsToTxnRequestData.AddPartitionsToTxnTopicCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic().setName("topic-a")
+                                        .setPartitions(List.of(0, 1))).iterator())),
                 new org.apache.kafka.common.message.AddPartitionsToTxnRequestData().setV3AndBelowTopics(
                         new org.apache.kafka.common.message.AddPartitionsToTxnRequestData.AddPartitionsToTxnTopicCollection(
                                 List.of(new org.apache.kafka.common.message.AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic().setName("topic-a")
@@ -747,9 +725,9 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput deleteRecordsInput(short version) {
         return new MatchedInput(
-                new DeleteRecordsRequestData().setTopics(List.of(
-                        new DeleteRecordsRequestData.DeleteRecordsTopic().setName("topic-a").setPartitions(
-                                List.of(new DeleteRecordsRequestData.DeleteRecordsPartition().setPartitionIndex(0))))),
+                new io.kroxylicious.kafka.common.message.DeleteRecordsRequestData().setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsTopic().setName("topic-a").setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsPartition().setPartitionIndex(0))))),
                 new org.apache.kafka.common.message.DeleteRecordsRequestData().setTopics(List.of(
                         new org.apache.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsTopic().setName("topic-a").setPartitions(
                                 List.of(new org.apache.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsPartition().setPartitionIndex(0))))));
@@ -757,10 +735,12 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput offsetForLeaderEpochInput(short version) {
         return new MatchedInput(
-                new OffsetForLeaderEpochRequestData().setTopics(
-                        new OffsetForLeaderEpochRequestData.OffsetForLeaderTopicCollection(
-                                List.of(new OffsetForLeaderEpochRequestData.OffsetForLeaderTopic().setTopic("topic-a").setPartitions(
-                                        List.of(new OffsetForLeaderEpochRequestData.OffsetForLeaderPartition().setPartition(0).setLeaderEpoch(5)))).iterator())),
+                new io.kroxylicious.kafka.common.message.OffsetForLeaderEpochRequestData().setTopics(
+                        new io.kroxylicious.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopicCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopic().setTopic("topic-a").setPartitions(
+                                        List.of(new io.kroxylicious.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderPartition().setPartition(0)
+                                                .setLeaderEpoch(5))))
+                                        .iterator())),
                 new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData().setTopics(
                         new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopicCollection(
                                 List.of(new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopic().setTopic("topic-a").setPartitions(
@@ -771,9 +751,10 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput txnOffsetCommitInput(short version) {
         return new MatchedInput(
-                new TxnOffsetCommitRequestData().setTopics(List.of(
-                        new TxnOffsetCommitRequestData.TxnOffsetCommitRequestTopic().setName("topic-a").setPartitions(
-                                List.of(new TxnOffsetCommitRequestData.TxnOffsetCommitRequestPartition().setPartitionIndex(0).setCommittedOffset(5L))))),
+                new io.kroxylicious.kafka.common.message.TxnOffsetCommitRequestData().setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestTopic().setName("topic-a").setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestPartition().setPartitionIndex(0)
+                                        .setCommittedOffset(5L))))),
                 new org.apache.kafka.common.message.TxnOffsetCommitRequestData().setTopics(List.of(
                         new org.apache.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestTopic().setName("topic-a").setPartitions(
                                 List.of(new org.apache.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestPartition().setPartitionIndex(0)
@@ -782,10 +763,12 @@ class KafkaProxyExceptionMapperParityTest {
 
     private static MatchedInput writeTxnMarkersInput(short version) {
         return new MatchedInput(
-                new WriteTxnMarkersRequestData().setMarkers(List.of(
-                        new WriteTxnMarkersRequestData.WritableTxnMarker().setProducerId(100L).setProducerEpoch((short) 0).setCoordinatorEpoch(0)
+                new io.kroxylicious.kafka.common.message.WriteTxnMarkersRequestData().setMarkers(List.of(
+                        new io.kroxylicious.kafka.common.message.WriteTxnMarkersRequestData.WritableTxnMarker().setProducerId(100L).setProducerEpoch((short) 0)
+                                .setCoordinatorEpoch(0)
                                 .setTransactionResult(true).setTopics(List.of(
-                                        new WriteTxnMarkersRequestData.WritableTxnMarkerTopic().setName("topic-a").setPartitionIndexes(List.of(0)))))),
+                                        new io.kroxylicious.kafka.common.message.WriteTxnMarkersRequestData.WritableTxnMarkerTopic().setName("topic-a")
+                                                .setPartitionIndexes(List.of(0)))))),
                 new org.apache.kafka.common.message.WriteTxnMarkersRequestData().setMarkers(List.of(
                         new org.apache.kafka.common.message.WriteTxnMarkersRequestData.WritableTxnMarker().setProducerId(100L).setProducerEpoch((short) 0)
                                 .setCoordinatorEpoch(0).setTransactionResult(true).setTopics(List.of(
@@ -793,8 +776,8 @@ class KafkaProxyExceptionMapperParityTest {
                                                 .setPartitionIndexes(List.of(0)))))));
     }
 
-    private static CreateAclsRequestData.AclCreation validAclCreation(String resourceName) {
-        return new CreateAclsRequestData.AclCreation()
+    private static io.kroxylicious.kafka.common.message.CreateAclsRequestData.AclCreation validAclCreation(String resourceName) {
+        return new io.kroxylicious.kafka.common.message.CreateAclsRequestData.AclCreation()
                 .setResourceType((byte) 2) // TOPIC
                 .setResourceName(resourceName)
                 .setResourcePatternType((byte) 3) // LITERAL
@@ -804,8 +787,8 @@ class KafkaProxyExceptionMapperParityTest {
                 .setPermissionType((byte) 3); // ALLOW
     }
 
-    private static DeleteAclsRequestData.DeleteAclsFilter validDeleteAclsFilter(String resourceName) {
-        return new DeleteAclsRequestData.DeleteAclsFilter()
+    private static io.kroxylicious.kafka.common.message.DeleteAclsRequestData.DeleteAclsFilter validDeleteAclsFilter(String resourceName) {
+        return new io.kroxylicious.kafka.common.message.DeleteAclsRequestData.DeleteAclsFilter()
                 .setResourceTypeFilter((byte) 2) // TOPIC
                 .setResourceNameFilter(resourceName)
                 .setPatternTypeFilter((byte) 3) // LITERAL
@@ -815,9 +798,9 @@ class KafkaProxyExceptionMapperParityTest {
                 .setPermissionType((byte) 3); // ALLOW
     }
 
-    private static List<ReadShareGroupStateRequestData.ReadStateData> shareGroupReadTopics() {
-        return List.of(new ReadShareGroupStateRequestData.ReadStateData().setTopicId(TOPIC_ID).setPartitions(
-                List.of(new ReadShareGroupStateRequestData.PartitionData().setPartition(0))));
+    private static List<io.kroxylicious.kafka.common.message.ReadShareGroupStateRequestData.ReadStateData> shareGroupReadTopics() {
+        return List.of(new io.kroxylicious.kafka.common.message.ReadShareGroupStateRequestData.ReadStateData().setTopicId(TOPIC_ID).setPartitions(
+                List.of(new io.kroxylicious.kafka.common.message.ReadShareGroupStateRequestData.PartitionData().setPartition(0))));
     }
 
     private static org.apache.kafka.common.message.CreateAclsRequestData.AclCreation validAclCreationKafka(String resourceName) {
