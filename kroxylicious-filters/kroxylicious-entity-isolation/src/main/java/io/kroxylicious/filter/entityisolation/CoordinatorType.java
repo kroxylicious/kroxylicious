@@ -10,8 +10,17 @@ package io.kroxylicious.filter.entityisolation;
  * CoordinatorType enum corresponding to {@code FindCoordinatorRequest#CoordinatorType} in kafka-clients
  */
 public enum CoordinatorType {
+    /**
+     * Group
+     */
     GROUP((byte) 0),
+    /**
+     * Transaction
+     */
     TRANSACTION((byte) 1),
+    /**
+     * Share
+     */
     SHARE((byte) 2);
 
     final byte id;
@@ -20,6 +29,12 @@ public enum CoordinatorType {
         this.id = id;
     }
 
+    /**
+     * Convert id to CoordinatorType
+     * @param id id
+     * @return CoordinatorType
+     * @throws IllegalArgumentException if the id byte does not correspond to a CoordinatorType
+     */
     public static CoordinatorType forId(byte id) {
         return switch (id) {
             case 0 -> GROUP;
@@ -29,6 +44,10 @@ public enum CoordinatorType {
         };
     }
 
+    /**
+     * id
+     * @return id
+     */
     public byte id() {
         return id;
     }
