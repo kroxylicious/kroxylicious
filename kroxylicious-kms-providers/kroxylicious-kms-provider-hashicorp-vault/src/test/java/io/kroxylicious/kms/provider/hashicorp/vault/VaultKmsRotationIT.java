@@ -6,31 +6,31 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.testcontainers.DockerClientFactory;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * Integration tests verifying that a real HashiCorp Vault instance returns {@code latest_version}
  * and that rotating a key causes {@link VaultKms#resolveAlias} to return a different
  * {@link WrappingKey} with a higher version number.
  */
+@EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 class VaultKmsRotationIT {
 
     private static final String VAULT_TOKEN = "token";
-    private TestVault vault;
-    private VaultKms kms;
+    private static TestVault vault;
+    private static VaultKms kms;
 
-    @BeforeEach
-    void beforeEach() {
-        assumeThat(DockerClientFactory.instance().isDockerAvailable()).withFailMessage("docker unavailable").isTrue();
+    @BeforeAll
+    static void beforeAll() {
         vault = TestVault.start();
         var config = new Config(vault.getEndpoint(), new InlinePassword(VAULT_TOKEN), null);
         var service = new VaultKmsService();
@@ -38,8 +38,8 @@ class VaultKmsRotationIT {
         kms = service.buildKms();
     }
 
-    @AfterEach
-    void afterEach() {
+    @AfterAll
+    static void afterAll() {
         if (vault != null) {
             vault.close();
         }
@@ -48,7 +48,7 @@ class VaultKmsRotationIT {
     @Test
     void resolveAliasReturnsLatestVersionFromRealVault() {
         // Given
-        var keyName = "rotation-test-key";
+        var keyName = "latest-version-key";
         vault.createKek(keyName);
 
         // When
@@ -78,4 +78,7 @@ class VaultKmsRotationIT {
                 .isNotEqualTo(after);
     }
 
+    static boolean isDockerAvailable() {
+        return DockerClientFactory.instance().isDockerAvailable();
+    }
 }

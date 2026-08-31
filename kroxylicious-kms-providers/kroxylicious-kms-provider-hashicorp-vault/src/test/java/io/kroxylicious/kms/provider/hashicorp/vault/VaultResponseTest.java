@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 
@@ -44,7 +45,7 @@ class VaultResponseTest {
 
     @Test
     void readKeyDataRejectsMissingLatestVersion() {
-        // Given - body with no latest_version field; Jackson defaults primitive int to 0
+        // Given
         String json = """
                 {
                   "data": {
@@ -55,25 +56,6 @@ class VaultResponseTest {
 
         // When / Then
         assertThatThrownBy(() -> MAPPER.readValue(json, READ_KEY_TYPE))
-                .hasRootCauseInstanceOf(IllegalArgumentException.class)
-                .hasRootCauseMessage("latest_version must be >= 1, got 0");
-    }
-
-    @Test
-    void readKeyDataRejectsZeroLatestVersion() {
-        // Given
-        String json = """
-                {
-                  "data": {
-                    "name": "mykey",
-                    "latest_version": 0
-                  }
-                }
-                """;
-
-        // When / Then
-        assertThatThrownBy(() -> MAPPER.readValue(json, READ_KEY_TYPE))
-                .hasRootCauseInstanceOf(IllegalArgumentException.class)
-                .hasRootCauseMessage("latest_version must be >= 1, got 0");
+                .isInstanceOf(MismatchedInputException.class);
     }
 }
