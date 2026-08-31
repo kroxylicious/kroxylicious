@@ -24,7 +24,7 @@
     <properties>
         <libs.dir>libs</libs.dir>
         <ApiCompatability.ReferenceVersion>0.23.0</ApiCompatability.ReferenceVersion>
-        <ApiCompatability.EnforceForMajorVersionZero>false</ApiCompatability.EnforceForMajorVersionZero>
+        <ApiCompatability.EnforceForMajorVersionZero>true</ApiCompatability.EnforceForMajorVersionZero>
     </properties>
 
     <name>Kroxylicious API</name>
@@ -336,6 +336,14 @@
                                 </dependency>
                             </oldVersion>
                             <parameter>
+                                <excludes>
+                                    <!-- Type migration from org.apache.kafka.* to io.kroxylicious.kafka.*:
+                                         all filter/router interfaces have method signature changes that are
+                                         intentional and expected as part of this migration. -->
+                                    <exclude>io.kroxylicious.proxy.filter</exclude>
+                                    <exclude>io.kroxylicious.proxy.filter.metadata</exclude>
+                                    <exclude>io.kroxylicious.proxy.router</exclude>
+                                </excludes>
                                 <accessModifier>public</accessModifier>
                                 <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
                                 <breakBuildOnBinaryIncompatibleModifications>false
