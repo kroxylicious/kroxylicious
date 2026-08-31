@@ -11,11 +11,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MutableRecordBatch;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.utils.BufferSupplier;
-import org.apache.kafka.common.utils.CloseableIterator;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.MutableRecordBatch;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.utils.BufferSupplier;
+import io.kroxylicious.kafka.common.utils.CloseableIterator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
