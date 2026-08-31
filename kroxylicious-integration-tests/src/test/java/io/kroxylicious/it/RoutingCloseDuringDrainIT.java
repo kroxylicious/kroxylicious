@@ -81,7 +81,7 @@ class RoutingCloseDuringDrainIT {
             }
             if (apiKey == ApiKeys.LIST_TRANSACTIONS) {
                 secondRequestReceived.complete(null);
-                return ctx.respondWith(new io.kroxylicious.kafka.common.message.ListTransactionsRequestData()).withCloseConnection().completed();
+                return ctx.respondWith(new io.kroxylicious.kafka.common.message.ListTransactionsResponseData()).withCloseConnection().completed();
             }
             return ctx.respondWith(new MetadataResponseData()).completed();
         });
