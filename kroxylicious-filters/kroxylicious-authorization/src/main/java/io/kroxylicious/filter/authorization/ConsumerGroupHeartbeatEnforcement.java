@@ -13,13 +13,12 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.kafka.common.message.ConsumerGroupHeartbeatRequestData;
 import io.kroxylicious.kafka.common.message.ConsumerGroupHeartbeatResponseData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.Errors;
-
-import io.kroxylicious.authorizer.service.Action;
-import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 

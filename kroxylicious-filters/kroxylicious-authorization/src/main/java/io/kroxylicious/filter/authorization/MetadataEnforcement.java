@@ -15,6 +15,11 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.message.MetadataRequestData;
 import io.kroxylicious.kafka.common.message.MetadataResponseData;
@@ -22,11 +27,6 @@ import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.Errors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.kroxylicious.authorizer.service.Action;
-import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;

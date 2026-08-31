@@ -9,15 +9,15 @@ package io.kroxylicious.filter.protocollogger;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
-import io.kroxylicious.kafka.common.message.RequestHeaderData;
-import io.kroxylicious.kafka.common.message.ResponseHeaderData;
-import io.kroxylicious.kafka.common.protocol.ApiKeys;
-import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.event.Level;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;

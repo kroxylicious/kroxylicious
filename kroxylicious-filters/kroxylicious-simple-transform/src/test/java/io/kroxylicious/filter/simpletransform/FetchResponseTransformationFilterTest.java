@@ -20,6 +20,12 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.assertj.core.api.ListAssert;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.compress.Compression;
 import io.kroxylicious.kafka.common.message.FetchResponseData;
@@ -27,18 +33,12 @@ import io.kroxylicious.kafka.common.message.FetchResponseData.FetchableTopicResp
 import io.kroxylicious.kafka.common.message.FetchResponseData.PartitionData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.record.TimestampType;
 import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 import io.kroxylicious.kafka.common.record.internal.MemoryRecordsBuilder;
 import io.kroxylicious.kafka.common.record.internal.Record;
 import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 import io.kroxylicious.kafka.common.record.internal.Records;
-import io.kroxylicious.kafka.common.record.TimestampType;
-import org.assertj.core.api.ListAssert;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;

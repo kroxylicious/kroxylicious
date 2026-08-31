@@ -18,13 +18,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import io.kroxylicious.kafka.common.Uuid;
-import io.kroxylicious.kafka.common.message.RequestHeaderData;
-import io.kroxylicious.kafka.common.message.RequestHeaderDataJsonConverter;
-import io.kroxylicious.kafka.common.message.ResponseHeaderData;
-import io.kroxylicious.kafka.common.message.ResponseHeaderDataJsonConverter;
-import io.kroxylicious.kafka.common.protocol.ApiKeys;
-import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -36,6 +29,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.reflect.ClassPath;
 
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.RequestHeaderDataJsonConverter;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderDataJsonConverter;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.message.json.VendoredKafkaApiMessageConverter;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
@@ -194,7 +194,8 @@ class EntityIsolationFilterTest {
                     }
                     if (definition.then().expectedResponse() != null) {
                         ApiMessage forwardedMessage = Objects.requireNonNull(actual.message());
-                        String actualMessage = toYaml(VendoredKafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(forwardedMessage, version));
+                        String actualMessage = toYaml(
+                                VendoredKafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(forwardedMessage, version));
                         assertThat(actualMessage).isEqualTo(toYaml(definition.then().expectedResponse()));
                     }
                 }

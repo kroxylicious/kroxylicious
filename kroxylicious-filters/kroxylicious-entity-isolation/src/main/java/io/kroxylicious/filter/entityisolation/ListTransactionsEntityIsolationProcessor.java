@@ -11,16 +11,15 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Predicate;
 
+import com.google.re2j.Pattern;
+import com.google.re2j.PatternSyntaxException;
+
+import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.kafka.common.message.ListTransactionsRequestData;
 import io.kroxylicious.kafka.common.message.ListTransactionsResponseData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.protocol.Errors;
-
-import com.google.re2j.Pattern;
-import com.google.re2j.PatternSyntaxException;
-
-import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;

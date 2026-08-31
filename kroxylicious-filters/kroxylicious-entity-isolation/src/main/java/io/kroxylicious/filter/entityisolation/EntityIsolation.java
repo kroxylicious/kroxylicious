@@ -10,10 +10,10 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.apache.kafka.common.config.ConfigResource;
-import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;

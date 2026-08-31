@@ -10,13 +10,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
+import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.kafka.common.message.ListTransactionsRequestData;
 import io.kroxylicious.kafka.common.message.ListTransactionsResponseData;
 import io.kroxylicious.kafka.common.message.ListTransactionsResponseData.TransactionState;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
-
-import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;

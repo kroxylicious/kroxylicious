@@ -8,7 +8,7 @@ package io.kroxylicious.filter.oauthbearer;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import  org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
+import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 
 import com.github.benmanes.caffeine.cache.LoadingCache;
 

@@ -25,12 +25,6 @@ import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
 
 import org.apache.kafka.common.errors.SaslAuthenticationException;
-import io.kroxylicious.kafka.common.message.RequestHeaderData;
-import io.kroxylicious.kafka.common.message.ResponseHeaderData;
-import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
-import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
-import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
-import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +32,12 @@ import org.slf4j.LoggerFactory;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
 import io.kroxylicious.filter.oauthbearer.sasl.BackoffStrategy;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
