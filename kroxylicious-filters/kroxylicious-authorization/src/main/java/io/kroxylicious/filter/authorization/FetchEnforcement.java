@@ -17,6 +17,7 @@ import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.record.MemoryRecords;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
@@ -24,8 +25,6 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
-
-import static org.apache.kafka.common.requests.FetchResponse.partitionResponse;
 
 class FetchEnforcement extends ApiEnforcement<FetchRequestData, FetchResponseData> {
 
@@ -125,6 +124,14 @@ class FetchEnforcement extends ApiEnforcement<FetchRequestData, FetchResponseDat
                         Optional.ofNullable(topicNameMapping.failures().get(t.topicId())).map(TopicNameMappingException::getError)
                                 .orElse(Errors.NETWORK_EXCEPTION)))
                         .toList());
+    }
+
+    public static FetchResponseData.PartitionData partitionResponse(int partition, Errors error) {
+        return new FetchResponseData.PartitionData()
+                .setPartitionIndex(partition)
+                .setErrorCode(error.code())
+                .setHighWatermark(-1L) // invalid high watermark
+                .setRecords(MemoryRecords.EMPTY);
     }
 
     private static List<FetchResponseData.FetchableTopicResponse> createFailedTopicResponses(

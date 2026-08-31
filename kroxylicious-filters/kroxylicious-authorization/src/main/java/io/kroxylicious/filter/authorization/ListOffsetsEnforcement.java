@@ -15,7 +15,6 @@ import org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic;
 import org.apache.kafka.common.message.ListOffsetsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.ListOffsetsResponse;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
@@ -80,8 +79,8 @@ class ListOffsetsEnforcement extends ApiEnforcement<ListOffsetsRequestData, List
                     .map(listOffsetsPartition -> new ListOffsetsResponseData.ListOffsetsPartitionResponse()
                             .setPartitionIndex(listOffsetsPartition.partitionIndex())
                             .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                            .setTimestamp(ListOffsetsResponse.UNKNOWN_TIMESTAMP)
-                            .setOffset(ListOffsetsResponse.UNKNOWN_OFFSET))
+                            .setTimestamp(-1L) // Unknown timestamp
+                            .setOffset(-1L)) // Unknown offset
                     .toList();
             ListOffsetsResponseData.ListOffsetsTopicResponse responseTopic = new ListOffsetsResponseData.ListOffsetsTopicResponse();
             responseTopic.setName(listOffsetsTopic.name());
