@@ -18,7 +18,6 @@ import org.apache.kafka.common.message.ListGroupsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
-import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.AfterEach;
@@ -30,6 +29,7 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.it.testplugins.router.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 import io.kroxylicious.proxy.config.ClusterDefinition;
@@ -340,7 +340,7 @@ class RoutingContextContractIT {
         // Given: router provides an explicit response header with an unknown tagged field.
         // API_VERSIONS always uses response header v0 (no tagged fields); LIST_GROUPS v3+ uses
         // flexible versioning (response header v1) so tagged fields can be encoded.
-        var customBody = new io.kroxylicious.kafka.common.message.ListGroupsRequestData();
+        var customBody = new io.kroxylicious.kafka.common.message.LeaveGroupResponseData();
 
         ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
             var customHeader = new io.kroxylicious.kafka.common.message.ResponseHeaderData();
@@ -354,7 +354,7 @@ class RoutingContextContractIT {
 
             // When: the client receives a response built with a custom header
             Response response = client.getSync(
-                    new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+                    new Request(ApiKeys.LIST_GROUPS, (short) 4, "client", new ListGroupsRequestData()));
 
             // Then: the response body is the one the router set; the header tagged field did not
             // cause an encoding error (the Kafka client silently ignores unknown header tags)
@@ -514,8 +514,8 @@ class RoutingContextContractIT {
                     return ctx.sendRequest(ctx.anyNode("route-a"), header, request)
                             .thenCompose(bodyA -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData())
                                     .thenCompose(bodyB -> {
-                                        ((MetadataResponseData) bodyB).brokers()
-                                                .forEach(b -> ((MetadataResponseData) bodyA).brokers().add(b.duplicate()));
+                                        ((io.kroxylicious.kafka.common.message.MetadataResponseData) bodyB).brokers()
+                                                .forEach(b -> ((io.kroxylicious.kafka.common.message.MetadataResponseData) bodyA).brokers().add(b.duplicate()));
                                         return ctx.respondWith(bodyA).completed();
                                     }));
                 }
@@ -663,8 +663,8 @@ class RoutingContextContractIT {
                     return ctx.sendRequest(ctx.anyNode("route-a"), header, request)
                             .thenCompose(bodyA -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData())
                                     .thenCompose(bodyB -> {
-                                        ((MetadataResponseData) bodyB).brokers()
-                                                .forEach(b -> ((MetadataResponseData) bodyA).brokers().add(b.duplicate()));
+                                        ((io.kroxylicious.kafka.common.message.MetadataResponseData) bodyB).brokers()
+                                                .forEach(b -> ((io.kroxylicious.kafka.common.message.MetadataResponseData) bodyA).brokers().add(b.duplicate()));
                                         return ctx.respondWith(bodyA).completed();
                                     }));
                 }
