@@ -52,6 +52,22 @@ class KafkaProxyExceptionMapperTest {
         assertThat(ApiKeys.forId(response.apiKey())).isEqualTo(request.apiKey());
     }
 
+    @ParameterizedTest
+    @MethodSource({ "decodedFrameSourceLatestVersion", "decodedFrameSourceOldestVersion" })
+    void shouldGenerateErrorMessageWithMessage(DecodedRequestFrame<?> request) {
+        // Given
+        // When
+        RequestHeaderData requestHeaders = request.header();
+        ApiMessage message = request.body();
+        ApiKeys apiKey = ApiKeys.forId(message.apiKey());
+        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), Errors.UNKNOWN_SERVER_ERROR,
+                "message");
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(ApiKeys.forId(response.apiKey())).isEqualTo(request.apiKey());
+    }
+
     // NONE is the standard sentinel in the Kafka Protocol for no-error, which is counter to what the proxy error response handling is trying to achieve.
     @Test
     void noneErrorDisallowed() {
