@@ -18,7 +18,6 @@ import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.requests.FetchResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,13 +91,13 @@ class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     /**
-     * copied from {@link FetchResponse#partitionResponse(int, Errors)}.
+     * originally copied from kafka-clients FetchResponse#partitionResponse(int, Errors).
      */
     public static FetchResponseData.PartitionData partitionResponse(int partition, Errors error) {
         return new FetchResponseData.PartitionData()
                 .setPartitionIndex(partition)
                 .setErrorCode(error.code())
-                .setHighWatermark(FetchResponse.INVALID_HIGH_WATERMARK)
+                .setHighWatermark(-1L) // Invalid highwater mark
                 .setRecords(MemoryRecords.EMPTY);
     }
 
