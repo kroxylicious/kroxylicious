@@ -42,7 +42,17 @@ public class VaultKmsService implements KmsService<Config, String, VaultEdek> {
     public VaultKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");
         var tlsConfigurator = new TlsHttpClientConfigurator(config.tls());
-        return new VaultKms(config.vaultTransitEngineUrl(), config.vaultToken().getProvidedPassword(), Duration.ofSeconds(20),
+
+        VaultTokenProvider tokenProvider;
+        if (config.role() != null) {
+            java.net.http.HttpClient httpClient = tlsConfigurator.apply(java.net.http.HttpClient.newBuilder()).build();
+            tokenProvider = new KubernetesTokenProvider(httpClient, config.vaultTransitEngineUrl(), config.role(), config.serviceAccountTokenPath(), config.authPath());
+        }
+        else {
+            tokenProvider = new StaticTokenProvider(config.vaultToken().getProvidedPassword());
+        }
+
+        return new VaultKms(config.vaultTransitEngineUrl(), tokenProvider, Duration.ofSeconds(20),
                 tlsConfigurator);
     }
 

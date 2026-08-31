@@ -158,7 +158,7 @@ class VaultKmsTlsIT {
     }
 
     private static Config vaultConfig(Tls tls, URI endpoint) {
-        return new Config(endpoint, new InlinePassword(VAULT_TOKEN), tls);
+        return new Config(endpoint, new InlinePassword(VAULT_TOKEN), null, null, null, tls);
     }
 
     private static Tls tlsForTrustStoreInlinePassword(CertificateGenerator.TrustStore trustStore) {
