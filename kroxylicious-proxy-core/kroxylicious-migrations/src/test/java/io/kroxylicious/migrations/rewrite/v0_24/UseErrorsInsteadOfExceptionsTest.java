@@ -32,14 +32,15 @@ class UseErrorsInsteadOfExceptionsTest implements RewriteTest {
                                         import org.apache.kafka.common.errors.ApiException;
                                         import org.apache.kafka.common.message.ProduceRequestData;
                                         import org.apache.kafka.common.message.RequestHeaderData;
+                                        import org.apache.kafka.common.protocol.ApiMessage;
                                         import org.apache.kafka.common.protocol.Errors;
 
                                         public interface RequestFilterResultBuilder {
                                             // Old overload used in "Before" code
-                                            RequestFilterResultBuilder errorResponse(RequestHeaderData header, ProduceRequestData request, ApiException exception);
+                                            RequestFilterResultBuilder errorResponse(RequestHeaderData header, ApiMessage request, ApiException exception);
 
                                             // New overload used in "After" code
-                                            RequestFilterResultBuilder errorResponse(RequestHeaderData header, ProduceRequestData request, Errors error);
+                                            RequestFilterResultBuilder errorResponse(RequestHeaderData header, ApiMessage request, Errors error);
 
                                             RequestFilterResult completed();
                                         }
