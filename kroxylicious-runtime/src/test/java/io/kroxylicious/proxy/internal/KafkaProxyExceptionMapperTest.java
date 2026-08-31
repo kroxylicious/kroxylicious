@@ -8,10 +8,6 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.stream.Stream;
 
-import javax.net.ssl.SSLHandshakeException;
-
-import org.apache.kafka.common.errors.BrokerNotAvailableException;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -43,11 +39,13 @@ class KafkaProxyExceptionMapperTest {
 
     @ParameterizedTest
     @MethodSource({ "decodedFrameSourceLatestVersion", "decodedFrameSourceOldestVersion" })
-    void shouldGenerateErrorResponseApiKey(DecodedRequestFrame<?> request) {
+    void shouldGenerateErrorMessage(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseMessage(request,
-                new BrokerNotAvailableException("handshake failure", new SSLHandshakeException("it went wrong")));
+        RequestHeaderData requestHeaders = request.header();
+        ApiMessage message = request.body();
+        ApiKeys apiKey = ApiKeys.forId(message.apiKey());
+        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), Errors.UNKNOWN_SERVER_ERROR, null);
 
         // Then
         assertThat(response).isNotNull();
@@ -56,10 +54,14 @@ class KafkaProxyExceptionMapperTest {
 
     @ParameterizedTest
     @MethodSource({ "decodedFrameSourceLatestVersion", "decodedFrameSourceOldestVersion" })
-    void shouldGenerateErrorMessage(DecodedRequestFrame<?> request) {
+    void shouldGenerateErrorMessageWithMessage(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), new UnknownServerException("Bailing out!"));
+        RequestHeaderData requestHeaders = request.header();
+        ApiMessage message = request.body();
+        ApiKeys apiKey = ApiKeys.forId(message.apiKey());
+        final ApiMessage response = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), Errors.UNKNOWN_SERVER_ERROR,
+                "message");
 
         // Then
         assertThat(response).isNotNull();
@@ -75,7 +77,7 @@ class KafkaProxyExceptionMapperTest {
 
         // When/Then
         assertThatThrownBy(() -> KafkaProxyExceptionMapper.errorResponseData(ApiKeys.PRODUCE, arbitraryRequest, arbitraryVersion, Errors.NONE, "message"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessage("error must not be NONE when generating an error response");
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("Error responses must target a specific error code. Using NONE represents a programming error");
     }
 
     public static Stream<Arguments> decodedFrameSourceLatestVersion() {

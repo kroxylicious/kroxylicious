@@ -11,6 +11,7 @@ import java.util.Objects;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
@@ -77,12 +78,13 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
         if (error == Errors.NONE) {
             throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
         }
-        // Errors.exception(String) returns the default-message exception when message is null.
-        return errorResponseForException(header, requestMessage, error.exception(message));
+        return errorResponseForException(header, requestMessage, error, message);
     }
 
-    private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException) {
-        final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, apiException);
+    private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, Errors error,
+                                                                                @Nullable String message) {
+        ApiKeys apiKey = ApiKeys.forId(requestMessage.apiKey());
+        final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseData(apiKey, requestMessage, header.requestApiVersion(), error, message);
         validateShortCircuitResponse(errorResponseMessage);
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();
         responseHeaders.setCorrelationId(header.correlationId());
@@ -91,7 +93,7 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
         return this;
     }
 
-    private void validateShortCircuitResponse(ApiMessage message) {
+    private void validateShortCircuitResponse(@Nullable ApiMessage message) {
         if (message == null) {
             throw new IllegalArgumentException("message may not be null");
         }
