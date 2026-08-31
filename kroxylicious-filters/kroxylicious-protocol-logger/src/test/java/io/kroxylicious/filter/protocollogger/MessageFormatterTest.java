@@ -11,6 +11,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import io.kroxylicious.kafka.common.message.AlterUserScramCredentialsRequestData;
 import io.kroxylicious.kafka.common.message.AlterUserScramCredentialsResponseData;
 import io.kroxylicious.kafka.common.message.CreateDelegationTokenRequestData;
@@ -29,14 +38,6 @@ import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;

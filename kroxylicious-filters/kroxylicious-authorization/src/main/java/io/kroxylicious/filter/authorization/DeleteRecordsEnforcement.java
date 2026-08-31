@@ -9,6 +9,8 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.kafka.common.message.DeleteRecordsRequestData;
 import io.kroxylicious.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsPartition;
 import io.kroxylicious.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsTopic;
@@ -17,9 +19,6 @@ import io.kroxylicious.kafka.common.message.DeleteRecordsResponseData.DeleteReco
 import io.kroxylicious.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsTopicResult;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.Errors;
-
-import io.kroxylicious.authorizer.service.Action;
-import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 

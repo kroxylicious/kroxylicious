@@ -19,6 +19,14 @@ import java.util.concurrent.TimeUnit;
 
 import javax.security.sasl.AuthenticationException;
 
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Timer;
+
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
@@ -29,14 +37,6 @@ import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.common.protocol.Errors;
-import org.apache.kafka.common.security.scram.internals.ScramMechanism;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Metrics;
-import io.micrometer.core.instrument.Timer;
-
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.Subject;

@@ -11,14 +11,13 @@ import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
 import io.kroxylicious.kafka.common.message.FindCoordinatorResponseData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.Errors;
-
-import io.kroxylicious.authorizer.service.Action;
-import io.kroxylicious.authorizer.service.Decision;
-import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 

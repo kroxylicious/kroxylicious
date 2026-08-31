@@ -9,15 +9,16 @@ package io.kroxylicious.filter.authorization;
 import java.nio.ByteBuffer;
 import java.util.stream.Stream;
 
-import io.kroxylicious.kafka.common.compress.Compression;
-import io.kroxylicious.kafka.common.message.ProduceRequestData;
-import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
-import io.kroxylicious.kafka.common.record.internal.MemoryRecordsBuilder;
-import io.kroxylicious.kafka.common.record.internal.RecordBatch;
-import io.kroxylicious.kafka.common.record.TimestampType;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import io.kroxylicious.kafka.common.compress.Compression;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.record.TimestampType;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecordsBuilder;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

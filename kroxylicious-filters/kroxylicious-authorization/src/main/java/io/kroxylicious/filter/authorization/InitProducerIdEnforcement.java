@@ -9,12 +9,11 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
+import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.kafka.common.message.InitProducerIdRequestData;
 import io.kroxylicious.kafka.common.message.InitProducerIdResponseData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.Errors;
-
-import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 

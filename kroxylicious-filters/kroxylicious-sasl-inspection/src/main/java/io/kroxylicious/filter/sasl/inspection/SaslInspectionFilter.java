@@ -12,8 +12,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-import javax.security.sasl.AuthenticationException;
 import javax.security.sasl.SaslException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.spi.LoggingEventBuilder;
 
 import io.kroxylicious.kafka.common.errors.ApiException;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
@@ -25,10 +28,6 @@ import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.common.protocol.Errors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.spi.LoggingEventBuilder;
-
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.Subject;

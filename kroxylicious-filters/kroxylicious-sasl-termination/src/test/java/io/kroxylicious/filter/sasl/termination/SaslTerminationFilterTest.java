@@ -19,16 +19,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.security.sasl.SaslException;
 
-import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
-import io.kroxylicious.kafka.common.message.MetadataRequestData;
-import io.kroxylicious.kafka.common.message.RequestHeaderData;
-import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
-import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
-import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
-import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
-import io.kroxylicious.kafka.common.protocol.ApiKeys;
-import io.kroxylicious.kafka.common.protocol.ApiMessage;
-import io.kroxylicious.kafka.common.protocol.Errors;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.apache.kafka.common.security.oauthbearer.internals.OAuthBearerSaslServerProvider;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
@@ -45,6 +35,16 @@ import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.channel.DefaultEventLoop;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;

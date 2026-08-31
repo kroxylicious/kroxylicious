@@ -9,14 +9,13 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.kafka.common.message.ListGroupsRequestData;
 import io.kroxylicious.kafka.common.message.ListGroupsResponseData;
 import io.kroxylicious.kafka.common.message.ListGroupsResponseData.ListedGroup;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
-
-import io.kroxylicious.authorizer.service.Action;
-import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;

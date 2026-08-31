@@ -22,13 +22,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.security.sasl.SaslException;
 
 import org.apache.kafka.common.config.SaslConfigs;
-import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
-import io.kroxylicious.kafka.common.message.RequestHeaderData;
-import io.kroxylicious.kafka.common.message.ResponseHeaderData;
-import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
-import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
-import io.kroxylicious.kafka.common.protocol.ApiKeys;
-import io.kroxylicious.kafka.common.protocol.Errors;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -37,6 +30,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import io.netty.channel.DefaultEventLoop;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
