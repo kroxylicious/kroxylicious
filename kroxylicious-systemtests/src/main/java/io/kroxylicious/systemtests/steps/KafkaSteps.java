@@ -18,7 +18,7 @@ import org.apache.kafka.clients.admin.ScramMechanism;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.TopicConfig;
-import org.apache.kafka.common.record.internal.CompressionType;
+import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
