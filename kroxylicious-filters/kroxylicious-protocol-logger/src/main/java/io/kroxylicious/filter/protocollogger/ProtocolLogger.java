@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -58,7 +58,7 @@ public class ProtocolLogger implements FilterFactory<ProtocolLogger.Config, Prot
     /**
      * Configuration for the protocol logger filter.
      *
-     * @param apiKeyNames Kafka {@link org.apache.kafka.common.protocol.ApiKeys} enum names to log.
+     * @param apiKeyNames Kafka {@link io.kroxylicious.kafka.common.protocol.ApiKeys} enum names to log.
      *                    Absent or empty means all API keys.
      * @param logLevel the SLF4J level at which the filter emits log messages (default {@link Level#DEBUG}).
      * @param loggerName the SLF4J logger name used by this filter instance (default: the filter class name).
@@ -86,7 +86,7 @@ public class ProtocolLogger implements FilterFactory<ProtocolLogger.Config, Prot
         ApiKeys key = NORMALIZED_API_KEY_LOOKUP.get(normalized);
         if (key == null) {
             throw new PluginConfigurationException(
-                    "Unknown API key name '" + input + "' in apiKeyNames. Must be a valid org.apache.kafka.common.protocol.ApiKeys name.");
+                    "Unknown API key name '" + input + "' in apiKeyNames. Must be a valid io.kroxylicious.kafka.common.protocol.ApiKeys name.");
         }
         return key.name();
     }
