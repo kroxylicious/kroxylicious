@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.apache.kafka.common.config.ConfigResource;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
