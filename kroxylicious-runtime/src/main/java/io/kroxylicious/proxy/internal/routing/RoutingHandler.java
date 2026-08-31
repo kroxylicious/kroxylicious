@@ -601,8 +601,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
             }
             case RouterResponseImpl.RespondWithError rwe -> {
                 ApiMessage message = rwe.request();
-                ApiKeys apiKey1 = ApiKeys.forId(message.apiKey());
-                ApiMessage errorResponse = KafkaProxyExceptionMapper.errorResponseData(apiKey1, message, rwe.requestHeader().requestApiVersion(), rwe.error(),
+                ApiMessage errorResponse = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, rwe.requestHeader().requestApiVersion(), rwe.error(),
                         rwe.message());
                 if (errorResponse == null) {
                     // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.

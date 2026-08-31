@@ -44,8 +44,7 @@ public class ShortCircuitErrorResponse implements FilterFactory<ShortCircuitErro
         SHORTCIRCUIT_MESSAGE {
             @Override
             public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
-                ApiKeys apiKey1 = ApiKeys.forId(request.apiKey());
-                final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseData(apiKey1, request, header.requestApiVersion(),
+                final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseData(apiKey, request, header.requestApiVersion(),
                         Errors.UNKNOWN_SERVER_ERROR, ERROR_MESSAGE);
                 return context.requestFilterResultBuilder().shortCircuitResponse(errorResponseMessage).completed();
             }
@@ -53,8 +52,7 @@ public class ShortCircuitErrorResponse implements FilterFactory<ShortCircuitErro
         SHORTCIRCUIT_MESSAGE_AND_HEADER {
             @Override
             public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
-                ApiKeys apiKey1 = ApiKeys.forId(request.apiKey());
-                final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseData(apiKey1, request, header.requestApiVersion(),
+                final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseData(apiKey, request, header.requestApiVersion(),
                         Errors.UNKNOWN_SERVER_ERROR, ERROR_MESSAGE);
                 final ResponseHeaderData responseHeaders = new ResponseHeaderData();
                 responseHeaders.setCorrelationId(header.correlationId());
