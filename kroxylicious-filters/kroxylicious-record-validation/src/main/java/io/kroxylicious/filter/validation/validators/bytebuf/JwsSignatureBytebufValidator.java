@@ -15,8 +15,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.header.internals.RecordHeaders;
-import org.apache.kafka.common.record.Record;
 import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwk.JsonWebKey;
 import org.jose4j.jwk.JsonWebKeySet;
@@ -29,6 +27,8 @@ import org.jose4j.lang.UnresolvableKeyException;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.filter.validation.validators.Result;
+import io.kroxylicious.kafka.common.header.internals.RecordHeaders;
+import io.kroxylicious.kafka.common.record.internal.Record;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
