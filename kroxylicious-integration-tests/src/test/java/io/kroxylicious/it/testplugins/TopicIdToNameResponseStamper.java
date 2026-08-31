@@ -134,7 +134,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<TopicIdToName
     }
 
     public static String topicNameMapping(org.apache.kafka.common.Uuid topicId, @Nullable String topicName, @Nullable String error) {
-        return topicId + "::" + topicName + "::" + error;
+        return topicNameMapping(new Uuid(topicId.getMostSignificantBits(), topicId.getLeastSignificantBits()), topicName, error);
     }
 
     public record Config(boolean asyncTopicNameLookup) {

@@ -27,7 +27,7 @@ public class RequestDataUtils {
 
     /**
      * Mirrors the logic of
-     * kafka-clients {@code io.kroxylicious.kafka.common.requests.RequestUtils#hasTransactionalRecords(ProduceRequest)}
+     * kafka-clients {@code org.apache.kafka.common.requests.RequestUtils#hasTransactionalRecords(ProduceRequest)}
      * We prefer to only depend on the *Data classes and their dependencies to try and control our exposure
      * to internal classes.
      * @param requestData request data
