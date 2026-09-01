@@ -48,16 +48,16 @@
 
         <disruptor.version>4.0.0</disruptor.version>
         <freemarker.version>2.3.34</freemarker.version>
-        <guava.version>33.6.0-jre</guava.version>
+        <guava.version>33.7.1-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
-        <jackson.version>2.22.1</jackson.version>
+        <jackson.version>2.22.2</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.4</junit.version>
         <kafka.version>4.2.0</kafka.version>
         <kafka.message-spec.version>4.3.0</kafka.message-spec.version>
-        <zstd-jni.version>1.5.6-10</zstd-jni.version>
-        <lz4-java.version>1.10.1</lz4-java.version>
-        <snappy-java.version>1.1.10.7</snappy-java.version>
+        <zstd-jni.version>1.5.7-15</zstd-jni.version>
+        <lz4-java.version>1.11.2</lz4-java.version>
+        <snappy-java.version>1.1.10.8</snappy-java.version>
         <kroxy.extension.version>0.16.0</kroxy.extension.version>
         <log4j.version>2.26.1</log4j.version>
         <caffeine.version>3.2.4</caffeine.version>
@@ -72,18 +72,18 @@
         <micrometer.version>1.17.0</micrometer.version>
         <slf4j.version>2.0.18</slf4j.version>
         <sundr-builder-annotations.version>0.300.0</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.10.3</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.10.4</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <apicurio-registry.version>3.3.1</apicurio-registry.version>
-        <kiota.version>0.0.37</kiota.version>
-        <avro.version>1.12.1</avro.version>
-        <protobuf-java.version>4.35.1</protobuf-java.version>
+        <kiota.version>0.0.38</kiota.version>
+        <avro.version>1.12.2</avro.version>
+        <protobuf-java.version>4.36.0</protobuf-java.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
-        <strimzi.version>1.1.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
+        <strimzi.version>1.2.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
         <kubernetes-client.version>7.8.0</kubernetes-client.version>
         <maven.core.version>3.9.16</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
@@ -101,9 +101,9 @@
         <azure.core.version>1.58.1</azure.core.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
-        <logsquelcher.version>0.2.1</logsquelcher.version>
+        <logsquelcher.version>0.2.2</logsquelcher.version>
         <async-profiler.version>4.5</async-profiler.version>
-        <json-unit-assertj.version>6.0.1</json-unit-assertj.version>
+        <json-unit-assertj.version>6.2.0</json-unit-assertj.version>
 
         <!-- Error Prone -->
         <errorprone.version>2.50.0</errorprone.version>
@@ -113,6 +113,7 @@
         <maven.javadoc.skip>${central.publishing.skip}</maven.javadoc.skip>
         <maven.source.skip>${central.publishing.skip}</maven.source.skip>
         <gpg.skip>${central.publishing.skip}</gpg.skip>
+        <rewrite-maven-plugin.version>6.46.1</rewrite-maven-plugin.version>
     </properties>
 
     <name>Parent POM</name>
@@ -645,7 +646,6 @@
          Enforced by the module-profile lint check. -->
     <modules/>
 
-
     <build>
         <!-- Keep alphabetic order -->
         <pluginManagement>
@@ -736,8 +736,6 @@
                                     <exclude>kroxylicious-api/src/main/java/io/kroxylicious/kafka/**</exclude>
                                     <exclude>kroxylicious-api/src/test/java/io/kroxylicious/kafka/**</exclude>
                                     <exclude>kroxylicious-api/etc/asf-license.txt</exclude>
-                                    <exclude>tools/kafka-vendoring/requirements.txt</exclude>
-
                                 </excludes>
                             </licenseSet>
                         </licenseSets>
@@ -746,6 +744,8 @@
                             <bicep>DOUBLESLASH_STYLE</bicep>
                             <g4>JAVADOC_STYLE</g4>
                             <operator>SCRIPT_STYLE</operator>
+                            <requirements.txt>SCRIPT_STYLE</requirements.txt>
+                            <preserve-kroxylicious.txt>SCRIPT_STYLE</preserve-kroxylicious.txt>
                         </mapping>
                     </configuration>
                 </plugin>
@@ -927,7 +927,7 @@
                 <plugin>
                     <groupId>dev.logchange</groupId>
                     <artifactId>logchange-maven-plugin</artifactId>
-                    <version>1.19.15</version>
+                    <version>1.19.16</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -1033,7 +1033,7 @@
                 <plugin>
                     <groupId>io.fabric8</groupId>
                     <artifactId>docker-maven-plugin</artifactId>
-                    <version>0.48.1</version>
+                    <version>0.49.0</version>
                 </plugin>
 
                 <plugin>
@@ -1076,7 +1076,7 @@
                 <plugin>
                     <groupId>org.sonarsource.scanner.maven</groupId>
                     <artifactId>sonar-maven-plugin</artifactId>
-                    <version>5.5.0.6356</version>
+                    <version>5.7.0.6970</version>
                 </plugin>
             </plugins>
 
@@ -1154,6 +1154,51 @@
                                     <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
                                 </artifactItem>
                             </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>dev.logchange</groupId>
+                <artifactId>logchange-maven-plugin</artifactId>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>lint-changelog</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>lint</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.2.0</version>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>validate-changelog-entry-filenames</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <pathconvert property="invalid.changelog.entry.filenames" pathsep=", " setonempty="false">
+                                    <path>
+                                        <fileset dir="${maven.multiModuleProjectDirectory}/changelog/unreleased" includes="*.yaml">
+                                            <not>
+                                                <filename regex="^[0-9]{5}-.*"/>
+                                            </not>
+                                        </fileset>
+                                    </path>
+                                    <mapper type="flatten"/>
+                                </pathconvert>
+                                <fail if="invalid.changelog.entry.filenames"
+                                      message="Changelog entry filenames must use a zero-padded 5-digit issue/PR number prefix (for example, 01234-short-slug.yaml). Invalid entries: ${invalid.changelog.entry.filenames}"/>
+                            </target>
                         </configuration>
                     </execution>
                 </executions>
@@ -1515,7 +1560,7 @@
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
                                 <!-- The following <arg> cannot be split over multiple lines :-( -->
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka)/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka)/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR -Xep:FutureReturnValueIgnored:ERROR</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

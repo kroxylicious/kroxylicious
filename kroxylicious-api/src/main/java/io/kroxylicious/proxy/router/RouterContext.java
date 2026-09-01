@@ -9,13 +9,15 @@ package io.kroxylicious.proxy.router;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.topology.VirtualNode;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Context passed to {@link Router#onRequest} for issuing requests
@@ -202,17 +204,43 @@ public interface RouterContext {
 
     /**
      * Begins building a router result that generates an error response
-     * for the client. The generated error response is API-specific.
+     * for the client. The generated error response is API-specific and
+     * carries the given {@code error}'s code and its default message.
      *
      * @param header the request header
      * @param request the request body
-     * @param exception the exception that triggered the error
+     * @param error the error to convey to the client; its {@link Errors#code() code}
+     *              is set on the generated response and its {@link Errors#message()
+     *              default message} is used. Must denote an actual error;
+     *              {@link Errors#NONE} is not permitted.
      * @return a stage that can optionally close the connection
+     * @throws IllegalArgumentException if {@code error} is {@link Errors#NONE}.
      */
     CloseOrTerminalStage respondWithError(
                                           RequestHeaderData header,
                                           ApiMessage request,
-                                          ApiException exception);
+                                          Errors error);
+
+    /**
+     * Begins building a router result that generates an error response
+     * for the client. The generated error response is API-specific and
+     * carries the given {@code error}'s code and the given message.
+     *
+     * @param header the request header
+     * @param request the request body
+     * @param error the error to convey to the client; its {@link Errors#code() code}
+     *              is set on the generated response. Must denote an actual error;
+     *              {@link Errors#NONE} is not permitted.
+     * @param message the error message to convey to the client, or {@code null} to
+     *                use the error's default message.
+     * @return a stage that can optionally close the connection
+     * @throws IllegalArgumentException if {@code error} is {@link Errors#NONE}.
+     */
+    CloseOrTerminalStage respondWithError(
+                                          RequestHeaderData header,
+                                          ApiMessage request,
+                                          Errors error,
+                                          @Nullable String message);
 
     /**
      * Begins building a router result for a fire-and-forget request

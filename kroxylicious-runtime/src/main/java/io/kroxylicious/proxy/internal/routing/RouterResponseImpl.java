@@ -8,10 +8,10 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.proxy.router.CloseOrTerminalStage;
 import io.kroxylicious.proxy.router.RouterResponse;
@@ -24,8 +24,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * <p>Instances are created by {@link RouterContextImpl} via the builder methods
  * ({@code respondWith}, {@code respondWithError}, {@code respondWithoutReply}).
- * {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler} switches on
- * the subtypes to determine how to deliver the result to the client.</p>
+ * {@link RoutingHandler} switches on the subtypes to determine how to deliver
+ * the result to the client.</p>
  */
 sealed interface RouterResponseImpl extends RouterResponse
         permits RouterResponseImpl.RespondWith,
@@ -50,7 +50,8 @@ sealed interface RouterResponseImpl extends RouterResponse
     record RespondWithError(
                             RequestHeaderData requestHeader,
                             ApiMessage request,
-                            ApiException exception,
+                            Errors error,
+                            @Nullable String message,
                             boolean closeConnection)
             implements RouterResponseImpl {}
 
@@ -86,7 +87,7 @@ sealed interface RouterResponseImpl extends RouterResponse
             }
             return switch (prototype) {
                 case RespondWith rw -> new RespondWith(rw.header(), rw.body(), true);
-                case RespondWithError rwe -> new RespondWithError(rwe.requestHeader(), rwe.request(), rwe.exception(), true);
+                case RespondWithError rwe -> new RespondWithError(rwe.requestHeader(), rwe.request(), rwe.error(), rwe.message, true);
                 case RespondWithoutReply ignored -> new RespondWithoutReply(true);
             };
         }

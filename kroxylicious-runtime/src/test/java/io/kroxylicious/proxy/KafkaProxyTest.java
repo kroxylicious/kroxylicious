@@ -230,7 +230,8 @@ class KafkaProxyTest {
                              portIdentifiesNode:
                                bootstrapAddress: localhost:9192
                     """), Features.defaultFeatures())) {
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
+                assertThat(shutdownFuture).isNotDone();
                 @SuppressWarnings("resource") // it's not auto closable in java 17
                 var client = HttpClient.newHttpClient();
                 var uri = URI.create("http://localhost:9190/livez");
@@ -260,7 +261,8 @@ class KafkaProxyTest {
                                bootstrapAddress: localhost:9192
                     """;
             try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
+                assertThat(shutdownFuture).isNotDone();
 
                 assertThat(proxy.managementEventGroup())
                         .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
@@ -290,7 +292,8 @@ class KafkaProxyTest {
                                bootstrapAddress: localhost:9192
                     """;
             try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
+                assertThat(shutdownFuture).isNotDone();
 
                 assertThat(proxy.managementEventGroup())
                         .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
@@ -320,7 +323,8 @@ class KafkaProxyTest {
                                bootstrapAddress: localhost:9192
                     """;
             try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
+                assertThat(shutdownFuture).isNotDone();
 
                 assertThat(proxy.managementEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(2));
             }
@@ -347,7 +351,8 @@ class KafkaProxyTest {
                                bootstrapAddress: localhost:9192
                     """;
             try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
+                assertThat(shutdownFuture).isNotDone();
 
                 assertThat(proxy.proxyEventGroup())
                         .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
@@ -377,7 +382,8 @@ class KafkaProxyTest {
                                bootstrapAddress: localhost:9192
                     """;
             try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
+                assertThat(shutdownFuture).isNotDone();
 
                 assertThat(proxy.proxyEventGroup())
                         .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
@@ -407,7 +413,8 @@ class KafkaProxyTest {
                                bootstrapAddress: localhost:9192
                     """;
             try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
+                assertThat(shutdownFuture).isNotDone();
 
                 assertThat(proxy.proxyEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(2));
             }
@@ -433,7 +440,8 @@ class KafkaProxyTest {
         @Test
         void shouldRejectReconfigureWithNullConfig() {
             try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(BASE_CONFIG), Features.defaultFeatures())) {
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
+                assertThat(shutdownFuture).isNotDone();
                 assertThatThrownBy(() -> proxy.reconfigure(null))
                         .isInstanceOf(NullPointerException.class)
                         .hasMessageContaining("newConfig");
@@ -453,8 +461,10 @@ class KafkaProxyTest {
         @Test
         void shouldRejectReconfigureAfterShutdown() {
             try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(BASE_CONFIG), Features.defaultFeatures())) {
-                proxy.startup();
-                proxy.shutdown();
+                var lifecycleFuture = proxy.startup();
+                assertThat(lifecycleFuture).isNotDone();
+                var shutdownResult = proxy.shutdown();
+                assertThat(shutdownResult).isCompletedWithValue(null);
                 var newConfig = configParser.parseConfiguration(BASE_CONFIG);
                 assertThatThrownBy(() -> proxy.reconfigure(newConfig))
                         .isInstanceOf(IllegalStateException.class)
@@ -470,7 +480,8 @@ class KafkaProxyTest {
             // The fact that a ReconfigureResult is produced at all proves the orchestrator's
             // pipeline ran end-to-end (only the orchestrator's success path yields one).
             try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(BASE_CONFIG), Features.defaultFeatures())) {
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
+                assertThat(shutdownFuture).isNotDone();
                 var newConfig = configParser.parseConfiguration(BASE_CONFIG);
                 var result = proxy.reconfigure(newConfig).get(5, TimeUnit.SECONDS);
                 assertThat(result.hasErrors()).isFalse();
@@ -498,9 +509,10 @@ class KafkaProxyTest {
                                bootstrapAddress: localhost:9192
                     """), Features.defaultFeatures())) {
                 // When
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
 
                 // Then
+                assertThat(shutdownFuture).isNotDone();
                 assertThat(proxy.managementEventGroup())
                         .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(IoUringServerSocketChannel.class));
             }
@@ -526,9 +538,10 @@ class KafkaProxyTest {
                                bootstrapAddress: localhost:9192
                     """), Features.defaultFeatures())) {
                 // When
-                proxy.startup();
+                var shutdownFuture = proxy.startup();
 
                 // Then
+                assertThat(shutdownFuture).isNotDone();
                 assertThat(proxy.managementEventGroup())
                         .satisfiesAnyOf(eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(EpollServerSocketChannel.class),
                                 eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(NioServerSocketChannel.class),

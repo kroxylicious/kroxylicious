@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter;
+import io.kroxylicious.kafka.message.json.KafkaApiMessageConverter;
 
 class MessageFormatter {
 

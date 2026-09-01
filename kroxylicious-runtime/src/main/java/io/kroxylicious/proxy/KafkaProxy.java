@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -694,9 +695,25 @@ public final class KafkaProxy implements AutoCloseable {
         return address;
     }
 
+    /**
+     * Shuts down the proxy and blocks until shutdown has fully completed, guaranteeing that
+     * bound ports are released before this method returns. A shutdown failure is logged at
+     * ERROR rather than propagated, so this method is safe to call from try-with-resources
+     * after an explicit {@link #shutdown()} without risk of a second exception. Idempotent.
+     */
     @Override
     public void close() {
-        shutdown();
+        try {
+            shutdown().get();
+        }
+        catch (ExecutionException e) {
+            STARTUP_SHUTDOWN_LOGGER.atError()
+                    .setCause(e.getCause())
+                    .log("Proxy shutdown completed with a failure");
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
 }

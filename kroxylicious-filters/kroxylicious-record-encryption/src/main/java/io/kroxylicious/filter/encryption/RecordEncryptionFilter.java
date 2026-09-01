@@ -102,7 +102,9 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
             return maybeEncodeProduce(request, context, topicNameMapping).thenCompose(yy -> context.forwardRequest(header, request)).exceptionallyCompose(throwable -> {
                 final ApiException clientFacingException = getClientFacingException(throwable);
                 if (clientFacingException != null) {
-                    return context.requestFilterResultBuilder().errorResponse(header, request, clientFacingException).completed();
+                    return context.requestFilterResultBuilder()
+                            .errorResponse(header, request, Errors.forException(clientFacingException), clientFacingException.getMessage())
+                            .completed();
                 }
                 else {
                     // returning a failed stage is effectively asking the runtime to kill the connection.
@@ -122,7 +124,7 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
             return context.requestFilterResultBuilder().drop().completed();
         }
         else {
-            return context.requestFilterResultBuilder().errorResponse(header, request, Errors.UNKNOWN_TOPIC_ID.exception()).completed();
+            return context.requestFilterResultBuilder().errorResponse(header, request, Errors.UNKNOWN_TOPIC_ID).completed();
         }
     }
 

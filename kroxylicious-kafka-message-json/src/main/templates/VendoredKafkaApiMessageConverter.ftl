@@ -14,21 +14,21 @@ import java.util.Map;
 import java.util.function.BiFunction;
 
 <#list inputSpecs as inputSpec>
-import org.apache.kafka.common.message.${inputSpec.name}Data;
-import org.apache.kafka.common.message.${inputSpec.name}DataJsonConverter;
+import io.kroxylicious.kafka.common.message.${inputSpec.name}Data;
+import io.kroxylicious.kafka.common.message.${inputSpec.name}DataJsonConverter;
 </#list>
-import org.apache.kafka.common.message.ApiMessageType;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.ApiMessageType;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
 
 
 /**
- * Provides converters between the JSON representation of Kafka API messages and the
+ * Provides converters between the JSON representation of vendored Kafka API messages and the
  * corresponding {@link ApiMessage} instances.
  */
-public class KafkaApiMessageConverter {
+public class VendoredKafkaApiMessageConverter {
 
     /**
      * A pair of functions converting between JSON and {@link ApiMessage} at a given API version.
@@ -40,7 +40,7 @@ public class KafkaApiMessageConverter {
                             BiFunction<ApiMessage, Short, JsonNode> writer) {
     }
 
-    private KafkaApiMessageConverter() {
+    private VendoredKafkaApiMessageConverter() {
     }
 
     private static final Map<ApiMessageType, Converter> requestConverters;

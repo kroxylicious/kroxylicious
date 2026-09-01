@@ -29,7 +29,6 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.requests.OffsetFetchResponse;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
@@ -326,8 +325,8 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
     private static OffsetFetchResponsePartition unauthorizedTopLevelPartition(int partitionIndex) {
         return new OffsetFetchResponsePartition()
                 .setPartitionIndex(partitionIndex)
-                .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
-                .setMetadata(OffsetFetchResponse.NO_METADATA)
+                .setCommittedOffset(INVALID_OFFSET)
+                .setMetadata(NO_METADATA)
                 .setCommittedLeaderEpoch(RecordBatch.NO_PARTITION_LEADER_EPOCH)
                 .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
     }
@@ -336,8 +335,8 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
         // this looks almost identical to the above method: the difference is plural vs singular of the type names in the method signature
         return new OffsetFetchResponsePartitions()
                 .setPartitionIndex(partitionIndex)
-                .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
-                .setMetadata(OffsetFetchResponse.NO_METADATA)
+                .setCommittedOffset(INVALID_OFFSET)
+                .setMetadata(NO_METADATA)
                 .setCommittedLeaderEpoch(RecordBatch.NO_PARTITION_LEADER_EPOCH)
                 .setErrorCode(errors.code());
     }

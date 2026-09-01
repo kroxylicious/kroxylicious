@@ -218,6 +218,35 @@ class PodIdentityCredentialsProviderTest {
     }
 
     @Test
+    void afterFetchFailureSubsequentGetCredentialsTriggersRetry() {
+        // Given: first credential fetch fails, subsequent fetch succeeds
+        agentServer.stubFor(get(urlEqualTo(CREDENTIALS_PATH))
+                .inScenario("retry")
+                .whenScenarioStateIs("Started")
+                .willReturn(aResponse().withStatus(500).withBody("agent error"))
+                .willSetStateTo("recovered"));
+        agentServer.stubFor(get(urlEqualTo(CREDENTIALS_PATH))
+                .inScenario("retry")
+                .whenScenarioStateIs("recovered")
+                .willReturn(aResponse().withBody(agentBody("ASIATESTKEY", "secret", "token",
+                        Instant.parse("2099-01-01T00:00:00Z")))));
+
+        var cfg = config(credentialsUri, tokenFile);
+        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, SYSTEM_CLOCK)) {
+            // When: initial fetch fails (propagateResultToFuture → onRefreshFailure logs + scheduleCredentialRefresh)
+            assertThat(provider.getCredentials())
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableThat()
+                    .withCauseInstanceOf(KmsException.class);
+
+            // Then: getCredentials() detects the failed future, resets, and triggers a retry that succeeds
+            await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> assertThat(provider.getCredentials())
+                    .succeedsWithin(Duration.ofSeconds(1))
+                    .returns("ASIATESTKEY", PodIdentityCredentials::accessKeyId));
+        }
+    }
+
+    @Test
     void rejectsMissingTokenFileOnRefresh() throws IOException {
         Files.delete(tokenFile);
         var cfg = config(credentialsUri, tokenFile);

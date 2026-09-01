@@ -19,8 +19,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.security.sasl.SaslException;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -591,8 +589,8 @@ class SaslTerminationFilterTest {
     void shouldRejectUnauthenticatedDefaultRequest() throws Exception {
         // Given
         var filter = createFilter();
-        var exceptionCaptor = ArgumentCaptor.forClass(ApiException.class);
-        var filterContext = mockErrorFilterContextWithClose(exceptionCaptor);
+        var errorsCaptor = ArgumentCaptor.forClass(Errors.class);
+        var filterContext = mockErrorFilterContextWithClose(errorsCaptor);
 
         // When
         filter.onRequest(ApiKeys.METADATA, ApiKeys.METADATA.latestVersion(),
@@ -601,7 +599,7 @@ class SaslTerminationFilterTest {
                 filterContext).toCompletableFuture().get();
 
         // Then
-        assertThat(exceptionCaptor.getValue()).isInstanceOf(SaslAuthenticationException.class);
+        assertThat(errorsCaptor.getValue()).isEqualTo(Errors.SASL_AUTHENTICATION_FAILED);
     }
 
     @Test
@@ -654,8 +652,8 @@ class SaslTerminationFilterTest {
         Instant pastExpiry = FIXED_INSTANT.minusSeconds(60);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", pastExpiry));
 
-        var exceptionCaptor = ArgumentCaptor.forClass(ApiException.class);
-        var filterContext = mockErrorFilterContextWithClose(exceptionCaptor);
+        var errorsCaptor = ArgumentCaptor.forClass(Errors.class);
+        var filterContext = mockErrorFilterContextWithClose(errorsCaptor);
 
         // When
         filter.onRequest(ApiKeys.METADATA, ApiKeys.METADATA.latestVersion(),
@@ -664,7 +662,7 @@ class SaslTerminationFilterTest {
                 filterContext).toCompletableFuture().get();
 
         // Then
-        assertThat(exceptionCaptor.getValue()).isInstanceOf(SaslAuthenticationException.class);
+        assertThat(errorsCaptor.getValue()).isEqualTo(Errors.SASL_AUTHENTICATION_FAILED);
         assertThat(meterRegistry.find(SaslTerminationFilter.SESSION_EXPIRED_METRIC)
                 .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER)))
                 .counter()).isNotNull()
@@ -684,8 +682,9 @@ class SaslTerminationFilterTest {
         var handler = mock(MechanismStateMachine.class);
         var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "OAUTHBEARER", null));
-        var exceptionCaptor = ArgumentCaptor.forClass(ApiException.class);
-        var filterContext = mockErrorFilterContextWithoutClose(exceptionCaptor);
+        var errorsCaptor = ArgumentCaptor.forClass(Errors.class);
+        var messageCaptor = ArgumentCaptor.forClass(String.class);
+        var filterContext = mockErrorFilterContextWithoutClose(errorsCaptor, messageCaptor);
 
         // When
         filter.onRequest(apiKey, apiKey.latestVersion(),
@@ -694,7 +693,7 @@ class SaslTerminationFilterTest {
                 filterContext).toCompletableFuture().get();
 
         // Then
-        assertThat(exceptionCaptor.getValue().getMessage())
+        assertThat(messageCaptor.getValue())
                 .isEqualTo(apiKey + " is not supported when SASL is terminated at the proxy");
     }
 
@@ -723,8 +722,9 @@ class SaslTerminationFilterTest {
         var handler = mock(MechanismStateMachine.class);
         var authenticating = State.start().nextState(handler);
         setFilterState(filter, authenticating.nextStateSuccess("alice", "SCRAM-SHA-256", null));
-        var exceptionCaptor = ArgumentCaptor.forClass(ApiException.class);
-        var filterContext = mockErrorFilterContextWithoutClose(exceptionCaptor);
+        var errorsCaptor = ArgumentCaptor.forClass(Errors.class);
+        var messageCaptor = ArgumentCaptor.forClass(String.class);
+        var filterContext = mockErrorFilterContextWithoutClose(errorsCaptor, messageCaptor);
 
         // When
         filter.onRequest(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.ALTER_USER_SCRAM_CREDENTIALS.latestVersion(),
@@ -733,7 +733,7 @@ class SaslTerminationFilterTest {
                 filterContext).toCompletableFuture().get();
 
         // Then
-        assertThat(exceptionCaptor.getValue().getMessage())
+        assertThat(messageCaptor.getValue())
                 .isEqualTo(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS + " is not supported when SASL is terminated at the proxy");
     }
 
@@ -944,7 +944,7 @@ class SaslTerminationFilterTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static FilterContext mockErrorFilterContextWithClose(ArgumentCaptor<ApiException> exceptionCaptor) {
+    private static FilterContext mockErrorFilterContextWithClose(ArgumentCaptor<Errors> errorsCaptor) {
         var filterContext = mock(FilterContext.class);
         var builder = mock(RequestFilterResultBuilder.class);
         var closeOrTerminal = mock(CloseOrTerminalStage.class);
@@ -954,7 +954,7 @@ class SaslTerminationFilterTest {
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
         when(filterContext.sessionId()).thenReturn("test-session");
         when(filterContext.getVirtualClusterName()).thenReturn(TEST_VIRTUAL_CLUSTER);
-        when(builder.errorResponse(any(), any(), exceptionCaptor.capture())).thenReturn(closeOrTerminal);
+        when(builder.errorResponse(any(), any(), errorsCaptor.capture())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.withCloseConnection()).thenReturn(terminal);
         when(terminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
 
@@ -962,7 +962,7 @@ class SaslTerminationFilterTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static FilterContext mockErrorFilterContextWithoutClose(ArgumentCaptor<ApiException> exceptionCaptor) {
+    private static FilterContext mockErrorFilterContextWithoutClose(ArgumentCaptor<Errors> errorsCaptor, ArgumentCaptor<String> messageCaptor) {
         var filterContext = mock(FilterContext.class);
         var builder = mock(RequestFilterResultBuilder.class);
         var closeOrTerminal = mock(CloseOrTerminalStage.class);
@@ -970,7 +970,7 @@ class SaslTerminationFilterTest {
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
         when(filterContext.sessionId()).thenReturn("test-session");
-        when(builder.errorResponse(any(), any(), exceptionCaptor.capture())).thenReturn(closeOrTerminal);
+        when(builder.errorResponse(any(), any(), errorsCaptor.capture(), messageCaptor.capture())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
 
         return filterContext;

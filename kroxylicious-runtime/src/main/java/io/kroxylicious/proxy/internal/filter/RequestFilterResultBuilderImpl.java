@@ -6,11 +6,14 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.Objects;
+
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.AbstractResponse;
+import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
@@ -63,18 +66,34 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException)
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error)
             throws IllegalArgumentException {
-        final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, apiException);
-        validateShortCircuitResponse(errorResponseMessage.data());
+        return errorResponse(header, requestMessage, error, null);
+    }
+
+    @Override
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error, @Nullable String message)
+            throws IllegalArgumentException {
+        Objects.requireNonNull(error, "error must not be null");
+        if (error == Errors.NONE) {
+            throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
+        }
+        return errorResponseForException(header, requestMessage, error, message);
+    }
+
+    private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, Errors error,
+                                                                                @Nullable String message) {
+        ApiKeys apiKey = ApiKeys.forId(requestMessage.apiKey());
+        final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseData(apiKey, requestMessage, header.requestApiVersion(), error, message);
+        validateShortCircuitResponse(errorResponseMessage);
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();
         responseHeaders.setCorrelationId(header.correlationId());
         this.shortCircuitHeader = responseHeaders;
-        this.shortCircuitResponse = errorResponseMessage.data();
+        this.shortCircuitResponse = errorResponseMessage;
         return this;
     }
 
-    private void validateShortCircuitResponse(ApiMessage message) {
+    private void validateShortCircuitResponse(@Nullable ApiMessage message) {
         if (message == null) {
             throw new IllegalArgumentException("message may not be null");
         }

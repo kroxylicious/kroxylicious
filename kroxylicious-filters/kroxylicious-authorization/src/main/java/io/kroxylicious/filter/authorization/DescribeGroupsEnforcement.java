@@ -16,7 +16,6 @@ import org.apache.kafka.common.message.DescribeGroupsResponseData;
 import org.apache.kafka.common.message.DescribeGroupsResponseData.DescribedGroup;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.DescribeGroupsResponse;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
@@ -55,7 +54,7 @@ public class DescribeGroupsEnforcement extends ApiEnforcement<DescribeGroupsRequ
         List<Action> actions = actionsToAuthorize(request, isIncludeAuthorizedOps);
         return authorizationFilter.authorization(context, actions).thenCompose(authorizeResult -> {
             if (authorizeResult.allowed().isEmpty()) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
             }
             // we can only short-circuit if we are not including the proxy authorized operations
             else if (authorizeResult.denied().isEmpty() && !isIncludeAuthorizedOps) {
@@ -100,9 +99,10 @@ public class DescribeGroupsEnforcement extends ApiEnforcement<DescribeGroupsRequ
     }
 
     private static DescribedGroup groupAuthzFailureResult(String deniedGroup) {
-        return new DescribedGroup().setGroupId(deniedGroup).setGroupState(DescribeGroupsResponse.UNKNOWN_STATE)
-                .setProtocolType(DescribeGroupsResponse.UNKNOWN_PROTOCOL_TYPE)
-                .setProtocolData(DescribeGroupsResponse.UNKNOWN_PROTOCOL)
+        return new DescribedGroup().setGroupId(deniedGroup)
+                .setGroupState("") // Unknown state
+                .setProtocolType("") // Unknown protocol type
+                .setProtocolData("") // Unknown protocol
                 .setMembers(List.of())
                 .setAuthorizedOperations(Integer.MIN_VALUE)
                 .setErrorCode(Errors.GROUP_AUTHORIZATION_FAILED.code());

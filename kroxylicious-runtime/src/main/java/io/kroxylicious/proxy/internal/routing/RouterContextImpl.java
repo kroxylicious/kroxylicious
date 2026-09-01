@@ -9,10 +9,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -24,24 +24,24 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Per-request implementation of {@link RouterContext}. Created by
- * {@link RouterDispatchHandler} for each incoming client request.
+ * {@link RoutingHandler} for each incoming request at any routing level.
  */
 class RouterContextImpl implements RouterContext {
 
     private final int clientCorrelationId;
     private final String sessionId;
     private final Subject subject;
-    private final RouterDispatchHandler handler;
+    private final RouterDispatch dispatch;
     @Nullable
     private final Integer endpointVirtualNodeId;
 
     RouterContextImpl(DecodedRequestFrame<?> clientFrame,
-                      RouterDispatchHandler handler,
+                      RouterDispatch dispatch,
                       String sessionId,
                       Subject subject,
                       @Nullable Integer endpointVirtualNodeId) {
         this.clientCorrelationId = clientFrame.correlationId();
-        this.handler = Objects.requireNonNull(handler);
+        this.dispatch = Objects.requireNonNull(dispatch);
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
         this.endpointVirtualNodeId = endpointVirtualNodeId;
@@ -52,7 +52,7 @@ class RouterContextImpl implements RouterContext {
         if (endpointVirtualNodeId == null) {
             return Optional.empty();
         }
-        NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(endpointVirtualNodeId);
+        NodeIdMapping.RouteAndNode ran = dispatch.nodeIdMapping().fromVirtual(endpointVirtualNodeId);
         return Optional.of(new VirtualNodeImpl(ran.route(), endpointVirtualNodeId));
     }
 
@@ -65,7 +65,7 @@ class RouterContextImpl implements RouterContext {
      */
     @Override
     public VirtualNode anyNode(String route) {
-        if (!handler.routes.containsKey(route)) {
+        if (!dispatch.routes().containsKey(route)) {
             throw new IllegalArgumentException("Unknown route: " + route);
         }
         return new VirtualNodeImpl(route, null);
@@ -73,7 +73,7 @@ class RouterContextImpl implements RouterContext {
 
     @Override
     public VirtualNode nodeForId(int virtualNodeId) {
-        NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(virtualNodeId);
+        NodeIdMapping.RouteAndNode ran = dispatch.nodeIdMapping().fromVirtual(virtualNodeId);
         return new VirtualNodeImpl(ran.route(), virtualNodeId);
     }
 
@@ -85,10 +85,10 @@ class RouterContextImpl implements RouterContext {
             throw new IllegalArgumentException("Unrecognised VirtualNode type: " + node.getClass().getName());
         }
         if (virtualNodeId == null) {
-            return handler.sendToAnyNode(route, header, request, sessionId, clientCorrelationId);
+            return dispatch.sendToAnyNode(route, header, request, sessionId, clientCorrelationId);
         }
         else {
-            return handler.sendToSpecificNode(virtualNodeId, route, header, request, sessionId, clientCorrelationId);
+            return dispatch.sendToSpecificNode(virtualNodeId, route, header, request, sessionId, clientCorrelationId);
         }
     }
 
@@ -115,8 +115,20 @@ class RouterContextImpl implements RouterContext {
     @Override
     public CloseOrTerminalStage respondWithError(RequestHeaderData header,
                                                  ApiMessage request,
-                                                 ApiException exception) {
-        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWithError(header, request, exception, false));
+                                                 Errors error) {
+        return respondWithError(header, request, error, null);
+    }
+
+    @Override
+    public CloseOrTerminalStage respondWithError(RequestHeaderData header,
+                                                 ApiMessage request,
+                                                 Errors error,
+                                                 @Nullable String message) {
+        Objects.requireNonNull(error, "error must not be null");
+        if (error == Errors.NONE) {
+            throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
+        }
+        return RouterResponseImpl.builder(new RouterResponseImpl.RespondWithError(header, request, error, message, false));
     }
 
     @Override

@@ -98,10 +98,16 @@ public class StrimziTestClient implements KafkaClient {
     @Override
     public ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                       Map<String, String> additionalConfig) {
+        return produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, additionalConfig, Map.of());
+    }
+
+    @Override
+    public ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                      Map<String, String> additionalConfig, Map<String, String> javaSystemProperties) {
         LOGGER.atInfo().log("Producing messages using Strimzi Test Client");
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
         Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey,
-                additionalConfig).build();
+                additionalConfig, javaSystemProperties).build();
         KafkaUtils.produceMessages(deployNamespace, topicName, name, testClientJob);
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         String log = waitForProducer(deployNamespace, podName, this.marker, Duration.ofSeconds(60));
@@ -145,9 +151,16 @@ public class StrimziTestClient implements KafkaClient {
     @Override
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
                                                 String consumerGroup) {
+        return consumeMessages(topicName, bootstrap, numOfMessages, timeout, additionalConfig, consumerGroup, Map.of());
+    }
+
+    @Override
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
+                                                String consumerGroup, Map<String, String> javaSystemProperties) {
         LOGGER.atInfo().log("Consuming records using Strimzi Test Client");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
-        Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages, additionalConfig, consumerGroup).build();
+        Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages, additionalConfig, consumerGroup,
+                javaSystemProperties).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
         KafkaUtils.deleteJob(testClientJob);

@@ -63,6 +63,10 @@ class PromiseFactory {
      * @return a time limited future.
      * @param <T> the type of the result of the future.
      */
+    // FutureReturnValueIgnored: the failure is handled inside the callback; the callback only
+    // cancels a timeout timer and cannot fail meaningfully; `promise` itself is returned to
+    // the caller on the next line.
+    @SuppressWarnings("FutureReturnValueIgnored")
     <T> CompletableFuture<T> wrapWithTimeLimit(CompletableFuture<T> promise, Callable<String> exceptionMessageGenerator) {
         var timeoutFuture = eventLoop.schedule(timeoutTask(promise, exceptionMessageGenerator), timeout, timeoutUnit);
         promise.whenComplete((p, throwable) -> timeoutFuture.cancel(false));

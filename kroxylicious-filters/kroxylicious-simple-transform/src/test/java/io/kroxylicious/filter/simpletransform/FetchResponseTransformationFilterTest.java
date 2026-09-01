@@ -33,7 +33,6 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.Records;
 import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.requests.FetchResponse;
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -220,7 +219,7 @@ class FetchResponseTransformationFilterTest {
                             PartitionData expectedErrorResponse = new PartitionData()
                                     .setPartitionIndex(partitionData.partitionIndex())
                                     .setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
-                                    .setHighWatermark(FetchResponse.INVALID_HIGH_WATERMARK)
+                                    .setHighWatermark(-1L) // Invalid high watermark
                                     .setRecords(MemoryRecords.EMPTY);
                             assertThat(partitionData).isEqualTo(expectedErrorResponse);
                         });
