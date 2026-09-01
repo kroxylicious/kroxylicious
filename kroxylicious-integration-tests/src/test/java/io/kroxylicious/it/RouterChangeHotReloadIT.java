@@ -19,7 +19,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.it.testplugins.router.InvocationCountingRouterFactory;
@@ -55,8 +54,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code RouterFactory.initialize()} with the updated config).
  */
 class RouterChangeHotReloadIT extends BaseIT {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(RouterChangeHotReloadIT.class);
 
     private static final int PORT_BLOCK_BASE = 29000 + ThreadLocalRandom.current().nextInt(1000);
     private static final int PORT_ROUTER_CHANGE = PORT_BLOCK_BASE;
@@ -116,7 +113,6 @@ class RouterChangeHotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-router-change", topic, "before-reconfigure");
 
             // When: proxy reconfigured with the same router name but different config UUID.
-            LOGGER.info("Reconfiguring vc-router-change: routerDef config {} -> {}", oldConfigId, newConfigId);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -180,7 +176,6 @@ class RouterChangeHotReloadIT extends BaseIT {
             int vcBCloseBefore = InvocationCountingRouterFactory.closeCountFor(vcBId);
 
             // When: proxy reconfigured to change only VC-A's router definition; VC-B's is identical.
-            LOGGER.info("Reconfiguring to change router-a only");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());

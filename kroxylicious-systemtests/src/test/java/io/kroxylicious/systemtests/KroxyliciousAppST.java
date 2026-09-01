@@ -39,7 +39,6 @@ class KroxyliciousAppST extends AbstractSystemTests {
      */
     @Test
     void kroxyAppIsRunning() {
-        LOGGER.info("Given local Kroxylicious");
         String clusterIp = kubeClient().getService(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName + "-kafka-external-bootstrap").getSpec().getClusterIP();
         kroxyliciousApp = new KroxyliciousApp(clusterIp);
         kroxyliciousApp.waitForKroxyliciousProcess();
