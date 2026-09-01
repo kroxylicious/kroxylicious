@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
+import javax.security.sasl.AuthenticationException;
 import javax.security.sasl.SaslException;
 
 import org.slf4j.Logger;
@@ -387,7 +388,7 @@ class SaslInspectionFilter
                 .addKeyValue("sessionId", context.sessionId())
                 .log("Server rejects SASL credentials");
         var authorizedId = getAuthorizationIdOrNull(state.saslObserver());
-        ApiException authenticationException = new ApiException(
+        AuthenticationException authenticationException = new AuthenticationException(
                 "Server rejects SASL credentials with error: " + error.name() + ", " + error.message());
         context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizedId, new SaslException("authentication failed", authenticationException));
         return context.responseFilterResultBuilder()
