@@ -127,9 +127,7 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE }}
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
         run: |
-          SIGNING_KEY_SHORT_NAME=$(gpg --list-public-keys --keyid-format short --with-colons | awk -F: '/^pub:/ {print $5}' | head -n 1)
-          ./scripts/stage-release.sh -k "${SIGNING_KEY_SHORT_NAME}" \
-                                     -v ${{ github.event.inputs.release-version }} \
+          ./scripts/stage-release.sh -v ${{ github.event.inputs.release-version }} \
                                      -n ${{ github.event.inputs.development-version }} \
                                      -b ${{ github.event.inputs.branch }} \
                                      -w ${{ env.WORK_BRANCH }} \
