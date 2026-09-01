@@ -29,6 +29,8 @@ import io.kroxylicious.it.testplugins.RequestCountingFilter;
 import io.kroxylicious.it.testplugins.RequestCountingFilterFactory;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilter;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
+import io.kroxylicious.it.testplugins.ResponseCountingFilter;
+import io.kroxylicious.it.testplugins.ResponseCountingFilterFactory;
 import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.it.testplugins.router.DynamicProduceRouterFactory;
 import io.kroxylicious.it.testplugins.router.FanOutRouterFactory;
@@ -73,6 +75,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>C5: Route filters process only their own route's {@code InternalRequestFrame}s.
  * <p>C6: Same filter factory type on multiple routes does not cause cross-contamination.
  * <p>C7: Route filter {@code onResponse} is called for dynamically-dispatched responses.
+ * <p>C8: Sibling filters' {@code onResponse} observation of an out-of-band response is not
+ *     corrupted when two or more routes have concurrent out-of-band requests in flight.
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
@@ -273,6 +277,80 @@ class RouteFilterCorrectnessIT {
             assertThat(tester.getRequestsForApiKey(LIST_GROUPS))
                     .as("both route filters must have issued their out-of-band request on the one connection")
                     .hasSize(2);
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // C8: Sibling onResponse observation is not corrupted by concurrent OOB requests
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Per C6, a route's own (non-recipient) filters must observe every response - including
+     * out-of-band ones - that flows through their route via {@code onResponse}, and must not observe
+     * another route's traffic. All out-of-band requests share one reserved correlation id, so
+     * {@code RoutingTerminalHandler} matches a returning response back to a route name via a
+     * per-connection {@code correlationId -> routeName} map; with two routes' out-of-band requests
+     * concurrently in flight that map collides, so a response can be restored with the wrong route
+     * name (or none at all).
+     * <p>
+     * Delivery to the filter that actually issued the request is unaffected by this - it is matched
+     * by recipient identity, not by route name - but sibling observation is not: it still keys off
+     * the (possibly corrupted) route name carried on the frame. So a sibling filter can silently miss
+     * its own route's out-of-band response, and/or spuriously observe another route's.
+     */
+    @Test
+    void siblingFilterObservationIsNotCorruptedByConcurrentOutOfBandRequests() {
+        var markerA = "c8-marker-a";
+        var markerB = "c8-marker-b";
+        var counterIdA = "c8-counter-a";
+        var counterIdB = "c8-counter-b";
+        ResponseCountingFilter.reset(counterIdA);
+        ResponseCountingFilter.reset(counterIdB);
+
+        // Given
+        var markerADef = new NamedFilterDefinitionBuilder(markerA, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", markerA,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+        var markerBDef = new NamedFilterDefinitionBuilder(markerB, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", markerB,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+        var counterADef = new NamedFilterDefinitionBuilder("c8-counter-def-a", ResponseCountingFilterFactory.class.getName())
+                .withConfig("counterId", counterIdA)
+                .build();
+        var counterBDef = new NamedFilterDefinitionBuilder("c8-counter-def-b", ResponseCountingFilterFactory.class.getName())
+                .withConfig("counterId", counterIdB)
+                .build();
+
+        try (var tester = KroxyliciousTesters.mockKafkaKroxyliciousTester(
+                mockBootstrap -> fanOutTwoRouteConfigWithSiblingCounters(mockBootstrap, markerADef, counterADef, markerBDef, counterBDef), ROUTING_ENABLED);
+                var client = tester.simpleTestClient()) {
+
+            ApiVersionsResponseData apiVersions = new ApiVersionsResponseData();
+            apiVersions.apiKeys().add(new ApiVersionsResponseData.ApiVersion()
+                    .setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersions));
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+
+            // When
+            client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+
+            // Then
+            long observedByA = ResponseCountingFilter.countFor(counterIdA, LIST_GROUPS);
+            long observedByB = ResponseCountingFilter.countFor(counterIdB, LIST_GROUPS);
+            assertThat(observedByA + observedByB)
+                    .as("each route's own out-of-band response should be observed, via onResponse, by that route's own "
+                            + "sibling filter exactly once (C6), so the total across both routes should be 2 "
+                            + "(route-a observed %d, route-b observed %d). A lower total means the shared out-of-band "
+                            + "correlation id corrupted a response's route tag badly enough that no route's filters observed it",
+                            observedByA, observedByB)
+                    .isEqualTo(2);
         }
     }
 
@@ -482,6 +560,31 @@ class RouteFilterCorrectnessIT {
                 .addToClusterDefinitions(clusterDef)
                 .addToFilterDefinitions(routeAFilter)
                 .addToFilterDefinitions(routeBFilter)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+    }
+
+    private ConfigurationBuilder fanOutTwoRouteConfigWithSiblingCounters(String bootstrapServers,
+                                                                         NamedFilterDefinition routeAMarker,
+                                                                         NamedFilterDefinition routeACounter,
+                                                                         NamedFilterDefinition routeBMarker,
+                                                                         NamedFilterDefinition routeBCounter) {
+        var clusterDef = new ClusterDefinition(CLUSTER_NAME, bootstrapServers, null);
+        var routeA = new RouteDefinition(ROUTE_A, 0, List.of(routeAMarker.name(), routeACounter.name()), new RouteTarget(CLUSTER_NAME, null));
+        var routeB = new RouteDefinition(ROUTE_B, 1, List.of(routeBMarker.name(), routeBCounter.name()), new RouteTarget(CLUSTER_NAME, null));
+        var routerDef = new RouterDefinition(ROUTER_NAME, FanOutRouterFactory.class.getName(),
+                new FanOutRouterFactory.Config(List.of(ROUTE_A, ROUTE_B), LIST_TRANSACTIONS.name()), List.of(routeA, routeB));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToFilterDefinitions(routeAMarker)
+                .addToFilterDefinitions(routeACounter)
+                .addToFilterDefinitions(routeBMarker)
+                .addToFilterDefinitions(routeBCounter)
                 .addToRouterDefinitions(routerDef)
                 .addToVirtualClusters(vc);
     }

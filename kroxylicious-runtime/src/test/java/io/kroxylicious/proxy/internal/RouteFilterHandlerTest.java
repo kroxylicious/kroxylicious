@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -258,6 +259,48 @@ class RouteFilterHandlerTest {
         assertThat((Object) channel.readOutbound()).isSameAs(internalFrame);
     }
 
+    /**
+     * All out-of-band requests share one reserved correlation id, so when two or more routes have
+     * one in flight concurrently, {@code RoutingTerminalHandler}'s {@code correlationId -> routeName}
+     * map collides and can restore the wrong route name on a returning response (see
+     * {@code CorrelationIdSpace#RESERVED_OUT_OF_BAND_CORRELATION_ID}). This does not stop the response
+     * reaching the filter that actually sent the request - that match is by recipient identity, not
+     * route name (see {@link #internalResponseFrameForRecipientIsCompletedEvenWhenRouteDoesNotMatch}) -
+     * but a sibling filter on the SAME (genuinely correct) route only ever gates on
+     * {@code matchesRoute()}, so it silently misses the observation it is supposed to get, per C6 in
+     * {@code RouteFilterCorrectnessIT}.
+     */
+    @Test
+    void siblingFilterOnSameRouteObservesOobResponseEvenWhenRouteNameIsCorruptedByConcurrentOob() {
+        // Given
+        var observedBySibling = new AtomicBoolean(false);
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
+        ApiVersionsResponseFilter siblingFilter = (apiVersion, header, response, context) -> {
+            observedBySibling.set(true);
+            return context.forwardResponse(header, response);
+        };
+        buildChannel(filter, siblingFilter, ROUTE_A);
+        var header = new ResponseHeaderData().setCorrelationId(42);
+        var future = new CompletableFuture<>();
+        var internalFrame = new InternalResponseFrame<>(
+                filter, ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData(), future);
+        // Simulates the route name RoutingTerminalHandler restores after its correlationId -> routeName
+        // map collided with a second, concurrent out-of-band request from route-b.
+        internalFrame.setRouteName(ROUTE_B);
+
+        // When
+        channel.writeOutbound(internalFrame);
+
+        // Then
+        assertThat(future)
+                .as("the recipient's own promise still completes: delivery is matched by filter identity, not route name")
+                .isCompleted();
+        assertThat(observedBySibling)
+                .as("route-a's own sibling filter must observe route-a's own out-of-band response via onResponse (C6), "
+                        + "but the corrupted route name means matchesRoute() never fires for it")
+                .isTrue();
+    }
+
     @Test
     void opaqueRequestWithMatchingRoutePassesThrough() {
         // Given
@@ -308,12 +351,37 @@ class RouteFilterHandlerTest {
     }
 
     private void buildChannel(Filter filter, String routeName) {
+        var ccsm = newClientConnectionStateMachine();
+        FilterAndInvoker filterAndInvoker = getOnlyElement(FilterAndInvoker.build(filter.getClass().getSimpleName(), filter));
+        ChannelHandler routeFilterHandler = new RouteFilterHandler(filterAndInvoker, 1000L, null, new EmbeddedChannel(), ccsm, routeName);
+
+        channel = new EmbeddedChannel();
+        channel.pipeline().addLast("routeFilter", routeFilterHandler);
+    }
+
+    /**
+     * Builds a channel with two {@link RouteFilterHandler}s configured for the SAME route, one per
+     * filter, sharing a single connection state machine - modelling two filters on one route, as
+     * installed by {@code KafkaProxyFrontendHandler} for a route with more than one filter.
+     */
+    private void buildChannel(Filter filter, Filter siblingFilter, String routeName) {
+        var ccsm = newClientConnectionStateMachine();
+        FilterAndInvoker filterAndInvoker = getOnlyElement(FilterAndInvoker.build(filter.getClass().getSimpleName(), filter));
+        FilterAndInvoker siblingFilterAndInvoker = getOnlyElement(FilterAndInvoker.build(siblingFilter.getClass().getSimpleName(), siblingFilter));
+        ChannelHandler routeFilterHandler = new RouteFilterHandler(filterAndInvoker, 1000L, null, new EmbeddedChannel(), ccsm, routeName);
+        ChannelHandler siblingRouteFilterHandler = new RouteFilterHandler(siblingFilterAndInvoker, 1000L, null, new EmbeddedChannel(), ccsm, routeName);
+
+        channel = new EmbeddedChannel();
+        channel.pipeline().addLast("siblingRouteFilter", siblingRouteFilterHandler);
+        channel.pipeline().addLast("routeFilter", routeFilterHandler);
+    }
+
+    private ClientConnectionStateMachine newClientConnectionStateMachine() {
         final TargetCluster targetCluster = mock(TargetCluster.class);
         when(targetCluster.bootstrapServersList()).thenReturn(List.of(HostPort.parse("targetCluster:9091")));
         var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", new DirectRouting("upstream", targetCluster), false,
                 false, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
         testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
-        var inboundChannel = new EmbeddedChannel();
 
         var endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.nodeId()).thenReturn(0);
@@ -331,12 +399,7 @@ class RouteFilterHandlerTest {
                 java.util.Map.of(new HostPort("broker", 9092), mockScsm),
                 kafkaSession,
                 true);
-
-        FilterAndInvoker filterAndInvoker = getOnlyElement(FilterAndInvoker.build(filter.getClass().getSimpleName(), filter));
-        ChannelHandler routeFilterHandler = new RouteFilterHandler(filterAndInvoker, 1000L, null, inboundChannel, ccsm, routeName);
-
-        channel = new EmbeddedChannel();
-        channel.pipeline().addLast("routeFilter", routeFilterHandler);
+        return ccsm;
     }
 
     private <B extends ApiMessage> DecodedRequestFrame<B> decodedRequest(B data) {
