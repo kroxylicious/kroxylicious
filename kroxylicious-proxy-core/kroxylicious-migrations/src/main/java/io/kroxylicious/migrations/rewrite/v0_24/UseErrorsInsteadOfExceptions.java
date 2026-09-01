@@ -14,6 +14,7 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.JavaIsoVisitor;
+import org.openrewrite.java.MethodMatcher;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 
@@ -21,6 +22,10 @@ import org.openrewrite.java.tree.J;
  * Removes calls to `exception()` from Apaches Error enum. That is it transforms {@code Errors.GROUP_AUTHORIZATION_FAILED.exception()} into {@code Errors.GROUP_AUTHORIZATION_FAILED}
  */
 public class UseErrorsInsteadOfExceptions extends Recipe {
+
+    private static final MethodMatcher requestErrorResponseMatcher = new MethodMatcher(
+            "io.kroxylicious.proxy.filter.RequestFilterResultBuilder errorResponse(org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage, org.apache.kafka.common.errors.ApiException)");
+    private static final MethodMatcher errorExceptionMatcher = new MethodMatcher("org.apache.kafka.common.protocol.Errors exception()");
 
     /**
      * Instantiates an instance
@@ -52,9 +57,9 @@ public class UseErrorsInsteadOfExceptions extends Recipe {
 
             // Target errorResponse invocations with 3 arguments
             List<Expression> arguments = mi.getArguments();
-            if ("errorResponse".equals(mi.getSimpleName()) && arguments.size() == 3) {
+            if (requestErrorResponseMatcher.matches(mi)) {
                 Expression thirdArg = arguments.get(2);
-                if (thirdArg instanceof J.MethodInvocation invocation && "exception".equals(invocation.getSimpleName()) && invocation.getSelect() != null) {
+                if (errorExceptionMatcher.matches(thirdArg) && thirdArg instanceof J.MethodInvocation invocation && invocation.getSelect() != null) {
                     Expression innerExpression = invocation.getSelect();
                     List<Expression> newArgs = new ArrayList<>(arguments);
                     newArgs.set(2, Objects.requireNonNull(innerExpression).withPrefix(thirdArg.getPrefix()));
