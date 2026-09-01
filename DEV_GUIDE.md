@@ -117,6 +117,54 @@ Run the following to add missing license headers e.g. when adding new source fil
 mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolve-rootdir license:format
 ```
 
+### Using SNAPSHOT Artifacts
+
+Every push to `main` and `release/*` branches publishes SNAPSHOT artifacts to the [Central Portal snapshot repository](https://central.sonatype.com/repository/maven-snapshots/).
+This lets you test against unreleased changes without building Kroxylicious from source.
+
+> **Warning:** SNAPSHOT artifacts carry no compatibility guarantees.
+> Unreleased APIs may change or be removed between snapshots without notice.
+> Do not use SNAPSHOTs in production.
+
+To pull SNAPSHOT Kroxylicious dependencies into a Maven project, add the snapshot repository to your `pom.xml`:
+
+```xml
+<repositories>
+  <repository>
+    <id>central-snapshots</id>
+    <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+    <snapshots>
+      <enabled>true</enabled>
+    </snapshots>
+  </repository>
+</repositories>
+```
+
+For Gradle (Kotlin DSL):
+
+```kotlin
+repositories {
+    maven {
+        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+        mavenContent {
+            snapshotsOnly()
+        }
+    }
+}
+```
+
+Then depend on the SNAPSHOT version of any Kroxylicious artifact, for example:
+
+```xml
+<dependency>
+  <groupId>io.kroxylicious</groupId>
+  <artifactId>kroxylicious-api</artifactId>
+  <version><!-- e.g. 0.24.0-SNAPSHOT --></version>
+</dependency>
+```
+
+The current SNAPSHOT version is the `version` field in the root `pom.xml` of this repository.
+
 ### Formatting the Code
 No one likes to argue about code formatting in pull requests, as project we take the stance that if we can't automate the formatting we are not going to argue about it either. Having said that we don't want a mishmash of conflicting styles! So we attack this from multiple angles.
 
