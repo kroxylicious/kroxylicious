@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.spi.LoggingEventBuilder;
 
-import io.kroxylicious.kafka.common.errors.ApiException;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;

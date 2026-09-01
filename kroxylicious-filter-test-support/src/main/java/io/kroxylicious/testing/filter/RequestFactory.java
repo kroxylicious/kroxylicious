@@ -133,7 +133,7 @@ public class RequestFactory {
      */
     @NonNull
     public static Set<ApiKeys> supportedApiKeys() {
-        var excluded = RequestFactory.SPECIAL_CASES;
+        var excluded = EnumSet.copyOf(RequestFactory.SPECIAL_CASES);
         excluded.addAll(REMOVED_API_KEYS);
         return EnumSet.complementOf(excluded);
     }
@@ -149,7 +149,8 @@ public class RequestFactory {
     public static Stream<ApiMessageVersion> apiMessageFor(Function<ApiKeys, Short> versionFunction, ApiKeys... apiKeys) {
         final EnumSet<ApiKeys> requestedApiKeys = EnumSet.copyOf(Arrays.asList(apiKeys));
 
-        if (SPECIAL_CASES.stream().anyMatch(requestedApiKeys::contains)) {
+        Set<ApiKeys> supportedKeys = supportedApiKeys();
+        if (requestedApiKeys.stream().anyMatch(Predicate.not(supportedKeys::contains))) {
             throw new IllegalArgumentException("One or more of " + Arrays.toString(apiKeys) + " are not supported.");
         }
         return apiMessageFor(versionFunction, requestedApiKeys);
