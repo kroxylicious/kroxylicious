@@ -398,6 +398,12 @@
                                         org.apache.kafka.common.protocol.ApiMessage,
                                         org.apache.kafka.common.errors.ApiException)
                                     </exclude>
+                                    <!-- Type migration from org.apache.kafka.* to io.kroxylicious.kafka.*:
+                                         all filter/router interfaces have method signature changes that are
+                                         intentional and expected as part of this migration. -->
+                                    <exclude>io.kroxylicious.proxy.filter</exclude>
+                                    <exclude>io.kroxylicious.proxy.filter.metadata</exclude>
+                                    <exclude>io.kroxylicious.proxy.router</exclude>
                                 </excludes>
                                 <!-- see documentation -->
                             </parameter>
