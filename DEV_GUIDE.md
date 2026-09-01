@@ -721,7 +721,7 @@ important_notes:
 
 # Deprecation Policy
 
-We want to let users know about upcoming changes to APIs and give them sufficient time to adapt. The following policy
+We want to let users know about upcoming changes to (Public APIs)[PUBLIC_APIS.md] and give them sufficient time to adapt. The following policy
 describes how we'll do that.  It will apply until the project reaches its 1.0 release.
 
 When there is an API deprecation, it must be announced in the [CHANGELOG](./CHANGELOG.md) of the coming release under
