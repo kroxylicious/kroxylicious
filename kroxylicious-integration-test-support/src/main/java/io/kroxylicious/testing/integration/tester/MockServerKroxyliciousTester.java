@@ -9,8 +9,8 @@ package io.kroxylicious.testing.integration.tester;
 import java.util.List;
 import java.util.function.Function;
 
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -23,7 +23,7 @@ import io.kroxylicious.testing.integration.server.MockServer;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE;
 
 /**
  * A kroxylicious tester for a kroxylicious instance that is proxying a mock kafka broker.

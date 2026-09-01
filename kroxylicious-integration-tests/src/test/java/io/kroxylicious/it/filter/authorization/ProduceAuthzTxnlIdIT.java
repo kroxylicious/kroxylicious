@@ -28,11 +28,12 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ProduceResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.record.TimestampType;
+import io.kroxylicious.kafka.common.compress.Compression;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.ProduceResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.record.TimestampType;
+
 import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;

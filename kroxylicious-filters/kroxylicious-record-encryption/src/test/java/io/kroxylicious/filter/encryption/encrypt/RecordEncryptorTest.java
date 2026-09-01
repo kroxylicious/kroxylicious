@@ -12,10 +12,10 @@ import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;

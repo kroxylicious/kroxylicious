@@ -23,21 +23,22 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Message;
-import org.apache.kafka.common.protocol.types.BoundField;
-import org.apache.kafka.common.protocol.types.Schema;
-import org.apache.kafka.common.record.BaseRecords;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.SimpleRecord;
-import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.utils.ImplicitLinkedHashCollection;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.compress.Compression;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Message;
+import io.kroxylicious.kafka.common.protocol.types.BoundField;
+import io.kroxylicious.kafka.common.protocol.types.Schema;
+import io.kroxylicious.kafka.common.record.TimestampType;
+import io.kroxylicious.kafka.common.utils.ImplicitLinkedHashCollection;
+
+import io.kroxylicious.kafka.common.record.internal.BaseRecords;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecordsBuilder;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
+import io.kroxylicious.kafka.common.record.internal.SimpleRecord;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -138,7 +139,7 @@ public class ApiMessageSampleGenerator {
     private static Message instantiate(Class<? extends Message> clazz, Random random, Schema schema) {
         try {
             Message instance = clazz.getConstructor().newInstance();
-            Map<String, org.apache.kafka.common.protocol.types.Field> fieldsForVersion = Arrays.stream(schema.fields())
+            Map<String, io.kroxylicious.kafka.common.protocol.types.Field> fieldsForVersion = Arrays.stream(schema.fields())
                     .filter(boundField -> !boundField.def.name.startsWith("_"))
                     .collect(Collectors.toMap(ApiMessageSampleGenerator::toSetterName, boundField -> boundField.def));
 
@@ -173,7 +174,7 @@ public class ApiMessageSampleGenerator {
     }
 
     @SuppressWarnings("java:S3776") // the complexity warning owing to the type ladder is a false positive in this case
-    private static Object instantiateArg(Class<?> paramClass, Type paramGenericType, Random random, org.apache.kafka.common.protocol.types.Type type) {
+    private static Object instantiateArg(Class<?> paramClass, Type paramGenericType, Random random, io.kroxylicious.kafka.common.protocol.types.Type type) {
         if (paramClass == long.class || paramClass == Long.class) {
             return random.nextLong(RANGE_MIN, RANGE_MAX);
         }
@@ -267,7 +268,7 @@ public class ApiMessageSampleGenerator {
     }
 
     private static Object instantiateMessageCollection(Class<? extends ImplicitLinkedHashCollection> genericType, Random random,
-                                                       org.apache.kafka.common.protocol.types.Type field) {
+                                                       io.kroxylicious.kafka.common.protocol.types.Type field) {
         try {
             ImplicitLinkedHashCollection<ImplicitLinkedHashCollection.Element> collection = genericType.getConstructor().newInstance();
             ParameterizedType paramClass1 = (ParameterizedType) genericType.getGenericSuperclass();
@@ -282,7 +283,7 @@ public class ApiMessageSampleGenerator {
         }
     }
 
-    private static Object instantiateList(Type paramClass, Random random, org.apache.kafka.common.protocol.types.Type type) {
+    private static Object instantiateList(Type paramClass, Random random, io.kroxylicious.kafka.common.protocol.types.Type type) {
         ArrayList<Object> objects = new ArrayList<>();
         ParameterizedType paramClass1 = (ParameterizedType) paramClass;
         Type actualTypeArgument = paramClass1.getActualTypeArguments()[0];
@@ -291,7 +292,7 @@ public class ApiMessageSampleGenerator {
         return objects;
     }
 
-    private static Object instantiateArg(Method method, Random random, org.apache.kafka.common.protocol.types.Type type) {
+    private static Object instantiateArg(Method method, Random random, io.kroxylicious.kafka.common.protocol.types.Type type) {
         int parameterCount = method.getParameterCount();
         if (parameterCount != 1) {
             throw new IllegalArgumentException("setter takes more than one arg!");

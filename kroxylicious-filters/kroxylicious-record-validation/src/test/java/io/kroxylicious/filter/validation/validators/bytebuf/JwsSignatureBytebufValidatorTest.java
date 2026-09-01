@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.record.internal.Record;
 import org.jose4j.jws.AlgorithmIdentifiers;
 import org.junit.jupiter.api.Test;
 

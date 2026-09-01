@@ -9,7 +9,7 @@ package io.kroxylicious.it.testplugins;
 import java.util.EnumMap;
 import java.util.Set;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.it.testplugins.ProtocolCounter.Config;
 import io.kroxylicious.proxy.filter.Filter;

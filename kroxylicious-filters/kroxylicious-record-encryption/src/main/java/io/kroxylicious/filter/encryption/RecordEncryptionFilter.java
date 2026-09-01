@@ -20,21 +20,22 @@ import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
-import org.apache.kafka.common.message.FetchResponseData.PartitionData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.ShareFetchResponseData;
-import org.apache.kafka.common.message.ShareFetchResponseData.ShareFetchableTopicResponse;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.record.BaseRecords;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.utils.ImplicitLinkedHashCollection;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.FetchResponseData.FetchableTopicResponse;
+import io.kroxylicious.kafka.common.message.FetchResponseData.PartitionData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData.TopicProduceData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ShareFetchResponseData;
+import io.kroxylicious.kafka.common.message.ShareFetchResponseData.ShareFetchableTopicResponse;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.utils.ImplicitLinkedHashCollection;
+
+import io.kroxylicious.kafka.common.record.internal.BaseRecords;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 import org.slf4j.Logger;
 
 import io.micrometer.core.instrument.Counter;

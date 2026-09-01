@@ -8,11 +8,11 @@ package io.kroxylicious.it;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -388,7 +388,7 @@ class ProxyProtocolIT {
     }
 
     private static io.kroxylicious.testing.integration.codec.DecodedRequestFrame<?> toRequestFrame(Request request) {
-        var header = new org.apache.kafka.common.message.RequestHeaderData()
+        var header = new io.kroxylicious.kafka.common.message.RequestHeaderData()
                 .setRequestApiKey(request.apiKeys().id)
                 .setRequestApiVersion(request.apiVersion())
                 .setClientId(request.clientIdHeader())

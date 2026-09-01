@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.internal.metrics;
 
 import java.util.Objects;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;

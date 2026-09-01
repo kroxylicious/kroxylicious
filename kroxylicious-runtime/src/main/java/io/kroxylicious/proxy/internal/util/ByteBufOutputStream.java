@@ -7,13 +7,13 @@ package io.kroxylicious.proxy.internal.util;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
-
 import io.netty.buffer.ByteBuf;
+
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 
 /**
  * This class has been introduced as a work-around to allow using pooled {@link ByteBuf} instances
- * that are allowed to grow on demand while used on {@link org.apache.kafka.common.record.MemoryRecordsBuilder}
+ * that are allowed to grow on demand while used on {@link io.kroxylicious.kafka.common.record.internal.MemoryRecordsBuilder}
  * to create records (using {@link MemoryRecordsHelper} factory methods).<br>
  */
 public class ByteBufOutputStream extends ByteBufferOutputStream {

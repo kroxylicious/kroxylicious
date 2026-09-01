@@ -10,9 +10,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.internals.RecordHeaders;
-import org.apache.kafka.common.record.TimestampType;
 import org.junit.jupiter.api.Test;
+
+import io.kroxylicious.kafka.common.header.internals.RecordHeaders;
+import io.kroxylicious.kafka.common.record.TimestampType;
 
 class ConsumerRecordAssertTest {
 

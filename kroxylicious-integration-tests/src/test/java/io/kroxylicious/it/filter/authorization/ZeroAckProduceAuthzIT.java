@@ -17,17 +17,17 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.compress.Compression;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.record.TimestampType;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.security.plain.internals.PlainSaslServer;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeAll;
@@ -57,10 +57,10 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils
 import static io.kroxylicious.testing.integration.tester.MockServerKroxyliciousTester.zeroAckProduceRequestMatcher;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toSet;
-import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
-import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
-import static org.apache.kafka.common.protocol.ApiKeys.SASL_AUTHENTICATE;
-import static org.apache.kafka.common.protocol.ApiKeys.SASL_HANDSHAKE;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.METADATA;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.SASL_AUTHENTICATE;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.SASL_HANDSHAKE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ZeroAckProduceAuthzIT {

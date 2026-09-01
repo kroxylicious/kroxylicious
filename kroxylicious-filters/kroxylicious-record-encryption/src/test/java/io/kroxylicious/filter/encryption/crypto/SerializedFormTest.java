@@ -14,11 +14,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.utils.ByteUtils;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.utils.ByteUtils;
+
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;

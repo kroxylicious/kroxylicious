@@ -9,10 +9,10 @@ package io.kroxylicious.filter.encryption.encrypt;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.crypto.Encryption;

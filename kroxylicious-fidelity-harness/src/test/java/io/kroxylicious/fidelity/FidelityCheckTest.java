@@ -16,7 +16,7 @@ class FidelityCheckTest {
     @Test
     void kroxyliciousShouldReadKafkaSerialisedMessage() {
         // Given
-        org.apache.kafka.common.message.RequestHeaderData kafkaSource = new org.apache.kafka.common.message.RequestHeaderData()
+        io.kroxylicious.kafka.common.message.RequestHeaderData kafkaSource = new io.kroxylicious.kafka.common.message.RequestHeaderData()
                 .setRequestApiKey((short) 18)
                 .setRequestApiVersion((short) 7)
                 .setCorrelationId(0x01020304)
@@ -41,8 +41,8 @@ class FidelityCheckTest {
                 .setClientId("kroxylicious-client");
 
         // When
-        ReadResult<org.apache.kafka.common.message.RequestHeaderData> result = FidelityCheck.kafkaReads(
-                oursSource, new org.apache.kafka.common.message.RequestHeaderData(), (short) 2);
+        ReadResult<io.kroxylicious.kafka.common.message.RequestHeaderData> result = FidelityCheck.kafkaReads(
+                oursSource, new io.kroxylicious.kafka.common.message.RequestHeaderData(), (short) 2);
 
         // Then
         assertThat(result.error()).isNull();
@@ -57,7 +57,7 @@ class FidelityCheckTest {
 
         // When
         FidelityCheck.ErrorParity parity = FidelityCheck.compareErrorHandling(
-                malformed, new org.apache.kafka.common.message.RequestHeaderData(), new RequestHeaderData(), (short) 2);
+                malformed, new io.kroxylicious.kafka.common.message.RequestHeaderData(), new RequestHeaderData(), (short) 2);
 
         // Then
         parity.assertEquivalentResults();

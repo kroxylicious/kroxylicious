@@ -36,7 +36,7 @@ public final class FidelityCheck {
      * @return the result of decoding {@code kafkaSource}'s bytes with the Kroxylicious codec
      */
     public static <T extends io.kroxylicious.kafka.common.protocol.Message> ReadResult<T> kroxyliciousReads(
-                                                                                                            org.apache.kafka.common.protocol.Message kafkaSource,
+                                                                                                            io.kroxylicious.kafka.common.protocol.Message kafkaSource,
                                                                                                             T oursScratch,
                                                                                                             short version) {
         byte[] kafkaBytes = KafkaSerdes.write(kafkaSource, version);
@@ -53,7 +53,7 @@ public final class FidelityCheck {
      * @param <T> the Kafka-side message type
      * @return the result of decoding {@code oursSource}'s bytes with the Kafka codec
      */
-    public static <T extends org.apache.kafka.common.protocol.Message> ReadResult<T> kafkaReads(
+    public static <T extends io.kroxylicious.kafka.common.protocol.Message> ReadResult<T> kafkaReads(
                                                                                                 io.kroxylicious.kafka.common.protocol.Message oursSource,
                                                                                                 T kafkaScratch,
                                                                                                 short version) {
@@ -73,7 +73,7 @@ public final class FidelityCheck {
      * @param <X> the Kroxylicious-side message type
      * @return the two sides' decode errors, if any
      */
-    public static <K extends org.apache.kafka.common.protocol.Message, X extends io.kroxylicious.kafka.common.protocol.Message> ErrorParity compareErrorHandling(
+    public static <K extends io.kroxylicious.kafka.common.protocol.Message, X extends io.kroxylicious.kafka.common.protocol.Message> ErrorParity compareErrorHandling(
                                                                                                                                                                  byte[] bytes,
                                                                                                                                                                  K kafkaScratch,
                                                                                                                                                                  X oursScratch,

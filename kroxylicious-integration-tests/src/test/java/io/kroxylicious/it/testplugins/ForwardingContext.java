@@ -6,7 +6,7 @@
 
 package io.kroxylicious.it.testplugins;
 
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;

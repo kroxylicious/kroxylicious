@@ -15,20 +15,19 @@ import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.OffsetFetchRequestData;
-import org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestGroup;
-import org.apache.kafka.common.message.OffsetFetchResponseData;
-import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseGroup;
-import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponsePartition;
-import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponsePartitions;
-import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopic;
-import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopics;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.record.RecordBatch;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.OffsetFetchRequestData;
+import io.kroxylicious.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestGroup;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseGroup;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponsePartition;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponsePartitions;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopic;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopics;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
@@ -40,7 +39,7 @@ import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static org.apache.kafka.common.record.RecordBatch.NO_PARTITION_LEADER_EPOCH;
+import static io.kroxylicious.kafka.common.record.internal.RecordBatch.NO_PARTITION_LEADER_EPOCH;
 
 /**
  * Enforces authorization of the OffsetFetch API, requiring {@link GroupResource#DESCRIBE}

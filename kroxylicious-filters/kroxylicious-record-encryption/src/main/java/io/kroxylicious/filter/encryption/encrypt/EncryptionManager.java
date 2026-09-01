@@ -9,10 +9,11 @@ package io.kroxylicious.filter.encryption.encrypt;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 
 /**
  * A manager of (data) encryption keys supporting encryption operations,

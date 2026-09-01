@@ -6,8 +6,9 @@
 
 package io.kroxylicious.proxy.filter.metadata;
 
-import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Test;
+
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

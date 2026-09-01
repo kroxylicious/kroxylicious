@@ -11,9 +11,9 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 
 import io.kroxylicious.filter.encryption.common.PersistedIdentifiable;
 import io.kroxylicious.filter.encryption.config.RecordField;

@@ -16,10 +16,6 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiMessageType;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -27,6 +23,9 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
+import io.kroxylicious.kafka.common.message.ApiMessageType;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.message.json.KafkaApiMessageConverter;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;

@@ -13,14 +13,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopic;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData.MetadataResponseTopic;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;

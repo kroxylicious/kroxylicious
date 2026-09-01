@@ -11,13 +11,13 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.ListGroupsResponseData;
-import org.apache.kafka.common.message.ListTransactionsRequestData;
-import org.apache.kafka.common.message.ListTransactionsResponseData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.ListGroupsResponseData;
+import io.kroxylicious.kafka.common.message.ListTransactionsRequestData;
+import io.kroxylicious.kafka.common.message.ListTransactionsResponseData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,10 +57,10 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
-import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
-import static org.apache.kafka.common.protocol.ApiKeys.FETCH;
-import static org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS;
-import static org.apache.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.API_VERSIONS;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.FETCH;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.LIST_GROUPS;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

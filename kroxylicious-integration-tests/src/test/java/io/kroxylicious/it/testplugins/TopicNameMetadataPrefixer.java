@@ -8,8 +8,8 @@ package io.kroxylicious.it.testplugins;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;

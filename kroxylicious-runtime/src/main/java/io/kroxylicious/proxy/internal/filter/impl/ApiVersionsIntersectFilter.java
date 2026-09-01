@@ -7,8 +7,8 @@ package io.kroxylicious.proxy.internal.filter.impl;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;

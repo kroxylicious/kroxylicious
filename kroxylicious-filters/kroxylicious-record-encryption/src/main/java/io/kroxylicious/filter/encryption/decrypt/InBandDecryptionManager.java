@@ -16,10 +16,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
+
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.Record;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;

@@ -7,10 +7,10 @@ package io.kroxylicious.fidelity;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.protocol.ByteBufferAccessor;
-import org.apache.kafka.common.protocol.Message;
-import org.apache.kafka.common.protocol.MessageSizeAccumulator;
-import org.apache.kafka.common.protocol.ObjectSerializationCache;
+import io.kroxylicious.kafka.common.protocol.ByteBufferAccessor;
+import io.kroxylicious.kafka.common.protocol.Message;
+import io.kroxylicious.kafka.common.protocol.MessageSizeAccumulator;
+import io.kroxylicious.kafka.common.protocol.ObjectSerializationCache;
 
 /**
  * Serializes and deserializes {@code org.apache.kafka.common.protocol.Message} instances to and

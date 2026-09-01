@@ -14,10 +14,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.record.BaseRecords;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.Record;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.record.internal.BaseRecords;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.Record;
 
 import io.kroxylicious.filter.validation.validators.record.RecordValidator;
 

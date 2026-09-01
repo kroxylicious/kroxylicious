@@ -10,14 +10,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
-
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
-import org.apache.kafka.common.message.DescribeTopicPartitionsResponseData;
-import org.apache.kafka.common.message.DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.DescribeTopicPartitionsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeTopicPartitionsResponseData;
+import io.kroxylicious.kafka.common.message.DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;

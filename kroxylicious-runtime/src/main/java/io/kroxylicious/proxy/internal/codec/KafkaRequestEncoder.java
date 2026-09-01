@@ -5,7 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -12,12 +12,11 @@ import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.DeleteTopicsRequestData;
-import org.apache.kafka.common.message.DeleteTopicsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.DeleteTopicsRequestData;
+import io.kroxylicious.kafka.common.message.DeleteTopicsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;

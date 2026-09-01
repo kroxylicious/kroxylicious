@@ -18,8 +18,8 @@ import io.kroxylicious.proxy.tag.ThreadSafe;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static org.apache.kafka.common.utils.Utils.utf8;
-import static org.apache.kafka.common.utils.Utils.utf8Length;
+import static io.kroxylicious.kafka.common.utils.Utils.utf8;
+import static io.kroxylicious.kafka.common.utils.Utils.utf8Length;
 
 @ThreadSafe
 class AzureKeyVaultEdekSerde implements Serde<AzureKeyVaultEdek> {

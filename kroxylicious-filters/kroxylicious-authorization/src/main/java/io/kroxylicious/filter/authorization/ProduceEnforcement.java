@@ -10,12 +10,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
-
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ProduceResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.ProduceResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,8 +25,8 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 
-import static org.apache.kafka.common.protocol.Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED;
-import static org.apache.kafka.common.protocol.Errors.UNKNOWN_TOPIC_ID;
+import static io.kroxylicious.kafka.common.protocol.Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED;
+import static io.kroxylicious.kafka.common.protocol.Errors.UNKNOWN_TOPIC_ID;
 
 class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceResponseData> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProduceEnforcement.class);

@@ -10,9 +10,9 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
-import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
-import org.apache.kafka.common.record.Record;
+import io.kroxylicious.kafka.common.message.ProduceRequestData.PartitionProduceData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData.TopicProduceData;
+import io.kroxylicious.kafka.common.record.internal.Record;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

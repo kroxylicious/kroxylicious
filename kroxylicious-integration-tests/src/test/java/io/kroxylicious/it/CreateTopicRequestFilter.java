@@ -8,8 +8,8 @@ package io.kroxylicious.it;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.CreateTopicsRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.CreateTopicsRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
 
 import io.kroxylicious.proxy.filter.CreateTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.FilterContext;

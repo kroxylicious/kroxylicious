@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.Uuid;
 
 /**
  * Opt-in topology cache for routers that need leader, coordinator,

@@ -11,9 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.record.internal.Record;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

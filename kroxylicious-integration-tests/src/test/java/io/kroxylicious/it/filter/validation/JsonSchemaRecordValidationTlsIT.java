@@ -34,6 +34,7 @@ import io.apicurio.registry.rest.client.models.VersionContent;
 import io.apicurio.registry.rest.client.models.VersionMetaData;
 
 import io.kroxylicious.filter.validation.RecordValidation;
+import io.kroxylicious.kafka.common.InvalidRecordException;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.testing.certificate.CertificateGenerator;
@@ -180,7 +181,7 @@ class JsonSchemaRecordValidationTlsIT extends RecordSchemaValidationBaseIT {
                 var producer = tester.producer()) {
             // Should fail because the registry uses TLS with a self-signed cert and no trust store is configured
             var future = producer.send(new org.apache.kafka.clients.producer.ProducerRecord<>(topic.name(), "my-key", VALID_JSON_MESSAGE));
-            assertThatFutureFails(future, org.apache.kafka.common.InvalidRecordException.class, "");
+            assertThatFutureFails(future, InvalidRecordException.class, "");
         }
     }
 

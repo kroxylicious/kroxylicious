@@ -13,8 +13,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
 import org.apache.kafka.common.errors.NetworkException;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
@@ -25,6 +24,7 @@ import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DestroyedDekException;
 import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.proxy.tag.VisibleForTesting;

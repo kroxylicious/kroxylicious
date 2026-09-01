@@ -10,11 +10,11 @@ import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Predicate;
 
-import org.apache.kafka.common.message.DescribeAclsRequestData;
-import org.apache.kafka.common.message.DescribeAclsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.message.DescribeAclsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeAclsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.filter.FilterContext;

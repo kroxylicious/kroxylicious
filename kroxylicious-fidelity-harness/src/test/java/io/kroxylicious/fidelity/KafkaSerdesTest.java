@@ -7,7 +7,7 @@ package io.kroxylicious.fidelity;
 
 import java.util.List;
 
-import org.apache.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
 
 class KafkaSerdesTest extends AbstractSerdesTest<RequestHeaderData> {
 

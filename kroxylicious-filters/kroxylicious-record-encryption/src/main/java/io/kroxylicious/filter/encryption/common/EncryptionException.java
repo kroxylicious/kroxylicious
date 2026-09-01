@@ -6,10 +6,11 @@
 
 package io.kroxylicious.filter.encryption.common;
 
-import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.errors.ApiException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import io.kroxylicious.kafka.common.InvalidRecordException;
 
 /**
  * Exceptions to do with encryption.

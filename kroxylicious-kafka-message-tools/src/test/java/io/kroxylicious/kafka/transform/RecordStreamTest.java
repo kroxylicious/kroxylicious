@@ -10,15 +10,16 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 
-import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MutableRecordBatch;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.SimpleRecord;
-import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import io.kroxylicious.kafka.common.compress.Compression;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.record.TimestampType;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
+
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.MutableRecordBatch;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
+import io.kroxylicious.kafka.common.record.internal.SimpleRecord;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.testing.filter.assertj.MemoryRecordsAssert;

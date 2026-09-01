@@ -12,8 +12,8 @@ import java.util.Map;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.InvalidRecordException;
-import org.apache.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.InvalidRecordException;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 

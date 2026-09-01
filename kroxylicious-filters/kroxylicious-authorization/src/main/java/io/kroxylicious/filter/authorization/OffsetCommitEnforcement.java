@@ -10,13 +10,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
-
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.OffsetCommitRequestData;
-import org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic;
-import org.apache.kafka.common.message.OffsetCommitResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.OffsetCommitRequestData;
+import io.kroxylicious.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic;
+import io.kroxylicious.kafka.common.message.OffsetCommitResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;

@@ -13,11 +13,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.CreateTopicsResponseData;
-import org.apache.kafka.common.message.DescribeClusterRequestData;
-import org.apache.kafka.common.message.DescribeClusterResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.message.CreateTopicsResponseData;
+import io.kroxylicious.kafka.common.message.DescribeClusterRequestData;
+import io.kroxylicious.kafka.common.message.DescribeClusterResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,8 +41,8 @@ import io.kroxylicious.testing.integration.tester.MockServerKroxyliciousTester;
 
 import static io.kroxylicious.it.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.it.testplugins.RequestResponseMarkingFilter.FILTER_NAME_TAG;
-import static org.apache.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
-import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

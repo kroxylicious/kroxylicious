@@ -9,13 +9,14 @@ import java.nio.ByteBuffer;
 import java.util.function.Function;
 import java.util.stream.LongStream;
 
-import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import io.kroxylicious.kafka.common.compress.Compression;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.record.TimestampType;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
+
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kafka.transform.BatchAwareMemoryRecordsBuilder;

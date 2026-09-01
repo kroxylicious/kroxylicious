@@ -6,7 +6,7 @@
 
 package io.kroxylicious.proxy.router;
 
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 /**
  * The outcome of {@link Router#onRequest} processing.

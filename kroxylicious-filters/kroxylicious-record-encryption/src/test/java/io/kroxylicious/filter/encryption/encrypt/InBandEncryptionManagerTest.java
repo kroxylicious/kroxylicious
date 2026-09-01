@@ -19,9 +19,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.Record;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
@@ -29,6 +28,7 @@ import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;

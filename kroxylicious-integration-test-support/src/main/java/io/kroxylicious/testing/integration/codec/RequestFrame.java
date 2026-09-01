@@ -8,7 +8,7 @@ package io.kroxylicious.testing.integration.codec;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.testing.integration.client.SequencedResponse;
 

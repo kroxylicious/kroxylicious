@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.X509TrustManager;
 
-import org.apache.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

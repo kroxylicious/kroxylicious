@@ -9,8 +9,8 @@ package io.kroxylicious.filter.validation.validators.bytebuf;
 import java.time.Duration;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.Record;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.record.internal.Record;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;

@@ -12,11 +12,11 @@ import java.nio.charset.StandardCharsets;
 import io.kroxylicious.kms.service.Serde;
 
 import static java.lang.Math.toIntExact;
-import static org.apache.kafka.common.utils.ByteUtils.readUnsignedVarint;
-import static org.apache.kafka.common.utils.ByteUtils.sizeOfUnsignedVarint;
-import static org.apache.kafka.common.utils.ByteUtils.writeUnsignedVarint;
-import static org.apache.kafka.common.utils.Utils.utf8;
-import static org.apache.kafka.common.utils.Utils.utf8Length;
+import static io.kroxylicious.kafka.common.utils.ByteUtils.readUnsignedVarint;
+import static io.kroxylicious.kafka.common.utils.ByteUtils.sizeOfUnsignedVarint;
+import static io.kroxylicious.kafka.common.utils.ByteUtils.writeUnsignedVarint;
+import static io.kroxylicious.kafka.common.utils.Utils.utf8;
+import static io.kroxylicious.kafka.common.utils.Utils.utf8Length;
 
 /**
  * Serializer/deserializer for {@link CipherTrustEdek}.

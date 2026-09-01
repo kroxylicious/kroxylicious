@@ -10,12 +10,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.RequestHeaderDataJsonConverter;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderDataJsonConverter;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.RequestHeaderDataJsonConverter;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderDataJsonConverter;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

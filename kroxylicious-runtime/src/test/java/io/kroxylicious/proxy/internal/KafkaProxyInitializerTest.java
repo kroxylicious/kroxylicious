@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.matcher.AssertionMatcher;
 import org.junit.jupiter.api.BeforeEach;

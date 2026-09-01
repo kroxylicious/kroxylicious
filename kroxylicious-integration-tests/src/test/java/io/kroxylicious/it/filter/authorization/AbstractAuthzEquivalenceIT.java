@@ -16,16 +16,16 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AclBinding;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.protocol.Message;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.protocol.Message;
 import org.assertj.core.api.AbstractComparableAssert;
 import org.junit.jupiter.api.TestInstance;
 
