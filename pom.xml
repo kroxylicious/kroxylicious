@@ -57,7 +57,7 @@
         <kafka.message-spec.version>4.3.0</kafka.message-spec.version>
         <zstd-jni.version>1.5.7-15</zstd-jni.version>
         <lz4-java.version>1.11.2</lz4-java.version>
-        <snappy-java.version>1.1.10.7</snappy-java.version>
+        <snappy-java.version>1.1.10.8</snappy-java.version>
         <kroxy.extension.version>0.16.0</kroxy.extension.version>
         <log4j.version>2.26.1</log4j.version>
         <caffeine.version>3.2.4</caffeine.version>
