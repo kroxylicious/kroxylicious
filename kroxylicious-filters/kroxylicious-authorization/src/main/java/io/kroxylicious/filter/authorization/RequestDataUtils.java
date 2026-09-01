@@ -9,9 +9,9 @@ package io.kroxylicious.filter.authorization;
 import java.util.Iterator;
 import java.util.Objects;
 
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.Records;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
+import io.kroxylicious.kafka.common.record.internal.Records;
 
 /**
  * Utility methods for working with Kafka {@code *RequestData} classes.

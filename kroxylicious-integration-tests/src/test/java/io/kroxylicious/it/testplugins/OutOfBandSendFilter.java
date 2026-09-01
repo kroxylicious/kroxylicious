@@ -10,25 +10,24 @@ import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.CreateTopicsRequestData;
-import org.apache.kafka.common.message.DescribeClusterRequestData;
-import org.apache.kafka.common.message.DescribeClusterResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.kafka.common.message.CreateTopicsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeClusterRequestData;
+import io.kroxylicious.kafka.common.message.DescribeClusterResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.DescribeClusterRequestFilter;
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-import static io.kroxylicious.it.UnknownTaggedFields.unknownTaggedFieldsToStrings;
+import static io.kroxylicious.it.UnknownTaggedFields.unknownKroxyTaggedFieldsToStrings;
 
 /**
  * Designed to work in tandem with another Filter like {@link RequestResponseMarkingFilter}. This Filter targets
@@ -61,7 +60,7 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         ApiKeys apiKeyToSend = config.apiKeyToSend();
         ApiMessage message = createApiMessage(apiKeyToSend);
         return context.sendRequest(new RequestHeaderData().setRequestApiVersion(message.highestSupportedVersion()), message).thenCompose(apiMessage -> {
-            values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect()).collect(Collectors.joining(","));
+            values = unknownKroxyTaggedFieldsToStrings(apiMessage, config.tagIdToCollect()).collect(Collectors.joining(","));
             return context.forwardRequest(header, request);
         });
     }

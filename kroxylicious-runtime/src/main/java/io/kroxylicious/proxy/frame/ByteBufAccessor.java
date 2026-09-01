@@ -7,10 +7,10 @@ package io.kroxylicious.proxy.frame;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.protocol.Readable;
-import org.apache.kafka.common.protocol.Writable;
-
 import io.netty.buffer.ByteBuf;
+
+import io.kroxylicious.kafka.common.protocol.Readable;
+import io.kroxylicious.kafka.common.protocol.Writable;
 
 /**
  * Provides read and write access to byte buffer for serializing frames.

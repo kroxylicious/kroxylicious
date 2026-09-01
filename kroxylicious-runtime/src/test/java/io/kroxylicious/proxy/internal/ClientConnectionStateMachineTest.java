@@ -17,16 +17,6 @@ import java.util.stream.Stream;
 
 import javax.net.ssl.SSLSession;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.errors.InvalidRequestException;
-import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +29,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -54,6 +43,12 @@ import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.ScheduledFuture;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
@@ -279,7 +274,7 @@ class ClientConnectionStateMachineTest {
         // Then
         assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(serverConnectionStateMachine).close();
-        verify(frontendHandler).inClosed(ArgumentMatchers.notNull(UnknownServerException.class));
+        verify(frontendHandler).inClosed(cause);
     }
 
     private void useDownstreamSsl() {
@@ -300,7 +295,7 @@ class ClientConnectionStateMachineTest {
         // Then
         assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(serverConnectionStateMachine).close();
-        verify(frontendHandler).inClosed(ArgumentMatchers.notNull(InvalidRequestException.class));
+        verify(frontendHandler).inClosed(cause);
     }
 
     @Test
@@ -622,10 +617,9 @@ class ClientConnectionStateMachineTest {
     void inForwardingShouldTransitionToClosedOnClientException(boolean tlsEnabled) {
         // Given
         stateMachineInForwarding();
-        final ApiException expectedException = Errors.UNKNOWN_SERVER_ERROR.exception();
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
         doAnswer(invocation -> assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class)).when(frontendHandler)
-                .inClosed(expectedException);
+                .inClosed(illegalStateException);
         doNothing().when(serverConnectionStateMachine).close();
         if (tlsEnabled) {
             useDownstreamSsl();
@@ -636,7 +630,7 @@ class ClientConnectionStateMachineTest {
 
         // Then
         assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
-        verify(frontendHandler).inClosed(expectedException);
+        verify(frontendHandler).inClosed(illegalStateException);
         verify(serverConnectionStateMachine).close();
     }
 

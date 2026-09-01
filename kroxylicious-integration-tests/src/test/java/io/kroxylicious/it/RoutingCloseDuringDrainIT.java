@@ -11,9 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.message.ListTransactionsRequestData;
-import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +20,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
@@ -76,12 +76,12 @@ class RoutingCloseDuringDrainIT {
         var releaseFirstRequest = new CompletableFuture<Void>();
         var secondRequestReceived = new CompletableFuture<Void>();
         ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
-            if (apiKey == PRODUCE) {
+            if (apiKey == ApiKeys.PRODUCE) {
                 return releaseFirstRequest.thenCompose(v -> ctx.respondWithoutReply().completed());
             }
-            if (apiKey == LIST_TRANSACTIONS) {
+            if (apiKey == ApiKeys.LIST_TRANSACTIONS) {
                 secondRequestReceived.complete(null);
-                return ctx.respondWith(new ListTransactionsResponseData()).withCloseConnection().completed();
+                return ctx.respondWith(new io.kroxylicious.kafka.common.message.ListTransactionsResponseData()).withCloseConnection().completed();
             }
             return ctx.respondWith(new MetadataResponseData()).completed();
         });

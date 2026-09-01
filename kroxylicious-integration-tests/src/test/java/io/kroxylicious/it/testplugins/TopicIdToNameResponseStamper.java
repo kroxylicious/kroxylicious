@@ -17,15 +17,14 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.protocol.types.RawTaggedField;
-
 import io.kroxylicious.it.UnknownTaggedFields;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
@@ -76,7 +75,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<TopicIdToName
 
         @Override
         public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
-            List<String> list = UnknownTaggedFields.unknownTaggedFieldsToStrings(request, TOPIC_ID_TAG).toList();
+            List<String> list = UnknownTaggedFields.unknownKroxyTaggedFieldsToStrings(request, TOPIC_ID_TAG).toList();
             if (list.isEmpty()) {
                 return context.requestFilterResultBuilder().errorResponse(header, request, Errors.INVALID_REQUEST, "no topic id tag").withCloseConnection()
                         .completed();
@@ -132,6 +131,10 @@ public class TopicIdToNameResponseStamper implements FilterFactory<TopicIdToName
 
     public static String topicNameMapping(Uuid topicId, @Nullable String topicName, @Nullable String error) {
         return topicId + "::" + topicName + "::" + error;
+    }
+
+    public static String topicNameMapping(org.apache.kafka.common.Uuid topicId, @Nullable String topicName, @Nullable String error) {
+        return topicNameMapping(new Uuid(topicId.getMostSignificantBits(), topicId.getLeastSignificantBits()), topicName, error);
     }
 
     public record Config(boolean asyncTopicNameLookup) {

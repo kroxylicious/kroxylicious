@@ -41,6 +41,7 @@ import io.kroxylicious.filter.authorization.AuthorizationFilter;
 import io.kroxylicious.it.testplugins.SaslPlainTermination;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.testing.filter.record.KafkaRecordTestUtils;
 import io.kroxylicious.testing.filter.record.RecordTestUtils;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
@@ -191,7 +192,8 @@ class ZeroAckProduceAuthzIT {
     }
 
     static Stream<Arguments> testZeroAckProduceAuthz() {
-        IntStream apiVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(PRODUCE), AuthorizationFilter.maxSupportedApiVersion(PRODUCE));
+        IntStream apiVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE),
+                AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE));
         // alice and bob are allowed to access A, eve is not allowed any access
         List<String> bothTopics = List.of(TOPIC_NAME_A, TOPIC_NAME_B);
         List<String> aOnly = List.of(TOPIC_NAME_A);
@@ -236,7 +238,7 @@ class ZeroAckProduceAuthzIT {
 
     private static List<ProduceRequestData.PartitionProduceData> partitionData() {
         long currentTimeMillis = System.currentTimeMillis();
-        var mr = RecordTestUtils.memoryRecords(RecordTestUtils.singleElementRecordBatch(
+        var mr = KafkaRecordTestUtils.memoryRecords(KafkaRecordTestUtils.singleElementRecordBatch(
                 RecordTestUtils.DEFAULT_MAGIC_VALUE,
                 RecordTestUtils.DEFAULT_OFFSET,
                 Compression.NONE,

@@ -40,10 +40,6 @@
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-        </dependency>
         <!-- Compile-scope dependencies of the vendored io.kroxylicious.kafka.common.* support
              classes. jackson-databind backs the generated *JsonConverter classes; jackson-core is
              also referenced directly (e.g. MessageUtil implements a jackson-core TreeNode-based
@@ -135,7 +131,7 @@
                                     <artifactId>kafka-clients</artifactId>
                                     <version>${kafka.message-spec.version}</version>
                                     <overWrite>false</overWrite>
-                                    <includes>common/message/*.json</includes>
+                                    <includes>common/message/**/*.json</includes>
                                     <outputDirectory>${project.build.directory}/data-class-message-specs
                                     </outputDirectory>
                                 </artifactItem>
@@ -340,6 +336,14 @@
                                 </dependency>
                             </oldVersion>
                             <parameter>
+                                <excludes>
+                                    <!-- Type migration from org.apache.kafka.* to io.kroxylicious.kafka.*:
+                                         all filter/router interfaces have method signature changes that are
+                                         intentional and expected as part of this migration. -->
+                                    <exclude>io.kroxylicious.proxy.filter</exclude>
+                                    <exclude>io.kroxylicious.proxy.filter.metadata</exclude>
+                                    <exclude>io.kroxylicious.proxy.router</exclude>
+                                </excludes>
                                 <accessModifier>public</accessModifier>
                                 <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
                                 <breakBuildOnBinaryIncompatibleModifications>false
@@ -347,59 +351,6 @@
                                 <breakBuildBasedOnSemanticVersioningForMajorVersionZero>
                                     ${ApiCompatability.EnforceForMajorVersionZero}
                                 </breakBuildBasedOnSemanticVersioningForMajorVersionZero>
-                                <excludes>
-                                    <!-- The following filter exclusions relate to RPCs that were renamed in kafka-clients 4.1 -->
-                                    <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesResponseFilter
-                                    </exclude>
-                                    <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesRequestFilter
-                                    </exclude>
-                                    <!-- The following four-argument methods were deprecated at 0.19.0 and removed at 0.24.0, see https://github.com/kroxylicious/kroxylicious/issues/4494 -->
-                                    <exclude>
-                                        io.kroxylicious.proxy.filter.RequestFilter#onRequest(org.apache.kafka.common.protocol.ApiKeys,
-                                        org.apache.kafka.common.message.RequestHeaderData,
-                                        org.apache.kafka.common.protocol.ApiMessage,
-                                        io.kroxylicious.proxy.filter.FilterContext)
-                                    </exclude>
-                                    <exclude>
-                                        io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys,
-                                        org.apache.kafka.common.message.ResponseHeaderData,
-                                        org.apache.kafka.common.protocol.ApiMessage,
-                                        io.kroxylicious.proxy.filter.FilterContext)
-                                    </exclude>
-                                    <!-- The replacement five-argument methods became required at 0.24.0, see https://github.com/kroxylicious/kroxylicious/issues/4494 -->
-                                    <exclude>
-                                        io.kroxylicious.proxy.filter.RequestFilter#onRequest(org.apache.kafka.common.protocol.ApiKeys,
-                                        short, org.apache.kafka.common.message.RequestHeaderData,
-                                        org.apache.kafka.common.protocol.ApiMessage,
-                                        io.kroxylicious.proxy.filter.FilterContext)
-                                    </exclude>
-                                    <exclude>
-                                        io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys,
-                                        short, org.apache.kafka.common.message.ResponseHeaderData,
-                                        org.apache.kafka.common.protocol.ApiMessage,
-                                        io.kroxylicious.proxy.filter.FilterContext)
-                                    </exclude>
-                                    <!-- The following method was deprecated since 0.18 and removed at 0.21.0, see https://github.com/kroxylicious/kroxylicious/issues/3620 -->
-                                    <exclude>
-                                        io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String,
-                                        java.lang.String)
-                                    </exclude>
-                                    <!-- The ApiException-typed error-response entry points were removed at 0.24.0 and replaced by overloads
-                                         taking an org.apache.kafka.common.protocol.Errors code (with an optional message), so the kafka-clients
-                                         exception hierarchy no longer leaks into the API. Removing the released overloads is binary-incompatible.
-                                         See https://github.com/kroxylicious/kroxylicious/issues/4756 -->
-                                    <exclude>
-                                        io.kroxylicious.proxy.filter.RequestFilterResultBuilder#errorResponse(org.apache.kafka.common.message.RequestHeaderData,
-                                        org.apache.kafka.common.protocol.ApiMessage,
-                                        org.apache.kafka.common.errors.ApiException)
-                                    </exclude>
-                                    <exclude>
-                                        io.kroxylicious.proxy.router.RouterContext#respondWithError(org.apache.kafka.common.message.RequestHeaderData,
-                                        org.apache.kafka.common.protocol.ApiMessage,
-                                        org.apache.kafka.common.errors.ApiException)
-                                    </exclude>
-                                </excludes>
-                                <!-- see documentation -->
                             </parameter>
                         </configuration>
                         <executions>

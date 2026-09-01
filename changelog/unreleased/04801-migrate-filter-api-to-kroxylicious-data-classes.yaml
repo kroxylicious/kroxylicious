@@ -1,0 +1,18 @@
+title: "feat(kroxylicious-api)!: Filter and Router API migrated to io.kroxylicious Kafka protocol classes"
+type: changed
+merge_requests:
+  - 4801
+issues:
+  - 3975
+  - 4581
+  - 4582
+important_notes:
+  - |
+    BREAKING CHANGE: All filter and router implementations must be updated.
+    The Filter and Router APIs now use io.kroxylicious.kafka.* protocol data classes
+    instead of org.apache.kafka.* types sourced from kafka-clients.
+    Every implementation that handles Kafka request or response types will require
+    import updates at minimum. A migration guide is available in the documentation.
+    This also partially upgrades the project to Apache Kafka 4.3.
+    An OpenRewrite recipe covering the mechanical parts of this migration is
+    provided, see kroxylicious-proxy-core/kroxylicious-migrations/README.md.

@@ -19,10 +19,6 @@ import java.util.function.Supplier;
 
 import javax.net.ssl.SSLSession;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.event.Level;
 import org.slf4j.spi.LoggingEventBuilder;
@@ -34,6 +30,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.util.ReferenceCountUtil;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
@@ -799,7 +797,6 @@ public class ClientConnectionStateMachine {
     @SuppressWarnings("java:S5738")
     void onClientException(@Nullable Throwable cause) {
         var tlsEnabled = endpointGateway().getDownstreamSslContext().isPresent();
-        ApiException errorCodeEx;
         if (cause instanceof DecoderException de
                 && de.getCause() instanceof FrameOversizedException e) {
             String tlsHint;
@@ -813,7 +810,6 @@ public class ClientConnectionStateMachine {
                     .addKeyValue("receivedFrameSizeBytes", e.getReceivedFrameSizeBytes())
                     .addKeyValue("hint", tlsHint)
                     .log("Received over-sized frame from client, other possible causes are: an oversized Kafka frame, or something unexpected like an HTTP request");
-            errorCodeEx = Errors.INVALID_REQUEST.exception();
         }
         else {
             log(Level.WARN)
@@ -822,10 +818,9 @@ public class ClientConnectionStateMachine {
                     .log(LOGGER.isDebugEnabled()
                             ? "exception from client channel"
                             : "exception from client channel, increase log level to DEBUG for stacktrace");
-            errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
         clientToProxyErrorCounter.increment();
-        toClosed(errorCodeEx);
+        toClosed(cause);
     }
 
     /**

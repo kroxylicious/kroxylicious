@@ -8,11 +8,11 @@ package io.kroxylicious.filter.validation.validators.record;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.record.Record;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.validation.validators.Result;
 import io.kroxylicious.filter.validation.validators.bytebuf.BytebufValidator;
+import io.kroxylicious.kafka.common.record.internal.Record;
 
 import static io.kroxylicious.filter.validation.validators.record.KeyAndValueRecordValidator.keyAndValueValidator;
 import static org.assertj.core.api.Assertions.assertThat;

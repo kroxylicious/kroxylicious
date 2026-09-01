@@ -129,14 +129,15 @@ class IncrementalAlterConfigsGroupAuthzIT extends AuthzIT {
     List<Arguments> shouldEnforceAccessToGroups() {
         IncrementalAlterConfigsRequestData alterConfigs = new IncrementalAlterConfigsRequestData();
         ALL_GROUPS.forEach(group -> alterConfigs.resources().add(groupResource(group)));
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.INCREMENTAL_ALTER_CONFIGS),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.INCREMENTAL_ALTER_CONFIGS))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.INCREMENTAL_ALTER_CONFIGS),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.INCREMENTAL_ALTER_CONFIGS))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " specific groups request",
                                 new IncrementalAlterConfigsEquivalence((short) (int) apiVersion, alterConfigs))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.INCREMENTAL_ALTER_CONFIGS.oldestVersion(), ApiKeys.INCREMENTAL_ALTER_CONFIGS.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.INCREMENTAL_ALTER_CONFIGS, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.INCREMENTAL_ALTER_CONFIGS, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.INCREMENTAL_ALTER_CONFIGS, (short) apiVersion)));

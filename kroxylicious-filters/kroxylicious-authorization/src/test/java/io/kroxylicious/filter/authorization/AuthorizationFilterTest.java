@@ -20,13 +20,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.RequestHeaderDataJsonConverter;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderDataJsonConverter;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -48,7 +41,14 @@ import io.github.sambarker.logsquelcher.LoggingEventAssert;
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;
-import io.kroxylicious.kafka.message.json.KafkaApiMessageConverter;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.RequestHeaderDataJsonConverter;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderDataJsonConverter;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.message.json.VendoredKafkaApiMessageConverter;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -158,7 +158,7 @@ class AuthorizationFilterTest {
         short requestHeaderVersion = apiKeys.requestHeaderVersion(version);
         MockUpstream mockUpstream = new MockUpstream(definition.given().mockedUpstreamResponses());
 
-        ApiMessage request = KafkaApiMessageConverter.requestConverterFor(apiKeys.messageType).reader().apply(definition.when().request(), version);
+        ApiMessage request = VendoredKafkaApiMessageConverter.requestConverterFor(apiKeys.messageType).reader().apply(definition.when().request(), version);
         RequestHeaderData requestHeader = RequestHeaderDataJsonConverter.read(definition.when().requestHeader(), requestHeaderVersion);
 
         Map<Uuid, String> topicNames = Optional.ofNullable(definition.given().topicNames()).orElse(Map.of());
@@ -243,7 +243,7 @@ class AuthorizationFilterTest {
                     }
                     else {
                         String actualMessage = toYaml(
-                                KafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(responseResult.message(), version));
+                                VendoredKafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(responseResult.message(), version));
                         ApiMessage header = Objects.requireNonNull(responseResult.header());
                         String actualHeader = toYaml(ResponseHeaderDataJsonConverter.write((ResponseHeaderData) header, apiKeys.responseHeaderVersion(version)));
                         assertThat(actualMessage)
@@ -264,7 +264,7 @@ class AuthorizationFilterTest {
                 }
                 if (definition.then().expectedErrorResponse() != null) {
                     assertThat(actual).isInstanceOfSatisfying(MockFilterContext.ErrorRequestFilterResult.class,
-                            result -> assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception()));
+                            result -> assertThat(result.error()).isEqualTo(definition.then().expectedErrorResponse()));
                 }
                 else {
                     assertThat(actual)
@@ -278,7 +278,8 @@ class AuthorizationFilterTest {
                     }
                     if (definition.then().expectedResponse() != null) {
                         ApiMessage forwardedMessage = Objects.requireNonNull(actual.message());
-                        String actualMessage = toYaml(KafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(forwardedMessage, version));
+                        String actualMessage = toYaml(
+                                VendoredKafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(forwardedMessage, version));
                         assertThat(actualMessage).isEqualTo(toYaml(definition.then().expectedResponse()));
                     }
                 }

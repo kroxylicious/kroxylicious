@@ -218,7 +218,7 @@ class DeleteTopicsAuthzIT extends AuthzIT {
         // Compute the n-fold Cartesian product of the tuples (except for pruning)
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : ApiKeys.DELETE_TOPICS.allVersions()) {
-            if (!AuthorizationFilter.isApiVersionSupported(ApiKeys.DELETE_TOPICS, apiVersion)) {
+            if (!AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.DELETE_TOPICS, apiVersion)) {
                 result.add(
                         Arguments.of(new UnsupportedApiVersion<>(ApiKeys.DELETE_TOPICS, apiVersion)));
             }

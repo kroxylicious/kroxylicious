@@ -25,8 +25,8 @@ package ${outputPackage};
 
 import java.util.function.Predicate;
 
-import org.apache.kafka.common.message.${dataClass};
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.${dataClass};
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import org.assertj.core.api.Condition;
 import org.assertj.core.description.TextDescription;

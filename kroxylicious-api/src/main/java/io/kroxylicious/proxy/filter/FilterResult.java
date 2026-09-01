@@ -6,7 +6,7 @@
 
 package io.kroxylicious.proxy.filter;
 
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

@@ -134,14 +134,14 @@ class AddPartitionsToTxnTxnlIdAuthzIT extends AuthzIT {
 
     List<Arguments> shouldEnforceAccessToTransactionalIds() {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(
-                AuthorizationFilter.minSupportedApiVersion(ApiKeys.ADD_PARTITIONS_TO_TXN),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.ADD_PARTITIONS_TO_TXN))
+                AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.ADD_PARTITIONS_TO_TXN),
+                AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.ADD_PARTITIONS_TO_TXN))
                 .mapToObj(apiVersion -> Arguments.argumentSet("api version " + apiVersion, new AddPartitionsToTxnEquivalence((short) apiVersion)));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(
                         ApiKeys.ADD_PARTITIONS_TO_TXN.oldestVersion(),
                         ApiKeys.ADD_PARTITIONS_TO_TXN.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.ADD_PARTITIONS_TO_TXN, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.ADD_PARTITIONS_TO_TXN, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.ADD_PARTITIONS_TO_TXN, (short) apiVersion)));

@@ -8,10 +8,9 @@ package io.kroxylicious.filter.encryption.crypto;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.record.RecordBatch;
-
 import io.kroxylicious.filter.encryption.common.PersistedIdentifiable;
 import io.kroxylicious.filter.encryption.config.AadSpec;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 
 /**
  * Abstraction for constructing the AAD passed to an AEAD cipher.

@@ -39,9 +39,9 @@ public class ConsumerRecordAssert extends AbstractAssert<ConsumerRecordAssert, C
      *
      * @return the headers assertion
      */
-    public HeadersAssert headers() {
+    public KafkaHeadersAssert headers() {
         isNotNull();
         return extracting(ConsumerRecord::headers,
-                new InstanceOfAssertFactory<>(Headers.class, HeadersAssert::assertThat));
+                new InstanceOfAssertFactory<>(Headers.class, KafkaHeadersAssert::assertThat));
     }
 }

@@ -15,14 +15,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
-
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -243,7 +241,7 @@ record MockFilterContext(ApiMessage header, ApiMessage message, Subject subject,
                 throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
             }
             // Errors.exception(String) returns the default-message exception when message is null.
-            return new ErrorCloseOrTerminalStage(header, requestMessage, error.exception(message), false);
+            return new ErrorCloseOrTerminalStage(header, requestMessage, error, false);
         }
 
         @NonNull
@@ -264,16 +262,16 @@ record MockFilterContext(ApiMessage header, ApiMessage message, Subject subject,
             return new RequestTerminalStage(new MockRequestFilterResult(false, null, null, true, false));
         }
 
-        private record ErrorCloseOrTerminalStage(RequestHeaderData header, ApiMessage message, ApiException apiException, boolean closeConnection)
+        private record ErrorCloseOrTerminalStage(RequestHeaderData header, ApiMessage message, Errors errors, boolean closeConnection)
                 implements CloseOrTerminalStage<RequestFilterResult> {
             @Override
             public TerminalStage<RequestFilterResult> withCloseConnection() {
-                return new ErrorCloseOrTerminalStage(header, message, apiException, true);
+                return new ErrorCloseOrTerminalStage(header, message, errors, true);
             }
 
             @Override
             public RequestFilterResult build() {
-                return new ErrorRequestFilterResult(header, message, apiException, closeConnection);
+                return new ErrorRequestFilterResult(header, message, errors, closeConnection);
             }
 
             @Override
@@ -284,7 +282,7 @@ record MockFilterContext(ApiMessage header, ApiMessage message, Subject subject,
         }
     }
 
-    record ErrorRequestFilterResult(RequestHeaderData header, ApiMessage message, ApiException apiException, boolean closeConnection)
+    record ErrorRequestFilterResult(RequestHeaderData header, ApiMessage message, Errors errors, boolean closeConnection)
             implements RequestFilterResult {
         @Override
         public boolean shortCircuitResponse() {
