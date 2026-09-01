@@ -17,7 +17,7 @@ import java.lang.annotation.Target;
  * corresponding {@link PluginImplName @PluginImplName}-annotated sibling property.
  * @see io.kroxylicious.proxy.plugin
  */
-@Target(ElementType.PARAMETER)
+@Target({ ElementType.PARAMETER, ElementType.RECORD_COMPONENT })
 @Retention(RetentionPolicy.RUNTIME)
 public @interface PluginImplConfig {
 

@@ -50,14 +50,14 @@
         <freemarker.version>2.3.34</freemarker.version>
         <guava.version>33.7.1-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
-        <jackson.version>2.22.1</jackson.version>
+        <jackson.version>2.22.2</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.4</junit.version>
         <kafka.version>4.2.0</kafka.version>
         <kafka.message-spec.version>4.3.0</kafka.message-spec.version>
         <zstd-jni.version>1.5.7-15</zstd-jni.version>
         <lz4-java.version>1.11.2</lz4-java.version>
-        <snappy-java.version>1.1.10.7</snappy-java.version>
+        <snappy-java.version>1.1.10.8</snappy-java.version>
         <kroxy.extension.version>0.16.0</kroxy.extension.version>
         <log4j.version>2.26.1</log4j.version>
         <caffeine.version>3.2.4</caffeine.version>
@@ -72,18 +72,18 @@
         <micrometer.version>1.17.0</micrometer.version>
         <slf4j.version>2.0.18</slf4j.version>
         <sundr-builder-annotations.version>0.300.0</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.10.3</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.10.4</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <apicurio-registry.version>3.3.1</apicurio-registry.version>
         <kiota.version>0.0.38</kiota.version>
         <avro.version>1.12.2</avro.version>
-        <protobuf-java.version>4.35.1</protobuf-java.version>
+        <protobuf-java.version>4.36.0</protobuf-java.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
-        <strimzi.version>1.1.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
+        <strimzi.version>1.2.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
         <kubernetes-client.version>7.8.0</kubernetes-client.version>
         <maven.core.version>3.9.16</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
@@ -927,7 +927,7 @@
                 <plugin>
                     <groupId>dev.logchange</groupId>
                     <artifactId>logchange-maven-plugin</artifactId>
-                    <version>1.19.15</version>
+                    <version>1.19.16</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

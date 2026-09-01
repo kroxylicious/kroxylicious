@@ -20,7 +20,11 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +36,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
@@ -48,6 +53,7 @@ import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.ClientActive;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
+import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
@@ -525,10 +531,26 @@ public class KafkaProxyFrontendHandler
         return this.clientCtx != null ? this.clientCtx.channel() : null;
     }
 
-    private static ResponseFrame buildErrorResponseFrame(
-                                                         DecodedRequestFrame<?> triggerFrame,
-                                                         Throwable error) {
-        var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
+    @VisibleForTesting
+    static @Nullable ResponseFrame buildErrorResponseFrame(
+                                                           DecodedRequestFrame<?> triggerFrame,
+                                                           Throwable error) {
+        RequestHeaderData requestHeaders = triggerFrame.header();
+        ApiMessage message = triggerFrame.body();
+        String errorMessage = error.getMessage();
+        ApiKeys apiKey = ApiKeys.forId(message.apiKey());
+        var responseError = Errors.UNKNOWN_SERVER_ERROR;
+        if (error instanceof DecoderException && error.getCause() instanceof FrameOversizedException) {
+            responseError = Errors.INVALID_REQUEST;
+        }
+        var responseData = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), responseError, errorMessage);
+        if (responseData == null) {
+            // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
+            LOGGER.atTrace()
+                    .addKeyValue("clientCorrelationId", triggerFrame.correlationId())
+                    .log("Not sending an error response for an API key that does not send a response");
+            return null;
+        }
         final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
         responseHeaderData.setCorrelationId(triggerFrame.correlationId());
         return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
