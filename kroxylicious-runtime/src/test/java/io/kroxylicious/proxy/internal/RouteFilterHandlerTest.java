@@ -218,16 +218,36 @@ class RouteFilterHandlerTest {
     }
 
     @Test
-    void internalResponseFrameWithNonMatchingRoutePassesThrough() {
+    void internalResponseFrameForRecipientIsCompletedEvenWhenRouteDoesNotMatch() {
         // Given
-        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
-            throw new AssertionError("Filter should not be invoked for non-matching route");
-        };
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
         buildChannel(filter, ROUTE_A);
         var header = new ResponseHeaderData().setCorrelationId(42);
         var future = new CompletableFuture<>();
         var internalFrame = new InternalResponseFrame<>(
                 filter, ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData(), future);
+        internalFrame.setRouteName(ROUTE_B);
+
+        // When
+        channel.writeOutbound(internalFrame);
+
+        // Then
+        assertThat(future).isCompleted();
+        assertThat((Object) channel.readOutbound()).isNull();
+    }
+
+    @Test
+    void internalResponseFrameForAnotherFilterOnAnotherRoutePassesThrough() {
+        // Given
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
+            throw new AssertionError("Filter should not process an OOB response addressed to another filter on another route");
+        };
+        buildChannel(filter, ROUTE_A);
+        Filter otherFilter = mock(Filter.class);
+        var header = new ResponseHeaderData().setCorrelationId(42);
+        var future = new CompletableFuture<>();
+        var internalFrame = new InternalResponseFrame<>(
+                otherFilter, ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData(), future);
         internalFrame.setRouteName(ROUTE_B);
 
         // When

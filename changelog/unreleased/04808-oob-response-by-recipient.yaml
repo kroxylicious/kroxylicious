@@ -1,0 +1,4 @@
+title: "fix(runtime): deliver a per-route filter's out-of-band response by recipient, so it is not lost when two or more routes issue out-of-band requests on one connection"
+type: fixed
+issues:
+  - 4808

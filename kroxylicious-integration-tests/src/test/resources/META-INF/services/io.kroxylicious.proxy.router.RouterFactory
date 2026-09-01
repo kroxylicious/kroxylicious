@@ -7,6 +7,7 @@ io.kroxylicious.it.testplugins.router.AlternatingRouterFactory
 io.kroxylicious.it.testplugins.router.ClientIdRouterFactory
 io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory
 io.kroxylicious.it.testplugins.router.DynamicProduceRouterFactory
+io.kroxylicious.it.testplugins.router.FanOutRouterFactory
 io.kroxylicious.it.testplugins.router.InvocationCountingRouterFactory
 io.kroxylicious.it.testplugins.router.NodeTargetingProduceRouterFactory
 io.kroxylicious.it.testplugins.router.PassThroughRouterFactory
