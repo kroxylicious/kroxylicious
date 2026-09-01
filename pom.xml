@@ -114,6 +114,7 @@
         <maven.source.skip>${central.publishing.skip}</maven.source.skip>
         <gpg.skip>${central.publishing.skip}</gpg.skip>
         <rewrite-maven-plugin.version>6.46.1</rewrite-maven-plugin.version>
+        <rewrite-plugin.depencny.version>8.89.0</rewrite-plugin.depencny.version>
     </properties>
 
     <name>Parent POM</name>
@@ -1078,6 +1079,40 @@
                     <artifactId>sonar-maven-plugin</artifactId>
                     <version>5.7.0.6970</version>
                 </plugin>
+                <!-- Allows testing against local builds of open rewrite to test fixes for https://github.com/openrewrite/rewrite/issues/8723 & https://github.com/openrewrite/rewrite/issues/8731 -->
+                <plugin>
+                    <groupId>org.openrewrite.maven</groupId>
+                    <artifactId>rewrite-maven-plugin</artifactId>
+                    <version>${rewrite-maven-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.openrewrite</groupId>
+                            <artifactId>rewrite-java</artifactId>
+                            <version>${rewrite-plugin.depencny.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.openrewrite</groupId>
+                            <artifactId>rewrite-java-21</artifactId>
+                            <version>${rewrite-plugin.depencny.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.openrewrite</groupId>
+                            <artifactId>rewrite-java-17</artifactId>
+                            <version>${rewrite-plugin.depencny.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.openrewrite</groupId>
+                            <artifactId>rewrite-core</artifactId>
+                            <version>${rewrite-plugin.depencny.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.openrewrite</groupId>
+                            <artifactId>rewrite-java-lombok</artifactId>
+                            <version>${rewrite-plugin.depencny.version}</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+
             </plugins>
 
         </pluginManagement>
