@@ -69,18 +69,18 @@ public class VaultKms implements Kms<String, VaultEdek> {
      * The vault url which will include the path to the transit engine.
      */
     private final URI vaultTransitEngineUrl;
-    private final String vaultToken;
+    private final VaultTokenProvider tokenProvider;
 
     VaultKms(URI vaultTransitEngineUrl,
-             String vaultToken,
+             VaultTokenProvider tokenProvider,
              Duration timeout,
              UnaryOperator<HttpClient.Builder> tlsConfigurator) {
         Objects.requireNonNull(vaultTransitEngineUrl);
-        Objects.requireNonNull(vaultToken);
+        Objects.requireNonNull(tokenProvider);
         Objects.requireNonNull(timeout);
         Objects.requireNonNull(tlsConfigurator);
         this.vaultTransitEngineUrl = ensureEndsInSlash(validateTransitPath(vaultTransitEngineUrl));
-        this.vaultToken = vaultToken;
+        this.tokenProvider = tokenProvider;
         this.timeout = timeout;
         this.vaultClient = createClient(tlsConfigurator);
     }
@@ -119,16 +119,18 @@ public class VaultKms implements Kms<String, VaultEdek> {
     @Override
     public CompletionStage<DekPair<VaultEdek>> generateDekPair(String kekRef) {
 
-        var request = createVaultRequest()
-                .uri(vaultTransitEngineUrl.resolve("datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
-                .POST(HttpRequest.BodyPublishers.noBody())
-                .build();
+        return tokenProvider.getToken().thenCompose(token -> {
+            var request = createVaultRequest(token)
+                    .uri(vaultTransitEngineUrl.resolve("datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
 
-        return sendAsync(kekRef, request, DATA_KEY_DATA_TYPE_REF, UnknownKeyException::new)
-                .thenApply(data -> {
-                    var secretKey = DestroyableRawSecretKey.takeOwnershipOf(data.plaintext(), AES_KEY_ALGO);
-                    return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
-                });
+            return sendAsync(kekRef, request, DATA_KEY_DATA_TYPE_REF, UnknownKeyException::new)
+                    .thenApply(data -> {
+                        var secretKey = DestroyableRawSecretKey.takeOwnershipOf(data.plaintext(), AES_KEY_ALGO);
+                        return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
+                    });
+        });
 
     }
 
@@ -142,13 +144,15 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
         var body = createDecryptPostBody(edek);
 
-        var request = createVaultRequest()
-                .uri(vaultTransitEngineUrl.resolve("decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+        return tokenProvider.getToken().thenCompose(token -> {
+            var request = createVaultRequest(token)
+                    .uri(vaultTransitEngineUrl.resolve("decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
 
-        return sendAsync(edek.kekRef(), request, DECRYPT_DATA_TYPE_REF, UnknownKeyException::new)
-                .thenApply(data -> DestroyableRawSecretKey.takeOwnershipOf(data.plaintext(), AES_KEY_ALGO));
+            return sendAsync(edek.kekRef(), request, DECRYPT_DATA_TYPE_REF, UnknownKeyException::new)
+                    .thenApply(data -> DestroyableRawSecretKey.takeOwnershipOf(data.plaintext(), AES_KEY_ALGO));
+        });
     }
 
     private String createDecryptPostBody(VaultEdek edek) {
@@ -177,11 +181,13 @@ public class VaultKms implements Kms<String, VaultEdek> {
     @Override
     public CompletableFuture<String> resolveAlias(String alias) {
 
-        var request = createVaultRequest()
-                .uri(vaultTransitEngineUrl.resolve("keys/%s".formatted(encode(alias, UTF_8))))
-                .build();
-        return sendAsync(alias, request, READ_KEY_DATA_TYPE_REF, UnknownAliasException::new)
-                .thenApply(ReadKeyData::name);
+        return tokenProvider.getToken().thenCompose(token -> {
+            var request = createVaultRequest(token)
+                    .uri(vaultTransitEngineUrl.resolve("keys/%s".formatted(encode(alias, UTF_8))))
+                    .build();
+            return sendAsync(alias, request, READ_KEY_DATA_TYPE_REF, UnknownAliasException::new)
+                    .thenApply(ReadKeyData::name);
+        }).toCompletableFuture();
     }
 
     private <T> CompletableFuture<T> sendAsync(String key,
@@ -248,7 +254,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
     }
 
     @VisibleForTesting
-    HttpRequest.Builder createVaultRequest() {
+    HttpRequest.Builder createVaultRequest(String vaultToken) {
         return HttpRequest.newBuilder()
                 .timeout(timeout)
                 .header("X-Vault-Token", vaultToken)

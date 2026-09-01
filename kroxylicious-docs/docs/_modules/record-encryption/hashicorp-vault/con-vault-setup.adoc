@@ -74,10 +74,10 @@ path "transit/keys/KEK-*" {
 
 == Establish an application identity for the filter
 
-The filter must authenticate to Vault in order to perform envelope encryption operations, such as generating and decrypting DEKs
+The filter must authenticate to Vault in order to perform envelope encryption operations, such as generating and decrypting DEKs.
 Therefore, a Vault identity with sufficient permissions must be created for the filter.
 
-Create a Vault policy for the filter:
+First, create a Vault policy for the filter:
 
 [source,shell]
 ----
@@ -93,6 +93,13 @@ path "transit/decrypt/KEK-*" {
 }
 EOF
 ----
+
+Kroxylicious supports two authentication mechanisms for Vault:
+
+* Token Authentication
+* Kubernetes Authentication
+
+=== Token Authentication
 
 Create a {hashicorp-vault}/docs/concepts/tokens#periodic-tokens[Periodic] (long-lived) Vault Token
 for the filter:
@@ -135,6 +142,57 @@ This can be done with a command like the following:
 [source,shell]
 ----
 vault token renew --accessor <token_accessor>
+----
+
+=== Kubernetes Authentication
+
+When running Kroxylicious in Kubernetes, you can use the Vault {hashicorp-vault}/docs/auth/kubernetes[Kubernetes auth method] to authenticate using the Kubernetes ServiceAccount token.
+
+==== 1. Create Kubernetes ServiceAccount and RBAC Permissions
+
+Create a dedicated `ServiceAccount` for Kroxylicious and bind it to the `system:auth-delegator` `ClusterRole` so Vault can validate the ServiceAccount token using Kubernetes TokenReview API:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kroxylicious-sa
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kroxylicious-vault-tokenreview-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: kroxylicious-sa
+    namespace: default
+----
+
+==== 2. Configure Vault Kubernetes Auth Engine
+
+Enable and configure the Kubernetes authentication method in Vault:
+
+[source,shell]
+----
+# 1. Enable the Kubernetes authentication method in Vault
+vault auth enable kubernetes
+
+# 2. Configure Vault with your Kubernetes cluster API server address
+vault write auth/kubernetes/config \
+    kubernetes_host="https://kubernetes.default.svc:443"
+
+# 3. Create a Vault role bound to the Kroxylicious ServiceAccount and policy
+vault write auth/kubernetes/role/kroxylicious-role \
+    bound_service_account_names=kroxylicious-sa \
+    bound_service_account_namespaces=default \
+    policies=kroxylicious_encryption_filter_policy \
+    ttl=24h
 ----
 
 == Testing the application identity for the filter using the CLI

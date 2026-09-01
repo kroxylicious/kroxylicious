@@ -92,7 +92,7 @@ class ConfigParseTest {
     }
 
     @Test
-    void vaultTokenRequired() {
+    void vaultTokenOrRoleRequired() {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
@@ -100,11 +100,12 @@ class ConfigParseTest {
                     }
                     """;
             readConfig(json);
-        }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("vaultToken");
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Either vaultToken or role must be provided");
     }
 
     @Test
-    void vaultTokenShouldNotBeNull() {
+    void vaultTokenShouldNotBeNullWhenRoleIsMissing() {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
@@ -113,7 +114,38 @@ class ConfigParseTest {
                     }
                     """;
             readConfig(json);
-        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(NullPointerException.class);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Either vaultToken or role must be provided");
+    }
+
+    @Test
+    void roleUsedInsteadOfToken() throws IOException {
+        String json = """
+                {
+                    "vaultTransitEngineUrl": "http://vault",
+                    "role": "my-k8s-role"
+                }
+                """;
+        Config config = readConfig(json);
+        assertThat(config.role()).isEqualTo("my-k8s-role");
+        assertThat(config.vaultToken()).isNull();
+        assertThat(config.serviceAccountTokenPath()).isEqualTo("/var/run/secrets/kubernetes.io/serviceaccount/token");
+        assertThat(config.authPath()).isEqualTo("kubernetes");
+    }
+
+    @Test
+    void bothTokenAndRoleThrows() {
+        Assertions.assertThatThrownBy(() -> {
+            String json = """
+                    {
+                        "vaultTransitEngineUrl": "https://vault",
+                        "vaultToken": { "password" : "token" },
+                        "role": "my-k8s-role"
+                    }
+                    """;
+            readConfig(json);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only one of vaultToken or role may be provided");
     }
 
     @Test
@@ -157,7 +189,7 @@ class ConfigParseTest {
                 }
                 """;
         Config config = readConfig(json);
-        Config expected = new Config(URI.create("https://vault"), new InlinePassword("token"), new Tls(null, new InsecureTls(true), null, null));
+        Config expected = new Config(URI.create("https://vault"), new InlinePassword("token"), null, null, null, new Tls(null, new InsecureTls(true), null, null));
         assertThat(config).isEqualTo(expected);
     }
 

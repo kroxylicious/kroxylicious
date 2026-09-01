@@ -189,7 +189,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
     @Override
     public final Config getKmsServiceConfig() {
-        return new Config(getVaultTransitEngineUrl(), new InlinePassword(kmsVaultToken), null);
+        return new Config(getVaultTransitEngineUrl(), new InlinePassword(kmsVaultToken), null, null, null, null);
     }
 
     @Override
