@@ -31,6 +31,7 @@ import io.kroxylicious.it.testplugins.RequestResponseMarkingFilter;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.it.testplugins.router.DynamicProduceRouterFactory;
+import io.kroxylicious.it.testplugins.router.FanOutRouterFactory;
 import io.kroxylicious.it.testplugins.router.PassThroughRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
@@ -221,6 +222,60 @@ class RouteFilterCorrectnessIT {
         }
     }
 
+    // ---------------------------------------------------------------------------
+    // C4: Concurrent out-of-band requests from two routes are each delivered back
+    // ---------------------------------------------------------------------------
+
+    /**
+     * When one client request is fanned to two routes and each route's filter issues an out-of-band
+     * {@code sendRequest()}, both out-of-band responses must be delivered back to the filter that
+     * issued them. All out-of-band requests share one reserved correlation id, so the per-connection
+     * {@code correlationId -> routeName} map collides; before the fix the replies were tagged with
+     * the wrong route and written to the client, and both filters timed out after 20s.
+     */
+    @Test
+    void concurrentOutOfBandRequestsFromTwoRoutesAreEachDelivered() {
+        var markerA = "c4-marker-a";
+        var markerB = "c4-marker-b";
+
+        // Given
+        var markerADef = new NamedFilterDefinitionBuilder(markerA, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", markerA,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+        var markerBDef = new NamedFilterDefinitionBuilder(markerB, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", markerB,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+
+        try (var tester = KroxyliciousTesters.mockKafkaKroxyliciousTester(
+                mockBootstrap -> fanOutTwoRouteConfig(mockBootstrap, markerADef, markerBDef), ROUTING_ENABLED);
+                var client = tester.simpleTestClient()) {
+
+            ApiVersionsResponseData apiVersions = new ApiVersionsResponseData();
+            apiVersions.apiKeys().add(new ApiVersionsResponseData.ApiVersion()
+                    .setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersions));
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+
+            // When
+            var response = client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+
+            // Then
+            assertThat(response)
+                    .as("client request completes only if both routes' out-of-band responses were delivered")
+                    .isNotNull();
+            assertThat(tester.getRequestsForApiKey(LIST_GROUPS))
+                    .as("both route filters must have issued their out-of-band request on the one connection")
+                    .hasSize(2);
+        }
+    }
+
     /**
      * When a filter on route-a sends an internal request, filters on route-b must not process it.
      * Exposed a bug where {@code RouteFilterHandler} passed all {@code InternalRequestFrame}s
@@ -408,6 +463,27 @@ class RouteFilterCorrectnessIT {
             builder.addToFilterDefinitions(fd);
         }
         return builder;
+    }
+
+    private ConfigurationBuilder fanOutTwoRouteConfig(String bootstrapServers,
+                                                      NamedFilterDefinition routeAFilter,
+                                                      NamedFilterDefinition routeBFilter) {
+        var clusterDef = new ClusterDefinition(CLUSTER_NAME, bootstrapServers, null);
+        var routeA = new RouteDefinition(ROUTE_A, 0, List.of(routeAFilter.name()), new RouteTarget(CLUSTER_NAME, null));
+        var routeB = new RouteDefinition(ROUTE_B, 1, List.of(routeBFilter.name()), new RouteTarget(CLUSTER_NAME, null));
+        var routerDef = new RouterDefinition(ROUTER_NAME, FanOutRouterFactory.class.getName(),
+                new FanOutRouterFactory.Config(List.of(ROUTE_A, ROUTE_B), LIST_TRANSACTIONS.name()), List.of(routeA, routeB));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToFilterDefinitions(routeAFilter)
+                .addToFilterDefinitions(routeBFilter)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
     }
 
     private ConfigurationBuilder singleRouteConfig(String bootstrapServers, NamedFilterDefinition filterDef) {
