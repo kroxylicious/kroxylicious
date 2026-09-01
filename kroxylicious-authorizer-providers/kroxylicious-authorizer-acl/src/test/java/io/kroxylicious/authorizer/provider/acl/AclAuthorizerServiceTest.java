@@ -163,7 +163,7 @@ class AclAuthorizerServiceTest {
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
                                 otherwise deny;""",
-                        "4:6: Principal class 'User' is not a subclass of interface io.kroxylicious.proxy.authentication.Principal."),
+                        "4:6: Principal class 'User' is not a subclass of interface io.kroxylicious.identity.Principal."),
                 Arguments.argumentSet(
                         "Invalid like",
                         """

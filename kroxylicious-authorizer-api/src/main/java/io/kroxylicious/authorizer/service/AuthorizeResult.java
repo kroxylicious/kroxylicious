@@ -14,16 +14,16 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.identity.Identity;
 
 /**
- * Represents the outcome of a call to {@link Authorizer#authorize(io.kroxylicious.proxy.authentication.Subject, List)}.
+ * Represents the outcome of a call to {@link Authorizer#authorize(io.kroxylicious.identity.Identity, List)}.
  * @param subject The subject.
  * @param allowed The allowed actions.
  * @param denied The denied actions.
  */
 public record AuthorizeResult(
-                              Subject subject,
+                              Identity subject,
                               List<Action> allowed,
                               List<Action> denied) {
 
@@ -34,7 +34,7 @@ public record AuthorizeResult(
      * @param denied The denied actions.
      */
     public AuthorizeResult(
-                           Subject subject,
+                           Identity subject,
                            List<Action> allowed,
                            List<Action> denied) {
         this.subject = Objects.requireNonNull(subject);
