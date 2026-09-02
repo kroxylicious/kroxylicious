@@ -110,8 +110,8 @@ recipeList:
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousApi0_24
-displayName: Use Kroxylicious-managed Kafka API types
-description: Replaces org.apache.kafka generated message packages with io.kroxylicious.kafka.
+displayName: Use the latest 0.24 release of Kroxylicious
+description: Ensures the kroxylicious-api and kroxylicious-bom are from the 0.24 release or newer.
 recipeList:
   - org.openrewrite.maven.UpgradeDependencyVersion:
       groupId: io.kroxylicious

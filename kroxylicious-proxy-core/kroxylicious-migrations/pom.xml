@@ -58,6 +58,7 @@
         <dependency>
             <groupId>org.openrewrite</groupId>
             <artifactId>rewrite-maven</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- Provides RewriteTest interface and test runner -->
@@ -96,7 +97,7 @@
                         </goals>
                         <configuration>
                             <ignoredUnusedDeclaredDependencies>
-                                org.openrewrite:rewrite-java-${java.version},org.apache.kafka:kafka-clients
+                                org.openrewrite:rewrite-java-${java.version},rewrite-maven,org.apache.kafka:kafka-clients
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
                     </execution>
