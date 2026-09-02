@@ -39,8 +39,8 @@ Downstream filter projects do not need to modify their `pom.xml` to execute publ
 
 ### dry run
 ```bash
-mvn org.openrewrite.maven:rewrite-maven-plugin:run \
-  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:<RELEASE_VERSION> \
+mvn org.openrewrite.maven:rewrite-maven-plugin:dryRun \
+  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.24.0-SNAPSHOT \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24
 ```
 
@@ -49,7 +49,7 @@ Review the proposed patch file, if your happy apply it using `run`:
 ### Run
 ```bash
 mvn org.openrewrite.maven:rewrite-maven-plugin:run \
-  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:<RELEASE_VERSION> \
+  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.24.0-SNAPSHOT \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24
 ```
 
@@ -57,7 +57,7 @@ mvn org.openrewrite.maven:rewrite-maven-plugin:run \
 
 ```bash
 mvn org.openrewrite.maven:rewrite-maven-plugin:run \
-  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:<RELEASE_VERSION> \
+  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.24.0-SNAPSHOT \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.MigrateToLatest
 
 ```
