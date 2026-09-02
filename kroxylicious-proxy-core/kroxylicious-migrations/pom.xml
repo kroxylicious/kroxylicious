@@ -55,6 +55,11 @@
             <artifactId>rewrite-java-${java.version}</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-maven</artifactId>
+        </dependency>
+
         <!-- Provides RewriteTest interface and test runner -->
         <dependency>
             <groupId>org.openrewrite</groupId>
