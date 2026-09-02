@@ -57,6 +57,22 @@ class UseKroxyliciousApi0_24DepencencyTest implements RewriteTest {
             </metadata>
             """;
 
+    private static final String V0_25_METADATA = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <metadata>
+              <groupId>io.kroxylicious</groupId>
+              <artifactId>kroxylicious-api</artifactId>
+              <versioning>
+                <latest>0.25.0</latest>
+                <release>0.25.0</release>
+                <versions>
+                  <version>0.23.0</version>
+                  <version>0.25.0</version>
+                </versions>
+              </versioning>
+            </metadata>
+            """;
+
     private static final String BOM_V0_24_0_METADATA = """
             <?xml version="1.0" encoding="UTF-8"?>
             <metadata>
@@ -131,8 +147,7 @@ class UseKroxyliciousApi0_24DepencencyTest implements RewriteTest {
         spec.recipeFromResources("io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousApi0_24")
                 .executionContext(
                         HttpSenderExecutionContextView.view(new InMemoryExecutionContext())
-                                .setHttpSender(stubSender)
-                );
+                                .setHttpSender(stubSender));
 
     }
 
@@ -181,6 +196,65 @@ class UseKroxyliciousApi0_24DepencencyTest implements RewriteTest {
                                             <groupId>io.kroxylicious</groupId>
                                             <artifactId>kroxylicious-api</artifactId>
                                             <version>0.24.0</version>
+                                        </dependency>
+                                    </dependencies>
+                                </project>
+                                """));
+    }
+
+    @Test
+    void shouldBumpPropertyVersion() {
+        metadataXml = V0_24_0_METADATA;
+        rewriteRun(
+                pomXml(
+                        // Before (Input code)
+                        """
+                                <?xml version="1.0" encoding="UTF-8"?>
+                                <project xmlns="http://maven.apache.org/POM/4.0.0"
+                                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                    <modelVersion>4.0.0</modelVersion>
+                                
+                                    <groupId>com.example</groupId>
+                                    <artifactId>rewrite-victim</artifactId>
+                                    <packaging>jar</packaging>
+                                    <version>0.0.1-SNAPSHOT</version>
+                                
+                                    <properties>
+                                        <kroxylicious.version>0.23.0</kroxylicious.version>
+                                    </properties>
+                                
+                                    <dependencies>
+                                        <dependency>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-api</artifactId>
+                                            <version>${kroxylicious.version}</version>
+                                        </dependency>
+                                    </dependencies>
+                                </project>
+                                """,
+                        // After (Expected transformed code)
+                        """
+                                <?xml version="1.0" encoding="UTF-8"?>
+                                <project xmlns="http://maven.apache.org/POM/4.0.0"
+                                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                    <modelVersion>4.0.0</modelVersion>
+                                
+                                    <groupId>com.example</groupId>
+                                    <artifactId>rewrite-victim</artifactId>
+                                    <packaging>jar</packaging>
+                                    <version>0.0.1-SNAPSHOT</version>
+                                
+                                    <properties>
+                                        <kroxylicious.version>0.24.0</kroxylicious.version>
+                                    </properties>
+                                
+                                    <dependencies>
+                                        <dependency>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-api</artifactId>
+                                            <version>${kroxylicious.version}</version>
                                         </dependency>
                                     </dependencies>
                                 </project>
@@ -309,6 +383,36 @@ class UseKroxyliciousApi0_24DepencencyTest implements RewriteTest {
                                 """));
     }
 
+    @Test
+    void shouldNotBumpIfAlreadyNewer() {
+        metadataXml = V0_25_METADATA;
+        rewriteRun(
+                pomXml(
+                        // Before (Input code)
+                        """
+                                <?xml version="1.0" encoding="UTF-8"?>
+                                <project xmlns="http://maven.apache.org/POM/4.0.0"
+                                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                    <modelVersion>4.0.0</modelVersion>
+                                
+                                    <groupId>com.example</groupId>
+                                    <artifactId>rewrite-victim</artifactId>
+                                    <packaging>jar</packaging>
+                                    <version>0.0.1-SNAPSHOT</version>
+                                
+                                    <dependencies>
+                                        <dependency>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-api</artifactId>
+                                            <version>0.25.0</version>
+                                        </dependency>
+                                    </dependencies>
+                                </project>
+                                """
+                ));
+    }
+
     private static byte[] buildJarPom(Matcher versionedPomMatcher) {
         String expectedVersion = versionedPomMatcher.group("version");
         String expectedArtifact = versionedPomMatcher.group("artifactId");
@@ -331,6 +435,5 @@ class UseKroxyliciousApi0_24DepencencyTest implements RewriteTest {
                 """.formatted(expectedVersion, expectedArtifact)
                 .getBytes(StandardCharsets.UTF_8);
     }
-
 
 }
