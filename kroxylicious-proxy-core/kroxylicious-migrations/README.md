@@ -31,7 +31,7 @@ kroxylicious-migrations/
 
 ## Downstream Execution (Filter Developers)
 
-Downstream filter projects do not need to modify their `pom.xml` to execute published migrations. They can run OpenRewrite directly from the command line against published Maven Central artifacts:
+Downstream filter projects do not need to modify their `pom.xml` to execute published migrations. The migrations will attempt to bump Java dependencies to match the required Kroxylicious release. These version bumps compare versions semantically and only ever move forward, so it's safe to run a migration even if you're starting from an intermediate release — it won't downgrade a dependency you've already upgraded. They can run OpenRewrite directly from the command line against published Maven Central artifacts:
 
 **Apply a Specific Release Migration:**
 
@@ -59,7 +59,6 @@ mvn org.openrewrite.maven:rewrite-maven-plugin:run \
 mvn org.openrewrite.maven:rewrite-maven-plugin:run \
   -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.24.0-SNAPSHOT \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.MigrateToLatest
-
 ```
 
 ---
