@@ -7,13 +7,14 @@
 package io.kroxylicious.testing.kms.vault;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultEdek;
+import io.kroxylicious.kms.provider.hashicorp.vault.WrappingKey;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
 
 /**
  * Factory for {@link VaultTestKmsFacade}s.
  */
-public class VaultTestKmsFacadeFactory extends AbstractVaultTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, VaultEdek> {
+public class VaultTestKmsFacadeFactory extends AbstractVaultTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, WrappingKey, VaultEdek> {
     /**
      * Creates the factory.
      */

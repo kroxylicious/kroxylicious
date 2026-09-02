@@ -12,13 +12,14 @@ import org.testcontainers.DockerClientFactory;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultEdek;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService;
+import io.kroxylicious.kms.provider.hashicorp.vault.WrappingKey;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.testing.kms.AbstractTestKmsFacadeTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
-class VaultTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, String, VaultEdek> {
+class VaultTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, WrappingKey, VaultEdek> {
 
     VaultTestKmsFacadeTest() {
         super(new VaultTestKmsFacadeFactory());
