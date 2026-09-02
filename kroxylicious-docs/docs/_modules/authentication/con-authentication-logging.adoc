@@ -133,6 +133,7 @@ The full stack trace is always included.
 
 For detailed authentication flow troubleshooting, enable `DEBUG` logging on `io.kroxylicious.filter.sasl.termination`.
 
+ifdef::include-oauth-bearer-validation[]
 == OAuthBearer Validation filter logs
 
 The `OauthBearerValidation` filter emits log messages at `DEBUG` level for authentication events.
@@ -153,6 +154,7 @@ The full stack trace is always included.
 |An unexpected error occurred during the SASL handshake.
 The full stack trace is always included.
 |===
+endif::include-oauth-bearer-validation[]
 
 == Operational guidance
 
@@ -162,7 +164,9 @@ This is particularly useful when diagnosing authentication failures in environme
 To see full stack traces for authentication failures:
 
 * For the SASL Inspection filter, set the log level for `io.kroxylicious.filter.sasl.inspection` to `DEBUG`.
+ifdef::include-oauth-bearer-validation[]
 * For the OAuthBearer Validation filter, the filter already logs at `DEBUG` level, so set the log level for `io.kroxylicious.filter.oauthbearer` to `DEBUG`.
+endif::include-oauth-bearer-validation[]
 * For runtime authentication announcements, set the log level for `io.kroxylicious.proxy.internal` to `DEBUG`.
 
 For information on configuring log levels, see the monitoring section of the {ProxyGuide}.

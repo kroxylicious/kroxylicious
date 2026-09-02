@@ -48,11 +48,17 @@ Consider the following:
 
 * The broker still decides whether authentication succeeds.
   An unauthenticated attacker that can reach the proxy still has proxied access to the broker — the proxy forwards their application requests without restriction.
+ifdef::include-oauth-bearer-validation[]
   If your threat model requires that only authenticated clients' requests are forwarded to the broker, consider OAuthBearer Validation, SASL Termination, or mTLS instead.
+endif::include-oauth-bearer-validation[]
+ifndef::include-oauth-bearer-validation[]
+  If your threat model requires that only authenticated clients' requests are forwarded to the broker, consider SASL Termination or mTLS instead.
+endif::include-oauth-bearer-validation[]
 * The proxy observes the SASL exchange and holds the authorization ID in memory.
   For mechanisms that transmit credentials in plain text (such as PLAIN), this means plain-text passwords briefly exist in the proxy's memory.
   The PLAIN mechanism is disabled by default for this reason.
 
+ifdef::include-oauth-bearer-validation[]
 == OAuthBearer Validation
 
 Use OAuthBearer Validation when:
@@ -62,6 +68,7 @@ Use OAuthBearer Validation when:
 * You want to reduce load on the broker from repeated invalid authentication attempts.
 
 This mode requires a reachable JWKS endpoint that provides the public keys used to verify JWT signatures.
+endif::include-oauth-bearer-validation[]
 
 == SASL Termination
 
@@ -97,7 +104,12 @@ mTLS and SASL authentication are not mutually exclusive.
 You can configure both on the same virtual cluster:
 
 * The transport subject builder creates an initial authenticated subject from the TLS client certificate.
+ifdef::include-oauth-bearer-validation[]
 * If SASL Passthrough Inspection or OAuthBearer Validation is also configured, the SASL subject builder replaces the subject after successful SASL authentication.
+endif::include-oauth-bearer-validation[]
+ifndef::include-oauth-bearer-validation[]
+* If SASL Passthrough Inspection is also configured, the SASL subject builder replaces the subject after successful SASL authentication.
+endif::include-oauth-bearer-validation[]
 
 This can be useful when you want transport-level identity as a baseline and application-level identity for fine-grained access control.
 
@@ -123,11 +135,13 @@ This can be useful when you want transport-level identity as a baseline and appl
 |Yes (`SaslInspection` filter)
 |None
 
+ifdef::include-oauth-bearer-validation[]
 |OAuthBearer Validation
 |Yes (from JWT token)
 |Yes (token validation)
 |Yes (`OauthBearerValidation` filter)
 |JWKS endpoint
+endif::include-oauth-bearer-validation[]
 
 |SASL Termination
 |Yes (from SASL exchange)

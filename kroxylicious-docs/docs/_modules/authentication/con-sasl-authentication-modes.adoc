@@ -57,6 +57,7 @@ For the `OAUTHBEARER` mechanism, only JWT tokens that use signatures (JWS) are s
 JWT tokens that use encryption (JWE) are not supported.
 Unsigned JWT tokens are supported but not recommended for production use.
 
+ifdef::include-oauth-bearer-validation[]
 == OAuthBearer Validation
 
 OAuthBearer Validation is a specialized mode in which the proxy validates a client's JWT bearer token _before_ forwarding the SASL exchange to the broker.
@@ -69,6 +70,7 @@ The filter validates tokens against a JSON Web Key Set (JWKS) retrieved from a c
 It supports configurable token validation including expected audience, expected issuer, and custom claim names.
 
 To limit the impact of repeated authentication failures, the filter applies exponential backoff to clients that present invalid tokens.
+endif::include-oauth-bearer-validation[]
 
 == SASL Termination
 

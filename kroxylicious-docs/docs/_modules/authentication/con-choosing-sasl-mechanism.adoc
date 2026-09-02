@@ -13,7 +13,12 @@
 When configuring SASL authentication, the choice of mechanism affects the security properties, infrastructure requirements, and operational characteristics of your deployment.
 This section compares the PLAIN, SCRAM, and OAUTHBEARER mechanisms across several security and operational dimensions to help you make an informed choice.
 
+ifdef::include-oauth-bearer-validation[]
 The choice of SASL mechanism is independent of the choice of xref:con-choosing-authentication-approach-{context}[authentication approach] (Passthrough, Inspection, Termination, or OAuthBearer Validation).
+endif::include-oauth-bearer-validation[]
+ifndef::include-oauth-bearer-validation[]
+The choice of SASL mechanism is independent of the choice of xref:con-choosing-authentication-approach-{context}[authentication approach] (Passthrough, Inspection, or Termination).
+endif::include-oauth-bearer-validation[]
 However, some authentication approaches constrain the available mechanisms.
 For information about the mechanisms supported by each authentication approach, see xref:con-choosing-authentication-approach-{context}[]
 
