@@ -1,0 +1,10 @@
+title: "feat(record-validation): remove redundant `wireFormatVersion` configuration option."
+type: removed
+issues:
+  - 4744
+important_notes:
+  - |
+    The `wireFormatVersion` option of the record validation filter's `schemaValidationConfig` is removed.
+    The filter supports only the Apicurio Registry v3 wire format, which uses Confluent-compatible 4-byte content IDs,
+    so the option had a single legal value (`V3`) and was no longer read.
+    Any configuration that still sets `wireFormatVersion` must delete the line, otherwise the configuration will fail to load.

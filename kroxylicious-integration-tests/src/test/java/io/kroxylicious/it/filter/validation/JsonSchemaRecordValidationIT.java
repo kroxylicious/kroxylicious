@@ -320,31 +320,8 @@ class JsonSchemaRecordValidationIT extends RecordSchemaValidationBaseIT {
     }
 
     @Test
-    void v3WireFormatValidationWorks(KafkaCluster cluster, Topic topic) {
-        // Explicitly configure V3 wire format (4-byte content IDs, Confluent-compatible)
-        var config = createContentIdRecordValidationConfigWithWireFormat(cluster, topic, "valueRule", firstContentId, "V3");
-
-        var keySerde = new Serdes.StringSerde();
-        var producerValueSerde = createJsonSchemaProducerSerde(false, false);
-        var consumerValueSerde = createJsonSchemaConsumerSerde(false, false);
-
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(keySerde, producerValueSerde, Map.of());
-                var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
-            // Should accept valid data with V3 wire format
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)))
-                    .succeedsWithin(Duration.ofSeconds(10));
-            consumer.subscribe(Set.of(topic.name()));
-
-            var records = consumer.poll(Duration.ofSeconds(10));
-            assertSingleRecordInTopicHasProperty(records, topic, ConsumerRecord::value, OBJECT_MAPPER.valueToTree(PERSON_BEAN));
-        }
-    }
-
-    @Test
-    void v3ValidatorRejectsV2WireFormatData(KafkaCluster cluster, Topic topic) {
-        // Configure V3 wire format validator
-        var config = createContentIdRecordValidationConfigWithWireFormat(cluster, topic, "valueRule", firstContentId, "V3");
+    void shouldRejectRecordUsingUnsupportedLegacy8ByteId(KafkaCluster cluster, Topic topic) {
+        var config = createContentIdRecordValidationConfig(cluster, topic, "valueRule", firstContentId);
 
         var keySerde = new Serdes.StringSerde();
         // Produce data with V2 wire format (8-byte IDs)
@@ -359,46 +336,11 @@ class JsonSchemaRecordValidationIT extends RecordSchemaValidationBaseIT {
         }
     }
 
-    @Test
-    void defaultWireFormatIsV3(KafkaCluster cluster, Topic topic) {
-        // When wireFormatVersion is not specified, it should default to V3
-        var config = createContentIdRecordValidationConfig(cluster, topic, "valueRule", firstContentId);
-
-        var keySerde = new Serdes.StringSerde();
-        var producerValueSerde = createJsonSchemaProducerSerde(false, false);
-        var consumerValueSerde = createJsonSchemaConsumerSerde(false, false);
-
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(keySerde, producerValueSerde, Map.of());
-                var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
-            // Should accept V3 format by default
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)))
-                    .succeedsWithin(Duration.ofSeconds(10));
-            consumer.subscribe(Set.of(topic.name()));
-
-            var records = consumer.poll(Duration.ofSeconds(10));
-            assertSingleRecordInTopicHasProperty(records, topic, ConsumerRecord::value, OBJECT_MAPPER.valueToTree(PERSON_BEAN));
-        }
-    }
-
     private static ConfigurationBuilder createContentIdRecordValidationConfig(KafkaCluster cluster, Topic topic, String ruleType, int contentId) {
         String className = RecordValidation.class.getName();
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
                 List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
                         Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", apicurioRegistryUrl, "apicurioId", contentId)))))
-                .build();
-        return proxy(cluster)
-                .addToFilterDefinitions(namedFilterDefinition)
-                .addToDefaultFilters(namedFilterDefinition.name());
-    }
-
-    private static ConfigurationBuilder createContentIdRecordValidationConfigWithWireFormat(KafkaCluster cluster, Topic topic, String ruleType, int contentId,
-                                                                                            String wireFormatVersion) {
-        String className = RecordValidation.class.getName();
-        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
-                List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
-                        Map.of("schemaValidationConfig",
-                                Map.of("apicurioRegistryUrl", apicurioRegistryUrl, "apicurioId", contentId, "wireFormatVersion", wireFormatVersion)))))
                 .build();
         return proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)
