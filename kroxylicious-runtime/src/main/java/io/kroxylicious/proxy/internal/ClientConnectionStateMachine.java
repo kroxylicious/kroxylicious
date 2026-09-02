@@ -499,7 +499,7 @@ public class ClientConnectionStateMachine {
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
         if (!routerActive
                 || !(msg instanceof DecodedResponseFrame<?> frame)
-                || !(frame.path() instanceof PathElement.Router)) {
+                || !(frame.path() instanceof PathElement.RouterOrigin)) {
             decrementInFlightCount();
         }
     }

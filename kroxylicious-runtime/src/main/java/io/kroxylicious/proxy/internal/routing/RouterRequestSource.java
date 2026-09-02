@@ -15,7 +15,7 @@ import io.kroxylicious.proxy.frame.RequestFrame;
  * all other frames (passing them through to the next handler).
  */
 record RouterRequestSource(
-                           PathElement activationPath,
+                           PathElement.Route activationPath,
                            RouterChainFactory routerChainFactory,
                            String routerName)
         implements RequestSource {
@@ -24,20 +24,17 @@ record RouterRequestSource(
      * Returns {@code true} if this handler should intercept {@code frame} — i.e. the frame's
      * route position is exactly this nested handler's activation path. Both a router-issued
      * ({@code RouterContext.sendRequest}) and a filter-issued ({@code FilterContext.sendRequest})
-     * out-of-band frame carry a leaf ({@link PathElement.Router} or {@link PathElement.Filter}
-     * respectively) on top of the route position the request is actually addressed to — stripped
-     * here before comparing, since the leaf names the issuing router/filter's own promise, not a
+     * out-of-band frame carry its own position ({@link PathElement.RouterOrigin} or {@link
+     * PathElement.FilterOrigin} respectively) on top of the route position the request is
+     * actually addressed to — {@link PathElement#routePosition()} strips it here before
+     * comparing, since that position names the issuing router/filter's own promise, not a
      * position in the routing tree. A filter whose own route targets this nested router must be
      * intercepted here, exactly like ordinary traffic on that route, or its out-of-band request
      * could never reach this router's own (static or dynamic) routing decision.
      */
     boolean intercepts(RequestFrame frame) {
         PathElement path = frame.path();
-        PathElement routePosition = switch (path) {
-            case PathElement.Router router -> router.next();
-            case PathElement.Filter filter -> filter.next();
-            case null, default -> path;
-        };
+        PathElement.Route routePosition = path == null ? null : path.routePosition();
         return activationPath.equals(routePosition);
     }
 }

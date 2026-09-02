@@ -83,7 +83,7 @@ public class RouteDispatcher implements RouterDispatch {
      */
     private final String qualificationPrefix;
     @Nullable
-    private final PathElement parentPath;
+    private final PathElement.Route parentPath;
     private final CorrelationIdAllocator correlationIdAllocator;
     private final Map<Integer, HostPort> routerNodeAddresses;
     private final String virtualClusterName;
@@ -109,7 +109,7 @@ public class RouteDispatcher implements RouterDispatch {
     RouteDispatcher(Map<String, RouteDescriptor> routes,
                     NodeIdMapping nodeIdMapping,
                     String qualificationPrefix,
-                    @Nullable PathElement parentPath,
+                    @Nullable PathElement.Route parentPath,
                     CorrelationIdAllocator correlationIdAllocator,
                     Map<Integer, HostPort> routerNodeAddresses,
                     String virtualClusterName) {
@@ -170,12 +170,12 @@ public class RouteDispatcher implements RouterDispatch {
      * Builds the path for a request/response on the given local route name, at this dispatcher's
      * own nesting level. The route element's name is qualified to match
      * {@code VirtualClusterModel}'s config-level route-to-cluster lookup keys (see
-     * {@link #qualificationPrefix}); {@link PathElement#next()} carries the full ancestor lineage.
+     * {@link #qualificationPrefix}); {@link PathElement#parent()} carries the full ancestor lineage.
      *
      * @param route the local (unqualified) route name
      * @return the path
      */
-    PathElement routePathFor(String route) {
+    PathElement.Route routePathFor(String route) {
         return new PathElement.Route(qualificationPrefix + route, parentPath);
     }
 
@@ -270,7 +270,7 @@ public class RouteDispatcher implements RouterDispatch {
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         pendingPromises.add(future);
-        probeFrame.setPath(new PathElement.Router(future, routePath));
+        probeFrame.setPath(new PathElement.RouterOrigin(future, routePath));
         fireChannelRead(probeFrame);
         logContext.get()
                 .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, correlationId)
@@ -283,9 +283,10 @@ public class RouteDispatcher implements RouterDispatch {
 
     ResponseOutcome handleResponse(DecodedResponseFrame<?> frame, String sessionId) {
         PathElement path = frame.path();
-        if (path instanceof PathElement.Router router
-                && router.next() instanceof PathElement.Route routeSegment
-                && Objects.equals(routeSegment.next(), parentPath)) {
+        if (path instanceof PathElement.RouterOrigin router
+                && router.parent() != null
+                && Objects.equals(router.parent().parent(), parentPath)) {
+            PathElement.Route routeSegment = router.parent();
             @SuppressWarnings("unchecked")
             CompletableFuture<ApiMessage> future = (CompletableFuture<ApiMessage>) router.promise();
             pendingPromises.remove(future);

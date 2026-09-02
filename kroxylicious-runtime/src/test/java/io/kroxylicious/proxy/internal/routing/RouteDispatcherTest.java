@@ -128,8 +128,8 @@ class RouteDispatcherTest {
         // Then
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.Router.class,
-                router -> assertThat(router.next()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", null)));
+        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
+                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", null)));
     }
 
     @Test
@@ -144,8 +144,8 @@ class RouteDispatcherTest {
         // Then
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.Router.class,
-                router -> assertThat(router.next()).isEqualTo(new PathElement.Route("r1", null)));
+        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
+                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route("r1", null)));
     }
 
     @Test
@@ -210,8 +210,8 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
         assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
-        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.Router.class,
-                router -> assertThat(router.next()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", null)));
+        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
+                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", null)));
     }
 
     @Test
@@ -227,8 +227,8 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
         assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
-        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.Router.class,
-                router -> assertThat(router.next()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/nested", null)));
+        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
+                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/nested", null)));
     }
 
     @Test
@@ -286,7 +286,7 @@ class RouteDispatcherTest {
                 .isNotEqualTo(eventLoopThread);
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.path()).isInstanceOf(PathElement.Router.class);
+        assertThat(fired.path()).isInstanceOf(PathElement.RouterOrigin.class);
     }
 
     @Test
@@ -311,7 +311,7 @@ class RouteDispatcherTest {
                 .isNotEqualTo(eventLoopThread);
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.path()).isInstanceOf(PathElement.Router.class);
+        assertThat(fired.path()).isInstanceOf(PathElement.RouterOrigin.class);
     }
 
     @Test
@@ -497,7 +497,7 @@ class RouteDispatcherTest {
         var dispatcher = createDispatcher(routes, ROUTER_NAME + "/");
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         // A route name not known to the BijectiveNodeIdMapping, to force toVirtual() to throw.
-        var responsePath = new PathElement.Router(future, dispatcher.routePathFor("unknown-route"));
+        var responsePath = new PathElement.RouterOrigin(future, dispatcher.routePathFor("unknown-route"));
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker()
                 .setNodeId(0).setHost("broker1").setPort(9092));
@@ -536,7 +536,7 @@ class RouteDispatcherTest {
     // --- concurrent same-route dispatch ---
 
     /**
-     * Response matching relies entirely on the exact {@link PathElement.Router} leaf (and the
+     * Response matching relies entirely on the exact {@link PathElement.RouterOrigin} leaf (and the
      * {@code CompletableFuture} it carries) round-tripping on the response frame - there is no
      * correlation-id-keyed lookup table backing it. This proves that guarantee holds when the same
      * router has two sends to the same route concurrently in flight: a response addressed to one

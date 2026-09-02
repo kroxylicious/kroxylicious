@@ -67,7 +67,7 @@ class RoutingHandlerTest {
     private static final int CORRELATION_ID = 42;
     private static final String DEFAULT_ROUTE = "default";
     private static final String ACTIVATION_ROUTE = "route-to-nested";
-    private static final PathElement ACTIVATION_ROUTE_PATH = new PathElement.Route(ACTIVATION_ROUTE, null);
+    private static final PathElement.Route ACTIVATION_ROUTE_PATH = new PathElement.Route(ACTIVATION_ROUTE, null);
     private static final String NESTED_ROUTER_NAME = "inner-router";
     private static final String VIRTUAL_CLUSTER = "test-cluster";
     private static final String SESSION_ID = "test-session";
@@ -180,7 +180,7 @@ class RoutingHandlerTest {
                 .setRequestApiVersion((short) 9)
                 .setCorrelationId(correlationId);
         var frame = new InternalRequestFrame<>((short) 9, correlationId, true, header, new ProduceRequestData());
-        frame.setPath(new PathElement.Filter("test-filter", 0, promise, route == null ? null : new PathElement.Route(route, null)));
+        frame.setPath(new PathElement.FilterOrigin("test-filter", 0, promise, route == null ? null : new PathElement.Route(route, null)));
         return frame;
     }
 
@@ -194,7 +194,7 @@ class RoutingHandlerTest {
                 .setRequestApiVersion((short) 9)
                 .setCorrelationId(correlationId);
         var frame = new InternalRequestFrame<>((short) 9, correlationId, true, header, new ProduceRequestData());
-        frame.setPath(new PathElement.Router(promise, new PathElement.Route(route, null)));
+        frame.setPath(new PathElement.RouterOrigin(promise, new PathElement.Route(route, null)));
         return frame;
     }
 
@@ -288,7 +288,7 @@ class RoutingHandlerTest {
         // replace it) so the response can still be recognised as this filter's own
         InternalRequestFrame<?> forwarded = channel.readInbound();
         assertThat(forwarded).isNotNull();
-        assertThat(forwarded.path()).isEqualTo(new PathElement.Filter("test-filter", 0, promise, new PathElement.Route(DEFAULT_ROUTE, null)));
+        assertThat(forwarded.path()).isEqualTo(new PathElement.FilterOrigin("test-filter", 0, promise, new PathElement.Route(DEFAULT_ROUTE, null)));
         verify(router, never()).onRequest(any(), anyShort(), any(), any(), any());
     }
 

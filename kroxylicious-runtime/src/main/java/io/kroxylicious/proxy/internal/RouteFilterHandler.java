@@ -25,7 +25,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 class RouteFilterHandler extends FilterHandler {
 
-    private final PathElement routePath;
+    private final PathElement.Route routePath;
     private final int ordinal;
 
     RouteFilterHandler(FilterAndInvoker filterAndInvoker,
@@ -33,7 +33,7 @@ class RouteFilterHandler extends FilterHandler {
                        @Nullable String sniHostname,
                        Channel inboundChannel,
                        ClientConnectionStateMachine clientConnectionStateMachine,
-                       PathElement routePath,
+                       PathElement.Route routePath,
                        int ordinal) {
         super(filterAndInvoker, timeoutMs, sniHostname, inboundChannel, clientConnectionStateMachine);
         this.routePath = Objects.requireNonNull(routePath);
@@ -51,7 +51,7 @@ class RouteFilterHandler extends FilterHandler {
     }
 
     @Override
-    PathElement ownRoutePath() {
+    PathElement.Route ownRoutePath() {
         return routePath;
     }
 

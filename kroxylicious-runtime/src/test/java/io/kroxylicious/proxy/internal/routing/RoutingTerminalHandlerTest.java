@@ -32,7 +32,7 @@ import static org.mockito.Mockito.verify;
 class RoutingTerminalHandlerTest {
 
     private static final int CORRELATION_ID = 42;
-    private static final PathElement ROUTE_A = new PathElement.Route("route-a", null);
+    private static final PathElement.Route ROUTE_A = new PathElement.Route("route-a", null);
 
     @Mock
     private ClientConnectionStateMachine ccsm;
@@ -84,7 +84,7 @@ class RoutingTerminalHandlerTest {
         var handler = new RoutingTerminalHandler(ccsm);
         channel = new EmbeddedChannel(handler);
         var frame = fetchRequest();
-        frame.setPath(new PathElement.Filter("marker-filter", 0, new CompletableFuture<>(), ROUTE_A));
+        frame.setPath(new PathElement.FilterOrigin("marker-filter", 0, new CompletableFuture<>(), ROUTE_A));
 
         // When
         channel.writeInbound(frame);
@@ -99,7 +99,7 @@ class RoutingTerminalHandlerTest {
         var handler = new RoutingTerminalHandler(ccsm);
         channel = new EmbeddedChannel(handler);
         var frame = fetchRequest();
-        frame.setPath(new PathElement.Router(new CompletableFuture<>(), ROUTE_A));
+        frame.setPath(new PathElement.RouterOrigin(new CompletableFuture<>(), ROUTE_A));
 
         // When
         channel.writeInbound(frame);

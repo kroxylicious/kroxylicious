@@ -314,9 +314,9 @@ public class KafkaProxyFrontendHandler
                                             DynamicRouting dr,
                                             String qualifiedName,
                                             RouteDescriptor rd,
-                                            @Nullable PathElement parentPath,
+                                            @Nullable PathElement.Route parentPath,
                                             List<FilterAndInvoker> allRouteFilters) {
-        PathElement routePath = new PathElement.Route(qualifiedName, parentPath);
+        PathElement.Route routePath = new PathElement.Route(qualifiedName, parentPath);
         allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, qualifiedName, routePath));
         if (rd.targetsRouter()) {
             Map<String, RouteDescriptor> nestedRoutes = installNestedRoutingHandler(pipeline, dr, rd.routerName(), qualifiedName, routePath);
@@ -329,7 +329,7 @@ public class KafkaProxyFrontendHandler
 
     private List<FilterAndInvoker> installFiltersForRoute(ChannelPipeline pipeline, Channel clientChannel,
                                                           NettyFilterContext filterContext,
-                                                          VirtualClusterModel vc, String routeName, PathElement routePath) {
+                                                          VirtualClusterModel vc, String routeName, PathElement.Route routePath) {
         List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routeName, filterContext);
         for (int i = 0; i < routeFilters.size(); i++) {
             FilterAndInvoker fi = routeFilters.get(i);
@@ -350,7 +350,7 @@ public class KafkaProxyFrontendHandler
                                                                      DynamicRouting dr,
                                                                      String nestedRouterName,
                                                                      String activationRouteForLogging,
-                                                                     PathElement activationPath) {
+                                                                     PathElement.Route activationPath) {
         var routerChainFactory = dr.routerChainFactory();
         // Build the nested router's routes and NodeIdMapping from allRouteDescriptors
         var nestedRoutes = new LinkedHashMap<String, RouteDescriptor>();

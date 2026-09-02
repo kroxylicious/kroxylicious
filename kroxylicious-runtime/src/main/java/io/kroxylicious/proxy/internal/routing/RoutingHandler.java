@@ -192,7 +192,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
      */
     // all parameters are genuinely needed: identity, routing config, protocol infrastructure, session, auth, network
     @SuppressWarnings("java:S107")
-    public static RoutingHandler nested(PathElement activationPath,
+    public static RoutingHandler nested(PathElement.Route activationPath,
                                         String nestedRouterName,
                                         String virtualClusterName,
                                         RouterChainFactory routerChainFactory,
@@ -294,22 +294,19 @@ public class RoutingHandler extends ChannelDuplexHandler {
     }
 
     private void dispatchStaticRoute(ChannelHandlerContext ctx, RequestFrame frame, Object msg, ApiKeys apiKey, String staticRoute) {
-        PathElement routePath = dispatcher.routePathFor(staticRoute);
+        PathElement.Route routePath = dispatcher.routePathFor(staticRoute);
         // Out-of-band frames are delivered by path, not via this correlationId-keyed side table -
         // node-ID translation for them (if ever needed) belongs alongside that delivery, not here.
         if (!(msg instanceof InternalRequestFrame<?>) && RouteDispatcher.NODE_ID_TRANSLATION_APIS.contains(apiKey)) {
             dispatcher.trackStaticRoute(frame.correlationId(), staticRoute);
         }
-        // A filter- or router-issued out-of-band request may already carry its own Filter/Router
-        // leaf (identifying it for delivery back to its issuer) when it happens to target a
-        // statically-routed API key. Graft the resolved route onto that leaf's own next() instead
-        // of overwriting it outright - discarding it here would silently strand the issuer's promise.
-        PathElement newPath = switch (((Frame) msg).path()) {
-            case PathElement.Filter f -> new PathElement.Filter(f.name(), f.ordinal(), f.promise(), routePath);
-            case PathElement.Router r -> new PathElement.Router(r.promise(), routePath);
-            case PathElement.Route ignored -> routePath;
-            case null -> routePath;
-        };
+        // A filter- or router-issued out-of-band request may already carry its own position
+        // (identifying it for delivery back to its issuer) when it happens to target a
+        // statically-routed API key. Graft the resolved route onto that position instead of
+        // overwriting it outright - discarding it here would silently strand the issuer's promise.
+        // A frame with no path yet simply takes the resolved route directly.
+        PathElement currentPath = ((Frame) msg).path();
+        PathElement newPath = currentPath == null ? routePath : currentPath.graft(routePath);
         ((Frame) msg).setPath(newPath);
         ctx.fireChannelRead(msg);
         LOGGER.atTrace()

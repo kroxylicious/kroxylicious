@@ -51,8 +51,8 @@ import static org.mockito.Mockito.when;
 
 class RouteFilterHandlerTest {
 
-    private static final PathElement ROUTE_A = new PathElement.Route("route-a", null);
-    private static final PathElement ROUTE_B = new PathElement.Route("route-b", null);
+    private static final PathElement.Route ROUTE_A = new PathElement.Route("route-a", null);
+    private static final PathElement.Route ROUTE_B = new PathElement.Route("route-b", null);
 
     private EmbeddedChannel channel;
 
@@ -153,7 +153,7 @@ class RouteFilterHandlerTest {
                 header.requestApiVersion(), header.correlationId(), false, header, new ApiVersionsRequestData());
         // Some other filter on route-a sent this - route membership alone should be enough
         // for this handler to process it (see C1/C6 in RouteFilterCorrectnessIT).
-        internalFrame.setPath(new PathElement.Filter("other-filter", 0, new CompletableFuture<>(), ROUTE_A));
+        internalFrame.setPath(new PathElement.FilterOrigin("other-filter", 0, new CompletableFuture<>(), ROUTE_A));
 
         // When
         channel.writeInbound(internalFrame);
@@ -172,7 +172,7 @@ class RouteFilterHandlerTest {
         var header = requestHeader(new ApiVersionsRequestData());
         var internalFrame = new InternalRequestFrame<>(
                 header.requestApiVersion(), header.correlationId(), false, header, new ApiVersionsRequestData());
-        internalFrame.setPath(new PathElement.Filter("other-filter", 0, new CompletableFuture<>(), ROUTE_B));
+        internalFrame.setPath(new PathElement.FilterOrigin("other-filter", 0, new CompletableFuture<>(), ROUTE_B));
 
         // When
         channel.writeInbound(internalFrame);
@@ -198,10 +198,10 @@ class RouteFilterHandlerTest {
         // Then
         InternalRequestFrame<?> internalFrame = channel.readInbound();
         assertThat(internalFrame).isNotNull();
-        assertThat(internalFrame.path()).isInstanceOfSatisfying(PathElement.Filter.class, f -> {
+        assertThat(internalFrame.path()).isInstanceOfSatisfying(PathElement.FilterOrigin.class, f -> {
             assertThat(f.name()).isEqualTo(filter.getClass().getSimpleName());
             assertThat(f.ordinal()).isZero();
-            assertThat(f.next()).isEqualTo(ROUTE_A);
+            assertThat(f.parent()).isEqualTo(ROUTE_A);
         });
     }
 
@@ -213,7 +213,7 @@ class RouteFilterHandlerTest {
         var header = new ResponseHeaderData().setCorrelationId(42);
         var future = new CompletableFuture<>();
         var internalFrame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData());
-        internalFrame.setPath(new PathElement.Filter(filter.getClass().getSimpleName(), 0, future, ROUTE_A));
+        internalFrame.setPath(new PathElement.FilterOrigin(filter.getClass().getSimpleName(), 0, future, ROUTE_A));
 
         // When
         channel.writeOutbound(internalFrame);
@@ -237,7 +237,7 @@ class RouteFilterHandlerTest {
         // Addressed to a different filter, but genuinely on this handler's own route: per C6 in
         // RouteFilterCorrectnessIT, this handler's filter must still see it via onResponse, but
         // must not complete a promise that isn't its own.
-        internalFrame.setPath(new PathElement.Filter("other-filter", 0, future, ROUTE_A));
+        internalFrame.setPath(new PathElement.FilterOrigin("other-filter", 0, future, ROUTE_A));
 
         // When
         channel.writeOutbound(internalFrame);
@@ -257,7 +257,7 @@ class RouteFilterHandlerTest {
         var header = new ResponseHeaderData().setCorrelationId(42);
         var future = new CompletableFuture<>();
         var internalFrame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData());
-        internalFrame.setPath(new PathElement.Filter("other-filter", 0, future, ROUTE_B));
+        internalFrame.setPath(new PathElement.FilterOrigin("other-filter", 0, future, ROUTE_B));
 
         // When
         channel.writeOutbound(internalFrame);
@@ -285,7 +285,7 @@ class RouteFilterHandlerTest {
         var future = new CompletableFuture<>();
         var internalFrame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData());
         // Same filter name, same route, but ordinal 0 - a different position than this handler's (1).
-        internalFrame.setPath(new PathElement.Filter(filter.getClass().getSimpleName(), 0, future, ROUTE_A));
+        internalFrame.setPath(new PathElement.FilterOrigin(filter.getClass().getSimpleName(), 0, future, ROUTE_A));
 
         // When
         channel.writeOutbound(internalFrame);
@@ -344,11 +344,11 @@ class RouteFilterHandlerTest {
         assertThat(handler.filterDescriptor()).contains("[route=" + ROUTE_A.describe() + "]");
     }
 
-    private void buildChannel(Filter filter, PathElement routePath) {
+    private void buildChannel(Filter filter, PathElement.Route routePath) {
         buildChannel(filter, routePath, 0);
     }
 
-    private void buildChannel(Filter filter, PathElement routePath, int ordinal) {
+    private void buildChannel(Filter filter, PathElement.Route routePath, int ordinal) {
         var ccsm = newClientConnectionStateMachine();
         FilterAndInvoker filterAndInvoker = getOnlyElement(FilterAndInvoker.build(filter.getClass().getSimpleName(), filter));
         ChannelHandler routeFilterHandler = new RouteFilterHandler(filterAndInvoker, 1000L, null, new EmbeddedChannel(), ccsm, routePath, ordinal);

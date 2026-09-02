@@ -187,7 +187,7 @@ public abstract class FilterHarness {
 
     protected <B extends ApiMessage> InternalRequestFrame<B> writeInternalRequest(RequestHeaderData headerData, B data, Filter recipient) {
         var frame = new InternalRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, headerData, data);
-        frame.setPath(new PathElement.Filter(filterIdentity(recipient), 0, new CompletableFuture<>(), null));
+        frame.setPath(new PathElement.FilterOrigin(filterIdentity(recipient), 0, new CompletableFuture<>(), null));
         writeRequest(frame);
         return frame;
     }

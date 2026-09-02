@@ -174,18 +174,18 @@ public class FilterHandler extends ChannelDuplexHandler {
      * A route-scoped handler (non-null {@link #ownRoutePath()}) requires that its own route lies
      * on the candidate leaf's ancestor chain (an exact match, or an ancestor of it) - to
      * disambiguate same-named filters on different routes, while tolerating further routing that
-     * may have extended the leaf's {@code next()} beyond this filter's own route after the request
-     * was issued (e.g. the request's route itself targeting a nested router, whose own static or
-     * dynamic dispatch grafts a deeper route onto the same leaf - see
+     * may have extended the leaf's {@code parent()} beyond this filter's own route after the
+     * request was issued (e.g. the request's route itself targeting a nested router, whose own
+     * static or dynamic dispatch grafts a deeper route onto the same leaf - see
      * {@code RoutingHandler.dispatchStaticRoute}). A VC-level (non-route-scoped) handler has
      * exactly one instance for the whole connection, so route position carries no identity for it
      * at all - it matches on name and ordinal alone.
      */
     boolean isRecipient(Frame msg) {
-        return msg.path() instanceof PathElement.Filter f
+        return msg.path() instanceof PathElement.FilterOrigin f
                 && f.name().equals(filterAndInvoker.filterName())
                 && f.ordinal() == ownOrdinal()
-                && (ownRoutePath() == null || ownRoutePath().isAncestorOfOrSameAs(f.next()));
+                && (ownRoutePath() == null || ownRoutePath().isAncestorOfOrSameAs(f.parent()));
     }
 
     /**
@@ -194,7 +194,7 @@ public class FilterHandler extends ChannelDuplexHandler {
      * as belonging to a specific route.
      */
     @Nullable
-    PathElement ownRoutePath() {
+    PathElement.Route ownRoutePath() {
         return null;
     }
 
@@ -821,7 +821,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     () -> "Asynchronous %s request made by filter '%s' failed to complete within %s ms.".formatted(apiKey, filterDescriptor(), timeoutMs));
             var frame = new InternalRequestFrame<>(
                     header.requestApiVersion(), header.correlationId(), hasResponse, header, request);
-            frame.setPath(new PathElement.Filter(filterAndInvoker.filterName(), ownOrdinal(), filterPromise, ownRoutePath()));
+            frame.setPath(new PathElement.FilterOrigin(filterAndInvoker.filterName(), ownOrdinal(), filterPromise, ownRoutePath()));
 
             log(DEBUG)
                     .addKeyValue("message", () -> msgDescriptor(frame))
