@@ -56,8 +56,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.openrewrite</groupId>
-            <artifactId>rewrite-maven</artifactId>
+            <groupId>org.openrewrite.recipe</groupId>
+            <artifactId>rewrite-java-dependencies</artifactId>
+            <version>1.60.2</version>
             <scope>runtime</scope>
         </dependency>
 

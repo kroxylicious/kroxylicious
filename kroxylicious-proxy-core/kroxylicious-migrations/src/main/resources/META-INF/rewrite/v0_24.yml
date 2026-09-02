@@ -18,9 +18,9 @@ recipeList:
       oldPackageName: org.apache.kafka.common.message
       newPackageName: io.kroxylicious.kafka.common.message
   - org.openrewrite.java.ChangePackage:
-        oldPackageName: org.apache.kafka.common.protocol
-        newPackageName: io.kroxylicious.kafka.common.protocol
-        recursive: true
+      oldPackageName: org.apache.kafka.common.protocol
+      newPackageName: io.kroxylicious.kafka.common.protocol
+      recursive: true
   - org.openrewrite.java.ChangePackageInStringLiteral:
       oldPackageName: org.apache.kafka.common.protocol
       newPackageName: io.kroxylicious.kafka.common.protocol
@@ -113,15 +113,10 @@ name: io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousi0_24
 displayName: Use the latest 0.24 release of Kroxylicious
 description: Ensures the kroxylicious-api and kroxylicious-bom are from the 0.24 release or newer.
 recipeList:
-  - org.openrewrite.maven.UpgradeDependencyVersion:
+  - org.openrewrite.java.dependencies.UpgradeDependencyVersion:
       groupId: io.kroxylicious
-      artifactId: kroxylicious-api
+      artifactId: '*'
       newVersion: 0.24.X
-  - org.openrewrite.maven.UpgradeDependencyVersion:
-      groupId: io.kroxylicious
-      artifactId: kroxylicious-bom
-      newVersion: 0.24.X
-
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24

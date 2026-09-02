@@ -22,7 +22,7 @@ import org.openrewrite.test.RewriteTest;
 import static org.openrewrite.maven.Assertions.pomXml;
 
 @SuppressWarnings("java:S2699") // rewriteRun contains assertions
-class UseKroxyliciousApi0_24DepencencyTest implements RewriteTest {
+class UseKroxylicious0_24DepenceniesTest implements RewriteTest {
 
     private static final Pattern POM_PATTERN = Pattern.compile(".*/(?<artifactId>[^/]+)/(?<version>0\\.\\d+\\.\\d+)/\\k<artifactId>-\\k<version>\\.pom");
     private static final String V0_24_0_METADATA = """
@@ -195,6 +195,57 @@ class UseKroxyliciousApi0_24DepencencyTest implements RewriteTest {
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
                                             <artifactId>kroxylicious-api</artifactId>
+                                            <version>0.24.0</version>
+                                        </dependency>
+                                    </dependencies>
+                                </project>
+                                """));
+    }
+
+    @Test
+    void shouldBumpKms() {
+        metadataXml = V0_24_0_METADATA;
+        rewriteRun(
+                pomXml(
+                        // Before (Input code)
+                        """
+                                <?xml version="1.0" encoding="UTF-8"?>
+                                <project xmlns="http://maven.apache.org/POM/4.0.0"
+                                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                    <modelVersion>4.0.0</modelVersion>
+
+                                    <groupId>com.example</groupId>
+                                    <artifactId>rewrite-victim</artifactId>
+                                    <packaging>jar</packaging>
+                                    <version>0.0.1-SNAPSHOT</version>
+
+                                    <dependencies>
+                                        <dependency>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-kms</artifactId>
+                                            <version>0.23.0</version>
+                                        </dependency>
+                                    </dependencies>
+                                </project>
+                                """,
+                        // After (Expected transformed code)
+                        """
+                                <?xml version="1.0" encoding="UTF-8"?>
+                                <project xmlns="http://maven.apache.org/POM/4.0.0"
+                                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                    <modelVersion>4.0.0</modelVersion>
+
+                                    <groupId>com.example</groupId>
+                                    <artifactId>rewrite-victim</artifactId>
+                                    <packaging>jar</packaging>
+                                    <version>0.0.1-SNAPSHOT</version>
+
+                                    <dependencies>
+                                        <dependency>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-kms</artifactId>
                                             <version>0.24.0</version>
                                         </dependency>
                                     </dependencies>
