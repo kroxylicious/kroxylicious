@@ -1,12 +1,20 @@
 # kroxylicious-authorizer-api Module
 
-This module defines the Authorization plugin API. See also [`../README.md`](../README.md) for project-wide context.
+This module defines the Authorization plugin API.
+See also [`../README.md`](../README.md) for project-wide context.
 
 ## API Roles
 
-**Authorizer API Users/Callers**: Filters that call Authorizer methods to make access control decisions over collections of entities. This includes `AuthorizationFilter`, is not limited to that.
+**Authorizer API Users/Callers**: Filters that call `Authorizer` methods to make access control decisions over collections of entities.
+`AuthorizationFilter` (in `kroxylicious-filters/kroxylicious-authorization`) is the primary caller, but this is not limited to that filter.
 
-**Authorizer Implementers**: Developers writing Authorizer implementations that integrate with policy engines (ACL systems, OPA, etc.).
+**Authorizer Implementers**: Developers writing `Authorizer` implementations that integrate with policy engines (ACL systems, OPA, etc.).
+
+## Dependencies
+
+This module depends only on `kroxylicious-identity-api` (a lightweight, zero-dependency module) and small internal utility packages.
+It deliberately does **not** depend on `kroxylicious-api`, so it does not transitively pull in `kafka-clients`, `jackson-annotations` or compression codec libraries.
+This makes it practical for non-Kroxylicious projects to implement or consume `Authorizer`.
 
 ---
 
@@ -16,62 +24,74 @@ This section describes how to use the Authorizer API when implementing filters t
 
 ## API Overview
 
-The Authorizer API provides authorization decisions for Kafka resources and actions. It decouples authorization logic from filter implementation.
+The Authorizer API provides authorization decisions for Kafka-like resources and actions.
+It decouples authorization logic from filter implementation.
+Its asynchronous return type supports both in-process and networked policy decision points (e.g. OPA, OpenFGA).
 
 **Core interface:** `Authorizer`
 
 **Key method you call:**
 
 ```java
-CompletionStage<AuthorizeResult> authorize(
-    Subject subject,
-    Set<Action> actions,
-    ResourceSpec resource
-);
+CompletionStage<AuthorizeResult> authorize(Identity subject, List<Action> actions);
 ```
+
+`Identity` (from `kroxylicious-identity-api`) is a deprecated-at-birth bridge interface implemented by both `io.kroxylicious.identity.Subject` and the deprecated `io.kroxylicious.proxy.authentication.Subject`.
+In practice you obtain it from `FilterContext.authenticatedSubject()`, which currently returns the latter — no conversion is needed, it already implements `Identity`.
 
 **Also available:**
 
 ```java
-Set<ResourceType> supportedResourceTypes();
+Optional<Set<Class<? extends ResourceType<?>>>> supportedResourceTypes();
 ```
+
+An empty `Optional` means the authorizer's supported resource types are not known.
+A filter should treat that permissively rather than rejecting all actions.
 
 ## Calling the API
 
-**Basic pattern:**
+**Basic pattern** (see `AuthorizationFilter` for the real implementation):
 
 ```java
-Subject subject = filterContext.getAuthenticatedSubject();
-Set<Action> actions = Set.of(Action.WRITE, Action.READ);
-ResourceSpec resource = new TopicResource("my-topic");
+Identity subject = context.authenticatedSubject();
+List<Action> actions = List.of(new Action(Topic.WRITE, "my-topic"));
 
-CompletionStage<AuthorizeResult> result =
-    authorizer.authorize(subject, actions, resource);
+CompletionStage<AuthorizeResult> result = authorizer.authorize(subject, actions);
 ```
 
-**Understanding AuthorizeResult:**
+**`Action`:**
+
+```java
+record Action(ResourceType<?> operation, String resourceName) { }
+```
+
+`operation` identifies both the operation and the resource type (see `ResourceType` below).
+`resourceName` names the concrete resource.
+
+**`AuthorizeResult`:**
 
 ```java
 record AuthorizeResult(
-    Set<Action> allowed,
-    Set<Action> denied
+    Identity subject,
+    List<Action> allowed,
+    List<Action> denied
 ) { }
 ```
 
-- **`allowed`**: Actions the subject is permitted to perform
-- **`denied`**: Actions the subject is explicitly denied
-- **Guarantee**: `allowed ∪ denied` equals the requested `actions` set
-- **Guarantee**: `allowed ∩ denied` is empty (no action in both sets)
+- **`allowed`**: actions the subject is permitted to perform
+- **`denied`**: actions the subject is not permitted to perform
+- **Guarantee**: the implementation must partition all of the requested `actions` between `allowed` and `denied`
+
+`AuthorizeResult` also has convenience methods: `allowed(ResourceType<?>)` / `denied(ResourceType<?>)` (resource names for a given operation), `decision(ResourceType<?>, String)` (the `Decision` for a single resource), and `partition(Collection<T>, ResourceType<?>, Function<T, String>)` (partitions an arbitrary collection of items by decision).
 
 **Using the result:**
 
 ```java
 result.thenApply(authzResult -> {
-    if (authzResult.allowed().contains(Action.WRITE)) {
-        // Proceed with write operation
-        return context.forwardRequest(request);
-    } else {
-        // Reject with authorization error
+    if (authzResult.decision(Topic.WRITE, "my-topic") == Decision.ALLOW) {
+        return context.forwardRequest(header, request);
+    }
+    else {
         return context.requestFilterResultBuilder()
                 .shortCircuitResponse(unauthorizedError())
                 .completed();
@@ -84,11 +104,9 @@ result.thenApply(authzResult -> {
 **At filter initialization**, check that the authorizer supports the resource types you need:
 
 ```java
-Set<ResourceType> supported = authorizer.supportedResourceTypes();
-if (!supported.contains(ResourceType.TOPIC)) {
-    throw new ConfigurationException(
-        "Authorizer doesn't support TOPIC resource type"
-    );
+Optional<Set<Class<? extends ResourceType<?>>>> supported = authorizer.supportedResourceTypes();
+if (supported.isPresent() && !supported.get().contains(Topic.class)) {
+    throw new ConfigurationException("Authorizer doesn't support the Topic resource type");
 }
 ```
 
@@ -96,81 +114,56 @@ This prevents silent failures where policies cannot be enforced.
 
 ## Handling Anonymous Subjects
 
-Subjects without a `User` principal are anonymous:
+An `Identity` with no principals is anonymous:
 
 ```java
-boolean isAnonymous = subject.principals(User.class).findFirst().isEmpty();
-if (isAnonymous) {
-    // Typically deny all actions for anonymous subjects
-    return authorizer.authorize(subject, actions, resource);
-    // Most authorizers will deny all for anonymous subjects
-}
+boolean isAnonymous = subject.isAnonymous();
 ```
+
+Whether an anonymous subject is allowed or denied is a decision made by the `Authorizer` implementation and its configured policy, not by the caller.
 
 ## Caching (Optional)
 
-You may cache authorization decisions to reduce latency, but use TTL:
-
-```java
-String cacheKey = cacheKey(subject, resource);
-AuthorizeResult cached = cache.get(cacheKey);
-if (cached != null) {
-    return CompletableFuture.completedFuture(cached);
-}
-
-return authorizer.authorize(subject, actions, resource)
-        .thenApply(result -> {
-            cache.put(cacheKey, result, TTL);
-            return result;
-        });
-```
-
-**Warning**: Don't cache "allow" decisions indefinitely - permissions may be revoked.
+You may cache authorization decisions to reduce latency, but use a TTL and never cache "allow" decisions indefinitely, since permissions may be revoked.
 
 ---
 
 # For Authorizer Implementers
 
-This section describes the requirements when implementing an Authorizer.
+This section describes the requirements when implementing an `Authorizer`.
 
 ## Implementation Contract
 
 **Methods you must implement:**
 
 ```java
-CompletionStage<AuthorizeResult> authorize(
-    Subject subject,
-    Set<Action> actions,
-    ResourceSpec resource
-);
+CompletionStage<AuthorizeResult> authorize(Identity subject, List<Action> actions);
 
-Set<ResourceType> supportedResourceTypes();
+Optional<Set<Class<? extends ResourceType<?>>>> supportedResourceTypes();
 ```
 
 **Requirements:**
 
-- **Async, non-blocking**: Must return `CompletionStage` and never block event loop threads
-- **Batch authorization**: Single call must authorize multiple actions on a resource
-- **Fail-closed**: On error or failure, deny by default (return all actions in `denied` set)
-- **Partitioning**: `allowed ∪ denied` must equal requested `actions`; `allowed ∩ denied` must be empty
+- **Async, non-blocking**: must return `CompletionStage` and never block event loop threads
+- **Batch authorization**: a single call must authorize multiple actions
+- **Fail-closed**: on error, deny by default; the returned stage should fail with `AuthorizerException` if a decision genuinely cannot be made
+- **Partitioning**: every requested action must end up in exactly one of `allowed` or `denied`
 
 ## Fail-Closed Implementation
 
-**Default-deny principle:** You must deny by default. When in doubt, deny.
+**Default-deny principle:** you must deny by default.
+When in doubt, deny (see [security-patterns.md](../.claude/rules/security-patterns.md)).
 
 **Error handling pattern:**
 
 ```java
 @Override
-public CompletionStage<AuthorizeResult> authorize(
-        Subject subject,
-        Set<Action> actions,
-        ResourceSpec resource) {
-    return policyEngine.evaluateAsync(subject, actions, resource)
+public CompletionStage<AuthorizeResult> authorize(Identity subject, List<Action> actions) {
+    return policyEngine.evaluateAsync(subject, actions)
             .handle((result, error) -> {
                 if (error != null) {
                     // On error, deny all actions
-                    return new AuthorizeResult(Set.of(), actions);
+                    return new AuthorizeResult(subject, List.of(), actions);
                 }
                 return result;
             });
@@ -179,98 +172,66 @@ public CompletionStage<AuthorizeResult> authorize(
 
 **Never:**
 - Allow actions when policy evaluation fails
-- Allow actions for unauthenticated subjects (unless your policy explicitly permits)
-- Cache "allow" decisions indefinitely (use TTL)
+- Cache "allow" decisions indefinitely (use a TTL)
 
 ## Resource Type Declaration
 
-**You must declare** which resource types your implementation supports:
+**You must declare** which resource types your implementation supports, or return `Optional.empty()` if this is not statically known (for example, an authorizer backed by an external policy engine that can be reconfigured with new rules at runtime):
 
 ```java
 @Override
-public Set<ResourceType> supportedResourceTypes() {
-    return Set.of(
-        ResourceType.TOPIC,
-        ResourceType.TRANSACTIONAL_ID,
-        ResourceType.GROUP
-    );
+public Optional<Set<Class<? extends ResourceType<?>>>> supportedResourceTypes() {
+    return Optional.of(Set.of(Topic.class, ConsumerGroup.class));
 }
 ```
 
-**Available resource types:**
-- `TopicResource`: Kafka topics
-- `TransactionalIdResource`: Transactional IDs
-- `GroupResource`: Consumer groups
+`ResourceType<S>` is implemented as an enum of the operations supported on a given resource kind — one enum per resource kind, so the enum's `Class` also identifies the resource type.
+Callers use `supportedResourceTypes()` to validate that you support the resource types they need.
 
-Callers will validate that you support the resource types they need.
+## Working with Identity and Principals
 
-## Working with Subjects and Principals
-
-**Extract information from Subject:**
+**Extract information from an `Identity`:**
 
 ```java
-Optional<User> user = subject.principals(User.class).findFirst();
-Set<CustomPrincipal> roles = subject.principals(CustomPrincipal.class)
-        .collect(Collectors.toSet());
-
-// Evaluate policy based on user and roles
+Set<? extends Principal> principals = subject.principals();
+Optional<User> user = subject.uniquePrincipalOfType(User.class); // for @SingularPrincipal-annotated types
+Set<CustomPrincipal> roles = subject.allPrincipalsOfType(CustomPrincipal.class);
 ```
+
+`uniquePrincipalOfType` throws `IllegalArgumentException` if the given type is not annotated `@SingularPrincipal`, or, via the deprecated bridge, `@Unique`.
 
 **Handle anonymous subjects:**
 
 ```java
-boolean isAnonymous = subject.principals(User.class).findFirst().isEmpty();
-if (isAnonymous) {
-    // Typically deny all actions for anonymous subjects
-    return CompletableFuture.completedFuture(
-        new AuthorizeResult(Set.of(), actions)
-    );
+if (subject.isAnonymous()) {
+    return CompletableFuture.completedStage(new AuthorizeResult(subject, List.of(), actions));
 }
 ```
 
 ## Async Implementation Patterns
 
-**Requirement**: You must not block event loops.
+**Requirement**: you must not block event loop threads.
 
-**Pattern for external policy engine:**
+**Pattern for an external policy engine:**
 
 ```java
 @Override
-public CompletionStage<AuthorizeResult> authorize(
-        Subject subject,
-        Set<Action> actions,
-        ResourceSpec resource) {
-    return httpClient.postAsync("/authorize", toJson(subject, actions, resource))
-            .thenApply(response -> parseAuthzResult(response))
+public CompletionStage<AuthorizeResult> authorize(Identity subject, List<Action> actions) {
+    return httpClient.postAsync("/authorize", toJson(subject, actions))
+            .thenApply(response -> parseAuthzResult(subject, response))
             .exceptionally(error -> {
                 logger.error("Authorization failed", error);
                 // Fail-closed: deny all on error
-                return new AuthorizeResult(Set.of(), actions);
+                return new AuthorizeResult(subject, List.of(), actions);
             });
 }
 ```
 
 ## Performance Considerations for Implementations
 
-**Caching:**
+**Caching:** you should cache authorization decisions to reduce latency (but use a TTL).
 
-You should cache authorization decisions to reduce latency (but use TTL):
-
-```java
-String cacheKey = cacheKey(subject, resource);
-AuthorizeResult cached = cache.get(cacheKey);
-if (cached != null) {
-    return CompletableFuture.completedFuture(cached);
-}
-
-return evaluatePolicy(subject, actions, resource)
-        .thenApply(result -> {
-            cache.put(cacheKey, result, TTL);
-            return result;
-        });
-```
-
-**Connection pooling**: Reuse connections to external policy engines.
+**Connection pooling**: reuse connections to external policy engines.
 
 ## Security Requirements for Implementations
 
@@ -280,7 +241,6 @@ return evaluatePolicy(subject, actions, resource)
 - Avoid time-dependent policies (hard to test, audit)
 - Log all deny decisions for audit trail
 
-
 **Policy integrity:**
 
 - Policies from external files must be integrity-checked
@@ -289,9 +249,9 @@ return evaluatePolicy(subject, actions, resource)
 
 **Threat model:**
 
-- **Malicious clients**: Will attempt to bypass authorization (your fail-closed implementation prevents this)
-- **Policy tampering**: Validate policy file integrity
-- **Compromised authorizer**: Defence-in-depth via audit logging helps detect this
+- **Malicious clients**: will attempt to bypass authorization (your fail-closed implementation prevents this)
+- **Policy tampering**: validate policy file integrity
+- **Compromised authorizer**: defence-in-depth via audit logging helps detect this
 
 ## Testing Your Implementation
 
@@ -300,39 +260,22 @@ return evaluatePolicy(subject, actions, resource)
 ```java
 @Test
 void testAllowedAction() {
-    var subject = Subject.of(new User("alice"));
-    var actions = Set.of(Action.WRITE);
-    var resource = new TopicResource("test-topic");
+    Identity subject = new io.kroxylicious.identity.Subject(Set.of(new User("alice")));
+    var actions = List.of(new Action(Topic.WRITE, "test-topic"));
 
-    var result = authorizer.authorize(subject, actions, resource)
-            .toCompletableFuture().join();
+    var result = authorizer.authorize(subject, actions).toCompletableFuture().join();
 
-    assertThat(result.allowed()).contains(Action.WRITE);
+    assertThat(result.allowed()).containsExactlyElementsOf(actions);
     assertThat(result.denied()).isEmpty();
-}
-
-@Test
-void testDeniedAction() {
-    var subject = Subject.of(new User("alice"));
-    var actions = Set.of(Action.DELETE);
-    var resource = new TopicResource("protected-topic");
-
-    var result = authorizer.authorize(subject, actions, resource)
-            .toCompletableFuture().join();
-
-    assertThat(result.allowed()).isEmpty();
-    assertThat(result.denied()).contains(Action.DELETE);
 }
 
 @Test
 void testFailClosed() {
     var authorizer = new FaultyAuthorizer(); // Throws exceptions
-    var subject = Subject.of(new User("alice"));
-    var actions = Set.of(Action.READ);
-    var resource = new TopicResource("any-topic");
+    Identity subject = new io.kroxylicious.identity.Subject(Set.of(new User("alice")));
+    var actions = List.of(new Action(Topic.READ, "any-topic"));
 
-    var result = authorizer.authorize(subject, actions, resource)
-            .toCompletableFuture().join();
+    var result = authorizer.authorize(subject, actions).toCompletableFuture().join();
 
     // Must deny all on error
     assertThat(result.allowed()).isEmpty();
@@ -342,42 +285,27 @@ void testFailClosed() {
 
 **Integration tests:**
 
-Test with authorization filter and real Kafka clusters:
-
-```java
-@IntegrationTest
-class AuthorizerIT {
-    @RegisterExtension
-    static KafkaCluster cluster = new KafkaCluster();
-
-    @RegisterExtension
-    static KafkaProxy proxy = new KafkaProxy(cluster)
-            .addFilter(AuthorizationFilter.class,
-                new AuthzConfig(MyAuthorizer.class, policies));
-
-    @Test
-    void testProduceAllowed() {
-        // Produce to allowed topic succeeds
-        producer.send(new ProducerRecord<>("allowed-topic", "value"));
-    }
-
-    @Test
-    void testProduceDenied() {
-        // Produce to denied topic fails with authorization error
-        assertThrows(AuthorizationException.class, () ->
-            producer.send(new ProducerRecord<>("denied-topic", "value")).get()
-        );
-    }
-}
-```
+Test with `AuthorizationFilter` and real Kafka clusters.
+Verify both allowed and denied actions produce the expected client-visible behaviour (successful requests vs. authorization errors).
 
 ## Registration
 
-Your implementation must:
-- Implement `Authorizer` interface
-- Provide a configuration class
-- Register via `ServiceLoader` in `META-INF/services/io.kroxylicious.authorizer.Authorizer`
+Authorizers are built by an `AuthorizerService<C>`, not registered directly:
+
+```java
+public interface AuthorizerService<C> {
+    void initialize(C config);
+    Authorizer build();
+    default void close() { }
+}
+```
+
+Your service implementation must:
+- Implement `AuthorizerService<C>`, annotated with `@Plugin(configType = C.class)`
+- Be registered via `ServiceLoader`, in `META-INF/services/io.kroxylicious.authorizer.service.AuthorizerService`
 - Include tests demonstrating allow/deny decisions and fail-closed behavior
+
+See `AclAuthorizerService` for a working example.
 
 ---
 
@@ -385,14 +313,13 @@ Your implementation must:
 
 **Included authorizer implementations:**
 
-- **`AclAuthorizer`** (`kroxylicious-authorizer-providers/kroxylicious-authorizer-acl`): ACL-based authorization with file or embedded rules
-- **`OpaAuthorizer`** (`kroxylicious-authorizer-providers/kroxylicious-authorizer-opa`): Open Policy Agent integration
+- **`AclAuthorizer`** (`kroxylicious-authorizer-providers/kroxylicious-authorizer-acl`): ACL-based authorization with rules built programmatically, or parsed from a file using a naturalish-language grammar.
 
-Study these implementations for patterns and best practices.
+Study this implementation for patterns and best practices.
 
 ## Cross-References
 
 - **Security model**: See [`../README.md#security-model`](../README.md#security-model)
+- **Identity types**: See [`../kroxylicious-identity-api/README.md`](../kroxylicious-identity-api/README.md)
 - **Filter API**: See [`../kroxylicious-api/README.md`](../kroxylicious-api/README.md)
 - **Authorization filter**: See `../kroxylicious-filters/kroxylicious-authorization/`
-- **Audit logging**: See `MEMORY.md` for audit architecture
