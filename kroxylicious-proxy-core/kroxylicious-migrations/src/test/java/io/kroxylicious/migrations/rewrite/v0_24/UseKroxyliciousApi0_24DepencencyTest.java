@@ -144,7 +144,7 @@ class UseKroxyliciousApi0_24DepencencyTest implements RewriteTest {
             return new HttpUrlConnectionSender().send(request);
         };
 
-        spec.recipeFromResources("io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousApi0_24")
+        spec.recipeFromResources("io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousi0_24")
                 .executionContext(
                         HttpSenderExecutionContextView.view(new InMemoryExecutionContext())
                                 .setHttpSender(stubSender));

@@ -109,7 +109,7 @@ recipeList:
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
-name: io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousApi0_24
+name: io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousi0_24
 displayName: Use the latest 0.24 release of Kroxylicious
 description: Ensures the kroxylicious-api and kroxylicious-bom are from the 0.24 release or newer.
 recipeList:
@@ -130,3 +130,4 @@ description: Applies all deprecations, renames, and breaking changes introduced 
 recipeList:
   - io.kroxylicious.migrations.rewrite.v0_24.UseErrorsInsteadOfExceptions
   - io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousKafkaTypes
+  - io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousi0_24
