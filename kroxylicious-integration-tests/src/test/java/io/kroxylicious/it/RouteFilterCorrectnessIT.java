@@ -17,13 +17,14 @@ import org.apache.kafka.common.message.ListTransactionsRequestData;
 import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.it.testplugins.CorrelationIdCollectingFilter;
+import io.kroxylicious.it.testplugins.CorrelationIdCollectingFilterFactory;
 import io.kroxylicious.it.testplugins.ForwardingStyle;
 import io.kroxylicious.it.testplugins.RequestCountingFilter;
 import io.kroxylicious.it.testplugins.RequestCountingFilterFactory;
@@ -35,6 +36,7 @@ import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.it.testplugins.router.DynamicProduceRouterFactory;
 import io.kroxylicious.it.testplugins.router.FanOutRouterFactory;
 import io.kroxylicious.it.testplugins.router.PassThroughRouterFactory;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -55,6 +57,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.it.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.it.testplugins.RequestResponseMarkingFilter.FILTER_NAME_TAG;
+import static io.kroxylicious.kafka.common.protocol.ApiKeys.LIST_GROUPS;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
@@ -62,7 +65,6 @@ import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
 import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.FETCH;
-import static org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS;
 import static org.apache.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -213,7 +215,8 @@ class RouteFilterCorrectnessIT {
                     .setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersions));
             tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
-            tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+            tester.addMockResponseForApiKey(
+                    new ResponsePayload(org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
 
             // When
             client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
@@ -265,7 +268,8 @@ class RouteFilterCorrectnessIT {
                     .setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersions));
             tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
-            tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+            tester.addMockResponseForApiKey(
+                    new ResponsePayload(org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
 
             // When
             var response = client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
@@ -274,8 +278,56 @@ class RouteFilterCorrectnessIT {
             assertThat(response)
                     .as("client request completes only if both routes' out-of-band responses were delivered")
                     .isNotNull();
-            assertThat(tester.getRequestsForApiKey(LIST_GROUPS))
+            assertThat(tester.getRequestsForApiKey(org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS))
                     .as("both route filters must have issued their out-of-band request on the one connection")
+                    .hasSize(2);
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // C9: Concurrent out-of-band requests get distinct correlation ids
+    // ---------------------------------------------------------------------------
+
+    /**
+     * The proxy no longer reads an out-of-band request's correlation id for its own delivery
+     * logic - matching is done structurally via {@code PathElement} - but the value is still
+     * visible to filter code, and some filters legitimately key their own bookkeeping off it
+     * (e.g. a map from correlation id to pending state). If two concurrent out-of-band requests on
+     * one connection were ever assigned the same id, such a filter would silently corrupt its own
+     * state the same way the original route-tag corruption bug did to the proxy.
+     */
+    @Test
+    void concurrentOutOfBandRequestsGetDistinctCorrelationIds() {
+        var collectorId = "c9-" + System.identityHashCode(this);
+        CorrelationIdCollectingFilter.reset(collectorId);
+
+        // Given
+        var collectorADef = new NamedFilterDefinitionBuilder("c9-collector-a", CorrelationIdCollectingFilterFactory.class.getName())
+                .withConfig("collectorId", collectorId, "keyToTrigger", LIST_TRANSACTIONS)
+                .build();
+        var collectorBDef = new NamedFilterDefinitionBuilder("c9-collector-b", CorrelationIdCollectingFilterFactory.class.getName())
+                .withConfig("collectorId", collectorId, "keyToTrigger", LIST_TRANSACTIONS)
+                .build();
+
+        try (var tester = KroxyliciousTesters.mockKafkaKroxyliciousTester(
+                mockBootstrap -> fanOutTwoRouteConfig(mockBootstrap, collectorADef, collectorBDef), ROUTING_ENABLED);
+                var client = tester.simpleTestClient()) {
+
+            ApiVersionsResponseData apiVersions = new ApiVersionsResponseData();
+            apiVersions.apiKeys().add(new ApiVersionsResponseData.ApiVersion()
+                    .setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersions));
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
+            tester.addMockResponseForApiKey(
+                    new ResponsePayload(org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+
+            // When
+            client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+
+            // Then
+            assertThat(CorrelationIdCollectingFilter.observedFor(collectorId))
+                    .as("two concurrent out-of-band requests on one connection must be assigned distinct "
+                            + "correlation ids, since filter code may key its own bookkeeping off this value")
                     .hasSize(2);
         }
     }
@@ -336,7 +388,8 @@ class RouteFilterCorrectnessIT {
                     .setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersions));
             tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
-            tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+            tester.addMockResponseForApiKey(
+                    new ResponsePayload(org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
 
             // When
             client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
@@ -469,7 +522,7 @@ class RouteFilterCorrectnessIT {
                 var client = tester.simpleTestClient()) {
 
             // Given
-            client.getSync(new Request(ApiKeys.METADATA, (short) 12, "metadata-client", new MetadataRequestData()));
+            client.getSync(new Request(org.apache.kafka.common.protocol.ApiKeys.METADATA, (short) 12, "metadata-client", new MetadataRequestData()));
 
             // When
             var response = client.getSync(produceRequest(topic.name(), (short) 1));
@@ -516,7 +569,8 @@ class RouteFilterCorrectnessIT {
                 .setAcks(acks)
                 .setTimeoutMs(5000)
                 .setTopicData(topicCollection);
-        return new Request(ApiKeys.PRODUCE, (short) 9, "test-client", produceData);
+        return new Request(org.apache.kafka.common.protocol.ApiKeys.PRODUCE, (short) 9, "test-client", produceData);
+
     }
 
     private ConfigurationBuilder twoRouteConfig(String bootstrapServers,

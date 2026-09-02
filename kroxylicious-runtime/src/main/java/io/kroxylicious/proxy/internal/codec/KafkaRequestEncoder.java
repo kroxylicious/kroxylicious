@@ -13,7 +13,6 @@ import io.netty.channel.ChannelHandlerContext;
 
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.frame.RequestFrame;
-import io.kroxylicious.proxy.internal.InternalRequestFrame;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -62,8 +61,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
                 apiVersion,
                 downstreamCorrelationId,
                 hasResponse,
-                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).recipient() : null,
-                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null,
+                frame.path(),
                 decodeResponse);
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);

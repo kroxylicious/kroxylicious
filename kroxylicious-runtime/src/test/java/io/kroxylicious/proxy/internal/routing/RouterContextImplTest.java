@@ -23,7 +23,7 @@ import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.internal.CorrelationIdSpace;
+import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.topology.VirtualNode;
@@ -55,12 +55,16 @@ class RouterContextImplTest {
                 null, List.of()));
     }
 
+    private static CorrelationIdAllocator newAllocator() {
+        return new CorrelationIdAllocator(Integer.MIN_VALUE, 0);
+    }
+
     private RouterContextImpl createContext() {
         return createContext(null);
     }
 
     private RouterContextImpl createContext(Integer endpointVirtualNodeId) {
-        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", CorrelationIdSpace.createRouterAllocator(), new java.util.HashMap<>(), "test-cluster");
+        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", null, newAllocator(), new java.util.HashMap<>(), "test-cluster");
         return new RouterContextImpl(
                 clientFrame, dispatcher, "test-session", Subject.anonymous(),
                 endpointVirtualNodeId);
@@ -71,7 +75,7 @@ class RouterContextImplTest {
                 "route-a", new RouteDescriptor("route-a", 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of()),
                 "route-b", new RouteDescriptor("route-b", 1, new TargetCluster("localhost:9093", Optional.empty()), null, List.of()));
         var bijectiveMapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
-        var dispatcher = new RouteDispatcher(bijectiveRoutes, bijectiveMapping, "", CorrelationIdSpace.createRouterAllocator(), new java.util.HashMap<>(),
+        var dispatcher = new RouteDispatcher(bijectiveRoutes, bijectiveMapping, "", null, newAllocator(), new java.util.HashMap<>(),
                 "test-cluster");
         return new RouterContextImpl(clientFrame, dispatcher, "test-session", Subject.anonymous(), endpointVirtualNodeId);
     }

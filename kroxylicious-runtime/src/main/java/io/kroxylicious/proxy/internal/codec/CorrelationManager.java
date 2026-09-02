@@ -7,14 +7,12 @@ package io.kroxylicious.proxy.internal.codec;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
-import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -54,10 +52,16 @@ public class CorrelationManager {
      *
      * @param apiKey                  The API key.
      * @param apiVersion              The API version.
-     * @param downstreamCorrelationId The downstream client's correlation id.
+     * @param downstreamCorrelationId The downstream correlation id to restore onto the response
+     *                                (the client's own id for ordinary traffic, or the id
+     *                                allocated for an internally-issued request).
      * @param hasResponse             Whether a response is expected.
-     * @param recipient               The filter that sent the request, or null if the request originated from the downstream client.
-     * @param promise                 A promise.
+     * @param path                    The position in the routing/filter tree this request was
+     *                                sent from, or {@code null} if routing is not in use for this
+     *                                virtual cluster; restored onto the response so it can be
+     *                                observed by the same route's filters, and (via
+     *                                {@link PathElement#pendingPromise()}) delivered back to whichever
+     *                                filter or router issued it.
      * @param decodeResponse          Whether the response should be decoded.
      * @return The allocated upstream correlation id.
      */
@@ -65,8 +69,7 @@ public class CorrelationManager {
                                 short apiVersion,
                                 int downstreamCorrelationId,
                                 boolean hasResponse,
-                                @Nullable Filter recipient,
-                                @Nullable CompletableFuture<?> promise,
+                                @Nullable PathElement path,
                                 boolean decodeResponse) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
@@ -76,7 +79,7 @@ public class CorrelationManager {
                 .log("Allocated upstream id for downstream id");
         if (hasResponse) {
             Correlation existing = this.brokerRequests.put(upstreamCorrelationId,
-                    new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise));
+                    new Correlation(apiKey, apiVersion, decodeResponse, downstreamCorrelationId, path));
             if (existing != null) {
                 LOGGER.atError()
                         .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
@@ -97,108 +100,28 @@ public class CorrelationManager {
     }
 
     /**
-     * A record for which responses should be decoded, together with their
-     * API key and version.
+     * A record for which responses should be decoded, together with their API key and version,
+     * the downstream correlation id to restore, and the path the originating request was sent
+     * from.
+     *
+     * @param apiKey the api key of the request
+     * @param apiVersion the api version of the request
+     * @param decodeResponse whether the response should be decoded
+     * @param downstreamCorrelationId the downstream client's correlation id
+     * @param path the position in the routing/filter tree the request was sent from, or
+     *             {@code null} if routing is not in use for this virtual cluster
      */
-    // TODO a perfect value type
-    public static final class Correlation {
-        private final short apiKey;
-        private final short apiVersion;
-
-        private final int downstreamCorrelationId;
-        private final boolean decodeResponse;
-        private final @Nullable Filter recipient;
-        private final @Nullable CompletableFuture<?> promise;
-
-        private Correlation(short apiKey,
-                            short apiVersion,
-                            int downstreamCorrelationId,
-                            boolean decodeResponse,
-                            @Nullable Filter recipient,
-                            @Nullable CompletableFuture<?> promise) {
-            this.apiKey = apiKey;
-            this.apiVersion = apiVersion;
-            this.downstreamCorrelationId = downstreamCorrelationId;
-            this.decodeResponse = decodeResponse;
-            this.recipient = recipient;
-            this.promise = promise;
-        }
-
-        /**
-         * The downstream client's correlation id.
-         * @return The downstream client's correlation id.
-         */
-        public int downstreamCorrelationId() {
-            return downstreamCorrelationId;
-        }
+    public record Correlation(short apiKey, short apiVersion, boolean decodeResponse, int downstreamCorrelationId, @Nullable PathElement path) {
 
         @Override
         public String toString() {
             return "Correlation(" +
                     "apiKey=" + ApiKeys.forId(apiKey) +
                     ", apiVersion=" + apiVersion +
-                    ", downstreamCorrelationId=" + downstreamCorrelationId +
                     ", decodeResponse=" + decodeResponse +
-                    ", recipient=" + recipient +
-                    ", promise=" + promise +
+                    ", downstreamCorrelationId=" + downstreamCorrelationId +
+                    ", path=" + path +
                     ')';
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (!(o instanceof Correlation that)) {
-                return false;
-            }
-            return apiKey == that.apiKey && apiVersion == that.apiVersion && downstreamCorrelationId == that.downstreamCorrelationId
-                    && decodeResponse == that.decodeResponse;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(apiKey, apiVersion, downstreamCorrelationId, decodeResponse);
-        }
-
-        /**
-         * The api key of the request.
-         * @return The api key of the request.
-         */
-        public short apiKey() {
-            return apiKey;
-        }
-
-        /**
-         * The api version of the request.
-         * @return The api version of the request.
-         */
-        public short apiVersion() {
-            return apiVersion;
-        }
-
-        /**
-         * Whether the response should be decoded.
-         * @return true if the response should be decoded, false otherwise.
-         */
-        public boolean decodeResponse() {
-            return decodeResponse;
-        }
-
-        /**
-         * The filter that sent the request.
-         * @return The filter that sent the request, or null if the request originated from the downstream client.
-         */
-        public @Nullable Filter recipient() {
-            return recipient;
-        }
-
-        /**
-         * The promise to complete with the response.
-         * @return The promise to complete with the response, or null if there is none.
-         */
-        public @Nullable CompletableFuture<?> promise() {
-            return promise;
         }
     }
 }

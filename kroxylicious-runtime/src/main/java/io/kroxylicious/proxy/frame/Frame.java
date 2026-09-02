@@ -58,17 +58,17 @@ public interface Frame {
     boolean isDecoded();
 
     /**
-     * The route this frame is associated with.
-     * @return The route this frame is associated with, or {@code null} if not yet routed.
+     * The position in the routing/filter tree this frame is associated with.
+     * @return The path this frame is associated with, or {@code null} if not yet routed.
      */
-    default @Nullable String routeName() {
+    default @Nullable PathElement path() {
         return null;
     }
 
     /**
-     * Sets the route this frame is associated with.
-     * @param routeName The route name, or {@code null} if not routed.
+     * Sets the position in the routing/filter tree this frame is associated with.
+     * @param path The path, or {@code null} if not routed.
      */
-    default void setRouteName(@Nullable String routeName) {
+    default void setPath(@Nullable PathElement path) {
     }
 }

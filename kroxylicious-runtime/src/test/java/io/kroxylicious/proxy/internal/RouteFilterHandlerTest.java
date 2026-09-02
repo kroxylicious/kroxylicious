@@ -34,6 +34,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
@@ -50,8 +51,8 @@ import static org.mockito.Mockito.when;
 
 class RouteFilterHandlerTest {
 
-    private static final String ROUTE_A = "route-a";
-    private static final String ROUTE_B = "route-b";
+    private static final PathElement ROUTE_A = new PathElement.Route("route-a", null);
+    private static final PathElement ROUTE_B = new PathElement.Route("route-b", null);
 
     private EmbeddedChannel channel;
 
@@ -68,7 +69,7 @@ class RouteFilterHandlerTest {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.forwardRequest(header, request);
         buildChannel(filter, ROUTE_A);
         var frame = decodedRequest(new ApiVersionsRequestData());
-        frame.setRouteName(ROUTE_A);
+        frame.setPath(ROUTE_A);
 
         // When
         channel.writeInbound(frame);
@@ -85,7 +86,7 @@ class RouteFilterHandlerTest {
         };
         buildChannel(filter, ROUTE_A);
         var frame = decodedRequest(new ApiVersionsRequestData());
-        frame.setRouteName(ROUTE_B);
+        frame.setPath(ROUTE_B);
 
         // When
         channel.writeInbound(frame);
@@ -116,7 +117,7 @@ class RouteFilterHandlerTest {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
         buildChannel(filter, ROUTE_A);
         var frame = decodedResponse(new ApiVersionsResponseData());
-        frame.setRouteName(ROUTE_A);
+        frame.setPath(ROUTE_A);
 
         // When
         channel.writeOutbound(frame);
@@ -133,7 +134,7 @@ class RouteFilterHandlerTest {
         };
         buildChannel(filter, ROUTE_A);
         var frame = decodedResponse(new ApiVersionsResponseData());
-        frame.setRouteName(ROUTE_B);
+        frame.setPath(ROUTE_B);
 
         // When
         channel.writeOutbound(frame);
@@ -143,15 +144,16 @@ class RouteFilterHandlerTest {
     }
 
     @Test
-    void internalRequestFrameWithMatchingRouteIsProcessed() {
+    void internalRequestFrameOnMatchingRouteIsProcessed() {
         // Given
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.forwardRequest(header, request);
         buildChannel(filter, ROUTE_A);
         var header = requestHeader(new ApiVersionsRequestData());
         var internalFrame = new InternalRequestFrame<>(
-                header.requestApiVersion(), header.correlationId(), false,
-                filter, new CompletableFuture<>(), header, new ApiVersionsRequestData());
-        internalFrame.setRouteName(ROUTE_A);
+                header.requestApiVersion(), header.correlationId(), false, header, new ApiVersionsRequestData());
+        // Some other filter on route-a sent this - route membership alone should be enough
+        // for this handler to process it (see C1/C6 in RouteFilterCorrectnessIT).
+        internalFrame.setPath(new PathElement.Filter("other-filter", 0, new CompletableFuture<>(), ROUTE_A));
 
         // When
         channel.writeInbound(internalFrame);
@@ -161,7 +163,7 @@ class RouteFilterHandlerTest {
     }
 
     @Test
-    void internalRequestFrameWithNonMatchingRoutePassesThrough() {
+    void internalRequestFrameOnNonMatchingRoutePassesThrough() {
         // Given
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             throw new AssertionError("Filter should not be invoked for non-matching route");
@@ -169,9 +171,8 @@ class RouteFilterHandlerTest {
         buildChannel(filter, ROUTE_A);
         var header = requestHeader(new ApiVersionsRequestData());
         var internalFrame = new InternalRequestFrame<>(
-                header.requestApiVersion(), header.correlationId(), false,
-                filter, new CompletableFuture<>(), header, new ApiVersionsRequestData());
-        internalFrame.setRouteName(ROUTE_B);
+                header.requestApiVersion(), header.correlationId(), false, header, new ApiVersionsRequestData());
+        internalFrame.setPath(new PathElement.Filter("other-filter", 0, new CompletableFuture<>(), ROUTE_B));
 
         // When
         channel.writeInbound(internalFrame);
@@ -181,7 +182,7 @@ class RouteFilterHandlerTest {
     }
 
     @Test
-    void onInternalRequestSetsRouteNameOnFrame() {
+    void sendRequestTagsFrameWithOwnRouteAndFilterIdentity() {
         // Given
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             context.sendRequest(header, request);
@@ -189,7 +190,7 @@ class RouteFilterHandlerTest {
         };
         buildChannel(filter, ROUTE_A);
         var frame = decodedRequest(new ApiVersionsRequestData());
-        frame.setRouteName(ROUTE_A);
+        frame.setPath(ROUTE_A);
 
         // When
         channel.writeInbound(frame);
@@ -197,19 +198,22 @@ class RouteFilterHandlerTest {
         // Then
         InternalRequestFrame<?> internalFrame = channel.readInbound();
         assertThat(internalFrame).isNotNull();
-        assertThat(internalFrame.routeName()).isEqualTo(ROUTE_A);
+        assertThat(internalFrame.path()).isInstanceOfSatisfying(PathElement.Filter.class, f -> {
+            assertThat(f.name()).isEqualTo(filter.getClass().getSimpleName());
+            assertThat(f.ordinal()).isZero();
+            assertThat(f.next()).isEqualTo(ROUTE_A);
+        });
     }
 
     @Test
-    void internalResponseFrameWithMatchingRouteIsProcessed() {
+    void internalResponseFrameForOwnFilterIsCompleted() {
         // Given
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
         buildChannel(filter, ROUTE_A);
         var header = new ResponseHeaderData().setCorrelationId(42);
         var future = new CompletableFuture<>();
-        var internalFrame = new InternalResponseFrame<>(
-                filter, ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData(), future);
-        internalFrame.setRouteName(ROUTE_A);
+        var internalFrame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData());
+        internalFrame.setPath(new PathElement.Filter(filter.getClass().getSimpleName(), 0, future, ROUTE_A));
 
         // When
         channel.writeOutbound(internalFrame);
@@ -219,37 +223,41 @@ class RouteFilterHandlerTest {
     }
 
     @Test
-    void internalResponseFrameForRecipientIsCompletedEvenWhenRouteDoesNotMatch() {
+    void internalResponseFrameForAnotherFilterOnSameRouteIsObservedNotCompleted() {
         // Given
-        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
+        var observed = new AtomicBoolean(false);
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
+            observed.set(true);
+            return context.forwardResponse(header, response);
+        };
         buildChannel(filter, ROUTE_A);
         var header = new ResponseHeaderData().setCorrelationId(42);
         var future = new CompletableFuture<>();
-        var internalFrame = new InternalResponseFrame<>(
-                filter, ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData(), future);
-        internalFrame.setRouteName(ROUTE_B);
+        var internalFrame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData());
+        // Addressed to a different filter, but genuinely on this handler's own route: per C6 in
+        // RouteFilterCorrectnessIT, this handler's filter must still see it via onResponse, but
+        // must not complete a promise that isn't its own.
+        internalFrame.setPath(new PathElement.Filter("other-filter", 0, future, ROUTE_A));
 
         // When
         channel.writeOutbound(internalFrame);
 
         // Then
-        assertThat(future).isCompleted();
-        assertThat((Object) channel.readOutbound()).isNull();
+        assertThat(observed).as("sibling filter on the same route must observe the response").isTrue();
+        assertThat(future).as("but must not complete a promise that isn't its own").isNotCompleted();
     }
 
     @Test
     void internalResponseFrameForAnotherFilterOnAnotherRoutePassesThrough() {
         // Given
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
-            throw new AssertionError("Filter should not process an OOB response addressed to another filter on another route");
+            throw new AssertionError("Filter should not process an OOB response addressed to a filter on another route");
         };
         buildChannel(filter, ROUTE_A);
-        Filter otherFilter = mock(Filter.class);
         var header = new ResponseHeaderData().setCorrelationId(42);
         var future = new CompletableFuture<>();
-        var internalFrame = new InternalResponseFrame<>(
-                otherFilter, ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData(), future);
-        internalFrame.setRouteName(ROUTE_B);
+        var internalFrame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData());
+        internalFrame.setPath(new PathElement.Filter("other-filter", 0, future, ROUTE_B));
 
         // When
         channel.writeOutbound(internalFrame);
@@ -260,45 +268,31 @@ class RouteFilterHandlerTest {
     }
 
     /**
-     * All out-of-band requests share one reserved correlation id, so when two or more routes have
-     * one in flight concurrently, {@code RoutingTerminalHandler}'s {@code correlationId -> routeName}
-     * map collides and can restore the wrong route name on a returning response (see
-     * {@code CorrelationIdSpace#RESERVED_OUT_OF_BAND_CORRELATION_ID}). This does not stop the response
-     * reaching the filter that actually sent the request - that match is by recipient identity, not
-     * route name (see {@link #internalResponseFrameForRecipientIsCompletedEvenWhenRouteDoesNotMatch}) -
-     * but a sibling filter on the SAME (genuinely correct) route only ever gates on
-     * {@code matchesRoute()}, so it silently misses the observation it is supposed to get, per C6 in
-     * {@code RouteFilterCorrectnessIT}.
+     * A route's own filters may be installed on it more than once (e.g. the same filter type
+     * configured twice), disambiguated only by their position - see the {@code Risk} discussion
+     * in the qualified-path redesign this class exercises.
      */
     @Test
-    void siblingFilterOnSameRouteObservesOobResponseEvenWhenRouteNameIsCorruptedByConcurrentOob() {
+    void internalResponseFrameForSameNameDifferentOrdinalIsObservedNotCompleted() {
         // Given
-        var observedBySibling = new AtomicBoolean(false);
-        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
-        ApiVersionsResponseFilter siblingFilter = (apiVersion, header, response, context) -> {
-            observedBySibling.set(true);
+        var observed = new AtomicBoolean(false);
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
+            observed.set(true);
             return context.forwardResponse(header, response);
         };
-        buildChannel(filter, siblingFilter, ROUTE_A);
+        buildChannel(filter, ROUTE_A, 1);
         var header = new ResponseHeaderData().setCorrelationId(42);
         var future = new CompletableFuture<>();
-        var internalFrame = new InternalResponseFrame<>(
-                filter, ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData(), future);
-        // Simulates the route name RoutingTerminalHandler restores after its correlationId -> routeName
-        // map collided with a second, concurrent out-of-band request from route-b.
-        internalFrame.setRouteName(ROUTE_B);
+        var internalFrame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData());
+        // Same filter name, same route, but ordinal 0 - a different position than this handler's (1).
+        internalFrame.setPath(new PathElement.Filter(filter.getClass().getSimpleName(), 0, future, ROUTE_A));
 
         // When
         channel.writeOutbound(internalFrame);
 
         // Then
-        assertThat(future)
-                .as("the recipient's own promise still completes: delivery is matched by filter identity, not route name")
-                .isCompleted();
-        assertThat(observedBySibling)
-                .as("route-a's own sibling filter must observe route-a's own out-of-band response via onResponse (C6), "
-                        + "but the corrupted route name means matchesRoute() never fires for it")
-                .isTrue();
+        assertThat(observed).as("still observed: it's genuinely on this handler's route").isTrue();
+        assertThat(future).as("but not completed: it's addressed to a different position on the route").isNotCompleted();
     }
 
     @Test
@@ -310,7 +304,7 @@ class RouteFilterHandlerTest {
         buildChannel(filter, ROUTE_A);
         ByteBuf buffer = Unpooled.buffer();
         var opaqueFrame = new OpaqueRequestFrame(buffer, ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), 55, false, buffer.readableBytes(), false);
-        opaqueFrame.setRouteName(ROUTE_A);
+        opaqueFrame.setPath(ROUTE_A);
 
         // When
         assertThat(channel.writeOneInbound(opaqueFrame).cause()).isNull();
@@ -328,7 +322,7 @@ class RouteFilterHandlerTest {
         ByteBuf buffer = Unpooled.buffer(4);
         buffer.writeInt(55);
         var opaqueFrame = new OpaqueResponseFrame(ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), buffer, 55, buffer.readableBytes());
-        opaqueFrame.setRouteName(ROUTE_B);
+        opaqueFrame.setPath(ROUTE_B);
 
         // When
         channel.writeOutbound(opaqueFrame);
@@ -347,32 +341,19 @@ class RouteFilterHandlerTest {
         RouteFilterHandler handler = (RouteFilterHandler) channel.pipeline().get("routeFilter");
 
         // Then
-        assertThat(handler.filterDescriptor()).contains("[route=" + ROUTE_A + "]");
+        assertThat(handler.filterDescriptor()).contains("[route=" + ROUTE_A.describe() + "]");
     }
 
-    private void buildChannel(Filter filter, String routeName) {
-        var ccsm = newClientConnectionStateMachine();
-        FilterAndInvoker filterAndInvoker = getOnlyElement(FilterAndInvoker.build(filter.getClass().getSimpleName(), filter));
-        ChannelHandler routeFilterHandler = new RouteFilterHandler(filterAndInvoker, 1000L, null, new EmbeddedChannel(), ccsm, routeName);
-
-        channel = new EmbeddedChannel();
-        channel.pipeline().addLast("routeFilter", routeFilterHandler);
+    private void buildChannel(Filter filter, PathElement routePath) {
+        buildChannel(filter, routePath, 0);
     }
 
-    /**
-     * Builds a channel with two {@link RouteFilterHandler}s configured for the SAME route, one per
-     * filter, sharing a single connection state machine - modelling two filters on one route, as
-     * installed by {@code KafkaProxyFrontendHandler} for a route with more than one filter.
-     */
-    private void buildChannel(Filter filter, Filter siblingFilter, String routeName) {
+    private void buildChannel(Filter filter, PathElement routePath, int ordinal) {
         var ccsm = newClientConnectionStateMachine();
         FilterAndInvoker filterAndInvoker = getOnlyElement(FilterAndInvoker.build(filter.getClass().getSimpleName(), filter));
-        FilterAndInvoker siblingFilterAndInvoker = getOnlyElement(FilterAndInvoker.build(siblingFilter.getClass().getSimpleName(), siblingFilter));
-        ChannelHandler routeFilterHandler = new RouteFilterHandler(filterAndInvoker, 1000L, null, new EmbeddedChannel(), ccsm, routeName);
-        ChannelHandler siblingRouteFilterHandler = new RouteFilterHandler(siblingFilterAndInvoker, 1000L, null, new EmbeddedChannel(), ccsm, routeName);
+        ChannelHandler routeFilterHandler = new RouteFilterHandler(filterAndInvoker, 1000L, null, new EmbeddedChannel(), ccsm, routePath, ordinal);
 
         channel = new EmbeddedChannel();
-        channel.pipeline().addLast("siblingRouteFilter", siblingRouteFilterHandler);
         channel.pipeline().addLast("routeFilter", routeFilterHandler);
     }
 

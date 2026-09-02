@@ -130,8 +130,12 @@ public record Configuration(
         for (var router : routerDefinitions) {
             for (var route : router.routes()) {
                 if (route.filters() != null) {
-                    checkNamedFiltersAreDefined(filterDefsByName, route.filters(),
-                            "routerDefinitions." + router.name() + ".routes." + route.name() + ".filters");
+                    String componentName = "routerDefinitions." + router.name() + ".routes." + route.name() + ".filters";
+                    checkNamedFiltersAreDefined(filterDefsByName, route.filters(), componentName);
+                    // A duplicate filter name within one route's own list would be structurally
+                    // ambiguous for out-of-band request delivery, which disambiguates same-named
+                    // filters on a route by their position.
+                    validateUniqueNames(route.filters(), Function.identity(), componentName);
                 }
             }
         }

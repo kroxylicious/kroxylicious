@@ -55,6 +55,7 @@ import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
@@ -1841,14 +1842,14 @@ class ClientConnectionStateMachineTest {
             bumpClientInFlightCount();
             var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
             assertThat(closedFuture).isNotCompleted();
-            var routingFrame = new DecodedResponseFrame<>((short) 12,
-                    CorrelationIdSpace.RESERVED_ROUTING_ID_RANGE_START_INC,
+            var routingFrame = new DecodedResponseFrame<>((short) 12, 0,
                     new ResponseHeaderData(), new MetadataResponseData());
+            routingFrame.setPath(new PathElement.Router(new CompletableFuture<>(), new PathElement.Route("route-a", null)));
 
             // When
             clientConnectionStateMachine.onResponseFromServer(routingFrame);
 
-            // Then: routing-range ID with routerActive → decrement skipped → drain NOT fired
+            // Then: a router-issued OOB response with routerActive → decrement skipped → drain NOT fired
             assertThat(closedFuture).isNotCompleted();
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
         }

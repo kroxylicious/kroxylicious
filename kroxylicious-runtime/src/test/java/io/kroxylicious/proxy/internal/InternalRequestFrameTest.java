@@ -9,9 +9,6 @@ package io.kroxylicious.proxy.internal;
 import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
 import io.kroxylicious.kafka.common.message.MetadataRequestData;
@@ -20,20 +17,16 @@ import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
-import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@ExtendWith(MockitoExtension.class)
 class InternalRequestFrameTest {
     private static final int CORRELATION_ID = 1;
     private static final short API_VERSION = ApiKeys.METADATA.latestVersion();
     public static final CompletableFuture<Object> PROMISE = new CompletableFuture<>();
-
-    @Mock
-    private Filter filter;
 
     @Test
     void testDecodedRequestFrame() {
@@ -47,7 +40,7 @@ class InternalRequestFrameTest {
             assertThat(internalResponseFrame.body()).isSameAs(responseBody);
             assertThat(internalResponseFrame.header()).isSameAs(responseHeaderData);
             assertThat(internalResponseFrame.promise()).isSameAs(PROMISE);
-            assertThat(internalResponseFrame.recipient()).isSameAs(filter);
+            assertThat(internalResponseFrame.path()).isSameAs(frame.path());
         });
     }
 
@@ -65,7 +58,8 @@ class InternalRequestFrameTest {
         RequestHeaderData header = new RequestHeaderData();
         header.setCorrelationId(CORRELATION_ID);
         MetadataRequestData request = new MetadataRequestData();
-        return new InternalRequestFrame<>(API_VERSION, CORRELATION_ID,
-                true, filter, PROMISE, header, request);
+        var frame = new InternalRequestFrame<>(API_VERSION, CORRELATION_ID, true, header, request);
+        frame.setPath(new PathElement.Filter("test-filter", 0, PROMISE, null));
+        return frame;
     }
 }

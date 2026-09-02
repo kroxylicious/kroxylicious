@@ -11,31 +11,33 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
-import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * A route-scoped {@link FilterHandler} that only applies its filter when the
- * frame's {@link Frame#routeName()} matches the configured route name.
- * Frames on other routes (or with no routing context) pass through unchanged.
+ * A route-scoped {@link FilterHandler} that only applies its filter when the frame's
+ * {@link Frame#path()} lies on this handler's own route (i.e. this route's position is an
+ * ancestor of, or the same as, the frame's path). Frames on other routes (or with no routing
+ * context) pass through unchanged.
  */
 class RouteFilterHandler extends FilterHandler {
 
-    private final String routeName;
-    private final Filter filter;
+    private final PathElement routePath;
+    private final int ordinal;
 
     RouteFilterHandler(FilterAndInvoker filterAndInvoker,
                        long timeoutMs,
                        @Nullable String sniHostname,
                        Channel inboundChannel,
                        ClientConnectionStateMachine clientConnectionStateMachine,
-                       String routeName) {
+                       PathElement routePath,
+                       int ordinal) {
         super(filterAndInvoker, timeoutMs, sniHostname, inboundChannel, clientConnectionStateMachine);
-        this.routeName = Objects.requireNonNull(routeName);
-        this.filter = filterAndInvoker.filter();
+        this.routePath = Objects.requireNonNull(routePath);
+        this.ordinal = ordinal;
     }
 
     @Override
@@ -49,8 +51,13 @@ class RouteFilterHandler extends FilterHandler {
     }
 
     @Override
-    void onInternalRequest(InternalRequestFrame<?> frame) {
-        frame.setRouteName(routeName);
+    PathElement ownRoutePath() {
+        return routePath;
+    }
+
+    @Override
+    int ownOrdinal() {
+        return ordinal;
     }
 
     // FutureReturnValueIgnored: `promise` is supplied by the caller and is notified with
@@ -58,17 +65,13 @@ class RouteFilterHandler extends FilterHandler {
     @SuppressWarnings("FutureReturnValueIgnored")
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        // Frames are gated to their route, as before - this is what lets a route's filters observe,
-        // via onResponse, every response (including out-of-band ones) that flows through their route.
-        // The one addition: an out-of-band (internal) response addressed to this handler's own filter
-        // is also delivered even when its route name does not match. All internal responses share the
-        // reserved out-of-band correlation id, so the route name restored on the response path is
-        // unreliable when more than one route has an in-flight OOB request; but such a reply is
-        // self-addressed (its recipient and promise are carried on the frame, matched via the unique
-        // upstream correlation id), so recipient identity is authoritative for delivering it back.
-        boolean deliver = matchesRoute(msg)
-                || (msg instanceof InternalResponseFrame<?> internalResponse && internalResponse.isRecipient(filter));
-        if (deliver) {
+        // Gating purely on route membership is sufficient: an out-of-band response addressed to
+        // this handler's own filter always carries this route as part of its own identity (see
+        // isRecipient()), so recipient frames are always also route-matching frames here - unlike
+        // the old route-name-string scheme, a frame's path is set once, correctly, and never
+        // needs restoring via a separate, collision-prone lookup, so there's no scenario where a
+        // recipient frame's route fails to match.
+        if (matchesRoute(msg)) {
             super.write(ctx, msg, promise);
         }
         else {
@@ -77,11 +80,11 @@ class RouteFilterHandler extends FilterHandler {
     }
 
     private boolean matchesRoute(Object msg) {
-        return msg instanceof Frame f && routeName.equals(f.routeName());
+        return msg instanceof Frame f && f.path() != null && routePath.isAncestorOfOrSameAs(f.path());
     }
 
     @Override
     String filterDescriptor() {
-        return super.filterDescriptor() + "[route=" + routeName + "]";
+        return super.filterDescriptor() + "[route=" + routePath.describe() + "]";
     }
 }

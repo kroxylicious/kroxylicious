@@ -15,7 +15,6 @@ import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.common.protocol.Readable;
-import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
@@ -95,16 +94,19 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
                     .addKeyValue("ctx", ctx)
                     .addKeyValue("body", body)
                     .log("Read");
-            Filter recipient = correlation.recipient();
-            if (recipient == null) {
-                frame = new DecodedResponseFrame<>(body.apiVersion(), correlationId, header, body.apiMessage());
+            if (correlation.path() != null && correlation.path().pendingPromise().isPresent()) {
+                var internalFrame = new InternalResponseFrame<>(body.apiVersion(), correlationId, header, body.apiMessage());
+                internalFrame.setPath(correlation.path());
+                frame = internalFrame;
             }
             else {
-                frame = new InternalResponseFrame<>(recipient, body.apiVersion(), correlationId, header, body.apiMessage(), correlation.promise());
+                frame = new DecodedResponseFrame<>(body.apiVersion(), correlationId, header, body.apiMessage());
+                frame.setPath(correlation.path());
             }
         }
         else {
             frame = opaqueFrame(correlation.apiKey(), correlation.apiVersion(), in, correlationId, length);
+            frame.setPath(correlation.path());
         }
         log().atTrace()
                 .addKeyValue("ctx", ctx)

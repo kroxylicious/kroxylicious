@@ -35,6 +35,7 @@ import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -73,7 +74,7 @@ class RouteDispatcherTest {
         return new RouteDescriptor(name, id, null, routerName, List.of());
     }
 
-    private RouteDispatcher createDispatcher(Map<String, RouteDescriptor> routes, String routePrefix) {
+    private RouteDispatcher createDispatcher(Map<String, RouteDescriptor> routes, String qualificationPrefix) {
         var capture = new ChannelInboundHandlerAdapter();
         channel = new EmbeddedChannel(capture);
         ChannelHandlerContext ctx = channel.pipeline().context(capture);
@@ -84,7 +85,7 @@ class RouteDispatcherTest {
                         routes.size());
         lastCreatedMapping = mapping;
         Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
-        var dispatcher = new RouteDispatcher(routes, mapping, routePrefix, correlationIdAllocator, routerNodeAddresses, "test-cluster");
+        var dispatcher = new RouteDispatcher(routes, mapping, qualificationPrefix, null, correlationIdAllocator, routerNodeAddresses, "test-cluster");
         dispatcher.setContext(ctx);
         return dispatcher;
     }
@@ -127,7 +128,8 @@ class RouteDispatcherTest {
         // Then
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.routeName()).isEqualTo(ROUTER_NAME + "/r1");
+        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.Router.class,
+                router -> assertThat(router.next()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", null)));
     }
 
     @Test
@@ -142,7 +144,8 @@ class RouteDispatcherTest {
         // Then
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.routeName()).isEqualTo("r1");
+        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.Router.class,
+                router -> assertThat(router.next()).isEqualTo(new PathElement.Route("r1", null)));
     }
 
     @Test
@@ -155,10 +158,12 @@ class RouteDispatcherTest {
         var future = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
 
         // Then
-        assertThat(dispatcher.pendingResponseCount()).isEqualTo(1);
         assertThat(future.toCompletableFuture()).isNotDone();
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, new ResponseHeaderData(), new FetchResponseData());
+        responseFrame.setPath(fired.path());
+        assertThat(dispatcher.handleResponse(responseFrame, SESSION_ID)).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
+        assertThat(future.toCompletableFuture()).isCompleted();
     }
 
     @Test
@@ -172,7 +177,10 @@ class RouteDispatcherTest {
 
         // Then
         assertThat(future.toCompletableFuture()).isCompletedWithValue(null);
-        assertThat(dispatcher.hasPendingResponses()).isFalse();
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        assertThat(fired.path())
+                .as("no response expected, so no promise-bearing leaf is attached")
+                .isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", null));
     }
 
     // --- sendToSpecificNode ---
@@ -202,7 +210,8 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
         assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
-        assertThat(fired.routeName()).isEqualTo(ROUTER_NAME + "/r1");
+        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.Router.class,
+                router -> assertThat(router.next()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", null)));
     }
 
     @Test
@@ -218,7 +227,8 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
         assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
-        assertThat(fired.routeName()).isEqualTo(ROUTER_NAME + "/nested");
+        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.Router.class,
+                router -> assertThat(router.next()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/nested", null)));
     }
 
     @Test
@@ -231,10 +241,12 @@ class RouteDispatcherTest {
         var future = dispatcher.sendToSpecificNode(5, "r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
 
         // Then
-        assertThat(dispatcher.pendingResponseCount()).isEqualTo(1);
         assertThat(future.toCompletableFuture()).isNotDone();
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, new ResponseHeaderData(), new FetchResponseData());
+        responseFrame.setPath(fired.path());
+        assertThat(dispatcher.handleResponse(responseFrame, SESSION_ID)).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
+        assertThat(future.toCompletableFuture()).isCompleted();
     }
 
     @Test
@@ -248,7 +260,6 @@ class RouteDispatcherTest {
 
         // Then
         assertThat(future.toCompletableFuture()).isCompletedWithValue(null);
-        assertThat(dispatcher.hasPendingResponses()).isFalse();
     }
 
     // --- event loop confinement ---
@@ -273,10 +284,9 @@ class RouteDispatcherTest {
         assertThat(dispatchThread.get())
                 .describedAs("caller must be off the event loop for this test to be meaningful")
                 .isNotEqualTo(eventLoopThread);
-        assertThat(dispatcher.pendingResponseCount()).isEqualTo(1);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID)).isNotNull();
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        assertThat(fired).isNotNull();
+        assertThat(fired.path()).isInstanceOf(PathElement.Router.class);
     }
 
     @Test
@@ -299,10 +309,9 @@ class RouteDispatcherTest {
         assertThat(dispatchThread.get())
                 .describedAs("caller must be off the event loop for this test to be meaningful")
                 .isNotEqualTo(eventLoopThread);
-        assertThat(dispatcher.pendingResponseCount()).isEqualTo(1);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID)).isNotNull();
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        assertThat(fired).isNotNull();
+        assertThat(fired.path()).isInstanceOf(PathElement.Router.class);
     }
 
     @Test
@@ -323,6 +332,7 @@ class RouteDispatcherTest {
                 Map.of("r1", clusterRoute("r1", 0)),
                 new IdentityNodeIdMapping("r1"),
                 ROUTER_NAME + "/",
+                null,
                 correlationIdAllocator,
                 new HashMap<>(),
                 "test-cluster");
@@ -375,19 +385,21 @@ class RouteDispatcherTest {
     @Test
     void handleResponseShouldReturnConsumedForPendingResponse() {
         // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
         var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        dispatcher.addPendingResponse(ROUTING_CORRELATION_ID, new RouteDispatcher.PendingResponse(future, "r1", lastCreatedMapping));
+        var future = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        DecodedRequestFrame<?> fired = channel.readInbound();
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), new FetchResponseData());
+        responseFrame.setPath(fired.path());
 
         // When
         var outcome = dispatcher.handleResponse(responseFrame, SESSION_ID);
 
         // Then
         assertThat(outcome).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
-        assertThat(future).isCompleted();
+        assertThat(future.toCompletableFuture()).isCompleted();
     }
 
     @Test
@@ -431,15 +443,17 @@ class RouteDispatcherTest {
     void handleResponseShouldTranslateNodeIdsForPendingResponse() {
         // Given
         var routes = Map.of("r1", clusterRoute("r1", 0), "r2", clusterRoute("r2", 1));
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
         var dispatcher = createDispatcher(routes, ROUTER_NAME + "/");
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        dispatcher.addPendingResponse(ROUTING_CORRELATION_ID, new RouteDispatcher.PendingResponse(future, "r1", lastCreatedMapping));
+        dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        DecodedRequestFrame<?> fired = channel.readInbound();
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker()
                 .setNodeId(3).setHost("broker1").setPort(9092));
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), metadataResponse);
+        responseFrame.setPath(fired.path());
 
         // When
         dispatcher.handleResponse(responseFrame, SESSION_ID);
@@ -453,9 +467,10 @@ class RouteDispatcherTest {
     @Test
     void handleResponseShouldCacheMetadataAddresses() {
         // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
         var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        dispatcher.addPendingResponse(ROUTING_CORRELATION_ID, new RouteDispatcher.PendingResponse(future, "r1", lastCreatedMapping));
+        dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        DecodedRequestFrame<?> fired = channel.readInbound();
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker()
                 .setNodeId(1).setHost("broker1").setPort(9092));
@@ -464,6 +479,7 @@ class RouteDispatcherTest {
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), metadataResponse);
+        responseFrame.setPath(fired.path());
 
         // When
         dispatcher.handleResponse(responseFrame, SESSION_ID);
@@ -480,14 +496,15 @@ class RouteDispatcherTest {
         var routes = Map.of("r1", clusterRoute("r1", 0), "r2", clusterRoute("r2", 1));
         var dispatcher = createDispatcher(routes, ROUTER_NAME + "/");
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        // Use a route name not in the BijectiveNodeIdMapping to force toVirtual() to throw
-        dispatcher.addPendingResponse(ROUTING_CORRELATION_ID, new RouteDispatcher.PendingResponse(future, "unknown-route", lastCreatedMapping));
+        // A route name not known to the BijectiveNodeIdMapping, to force toVirtual() to throw.
+        var responsePath = new PathElement.Router(future, dispatcher.routePathFor("unknown-route"));
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker()
                 .setNodeId(0).setHost("broker1").setPort(9092));
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), metadataResponse);
+        responseFrame.setPath(responsePath);
 
         // When
         var outcome = dispatcher.handleResponse(responseFrame, SESSION_ID);
@@ -503,32 +520,30 @@ class RouteDispatcherTest {
     @Test
     void failAllPendingShouldCompleteOutstandingFuturesExceptionally() {
         // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(100, 101);
         var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
-        CompletableFuture<ApiMessage> future1 = new CompletableFuture<>();
-        CompletableFuture<ApiMessage> future2 = new CompletableFuture<>();
-        dispatcher.addPendingResponse(100, new RouteDispatcher.PendingResponse(future1, "r1", lastCreatedMapping));
-        dispatcher.addPendingResponse(101, new RouteDispatcher.PendingResponse(future2, "r1", lastCreatedMapping));
+        var future1 = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        var future2 = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
 
         // When
         dispatcher.failAllPending(SESSION_ID);
 
         // Then
-        assertThat(future1).isCompletedExceptionally();
-        assertThat(future2).isCompletedExceptionally();
-        assertThat(dispatcher.hasPendingResponses()).isFalse();
+        assertThat(future1.toCompletableFuture()).isCompletedExceptionally();
+        assertThat(future2.toCompletableFuture()).isCompletedExceptionally();
     }
 
-    // --- qualifyRoute ---
+    // --- routePathFor ---
 
     @Test
-    void qualifyRouteShouldApplyPrefix() {
+    void routePathForShouldApplyPrefix() {
         // Given
         var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), "prefix/");
 
         // When
-        var qualified = dispatcher.qualifyRoute("route");
+        var routePath = dispatcher.routePathFor("route");
 
         // Then
-        assertThat(qualified).isEqualTo("prefix/route");
+        assertThat(routePath).isEqualTo(new PathElement.Route("prefix/route", null));
     }
 }

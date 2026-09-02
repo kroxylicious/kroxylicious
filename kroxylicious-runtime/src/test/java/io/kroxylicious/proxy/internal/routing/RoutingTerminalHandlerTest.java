@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,24 +17,22 @@ import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.kafka.common.message.FetchRequestData;
 import io.kroxylicious.kafka.common.message.FetchResponseData;
-import io.kroxylicious.kafka.common.message.ProduceRequestData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
-import io.kroxylicious.proxy.internal.CorrelationIdSpace;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class RoutingTerminalHandlerTest {
 
     private static final int CORRELATION_ID = 42;
-    private static final String ROUTE_A = "route-a";
+    private static final PathElement ROUTE_A = new PathElement.Route("route-a", null);
 
     @Mock
     private ClientConnectionStateMachine ccsm;
@@ -52,13 +52,13 @@ class RoutingTerminalHandlerTest {
         var handler = new RoutingTerminalHandler(ccsm);
         channel = new EmbeddedChannel(handler);
         var frame = fetchRequest();
-        frame.setRouteName(ROUTE_A);
+        frame.setPath(ROUTE_A);
 
         // When
         channel.writeInbound(frame);
 
         // Then
-        verify(ccsm).forwardToRoute(ROUTE_A, frame);
+        verify(ccsm).forwardToRoute("route-a", frame);
     }
 
     @Test
@@ -67,14 +67,45 @@ class RoutingTerminalHandlerTest {
         var handler = new RoutingTerminalHandler(ccsm);
         channel = new EmbeddedChannel(handler);
         var frame = fetchRequest();
-        frame.setRouteName(ROUTE_A);
+        frame.setPath(ROUTE_A);
         frame.setTargetVirtualNodeId(7);
 
         // When
         channel.writeInbound(frame);
 
         // Then
-        verify(ccsm).forwardToNode(7, ROUTE_A, frame);
+        verify(ccsm).forwardToNode(7, "route-a", frame);
+    }
+
+    @Test
+    void shouldUnwrapFilterLeafToForwardOnItsOwnRoute() {
+        // Given: an out-of-band request issued by a route filter - its path's leaf identifies the
+        // filter, not a bare route, but it must still be forwarded on the route beneath that leaf.
+        var handler = new RoutingTerminalHandler(ccsm);
+        channel = new EmbeddedChannel(handler);
+        var frame = fetchRequest();
+        frame.setPath(new PathElement.Filter("marker-filter", 0, new CompletableFuture<>(), ROUTE_A));
+
+        // When
+        channel.writeInbound(frame);
+
+        // Then
+        verify(ccsm).forwardToRoute("route-a", frame);
+    }
+
+    @Test
+    void shouldUnwrapRouterLeafToForwardOnItsOwnRoute() {
+        // Given: a router-issued out-of-band request (RouterContext.sendRequest) - same shape.
+        var handler = new RoutingTerminalHandler(ccsm);
+        channel = new EmbeddedChannel(handler);
+        var frame = fetchRequest();
+        frame.setPath(new PathElement.Router(new CompletableFuture<>(), ROUTE_A));
+
+        // When
+        channel.writeInbound(frame);
+
+        // Then
+        verify(ccsm).forwardToRoute("route-a", frame);
     }
 
     @Test
@@ -105,101 +136,23 @@ class RoutingTerminalHandlerTest {
     }
 
     @Test
-    void writeShouldSetRouteNameForKnownCorrelationId() {
-        // Given
-        when(ccsm.sessionId()).thenReturn("test-session");
+    void writeIsAPureOutboundPassThrough() {
+        // Given: the outbound path is now a pure pass-through - the correct path was already
+        // restored directly from CorrelationManager by the time a response reaches this handler,
+        // so there is no bookkeeping left to do here.
         var handler = new RoutingTerminalHandler(ccsm);
         channel = new EmbeddedChannel(handler);
-
-        var request = fetchRequest();
-        request.setRouteName(ROUTE_A);
-        channel.writeInbound(request);
-
         var response = new DecodedResponseFrame<>((short) 12, CORRELATION_ID,
                 new ResponseHeaderData(), new FetchResponseData());
+        response.setPath(ROUTE_A);
 
         // When
         channel.writeOutbound(response);
 
         // Then
         DecodedResponseFrame<?> out = channel.readOutbound();
-        assertThat(out).isNotNull();
-        assertThat(out.routeName()).isEqualTo(ROUTE_A);
-    }
-
-    @Test
-    void writeShouldNotSetRouteNameForUnknownCorrelationId() {
-        // Given
-        var handler = new RoutingTerminalHandler(ccsm);
-        channel = new EmbeddedChannel(handler);
-
-        var response = new DecodedResponseFrame<>((short) 12, 9999,
-                new ResponseHeaderData(), new FetchResponseData());
-
-        // When
-        channel.writeOutbound(response);
-
-        // Then
-        DecodedResponseFrame<?> out = channel.readOutbound();
-        assertThat(out).isNotNull();
-        assertThat(out.routeName()).isNull();
-    }
-
-    @Test
-    void writeShouldNotSetRouteNameForFireAndForgetRequest() {
-        // Given
-        when(ccsm.sessionId()).thenReturn("test-session");
-        var handler = new RoutingTerminalHandler(ccsm);
-        channel = new EmbeddedChannel(handler);
-
-        var header = new RequestHeaderData()
-                .setRequestApiKey(ApiKeys.PRODUCE.id)
-                .setRequestApiVersion((short) 9)
-                .setCorrelationId(CORRELATION_ID);
-        var frame = new DecodedRequestFrame<>((short) 9, CORRELATION_ID, false, header, new ProduceRequestData().setAcks((short) 0));
-        frame.setRouteName(ROUTE_A);
-        channel.writeInbound(frame);
-
-        var response = new DecodedResponseFrame<>((short) 9, CORRELATION_ID,
-                new ResponseHeaderData(), new FetchResponseData());
-
-        // When
-        channel.writeOutbound(response);
-
-        // Then
-        DecodedResponseFrame<?> out = channel.readOutbound();
-        assertThat(out).isNotNull();
-        assertThat(out.routeName()).isNull();
-    }
-
-    @Test
-    void writeShouldSetRouteNameForRoutingCorrelationId() {
-        // Given
-        when(ccsm.sessionId()).thenReturn("test-session");
-        var handler = new RoutingTerminalHandler(ccsm);
-        channel = new EmbeddedChannel(handler);
-
-        int routingCorrelationId = CorrelationIdSpace.RESERVED_ROUTING_ID_RANGE_START_INC;
-        var header = new RequestHeaderData()
-                .setRequestApiKey(ApiKeys.FETCH.id)
-                .setRequestApiVersion((short) 12)
-                .setCorrelationId(routingCorrelationId);
-        var frame = new DecodedRequestFrame<>((short) 12, routingCorrelationId, true, header, new FetchRequestData());
-        frame.setRouteName(ROUTE_A);
-        channel.writeInbound(frame);
-
-        var response = new DecodedResponseFrame<>((short) 12, routingCorrelationId,
-                new ResponseHeaderData(), new FetchResponseData());
-
-        // When
-        channel.writeOutbound(response);
-
-        // Then
-        DecodedResponseFrame<?> out = channel.readOutbound();
-        assertThat(out).isNotNull();
-        assertThat(out.routeName())
-                .as("routing-range correlation IDs must be tracked so the route name is stamped on routing responses, enabling RouteFilterHandler.onResponse")
-                .isEqualTo(ROUTE_A);
+        assertThat(out).isSameAs(response);
+        assertThat(out.path()).isSameAs(ROUTE_A);
     }
 
     private DecodedRequestFrame<FetchRequestData> fetchRequest() {

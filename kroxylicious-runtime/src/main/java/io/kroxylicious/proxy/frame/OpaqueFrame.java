@@ -36,7 +36,7 @@ public abstract class OpaqueFrame implements Frame {
     protected final int correlationId;
     /** The message buffer excluding the frame size, including the header and body. */
     protected final ByteBuf buf;
-    private @Nullable String routeName;
+    private @Nullable PathElement path;
 
     /**
      * @param apiKeyId api key id
@@ -117,13 +117,13 @@ public abstract class OpaqueFrame implements Frame {
     }
 
     @Override
-    public @Nullable String routeName() {
-        return routeName;
+    public @Nullable PathElement path() {
+        return path;
     }
 
     @Override
-    public void setRouteName(@Nullable String routeName) {
-        this.routeName = routeName;
+    public void setPath(@Nullable PathElement path) {
+        this.path = path;
     }
 
     @Override

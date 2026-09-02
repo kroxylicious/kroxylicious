@@ -30,7 +30,7 @@ public class CorrelationIdAllocator {
      * @param maxExc upper bound, exclusive
      * @throws IllegalArgumentException if {@code minInc >= maxExc}
      */
-    CorrelationIdAllocator(int minInc, int maxExc) {
+    public CorrelationIdAllocator(int minInc, int maxExc) {
         this(minInc, maxExc, minInc);
     }
 

@@ -12,10 +12,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
@@ -64,8 +63,11 @@ public class FanOutRouterFactory implements RouterFactory<FanOutRouterFactory.Co
                                                              RouterContext ctx) {
                 // Send the request down every route first, so all of them are in flight (and any
                 // per-route filter's out-of-band request is issued) before any response is awaited.
+                // Each route gets its own copy: route filters may mutate the header/body in place
+                // (e.g. adding a marker tagged field), and those mutations must not be visible
+                // across routes since each route's filter chain runs independently.
                 List<CompletableFuture<ApiMessage>> stages = config.routes().stream()
-                        .map(route -> ctx.sendRequest(ctx.anyNode(route), header, request).toCompletableFuture())
+                        .map(route -> ctx.sendRequest(ctx.anyNode(route), header.duplicate(), (ApiMessage) request.duplicate()).toCompletableFuture())
                         .toList();
                 return CompletableFuture.allOf(stages.toArray(new CompletableFuture[0]))
                         .thenCompose(ignored -> ctx.respondWith(stages.getFirst().getNow(null)).completed());
