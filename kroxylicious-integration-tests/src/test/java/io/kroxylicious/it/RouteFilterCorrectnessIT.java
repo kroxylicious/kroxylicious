@@ -79,6 +79,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>C7: Route filter {@code onResponse} is called for dynamically-dispatched responses.
  * <p>C8: Sibling filters' {@code onResponse} observation of an out-of-band response is not
  *     corrupted when two or more routes have concurrent out-of-band requests in flight.
+ * <p>C10: An outer route's filter observes a response completed via a nested router's own dynamic
+ *     dispatch, the same way it observes that nested route's requests.
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
@@ -330,6 +332,56 @@ class RouteFilterCorrectnessIT {
                             + "correlation ids, since filter code may key its own bookkeeping off this value")
                     .hasSize(2);
         }
+    }
+
+    // ---------------------------------------------------------------------------
+    // C10: Outer-route filter observes a response completed via a nested router's own dynamic dispatch
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Sibling observation (C8) matches a route's own position against a response's path via
+     * {@code PathElement.isAncestorOfOrSameAs}, which walks the response's whole path rather than
+     * comparing one hop. An outer route that targets a nested router is, structurally, an ancestor of
+     * every route inside that nested router. {@code NestedRouteWithFiltersIT} already proves this for
+     * requests (a filter on the outer route sees traffic forwarded into the nested router). This test
+     * proves the same holds for responses: when the nested router dynamically dispatches a request via
+     * {@code RouterContext.sendRequest()} - completed via
+     * {@code RoutingHandler.handleNestedOobCompletion}, which writes the response back through the
+     * pipeline rather than resolving it locally - the outer route's own filter must also observe that
+     * response via {@code onResponse}, not just the nested route's own filter.
+     */
+    @Test
+    void outerRouteFilterObservesResponseFromNestedRouterDynamicDispatch(KafkaCluster cluster, Topic topic) throws Exception {
+        String outerCounterId = "c10-outer-" + topic.name();
+        String innerCounterId = "c10-inner-" + topic.name();
+        ResponseCountingFilter.reset(outerCounterId);
+        ResponseCountingFilter.reset(innerCounterId);
+
+        // Given
+        var outerCounterDef = new NamedFilterDefinitionBuilder("c10-outer-counter", ResponseCountingFilterFactory.class.getName())
+                .withConfig("counterId", outerCounterId)
+                .build();
+        var innerCounterDef = new NamedFilterDefinitionBuilder("c10-inner-counter", ResponseCountingFilterFactory.class.getName())
+                .withConfig("counterId", innerCounterId)
+                .build();
+        var config = nestedRouteWithResponseCounters(cluster.getBootstrapServers(), outerCounterDef, innerCounterDef);
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer(Map.of(DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+
+            // When
+            producer.send(new ProducerRecord<>(topic.name(), "key", "value")).get();
+        }
+
+        // Then
+        assertThat(ResponseCountingFilter.countFor(innerCounterId, ApiKeys.PRODUCE))
+                .as("the nested router's own route filter should observe its own dynamically-dispatched PRODUCE response")
+                .isEqualTo(1);
+        assertThat(ResponseCountingFilter.countFor(outerCounterId, ApiKeys.PRODUCE))
+                .as("the outer route's filter should also observe that same response - the outer route is a "
+                        + "structural ancestor of the nested route, and ancestor-path matching applies to responses "
+                        + "completed via handleNestedOobCompletion the same way it applies to ordinary traffic")
+                .isEqualTo(1);
     }
 
     // ---------------------------------------------------------------------------
@@ -640,6 +692,32 @@ class RouteFilterCorrectnessIT {
                 .addToFilterDefinitions(routeBMarker)
                 .addToFilterDefinitions(routeBCounter)
                 .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+    }
+
+    private ConfigurationBuilder nestedRouteWithResponseCounters(String bootstrapServers,
+                                                                 NamedFilterDefinition outerCounterFilter,
+                                                                 NamedFilterDefinition innerCounterFilter) {
+        var clusterDef = new ClusterDefinition(CLUSTER_NAME, bootstrapServers, null);
+
+        var innerRoute = new RouteDefinition("backend", 0, List.of(innerCounterFilter.name()), new RouteTarget(CLUSTER_NAME, null));
+        var innerRouterDef = new RouterDefinition("inner", DynamicProduceRouterFactory.class.getName(),
+                new DynamicProduceRouterFactory.Config("backend"), List.of(innerRoute));
+
+        var outerRoute = new RouteDefinition("nested", 0, List.of(outerCounterFilter.name()), new RouteTarget(null, "inner"));
+        var outerRouterDef = new RouterDefinition(ROUTER_NAME, PassThroughRouterFactory.class.getName(),
+                new PassThroughRouterFactory.Config("nested"), List.of(outerRoute));
+
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToFilterDefinitions(outerCounterFilter)
+                .addToFilterDefinitions(innerCounterFilter)
+                .addToRouterDefinitions(outerRouterDef, innerRouterDef)
                 .addToVirtualClusters(vc);
     }
 

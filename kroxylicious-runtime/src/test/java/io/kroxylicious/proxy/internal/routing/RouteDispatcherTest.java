@@ -533,6 +533,41 @@ class RouteDispatcherTest {
         assertThat(future2.toCompletableFuture()).isCompletedExceptionally();
     }
 
+    // --- concurrent same-route dispatch ---
+
+    /**
+     * Response matching relies entirely on the exact {@link PathElement.Router} leaf (and the
+     * {@code CompletableFuture} it carries) round-tripping on the response frame - there is no
+     * correlation-id-keyed lookup table backing it. This proves that guarantee holds when the same
+     * router has two sends to the same route concurrently in flight: a response addressed to one
+     * send's own path must not complete the other, concurrently in-flight, send's future.
+     */
+    @Test
+    void concurrentSendsToSameRouteShouldOnlyCompleteTheMatchingFuture() {
+        // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(100, 101);
+        var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
+        var future1 = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        var future2 = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        channel.readInbound(); // the first send's own request frame; its response is deliberately withheld
+        DecodedRequestFrame<?> fired2 = channel.readInbound();
+        var response2 = new DecodedResponseFrame<>((short) 12, 101, new ResponseHeaderData(), new FetchResponseData());
+        response2.setPath(fired2.path());
+
+        // When
+        var outcome = dispatcher.handleResponse(response2, SESSION_ID);
+
+        // Then
+        assertThat(outcome).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
+        assertThat(future2.toCompletableFuture())
+                .as("the response carrying the second send's own path must complete that send's own future")
+                .isCompleted();
+        assertThat(future1.toCompletableFuture())
+                .as("without a correlation-id-keyed lookup table, the first send's future must not be completed "
+                        + "by a response addressed to a different, concurrently in-flight send to the same route")
+                .isNotDone();
+    }
+
     // --- routePathFor ---
 
     @Test
