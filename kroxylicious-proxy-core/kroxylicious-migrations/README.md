@@ -25,7 +25,7 @@ kroxylicious-migrations/
 
 * **Atomic Recipes (`Use...`):** Focus on a single structural change (e.g., `io.kroxylicious.migrations.rewrite.v0_24.UseKroxyliciousKafkaTypes`).
 * **Version Aggregators (`MigrateTo...`):** Combines all atomic recipes for a specific release (e.g., `io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24`).
-* **Latest Aggregator (`MigrateToLatest`):** Combines all historical version aggregators in `kroxylicious.yml` so downstream projects can jump across multiple minor versions in one step.
+* **Latest Aggregator (`MigrateToLatest`):** Combines all historical version aggregators in `MigrateToLatest.yml` so downstream projects can jump across multiple minor versions in one step.
 
 ---
 
