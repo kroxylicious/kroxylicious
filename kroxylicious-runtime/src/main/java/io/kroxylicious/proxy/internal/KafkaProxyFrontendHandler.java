@@ -300,7 +300,8 @@ public class KafkaProxyFrontendHandler
         // than just one hop - before installing that route's filters and (if it targets a nested
         // router) recursing into that router's own routes.
         for (var entry : dr.topLevelRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
-            installRouteAndDescendants(pipeline, clientChannel, filterContext, vc, dr, entry.getKey(), entry.getValue(), null, allRouteFilters);
+            installRouteAndDescendants(pipeline, clientChannel, filterContext, vc, dr, entry.getKey(), entry.getValue(), PathElement.ClientOrigin.INSTANCE,
+                    allRouteFilters);
         }
         return allRouteFilters;
     }
@@ -314,7 +315,7 @@ public class KafkaProxyFrontendHandler
                                             DynamicRouting dr,
                                             String qualifiedName,
                                             RouteDescriptor rd,
-                                            @Nullable PathElement.Route parentPath,
+                                            PathElement.RoutePosition parentPath,
                                             List<FilterAndInvoker> allRouteFilters) {
         PathElement.Route routePath = new PathElement.Route(qualifiedName, parentPath);
         allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, qualifiedName, routePath));

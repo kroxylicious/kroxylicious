@@ -83,8 +83,7 @@ public class RouteDispatcher implements RouterDispatch {
      * independent of {@link #parentPath}'s full-lineage accumulation.
      */
     private final String qualificationPrefix;
-    @Nullable
-    private final PathElement.Route parentPath;
+    private final PathElement.RoutePosition parentPath;
     private final CorrelationIdAllocator correlationIdAllocator;
     private final Map<Integer, HostPort> routerNodeAddresses;
     private final String virtualClusterName;
@@ -110,7 +109,7 @@ public class RouteDispatcher implements RouterDispatch {
     RouteDispatcher(Map<String, RouteDescriptor> routes,
                     NodeIdMapping nodeIdMapping,
                     String qualificationPrefix,
-                    @Nullable PathElement.Route parentPath,
+                    PathElement.RoutePosition parentPath,
                     CorrelationIdAllocator correlationIdAllocator,
                     Map<Integer, HostPort> routerNodeAddresses,
                     String virtualClusterName) {
@@ -284,7 +283,6 @@ public class RouteDispatcher implements RouterDispatch {
     ResponseOutcome handleResponse(DecodedResponseFrame<?> frame, String sessionId) {
         PathElement path = frame.path();
         if (path instanceof PathElement.RouterOrigin(CompletableFuture<?> promise, PathElement.Route routeSegment)
-                && routeSegment != null
                 && Objects.equals(routeSegment.parent(), parentPath)) {
             @SuppressWarnings("unchecked")
             CompletableFuture<ApiMessage> future = (CompletableFuture<ApiMessage>) promise;

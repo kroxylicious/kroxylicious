@@ -34,7 +34,7 @@ record RouterRequestSource(
      */
     boolean intercepts(RequestFrame frame) {
         PathElement path = frame.path();
-        PathElement.Route routePosition = path == null ? null : path.routePosition();
+        PathElement.RoutePosition routePosition = path == null ? null : path.routePosition();
         return activationPath.equals(routePosition);
     }
 }

@@ -157,7 +157,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                           @Nullable Integer nodeId) {
         String virtualClusterName = ccsm.clusterName();
         var allocator = ccsm.internalCorrelationIdAllocator();
-        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", null, allocator, sharedNodeAddresses, virtualClusterName);
+        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", PathElement.ClientOrigin.INSTANCE, allocator, sharedNodeAddresses, virtualClusterName);
         return new RoutingHandler(dispatcher, virtualClusterName,
                 ccsm.sessionId(), ccsm.authenticatedSubject(), nodeId,
                 new VirtualClusterRequestSource(ccsm),

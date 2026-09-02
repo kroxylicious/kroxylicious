@@ -11,8 +11,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 /**
  * A position in the routing/filter tree, from the top-level virtual cluster down to wherever a
  * frame currently sits (or, for an internally-issued request, down to the specific filter or
@@ -20,27 +18,29 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <p>
  * Represented as a self-recursive cons-list: the element you're holding (e.g. a response's own
  * path, or a route filter's own position) is the head, and {@link #parent()} walks back toward
- * the top-level virtual cluster, terminating at {@code null}. Building a child position is just
- * constructing the appropriate case with the parent element as {@code parent}.
+ * the top-level virtual cluster, terminating at {@link ClientOrigin}. Building a child position is
+ * just constructing the appropriate case with the parent element as {@code parent}.
  * Because every case is a record, {@code equals}/{@code
  * hashCode} are structural (recursing through {@code parent}), so exact-match and ancestor-match
  * both reduce to plain comparisons.
  * <p>
- * Only {@link Route} may ever appear as another element's {@link #parent()}: a {@link
- * FilterOrigin} or {@link RouterOrigin} always sits directly on a route, awaiting a promise -
- * nothing is ever layered on top of one of these in turn. This is enforced by every
- * constructor's {@code parent} parameter being typed {@link Route}, not {@code PathElement}.
+ * Only a {@link RoutePosition} ({@link Route} or {@link ClientOrigin}) may ever appear as another
+ * element's {@link #parent()}: a {@link FilterOrigin} or {@link RouterOrigin} always sits directly
+ * on a route (or, for a VC-level filter, the client origin), awaiting a promise - nothing is ever
+ * layered on top of one of these in turn. This is enforced by every constructor's {@code parent}
+ * parameter being typed {@link RoutePosition} (or, for {@link RouterOrigin}, {@link Route} itself,
+ * since a router only ever issues an out-of-band request against a concrete named route), never
+ * {@code PathElement}.
  */
 public sealed interface PathElement {
 
     /**
      * The route this element sits on, or the next element toward the top-level virtual cluster,
-     * or {@code null} if this is the outermost element.
+     * or {@link ClientOrigin} if this is the outermost element.
      *
-     * @return the parent route, or {@code null}
+     * @return the parent position
      */
-    @Nullable
-    Route parent();
+    RoutePosition parent();
 
     /**
      * True if {@code this} is {@code other}, or lies on its ancestor chain (walked via {@link #parent()}).
@@ -49,12 +49,14 @@ public sealed interface PathElement {
      * @return {@code true} if {@code this} is an ancestor of (or the same as) {@code other}
      */
     default boolean isAncestorOfOrSameAs(PathElement other) {
-        for (PathElement p = other; p != null; p = p.parent()) {
+        for (PathElement p = other;; p = p.parent()) {
             if (p.equals(this)) {
                 return true;
             }
+            if (p instanceof ClientOrigin) {
+                return false;
+            }
         }
-        return false;
     }
 
     /**
@@ -70,6 +72,7 @@ public sealed interface PathElement {
             case FilterOrigin f -> Optional.of(f.promise());
             case RouterOrigin r -> Optional.of(r.promise());
             case Route ignored -> Optional.empty();
+            case ClientOrigin ignored -> Optional.empty();
         };
     }
 
@@ -81,7 +84,10 @@ public sealed interface PathElement {
      */
     default String describe() {
         Deque<PathElement> rootToLeaf = new ArrayDeque<>();
-        for (PathElement p = this; p != null; p = p.parent()) {
+        for (PathElement p = this;; p = p.parent()) {
+            if (p instanceof ClientOrigin) {
+                break;
+            }
             rootToLeaf.addFirst(p);
         }
         return rootToLeaf.stream()
@@ -89,24 +95,26 @@ public sealed interface PathElement {
                     case Route r -> r.name();
                     case FilterOrigin f -> f.name() + "[" + f.ordinal() + "]";
                     case RouterOrigin ignored -> "<router>";
+                    case ClientOrigin ignored -> throw new AssertionError("unreachable: ClientOrigin is filtered out by the walk above");
                 })
                 .collect(Collectors.joining("/"));
     }
 
     /**
-     * This element's own position in the route tree: for a {@link Route}, itself; for a {@link
-     * FilterOrigin} or {@link RouterOrigin}, the route it sits on ({@link #parent()}). Replaces
-     * the "strip the out-of-band leaf to get the route" logic that would otherwise need to be
-     * duplicated at each call site that needs a frame's route position regardless of whether a
-     * filter/router happens to be awaiting a promise on top of it.
+     * This element's own position in the route tree: for a {@link RoutePosition}, itself; for a
+     * {@link FilterOrigin} or {@link RouterOrigin}, the route (or client origin) it sits on
+     * ({@link #parent()}). Replaces the "strip the out-of-band leaf to get the route" logic that
+     * would otherwise need to be duplicated at each call site that needs a frame's route position
+     * regardless of whether a filter/router happens to be awaiting a promise on top of it.
      *
-     * @return this element's own route position, or {@code null} if it is a bare top-level element
+     * @return this element's own route position
      */
-    default @Nullable Route routePosition() {
+    default RoutePosition routePosition() {
         return switch (this) {
             case Route r -> r;
             case FilterOrigin f -> f.parent();
             case RouterOrigin r -> r.parent();
+            case ClientOrigin c -> c;
         };
     }
 
@@ -117,8 +125,8 @@ public sealed interface PathElement {
      * replaced by {@code newPosition} - preserving the element's own identity (name, ordinal,
      * promise) so it can still be recognized as its issuer's own request once a route is resolved
      * beneath it;</li>
-     * <li>for a {@link Route}, simply returns {@code newPosition}, since a bare route
-     * carries no identity beyond its position.</li>
+     * <li>for a {@link RoutePosition}, simply returns {@code newPosition}, since a bare route (or
+     * the client origin) carries no identity beyond its position.</li>
      * </ul>
      * <p>Callers must handle a {@code null} original path
      * themselves, since this is an instance method and {@code this} can never be null.
@@ -131,7 +139,17 @@ public sealed interface PathElement {
             case FilterOrigin f -> new FilterOrigin(f.name(), f.ordinal(), f.promise(), newPosition);
             case RouterOrigin r -> new RouterOrigin(r.promise(), newPosition);
             case Route ignored -> newPosition;
+            case ClientOrigin ignored -> newPosition;
         };
+    }
+
+    /**
+     * A position that a {@link FilterOrigin} or {@link RouterOrigin} may sit on, or that a
+     * {@link Route} may chain to as its own {@link #parent()}: either a further {@link Route}
+     * toward the top-level virtual cluster, or {@link ClientOrigin}, the root. Excludes
+     * {@link FilterOrigin}/{@link RouterOrigin} from ever being a parent, in turn.
+     */
+    sealed interface RoutePosition extends PathElement permits Route, ClientOrigin {
     }
 
     /**
@@ -140,9 +158,9 @@ public sealed interface PathElement {
      * own position sits on top of.
      *
      * @param name the route's own (unqualified) name at this nesting level
-     * @param parent the next element toward the top-level virtual cluster, or {@code null}
+     * @param parent the next element toward the top-level virtual cluster
      */
-    record Route(String name, @Nullable Route parent) implements PathElement {
+    record Route(String name, RoutePosition parent) implements RoutePosition {
         @Override
         public String toString() {
             return describe();
@@ -151,19 +169,22 @@ public sealed interface PathElement {
 
     /**
      * A specific filter instance's own position: an internally-issued request made by the filter
-     * named by {@code name}, on the route named by {@code parent()}, awaiting {@code promise}.
+     * named by {@code name}, awaiting {@code promise}. Sits on the route named by {@code parent()}
+     * if route-scoped, or directly on {@link ClientOrigin} if this filter applies at the
+     * virtual-cluster level.
      *
      * @param name the filter's configured name
      * @param ordinal the filter's position within its route's filter list, disambiguating
      *        two filters that happen to share a name
      * @param promise the promise to complete when the response arrives
-     * @param parent the route this filter is installed on
+     * @param parent the route this filter is installed on, or {@link ClientOrigin} if it is
+     *        installed at the virtual-cluster level
      */
     record FilterOrigin(
                         String name,
                         int ordinal,
                         CompletableFuture<?> promise,
-                        @Nullable Route parent)
+                        RoutePosition parent)
             implements PathElement {
         @Override
         public String toString() {
@@ -172,16 +193,40 @@ public sealed interface PathElement {
     }
 
     /**
-     * A router's own position: an internally-issued request made by the router itself, at the
-     * route level named by {@code parent()}, awaiting {@code promise}.
+     * A router's own position: an internally-issued request made by the router itself, awaiting
+     * {@code promise}. {@code parent()} is always a concrete {@link Route} - routing an
+     * out-of-band request always targets a named route, never the bare client origin.
      *
      * @param promise the promise to complete when the response arrives
      * @param parent the route level this router is installed at
      */
     record RouterOrigin(
                         CompletableFuture<?> promise,
-                        @Nullable Route parent)
+                        Route parent)
             implements PathElement {
+        @Override
+        public String toString() {
+            return describe();
+        }
+    }
+
+    /**
+     * The root of every path: the top-level virtual cluster, before any route or out-of-band
+     * request has been layered on top. Replaces {@code null} as the terminal ancestor so the root
+     * is a real, self-describing case instead of a sentinel that every walk and equality check has
+     * to special-case - e.g. a VC-level filter's {@code parent()} is {@code ClientOrigin.INSTANCE}
+     * rather than {@code null}, so {@link #isAncestorOfOrSameAs} treats "applies at the
+     * virtual-cluster level" as "is an ancestor of everything" with no special-casing.
+     */
+    record ClientOrigin() implements RoutePosition {
+
+        public static final ClientOrigin INSTANCE = new ClientOrigin();
+
+        @Override
+        public RoutePosition parent() {
+            return this;
+        }
+
         @Override
         public String toString() {
             return describe();

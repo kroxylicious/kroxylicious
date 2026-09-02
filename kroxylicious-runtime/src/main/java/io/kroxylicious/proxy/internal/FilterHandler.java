@@ -171,13 +171,14 @@ public class FilterHandler extends ChannelDuplexHandler {
      * {@link Filter} object identity - and deliberately excludes the promise carried on the
      * candidate leaf, since a fresh promise is created for every {@code sendRequest()} call.
      * <p>
-     * A route-scoped handler (non-null {@link #ownRoutePath()}) requires that its own route lies
-     * on the candidate leaf's ancestor chain (an exact match, or an ancestor of it) - to
-     * disambiguate same-named filters on different routes, while tolerating further routing that
-     * may have extended the leaf's {@code parent()} beyond this filter's own route after the
-     * request was issued (e.g. the request's route itself targeting a nested router, whose own
-     * static or dynamic dispatch grafts a deeper route onto the same leaf - see
-     * {@code RoutingHandler.dispatchStaticRoute}). A VC-level (non-route-scoped) handler has
+     * A route-scoped handler requires that its own route lies on the candidate leaf's ancestor
+     * chain (an exact match, or an ancestor of it) - to disambiguate same-named filters on
+     * different routes, while tolerating further routing that may have extended the leaf's
+     * {@code parent()} beyond this filter's own route after the request was issued (e.g. the
+     * request's route itself targeting a nested router, whose own static or dynamic dispatch
+     * grafts a deeper route onto the same leaf - see {@code RoutingHandler.dispatchStaticRoute}). A
+     * VC-level (non-route-scoped) handler's {@link #ownRoutePath()} is {@link
+     * PathElement.ClientOrigin#INSTANCE}, which is trivially an ancestor of every path - it has
      * exactly one instance for the whole connection, so route position carries no identity for it
      * at all - it matches on name and ordinal alone.
      */
@@ -185,17 +186,17 @@ public class FilterHandler extends ChannelDuplexHandler {
         return msg.path() instanceof PathElement.FilterOrigin f
                 && f.name().equals(filterAndInvoker.filterName())
                 && f.ordinal() == ownOrdinal()
-                && (ownRoutePath() == null || ownRoutePath().isAncestorOfOrSameAs(f.parent()));
+                && ownRoutePath().isAncestorOfOrSameAs(f.parent());
     }
 
     /**
-     * This handler's own route position, or {@code null} if it is not route-scoped. Subclasses
-     * (see {@code RouteFilterHandler}) override this to identify out-of-band requests/responses
-     * as belonging to a specific route.
+     * This handler's own route position, or {@link PathElement.ClientOrigin#INSTANCE} if it is not
+     * route-scoped (in which case it is trivially an ancestor of every path, per
+     * {@link PathElement#isAncestorOfOrSameAs}). Subclasses (see {@code RouteFilterHandler})
+     * override this to identify out-of-band requests/responses as belonging to a specific route.
      */
-    @Nullable
-    PathElement.Route ownRoutePath() {
-        return null;
+    PathElement.RoutePosition ownRoutePath() {
+        return PathElement.ClientOrigin.INSTANCE;
     }
 
     /**

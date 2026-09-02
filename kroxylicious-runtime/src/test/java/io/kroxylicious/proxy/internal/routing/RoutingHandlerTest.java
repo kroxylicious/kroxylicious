@@ -67,7 +67,7 @@ class RoutingHandlerTest {
     private static final int CORRELATION_ID = 42;
     private static final String DEFAULT_ROUTE = "default";
     private static final String ACTIVATION_ROUTE = "route-to-nested";
-    private static final PathElement.Route ACTIVATION_ROUTE_PATH = new PathElement.Route(ACTIVATION_ROUTE, null);
+    private static final PathElement.Route ACTIVATION_ROUTE_PATH = new PathElement.Route(ACTIVATION_ROUTE, PathElement.ClientOrigin.INSTANCE);
     private static final String NESTED_ROUTER_NAME = "inner-router";
     private static final String VIRTUAL_CLUSTER = "test-cluster";
     private static final String SESSION_ID = "test-session";
@@ -146,7 +146,7 @@ class RoutingHandlerTest {
                 .setRequestApiVersion((short) 12)
                 .setCorrelationId(correlationId);
         var frame = new DecodedRequestFrame<>((short) 12, correlationId, true, header, new FetchRequestData());
-        frame.setPath(new PathElement.Route(routeName, null));
+        frame.setPath(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
         return frame;
     }
 
@@ -156,14 +156,14 @@ class RoutingHandlerTest {
                 .setRequestApiVersion((short) 9)
                 .setCorrelationId(correlationId);
         var frame = new DecodedRequestFrame<>((short) 9, correlationId, true, header, new ProduceRequestData());
-        frame.setPath(new PathElement.Route(routeName, null));
+        frame.setPath(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
         return frame;
     }
 
     private static OpaqueRequestFrame opaqueFrame(ApiKeys apiKey, int correlationId, String routeName) {
         var buf = Unpooled.buffer();
         var frame = new OpaqueRequestFrame(buf, apiKey.id, (short) 12, correlationId, false, 0, true);
-        frame.setPath(new PathElement.Route(routeName, null));
+        frame.setPath(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
         return frame;
     }
 
@@ -180,7 +180,8 @@ class RoutingHandlerTest {
                 .setRequestApiVersion((short) 9)
                 .setCorrelationId(correlationId);
         var frame = new InternalRequestFrame<>((short) 9, correlationId, true, header, new ProduceRequestData());
-        frame.setPath(new PathElement.FilterOrigin("test-filter", 0, promise, route == null ? null : new PathElement.Route(route, null)));
+        frame.setPath(new PathElement.FilterOrigin("test-filter", 0, promise,
+                route == null ? PathElement.ClientOrigin.INSTANCE : new PathElement.Route(route, PathElement.ClientOrigin.INSTANCE)));
         return frame;
     }
 
@@ -194,7 +195,7 @@ class RoutingHandlerTest {
                 .setRequestApiVersion((short) 9)
                 .setCorrelationId(correlationId);
         var frame = new InternalRequestFrame<>((short) 9, correlationId, true, header, new ProduceRequestData());
-        frame.setPath(new PathElement.RouterOrigin(promise, new PathElement.Route(route, null)));
+        frame.setPath(new PathElement.RouterOrigin(promise, new PathElement.Route(route, PathElement.ClientOrigin.INSTANCE)));
         return frame;
     }
 
@@ -269,7 +270,7 @@ class RoutingHandlerTest {
 
         // Then
         verify(ccsm).forwardToRoute(DEFAULT_ROUTE, frame);
-        assertThat(frame.path()).isEqualTo(new PathElement.Route(DEFAULT_ROUTE, null));
+        assertThat(frame.path()).isEqualTo(new PathElement.Route(DEFAULT_ROUTE, PathElement.ClientOrigin.INSTANCE));
     }
 
     @Test
@@ -288,7 +289,8 @@ class RoutingHandlerTest {
         // replace it) so the response can still be recognised as this filter's own
         InternalRequestFrame<?> forwarded = channel.readInbound();
         assertThat(forwarded).isNotNull();
-        assertThat(forwarded.path()).isEqualTo(new PathElement.FilterOrigin("test-filter", 0, promise, new PathElement.Route(DEFAULT_ROUTE, null)));
+        assertThat(forwarded.path())
+                .isEqualTo(new PathElement.FilterOrigin("test-filter", 0, promise, new PathElement.Route(DEFAULT_ROUTE, PathElement.ClientOrigin.INSTANCE)));
         verify(router, never()).onRequest(any(), anyShort(), any(), any(), any());
     }
 
@@ -443,7 +445,7 @@ class RoutingHandlerTest {
         var handler = topLevelHandler(Map.of());
         channel = new EmbeddedChannel(handler);
         var strayPath = new PathElement.RouterOrigin(new CompletableFuture<>(),
-                new PathElement.Route("route-a", new PathElement.Route("outer", null)));
+                new PathElement.Route("route-a", new PathElement.Route("outer", PathElement.ClientOrigin.INSTANCE)));
         var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, new ResponseHeaderData(), new MetadataResponseData());
         responseFrame.setPath(strayPath);
 

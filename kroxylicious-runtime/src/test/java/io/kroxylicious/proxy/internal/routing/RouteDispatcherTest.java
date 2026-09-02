@@ -83,7 +83,8 @@ class RouteDispatcherTest {
                         routes.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id())),
                         routes.size());
         Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
-        var dispatcher = new RouteDispatcher(routes, mapping, qualificationPrefix, null, correlationIdAllocator, routerNodeAddresses, "test-cluster");
+        var dispatcher = new RouteDispatcher(routes, mapping, qualificationPrefix, PathElement.ClientOrigin.INSTANCE, correlationIdAllocator, routerNodeAddresses,
+                "test-cluster");
         dispatcher.setContext(ctx);
         return dispatcher;
     }
@@ -127,7 +128,7 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
         assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
-                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", null)));
+                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -143,7 +144,7 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
         assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
-                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route("r1", null)));
+                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route("r1", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -178,7 +179,7 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired.path())
                 .as("no response expected, so no promise-bearing leaf is attached")
-                .isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", null));
+                .isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE));
     }
 
     // --- sendToSpecificNode ---
@@ -209,7 +210,7 @@ class RouteDispatcherTest {
         assertThat(fired).isNotNull();
         assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
         assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
-                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", null)));
+                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -226,7 +227,7 @@ class RouteDispatcherTest {
         assertThat(fired).isNotNull();
         assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
         assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
-                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/nested", null)));
+                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/nested", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -330,7 +331,7 @@ class RouteDispatcherTest {
                 Map.of("r1", clusterRoute("r1", 0)),
                 new IdentityNodeIdMapping("r1"),
                 ROUTER_NAME + "/",
-                null,
+                PathElement.ClientOrigin.INSTANCE,
                 correlationIdAllocator,
                 new HashMap<>(),
                 "test-cluster");
@@ -577,6 +578,6 @@ class RouteDispatcherTest {
         var routePath = dispatcher.routePathFor("route");
 
         // Then
-        assertThat(routePath).isEqualTo(new PathElement.Route("prefix/route", null));
+        assertThat(routePath).isEqualTo(new PathElement.Route("prefix/route", PathElement.ClientOrigin.INSTANCE));
     }
 }

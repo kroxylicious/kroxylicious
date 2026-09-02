@@ -51,8 +51,8 @@ import static org.mockito.Mockito.when;
 
 class RouteFilterHandlerTest {
 
-    private static final PathElement.Route ROUTE_A = new PathElement.Route("route-a", null);
-    private static final PathElement.Route ROUTE_B = new PathElement.Route("route-b", null);
+    private static final PathElement.Route ROUTE_A = new PathElement.Route("route-a", PathElement.ClientOrigin.INSTANCE);
+    private static final PathElement.Route ROUTE_B = new PathElement.Route("route-b", PathElement.ClientOrigin.INSTANCE);
 
     private EmbeddedChannel channel;
 

@@ -32,7 +32,7 @@ import static org.mockito.Mockito.verify;
 class RoutingTerminalHandlerTest {
 
     private static final int CORRELATION_ID = 42;
-    private static final PathElement.Route ROUTE_A = new PathElement.Route("route-a", null);
+    private static final PathElement.Route ROUTE_A = new PathElement.Route("route-a", PathElement.ClientOrigin.INSTANCE);
 
     @Mock
     private ClientConnectionStateMachine ccsm;

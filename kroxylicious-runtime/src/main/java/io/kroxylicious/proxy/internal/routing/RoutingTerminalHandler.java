@@ -47,8 +47,8 @@ public class RoutingTerminalHandler extends ChannelDuplexHandler {
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof Frame frame) {
             PathElement path = frame.path();
-            PathElement.Route route = path == null ? null : path.routePosition();
-            if (route == null) {
+            PathElement.RoutePosition position = path == null ? null : path.routePosition();
+            if (!(position instanceof PathElement.Route route)) {
                 ccsm.onClientFilterChainComplete(msg);
                 return;
             }

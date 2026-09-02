@@ -1440,7 +1440,7 @@ class FilterHandlerTest extends FilterHarness {
         var responseHeader = new ResponseHeaderData().setCorrelationId(42);
         var frame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, responseHeader, responseData);
         // Addressed to some other (non-recipient) filter, so this handler observes it via onResponse.
-        frame.setPath(new PathElement.FilterOrigin("dummy-recipient", 0, new CompletableFuture<>(), null));
+        frame.setPath(new PathElement.FilterOrigin("dummy-recipient", 0, new CompletableFuture<>(), PathElement.ClientOrigin.INSTANCE));
 
         // When
         assertThat(channel.writeOneOutbound(frame).cause()).isNull();
