@@ -31,11 +31,13 @@ import static org.openrewrite.maven.Assertions.pomXml;
 class UseKroxylicious0_24DependenciesTest implements RewriteTest {
 
     private static final Pattern POM_PATTERN = Pattern.compile(".*/(?<artifactId>[^/]+)/(?<version>0\\.\\d+\\.\\d+)/\\k<artifactId>-\\k<version>\\.pom");
+    private static final Pattern METADATA_PATTERN = Pattern.compile(".*/(?<artifactId>[^/]+)/maven-metadata.xml");
+
     private static final String V0_24_0_METADATA = """
             <?xml version="1.0" encoding="UTF-8"?>
             <metadata>
               <groupId>io.kroxylicious</groupId>
-              <artifactId>kroxylicious-api</artifactId>
+              <artifactId>%s</artifactId>
               <versioning>
                 <latest>0.24.0</latest>
                 <release>0.24.0</release>
@@ -46,11 +48,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
               </versioning>
             </metadata>
             """;
+
     private static final String V0_24_1_METADATA = """
             <?xml version="1.0" encoding="UTF-8"?>
             <metadata>
               <groupId>io.kroxylicious</groupId>
-              <artifactId>kroxylicious-api</artifactId>
+              <artifactId>%s</artifactId>
               <versioning>
                 <latest>0.24.1</latest>
                 <release>0.24.1</release>
@@ -67,29 +70,13 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
             <?xml version="1.0" encoding="UTF-8"?>
             <metadata>
               <groupId>io.kroxylicious</groupId>
-              <artifactId>kroxylicious-api</artifactId>
+              <artifactId>%s</artifactId>
               <versioning>
                 <latest>0.25.0</latest>
                 <release>0.25.0</release>
                 <versions>
                   <version>0.23.0</version>
                   <version>0.25.0</version>
-                </versions>
-              </versioning>
-            </metadata>
-            """;
-
-    private static final String BOM_V0_24_0_METADATA = """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <metadata>
-              <groupId>io.kroxylicious</groupId>
-              <artifactId>kroxylicious-bom</artifactId>
-              <versioning>
-                <latest>0.24.0</latest>
-                <release>0.24.0</release>
-                <versions>
-                  <version>0.23.0</version>
-                  <version>0.24.0</version>
                 </versions>
               </versioning>
             </metadata>
@@ -103,13 +90,10 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
 
             String requestPath = request.getUrl().getPath();
             Matcher versionedPomMatcher = POM_PATTERN.matcher(requestPath);
-
-            if (requestPath.contains("io/kroxylicious/kroxylicious-api/maven-metadata.xml")) {
-                return new HttpSender.Response(200, new ByteArrayInputStream(metadataXml.getBytes(StandardCharsets.UTF_8)), () -> {
-                });
-            }
-            else if (requestPath.contains("io/kroxylicious/kroxylicious-bom/maven-metadata.xml")) {
-                return new HttpSender.Response(200, new ByteArrayInputStream(BOM_V0_24_0_METADATA.getBytes(StandardCharsets.UTF_8)), () -> {
+            Matcher mmetadataMatcher = METADATA_PATTERN.matcher(requestPath);
+            if (mmetadataMatcher.matches()) {
+                String artifactId = mmetadataMatcher.group("artifactId");
+                return new HttpSender.Response(200, new ByteArrayInputStream(metadataXml.formatted(artifactId).getBytes(StandardCharsets.UTF_8)), () -> {
                 });
             }
             else if (versionedPomMatcher.matches()) {
@@ -121,12 +105,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                      xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                 <modelVersion>4.0.0</modelVersion>
-                            
+
                                 <groupId>io.kroxylicious</groupId>
                                 <artifactId>kroxylicious-bom</artifactId>
                                 <version>%s</version>
                                 <packaging>pom</packaging>
-                            
+
                                 <dependencyManagement>
                                     <dependencies>
                                         <dependency>
@@ -169,12 +153,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -191,12 +175,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -220,12 +204,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -242,12 +226,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -271,16 +255,16 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <properties>
                                         <kroxylicious.version>0.23.0</kroxylicious.version>
                                     </properties>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -297,16 +281,16 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <properties>
                                         <kroxylicious.version>0.24.0</kroxylicious.version>
                                     </properties>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -330,12 +314,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <dependencyManagement>
                                         <dependencies>
                                             <dependency>
@@ -346,7 +330,7 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                             </dependency>
                                         </dependencies>
                                     </dependencyManagement>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -362,12 +346,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <dependencyManagement>
                                         <dependencies>
                                             <dependency>
@@ -378,7 +362,7 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                             </dependency>
                                         </dependencies>
                                     </dependencyManagement>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -401,12 +385,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -423,12 +407,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -452,12 +436,12 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                                     <modelVersion>4.0.0</modelVersion>
-                                
+
                                     <groupId>com.example</groupId>
                                     <artifactId>rewrite-victim</artifactId>
                                     <packaging>jar</packaging>
                                     <version>0.0.1-SNAPSHOT</version>
-                                
+
                                     <dependencies>
                                         <dependency>
                                             <groupId>io.kroxylicious</groupId>
@@ -477,16 +461,16 @@ class UseKroxylicious0_24DependenciesTest implements RewriteTest {
                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
                     <modelVersion>4.0.0</modelVersion>
-                
+
                     <parent>
                         <groupId>io.kroxylicious</groupId>
                         <artifactId>kroxylicious-parent</artifactId>
                         <version>%s</version>
                         <relativePath>../pom.xml</relativePath>
                     </parent>
-                
+
                     <artifactId>%s</artifactId>
-                
+
                 </project>
                 """.formatted(expectedVersion, expectedArtifact)
                 .getBytes(StandardCharsets.UTF_8);
