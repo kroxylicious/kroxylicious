@@ -86,6 +86,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private static final String LOG_KEY_API_KEY = "apiKey";
     private static final String LOG_KEY_SESSION_ID = "sessionId";
     private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
+    public static final String LOG_KEY_ROUTE = "route";
 
     // --- Configuration ---
 
@@ -313,7 +314,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                 .addKeyValue(LOG_KEY_API_KEY, apiKey)
-                .addKeyValue("route", routePath.describe())
+                .addKeyValue(LOG_KEY_ROUTE, routePath)
                 .addKeyValue("routingMode", "static")
                 .log("Request forwarded via static route");
     }

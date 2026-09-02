@@ -72,6 +72,7 @@ public class RouteDispatcher implements RouterDispatch {
     private static final String LOG_KEY_TARGET_NODE_ID = "targetNodeId";
     private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
     private static final String LOG_KEY_SESSION_ID = "sessionId";
+    public static final String LOG_KEY_ROUTE = "route";
 
     private final Map<String, RouteDescriptor> routes;
     private final NodeIdMapping nodeIdMapping;
@@ -210,7 +211,7 @@ public class RouteDispatcher implements RouterDispatch {
                                                           ApiMessage request,
                                                           String sessionId,
                                                           int clientCorrelationId) {
-        return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId));
+        return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId));
     }
 
     private CompletableFuture<ApiMessage> doSendToAnyNode(String route, RequestHeaderData header, ApiMessage request, String sessionId,
@@ -228,8 +229,7 @@ public class RouteDispatcher implements RouterDispatch {
                                                                String route,
                                                                RequestHeaderData header,
                                                                ApiMessage request,
-                                                               String sessionId,
-                                                               int clientCorrelationId) {
+                                                               String sessionId) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null) {
             withNodeContext(LOGGER.atWarn(), sessionId, route, targetNodeId)
@@ -283,12 +283,11 @@ public class RouteDispatcher implements RouterDispatch {
 
     ResponseOutcome handleResponse(DecodedResponseFrame<?> frame, String sessionId) {
         PathElement path = frame.path();
-        if (path instanceof PathElement.RouterOrigin router
-                && router.parent() != null
-                && Objects.equals(router.parent().parent(), parentPath)) {
-            PathElement.Route routeSegment = router.parent();
+        if (path instanceof PathElement.RouterOrigin(CompletableFuture<?> promise, PathElement.Route routeSegment)
+                && routeSegment != null
+                && Objects.equals(routeSegment.parent(), parentPath)) {
             @SuppressWarnings("unchecked")
-            CompletableFuture<ApiMessage> future = (CompletableFuture<ApiMessage>) router.promise();
+            CompletableFuture<ApiMessage> future = (CompletableFuture<ApiMessage>) promise;
             pendingPromises.remove(future);
             ApiMessage body = frame.body();
             try {
@@ -309,7 +308,7 @@ public class RouteDispatcher implements RouterDispatch {
             LOGGER.atTrace()
                     .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                     .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                    .addKeyValue("route", routeSegment.name())
+                    .addKeyValue(LOG_KEY_ROUTE, routeSegment.name())
                     .log("Routed response matched to pending request");
             return ResponseOutcome.CONSUMED;
         }
@@ -358,7 +357,8 @@ public class RouteDispatcher implements RouterDispatch {
     // FutureReturnValueIgnored: a synchronous throw from work.get() is caught and
     // propagated to `bridge`, so the submitted task cannot complete exceptionally and the
     // whenComplete callback completes `bridge` in both branches.
-    @SuppressWarnings("FutureReturnValueIgnored")
+    // resource: executor is owned by the context
+    @SuppressWarnings({ "FutureReturnValueIgnored", "resource" })
     private <T> CompletionStage<T> executeOnEventLoop(Supplier<CompletableFuture<T>> work) {
         var executor = Objects.requireNonNull(ctx, "sendRequest called before handlerAdded").executor();
         if (executor.inEventLoop()) {
@@ -405,7 +405,7 @@ public class RouteDispatcher implements RouterDispatch {
     private LoggingEventBuilder withSendContext(LoggingEventBuilder event, String sessionId, String route, int clientCorrelationId) {
         return event.addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                .addKeyValue("route", route)
+                .addKeyValue(LOG_KEY_ROUTE, route)
                 .addKeyValue("clientCorrelationId", clientCorrelationId);
     }
 
@@ -413,6 +413,6 @@ public class RouteDispatcher implements RouterDispatch {
         return event.addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                 .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
-                .addKeyValue("route", route);
+                .addKeyValue(LOG_KEY_ROUTE, route);
     }
 }

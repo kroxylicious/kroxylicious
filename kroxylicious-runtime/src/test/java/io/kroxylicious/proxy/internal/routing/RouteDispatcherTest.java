@@ -54,7 +54,6 @@ class RouteDispatcherTest {
     private static final int ROUTING_CORRELATION_ID = 100;
 
     private EmbeddedChannel channel;
-    private NodeIdMapping lastCreatedMapping;
 
     @Mock
     private CorrelationIdAllocator correlationIdAllocator;
@@ -83,7 +82,6 @@ class RouteDispatcherTest {
                 : new BijectiveNodeIdMapping(
                         routes.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id())),
                         routes.size());
-        lastCreatedMapping = mapping;
         Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
         var dispatcher = new RouteDispatcher(routes, mapping, qualificationPrefix, null, correlationIdAllocator, routerNodeAddresses, "test-cluster");
         dispatcher.setContext(ctx);
