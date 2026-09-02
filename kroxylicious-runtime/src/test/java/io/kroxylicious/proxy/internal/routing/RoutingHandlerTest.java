@@ -436,6 +436,26 @@ class RoutingHandlerTest {
     }
 
     @Test
+    void topLevel_shouldCloseChannelWhenRouterIssuedResponseIsUnclaimed() {
+        // Given: a RouterOrigin whose route lineage doesn't match this (top-level, parentPath =
+        // null) dispatcher - as if a router-issued out-of-band request's response arrived without
+        // any level having claimed it
+        var handler = topLevelHandler(Map.of());
+        channel = new EmbeddedChannel(handler);
+        var strayPath = new PathElement.RouterOrigin(new CompletableFuture<>(),
+                new PathElement.Route("route-a", new PathElement.Route("outer", null)));
+        var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, new ResponseHeaderData(), new MetadataResponseData());
+        responseFrame.setPath(strayPath);
+
+        // When
+        channel.writeOutbound(responseFrame);
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+        assertThat((DecodedResponseFrame<?>) channel.readOutbound()).isNull();
+    }
+
+    @Test
     void topLevel_shouldDeliverResponseBeforeClosingChannelWhenRespondWithAndCloseConnection() {
         // Given
         when(router.onRequest(any(), anyShort(), any(), any(), any()))

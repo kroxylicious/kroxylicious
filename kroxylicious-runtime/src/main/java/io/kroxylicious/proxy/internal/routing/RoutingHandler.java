@@ -712,14 +712,32 @@ public class RoutingHandler extends ChannelDuplexHandler {
     @SuppressWarnings("FutureReturnValueIgnored")
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        // No defensive "unhandled response with a routing-range id" check is needed any more:
-        // a router-issued request's promise is carried directly on its own frame's path, reachable
-        // only through that frame, so there's no separate id-keyed lookup step left to miss. And no
-        // per-hop route retagging is needed either - the path was already correct (full lineage
-        // included) when it was set once, at dispatch time.
+        // No per-hop route retagging is needed any more - the path was already correct (full
+        // lineage included) when it was set once, at dispatch time.
         if (msg instanceof DecodedResponseFrame<?> frame) {
             RouteDispatcher.ResponseOutcome outcome = dispatcher.handleResponse(frame, sessionId);
             if (outcome == RouteDispatcher.ResponseOutcome.CONSUMED) {
+                promise.setSuccess();
+                return;
+            }
+            // Fail-closed safety net, mirroring the old correlation-id-range defensive close: a
+            // router-issued out-of-band request's RouterOrigin leaf is only ever stripped by the
+            // dispatcher level that issued it (see RouteDispatcher.handleResponse). If one is still
+            // present once the response reaches the top level, no level claimed it - rather than
+            // forward a bare internal frame toward the client, close the connection. Scoped to
+            // RouterOrigin only (not FilterOrigin): a FilterOrigin destined for a VC-level filter
+            // legitimately still carries its leaf at this point, since VC-level filters sit above
+            // (client-side of) the top-level router and haven't had a chance to claim it yet.
+            if (outcome == RouteDispatcher.ResponseOutcome.UNHANDLED
+                    && requestSource instanceof VirtualClusterRequestSource
+                    && frame.path() instanceof PathElement.RouterOrigin) {
+                LOGGER.atWarn()
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                        .addKeyValue("path", frame.path())
+                        .log("Received router-issued out-of-band response with no pending promise; closing connection");
+                frame.release();
+                ctx.channel().close().addListener(logFailure(LOGGER, "close after out-of-band response with no pending promise"));
                 promise.setSuccess();
                 return;
             }
