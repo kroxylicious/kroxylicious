@@ -64,11 +64,11 @@ You'll need the following software installed:
 == Start Minikube
 
 We'll use a Minikube profile to keep it separate from any other work you are doing in Minikube.
-We use a profile called `quickstart-nnnnn`
+We use a profile called `quickstart-nnnnn` (if you already have `MINIKUBE_PROFILE` set, that profile is used instead).
 
 [source,terminal]
 ----
-$ export MINIKUBE_PROFILE=quickstart-${RANDOM}
+$ export MINIKUBE_PROFILE=${MINIKUBE_PROFILE:-quickstart-${RANDOM}}
 ----
 
 Let's get the Kubernetes Cluster up and running.  Minikube defaults work just fine for this quickstart.
