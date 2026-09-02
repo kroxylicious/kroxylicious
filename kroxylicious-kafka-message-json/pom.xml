@@ -155,7 +155,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
-                    <excludePackageNames>io.kroxylicious.kafka:io.kroxylicious.kafka.*</excludePackageNames>
+                    <excludePackageNames>io.kroxylicious.kafka.common:io.kroxylicious.kafka.common.*</excludePackageNames>
                 </configuration>
             </plugin>
             <plugin>
