@@ -16,7 +16,7 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 /**
  * A decoded response frame answering a request that was sent out-of-band by a {@link Filter} or a
  * router, rather than originating from the downstream client. Its recipient identity and the
- * promise to complete are carried by this frame's {@link #path()} (see
+ * promise to complete are carried by this frame's {@link #routing()} (see
  * {@link io.kroxylicious.proxy.frame.PathElement#pendingPromise()}).
  * @param <B> the type of the response body
  */
@@ -24,7 +24,7 @@ public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponse
 
     /**
      * Creates an internal response frame. The recipient identity and promise to complete are
-     * carried by this frame's {@link #path()}, which callers must set (via {@link #setPath})
+     * carried by this frame's {@link #routing()}, which callers must set (via {@link #setRouting})
      * immediately after construction.
      * @param apiVersion the API version of the response
      * @param correlationId the correlation id of the response
@@ -40,15 +40,15 @@ public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponse
      * @return the promise
      */
     public CompletableFuture<?> promise() {
-        return Objects.requireNonNull(path(), "InternalResponseFrame has no path set")
+        return Objects.requireNonNull(routing(), "InternalResponseFrame has no routing set")
                 .pendingPromise()
-                .orElseThrow(() -> new IllegalStateException("InternalResponseFrame's path does not carry a promise: " + path()));
+                .orElseThrow(() -> new IllegalStateException("InternalResponseFrame's routing does not carry a promise: " + routing()));
     }
 
     @Override
     public String toString() {
         return "InternalResponseFrame(" +
-                "path=" + path() +
+                "routing=" + routing() +
                 ", apiVersion=" + apiVersion +
                 ", correlationId=" + correlationId +
                 ", header=" + header +

@@ -69,7 +69,7 @@ class RouteFilterHandlerTest {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.forwardRequest(header, request);
         buildChannel(filter, ROUTE_A);
         var frame = decodedRequest(new ApiVersionsRequestData());
-        frame.setPath(ROUTE_A);
+        frame.setRouting(ROUTE_A);
 
         // When
         channel.writeInbound(frame);
@@ -86,7 +86,7 @@ class RouteFilterHandlerTest {
         };
         buildChannel(filter, ROUTE_A);
         var frame = decodedRequest(new ApiVersionsRequestData());
-        frame.setPath(ROUTE_B);
+        frame.setRouting(ROUTE_B);
 
         // When
         channel.writeInbound(frame);
@@ -117,7 +117,7 @@ class RouteFilterHandlerTest {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
         buildChannel(filter, ROUTE_A);
         var frame = decodedResponse(new ApiVersionsResponseData());
-        frame.setPath(ROUTE_A);
+        frame.setRouting(ROUTE_A);
 
         // When
         channel.writeOutbound(frame);
@@ -134,7 +134,7 @@ class RouteFilterHandlerTest {
         };
         buildChannel(filter, ROUTE_A);
         var frame = decodedResponse(new ApiVersionsResponseData());
-        frame.setPath(ROUTE_B);
+        frame.setRouting(ROUTE_B);
 
         // When
         channel.writeOutbound(frame);
@@ -153,7 +153,7 @@ class RouteFilterHandlerTest {
                 header.requestApiVersion(), header.correlationId(), false, header, new ApiVersionsRequestData());
         // Some other filter on route-a sent this - route membership alone should be enough
         // for this handler to process it (see C1/C6 in RouteFilterCorrectnessIT).
-        internalFrame.setPath(new PathElement.FilterOrigin("other-filter", 0, new CompletableFuture<>(), ROUTE_A));
+        internalFrame.setRouting(new PathElement.FilterOriginator("other-filter", 0, new CompletableFuture<>(), ROUTE_A));
 
         // When
         channel.writeInbound(internalFrame);
@@ -172,7 +172,7 @@ class RouteFilterHandlerTest {
         var header = requestHeader(new ApiVersionsRequestData());
         var internalFrame = new InternalRequestFrame<>(
                 header.requestApiVersion(), header.correlationId(), false, header, new ApiVersionsRequestData());
-        internalFrame.setPath(new PathElement.FilterOrigin("other-filter", 0, new CompletableFuture<>(), ROUTE_B));
+        internalFrame.setRouting(new PathElement.FilterOriginator("other-filter", 0, new CompletableFuture<>(), ROUTE_B));
 
         // When
         channel.writeInbound(internalFrame);
@@ -190,7 +190,7 @@ class RouteFilterHandlerTest {
         };
         buildChannel(filter, ROUTE_A);
         var frame = decodedRequest(new ApiVersionsRequestData());
-        frame.setPath(ROUTE_A);
+        frame.setRouting(ROUTE_A);
 
         // When
         channel.writeInbound(frame);
@@ -198,10 +198,10 @@ class RouteFilterHandlerTest {
         // Then
         InternalRequestFrame<?> internalFrame = channel.readInbound();
         assertThat(internalFrame).isNotNull();
-        assertThat(internalFrame.path()).isInstanceOfSatisfying(PathElement.FilterOrigin.class, f -> {
+        assertThat(internalFrame.routing()).isInstanceOfSatisfying(PathElement.FilterOriginator.class, f -> {
             assertThat(f.name()).isEqualTo(filter.getClass().getSimpleName());
             assertThat(f.ordinal()).isZero();
-            assertThat(f.parent()).isEqualTo(ROUTE_A);
+            assertThat(f.position()).isEqualTo(ROUTE_A);
         });
     }
 
@@ -213,7 +213,7 @@ class RouteFilterHandlerTest {
         var header = new ResponseHeaderData().setCorrelationId(42);
         var future = new CompletableFuture<>();
         var internalFrame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData());
-        internalFrame.setPath(new PathElement.FilterOrigin(filter.getClass().getSimpleName(), 0, future, ROUTE_A));
+        internalFrame.setRouting(new PathElement.FilterOriginator(filter.getClass().getSimpleName(), 0, future, ROUTE_A));
 
         // When
         channel.writeOutbound(internalFrame);
@@ -237,7 +237,7 @@ class RouteFilterHandlerTest {
         // Addressed to a different filter, but genuinely on this handler's own route: per C6 in
         // RouteFilterCorrectnessIT, this handler's filter must still see it via onResponse, but
         // must not complete a promise that isn't its own.
-        internalFrame.setPath(new PathElement.FilterOrigin("other-filter", 0, future, ROUTE_A));
+        internalFrame.setRouting(new PathElement.FilterOriginator("other-filter", 0, future, ROUTE_A));
 
         // When
         channel.writeOutbound(internalFrame);
@@ -257,7 +257,7 @@ class RouteFilterHandlerTest {
         var header = new ResponseHeaderData().setCorrelationId(42);
         var future = new CompletableFuture<>();
         var internalFrame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData());
-        internalFrame.setPath(new PathElement.FilterOrigin("other-filter", 0, future, ROUTE_B));
+        internalFrame.setRouting(new PathElement.FilterOriginator("other-filter", 0, future, ROUTE_B));
 
         // When
         channel.writeOutbound(internalFrame);
@@ -285,7 +285,7 @@ class RouteFilterHandlerTest {
         var future = new CompletableFuture<>();
         var internalFrame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, header, new ApiVersionsResponseData());
         // Same filter name, same route, but ordinal 0 - a different position than this handler's (1).
-        internalFrame.setPath(new PathElement.FilterOrigin(filter.getClass().getSimpleName(), 0, future, ROUTE_A));
+        internalFrame.setRouting(new PathElement.FilterOriginator(filter.getClass().getSimpleName(), 0, future, ROUTE_A));
 
         // When
         channel.writeOutbound(internalFrame);
@@ -304,7 +304,7 @@ class RouteFilterHandlerTest {
         buildChannel(filter, ROUTE_A);
         ByteBuf buffer = Unpooled.buffer();
         var opaqueFrame = new OpaqueRequestFrame(buffer, ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), 55, false, buffer.readableBytes(), false);
-        opaqueFrame.setPath(ROUTE_A);
+        opaqueFrame.setRouting(ROUTE_A);
 
         // When
         assertThat(channel.writeOneInbound(opaqueFrame).cause()).isNull();
@@ -322,7 +322,7 @@ class RouteFilterHandlerTest {
         ByteBuf buffer = Unpooled.buffer(4);
         buffer.writeInt(55);
         var opaqueFrame = new OpaqueResponseFrame(ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), buffer, 55, buffer.readableBytes());
-        opaqueFrame.setPath(ROUTE_B);
+        opaqueFrame.setRouting(ROUTE_B);
 
         // When
         channel.writeOutbound(opaqueFrame);

@@ -19,14 +19,14 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
  * A decoded request frame sent out-of-band by a {@link Filter} or a router, rather than
  * originating from the downstream client. The corresponding response is delivered to the
  * recipient as an {@link InternalResponseFrame} and completes the promise carried on this
- * frame's {@link #path()} (see {@link io.kroxylicious.proxy.frame.PathElement#pendingPromise()}).
+ * frame's {@link #routing()} (see {@link io.kroxylicious.proxy.frame.PathElement#pendingPromise()}).
  * @param <B> the type of the request body
  */
 public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFrame<B> {
 
     /**
      * Creates an internal request frame. The recipient identity and promise to complete are
-     * carried by this frame's {@link #path()}, which callers must set (via {@link #setPath}
+     * carried by this frame's {@link #routing()}, which callers must set (via {@link #setRouting}
      * immediately after construction, before this frame is fired into the pipeline.
      * @param apiVersion the API version of the request
      * @param correlationId the correlation id of the request
@@ -47,15 +47,15 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
      * @return the promise
      */
     public CompletableFuture<?> promise() {
-        return Objects.requireNonNull(path(), "InternalRequestFrame has no path set")
+        return Objects.requireNonNull(routing(), "InternalRequestFrame has no routing set")
                 .pendingPromise()
-                .orElseThrow(() -> new IllegalStateException("InternalRequestFrame's path does not carry a promise: " + path()));
+                .orElseThrow(() -> new IllegalStateException("InternalRequestFrame's routing does not carry a promise: " + routing()));
     }
 
     @Override
     protected DecodedResponseFrame<? extends ApiMessage> createResponseFrame(ResponseHeaderData header, ApiMessage message) {
         var response = new InternalResponseFrame<>(apiVersion, correlationId, header, message);
-        response.setPath(this.path());
+        response.setRouting(this.routing());
         return response;
     }
 }

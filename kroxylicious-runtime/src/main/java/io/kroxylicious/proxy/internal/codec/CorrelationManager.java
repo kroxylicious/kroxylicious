@@ -56,12 +56,11 @@ public class CorrelationManager {
      *                                (the client's own id for ordinary traffic, or the id
      *                                allocated for an internally-issued request).
      * @param hasResponse             Whether a response is expected.
-     * @param path                    The position in the routing/filter tree this request was
-     *                                sent from, or {@code null} if routing is not in use for this
-     *                                virtual cluster; restored onto the response so it can be
-     *                                observed by the same route's filters, and (via
-     *                                {@link PathElement#pendingPromise()}) delivered back to whichever
-     *                                filter or router issued it.
+     * @param routing                 This request's routing value, or {@code null} if routing is
+     *                                not in use for this virtual cluster; restored onto the
+     *                                response so it can be observed by the same route's filters,
+     *                                and (via {@link PathElement#pendingPromise()}) delivered back
+     *                                to whichever filter or router issued it.
      * @param decodeResponse          Whether the response should be decoded.
      * @return The allocated upstream correlation id.
      */
@@ -69,7 +68,7 @@ public class CorrelationManager {
                                 short apiVersion,
                                 int downstreamCorrelationId,
                                 boolean hasResponse,
-                                @Nullable PathElement path,
+                                @Nullable PathElement routing,
                                 boolean decodeResponse) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
@@ -79,7 +78,7 @@ public class CorrelationManager {
                 .log("Allocated upstream id for downstream id");
         if (hasResponse) {
             Correlation existing = this.brokerRequests.put(upstreamCorrelationId,
-                    new Correlation(apiKey, apiVersion, decodeResponse, downstreamCorrelationId, path));
+                    new Correlation(apiKey, apiVersion, decodeResponse, downstreamCorrelationId, routing));
             if (existing != null) {
                 LOGGER.atError()
                         .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
@@ -101,17 +100,17 @@ public class CorrelationManager {
 
     /**
      * A record for which responses should be decoded, together with their API key and version,
-     * the downstream correlation id to restore, and the path the originating request was sent
-     * from.
+     * the downstream correlation id to restore, and the routing value the originating request was
+     * sent with.
      *
      * @param apiKey the api key of the request
      * @param apiVersion the api version of the request
      * @param decodeResponse whether the response should be decoded
      * @param downstreamCorrelationId the downstream client's correlation id
-     * @param path the position in the routing/filter tree the request was sent from, or
-     *             {@code null} if routing is not in use for this virtual cluster
+     * @param routing the routing value the request was sent with, or {@code null} if routing is
+     *             not in use for this virtual cluster
      */
-    public record Correlation(short apiKey, short apiVersion, boolean decodeResponse, int downstreamCorrelationId, @Nullable PathElement path) {
+    public record Correlation(short apiKey, short apiVersion, boolean decodeResponse, int downstreamCorrelationId, @Nullable PathElement routing) {
 
         @Override
         public String toString() {
@@ -120,7 +119,7 @@ public class CorrelationManager {
                     ", apiVersion=" + apiVersion +
                     ", decodeResponse=" + decodeResponse +
                     ", downstreamCorrelationId=" + downstreamCorrelationId +
-                    ", path=" + path +
+                    ", routing=" + routing +
                     ')';
         }
     }

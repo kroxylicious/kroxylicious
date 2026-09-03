@@ -47,7 +47,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
     private @Nullable ObjectSerializationCache serializationCache;
-    private @Nullable PathElement path;
+    private @Nullable PathElement routing;
     private int targetVirtualNodeId = NO_TARGET_VIRTUAL_NODE_ID;
 
     DecodedFrame(short apiVersion, int correlationId, H header, B body) {
@@ -176,13 +176,13 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     }
 
     @Override
-    public @Nullable PathElement path() {
-        return path;
+    public @Nullable PathElement routing() {
+        return routing;
     }
 
     @Override
-    public void setPath(@Nullable PathElement path) {
-        this.path = path;
+    public void setRouting(@Nullable PathElement routing) {
+        this.routing = routing;
     }
 
     /**

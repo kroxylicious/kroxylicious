@@ -25,8 +25,9 @@ import static java.util.Objects.requireNonNull;
  * {@link ClientConnectionStateMachine} via the appropriate method.
  * <p>
  * On the outbound (response) path, backend responses arrive via the normal {@code channel.write()}
- * path, already carrying the correct path - restored directly from {@code CorrelationManager} at
- * decode time - so no bookkeeping is needed here; this handler is a pure pass-through outbound.
+ * path, already carrying the correct routing value - restored directly from
+ * {@code CorrelationManager} at decode time - so no bookkeeping is needed here; this handler is a
+ * pure pass-through outbound.
  */
 public class RoutingTerminalHandler extends ChannelDuplexHandler {
 
@@ -46,8 +47,8 @@ public class RoutingTerminalHandler extends ChannelDuplexHandler {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof Frame frame) {
-            PathElement path = frame.path();
-            PathElement.RoutePosition position = path == null ? null : path.routePosition();
+            PathElement routing = frame.routing();
+            PathElement.RoutePosition position = routing == null ? null : routing.routePosition();
             if (!(position instanceof PathElement.Route route)) {
                 ccsm.onClientFilterChainComplete(msg);
                 return;

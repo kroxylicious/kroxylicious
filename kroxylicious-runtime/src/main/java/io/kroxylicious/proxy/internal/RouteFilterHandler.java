@@ -19,9 +19,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A route-scoped {@link FilterHandler} that only applies its filter when the frame's
- * {@link Frame#path()} lies on this handler's own route (i.e. this route's position is an
- * ancestor of, or the same as, the frame's path). Frames on other routes (or with no routing
- * context) pass through unchanged.
+ * {@link Frame#routing()} lies on this handler's own route (i.e. this route's position is an
+ * ancestor of, or the same as, the frame's route position). Frames on other routes (or with no
+ * routing value) pass through unchanged.
  */
 class RouteFilterHandler extends FilterHandler {
 
@@ -74,7 +74,7 @@ class RouteFilterHandler extends FilterHandler {
     }
 
     private boolean matchesRoute(Object msg) {
-        return msg instanceof Frame f && f.path() != null && routePath.isAncestorOfOrSameAs(f.path());
+        return msg instanceof Frame f && f.routing() != null && routePath.isAncestorOfOrSameAs(f.routing());
     }
 
     @Override

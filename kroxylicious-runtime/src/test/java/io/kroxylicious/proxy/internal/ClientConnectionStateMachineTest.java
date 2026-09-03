@@ -1844,7 +1844,7 @@ class ClientConnectionStateMachineTest {
             assertThat(closedFuture).isNotCompleted();
             var routingFrame = new DecodedResponseFrame<>((short) 12, 0,
                     new ResponseHeaderData(), new MetadataResponseData());
-            routingFrame.setPath(new PathElement.RouterOrigin(new CompletableFuture<>(), new PathElement.Route("route-a", PathElement.ClientOrigin.INSTANCE)));
+            routingFrame.setRouting(new PathElement.RouterOriginator(new CompletableFuture<>(), new PathElement.Route("route-a", PathElement.ClientOrigin.INSTANCE)));
 
             // When
             clientConnectionStateMachine.onResponseFromServer(routingFrame);

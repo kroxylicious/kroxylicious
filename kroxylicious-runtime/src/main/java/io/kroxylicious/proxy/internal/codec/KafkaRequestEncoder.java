@@ -61,7 +61,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
                 apiVersion,
                 downstreamCorrelationId,
                 hasResponse,
-                frame.path(),
+                frame.routing(),
                 decodeResponse);
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);

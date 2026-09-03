@@ -127,8 +127,8 @@ class RouteDispatcherTest {
         // Then
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
-                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE)));
+        assertThat(fired.routing()).isInstanceOfSatisfying(PathElement.RouterOriginator.class,
+                router -> assertThat(router.position()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -143,8 +143,8 @@ class RouteDispatcherTest {
         // Then
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
-                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route("r1", PathElement.ClientOrigin.INSTANCE)));
+        assertThat(fired.routing()).isInstanceOfSatisfying(PathElement.RouterOriginator.class,
+                router -> assertThat(router.position()).isEqualTo(new PathElement.Route("r1", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -160,7 +160,7 @@ class RouteDispatcherTest {
         assertThat(future.toCompletableFuture()).isNotDone();
         DecodedRequestFrame<?> fired = channel.readInbound();
         var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, new ResponseHeaderData(), new FetchResponseData());
-        responseFrame.setPath(fired.path());
+        responseFrame.setRouting(fired.routing());
         assertThat(dispatcher.handleResponse(responseFrame, SESSION_ID)).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
         assertThat(future.toCompletableFuture()).isCompleted();
     }
@@ -177,8 +177,8 @@ class RouteDispatcherTest {
         // Then
         assertThat(future.toCompletableFuture()).isCompletedWithValue(null);
         DecodedRequestFrame<?> fired = channel.readInbound();
-        assertThat(fired.path())
-                .as("no response expected, so no promise-bearing leaf is attached")
+        assertThat(fired.routing())
+                .as("no response expected, so no promise-bearing originator is attached")
                 .isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE));
     }
 
@@ -209,8 +209,8 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
         assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
-        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
-                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE)));
+        assertThat(fired.routing()).isInstanceOfSatisfying(PathElement.RouterOriginator.class,
+                router -> assertThat(router.position()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -226,8 +226,8 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
         assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
-        assertThat(fired.path()).isInstanceOfSatisfying(PathElement.RouterOrigin.class,
-                router -> assertThat(router.parent()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/nested", PathElement.ClientOrigin.INSTANCE)));
+        assertThat(fired.routing()).isInstanceOfSatisfying(PathElement.RouterOriginator.class,
+                router -> assertThat(router.position()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/nested", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -243,7 +243,7 @@ class RouteDispatcherTest {
         assertThat(future.toCompletableFuture()).isNotDone();
         DecodedRequestFrame<?> fired = channel.readInbound();
         var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, new ResponseHeaderData(), new FetchResponseData());
-        responseFrame.setPath(fired.path());
+        responseFrame.setRouting(fired.routing());
         assertThat(dispatcher.handleResponse(responseFrame, SESSION_ID)).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
         assertThat(future.toCompletableFuture()).isCompleted();
     }
@@ -285,7 +285,7 @@ class RouteDispatcherTest {
                 .isNotEqualTo(eventLoopThread);
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.path()).isInstanceOf(PathElement.RouterOrigin.class);
+        assertThat(fired.routing()).isInstanceOf(PathElement.RouterOriginator.class);
     }
 
     @Test
@@ -310,7 +310,7 @@ class RouteDispatcherTest {
                 .isNotEqualTo(eventLoopThread);
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.path()).isInstanceOf(PathElement.RouterOrigin.class);
+        assertThat(fired.routing()).isInstanceOf(PathElement.RouterOriginator.class);
     }
 
     @Test
@@ -391,7 +391,7 @@ class RouteDispatcherTest {
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), new FetchResponseData());
-        responseFrame.setPath(fired.path());
+        responseFrame.setRouting(fired.routing());
 
         // When
         var outcome = dispatcher.handleResponse(responseFrame, SESSION_ID);
@@ -452,7 +452,7 @@ class RouteDispatcherTest {
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), metadataResponse);
-        responseFrame.setPath(fired.path());
+        responseFrame.setRouting(fired.routing());
 
         // When
         dispatcher.handleResponse(responseFrame, SESSION_ID);
@@ -478,7 +478,7 @@ class RouteDispatcherTest {
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), metadataResponse);
-        responseFrame.setPath(fired.path());
+        responseFrame.setRouting(fired.routing());
 
         // When
         dispatcher.handleResponse(responseFrame, SESSION_ID);
@@ -496,14 +496,14 @@ class RouteDispatcherTest {
         var dispatcher = createDispatcher(routes, ROUTER_NAME + "/");
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         // A route name not known to the BijectiveNodeIdMapping, to force toVirtual() to throw.
-        var responsePath = new PathElement.RouterOrigin(future, dispatcher.routePathFor("unknown-route"));
+        var responsePath = new PathElement.RouterOriginator(future, dispatcher.routePathFor("unknown-route"));
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker()
                 .setNodeId(0).setHost("broker1").setPort(9092));
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), metadataResponse);
-        responseFrame.setPath(responsePath);
+        responseFrame.setRouting(responsePath);
 
         // When
         var outcome = dispatcher.handleResponse(responseFrame, SESSION_ID);
@@ -535,11 +535,11 @@ class RouteDispatcherTest {
     // --- concurrent same-route dispatch ---
 
     /**
-     * Response matching relies entirely on the exact {@link PathElement.RouterOrigin} leaf (and the
+     * Response matching relies entirely on the exact {@link PathElement.RouterOriginator} (and the
      * {@code CompletableFuture} it carries) round-tripping on the response frame - there is no
      * correlation-id-keyed lookup table backing it. This proves that guarantee holds when the same
      * router has two sends to the same route concurrently in flight: a response addressed to one
-     * send's own path must not complete the other, concurrently in-flight, send's future.
+     * send's own routing value must not complete the other, concurrently in-flight, send's future.
      */
     @Test
     void concurrentSendsToSameRouteShouldOnlyCompleteTheMatchingFuture() {
@@ -551,7 +551,7 @@ class RouteDispatcherTest {
         channel.readInbound(); // the first send's own request frame; its response is deliberately withheld
         DecodedRequestFrame<?> fired2 = channel.readInbound();
         var response2 = new DecodedResponseFrame<>((short) 12, 101, new ResponseHeaderData(), new FetchResponseData());
-        response2.setPath(fired2.path());
+        response2.setRouting(fired2.routing());
 
         // When
         var outcome = dispatcher.handleResponse(response2, SESSION_ID);
@@ -559,7 +559,7 @@ class RouteDispatcherTest {
         // Then
         assertThat(outcome).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
         assertThat(future2.toCompletableFuture())
-                .as("the response carrying the second send's own path must complete that send's own future")
+                .as("the response carrying the second send's own routing value must complete that send's own future")
                 .isCompleted();
         assertThat(future1.toCompletableFuture())
                 .as("without a correlation-id-keyed lookup table, the first send's future must not be completed "

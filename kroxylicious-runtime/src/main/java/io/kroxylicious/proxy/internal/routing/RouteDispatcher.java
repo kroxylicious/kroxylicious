@@ -165,10 +165,10 @@ public class RouteDispatcher implements RouterDispatch {
     }
 
     /**
-     * Builds the path for a request/response on the given local route name, at this dispatcher's
-     * own nesting level. The route element's name is qualified to match
+     * Builds the route position for a request/response on the given local route name, at this
+     * dispatcher's own nesting level. The route element's name is qualified to match
      * {@code VirtualClusterModel}'s config-level route-to-cluster lookup keys (see
-     * {@link #qualificationPrefix}); {@link PathElement#parent()} carries the full ancestor lineage.
+     * {@link #qualificationPrefix}); {@link PathElement.RoutePosition#parent()} carries the full ancestor lineage.
      *
      * @param route the local (unqualified) route name
      * @return the path
@@ -257,7 +257,7 @@ public class RouteDispatcher implements RouterDispatch {
         }
 
         if (!probeFrame.hasResponse()) {
-            probeFrame.setPath(routePath);
+            probeFrame.setRouting(routePath);
             fireChannelRead(probeFrame);
             logContext.get()
                     .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, correlationId)
@@ -267,7 +267,7 @@ public class RouteDispatcher implements RouterDispatch {
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         pendingPromises.add(future);
-        probeFrame.setPath(new PathElement.RouterOrigin(future, routePath));
+        probeFrame.setRouting(new PathElement.RouterOriginator(future, routePath));
         fireChannelRead(probeFrame);
         logContext.get()
                 .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, correlationId)
@@ -279,8 +279,8 @@ public class RouteDispatcher implements RouterDispatch {
     // --- Response correlation ---
 
     ResponseOutcome handleResponse(DecodedResponseFrame<?> frame, String sessionId) {
-        PathElement path = frame.path();
-        if (path instanceof PathElement.RouterOrigin(CompletableFuture<?> promise, PathElement.Route routeSegment)
+        PathElement routing = frame.routing();
+        if (routing instanceof PathElement.RouterOriginator(CompletableFuture<?> promise, PathElement.Route routeSegment)
                 && Objects.equals(routeSegment.parent(), parentPath)) {
             @SuppressWarnings("unchecked")
             CompletableFuture<ApiMessage> future = (CompletableFuture<ApiMessage>) promise;

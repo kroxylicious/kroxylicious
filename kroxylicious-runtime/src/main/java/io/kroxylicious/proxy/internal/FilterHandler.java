@@ -167,32 +167,32 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     /**
      * Determines whether {@code frame} is an internal (out-of-band) response addressed to this
-     * handler's own filter. Matches on name, ordinal, and route position, excluding
-     * the promise carried on the candidate leaf, since a fresh promise is created for
+     * handler's own filter. Matches on name, ordinal, and anchoring route position, excluding
+     * the promise carried on the candidate originator, since a fresh promise is created for
      * every {@code sendRequest()} call.
      * <p>
-     * A route-scoped handler requires that its own route lies on the candidate leaf's ancestor
-     * chain (an exact match, or an ancestor of it) - to disambiguate same-named filters on
-     * different routes, while tolerating further routing that may have extended the leaf's
-     * {@code parent()} beyond this filter's own route after the request was issued (e.g. the
-     * request's route itself targeting a nested router, whose own static or dynamic dispatch
-     * grafts a deeper route onto the same leaf - see {@code RoutingHandler.dispatchStaticRoute}). A
-     * VC-level (non-route-scoped) handler's {@link #ownRoutePath()} is {@link
-     * PathElement.ClientOrigin#INSTANCE}, which is trivially an ancestor of every path - it has
-     * exactly one instance for the whole connection, so route position carries no identity for it
-     * at all - it matches on name and ordinal alone.
+     * A route-scoped handler requires that its own route lies on the candidate originator's
+     * anchoring position's ancestor chain (an exact match, or an ancestor of it) - to disambiguate
+     * same-named filters on different routes, while tolerating further routing that may have
+     * deepened the originator's {@code position()} beyond this filter's own route after the
+     * request was issued (e.g. the request's route itself targeting a nested router, whose own
+     * static or dynamic dispatch grafts a deeper route onto the same originator - see
+     * {@code RoutingHandler.dispatchStaticRoute}). A VC-level (non-route-scoped) handler's
+     * {@link #ownRoutePath()} is {@link PathElement.ClientOrigin#INSTANCE}, which is trivially an
+     * ancestor of every route position - it has exactly one instance for the whole connection, so
+     * route position carries no identity for it at all - it matches on name and ordinal alone.
      */
     boolean isRecipient(Frame frame) {
-        return frame.path() instanceof PathElement.FilterOrigin f
+        return frame.routing() instanceof PathElement.FilterOriginator f
                 && f.name().equals(filterAndInvoker.filterName())
                 && f.ordinal() == ownOrdinal()
-                && ownRoutePath().isAncestorOfOrSameAs(f.parent());
+                && ownRoutePath().isAncestorOfOrSameAs(f.position());
     }
 
     /**
      * This handler's own route position, or {@link PathElement.ClientOrigin#INSTANCE} if it is not
-     * route-scoped (in which case it is trivially an ancestor of every path, per
-     * {@link PathElement#isAncestorOfOrSameAs}). Subclasses (see {@code RouteFilterHandler})
+     * route-scoped (in which case it is trivially an ancestor of every route position, per
+     * {@link PathElement.RoutePosition#isAncestorOfOrSameAs}). Subclasses (see {@code RouteFilterHandler})
      * override this to identify out-of-band requests/responses as belonging to a specific route.
      */
     PathElement.RoutePosition ownRoutePath() {
@@ -807,7 +807,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             header.setRequestApiKey(apiKey.id);
             // Distinct per request so plugins that key their own bookkeeping off correlation id
             // don't suffer collisions. The proxy's own delivery/observation logic never reads this
-            // value, it's carried on the frame's path instead.
+            // value, it's carried on the frame's routing value instead.
             header.setCorrelationId(clientConnectionStateMachine.internalCorrelationIdAllocator().allocateId());
 
             if (!apiKey.isVersionSupported(header.requestApiVersion())) {
@@ -821,7 +821,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     () -> "Asynchronous %s request made by filter '%s' failed to complete within %s ms.".formatted(apiKey, filterDescriptor(), timeoutMs));
             var frame = new InternalRequestFrame<>(
                     header.requestApiVersion(), header.correlationId(), hasResponse, header, request);
-            frame.setPath(new PathElement.FilterOrigin(filterAndInvoker.filterName(), ownOrdinal(), filterPromise, ownRoutePath()));
+            frame.setRouting(new PathElement.FilterOriginator(filterAndInvoker.filterName(), ownOrdinal(), filterPromise, ownRoutePath()));
 
             log(DEBUG)
                     .addKeyValue("message", () -> msgDescriptor(frame))

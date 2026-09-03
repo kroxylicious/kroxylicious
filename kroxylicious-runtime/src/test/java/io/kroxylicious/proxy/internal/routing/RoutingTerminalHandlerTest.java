@@ -52,7 +52,7 @@ class RoutingTerminalHandlerTest {
         var handler = new RoutingTerminalHandler(ccsm);
         channel = new EmbeddedChannel(handler);
         var frame = fetchRequest();
-        frame.setPath(ROUTE_A);
+        frame.setRouting(ROUTE_A);
 
         // When
         channel.writeInbound(frame);
@@ -67,7 +67,7 @@ class RoutingTerminalHandlerTest {
         var handler = new RoutingTerminalHandler(ccsm);
         channel = new EmbeddedChannel(handler);
         var frame = fetchRequest();
-        frame.setPath(ROUTE_A);
+        frame.setRouting(ROUTE_A);
         frame.setTargetVirtualNodeId(7);
 
         // When
@@ -78,13 +78,14 @@ class RoutingTerminalHandlerTest {
     }
 
     @Test
-    void shouldUnwrapFilterLeafToForwardOnItsOwnRoute() {
-        // Given: an out-of-band request issued by a route filter - its path's leaf identifies the
-        // filter, not a bare route, but it must still be forwarded on the route beneath that leaf.
+    void shouldUnwrapFilterOriginatorToForwardOnItsOwnRoute() {
+        // Given: an out-of-band request issued by a route filter - its routing value is a
+        // FilterOriginator identifying the filter, not a bare route, but it must still be
+        // forwarded on the route the originator is anchored at.
         var handler = new RoutingTerminalHandler(ccsm);
         channel = new EmbeddedChannel(handler);
         var frame = fetchRequest();
-        frame.setPath(new PathElement.FilterOrigin("marker-filter", 0, new CompletableFuture<>(), ROUTE_A));
+        frame.setRouting(new PathElement.FilterOriginator("marker-filter", 0, new CompletableFuture<>(), ROUTE_A));
 
         // When
         channel.writeInbound(frame);
@@ -94,12 +95,12 @@ class RoutingTerminalHandlerTest {
     }
 
     @Test
-    void shouldUnwrapRouterLeafToForwardOnItsOwnRoute() {
+    void shouldUnwrapRouterOriginatorToForwardOnItsOwnRoute() {
         // Given: a router-issued out-of-band request (RouterContext.sendRequest) - same shape.
         var handler = new RoutingTerminalHandler(ccsm);
         channel = new EmbeddedChannel(handler);
         var frame = fetchRequest();
-        frame.setPath(new PathElement.RouterOrigin(new CompletableFuture<>(), ROUTE_A));
+        frame.setRouting(new PathElement.RouterOriginator(new CompletableFuture<>(), ROUTE_A));
 
         // When
         channel.writeInbound(frame);
@@ -137,14 +138,14 @@ class RoutingTerminalHandlerTest {
 
     @Test
     void writeIsAPureOutboundPassThrough() {
-        // Given: the outbound path is now a pure pass-through - the correct path was already
-        // restored directly from CorrelationManager by the time a response reaches this handler,
-        // so there is no bookkeeping left to do here.
+        // Given: the outbound path is now a pure pass-through - the correct routing value was
+        // already restored directly from CorrelationManager by the time a response reaches this
+        // handler, so there is no bookkeeping left to do here.
         var handler = new RoutingTerminalHandler(ccsm);
         channel = new EmbeddedChannel(handler);
         var response = new DecodedResponseFrame<>((short) 12, CORRELATION_ID,
                 new ResponseHeaderData(), new FetchResponseData());
-        response.setPath(ROUTE_A);
+        response.setRouting(ROUTE_A);
 
         // When
         channel.writeOutbound(response);
@@ -152,7 +153,7 @@ class RoutingTerminalHandlerTest {
         // Then
         DecodedResponseFrame<?> out = channel.readOutbound();
         assertThat(out).isSameAs(response);
-        assertThat(out.path()).isSameAs(ROUTE_A);
+        assertThat(out.routing()).isSameAs(ROUTE_A);
     }
 
     private DecodedRequestFrame<FetchRequestData> fetchRequest() {

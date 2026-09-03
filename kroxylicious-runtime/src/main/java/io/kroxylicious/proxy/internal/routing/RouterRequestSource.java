@@ -24,17 +24,17 @@ record RouterRequestSource(
      * Returns {@code true} if this handler should intercept {@code frame} — i.e. the frame's
      * route position is exactly this nested handler's activation path. Both a router-issued
      * ({@code RouterContext.sendRequest}) and a filter-issued ({@code FilterContext.sendRequest})
-     * out-of-band frame carry its own position ({@link PathElement.RouterOrigin} or {@link
-     * PathElement.FilterOrigin} respectively) on top of the route position the request is
-     * actually addressed to — {@link PathElement#routePosition()} strips it here before
-     * comparing, since that position names the issuing router/filter's own promise, not a
+     * out-of-band frame carry its own originator ({@link PathElement.RouterOriginator} or {@link
+     * PathElement.FilterOriginator} respectively) anchored on top of the route position the
+     * request is actually addressed to — {@link PathElement#routePosition()} strips it here before
+     * comparing, since that originator names the issuing router/filter's own promise, not a
      * position in the routing tree. A filter whose own route targets this nested router must be
      * intercepted here, exactly like ordinary traffic on that route, or its out-of-band request
      * could never reach this router's own (static or dynamic) routing decision.
      */
     boolean intercepts(RequestFrame frame) {
-        PathElement path = frame.path();
-        PathElement.RoutePosition routePosition = path == null ? null : path.routePosition();
+        PathElement routing = frame.routing();
+        PathElement.RoutePosition routePosition = routing == null ? null : routing.routePosition();
         return activationPath.equals(routePosition);
     }
 }

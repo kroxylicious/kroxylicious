@@ -301,14 +301,14 @@ public class RoutingHandler extends ChannelDuplexHandler {
         if (!(msg instanceof InternalRequestFrame<?>) && RouteDispatcher.NODE_ID_TRANSLATION_APIS.contains(apiKey)) {
             dispatcher.trackStaticRoute(frame.correlationId(), staticRoute);
         }
-        // A filter- or router-issued out-of-band request may already carry its own position
+        // A filter- or router-issued out-of-band request may already carry its own originator
         // (identifying it for delivery back to its issuer) when it happens to target a
-        // statically-routed API key. Graft the resolved route onto that position instead of
+        // statically-routed API key. Graft the resolved route onto that originator instead of
         // overwriting it outright - discarding it here would silently strand the issuer's promise.
-        // A frame with no path yet simply takes the resolved route directly.
-        PathElement currentPath = ((Frame) msg).path();
-        PathElement newPath = currentPath == null ? routePath : currentPath.graft(routePath);
-        ((Frame) msg).setPath(newPath);
+        // A frame with no routing value yet simply takes the resolved route directly.
+        PathElement currentRouting = ((Frame) msg).routing();
+        PathElement newRouting = currentRouting == null ? routePath : currentRouting.graft(routePath);
+        ((Frame) msg).setRouting(newRouting);
         ctx.fireChannelRead(msg);
         LOGGER.atTrace()
                 .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
@@ -478,7 +478,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
         var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
         header.setCorrelationId(correlationId);
         var internalResponse = new InternalResponseFrame<>(apiVersion, correlationId, header, rw.body());
-        internalResponse.setPath(oobFrame.path());
+        internalResponse.setRouting(oobFrame.routing());
         ctx.channel().writeAndFlush(internalResponse).addListener(f -> {
             if (!f.isSuccess()) {
                 oobFrame.promise().completeExceptionally(f.cause());
@@ -521,7 +521,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
             var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
             header.setCorrelationId(correlationId);
             var internalResponse = new InternalResponseFrame<>(apiVersion, correlationId, header, rw.body());
-            internalResponse.setPath(oobFrame.path());
+            internalResponse.setRouting(oobFrame.routing());
             ctx.write(internalResponse, ctx.voidPromise());
             ctx.flush();
         }
@@ -661,7 +661,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
         else {
             if (requestSource instanceof RouterRequestSource rs) {
-                responseFrame.setPath(rs.activationPath());
+                responseFrame.setRouting(rs.activationPath());
             }
             ctx.write(responseFrame, ctx.voidPromise());
             ctx.flush();
@@ -694,7 +694,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
         header.setCorrelationId(requestFrame.correlationId());
         var responseFrame = new DecodedResponseFrame<>(requestFrame.apiVersion(), requestFrame.correlationId(), header, body);
         if (requestSource instanceof RouterRequestSource rs) {
-            responseFrame.setPath(rs.activationPath());
+            responseFrame.setRouting(rs.activationPath());
         }
         ctx.write(responseFrame, ctx.voidPromise());
         ctx.flush();
@@ -719,20 +719,21 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 promise.setSuccess();
                 return;
             }
-            // A router-issued out-of-band request's RouterOrigin leaf is only ever stripped by the
+            // A router-issued out-of-band request's RouterOriginator is only ever consumed by the
             // dispatcher level that issued it (see RouteDispatcher.handleResponse). If one is still
             // present once the response reaches the top level, no level claimed it, so close the
             // connection rather than forward a bare internal frame toward the client. Scoped to
-            // RouterOrigin only (not FilterOrigin): a FilterOrigin destined for a VC-level filter
-            // legitimately still carries its leaf at this point, since VC-level filters sit above
-            // (client-side of) the top-level router and haven't had a chance to claim it yet.
+            // RouterOriginator only (not FilterOriginator): a FilterOriginator destined for a
+            // VC-level filter legitimately still carries its originator at this point, since
+            // VC-level filters sit above (client-side of) the top-level router and haven't had a
+            // chance to claim it yet.
             if (outcome == RouteDispatcher.ResponseOutcome.UNHANDLED
                     && requestSource instanceof VirtualClusterRequestSource
-                    && frame.path() instanceof PathElement.RouterOrigin) {
+                    && frame.routing() instanceof PathElement.RouterOriginator) {
                 LOGGER.atWarn()
                         .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                         .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                        .addKeyValue("path", frame.path())
+                        .addKeyValue("routing", frame.routing())
                         .log("Received router-issued out-of-band response with no pending promise; closing connection");
                 frame.release();
                 ctx.channel().close().addListener(logFailure(LOGGER, "close after out-of-band response with no pending promise"));

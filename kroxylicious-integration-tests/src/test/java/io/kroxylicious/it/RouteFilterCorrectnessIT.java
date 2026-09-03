@@ -339,9 +339,9 @@ class RouteFilterCorrectnessIT {
     // ---------------------------------------------------------------------------
 
     /**
-     * Sibling observation (C8) matches a route's own position against a response's path via
-     * {@code PathElement.isAncestorOfOrSameAs}, which walks the response's whole path rather than
-     * comparing one hop. An outer route that targets a nested router is, structurally, an ancestor of
+     * Sibling observation (C8) matches a route's own position against a response's routing value via
+     * {@code PathElement.RoutePosition#isAncestorOfOrSameAs}, which walks the response's whole route
+     * position rather than comparing one hop. An outer route that targets a nested router is, structurally, an ancestor of
      * every route inside that nested router. {@code NestedRouteWithFiltersIT} already proves this for
      * requests (a filter on the outer route sees traffic forwarded into the nested router). This test
      * proves the same holds for responses: when the nested router dynamically dispatches a request via

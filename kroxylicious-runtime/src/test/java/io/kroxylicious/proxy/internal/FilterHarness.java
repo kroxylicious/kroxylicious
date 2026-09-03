@@ -187,7 +187,7 @@ public abstract class FilterHarness {
 
     protected <B extends ApiMessage> InternalRequestFrame<B> writeInternalRequest(RequestHeaderData headerData, B data, Filter recipient) {
         var frame = new InternalRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, headerData, data);
-        frame.setPath(new PathElement.FilterOrigin(filterIdentity(recipient), 0, new CompletableFuture<>(), PathElement.ClientOrigin.INSTANCE));
+        frame.setRouting(new PathElement.FilterOriginator(filterIdentity(recipient), 0, new CompletableFuture<>(), PathElement.ClientOrigin.INSTANCE));
         writeRequest(frame);
         return frame;
     }
@@ -279,7 +279,7 @@ public abstract class FilterHarness {
             throw new IllegalStateException("No corresponding internal request known for correlationId=" + requestCorrelationId);
         }
         var frame = new InternalResponseFrame<>(apiKey.latestVersion(), requestCorrelationId, header, data);
-        frame.setPath(correlation.path());
+        frame.setRouting(correlation.routing());
         channel.writeOutbound(frame);
         return frame;
 
@@ -322,7 +322,7 @@ public abstract class FilterHarness {
         }
     }
 
-    public record Correlation(PathElement path) {}
+    public record Correlation(PathElement routing) {}
 
     /**
      * Tracks outstanding internal requests by associating the correlation id with the recipient/promise tuple.
@@ -332,7 +332,7 @@ public abstract class FilterHarness {
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg instanceof InternalRequestFrame<?> irf) {
                 if (irf.hasResponse()) {
-                    if (pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.path())) != null) {
+                    if (pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.routing())) != null) {
                         throw new IllegalStateException("correlationId %d already has a promise associated with it".formatted(irf.correlationId()));
                     }
                 }

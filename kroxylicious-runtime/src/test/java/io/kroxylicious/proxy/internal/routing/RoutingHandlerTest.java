@@ -146,7 +146,7 @@ class RoutingHandlerTest {
                 .setRequestApiVersion((short) 12)
                 .setCorrelationId(correlationId);
         var frame = new DecodedRequestFrame<>((short) 12, correlationId, true, header, new FetchRequestData());
-        frame.setPath(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
+        frame.setRouting(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
         return frame;
     }
 
@@ -156,14 +156,14 @@ class RoutingHandlerTest {
                 .setRequestApiVersion((short) 9)
                 .setCorrelationId(correlationId);
         var frame = new DecodedRequestFrame<>((short) 9, correlationId, true, header, new ProduceRequestData());
-        frame.setPath(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
+        frame.setRouting(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
         return frame;
     }
 
     private static OpaqueRequestFrame opaqueFrame(ApiKeys apiKey, int correlationId, String routeName) {
         var buf = Unpooled.buffer();
         var frame = new OpaqueRequestFrame(buf, apiKey.id, (short) 12, correlationId, false, 0, true);
-        frame.setPath(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
+        frame.setRouting(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
         return frame;
     }
 
@@ -172,30 +172,30 @@ class RoutingHandlerTest {
     }
 
     // A filter-issued out-of-band request (FilterContext.sendRequest) - top-level OOB completion
-    // (handleOobCompletion) is reached only via a Filter leaf, since a router's own sendInternal
-    // fires downstream and never re-enters its own handler's channelRead.
+    // (handleOobCompletion) is reached only via a FilterOriginator, since a router's own
+    // sendInternal fires downstream and never re-enters its own handler's channelRead.
     private InternalRequestFrame<ProduceRequestData> oobProduceFrame(int correlationId, CompletableFuture<?> promise, @Nullable String route) {
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)
                 .setRequestApiVersion((short) 9)
                 .setCorrelationId(correlationId);
         var frame = new InternalRequestFrame<>((short) 9, correlationId, true, header, new ProduceRequestData());
-        frame.setPath(new PathElement.FilterOrigin("test-filter", 0, promise,
+        frame.setRouting(new PathElement.FilterOriginator("test-filter", 0, promise,
                 route == null ? PathElement.ClientOrigin.INSTANCE : new PathElement.Route(route, PathElement.ClientOrigin.INSTANCE)));
         return frame;
     }
 
     // A router-issued out-of-band request (RouterContext.sendRequest) targeting a route that
     // resolves to a nested router - nested OOB completion (handleNestedOobCompletion) is reached
-    // only via a Router leaf whose underlying route matches the nested handler's own activation
-    // path (see RouterRequestSource.intercepts).
+    // only via a RouterOriginator whose underlying route matches the nested handler's own
+    // activation path (see RouterRequestSource.intercepts).
     private InternalRequestFrame<ProduceRequestData> nestedOobProduceFrame(int correlationId, CompletableFuture<?> promise, String route) {
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)
                 .setRequestApiVersion((short) 9)
                 .setCorrelationId(correlationId);
         var frame = new InternalRequestFrame<>((short) 9, correlationId, true, header, new ProduceRequestData());
-        frame.setPath(new PathElement.RouterOrigin(promise, new PathElement.Route(route, PathElement.ClientOrigin.INSTANCE)));
+        frame.setRouting(new PathElement.RouterOriginator(promise, new PathElement.Route(route, PathElement.ClientOrigin.INSTANCE)));
         return frame;
     }
 
@@ -270,7 +270,7 @@ class RoutingHandlerTest {
 
         // Then
         verify(ccsm).forwardToRoute(DEFAULT_ROUTE, frame);
-        assertThat(frame.path()).isEqualTo(new PathElement.Route(DEFAULT_ROUTE, PathElement.ClientOrigin.INSTANCE));
+        assertThat(frame.routing()).isEqualTo(new PathElement.Route(DEFAULT_ROUTE, PathElement.ClientOrigin.INSTANCE));
     }
 
     @Test
@@ -285,12 +285,12 @@ class RoutingHandlerTest {
         // When
         channel.writeInbound(oob);
 
-        // Then: the resolved route is grafted onto the OOB frame's own Filter leaf (not used to
-        // replace it) so the response can still be recognised as this filter's own
+        // Then: the resolved route is grafted onto the OOB frame's own FilterOriginator (not used
+        // to replace it) so the response can still be recognised as this filter's own
         InternalRequestFrame<?> forwarded = channel.readInbound();
         assertThat(forwarded).isNotNull();
-        assertThat(forwarded.path())
-                .isEqualTo(new PathElement.FilterOrigin("test-filter", 0, promise, new PathElement.Route(DEFAULT_ROUTE, PathElement.ClientOrigin.INSTANCE)));
+        assertThat(forwarded.routing())
+                .isEqualTo(new PathElement.FilterOriginator("test-filter", 0, promise, new PathElement.Route(DEFAULT_ROUTE, PathElement.ClientOrigin.INSTANCE)));
         verify(router, never()).onRequest(any(), anyShort(), any(), any(), any());
     }
 
@@ -439,15 +439,15 @@ class RoutingHandlerTest {
 
     @Test
     void topLevel_shouldCloseChannelWhenRouterIssuedResponseIsUnclaimed() {
-        // Given: a RouterOrigin whose route lineage doesn't match this (top-level, parentPath =
+        // Given: a RouterOriginator whose route lineage doesn't match this (top-level, parentPath =
         // null) dispatcher - as if a router-issued out-of-band request's response arrived without
         // any level having claimed it
         var handler = topLevelHandler(Map.of());
         channel = new EmbeddedChannel(handler);
-        var strayPath = new PathElement.RouterOrigin(new CompletableFuture<>(),
+        var strayRouting = new PathElement.RouterOriginator(new CompletableFuture<>(),
                 new PathElement.Route("route-a", new PathElement.Route("outer", PathElement.ClientOrigin.INSTANCE)));
         var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, new ResponseHeaderData(), new MetadataResponseData());
-        responseFrame.setPath(strayPath);
+        responseFrame.setRouting(strayRouting);
 
         // When
         channel.writeOutbound(responseFrame);
@@ -658,7 +658,7 @@ class RoutingHandlerTest {
         assertThat(out).isInstanceOf(InternalResponseFrame.class);
         InternalResponseFrame<?> irf = (InternalResponseFrame<?>) out;
         assertThat(irf.correlationId()).isEqualTo(CORRELATION_ID);
-        assertThat(irf.path()).isEqualTo(oob.path());
+        assertThat(irf.routing()).isEqualTo(oob.routing());
         assertThat(irf.promise()).isSameAs(promise);
     }
 
@@ -857,7 +857,7 @@ class RoutingHandlerTest {
         // Then
         OpaqueRequestFrame forwarded = channel.readInbound();
         assertThat(forwarded).isSameAs(frame);
-        assertThat(forwarded.path()).isEqualTo(new PathElement.Route(NESTED_ROUTER_NAME + "/inner-r", ACTIVATION_ROUTE_PATH));
+        assertThat(forwarded.routing()).isEqualTo(new PathElement.Route(NESTED_ROUTER_NAME + "/inner-r", ACTIVATION_ROUTE_PATH));
         frame.releaseBuffer();
     }
 
@@ -931,7 +931,7 @@ class RoutingHandlerTest {
         // Then
         DecodedRequestFrame<?> forwarded = channel.readInbound();
         assertThat(forwarded).isNotNull();
-        assertThat(forwarded.path()).isEqualTo(new PathElement.Route(NESTED_ROUTER_NAME + "/inner-r", ACTIVATION_ROUTE_PATH));
+        assertThat(forwarded.routing()).isEqualTo(new PathElement.Route(NESTED_ROUTER_NAME + "/inner-r", ACTIVATION_ROUTE_PATH));
     }
 
     @Test
@@ -1186,7 +1186,7 @@ class RoutingHandlerTest {
         assertThat(out).isInstanceOf(InternalResponseFrame.class);
         InternalResponseFrame<?> irf = (InternalResponseFrame<?>) out;
         assertThat(irf.correlationId()).isEqualTo(CORRELATION_ID);
-        assertThat(irf.path()).isEqualTo(oob.path());
+        assertThat(irf.routing()).isEqualTo(oob.routing());
         assertThat(irf.promise()).isSameAs(promise);
     }
 

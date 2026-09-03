@@ -94,19 +94,19 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
                     .addKeyValue("ctx", ctx)
                     .addKeyValue("body", body)
                     .log("Read");
-            if (correlation.path() != null && correlation.path().pendingPromise().isPresent()) {
+            if (correlation.routing() != null && correlation.routing().pendingPromise().isPresent()) {
                 var internalFrame = new InternalResponseFrame<>(body.apiVersion(), correlationId, header, body.apiMessage());
-                internalFrame.setPath(correlation.path());
+                internalFrame.setRouting(correlation.routing());
                 frame = internalFrame;
             }
             else {
                 frame = new DecodedResponseFrame<>(body.apiVersion(), correlationId, header, body.apiMessage());
-                frame.setPath(correlation.path());
+                frame.setRouting(correlation.routing());
             }
         }
         else {
             frame = opaqueFrame(correlation.apiKey(), correlation.apiVersion(), in, correlationId, length);
-            frame.setPath(correlation.path());
+            frame.setRouting(correlation.routing());
         }
         log().atTrace()
                 .addKeyValue("ctx", ctx)

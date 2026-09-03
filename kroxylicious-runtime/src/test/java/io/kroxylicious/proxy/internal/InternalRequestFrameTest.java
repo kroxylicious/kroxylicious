@@ -40,7 +40,7 @@ class InternalRequestFrameTest {
             assertThat(internalResponseFrame.body()).isSameAs(responseBody);
             assertThat(internalResponseFrame.header()).isSameAs(responseHeaderData);
             assertThat(internalResponseFrame.promise()).isSameAs(PROMISE);
-            assertThat(internalResponseFrame.path()).isSameAs(frame.path());
+            assertThat(internalResponseFrame.routing()).isSameAs(frame.routing());
         });
     }
 
@@ -59,7 +59,7 @@ class InternalRequestFrameTest {
         header.setCorrelationId(CORRELATION_ID);
         MetadataRequestData request = new MetadataRequestData();
         var frame = new InternalRequestFrame<>(API_VERSION, CORRELATION_ID, true, header, request);
-        frame.setPath(new PathElement.FilterOrigin("test-filter", 0, PROMISE, PathElement.ClientOrigin.INSTANCE));
+        frame.setRouting(new PathElement.FilterOriginator("test-filter", 0, PROMISE, PathElement.ClientOrigin.INSTANCE));
         return frame;
     }
 }
