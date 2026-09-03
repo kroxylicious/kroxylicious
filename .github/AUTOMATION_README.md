@@ -19,8 +19,32 @@ The corresponding secrets in github are:
 
 | Secret                                        | Description                                                                                                                       |
 |-----------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
-| `KROXYLICIOUS_CHANGELOG_TOKEN`                | GitHub PAT with write (contents) permission for this repository. Used to commit logchange entry files to Renovate/Dependabot PRs. |
+| `KROXYLICIOUS_CHANGELOG_TOKEN`                | GitHub PAT with write (contents) permission for this repository. Used to commit logchange entry files to Dependabot PRs. See [Changelog token](#changelog-token). |
 | `KROXYLICIOUS_RELEASE_TOKEN`                  | GitHub PAT used during the release. See [RELEASING.md](../RELEASING.md) for detail about required permissions                     |
+
+### Changelog token
+
+The [add-changelog-entry-for-dependency-updates](workflows/add-changelog-entry-for-dependency-updates.yaml) workflow
+commits a logchange entry to Dependabot PRs that bump user-facing dependencies. It uses `KROXYLICIOUS_CHANGELOG_TOKEN`
+rather than the workflow's `GITHUB_TOKEN` because commits pushed with `GITHUB_TOKEN` do not trigger the PR's CI
+workflows, which would leave the PR without status checks on its new head commit.
+
+The token is a fine-grained PAT belonging to `kroxylicious-robot` with:
+
+* Repository access: `kroxylicious/kroxylicious` (or all organisation repositories if stored as an organisation secret)
+* Repository permissions: **Contents: Read and write** (Metadata: Read is granted implicitly)
+
+GitHub serves a workflow run secrets from a different store depending on who triggered it (see
+[Dependabot Integration](#dependabot-integration)). Because this workflow is triggered by `dependabot[bot]` for the
+`opened`/`synchronize` events and by a maintainer for the `labeled` event, the PAT has to be stored under **both**
+stores, at repository or organisation level:
+
+* `Settings > Secrets and variables > Dependabot` - used when Dependabot opens or updates the PR
+* `Settings > Secrets and variables > Actions` - used when a maintainer applies the `changelog/skip` or
+  `changelog/create` label
+
+If the token is missing from the store used by a run, the workflow skips the changelog steps and emits a warning
+annotation on the run naming the store that needs to be configured.
 
 ## Dependabot Integration
 
