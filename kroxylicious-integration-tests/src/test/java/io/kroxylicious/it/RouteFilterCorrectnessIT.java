@@ -62,6 +62,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
 import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.FETCH;
@@ -81,6 +82,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  *     corrupted when two or more routes have concurrent out-of-band requests in flight.
  * <p>C10: An outer route's filter observes a response completed via a nested router's own dynamic
  *     dispatch, the same way it observes that nested route's requests.
+ * <p>C11: Two out-of-band-issuing filters on the same route are each delivered their own reply.
+ * <p>C12: A VC-level (non-route) filter's out-of-band request is delivered by recipient.
+ * <p>C13: Route filter {@code onResponse} is never invoked for an acks=0 produce, since no response
+ *     frame is ever created for it.
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
@@ -227,6 +232,117 @@ class RouteFilterCorrectnessIT {
             var requestAtBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
             assertThat(unknownTaggedFieldsToStrings(requestAtBroker, FILTER_NAME_TAG))
                     .as("filter must have marked the request, proving sendRequest() reached the mock backend")
+                    .containsExactly(RequestResponseMarkingFilter.class.getSimpleName() + "-" + filterName + "-request");
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // C11: Two out-of-band-issuing filters on the same route are each delivered their own reply
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Recipient delivery is keyed off the leaf {@code FilterOrigin} on a frame's path, not the route
+     * name. A route can carry more than one filter that issues an out-of-band request; two such
+     * filters on the very same route share an identical {@code Route} path and differ only in leaf
+     * identity, so each must still be delivered only its own reply.
+     *
+     * <p>Marker A marks the request, marker B marks the response - {@code RequestResponseMarkingFilter}
+     * always writes the same tag id, so two markers on the same direction of the same message would
+     * collide; splitting by direction still exercises two independent same-route OOB round trips
+     * without that collision.
+     */
+    @Test
+    void twoOutOfBandIssuingFiltersOnSameRouteAreEachDeliveredTheirOwnReply() {
+        var markerA = "c11-marker-a";
+        var markerB = "c11-marker-b";
+
+        // Given
+        var markerADef = new NamedFilterDefinitionBuilder(markerA, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", markerA,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+        var markerBDef = new NamedFilterDefinitionBuilder(markerB, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.RESPONSE),
+                        "name", markerB,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+
+        try (var tester = KroxyliciousTesters.mockKafkaKroxyliciousTester(
+                mockBootstrap -> singleRouteConfig(mockBootstrap, List.of(markerADef, markerBDef)), ROUTING_ENABLED);
+                var client = tester.simpleTestClient()) {
+
+            ApiVersionsResponseData apiVersions = new ApiVersionsResponseData();
+            apiVersions.apiKeys().add(new ApiVersionsResponseData.ApiVersion()
+                    .setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersions));
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
+            tester.addMockResponseForApiKey(
+                    new ResponsePayload(org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+
+            // When
+            var response = client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+
+            // Then
+            var requestAtBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
+            var responseAtClient = response.payload().message();
+            assertThat(tester.getRequestsForApiKey(org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS))
+                    .as("both same-route filters must have issued their own out-of-band request")
+                    .hasSize(2);
+            assertThat(unknownTaggedFieldsToStrings(requestAtBroker, FILTER_NAME_TAG))
+                    .as("marker A's out-of-band request must have completed before its request was forwarded")
+                    .containsExactly(RequestResponseMarkingFilter.class.getSimpleName() + "-" + markerA + "-request");
+            assertThat(unknownTaggedFieldsToStrings(responseAtClient, FILTER_NAME_TAG))
+                    .as("marker B's out-of-band request must have completed before its response was forwarded")
+                    .containsExactly(RequestResponseMarkingFilter.class.getSimpleName() + "-" + markerB + "-response");
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // C12: A VC-level (non-route) filter's out-of-band request is delivered by recipient
+    // ---------------------------------------------------------------------------
+
+    /**
+     * A filter that sits above any route - directly on the virtual cluster - has a
+     * {@code FilterOrigin} whose parent is {@code ClientOrigin}, not a {@code Route}. Out-of-band
+     * frames bypass static routing, so the router's {@code onRequest} is invoked for it even though
+     * every key is otherwise handled by {@code staticRoutes()}; this proves the {@code ClientOrigin}
+     * leaf is still enough to deliver the reply back to it, with a single (non-nested) router in play.
+     */
+    @Test
+    void vcLevelFilterOutOfBandRequestIsDeliveredByRecipient() {
+        var filterName = "c12-vc-marker";
+
+        // Given
+        var filterDef = new NamedFilterDefinitionBuilder(filterName, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", filterName,
+                        "forwardingStyle", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+                .build();
+
+        try (var tester = KroxyliciousTesters.mockKafkaKroxyliciousTester(
+                mockBootstrap -> singleRouteConfigWithVcFilter(mockBootstrap, filterDef), ROUTING_ENABLED);
+                var client = tester.simpleTestClient()) {
+
+            ApiVersionsResponseData apiVersions = new ApiVersionsResponseData();
+            apiVersions.apiKeys().add(new ApiVersionsResponseData.ApiVersion()
+                    .setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersions));
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
+            tester.addMockResponseForApiKey(
+                    new ResponsePayload(org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+
+            // When
+            client.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+
+            // Then
+            var requestAtBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
+            assertThat(unknownTaggedFieldsToStrings(requestAtBroker, FILTER_NAME_TAG))
+                    .as("VC-level filter's out-of-band request must be delivered back to it, even though its "
+                            + "FilterOrigin sits directly on ClientOrigin with no Route in its path")
                     .containsExactly(RequestResponseMarkingFilter.class.getSimpleName() + "-" + filterName + "-request");
         }
     }
@@ -587,6 +703,58 @@ class RouteFilterCorrectnessIT {
     }
 
     // ---------------------------------------------------------------------------
+    // C13: Route filter onResponse is never invoked for an acks=0 produce
+    // ---------------------------------------------------------------------------
+
+    /**
+     * When a router dynamically dispatches an acks=0 PRODUCE, {@code RouterContext.respondWithoutReply()}
+     * means no response ever reaches the client - the router skips the response sequencer without
+     * ever constructing a response frame. A route filter's {@code onResponse} is a pipeline callback
+     * triggered only when a response frame traverses the route, so it must never fire for this path.
+     */
+    @Test
+    void routeFilterOnResponseNotCalledForAcksZeroProduce(KafkaCluster cluster, Topic topic) throws Exception {
+        String counterId = "s7-" + topic.name();
+        ResponseCountingFilter.reset(counterId);
+
+        // Given
+        var filterDef = new NamedFilterDefinitionBuilder("c13-counter", ResponseCountingFilterFactory.class.getName())
+                .withConfig("counterId", counterId)
+                .build();
+        var clusterDef = new ClusterDefinition(CLUSTER_NAME, cluster.getBootstrapServers(), null);
+        var route = new RouteDefinition(ROUTE_A, 0, List.of("c13-counter"), new RouteTarget(CLUSTER_NAME, null));
+        var routerDef = new RouterDefinition(ROUTER_NAME, DynamicProduceRouterFactory.class.getName(),
+                new DynamicProduceRouterFactory.Config(ROUTE_A), List.of(route));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToFilterDefinitions(filterDef)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer(Map.of(ACKS_CONFIG, "0", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, "c13-acks-zero", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+
+            // When
+            producer.send(new ProducerRecord<>(topic.name(), "key", "value")).get();
+
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(30));
+
+            // Then
+            assertThat(records).as("an acks=0 produce must still reach the backend via dynamic dispatch").hasSize(1);
+            assertThat(ResponseCountingFilter.countFor(counterId, ApiKeys.PRODUCE))
+                    .as("route filter onResponse must not fire for acks=0 produce - no response frame is ever created")
+                    .isZero();
+        }
+    }
+
+    // ---------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------
 
@@ -734,6 +902,45 @@ class RouteFilterCorrectnessIT {
         return baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addToFilterDefinitions(filterDef)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+    }
+
+    private ConfigurationBuilder singleRouteConfig(String bootstrapServers, List<NamedFilterDefinition> filterDefs) {
+        var clusterDef = new ClusterDefinition(CLUSTER_NAME, bootstrapServers, null);
+        var filterNames = filterDefs.stream().map(NamedFilterDefinition::name).toList();
+        var route = new RouteDefinition(ROUTE_A, 0, filterNames, new RouteTarget(CLUSTER_NAME, null));
+        var routerDef = new RouterDefinition(ROUTER_NAME, PassThroughRouterFactory.class.getName(),
+                new PassThroughRouterFactory.Config(ROUTE_A), List.of(route));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        var builder = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+        for (var fd : filterDefs) {
+            builder.addToFilterDefinitions(fd);
+        }
+        return builder;
+    }
+
+    private ConfigurationBuilder singleRouteConfigWithVcFilter(String bootstrapServers, NamedFilterDefinition vcFilterDef) {
+        var clusterDef = new ClusterDefinition(CLUSTER_NAME, bootstrapServers, null);
+        var route = new RouteDefinition(ROUTE_A, 0, List.of(), new RouteTarget(CLUSTER_NAME, null));
+        var routerDef = new RouterDefinition(ROUTER_NAME, DynamicProduceRouterFactory.class.getName(),
+                new DynamicProduceRouterFactory.Config(ROUTE_A), List.of(route));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER_NAME))
+                .withFilters(List.of(vcFilterDef.name()))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToFilterDefinitions(vcFilterDef)
                 .addToRouterDefinitions(routerDef)
                 .addToVirtualClusters(vc);
     }
