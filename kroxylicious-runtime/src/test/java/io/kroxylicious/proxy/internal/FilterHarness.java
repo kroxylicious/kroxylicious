@@ -7,7 +7,6 @@ package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
 import java.util.ArrayDeque;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collector;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
@@ -117,14 +117,15 @@ public abstract class FilterHarness {
                 java.util.Map.of(new io.kroxylicious.proxy.service.HostPort("broker", 9092), mockScsm),
                 kafkaSession,
                 true);
-        var filterHandlers = Arrays.stream(filters)
-                .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addLast, (d1, d2) -> {
+        var filterHandlers = IntStream.range(0, filters.length)
+                .mapToObj(i -> Map.entry(i, filters[i]))
+                .collect(Collector.of(ArrayDeque<Map.Entry<Integer, Filter>>::new, ArrayDeque::addLast, (d1, d2) -> {
                     d2.addAll(d1);
                     return d2;
                 })) // reverses order
                 .stream()
-                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, inboundChannel,
-                        clientConnectionStateMachine))
+                .map(e -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(e.getValue().getClass().getSimpleName(), e.getValue())), timeoutMs, null,
+                        inboundChannel, clientConnectionStateMachine, e.getKey()))
 
                 .map(ChannelHandler.class::cast);
         var handlers = Stream.concat(filterHandlers, channelProcessors);

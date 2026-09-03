@@ -497,11 +497,10 @@ public class KafkaProxyFrontendHandler
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
-        int filterIndex = 0;
         String addNextFilterAfter = clientCtx().name();
-        for (FilterAndInvoker protocolFilter : filters) {
-            ++filterIndex;
-            String handlerName = "filter-" + filterIndex + "-" + protocolFilter.filterName();
+        for (int ordinal = 0; ordinal < filters.size(); ordinal++) {
+            FilterAndInvoker protocolFilter = filters.get(ordinal);
+            String handlerName = "filter-" + (ordinal + 1) + "-" + protocolFilter.filterName();
             pipeline.addAfter(addNextFilterAfter,
                     handlerName,
                     new FilterHandler(
@@ -509,7 +508,8 @@ public class KafkaProxyFrontendHandler
                             20000,
                             sniHostname,
                             inboundChannel,
-                            clientConnectionStateMachine));
+                            clientConnectionStateMachine,
+                            ordinal));
             addNextFilterAfter = handlerName;
         }
     }

@@ -77,6 +77,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
     private final ClientConnectionStateMachine clientConnectionStateMachine;
+    private final int ordinal;
 
     /** Chains response processing to preserve ordering when filters defer work asynchronously. */
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
@@ -99,17 +100,21 @@ public class FilterHandler extends ChannelDuplexHandler {
      * @param sniHostname the SNI hostname presented by the client, or {@code null} if none
      * @param inboundChannel the downstream (client) channel
      * @param clientConnectionStateMachine the state machine for the client connection
+     * @param ordinal this filter's position within its enclosing filter list, disambiguating
+     *        two filters that happen to share a configured name
      */
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
                          @Nullable String sniHostname,
                          Channel inboundChannel,
-                         ClientConnectionStateMachine clientConnectionStateMachine) {
+                         ClientConnectionStateMachine clientConnectionStateMachine,
+                         int ordinal) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.inboundChannel = inboundChannel;
         this.clientConnectionStateMachine = clientConnectionStateMachine;
+        this.ordinal = ordinal;
     }
 
     @Override
@@ -120,7 +125,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     String filterDescriptor() {
-        return filterAndInvoker.filterName();
+        return filterAndInvoker.filterName() + "[" + ordinal + "]";
     }
 
     @Override
@@ -185,7 +190,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     boolean isRecipient(Frame frame) {
         return frame.routing() instanceof PathElement.FilterOriginator f
                 && f.name().equals(filterAndInvoker.filterName())
-                && f.ordinal() == ownOrdinal()
+                && f.ordinal() == ordinal
                 && ownRoutePath().isAncestorOfOrSameAs(f.position());
     }
 
@@ -197,15 +202,6 @@ public class FilterHandler extends ChannelDuplexHandler {
      */
     PathElement.RoutePosition ownRoutePath() {
         return PathElement.ClientOrigin.INSTANCE;
-    }
-
-    /**
-     * This handler's filter's position within its enclosing filter list, disambiguating two
-     * filters that happen to share a configured name. Defaults to {@code 0}; overridden by
-     * route-scoped handlers.
-     */
-    int ownOrdinal() {
-        return 0;
     }
 
     @SuppressWarnings("DataFlowIssue")
@@ -821,7 +817,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     () -> "Asynchronous %s request made by filter '%s' failed to complete within %s ms.".formatted(apiKey, filterDescriptor(), timeoutMs));
             var frame = new InternalRequestFrame<>(
                     header.requestApiVersion(), header.correlationId(), hasResponse, header, request);
-            frame.setRouting(new PathElement.FilterOriginator(filterAndInvoker.filterName(), ownOrdinal(), filterPromise, ownRoutePath()));
+            frame.setRouting(new PathElement.FilterOriginator(filterAndInvoker.filterName(), ordinal, filterPromise, ownRoutePath()));
 
             log(DEBUG)
                     .addKeyValue("message", () -> msgDescriptor(frame))

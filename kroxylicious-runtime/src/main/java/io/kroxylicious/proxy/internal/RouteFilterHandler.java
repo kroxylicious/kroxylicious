@@ -26,7 +26,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 class RouteFilterHandler extends FilterHandler {
 
     private final PathElement.Route routePath;
-    private final int ordinal;
 
     RouteFilterHandler(FilterAndInvoker filterAndInvoker,
                        long timeoutMs,
@@ -35,9 +34,8 @@ class RouteFilterHandler extends FilterHandler {
                        ClientConnectionStateMachine clientConnectionStateMachine,
                        PathElement.Route routePath,
                        int ordinal) {
-        super(filterAndInvoker, timeoutMs, sniHostname, inboundChannel, clientConnectionStateMachine);
+        super(filterAndInvoker, timeoutMs, sniHostname, inboundChannel, clientConnectionStateMachine, ordinal);
         this.routePath = Objects.requireNonNull(routePath);
-        this.ordinal = ordinal;
     }
 
     @Override
@@ -53,11 +51,6 @@ class RouteFilterHandler extends FilterHandler {
     @Override
     PathElement.Route ownRoutePath() {
         return routePath;
-    }
-
-    @Override
-    int ownOrdinal() {
-        return ordinal;
     }
 
     // FutureReturnValueIgnored: `promise` is supplied by the caller and is notified with
