@@ -48,11 +48,14 @@ class KafkaProxyShutdownOrderingTest {
         var drainCanComplete = new CountDownLatch(1);
 
         var config = """
+                clusterDefinitions:
+                  - name: demo-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo
                     drainTimeout: 10s
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: demo-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -105,11 +108,14 @@ class KafkaProxyShutdownOrderingTest {
     @Test
     void drainFailureIsCaughtAndShutdownCompletes() {
         var config = """
+                clusterDefinitions:
+                  - name: demo-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo
                     drainTimeout: 10s
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: demo-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -135,10 +141,13 @@ class KafkaProxyShutdownOrderingTest {
     void shouldBindPortResolverToGatewaysAfterStartup() {
         // Given
         var config = """
+                clusterDefinitions:
+                  - name: demo-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: demo-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -174,10 +183,13 @@ class KafkaProxyShutdownOrderingTest {
     void shouldReturnActualBoundPortFromGetBootstrapAddress() {
         // Given - proxy configured with OS-assigned port
         var config = """
+                clusterDefinitions:
+                  - name: demo-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: demo-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -206,10 +218,13 @@ class KafkaProxyShutdownOrderingTest {
     void shouldThrowForUnknownVirtualClusterInGetBootstrapAddress() {
         // Given
         var config = """
+                clusterDefinitions:
+                  - name: demo-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: demo-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -237,10 +252,13 @@ class KafkaProxyShutdownOrderingTest {
     void shouldThrowForUnknownGatewayInGetBootstrapAddress() {
         // Given
         var config = """
+                clusterDefinitions:
+                  - name: demo-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: demo-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:

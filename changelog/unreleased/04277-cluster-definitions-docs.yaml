@@ -1,0 +1,4 @@
+title: "docs: use clusterDefinitions in examples and docs"
+type: changed
+issues:
+  - 4277

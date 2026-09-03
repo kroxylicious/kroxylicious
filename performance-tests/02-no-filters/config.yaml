@@ -8,10 +8,13 @@
 management:
   endpoints:
     prometheus: { }
+clusterDefinitions:
+  - name: demo-cluster
+    bootstrapServers: broker1:9092
 virtualClusters:
   - name: demo
-    targetCluster:
-      bootstrapServers: broker1:9092
+    target:
+      cluster: demo-cluster
     gateways:
       - name: mygateway
         portIdentifiesNode:

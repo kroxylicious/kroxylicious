@@ -68,10 +68,13 @@ broad permissions.
     management:
       endpoints:
         prometheus: {}
+    clusterDefinitions:
+      - name: demo-cluster
+        bootstrapServers: localhost:9092
     virtualClusters:
       - name: demo
-        targetCluster:
-          bootstrapServers: localhost:9092
+        target:
+          cluster: demo-cluster
         gateways:
         - name: mygateway
           portIdentifiesNode:
