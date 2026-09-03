@@ -130,8 +130,8 @@ public record Configuration(
         for (var router : routerDefinitions) {
             for (var route : router.routes()) {
                 if (route.filters() != null) {
-                    checkNamedFiltersAreDefined(filterDefsByName, route.filters(),
-                            "routerDefinitions." + router.name() + ".routes." + route.name() + ".filters");
+                    String componentName = "routerDefinitions." + router.name() + ".routes." + route.name() + ".filters";
+                    checkNamedFiltersAreDefined(filterDefsByName, route.filters(), componentName);
                 }
             }
         }

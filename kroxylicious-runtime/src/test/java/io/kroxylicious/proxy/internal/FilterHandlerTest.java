@@ -73,6 +73,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 
@@ -178,7 +179,7 @@ class FilterHandlerTest extends FilterHarness {
         DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertEquals(responseData, propagated.body(), "expected ApiVersionsResponseData to be forwarded");
         assertThat(propagated).isInstanceOfSatisfying(InternalResponseFrame.class, internalResponse -> {
-            assertThat(internalResponse.recipient()).isSameAs(request.recipient());
+            assertThat(internalResponse.routing()).isSameAs(request.routing());
             assertThat(internalResponse.promise()).isSameAs(request.promise());
         });
     }
@@ -1435,11 +1436,11 @@ class FilterHandlerTest extends FilterHarness {
         // Given
         ApiVersionsResponseFilter failingFilter = (apiVersion, header, response, context) -> CompletableFuture.failedStage(new RuntimeException("filter failed"));
         buildChannel(failingFilter);
-        var dummyRecipient = (ApiVersionsResponseFilter) (apiVersion, header, response, context) -> null;
         var responseData = new ApiVersionsResponseData();
         var responseHeader = new ResponseHeaderData().setCorrelationId(42);
-        var frame = new InternalResponseFrame<>(dummyRecipient, ApiKeys.API_VERSIONS.latestVersion(), 42,
-                responseHeader, responseData, new CompletableFuture<>());
+        var frame = new InternalResponseFrame<>(ApiKeys.API_VERSIONS.latestVersion(), 42, responseHeader, responseData);
+        // Addressed to some other (non-recipient) filter, so this handler observes it via onResponse.
+        frame.setRouting(new PathElement.FilterOriginator("dummy-recipient", 0, new CompletableFuture<>(), PathElement.ClientOrigin.INSTANCE));
 
         // When
         assertThat(channel.writeOneOutbound(frame).cause()).isNull();

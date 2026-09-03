@@ -6,24 +6,35 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.frame.RequestFrame;
 
 /**
  * Indicates that the enclosing {@link RoutingHandler} is nested — it intercepts
- * requests that a parent router dispatched to {@code activationRoute}, and ignores
+ * requests that a parent router dispatched to {@code activationPath}, and ignores
  * all other frames (passing them through to the next handler).
  */
 record RouterRequestSource(
-                           String activationRoute,
+                           PathElement.Route activationPath,
                            RouterChainFactory routerChainFactory,
                            String routerName)
         implements RequestSource {
 
     /**
-     * Returns {@code true} if this handler should intercept {@code frame} — i.e.
-     * the frame's route name matches the activation route of this nested handler.
+     * Returns {@code true} if this handler should intercept {@code frame} — i.e. the frame's
+     * route position is exactly this nested handler's activation path. Both a router-issued
+     * ({@code RouterContext.sendRequest}) and a filter-issued ({@code FilterContext.sendRequest})
+     * out-of-band frame carry its own originator ({@link PathElement.RouterOriginator} or {@link
+     * PathElement.FilterOriginator} respectively) anchored on top of the route position the
+     * request is actually addressed to — {@link PathElement#routePosition()} strips it here before
+     * comparing, since that originator names the issuing router/filter's own promise, not a
+     * position in the routing tree. A filter whose own route targets this nested router must be
+     * intercepted here, exactly like ordinary traffic on that route, or its out-of-band request
+     * could never reach this router's own (static or dynamic) routing decision.
      */
     boolean intercepts(RequestFrame frame) {
-        return activationRoute.equals(frame.routeName());
+        PathElement routing = frame.routing();
+        PathElement.RoutePosition routePosition = routing == null ? null : routing.routePosition();
+        return activationPath.equals(routePosition);
     }
 }

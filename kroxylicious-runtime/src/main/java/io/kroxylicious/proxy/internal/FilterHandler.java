@@ -44,9 +44,11 @@ import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
@@ -75,6 +77,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
     private final ClientConnectionStateMachine clientConnectionStateMachine;
+    private final int ordinal;
 
     /** Chains response processing to preserve ordering when filters defer work asynchronously. */
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
@@ -97,17 +100,21 @@ public class FilterHandler extends ChannelDuplexHandler {
      * @param sniHostname the SNI hostname presented by the client, or {@code null} if none
      * @param inboundChannel the downstream (client) channel
      * @param clientConnectionStateMachine the state machine for the client connection
+     * @param ordinal this filter's position within its enclosing filter list, disambiguating
+     *        two filters that happen to share a configured name
      */
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
                          @Nullable String sniHostname,
                          Channel inboundChannel,
-                         ClientConnectionStateMachine clientConnectionStateMachine) {
+                         ClientConnectionStateMachine clientConnectionStateMachine,
+                         int ordinal) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.inboundChannel = inboundChannel;
         this.clientConnectionStateMachine = clientConnectionStateMachine;
+        this.ordinal = ordinal;
     }
 
     @Override
@@ -118,7 +125,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     String filterDescriptor() {
-        return filterAndInvoker.filterName();
+        return filterAndInvoker.filterName() + "[" + ordinal + "]";
     }
 
     @Override
@@ -155,12 +162,46 @@ public class FilterHandler extends ChannelDuplexHandler {
     @SuppressWarnings("FutureReturnValueIgnored")
     private void handleInternalResponseWrite(ChannelPromise promise, InternalResponseFrame<?> decodedFrame) {
         // jump the queue, let responses to asynchronous requests flow back to their sender
-        if (decodedFrame.isRecipient(filterAndInvoker.filter())) {
+        if (isRecipient(decodedFrame)) {
             completeInternalResponse(decodedFrame);
         }
         else {
             handleDecodedResponse(decodedFrame, promise);
         }
+    }
+
+    /**
+     * Determines whether {@code frame} is an internal (out-of-band) response addressed to this
+     * handler's own filter. Matches on name, ordinal, and anchoring route position, excluding
+     * the promise carried on the candidate originator, since a fresh promise is created for
+     * every {@code sendRequest()} call.
+     * <p>
+     * A route-scoped handler requires that its own route lies on the candidate originator's
+     * anchoring position's ancestor chain (an exact match, or an ancestor of it) - to disambiguate
+     * same-named filters on different routes, while tolerating further routing that may have
+     * deepened the originator's {@code position()} beyond this filter's own route after the
+     * request was issued (e.g. the request's route itself targeting a nested router, whose own
+     * static or dynamic dispatch grafts a deeper route onto the same originator - see
+     * {@code RoutingHandler.dispatchStaticRoute}). A VC-level (non-route-scoped) handler's
+     * {@link #ownRoutePath()} is {@link PathElement.ClientOrigin#INSTANCE}, which is trivially an
+     * ancestor of every route position - it has exactly one instance for the whole connection, so
+     * route position carries no identity for it at all - it matches on name and ordinal alone.
+     */
+    boolean isRecipient(Frame frame) {
+        return frame.routing() instanceof PathElement.FilterOriginator f
+                && f.name().equals(filterAndInvoker.filterName())
+                && f.ordinal() == ordinal
+                && ownRoutePath().isAncestorOfOrSameAs(f.position());
+    }
+
+    /**
+     * This handler's own route position, or {@link PathElement.ClientOrigin#INSTANCE} if it is not
+     * route-scoped (in which case it is trivially an ancestor of every route position, per
+     * {@link PathElement.RoutePosition#isAncestorOfOrSameAs}). Subclasses (see {@code RouteFilterHandler})
+     * override this to identify out-of-band requests/responses as belonging to a specific route.
+     */
+    PathElement.RoutePosition ownRoutePath() {
+        return PathElement.ClientOrigin.INSTANCE;
     }
 
     @SuppressWarnings("DataFlowIssue")
@@ -640,15 +681,6 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
-    /**
-     * Hook called before an {@link InternalRequestFrame} created by
-     * {@link FilterContext#sendRequest} is fired into the pipeline.
-     * Subclasses can override to tag the frame (e.g. with a route name).
-     */
-    void onInternalRequest(InternalRequestFrame<?> frame) {
-        // intentionally empty — subclasses override to tag frames
-    }
-
     private static <F extends FilterResult> F validateFilterResultNonNull(F f) {
         return Objects.requireNonNullElseGet(f, () -> {
             throw new IllegalStateException("Filter completion must not yield a null result");
@@ -769,7 +801,10 @@ public class FilterHandler extends ChannelDuplexHandler {
 
             var apiKey = ApiKeys.forId(request.apiKey());
             header.setRequestApiKey(apiKey.id);
-            header.setCorrelationId(CorrelationIdSpace.RESERVED_OUT_OF_BAND_CORRELATION_ID);
+            // Distinct per request so plugins that key their own bookkeeping off correlation id
+            // don't suffer collisions. The proxy's own delivery/observation logic never reads this
+            // value, it's carried on the frame's routing value instead.
+            header.setCorrelationId(clientConnectionStateMachine.internalCorrelationIdAllocator().allocateId());
 
             if (!apiKey.isVersionSupported(header.requestApiVersion())) {
                 throw new IllegalArgumentException(
@@ -781,9 +816,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             CompletableFuture<M> filterPromise = promiseFactory.newTimeLimitedPromise(
                     () -> "Asynchronous %s request made by filter '%s' failed to complete within %s ms.".formatted(apiKey, filterDescriptor(), timeoutMs));
             var frame = new InternalRequestFrame<>(
-                    header.requestApiVersion(), header.correlationId(), hasResponse,
-                    filterAndInvoker.filter(), filterPromise, header, request);
-            onInternalRequest(frame);
+                    header.requestApiVersion(), header.correlationId(), hasResponse, header, request);
+            frame.setRouting(new PathElement.FilterOriginator(filterAndInvoker.filterName(), ordinal, filterPromise, ownRoutePath()));
 
             log(DEBUG)
                     .addKeyValue("message", () -> msgDescriptor(frame))

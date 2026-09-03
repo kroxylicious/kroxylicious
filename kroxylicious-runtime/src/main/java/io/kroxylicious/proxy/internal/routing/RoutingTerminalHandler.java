@@ -5,19 +5,15 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.Frame;
-import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 
 import static java.util.Objects.requireNonNull;
@@ -25,23 +21,19 @@ import static java.util.Objects.requireNonNull;
 /**
  * Sits at the end of the routing section of the pipeline.
  * <p>
- * On the inbound (request) path it reads the frame's route name
- * and forwards to the {@link ClientConnectionStateMachine} via the
- * appropriate method, recording the correlation ID → route mapping for
- * requests that expect a response.
+ * On the inbound (request) path it reads the frame's route position and forwards to the
+ * {@link ClientConnectionStateMachine} via the appropriate method.
  * <p>
- * On the outbound (response) path, backend responses arrive via the normal
- * {@code channel.write()} path. This handler tags each response with the
- * route name looked up from the correlation ID map, so that upstream route
- * filter handlers and the dispatch handler can identify which route the
- * response belongs to.
+ * On the outbound (response) path, backend responses arrive via the normal {@code channel.write()}
+ * path, already carrying the correct routing value - restored directly from
+ * {@code CorrelationManager} at decode time - so no bookkeeping is needed here; this handler is a
+ * pure pass-through outbound.
  */
 public class RoutingTerminalHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RoutingTerminalHandler.class);
 
     private final ClientConnectionStateMachine ccsm;
-    private final Map<Integer, String> correlationIdToRoute = new HashMap<>();
 
     /**
      * Creates a routing terminal handler.
@@ -55,16 +47,13 @@ public class RoutingTerminalHandler extends ChannelDuplexHandler {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof Frame frame) {
-            String routeName = frame.routeName();
-            if (routeName == null) {
+            PathElement routing = frame.routing();
+            PathElement.RoutePosition position = routing == null ? null : routing.routePosition();
+            if (!(position instanceof PathElement.Route route)) {
                 ccsm.onClientFilterChainComplete(msg);
                 return;
             }
-            boolean hasResponse = !(msg instanceof RequestFrame rf) || rf.hasResponse();
-            if (hasResponse) {
-                // Include router-internal requests so their responses are stamped with the route name, enabling route-filter onResponse.
-                correlationIdToRoute.put(frame.correlationId(), routeName);
-            }
+            String routeName = route.name();
             int targetNodeId = (frame instanceof DecodedFrame<?, ?> df) ? df.targetVirtualNodeId() : Frame.NO_TARGET_VIRTUAL_NODE_ID;
             if (targetNodeId >= 0) {
                 ccsm.forwardToNode(targetNodeId, routeName, msg);
@@ -85,19 +74,5 @@ public class RoutingTerminalHandler extends ChannelDuplexHandler {
         else {
             ccsm.onClientFilterChainComplete(msg);
         }
-    }
-
-    // FutureReturnValueIgnored: `promise` is supplied by the caller and is notified with
-    // the outcome of the write, so the returned future carries no additional information.
-    @SuppressWarnings("FutureReturnValueIgnored")
-    @Override
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof Frame frame) {
-            String route = correlationIdToRoute.remove(frame.correlationId());
-            if (route != null) {
-                frame.setRouteName(route);
-            }
-        }
-        ctx.write(msg, promise);
     }
 }

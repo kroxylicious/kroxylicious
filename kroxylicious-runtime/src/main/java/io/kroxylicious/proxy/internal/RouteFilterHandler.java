@@ -12,27 +12,30 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * A route-scoped {@link FilterHandler} that only applies its filter when the
- * frame's {@link Frame#routeName()} matches the configured route name.
- * Frames on other routes (or with no routing context) pass through unchanged.
+ * A route-scoped {@link FilterHandler} that only applies its filter when the frame's
+ * {@link Frame#routing()} lies on this handler's own route (i.e. this route's position is an
+ * ancestor of, or the same as, the frame's route position). Frames on other routes (or with no
+ * routing value) pass through unchanged.
  */
 class RouteFilterHandler extends FilterHandler {
 
-    private final String routeName;
+    private final PathElement.Route routePath;
 
     RouteFilterHandler(FilterAndInvoker filterAndInvoker,
                        long timeoutMs,
                        @Nullable String sniHostname,
                        Channel inboundChannel,
                        ClientConnectionStateMachine clientConnectionStateMachine,
-                       String routeName) {
-        super(filterAndInvoker, timeoutMs, sniHostname, inboundChannel, clientConnectionStateMachine);
-        this.routeName = Objects.requireNonNull(routeName);
+                       PathElement.Route routePath,
+                       int ordinal) {
+        super(filterAndInvoker, timeoutMs, sniHostname, inboundChannel, clientConnectionStateMachine, ordinal);
+        this.routePath = Objects.requireNonNull(routePath);
     }
 
     @Override
@@ -46,8 +49,8 @@ class RouteFilterHandler extends FilterHandler {
     }
 
     @Override
-    void onInternalRequest(InternalRequestFrame<?> frame) {
-        frame.setRouteName(routeName);
+    PathElement.Route ownRoutePath() {
+        return routePath;
     }
 
     // FutureReturnValueIgnored: `promise` is supplied by the caller and is notified with
@@ -64,11 +67,11 @@ class RouteFilterHandler extends FilterHandler {
     }
 
     private boolean matchesRoute(Object msg) {
-        return msg instanceof Frame f && routeName.equals(f.routeName());
+        return msg instanceof Frame f && f.routing() != null && routePath.isAncestorOfOrSameAs(f.routing());
     }
 
     @Override
     String filterDescriptor() {
-        return super.filterDescriptor() + "[route=" + routeName + "]";
+        return super.filterDescriptor() + "[route=" + routePath.describe() + "]";
     }
 }
