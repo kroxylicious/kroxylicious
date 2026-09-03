@@ -354,8 +354,7 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Returns the allocator used to mint correlation ids for router- and filter-issued
-     * out-of-band requests on this connection. See {@link #internalCorrelationIdAllocator}.
+     * The correlation ids allocator for router- and filter-issued out-of-band requests.
      * @return the allocator
      */
     public CorrelationIdAllocator internalCorrelationIdAllocator() {

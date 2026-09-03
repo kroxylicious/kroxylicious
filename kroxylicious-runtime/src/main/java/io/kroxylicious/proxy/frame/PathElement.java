@@ -20,17 +20,13 @@ import java.util.stream.Collectors;
  * path, or a route filter's own position) is the head, and {@link #parent()} walks back toward
  * the top-level virtual cluster, terminating at {@link ClientOrigin}. Building a child position is
  * just constructing the appropriate case with the parent element as {@code parent}.
- * Because every case is a record, {@code equals}/{@code
- * hashCode} are structural (recursing through {@code parent}), so exact-match and ancestor-match
- * both reduce to plain comparisons.
+ * Because every case is a record exact-match and ancestor-match both reduce to plain comparisons.
  * <p>
- * Only a {@link RoutePosition} ({@link Route} or {@link ClientOrigin}) may ever appear as another
- * element's {@link #parent()}: a {@link FilterOrigin} or {@link RouterOrigin} always sits directly
- * on a route (or, for a VC-level filter, the client origin), awaiting a promise - nothing is ever
- * layered on top of one of these in turn. This is enforced by every constructor's {@code parent}
- * parameter being typed {@link RoutePosition} (or, for {@link RouterOrigin}, {@link Route} itself,
- * since a router only ever issues an out-of-band request against a concrete named route), never
- * {@code PathElement}.
+ * Only a {@link Route} or {@link ClientOrigin} may ever appear as another
+ * element's {@link #parent()} (see {@link RoutePosition} ). A {@link FilterOrigin} or {@link RouterOrigin}
+ * always sits directly on a route (or, for a VC-level filter, the client origin),
+ * awaiting a promise. A router only ever issues an out-of-band request against a
+ * concrete named route, never {@code PathElement}.
  */
 public sealed interface PathElement {
 
@@ -61,9 +57,7 @@ public sealed interface PathElement {
 
     /**
      * The promise to complete, if this element represents an in-flight internal (router- or
-     * filter-issued) request. Named distinctly from the {@code promise()} accessor {@link
-     * FilterOrigin} and {@link RouterOrigin} each already expose, since a sealed interface default
-     * method can't overload a record component accessor with a different return type.
+     * filter-issued) request.
      *
      * @return the promise, or empty if this element does not represent an internal request
      */
@@ -103,9 +97,7 @@ public sealed interface PathElement {
     /**
      * This element's own position in the route tree: for a {@link RoutePosition}, itself; for a
      * {@link FilterOrigin} or {@link RouterOrigin}, the route (or client origin) it sits on
-     * ({@link #parent()}). Replaces the "strip the out-of-band leaf to get the route" logic that
-     * would otherwise need to be duplicated at each call site that needs a frame's route position
-     * regardless of whether a filter/router happens to be awaiting a promise on top of it.
+     * ({@link #parent()}).
      *
      * @return this element's own route position
      */
@@ -212,11 +204,7 @@ public sealed interface PathElement {
 
     /**
      * The root of every path: the top-level virtual cluster, before any route or out-of-band
-     * request has been layered on top. Replaces {@code null} as the terminal ancestor so the root
-     * is a real, self-describing case instead of a sentinel that every walk and equality check has
-     * to special-case - e.g. a VC-level filter's {@code parent()} is {@code ClientOrigin.INSTANCE}
-     * rather than {@code null}, so {@link #isAncestorOfOrSameAs} treats "applies at the
-     * virtual-cluster level" as "is an ancestor of everything" with no special-casing.
+     * request has been layered on top.
      */
     record ClientOrigin() implements RoutePosition {
 

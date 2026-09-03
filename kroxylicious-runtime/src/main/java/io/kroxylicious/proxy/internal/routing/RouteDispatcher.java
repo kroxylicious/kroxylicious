@@ -40,11 +40,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * to their pending futures — translating node IDs and caching upstream broker addresses along
  * the way.
  *
- * <p>Parameterised by the path leading to this dispatcher's own router (empty/{@code null} for
- * the top-level router, the activating route's path for a nested router) so the same logic serves
+ * <p>Parameterised by the path leading to this dispatcher's own router so the same logic serves
  * every router in the routing tree, and so each level's out-of-band ({@link RouterContextImpl#sendRequest})
- * requests carry a path distinct from every other level's — recognised on the way back by exact
- * structural match, with no id-keyed lookup table required.
+ * requests carry a path distinct from every other level's.
  *
  * <p>Not thread-safe; all callers must be on the same Netty event loop. Off-loop calls are
  * bridged via {@link #executeOnEventLoop}.

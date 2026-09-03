@@ -296,8 +296,8 @@ public class KafkaProxyFrontendHandler
         var allRouteFilters = new ArrayList<FilterAndInvoker>();
 
         // Walk the routing tree top-down, so each route's PathElement is built by extending its
-        // parent's - accumulating the full lineage from the top-level virtual cluster down, rather
-        // than just one hop - before installing that route's filters and (if it targets a nested
+        // parent's, accumulating the full lineage from the top-level virtual cluster down,
+        // before installing that route's filters and (if it targets a nested
         // router) recursing into that router's own routes.
         for (var entry : dr.topLevelRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             installRouteAndDescendants(pipeline, clientChannel, filterContext, vc, dr, entry.getKey(), entry.getValue(), PathElement.ClientOrigin.INSTANCE,

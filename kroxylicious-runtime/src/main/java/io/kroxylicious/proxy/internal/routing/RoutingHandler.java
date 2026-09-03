@@ -713,19 +713,16 @@ public class RoutingHandler extends ChannelDuplexHandler {
     @SuppressWarnings("FutureReturnValueIgnored")
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        // No per-hop route retagging is needed any more - the path was already correct (full
-        // lineage included) when it was set once, at dispatch time.
         if (msg instanceof DecodedResponseFrame<?> frame) {
             RouteDispatcher.ResponseOutcome outcome = dispatcher.handleResponse(frame, sessionId);
             if (outcome == RouteDispatcher.ResponseOutcome.CONSUMED) {
                 promise.setSuccess();
                 return;
             }
-            // Fail-closed safety net, mirroring the old correlation-id-range defensive close: a
-            // router-issued out-of-band request's RouterOrigin leaf is only ever stripped by the
+            // A router-issued out-of-band request's RouterOrigin leaf is only ever stripped by the
             // dispatcher level that issued it (see RouteDispatcher.handleResponse). If one is still
-            // present once the response reaches the top level, no level claimed it - rather than
-            // forward a bare internal frame toward the client, close the connection. Scoped to
+            // present once the response reaches the top level, no level claimed it, so close the
+            // connection rather than forward a bare internal frame toward the client. Scoped to
             // RouterOrigin only (not FilterOrigin): a FilterOrigin destined for a VC-level filter
             // legitimately still carries its leaf at this point, since VC-level filters sit above
             // (client-side of) the top-level router and haven't had a chance to claim it yet.

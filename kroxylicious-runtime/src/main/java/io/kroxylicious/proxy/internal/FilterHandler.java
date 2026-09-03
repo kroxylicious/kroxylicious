@@ -166,10 +166,10 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * Determines whether {@code msg} is an internal (out-of-band) response addressed to this
-     * handler's own filter. Matches structurally on name, ordinal, and route position - not by
-     * {@link Filter} object identity - and deliberately excludes the promise carried on the
-     * candidate leaf, since a fresh promise is created for every {@code sendRequest()} call.
+     * Determines whether {@code frame} is an internal (out-of-band) response addressed to this
+     * handler's own filter. Matches on name, ordinal, and route position, excluding
+     * the promise carried on the candidate leaf, since a fresh promise is created for
+     * every {@code sendRequest()} call.
      * <p>
      * A route-scoped handler requires that its own route lies on the candidate leaf's ancestor
      * chain (an exact match, or an ancestor of it) - to disambiguate same-named filters on
@@ -182,8 +182,8 @@ public class FilterHandler extends ChannelDuplexHandler {
      * exactly one instance for the whole connection, so route position carries no identity for it
      * at all - it matches on name and ordinal alone.
      */
-    boolean isRecipient(Frame msg) {
-        return msg.path() instanceof PathElement.FilterOrigin f
+    boolean isRecipient(Frame frame) {
+        return frame.path() instanceof PathElement.FilterOrigin f
                 && f.name().equals(filterAndInvoker.filterName())
                 && f.ordinal() == ownOrdinal()
                 && ownRoutePath().isAncestorOfOrSameAs(f.parent());
@@ -805,9 +805,8 @@ public class FilterHandler extends ChannelDuplexHandler {
 
             var apiKey = ApiKeys.forId(request.apiKey());
             header.setRequestApiKey(apiKey.id);
-            // Distinct per request so plugin code that keys its own bookkeeping off correlation id
-            // (as some filters do) doesn't collide when multiple out-of-band requests are in
-            // flight concurrently - the proxy's own delivery/observation logic never reads this
+            // Distinct per request so plugins that key their own bookkeeping off correlation id
+            // don't suffer collisions. The proxy's own delivery/observation logic never reads this
             // value, it's carried on the frame's path instead.
             header.setCorrelationId(clientConnectionStateMachine.internalCorrelationIdAllocator().allocateId());
 

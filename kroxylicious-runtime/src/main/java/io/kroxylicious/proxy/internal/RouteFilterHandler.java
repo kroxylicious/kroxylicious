@@ -65,12 +65,6 @@ class RouteFilterHandler extends FilterHandler {
     @SuppressWarnings("FutureReturnValueIgnored")
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        // Gating purely on route membership is sufficient: an out-of-band response addressed to
-        // this handler's own filter always carries this route as part of its own identity (see
-        // isRecipient()), so recipient frames are always also route-matching frames here - unlike
-        // the old route-name-string scheme, a frame's path is set once, correctly, and never
-        // needs restoring via a separate, collision-prone lookup, so there's no scenario where a
-        // recipient frame's route fails to match.
         if (matchesRoute(msg)) {
             super.write(ctx, msg, promise);
         }
