@@ -313,7 +313,7 @@ class PathElementTest {
     @Test
     void toStringOfRouteDelegatesToDescribe() {
         // Given/When/Then
-        assertThat(INNER_ROUTE).hasToString(INNER_ROUTE.describe());
+        assertThat(INNER_ROUTE.describe()).hasToString(INNER_ROUTE.toString());
     }
 
     @Test

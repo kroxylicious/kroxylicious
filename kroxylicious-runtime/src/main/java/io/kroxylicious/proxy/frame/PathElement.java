@@ -197,6 +197,7 @@ public sealed interface PathElement permits PathElement.RoutePosition, PathEleme
          *
          * @return the pending promise
          */
+        @SuppressWarnings("java:S1452")
         CompletableFuture<?> promise();
 
         /**
