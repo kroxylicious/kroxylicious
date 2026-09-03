@@ -514,6 +514,51 @@ class RouteDispatcherTest {
         assertThat(responseFrame.refCnt()).isZero();
     }
 
+    /**
+     * A {@link PathElement.RouterOriginator} must be consumed only by the dispatcher level that
+     * issued it - the invariant asserted at {@code RoutingHandler.write} ("only ever consumed by
+     * the dispatcher level that issued it").
+     *
+     * <p>Reproduces the nested-routing case: a top-level router issues an out-of-band request to a
+     * route ({@code routeR}) that itself targets a nested router {@code N}. {@code N} intercepts the
+     * request and statically routes it onward to its own {@code innerRoute}, grafting its resolved
+     * route onto the carried originator exactly as {@code RoutingHandler.dispatchStaticRoute} does.
+     * When the response returns, the nested dispatcher must <em>not</em> claim it: the promise
+     * belongs to the outer router, which alone knows the correct {@link NodeIdMapping} and route
+     * name to translate the response with, and which alone is tracking the promise for
+     * connection-close cleanup.
+     */
+    @Test
+    void nestedDispatcherMustNotConsumeAnOuterRouterOriginator() {
+        // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
+        var outer = createDispatcher(Map.of("routeR", routerRoute("routeR", 0, "N")), "");
+        var outerFuture = outer.sendToAnyNode("routeR", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        PathElement issuedByOuter = fired.routing();
+
+        var nested = new RouteDispatcher(
+                Map.of("innerRoute", clusterRoute("innerRoute", 0)),
+                new IdentityNodeIdMapping("innerRoute"),
+                "N/",
+                issuedByOuter.routePosition(),
+                correlationIdAllocator, new HashMap<>(), "test-cluster");
+        PathElement grafted = issuedByOuter.graft(nested.routePathFor("innerRoute"));
+        var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, new ResponseHeaderData(), new FetchResponseData());
+        responseFrame.setRouting(grafted);
+
+        // When
+        var outcome = nested.handleResponse(responseFrame, SESSION_ID);
+
+        // Then
+        assertThat(outcome)
+                .as("the nested level did not issue this out-of-band request, so it must not claim the response")
+                .isEqualTo(RouteDispatcher.ResponseOutcome.UNHANDLED);
+        assertThat(outerFuture.toCompletableFuture())
+                .as("the outer router's promise must be left for the level that issued it")
+                .isNotDone();
+    }
+
     // --- failAllPending ---
 
     @Test
