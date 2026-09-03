@@ -15,6 +15,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 
@@ -179,51 +180,95 @@ public final class ReflectiveMessagePopulator {
     }
 
     private Object valueFor(Type type) {
+        return scalarValueFor(type)
+                .or(() -> containerValueFor(type))
+                .or(() -> uuidValueFor(type))
+                .or(() -> baseRecordsValueFor(type))
+                .or(() -> structValueFor(type))
+                .orElseThrow(() -> new UnsupportedOperationException("Don't know how to populate a field of type " + type));
+    }
+
+    /**
+     * Flat, non-recursive leaf values: primitives, their boxed equivalents, and the handful of built-in
+     * reference types ({@code String}, {@code byte[]}, {@code ByteBuffer}) treated as opaque blobs rather
+     * than structures to recurse into. Returns {@link Optional#empty()} for any other type, deferring to
+     * {@link #valueFor}'s remaining checks.
+     */
+    private Optional<Object> scalarValueFor(Type type) {
         if (type == short.class || type == Short.class) {
-            return (short) (1 + random.nextInt(Short.MAX_VALUE));
+            return Optional.of((short) (1 + randomInt(Short.MAX_VALUE)));
         }
         if (type == int.class || type == Integer.class) {
-            return 1 + random.nextInt(Integer.MAX_VALUE - 1);
+            return Optional.of(1 + randomInt(Integer.MAX_VALUE - 1));
         }
         if (type == long.class || type == Long.class) {
-            return 1L + random.nextInt(Integer.MAX_VALUE - 1);
+            return Optional.of(1L + randomInt(Integer.MAX_VALUE - 1));
         }
         if (type == byte.class || type == Byte.class) {
-            return (byte) (1 + random.nextInt(Byte.MAX_VALUE));
+            return Optional.of((byte) (1 + randomInt(Byte.MAX_VALUE)));
         }
         if (type == boolean.class || type == Boolean.class) {
-            return true;
+            return Optional.of(true);
         }
         if (type == double.class || type == Double.class) {
-            return 1.0 + random.nextInt(1_000_000);
+            return Optional.of(1.0 + random.nextInt(1_000_000));
         }
         if (type == String.class) {
-            return "value-" + random.nextInt(1_000_000);
+            return Optional.of("value-" + random.nextInt(1_000_000));
         }
         if (type == byte[].class) {
-            byte[] bytes = new byte[4 + random.nextInt(8)];
-            random.nextBytes(bytes);
-            return bytes;
+            return Optional.of(randomBytes());
         }
         if (type == ByteBuffer.class) {
-            return ByteBuffer.wrap((byte[]) valueFor(byte[].class));
+            return Optional.of(ByteBuffer.wrap(randomBytes()));
         }
+        return Optional.empty();
+    }
+
+    private byte[] randomBytes() {
+        byte[] bytes = new byte[4 + random.nextInt(8)];
+        random.nextBytes(bytes);
+        return bytes;
+    }
+
+    /**
+     * Types that hold a variable number of repeated elements: a generated {@code List<T>} field, or an
+     * {@code ImplicitLinkedHashMultiCollection}-based collection. Returns {@link Optional#empty()} for any
+     * other type, deferring to {@link #valueFor}'s remaining checks.
+     */
+    private Optional<Object> containerValueFor(Type type) {
         if (type instanceof ParameterizedType parameterizedType && parameterizedType.getRawType() == List.class) {
-            return listValueFor(parameterizedType.getActualTypeArguments()[0]);
-        }
-        if (type instanceof Class<?> clazz && isUuidType(clazz)) {
-            return newUuid(clazz);
+            return Optional.of(listValueFor(parameterizedType.getActualTypeArguments()[0]));
         }
         if (type instanceof Class<?> clazz && isMultiCollectionType(clazz)) {
-            return collectionValueFor(clazz);
+            return Optional.of(collectionValueFor(clazz));
         }
+        return Optional.empty();
+    }
+
+    private Optional<Object> uuidValueFor(Type type) {
+        if (type instanceof Class<?> clazz && isUuidType(clazz)) {
+            return Optional.of(newUuid(clazz));
+        }
+        return Optional.empty();
+    }
+
+    private Optional<Object> baseRecordsValueFor(Type type) {
         if (type instanceof Class<?> clazz && isBaseRecordsType(clazz)) {
-            return emptyRecords(clazz);
+            return Optional.of(emptyRecords(clazz));
         }
+        return Optional.empty();
+    }
+
+    private Optional<Object> structValueFor(Type type) {
         if (type instanceof Class<?> structClass) {
-            return newStruct(structClass);
+            return Optional.of(newStruct(structClass));
         }
-        throw new UnsupportedOperationException("Don't know how to populate a field of type " + type);
+        return Optional.empty();
+    }
+
+    private int randomInt(int maxValue) {
+        return random.nextInt(maxValue);
     }
 
     private List<Object> listValueFor(Type elementType) {
