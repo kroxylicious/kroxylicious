@@ -23,10 +23,16 @@ public class Utils {
     static final Predicate<Path> ALL_ASCIIDOC_FILES = f -> f.getFileName().toString().endsWith(".adoc");
     static final Path MODULE_ROOT = Path.of("").toAbsolutePath();
     static final Path DOCS_ROOTDIR = MODULE_ROOT.getParent().resolve("kroxylicious-docs").resolve("docs");
+    static final Path SCRIPTS_DIR = MODULE_ROOT.getParent().resolve("scripts");
 
     // This is Zip artefact containing the Operator. The Maven copy-kroxylicious-operator-zip copies the artefact
     // from the kroxylicious-operator-dist module to this module with a stable name.
     static final Path OPERATOR_ZIP = MODULE_ROOT.resolve("target").resolve("kroxylicious-operator-dist").resolve("kroxylicious-operator.zip");
+
+    // Container-image tarballs produced by `mvn -Pdist package` on the proxy and operator modules.
+    // QuickStartDT loads these into the throw-away Minikube profile it creates for each quick start run
+    static final Path PROXY_IMAGE_TARBALL = MODULE_ROOT.getParent().resolve("kroxylicious-app/target/kroxylicious-proxy.img.tar.gz");
+    static final Path OPERATOR_IMAGE_TARBALL = MODULE_ROOT.getParent().resolve("kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz");
 
     static Stream<Path> asciiDocFilesMatching(final Predicate<Path> pathPredicate) {
 
