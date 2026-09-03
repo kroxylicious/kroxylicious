@@ -257,19 +257,44 @@ public sealed interface PathElement permits PathElement.RoutePosition, PathEleme
 
     /**
      * A router's own identity: an internally-issued request made by the router itself, awaiting
-     * {@code promise}. {@code position()} is always a concrete {@link Route} - routing an
-     * out-of-band request always targets a named route, never the bare client origin.
+     * {@code promise}. Both routes are always a concrete {@link Route} - routing an out-of-band
+     * request always targets a named route, never the bare client origin.
+     * <p>
+     * Unlike a {@link FilterOriginator}, a router-issued request carries no name/ordinal identity,
+     * so the {@code issuedAt} route is what identifies the dispatcher level that issued it: it is
+     * the route the request was originally issued to, and is <em>never</em> changed by
+     * {@link #graft}/{@link #reposition}. {@code RouteDispatcher} matches a returning response to
+     * its issuing level by comparing {@code issuedAt}'s parent against that level's own parent path,
+     * which is why grafting a deeper route beneath the originator (e.g. when {@code issuedAt} itself
+     * targets a nested router) must not disturb it - see {@code RouteDispatcher.handleResponse}.
      *
      * @param promise the promise to complete when the response arrives
-     * @param position the route level this router is installed at
+     * @param issuedAt the route this request was issued to - the stable identity of the issuing
+     *        dispatcher level, never deepened by {@link #reposition}
+     * @param position the current route position, which {@link #reposition} may deepen (e.g. when a
+     *        nested router resolves a further route beneath {@code issuedAt}) so that route-scoped
+     *        filters on the resolved route still recognise the frame as belonging to their route
      */
     record RouterOriginator(
                             CompletableFuture<?> promise,
+                            Route issuedAt,
                             Route position)
             implements Originator {
+
+        /**
+         * Creates an originator sitting exactly at the route it was issued to, before any
+         * {@link #reposition} has deepened its position.
+         *
+         * @param promise the promise to complete when the response arrives
+         * @param route the route this request was issued to
+         */
+        public RouterOriginator(CompletableFuture<?> promise, Route route) {
+            this(promise, route, route);
+        }
+
         @Override
         public Originator reposition(Route newPosition) {
-            return new RouterOriginator(promise, newPosition);
+            return new RouterOriginator(promise, issuedAt, newPosition);
         }
 
         @Override

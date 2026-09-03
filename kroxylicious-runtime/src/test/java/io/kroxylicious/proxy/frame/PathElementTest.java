@@ -150,7 +150,7 @@ class PathElementTest {
         var grafted = originator.graft(newPosition);
 
         // Then
-        assertThat(grafted).isEqualTo(new RouterOriginator(promise, newPosition));
+        assertThat(grafted).isEqualTo(new RouterOriginator(promise, OUTER_ROUTE, newPosition));
     }
 
     // --- Originator.reposition() ---
@@ -180,7 +180,7 @@ class PathElementTest {
         var repositioned = originator.reposition(newPosition);
 
         // Then
-        assertThat(repositioned).isEqualTo(new RouterOriginator(promise, newPosition));
+        assertThat(repositioned).isEqualTo(new RouterOriginator(promise, OUTER_ROUTE, newPosition));
     }
 
     // --- RoutePosition.parent() ---

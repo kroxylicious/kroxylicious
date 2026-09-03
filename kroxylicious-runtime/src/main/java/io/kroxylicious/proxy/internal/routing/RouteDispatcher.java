@@ -280,14 +280,18 @@ public class RouteDispatcher implements RouterDispatch {
 
     ResponseOutcome handleResponse(DecodedResponseFrame<?> frame, String sessionId) {
         PathElement routing = frame.routing();
-        if (routing instanceof PathElement.RouterOriginator(CompletableFuture<?> promise, PathElement.Route routeSegment)
-                && Objects.equals(routeSegment.parent(), parentPath)) {
+        // Match on issuedAt (the route this OOB request was issued to), not the possibly-deeper
+        // position: a nested router may have grafted a further route beneath the originator, but the
+        // promise is still owned by - and must be translated by - the level that issued it. issuedAt
+        // is never deepened by grafting, so issuedAt.parent() uniquely identifies the issuing level.
+        if (routing instanceof PathElement.RouterOriginator(CompletableFuture<?> promise, PathElement.Route issuedAt, PathElement.Route ignored)
+                && Objects.equals(issuedAt.parent(), parentPath)) {
             @SuppressWarnings("unchecked")
             CompletableFuture<ApiMessage> future = (CompletableFuture<ApiMessage>) promise;
             pendingPromises.remove(future);
             ApiMessage body = frame.body();
             try {
-                NodeIdResponseTranslator.translate(body, frame.apiVersion(), nodeIdMapping, localRouteName(routeSegment));
+                NodeIdResponseTranslator.translate(body, frame.apiVersion(), nodeIdMapping, localRouteName(issuedAt));
                 cacheNodeAddressesIfMetadata(body, sessionId);
                 future.complete(body);
             }
@@ -304,7 +308,7 @@ public class RouteDispatcher implements RouterDispatch {
             LOGGER.atTrace()
                     .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                     .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                    .addKeyValue(LOG_KEY_ROUTE, routeSegment.name())
+                    .addKeyValue(LOG_KEY_ROUTE, issuedAt.name())
                     .log("Routed response matched to pending request");
             return ResponseOutcome.CONSUMED;
         }
