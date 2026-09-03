@@ -37,11 +37,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 public final class ReflectiveMessagePopulator {
 
     private final Random random;
-    private final Short version;
+    private final Short messageVersion;
 
-    private ReflectiveMessagePopulator(Random random, Short version) {
+    private ReflectiveMessagePopulator(Random random, Short messageVersion) {
         this.random = random;
-        this.version = version;
+        this.messageVersion = messageVersion;
     }
 
     /**
@@ -74,7 +74,7 @@ public final class ReflectiveMessagePopulator {
     }
 
     private void populate(Object message) {
-        Set<String> schemaFieldNames = version == null ? null : schemaFieldNamesAt(message.getClass(), version);
+        Set<String> schemaFieldNames = messageVersion == null ? null : schemaFieldNamesAt(message.getClass(), messageVersion);
         for (Field field : message.getClass().getDeclaredFields()) {
             int modifiers = field.getModifiers();
             boolean generatorInternal = Modifier.isStatic(modifiers) || Modifier.isPrivate(modifiers);
