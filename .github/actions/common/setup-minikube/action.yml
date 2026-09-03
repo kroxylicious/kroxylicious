@@ -26,6 +26,22 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Cache minikube start artifacts
+      # manusa/actions-setup-minikube sets MINIKUBE_HOME to $RUNNER_TEMP, so
+      # `minikube start` caches the kicbase image, the kubernetes preload
+      # tarball, and the k8s component binaries under this path. Restoring it
+      # before the action runs lets `minikube start` skip those downloads.
+      # NOTE: this does NOT cache the minikube CLI binary itself (that download
+      # is unconditional in the action; see #4653).
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      with:
+        path: ${{ runner.temp }}/.minikube/cache
+        # Key off this action's definition so any minikube/kubernetes version
+        # change (incl. Renovate bumps to the lines below) invalidates the
+        # cache automatically - no separate Renovate rule needed, and no risk
+        # of serving stale-version artifacts.
+        key: ${{ runner.os }}-minikube-${{ hashFiles('.github/actions/common/setup-minikube/action.yml') }}
+
     - name: Setup Minikube
       uses: manusa/actions-setup-minikube@b65276017fdec6f1e6498129fb740e34e260dc55
       with:
