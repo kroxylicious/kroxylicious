@@ -49,10 +49,13 @@ import static org.mockito.Mockito.when;
 class KafkaProxyTransportTest {
 
     private static final String MINIMUM_VIABLE_CONFIG_YAML = """
+            clusterDefinitions:
+              - name: demo1-cluster
+                bootstrapServers: kafka.example:1234
             virtualClusters:
               - name: demo1
-                targetCluster:
-                  bootstrapServers: kafka.example:1234
+                target:
+                  cluster: demo1-cluster
                 gateways:
                 - name: default
                   portIdentifiesNode:
