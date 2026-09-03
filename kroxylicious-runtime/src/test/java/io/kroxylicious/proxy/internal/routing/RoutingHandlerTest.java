@@ -458,6 +458,26 @@ class RoutingHandlerTest {
     }
 
     @Test
+    void topLevel_shouldCloseChannelWhenRouterIssuedResponseInvariantViolated() {
+        // Given: a RouterOriginator whose route matches this (top-level) dispatcher's own
+        // level structurally, but whose future was never registered as pending here - an
+        // internal bookkeeping invariant violation, not a legitimately unclaimed response.
+        var handler = topLevelHandler(Map.of());
+        channel = new EmbeddedChannel(handler);
+        var routing = new PathElement.RouterOriginator(new CompletableFuture<>(),
+                new PathElement.Route(DEFAULT_ROUTE, PathElement.ClientOrigin.INSTANCE));
+        var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, new ResponseHeaderData(), new MetadataResponseData());
+        responseFrame.setRouting(routing);
+
+        // When
+        channel.writeOutbound(responseFrame);
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+        assertThat((DecodedResponseFrame<?>) channel.readOutbound()).isNull();
+    }
+
+    @Test
     void topLevel_shouldDeliverResponseBeforeClosingChannelWhenRespondWithAndCloseConnection() {
         // Given
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
@@ -1043,6 +1063,27 @@ class RoutingHandlerTest {
         assertThat(channel.isOpen()).isTrue();
         DecodedResponseFrame<?> out = channel.readOutbound();
         assertThat(out).isNotNull();
+    }
+
+    @Test
+    void nested_shouldNotCloseChannelWhenRouterIssuedResponseInvariantViolated() {
+        // Given: a RouterOriginator whose route matches this nested dispatcher's own level
+        // structurally, but whose future was never registered as pending here. Nested routers
+        // don't own the client connection, so unlike the top-level case this must not attempt
+        // to close it.
+        var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
+        channel = new EmbeddedChannel(handler);
+        var routing = new PathElement.RouterOriginator(new CompletableFuture<>(),
+                new PathElement.Route("some-route", ACTIVATION_ROUTE_PATH));
+        var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, new ResponseHeaderData(), new MetadataResponseData());
+        responseFrame.setRouting(routing);
+
+        // When
+        channel.writeOutbound(responseFrame);
+
+        // Then
+        assertThat(channel.isOpen()).isTrue();
+        assertThat((DecodedResponseFrame<?>) channel.readOutbound()).isNull();
     }
 
     @Test

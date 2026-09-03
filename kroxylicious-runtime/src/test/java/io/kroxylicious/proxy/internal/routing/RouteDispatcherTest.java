@@ -495,6 +495,7 @@ class RouteDispatcherTest {
         var routes = Map.of("r1", clusterRoute("r1", 0), "r2", clusterRoute("r2", 1));
         var dispatcher = createDispatcher(routes, ROUTER_NAME + "/");
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
+        dispatcher.addPendingPromise(future);
         // A route name not known to the BijectiveNodeIdMapping, to force toVirtual() to throw.
         var responsePath = new PathElement.RouterOriginator(future, dispatcher.routePathFor("unknown-route"));
         var metadataResponse = new MetadataResponseData();
@@ -510,6 +511,33 @@ class RouteDispatcherTest {
 
         // Then
         assertThat(outcome).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
+        assertThat(future).isCompletedExceptionally();
+        assertThat(responseFrame.refCnt()).isZero();
+    }
+
+    /**
+     * If a response's {@link PathElement.RouterOriginator} structurally matches this dispatcher's
+     * own level ({@code issuedAt.parent()} equals this dispatcher's {@code parentPath}) but the
+     * carried future was never registered as pending here, that's an internal bookkeeping
+     * invariant violation - not a legitimate match - so the response must not be silently treated
+     * as an ordinary success.
+     */
+    @Test
+    void handleResponseShouldReturnInvariantViolatedWhenFutureNotPending() {
+        // Given
+        var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
+        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
+        var responsePath = new PathElement.RouterOriginator(future, dispatcher.routePathFor("r1"));
+        var responseFrame = new DecodedResponseFrame<>(
+                (short) 12, ROUTING_CORRELATION_ID,
+                new ResponseHeaderData(), new FetchResponseData());
+        responseFrame.setRouting(responsePath);
+
+        // When
+        var outcome = dispatcher.handleResponse(responseFrame, SESSION_ID);
+
+        // Then
+        assertThat(outcome).isEqualTo(RouteDispatcher.ResponseOutcome.INVARIANT_VIOLATED);
         assertThat(future).isCompletedExceptionally();
         assertThat(responseFrame.refCnt()).isZero();
     }

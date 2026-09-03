@@ -740,6 +740,19 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 promise.setSuccess();
                 return;
             }
+            if (outcome == RouteDispatcher.ResponseOutcome.INVARIANT_VIOLATED) {
+                // RouteDispatcher has already logged and released the frame. Only the top-level
+                // handler owns the client connection, so only it can turn this internal-bookkeeping
+                // corruption into a hard close, the same way the UNHANDLED case above does - a nested
+                // router can't close the client connection it doesn't own (see the TODO (#4157) note
+                // in handleCompletion, where a nested router's own close request is ignored for the
+                // same reason).
+                if (requestSource instanceof VirtualClusterRequestSource) {
+                    ctx.channel().close().addListener(logFailure(LOGGER, "close after router OOB response invariant violation"));
+                }
+                promise.setSuccess();
+                return;
+            }
         }
         ctx.write(msg, promise);
     }

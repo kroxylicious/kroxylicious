@@ -101,7 +101,8 @@ public class RouteDispatcher implements RouterDispatch {
     enum ResponseOutcome {
         CONSUMED,
         STATIC_TRANSLATED,
-        UNHANDLED
+        UNHANDLED,
+        INVARIANT_VIOLATED
     }
 
     RouteDispatcher(Map<String, RouteDescriptor> routes,
@@ -288,7 +289,19 @@ public class RouteDispatcher implements RouterDispatch {
                 && Objects.equals(issuedAt.parent(), parentPath)) {
             @SuppressWarnings("unchecked")
             CompletableFuture<ApiMessage> future = (CompletableFuture<ApiMessage>) promise;
-            pendingPromises.remove(future);
+            if (!pendingPromises.remove(future)) {
+                var invariantViolation = new IllegalStateException(
+                        "Router OOB response matched a future that wasn't pending (route=" + issuedAt.name() + ")");
+                LOGGER.atError()
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                        .addKeyValue(LOG_KEY_ROUTE, issuedAt.name())
+                        .setCause(invariantViolation)
+                        .log("Router-issued OOB response matched by path but its future was not pending; invariant violated");
+                future.completeExceptionally(invariantViolation);
+                frame.release();
+                return ResponseOutcome.INVARIANT_VIOLATED;
+            }
             ApiMessage body = frame.body();
             try {
                 NodeIdResponseTranslator.translate(body, frame.apiVersion(), nodeIdMapping, localRouteName(issuedAt));
@@ -332,6 +345,11 @@ public class RouteDispatcher implements RouterDispatch {
     @VisibleForTesting
     boolean hasPendingStaticRoute(int correlationId) {
         return pendingStaticRoutes.containsKey(correlationId);
+    }
+
+    @VisibleForTesting
+    void addPendingPromise(CompletableFuture<ApiMessage> future) {
+        pendingPromises.add(future);
     }
 
     // --- Lifecycle ---

@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -274,10 +275,6 @@ class RouteFilterCorrectnessIT {
                 mockBootstrap -> singleRouteConfig(mockBootstrap, List.of(markerADef, markerBDef)), ROUTING_ENABLED);
                 var client = tester.simpleTestClient()) {
 
-            ApiVersionsResponseData apiVersions = new ApiVersionsResponseData();
-            apiVersions.apiKeys().add(new ApiVersionsResponseData.ApiVersion()
-                    .setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
-            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersions));
             tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
             tester.addMockResponseForApiKey(
                     new ResponsePayload(org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
@@ -327,10 +324,6 @@ class RouteFilterCorrectnessIT {
                 mockBootstrap -> singleRouteConfigWithVcFilter(mockBootstrap, filterDef), ROUTING_ENABLED);
                 var client = tester.simpleTestClient()) {
 
-            ApiVersionsResponseData apiVersions = new ApiVersionsResponseData();
-            apiVersions.apiKeys().add(new ApiVersionsResponseData.ApiVersion()
-                    .setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
-            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersions));
             tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
             tester.addMockResponseForApiKey(
                     new ResponsePayload(org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
@@ -604,7 +597,7 @@ class RouteFilterCorrectnessIT {
                 var producer = tester.producer(Map.of(DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
 
             // When
-            producer.send(new ProducerRecord<>(topic.name(), "key", "value")).get();
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "key", "value"))).succeedsWithin(Duration.ofSeconds(10));
         }
 
         // Then
