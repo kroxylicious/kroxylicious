@@ -36,6 +36,20 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 public final class ReflectiveMessagePopulator {
 
+    // Kroxylicious and Kafka each declare their own copy of these types under the same relative path,
+    // one package per namespace - matched by fully-qualified name rather than an import of either
+    // concrete class, so this harness stays symmetric between the two namespaces it's proving fidelity
+    // between.
+    private static final Set<String> UUID_CLASS_NAMES = Set.of(
+            "io.kroxylicious.kafka.common.Uuid",
+            "org.apache.kafka.common.Uuid");
+    private static final Set<String> MULTI_COLLECTION_CLASS_NAMES = Set.of(
+            "io.kroxylicious.kafka.common.utils.ImplicitLinkedHashMultiCollection",
+            "org.apache.kafka.common.utils.ImplicitLinkedHashMultiCollection");
+    private static final Set<String> BASE_RECORDS_CLASS_NAMES = Set.of(
+            "io.kroxylicious.kafka.common.record.internal.BaseRecords",
+            "org.apache.kafka.common.record.internal.BaseRecords");
+
     private final Random random;
     private final Short messageVersion;
 
@@ -221,8 +235,10 @@ public final class ReflectiveMessagePopulator {
         return elements;
     }
 
+    @SuppressWarnings("java:S1872") // No common supertype exists to instanceof against: Kroxylicious's and
+    // Kafka's Uuid are unrelated classes in unrelated packages, matched here by name on purpose.
     private static boolean isUuidType(Class<?> clazz) {
-        return clazz.getSimpleName().equals("Uuid");
+        return UUID_CLASS_NAMES.contains(clazz.getName());
     }
 
     private Object newUuid(Class<?> uuidClass) {
@@ -235,9 +251,12 @@ public final class ReflectiveMessagePopulator {
         }
     }
 
+    @SuppressWarnings("java:S1872") // No common supertype exists to instanceof against: Kroxylicious's and
+    // Kafka's ImplicitLinkedHashMultiCollection are unrelated classes in unrelated packages, matched here
+    // by name on purpose.
     private static boolean isMultiCollectionType(Class<?> clazz) {
         for (Class<?> ancestor = clazz.getSuperclass(); ancestor != null; ancestor = ancestor.getSuperclass()) {
-            if (ancestor.getSimpleName().equals("ImplicitLinkedHashMultiCollection")) {
+            if (MULTI_COLLECTION_CLASS_NAMES.contains(ancestor.getName())) {
                 return true;
             }
         }
@@ -269,8 +288,10 @@ public final class ReflectiveMessagePopulator {
         throw new IllegalStateException("No single-argument add(...) method found on " + collectionClass);
     }
 
+    @SuppressWarnings("java:S1872") // No common supertype exists to instanceof against: Kroxylicious's and
+    // Kafka's BaseRecords are unrelated interfaces in unrelated packages, matched here by name on purpose.
     private static boolean isBaseRecordsType(Class<?> clazz) {
-        return clazz.isInterface() && clazz.getSimpleName().equals("BaseRecords");
+        return BASE_RECORDS_CLASS_NAMES.contains(clazz.getName());
     }
 
     /**
