@@ -5,13 +5,18 @@
  */
 package io.kroxylicious.fidelity;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -24,33 +29,75 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * default (package) access, and use {@code private} exclusively for the generator's own bookkeeping
  * (the unknown-tagged-fields list) - so that visibility split is a reliable signal of "real payload
  * field" versus "generator internals", without depending on field naming.
+ * <p>
+ * Each call gets its own instance: {@link #populate} recurses into nested structs, lists and
+ * collections, and every level of that recursion needs the same {@link Random} and target
+ * {@code version} - carrying them as instance state avoids threading both through every private method.
  */
 public final class ReflectiveMessagePopulator {
 
-    private ReflectiveMessagePopulator() {
+    private final Random random;
+    private final Short version;
+
+    private ReflectiveMessagePopulator(Random random, Short version) {
+        this.random = random;
+        this.version = version;
     }
 
     /**
      * Populates {@code message}'s fields with deterministic non-default values derived from {@code seed}.
+     * No schema/version information is used, so a primitive field left at a constructor-assigned
+     * non-zero default (a schema-declared default value) is not overwritten, on the assumption that such
+     * a value is exactly the one the field must hold below the version it was introduced in.
      *
      * @param message the instance to populate
      * @param seed the seed controlling the generated values
      */
     @SuppressFBWarnings("PREDICTABLE_RANDOM") // Deterministic pseudorandomness is the point: reproducible test fixtures, not security relevant
     public static void populate(Object message, long seed) {
-        populate(message, new Random(seed));
+        new ReflectiveMessagePopulator(new Random(seed), null).populate(message);
     }
 
-    private static void populate(Object message, Random random) {
+    /**
+     * Populates {@code message}'s fields with deterministic non-default values, restricted to the
+     * fields actually present in {@code message}'s schema at {@code version} - so the result never
+     * trips the generated {@code write()}'s own version guards for fields introduced later, or
+     * excluded again earlier, than {@code version}.
+     *
+     * @param message the instance to populate
+     * @param version the wire version {@code message} will be serialised at
+     * @param seed the seed controlling the generated values
+     */
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Deterministic pseudorandomness is the point: reproducible test fixtures, not security relevant
+    public static void populate(Object message, short version, long seed) {
+        new ReflectiveMessagePopulator(new Random(seed), version).populate(message);
+    }
+
+    private void populate(Object message) {
+        Set<String> schemaFieldNames = version == null ? null : schemaFieldNamesAt(message.getClass(), version);
         for (Field field : message.getClass().getDeclaredFields()) {
             int modifiers = field.getModifiers();
-            if (Modifier.isStatic(modifiers) || Modifier.isPrivate(modifiers)) {
+            boolean generatorInternal = Modifier.isStatic(modifiers) || Modifier.isPrivate(modifiers);
+            boolean outsideSchema = schemaFieldNames != null && !schemaFieldNames.contains(field.getName());
+            // Fields outside the target version's schema (not yet introduced, or dropped again before
+            // this version - specs aren't purely additive) must keep their constructor default: it's the
+            // only value the generated write() accepts for them at this version.
+            if (generatorInternal || outsideSchema) {
                 continue;
             }
             field.setAccessible(true);
-            Object value = valueFor(field.getGenericType(), random);
+            Class<?> type = field.getType();
             try {
-                field.set(message, value);
+                // Without schema information we can't tell whether a primitive's constructor-assigned
+                // non-zero value (e.g. an enum-like byte defaulting to 1) is a schema-declared default
+                // that write() requires below its introduction version, so it's left alone in that case.
+                // Once schemaFieldNames has already restricted us to fields the target version's schema
+                // actually declares, no such guard is needed - the field is safe to overwrite outright.
+                boolean unknownSchemaPrimitiveDefault = schemaFieldNames == null && type.isPrimitive() && !isDefaultPrimitiveValue(type, field.get(message));
+                if (unknownSchemaPrimitiveDefault) {
+                    continue;
+                }
+                field.set(message, valueFor(field.getGenericType()));
             }
             catch (IllegalAccessException e) {
                 throw new IllegalStateException("Failed to populate field " + field, e);
@@ -58,38 +105,194 @@ public final class ReflectiveMessagePopulator {
         }
     }
 
-    private static Object valueFor(Type type, Random random) {
+    /**
+     * Reads the {@code SCHEMAS} array every generated message/struct class declares and returns the
+     * camelCase names of the fields present in the schema at {@code version} - the same set write()
+     * consults internally, so filtering against it keeps populate() from ever setting a field write()
+     * would then refuse to serialise at that version.
+     */
+    private static Set<String> schemaFieldNamesAt(Class<?> clazz, short version) {
+        try {
+            Object[] schemas = (Object[]) clazz.getField("SCHEMAS").get(null);
+            if (version < 0 || version >= schemas.length || schemas[version] == null) {
+                return Set.of();
+            }
+            Object schema = schemas[version];
+            Object[] boundFields = (Object[]) schema.getClass().getMethod("fields").invoke(schema);
+            Set<String> names = new HashSet<>();
+            for (Object boundField : boundFields) {
+                Object fieldDef = boundField.getClass().getField("def").get(boundField);
+                String snakeCaseName = (String) fieldDef.getClass().getField("name").get(fieldDef);
+                names.add(toCamelCase(snakeCaseName));
+            }
+            return names;
+        }
+        catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to read schema fields for " + clazz + " at version " + version, e);
+        }
+    }
+
+    private static String toCamelCase(String snakeCaseName) {
+        String[] words = snakeCaseName.split("_");
+        StringBuilder camelCase = new StringBuilder(words[0]);
+        for (int i = 1; i < words.length; i++) {
+            String word = words[i];
+            camelCase.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return camelCase.toString();
+    }
+
+    private static boolean isDefaultPrimitiveValue(Class<?> type, Object currentValue) {
+        if (type == short.class) {
+            return ((Short) currentValue) == 0;
+        }
+        if (type == int.class) {
+            return ((Integer) currentValue) == 0;
+        }
+        if (type == long.class) {
+            return ((Long) currentValue) == 0L;
+        }
+        if (type == byte.class) {
+            return ((Byte) currentValue) == 0;
+        }
+        if (type == boolean.class) {
+            return !((Boolean) currentValue);
+        }
+        if (type == double.class) {
+            return ((Double) currentValue) == 0.0;
+        }
+        throw new IllegalStateException("Unhandled primitive type " + type);
+    }
+
+    private Object valueFor(Type type) {
         if (type == short.class || type == Short.class) {
             return (short) (1 + random.nextInt(Short.MAX_VALUE));
         }
         if (type == int.class || type == Integer.class) {
             return 1 + random.nextInt(Integer.MAX_VALUE - 1);
         }
+        if (type == long.class || type == Long.class) {
+            return 1L + random.nextInt(Integer.MAX_VALUE - 1);
+        }
+        if (type == byte.class || type == Byte.class) {
+            return (byte) (1 + random.nextInt(Byte.MAX_VALUE));
+        }
+        if (type == boolean.class || type == Boolean.class) {
+            return true;
+        }
+        if (type == double.class || type == Double.class) {
+            return 1.0 + random.nextInt(1_000_000);
+        }
         if (type == String.class) {
             return "value-" + random.nextInt(1_000_000);
         }
+        if (type == byte[].class) {
+            byte[] bytes = new byte[4 + random.nextInt(8)];
+            random.nextBytes(bytes);
+            return bytes;
+        }
+        if (type == ByteBuffer.class) {
+            return ByteBuffer.wrap((byte[]) valueFor(byte[].class));
+        }
         if (type instanceof ParameterizedType parameterizedType && parameterizedType.getRawType() == List.class) {
-            return listValueFor(parameterizedType.getActualTypeArguments()[0], random);
+            return listValueFor(parameterizedType.getActualTypeArguments()[0]);
+        }
+        if (type instanceof Class<?> clazz && isUuidType(clazz)) {
+            return newUuid(clazz);
+        }
+        if (type instanceof Class<?> clazz && isMultiCollectionType(clazz)) {
+            return collectionValueFor(clazz);
+        }
+        if (type instanceof Class<?> clazz && isBaseRecordsType(clazz)) {
+            return emptyRecords(clazz);
+        }
+        if (type instanceof Class<?> structClass) {
+            return newStruct(structClass);
         }
         throw new UnsupportedOperationException("Don't know how to populate a field of type " + type);
     }
 
-    private static List<Object> listValueFor(Type elementType, Random random) {
+    private List<Object> listValueFor(Type elementType) {
         List<Object> elements = new ArrayList<>();
         int size = 1 + random.nextInt(2);
         for (int i = 0; i < size; i++) {
-            elements.add(structValueFor(elementType, random));
+            elements.add(valueFor(elementType));
         }
         return elements;
     }
 
-    private static Object structValueFor(Type elementType, Random random) {
-        if (!(elementType instanceof Class<?> structClass)) {
-            throw new UnsupportedOperationException("Don't know how to populate a list element of type " + elementType);
+    private static boolean isUuidType(Class<?> clazz) {
+        return clazz.getSimpleName().equals("Uuid");
+    }
+
+    private Object newUuid(Class<?> uuidClass) {
+        try {
+            Constructor<?> constructor = uuidClass.getDeclaredConstructor(long.class, long.class);
+            return constructor.newInstance(random.nextLong(), random.nextLong());
         }
+        catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to construct " + uuidClass + " via its (long, long) constructor", e);
+        }
+    }
+
+    private static boolean isMultiCollectionType(Class<?> clazz) {
+        for (Class<?> ancestor = clazz.getSuperclass(); ancestor != null; ancestor = ancestor.getSuperclass()) {
+            if (ancestor.getSimpleName().equals("ImplicitLinkedHashMultiCollection")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Object collectionValueFor(Class<?> collectionClass) {
+        Type elementType = ((ParameterizedType) collectionClass.getGenericSuperclass()).getActualTypeArguments()[0];
+        try {
+            Object collection = collectionClass.getDeclaredConstructor().newInstance();
+            Method add = findSingleArgAddMethod(collectionClass);
+            int size = 1 + random.nextInt(2);
+            for (int i = 0; i < size; i++) {
+                add.invoke(collection, valueFor(elementType));
+            }
+            return collection;
+        }
+        catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to populate collection " + collectionClass, e);
+        }
+    }
+
+    private static Method findSingleArgAddMethod(Class<?> collectionClass) {
+        for (Method method : collectionClass.getMethods()) {
+            if (method.getName().equals("add") && method.getParameterCount() == 1) {
+                return method;
+            }
+        }
+        throw new IllegalStateException("No single-argument add(...) method found on " + collectionClass);
+    }
+
+    private static boolean isBaseRecordsType(Class<?> clazz) {
+        return clazz.isInterface() && clazz.getSimpleName().equals("BaseRecords");
+    }
+
+    /**
+     * {@code BaseRecords} is an interface with no general-purpose implementation to populate
+     * reflectively; the canonical empty records value is a leaf-value substitution, the same kind of
+     * move as using {@code Uuid.ZERO_UUID}-shaped construction or an empty {@code ByteBuffer} - not an
+     * attempt to fabricate a real record batch.
+     */
+    private static Object emptyRecords(Class<?> baseRecordsClass) {
+        try {
+            Class<?> memoryRecordsClass = Class.forName(baseRecordsClass.getPackageName() + ".MemoryRecords");
+            return memoryRecordsClass.getField("EMPTY").get(null);
+        }
+        catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to look up MemoryRecords.EMPTY alongside " + baseRecordsClass, e);
+        }
+    }
+
+    private Object newStruct(Class<?> structClass) {
         try {
             Object instance = structClass.getDeclaredConstructor().newInstance();
-            populate(instance, random);
+            populate(instance);
             return instance;
         }
         catch (ReflectiveOperationException e) {
