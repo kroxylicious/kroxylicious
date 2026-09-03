@@ -123,7 +123,7 @@ class QuickStartDT {
      * or if {@code expectedRepo} (e.g. {@code kroxylicious/operator}) is not listed afterwards.
      */
     private static void loadImage(String profile, Path tarball, String expectedRepo) {
-        ShellUtils.exec(Utils.SCRIPTS_DIR.resolve("minikube-image-load.sh").toString(), profile, tarball.toString(), expectedRepo);
+        ShellUtils.exec(Utils.SCRIPTS_DIR.resolve("minikube-image-load.sh").toString(), "--profile", profile, tarball.toString(), expectedRepo);
         LOGGER.atInfo().addKeyValue("profile", profile).addKeyValue("image", expectedRepo).log("Image loaded into Minikube profile");
     }
 
