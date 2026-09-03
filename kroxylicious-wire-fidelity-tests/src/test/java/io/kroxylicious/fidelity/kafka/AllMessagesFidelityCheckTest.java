@@ -8,7 +8,6 @@ package io.kroxylicious.fidelity.kafka;
 
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -69,7 +68,7 @@ class AllMessagesFidelityCheckTest {
     }
 
     @ParameterizedTest
-    @MethodSource("highestVersionMessages")
+    @MethodSource("allMessageVersions")
     void kroxyliciousShouldReadPopulatedKafkaSerialisedMessage(short version, ApiMessage kroxyliciousMessage, org.apache.kafka.common.protocol.ApiMessage kafkaMessage) {
         // Given
         ReflectiveMessagePopulator.populate(kafkaMessage, version, version);
@@ -86,7 +85,7 @@ class AllMessagesFidelityCheckTest {
     }
 
     @ParameterizedTest
-    @MethodSource("highestVersionMessages")
+    @MethodSource("allMessageVersions")
     void kafkaShouldReadPopulatedKroxyliciousSerialisedMessage(short version, ApiMessage kroxyliciousMessage, org.apache.kafka.common.protocol.ApiMessage kafkaMessage) {
         // Given
         ReflectiveMessagePopulator.populate(kroxyliciousMessage, version, version);
@@ -103,43 +102,27 @@ class AllMessagesFidelityCheckTest {
     }
 
     static Stream<Arguments> allMessageVersions() {
-        return allApiKeyMessages(AllMessagesFidelityCheckTest::versionedMessageStream);
-    }
-
-    /**
-     * At each spec's highest supported version, every field the generated class declares is guaranteed
-     * to be part of that version's schema - no field can be "not yet introduced" relative to the max
-     * version. Populated-instance tests are scoped to this one version per spec because populating a
-     * field the target version's schema doesn't include trips the generated write()'s own
-     * UnsupportedVersionException guard; extending populated coverage to every version needs the
-     * populator to be schema/version-aware, which is a separate piece of work.
-     */
-    static Stream<Arguments> highestVersionMessages() {
-        return allApiKeyMessages(AllMessagesFidelityCheckTest::highestVersionMessageStream);
-    }
-
-    private static Stream<Arguments> allApiKeyMessages(BiFunction<String, String, Stream<Arguments>> messageStream) {
         Stream<Arguments> clientApiStream = ApiKeys.clientApis().stream()
-                .flatMap(apiKey -> directionalApiStream(apiKey, messageStream));
+                .flatMap(AllMessagesFidelityCheckTest::directionalApiStream);
         Stream<Arguments> brokerApiStream = ApiKeys.brokerApis().stream()
                 .filter(apiKeys -> !ApiKeys.clientApis().contains(apiKeys))
-                .flatMap(apiKey -> dataOnlyApiStream(apiKey, messageStream));
+                .flatMap(AllMessagesFidelityCheckTest::dataOnlyApiStream);
         Stream<Arguments> controllerApiStream = ApiKeys.controllerApis().stream()
                 .filter(apiKeys -> !ApiKeys.clientApis().contains(apiKeys))
-                .flatMap(apiKey -> directionalApiStream(apiKey, messageStream));
+                .flatMap(AllMessagesFidelityCheckTest::directionalApiStream);
 
         return Stream.concat(clientApiStream, Stream.concat(brokerApiStream, controllerApiStream));
     }
 
-    private static Stream<Arguments> directionalApiStream(ApiKeys apiKey, BiFunction<String, String, Stream<Arguments>> messageStream) {
+    private static Stream<Arguments> directionalApiStream(ApiKeys apiKey) {
         String messageName = apiKeyToMessageName(apiKey);
         return Stream.of("Request", "Response")
-                .flatMap(direction -> messageStream.apply(messageName, direction));
+                .flatMap(direction -> versionedMessageStream(messageName, direction));
     }
 
-    private static Stream<Arguments> dataOnlyApiStream(ApiKeys apiKey, BiFunction<String, String, Stream<Arguments>> messageStream) {
+    private static Stream<Arguments> dataOnlyApiStream(ApiKeys apiKey) {
         String messageName = apiKeyToMessageName(apiKey);
-        return messageStream.apply(messageName, "");
+        return versionedMessageStream(messageName, "");
     }
 
     private static String apiKeyToMessageName(ApiKeys apiKey) {
@@ -180,14 +163,6 @@ class AllMessagesFidelityCheckTest {
                         (short) version,
                         kroxyliciousMessage(messageName, direction),
                         kafkaMessage(messageName, direction)));
-    }
-
-    private static Stream<Arguments> highestVersionMessageStream(String messageName, String direction) {
-        short highest = kafkaMessage(messageName, direction).highestSupportedVersion();
-        return Stream.of(Arguments.argumentSet(messageName + direction + " - v" + highest,
-                highest,
-                kroxyliciousMessage(messageName, direction),
-                kafkaMessage(messageName, direction)));
     }
 
     private static org.apache.kafka.common.protocol.ApiMessage kafkaMessage(String messageName, String direction) {
