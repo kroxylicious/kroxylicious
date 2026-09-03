@@ -61,6 +61,33 @@ mvn org.openrewrite.maven:rewrite-maven-plugin:run \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.MigrateToLatest
 ```
 
+**Gradle**
+
+Add the plugin and declare `kroxylicious-migrations` as a `rewrite` dependency so its recipes are on the classpath:
+
+```kotlin
+plugins {
+    id("org.openrewrite.rewrite") version "6.x.x"
+}
+
+dependencies {
+    rewrite("io.kroxylicious:kroxylicious-migrations:0.24.0-SNAPSHOT")
+}
+```
+
+Then select the recipe to run on the command line, just as with the Maven examples above:
+
+```bash
+# Preview changes
+./gradlew rewriteDryRun -Drewrite.activeRecipe=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24
+
+# Apply changes
+./gradlew rewriteRun -Drewrite.activeRecipe=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24
+
+# Upgrade across multiple releases to latest
+./gradlew rewriteRun -Drewrite.activeRecipe=io.kroxylicious.migrations.rewrite.MigrateToLatest
+```
+
 ---
 
 ## In-Tree Execution (Core Contributors)
