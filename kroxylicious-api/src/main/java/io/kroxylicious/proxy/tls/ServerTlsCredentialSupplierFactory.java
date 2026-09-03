@@ -125,21 +125,24 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  * <h2>Configuration Example</h2>
  * <p>Configure a TLS credential supplier in the proxy YAML configuration:</p>
  * <pre>
+ * clusterDefinitions:
+ *   - name: demo-cluster
+ *     bootstrapServers: kafka.example.com:9093
+ *     tls:
+ *       trust:
+ *         storeFile: /path/to/truststore.p12
+ *         storePassword:
+ *           passwordFile: /path/to/password.txt
+ *       # TLS credential supplier configuration
+ *       credentialSupplier:
+ *         type: FileBasedSupplier  # References @Plugin annotation's name
+ *         config:
+ *           keyPath: /path/to/client-key.pem
+ *           certPath: /path/to/client-cert.pem
  * virtualClusters:
- *   demo:
- *     targetCluster:
- *       bootstrap_servers: kafka.example.com:9093
- *       tls:
- *         trust:
- *           storeFile: /path/to/truststore.p12
- *           storePassword:
- *             passwordFile: /path/to/password.txt
- *         # TLS credential supplier configuration
- *         credentialSupplier:
- *           type: FileBasedSupplier  # References @Plugin annotation's name
- *           config:
- *             keyPath: /path/to/client-key.pem
- *             certPath: /path/to/client-cert.pem
+ *   - name: demo
+ *     target:
+ *       cluster: demo-cluster
  * </pre>
  *
  * @param <C> The type of configuration. Use {@link Void} if the credential supplier is not configurable.

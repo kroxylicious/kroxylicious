@@ -37,10 +37,13 @@ your Kafka client off-EC2.
    ```
 10. Create a config file for Kroxylicious updating the virtual clusters bootstrap address to the public address of the EC2 instance.
     ```yaml
+     clusterDefinitions:
+       - name: demo-cluster
+         bootstrapServers: localhost:9092
      virtualClusters:
        - name: demo
-         targetCluster:
-           bootstrapServers: localhost:9092
+         target:
+           cluster: demo-cluster
          gateways:
          - name: mygateway
            portIdentifiesNode:

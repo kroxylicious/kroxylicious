@@ -36,10 +36,13 @@ class KafkaProxyLifecycleTest {
                 shutdownQuietPeriod: 0s
               management:
                 shutdownQuietPeriod: 0s
+            clusterDefinitions:
+              - name: demo1-cluster
+                bootstrapServers: kafka.example:1234
             virtualClusters:
               - name: demo1
-                targetCluster:
-                  bootstrapServers: kafka.example:1234
+                target:
+                  cluster: demo1-cluster
                 gateways:
                 - name: default
                   portIdentifiesNode:
@@ -87,17 +90,22 @@ class KafkaProxyLifecycleTest {
                     shutdownQuietPeriod: 0s
                   management:
                     shutdownQuietPeriod: 0s
+                clusterDefinitions:
+                  - name: cluster-a-cluster
+                    bootstrapServers: kafka.example:1234
+                  - name: cluster-b-cluster
+                    bootstrapServers: kafka.example:5678
                 virtualClusters:
                   - name: cluster-a
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: cluster-a-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: localhost:9192
                   - name: cluster-b
-                    targetCluster:
-                      bootstrapServers: kafka.example:5678
+                    target:
+                      cluster: cluster-b-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -142,27 +150,35 @@ class KafkaProxyLifecycleTest {
         // refactor, shutdown iterated a stale snapshot of virtualClusterModels captured at
         // construction time — any VC added via the reload API was invisible to shutdown.
         var initial = """
+                   clusterDefinitions:
+                     - name: vc-a-cluster
+                       bootstrapServers: kafka.example:1234
                    virtualClusters:
                      - name: vc-a
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
+                       target:
+                         cluster: vc-a-cluster
                        gateways:
                        - name: default
                          portIdentifiesNode:
                            bootstrapAddress: localhost:9492
                 """;
         var afterReload = """
+                   clusterDefinitions:
+                     - name: vc-a-cluster
+                       bootstrapServers: kafka.example:1234
+                     - name: vc-b-cluster
+                       bootstrapServers: kafka.example:5678
                    virtualClusters:
                      - name: vc-a
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
+                       target:
+                         cluster: vc-a-cluster
                        gateways:
                        - name: default
                          portIdentifiesNode:
                            bootstrapAddress: localhost:9492
                      - name: vc-b
-                       targetCluster:
-                         bootstrapServers: kafka.example:5678
+                       target:
+                         cluster: vc-b-cluster
                        gateways:
                        - name: default
                          portIdentifiesNode:
@@ -328,10 +344,13 @@ class KafkaProxyLifecycleTest {
                     shutdownQuietPeriod: 0s
                   management:
                     shutdownQuietPeriod: 0s
+                clusterDefinitions:
+                  - name: demo1-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo1
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: demo1-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -434,10 +453,13 @@ class KafkaProxyLifecycleTest {
                     shutdownQuietPeriod: 0s
                   management:
                     shutdownQuietPeriod: 0s
+                clusterDefinitions:
+                  - name: demo1-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo1
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: demo1-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
