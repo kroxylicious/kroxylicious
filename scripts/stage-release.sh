@@ -94,7 +94,7 @@ replaceInFile() {
 }
 
 updateVersionInBenchmarks() {
-  replaceInFile "s|KROXYLICIOUS_VERSION:-[0-9]+\.[0-9]+\.[0-9]+|KROXYLICIOUS_VERSION:-${1}|g" \
+  replaceInFile "s|KROXYLICIOUS_VERSION:-[^}]*|KROXYLICIOUS_VERSION:-${1}|g" \
     kroxylicious-openmessaging-benchmarks/scripts/setup-cluster.sh
 }
 
