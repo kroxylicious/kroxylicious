@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.internal;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.kroxylicious.proxy.tag.ThreadSafe;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * Allocates integer correlation IDs from a bounded circular range {@code [minInc, maxExc)}.
@@ -71,29 +70,4 @@ public class CorrelationIdAllocator {
         return nextCorrelationId.getAndUpdate(operand -> operand >= maxExc - 1 ? minInc : operand + 1);
     }
 
-    /**
-     * Checks whether the given id falls within this allocator's range.
-     *
-     * @param id id
-     * @return true if this id is part of the range this allocator will allocate from
-     */
-    public boolean inRange(int id) {
-        return minInc <= id && id < maxExc;
-    }
-
-    /**
-     * Returns the minimum allocatable id, inclusive.
-     */
-    @VisibleForTesting
-    int minInc() {
-        return minInc;
-    }
-
-    /**
-     * Returns the maximum allocatable id, exclusive.
-     */
-    @VisibleForTesting
-    int maxExc() {
-        return maxExc;
-    }
 }

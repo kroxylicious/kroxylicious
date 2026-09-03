@@ -58,7 +58,7 @@ public interface Frame {
     boolean isDecoded();
 
     /**
-     * The position in the routing/filter tree this frame is associated with.
+     * The position in the routing/filter tree this frame is currently associated with.
      * @return The path this frame is associated with, or {@code null} if not yet routed.
      */
     default @Nullable PathElement path() {
@@ -66,7 +66,7 @@ public interface Frame {
     }
 
     /**
-     * Sets the position in the routing/filter tree this frame is associated with.
+     * Sets the position in the routing/filter tree this frame is currently associated with.
      * @param path The path, or {@code null} if not routed.
      */
     default void setPath(@Nullable PathElement path) {
