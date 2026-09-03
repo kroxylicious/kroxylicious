@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.kroxylicious.proxy.tag.ThreadSafe;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * Allocates integer correlation IDs from a bounded circular range {@code [minInc, maxExc)}.
@@ -41,15 +42,11 @@ public class CorrelationIdAllocator {
      * @param initial first value to allocate; must be in {@code [minInc, maxExc)}
      * @throws IllegalArgumentException if {@code minInc >= maxExc}, or {@code initial} is outside {@code [minInc, maxExc)}
      */
+    @VisibleForTesting
     CorrelationIdAllocator(int minInc, int maxExc, int initial) {
-        this(new AtomicInteger(initial), minInc, maxExc);
-    }
-
-    private CorrelationIdAllocator(AtomicInteger nextCorrelationId, int minInc, int maxExc) {
         if (minInc >= maxExc) {
             throw new IllegalArgumentException("Invalid min/max values: " + minInc + "/" + maxExc);
         }
-        int initial = nextCorrelationId.get();
         if (initial < minInc) {
             throw new IllegalArgumentException("start must be greater than or equal to " + minInc);
         }
