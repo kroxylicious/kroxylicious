@@ -70,7 +70,7 @@ public class RouteDispatcher implements RouterDispatch {
     private static final String LOG_KEY_TARGET_NODE_ID = "targetNodeId";
     private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
     private static final String LOG_KEY_SESSION_ID = "sessionId";
-    public static final String LOG_KEY_ROUTE = "route";
+    private static final String LOG_KEY_ROUTE = "route";
 
     private final Map<String, RouteDescriptor> routes;
     private final NodeIdMapping nodeIdMapping;

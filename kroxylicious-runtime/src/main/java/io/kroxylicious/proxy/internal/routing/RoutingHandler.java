@@ -86,7 +86,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private static final String LOG_KEY_API_KEY = "apiKey";
     private static final String LOG_KEY_SESSION_ID = "sessionId";
     private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
-    public static final String LOG_KEY_ROUTE = "route";
+    private static final String LOG_KEY_ROUTE = "route";
 
     // --- Configuration ---
 
