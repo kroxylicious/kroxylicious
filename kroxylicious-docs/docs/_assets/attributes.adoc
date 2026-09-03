@@ -131,6 +131,7 @@
 :include-azure-key-vault-service-config-microsoft-entra-managed-identity: 1
 :include-platform-bare-metal: 1
 :include-platform-kubernetes: 1
+:include-oauth-bearer-validation: 1
 // We're not ready to enable OLM yet
 //:include-olm: 1
 //:OpenShiftOnly: 1

@@ -151,6 +151,7 @@ replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylic
 
 updateVersionInBenchmarks "${RELEASE_VERSION}"
 replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${RELEASE_VERSION}_g" performance-tests/docker-compose.yaml
+replaceInFile "s_io\.kroxylicious:kroxylicious-migrations:[^ ]*_io.kroxylicious:kroxylicious-migrations:${RELEASE_VERSION}_g" kroxylicious-proxy-core/kroxylicious-migrations/README.md
 
 echo "Validating things still build"
 mvn --quiet --batch-mode clean install --activate-profiles quick
@@ -195,6 +196,7 @@ replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylic
 
 updateVersionInBenchmarks "${NEXT_VERSION}"
 replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${NEXT_VERSION}_g" performance-tests/docker-compose.yaml
+replaceInFile "s_io\.kroxylicious:kroxylicious-migrations:[^ ]*_io.kroxylicious:kroxylicious-migrations:${NEXT_VERSION}_g" kroxylicious-proxy-core/kroxylicious-migrations/README.md
 
 # bump the reference version in kroxylicious-api
 mvn --quiet --batch-mode --projects :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
