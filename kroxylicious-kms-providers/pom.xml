@@ -63,6 +63,7 @@
                                         <include>io.kroxylicious:kroxylicious-certificate-test-support:test</include>
                                         <include>io.kroxylicious:kroxylicious-kms-tls-support</include>
                                         <include>io.kroxylicious:kroxylicious-api</include>
+                                        <include>io.kroxylicious:kroxylicious-identity-api</include>
                                         <include>io.kroxylicious:kroxylicious-annotations</include>
                                         <include>io.kroxylicious:kroxylicious-kms-provider-aws-kms</include>
                                         <include>io.kroxylicious:kroxylicious-kms-provider-hashicorp-vault</include>

@@ -11,10 +11,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
-import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.identity.Identity;
 
 /**
- * <p>Abstracts making an allow/deny decision about some {@link Subject} performing some {@link Action} on a resource.
+ * <p>Abstracts making an allow/deny decision about some {@link Identity} performing some {@link Action} on a resource.
  * In other words, this is an access control policy decision point.</p>
  *
  * <p>{@code Authorizer} is a flexible abstraction, while it assumes that resources have names, it
@@ -32,7 +32,7 @@ public interface Authorizer {
      * @return The outcome. The returned stage should fail with an {@link AuthorizerException} if the authorizer was not able to
      * make a decision.
      */
-    CompletionStage<AuthorizeResult> authorize(Subject subject, List<Action> actions);
+    CompletionStage<AuthorizeResult> authorize(Identity subject, List<Action> actions);
 
     /**
      * <p>Returns the types of resource that this authorizer is able to make decisions about.

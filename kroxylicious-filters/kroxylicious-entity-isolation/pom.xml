@@ -27,6 +27,11 @@
             <artifactId>kroxylicious-api</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-identity-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
         <!-- project dependencies - test -->
         <dependency>

@@ -157,7 +157,7 @@ A proxy instance is configured using a YAML configuration file. The plugins to b
 
 We make a clear distinction between "public API" and implementation. "Public API" is anything an end user or plugin developer is expected to touch:
 
-- All the plugin Java APIs (anything in `kroxylicious-api`, `kroxylicious-authorizer-api`, `kroxylicious-kms`)
+- All the plugin Java APIs (anything in `kroxylicious-api`, `kroxylicious-authorizer-api`, `kroxylicious-identity-api`, `kroxylicious-kms`)
 - The CLI interface of the proxy itself
 - The `CustomResourceDefinitions` for the Kubernetes operator in `kroxylicious-kubernetes-api`
 

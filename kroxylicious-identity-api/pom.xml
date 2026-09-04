@@ -18,27 +18,11 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious-authorizer-api</artifactId>
-    <name>Authorizer Plugin API</name>
+    <artifactId>kroxylicious-identity-api</artifactId>
+    <name>Identity API</name>
+    <description>Lightweight, zero-dependency identity types (Principal, Subject) reusable by any project.</description>
 
     <dependencies>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.github.spotbugs</groupId>
-            <artifactId>spotbugs-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-identity-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-api</artifactId>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -47,6 +31,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

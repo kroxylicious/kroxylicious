@@ -102,6 +102,10 @@
             <artifactId>kroxylicious-annotations</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-identity-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
@@ -343,6 +347,9 @@
                                     <exclude>io.kroxylicious.proxy.filter</exclude>
                                     <exclude>io.kroxylicious.proxy.filter.metadata</exclude>
                                     <exclude>io.kroxylicious.proxy.router</exclude>
+                                    <exclude>io.kroxylicious.proxy.authentication.Subject#allPrincipalsOfType(java.lang.Class)</exclude>
+                                    <exclude>io.kroxylicious.proxy.authentication.Subject#isAnonymous()</exclude>
+                                    <exclude>io.kroxylicious.proxy.authentication.Subject#uniquePrincipalOfType(java.lang.Class)</exclude>
                                 </excludes>
                                 <accessModifier>public</accessModifier>
                                 <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
