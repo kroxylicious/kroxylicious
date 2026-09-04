@@ -18,7 +18,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.fidelity.FidelityCheck;
+import io.kroxylicious.fidelity.KafkaSerdes;
+import io.kroxylicious.fidelity.KroxyliciousSerdes;
 import io.kroxylicious.fidelity.ReadResult;
+import io.kroxylicious.fidelity.ReflectiveMessagePopulator;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,6 +65,40 @@ class AllMessagesFidelityCheckTest {
         assertThat(result.error()).isNull();
         assertThat(result.unreadBytes()).isZero();
         assertThat(result.message()).usingRecursiveComparison().isEqualTo(kroxyliciousMessage);
+    }
+
+    @ParameterizedTest
+    @MethodSource("allMessageVersions")
+    void kroxyliciousShouldReadPopulatedKafkaSerialisedMessage(short version, ApiMessage kroxyliciousMessage, org.apache.kafka.common.protocol.ApiMessage kafkaMessage) {
+        // Given
+        ReflectiveMessagePopulator.populate(kafkaMessage, version, version);
+        byte[] wireBytes = KafkaSerdes.write((org.apache.kafka.common.protocol.Message) kafkaMessage, version);
+
+        // When
+        ReadResult<?> crossResult = KroxyliciousSerdes.read((io.kroxylicious.kafka.common.protocol.Message) kroxyliciousMessage, wireBytes, version);
+        ReadResult<?> selfResult = KafkaSerdes.read(kafkaMessage(kafkaMessage.getClass()), wireBytes, version);
+
+        // Then
+        assertThat(crossResult.error()).isNull();
+        assertThat(crossResult.unreadBytes()).isZero();
+        assertThat(crossResult.message()).usingRecursiveComparison().isEqualTo(selfResult.message());
+    }
+
+    @ParameterizedTest
+    @MethodSource("allMessageVersions")
+    void kafkaShouldReadPopulatedKroxyliciousSerialisedMessage(short version, ApiMessage kroxyliciousMessage, org.apache.kafka.common.protocol.ApiMessage kafkaMessage) {
+        // Given
+        ReflectiveMessagePopulator.populate(kroxyliciousMessage, version, version);
+        byte[] wireBytes = KroxyliciousSerdes.write((io.kroxylicious.kafka.common.protocol.Message) kroxyliciousMessage, version);
+
+        // When
+        ReadResult<?> crossResult = KafkaSerdes.read((org.apache.kafka.common.protocol.Message) kafkaMessage, wireBytes, version);
+        ReadResult<?> selfResult = KroxyliciousSerdes.read(kroxyliciousMessage(kroxyliciousMessage.getClass()), wireBytes, version);
+
+        // Then
+        assertThat(crossResult.error()).isNull();
+        assertThat(crossResult.unreadBytes()).isZero();
+        assertThat(crossResult.message()).usingRecursiveComparison().isEqualTo(selfResult.message());
     }
 
     static Stream<Arguments> allMessageVersions() {
@@ -156,6 +193,15 @@ class AllMessagesFidelityCheckTest {
     private static Class<?> loadClass(String packageName, String messageName, String direction) throws ClassNotFoundException {
         String className = CLASS_NAME_FORMAT.formatted(packageName, messageName, direction);
         return Class.forName(className);
+    }
+
+    private static ApiMessage kroxyliciousMessage(Class<?> kroxyliciousClass) {
+        try {
+            return (ApiMessage) kroxyliciousClass.getDeclaredConstructor().newInstance();
+        }
+        catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to instantiate " + kroxyliciousClass, e);
+        }
     }
 
     private static org.apache.kafka.common.protocol.ApiMessage kafkaMessage(Class<?> kafkaClass) {
