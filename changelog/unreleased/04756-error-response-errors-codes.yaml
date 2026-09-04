@@ -2,6 +2,9 @@ title: "feat(api): express short-circuit error responses in terms of Errors code
 type: changed
 issues:
   - 4756
+  - 4769
+  - 4771
+  - 4768
 important_notes:
   - |
     `RequestFilterResultBuilder.errorResponse` and `RouterContext.respondWithError` now take an
@@ -12,3 +15,24 @@ important_notes:
     `respondWithError(RequestHeaderData, ApiMessage, ApiException)`) have been removed. Migrate to the
     `Errors`-based overloads, e.g. replace `errorResponse(header, request, new InvalidRequestException(msg))`
     with `errorResponse(header, request, Errors.INVALID_REQUEST, msg)`.
+  - |
+    `MockFilterContextAssert.errorResponse()` no longer returns a `ThrowableAssert<ApiException>`.
+    It now returns a `MockErrorResponseAssert` exposing `hasError(Errors)` and `hasMessage(String)`,
+    so the kafka-clients exception hierarchy no longer leaks into the test-support API. Migrate
+    assertions such as `.errorResponse().isInstanceOf(InvalidRecordException.class).hasMessage(msg)`
+    to `.errorResponse().hasError(Errors.INVALID_RECORD).hasMessage(msg)`.
+  - |
+    An undocumented behaviour in the Filter API has been removed. Previously if a request filter
+    returned an exceptionally completed future, we would use that exception type to determine which
+    error code to set on the response. We are removing all integration with the kafka exception
+    hierarchy so now any exceptionally completed request futures will result in an UNKNOWN_SERVER_ERROR
+    response to the client. Filters that want specialized error responses should use the `errorResponse`
+    APIs on `FilterContext#requestFilterResultBuilder`.
+  - |
+    `TopicNameMappingException(Errors)` and `TopicNameMappingException(Errors, String)` constructors no
+    longer set the exception cause to `Errors.exception()`. Filters that relied on
+    `TopicNameMappingException.getCause()` returning the corresponding kafka-clients `ApiException` will
+    now see a `null` cause. This removes a dependency on the kafka-clients `Errors.exception()` wrapper
+    API ahead of the move to the vendored `Errors` enum. Use the
+    `TopicNameMappingException(Errors, String, Throwable)` constructor if you need to supply a cause, or
+    `getError()` to obtain the underlying `Errors`.

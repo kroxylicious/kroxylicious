@@ -2,9 +2,13 @@ title: "feat(record-validation): remove redundant `wireFormatVersion` configurat
 type: removed
 issues:
   - 4744
+  - 3785
 important_notes:
   - |
-    The `wireFormatVersion` option of the record validation filter's `schemaValidationConfig` is removed.
-    The filter supports only the Apicurio Registry v3 wire format, which uses Confluent-compatible 4-byte content IDs,
-    so the option had a single legal value (`V3`) and was no longer read.
-    Any configuration that still sets `wireFormatVersion` must delete the line, otherwise the configuration will fail to load.
+    The record validation filter's `schemaValidationConfig.wireFormatVersion` option is removed — the
+    filter now supports only the Apicurio Registry v3 wire format (Confluent-compatible 4-byte content
+    IDs), so `V3` was the only legal value and the option was no longer read. Any configuration that
+    still sets `wireFormatVersion` must delete the line, or it will fail to load. Users migrating from
+    the older `V2` format must additionally update `apicurioId` to reference the schema's `contentId`
+    (instead of `globalId`) and ensure Kafka clients embed the 4-byte `contentId` in record
+    headers/magic bytes — see the Apicurio Registry v2 to v3 migration guide for details.
