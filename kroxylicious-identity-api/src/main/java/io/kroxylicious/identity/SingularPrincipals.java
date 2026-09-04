@@ -24,7 +24,7 @@ import java.util.Set;
  * @deprecated Transitional utility. At 1.0 the meta-annotation scanning will no longer be needed
  * and this validation should be inlined into {@link Subject} directly.
  */
-@Deprecated(since = "0.24.0", forRemoval = true)
+@Deprecated(since = "0.25.0", forRemoval = true)
 public final class SingularPrincipals {
 
     private SingularPrincipals() {

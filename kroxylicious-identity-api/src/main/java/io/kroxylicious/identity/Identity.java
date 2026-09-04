@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  *
  * @deprecated Use {@link Subject} directly. Will be removed at 1.0.
  */
-@Deprecated(since = "0.24.0", forRemoval = true)
+@Deprecated(since = "0.25.0", forRemoval = true)
 public interface Identity {
 
     /**
