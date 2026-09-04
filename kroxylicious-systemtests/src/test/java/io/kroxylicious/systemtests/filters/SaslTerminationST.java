@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -124,7 +125,7 @@ class SaslTerminationST extends AbstractSystemTests {
     }
 
     @Test
-    void testScramSha256Authentication(String namespace, @TempDir Path tempDir) throws Exception {
+    void testScramSha256Authentication(String namespace, @TempDir Path tempDir) {
         // kcat does not support SCRAM authentication
         assumeThat(Environment.KAFKA_CLIENT).isNotEqualToIgnoringCase(KafkaClientType.KCAT.name());
 
@@ -225,14 +226,24 @@ class SaslTerminationST extends AbstractSystemTests {
     }
 
     private Map<String, String> scramSaslProps(String username, String password) {
-        String jaasConfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\";"
-                .formatted(username, password);
-        return new HashMap<>(Map.of(
+        Map<String, String> props = new HashMap<>(Map.of(
                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
-                SaslConfigs.SASL_MECHANISM, "SCRAM-SHA-256",
-                SaslConfigs.SASL_JAAS_CONFIG, jaasConfig,
-                "sasl.username", username,
-                "sasl.password", password));
+                SaslConfigs.SASL_MECHANISM, "SCRAM-SHA-256"));
+
+        // SCRAM credentials are configured differently per client dialect:
+        // - the Apache Kafka Java client takes them via sasl.jaas.config;
+        // - librdkafka-based clients (python, kcat) take them via sasl.username/sasl.password and
+        // reject the Java-only sasl.jaas.config property.
+        if (KafkaClientType.valueOf(Environment.KAFKA_CLIENT.toUpperCase(Locale.ROOT)).isJvmClient()) {
+            String jaasConfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\";"
+                    .formatted(username, password);
+            props.put(SaslConfigs.SASL_JAAS_CONFIG, jaasConfig);
+        }
+        else {
+            props.put("sasl.username", username);
+            props.put("sasl.password", password);
+        }
+        return props;
     }
 
     private Map<String, String> oauthSaslProps(String tokenEndpointUrl) {
