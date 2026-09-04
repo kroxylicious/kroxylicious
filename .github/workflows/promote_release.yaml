@@ -216,6 +216,33 @@ jobs:
             exit 1
           fi
 
+      - name: Login to container registry
+        if: ${{ vars.REGISTRY_SERVER != '' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: 'Verify staged container images exist'
+        # Fail fast, before anything is published, if a staged manifest referenced
+        # by RELEASE_STATE.json is missing from the registry (see issue #4851).
+        if: ${{ inputs.command == 'promote-release' && vars.REGISTRY_SERVER != '' }}
+        run: |
+          missing=0
+          while IFS= read -r ref; do
+            if skopeo inspect --raw "docker://${ref}" > /dev/null 2>&1; then
+              echo "OK: ${ref}"
+            else
+              echo "::error::staged manifest not found: ${ref}"
+              missing=1
+            fi
+          done < <(jq -r '.stagedArtifacts[].images.manifestImage.ref' RELEASE_STATE.json)
+          if [[ "${missing}" -ne 0 ]]; then
+            echo "One or more staged manifests are missing; aborting before the release is published."
+            exit 1
+          fi
+
       - name: 'Transition Central Publishing Portal to desired state'
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
@@ -264,14 +291,6 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           git push origin --delete "${WORK_BRANCH}-rel" || echo "Branch ${WORK_BRANCH}-rel not found (already deleted?)"
-
-      - name: Login to container registry
-        if: ${{ vars.REGISTRY_SERVER != '' }}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
-        with:
-          registry: ${{ vars.REGISTRY_SERVER }}
-          username: ${{ vars.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: 'Tag release container images'
         if: ${{ inputs.command == 'promote-release' && vars.REGISTRY_SERVER != '' }}

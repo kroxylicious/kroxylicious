@@ -123,7 +123,7 @@ jobs:
           echo "release_version=${POMS_VERSION}" >> $GITHUB_OUTPUT
           echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
           echo "output_tarballs=${{ inputs.output-tarballs }}" >> $GITHUB_OUTPUT
-          SHA_TAG="commit-$(git rev-parse --short "${GITHUB_SHA}")"
+          SHA_TAG="commit-${GITHUB_SHA}"
 
           if [[ "${{ inputs.output-tarballs }}" == "true" ]]; then
             # Tarball mode: amd64-only, no push, use Maven image names for compatibility
