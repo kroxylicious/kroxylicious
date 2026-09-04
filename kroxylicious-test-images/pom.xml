@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.24.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>kroxylicious-test-images</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Test container images</name>
+    <description>
+        Houses machinery for building custom container images needed only by tests (e.g. layering
+        an extra jar onto a third-party image). Not published - images are consumed directly from
+        target/ by the modules that need them (e.g. kroxylicious-systemtests).
+    </description>
+
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
+
+        <!-- Base image for the OAuthBearer-capable test client image. Kept in sync by hand with
+             Environment.TEST_CLIENTS_IMAGE_DEFAULT in kroxylicious-systemtests, the same way the
+             kroxylicious-operator/webhook image names are kept in sync with their Environment.java
+             defaults. -->
+        <strimzi.test.clients.base.image>quay.io/strimzi-test-clients/test-clients:0.14.0-kafka-${kafka.version}</strimzi.test.clients.base.image>
+        <!-- Deliberately a static tag containing neither "latest" nor "snapshot" (case-insensitive):
+             ContainerTemplates.baseImageBuilder in kroxylicious-systemtests forces imagePullPolicy=Always
+             the first time it sees either substring in an image reference - note ${project.version}
+             (e.g. 0.24.0-SNAPSHOT) would ALSO trigger this via the "snapshot" substring. This image only
+             ever exists in minikube's local cache (loaded via `minikube image load`) and isn't served by
+             any real registry, so an Always pull fails outright. It's rebuilt fresh right before every use,
+             so the tag doesn't need to track versions. -->
+        <io.kroxylicious.oauth.test.clients.image.name>localhost/kroxylicious/oauth-test-clients:jose4j</io.kroxylicious.oauth.test.clients.image.name>
+        <io.kroxylicious.oauth.test.clients.image.archive>target/oauth-test-clients.img.tar.gz</io.kroxylicious.oauth.test.clients.image.archive>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.bitbucket.b_c</groupId>
+            <artifactId>jose4j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+
+    <profiles>
+        <profile>
+            <id>dist</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-jose4j</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>copy-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>jose4j</includeArtifactIds>
+                                    <stripVersion>true</stripVersion>
+                                    <outputDirectory>${project.build.directory}/extra-libs</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>oauth-test-clients-image</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>save</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress MavenModelInspection -->
+                                    <skip>${skipContainerImageBuild}</skip>
+                                    <images>
+                                        <image>
+                                            <name>${io.kroxylicious.oauth.test.clients.image.name}</name>
+                                            <alias>oauth-test-clients</alias>
+                                            <build>
+                                                <dockerFile>src/main/docker/oauth-test-clients.dockerfile</dockerFile>
+                                                <contextDir>${project.basedir}</contextDir>
+                                                <args>
+                                                    <TEST_CLIENTS_IMAGE>${strimzi.test.clients.base.image}</TEST_CLIENTS_IMAGE>
+                                                </args>
+                                            </build>
+                                        </image>
+                                    </images>
+                                    <saveFile>${io.kroxylicious.oauth.test.clients.image.archive}</saveFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

@@ -227,6 +227,13 @@ minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz --also
 minikube image load kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-webhook.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
 ```
 
+To run the OAUTHBEARER SASL termination system test, also build and load the jose4j-augmented test-clients image:
+
+```
+mvn -pl kroxylicious-test-images -Pdist clean package
+minikube image load kroxylicious-test-images/target/oauth-test-clients.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
+```
+
 > :warning: Some minikube container runtimes may not be able to load a gzipped tar (https://github.com/kubernetes/minikube/issues/21678), if the above commands report a failure 
 > like `cache_images.go:265] failed pushing to: minikube`, then run:
 > ```
@@ -419,6 +426,7 @@ the container engine. Default value: `$HOME/.docker/config.json`
 * `SKIP_STRIMZI_INSTALL`: skip strimzi installation. Default value: `false`
 * `KAFKA_CLIENT`: client used to produce/consume messages. Default value: `strimzi_test_client`. Currently supported values: `strimzi_test_client`, `kaf`, `kcat`, `python_test_client`
 * `TEST_CLIENTS_IMAGE`: strimzi test client image to be used when running the tests. It is useful when running regression tests. Default value: `quay.io/strimzi-test-clients/test-clients:latest-kafka-${kafka.version}`
+* `TEST_CLIENTS_OAUTH_IMAGE`: test client image used only by the OAUTHBEARER SASL termination test. This is a build of `TEST_CLIENTS_IMAGE` with `jose4j` added to the classpath (see `kroxylicious-test-images`), needed because Kafka 4.1+ clients eagerly load `jose4j` during OAUTHBEARER login (KAFKA-20184) but the upstream image doesn't bundle it. Default value: `localhost/kroxylicious/oauth-test-clients:jose4j`
 * `USE_CLOUD_KMS`: set to `true` in case AWS/Azure Cloud is used for Record Encryption System Tests. LocalStack/Lowkey-Vault will be used by default. Default value: `false`
 * `AWS_REGION`: region of the AWS Cloud account to be used for KMS management. Default value: `us-east-2`
 * `AWS_ACCESS_KEY_ID`: key id of the aws account with admin permissions to be used for KMS management. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`

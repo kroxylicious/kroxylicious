@@ -1809,6 +1809,7 @@
             </activation>
             <modules>
                 <module>kroxylicious-integration-tests</module>
+                <module>kroxylicious-test-images</module>
                 <module>kroxylicious-systemtests</module>
                 <module>kroxylicious-docs-tests</module>
                 <module>kroxylicious-microbenchmarks</module>
