@@ -177,7 +177,7 @@ jobs:
           VERSION="${{ github.event.inputs.release-version }}"
           # RELEASE_SHA is the pre-merge release commit; it is also what build-kroxylicious-container-images.yaml tagged
           # images with (GITHUB_SHA on the release branch == this commit).
-          SHA_TAG="commit-$(git rev-parse --short "${RELEASE_SHA}")"
+          SHA_TAG="commit-${RELEASE_SHA}"
           REGISTRY="${{ vars.REGISTRY_SERVER }}"
           ORG="${{ vars.REGISTRY_ORGANISATION }}"
           PROXY="${REGISTRY}/${ORG}/${{ vars.PROXY_IMAGE_NAME }}"
