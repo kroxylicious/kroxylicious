@@ -30,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -60,6 +61,15 @@ class VirtualClusterRegistryTest {
         var model = mock(VirtualClusterModel.class);
         when(model.getClusterName()).thenReturn(name);
         when(model.drainTimeout()).thenReturn(Duration.ofSeconds(30));
+        return model;
+    }
+
+    private static VirtualClusterModel mockModelRecordingCloseThread(String name, AtomicReference<String> closeThreadName) {
+        var model = mockModel(name);
+        doAnswer(invocation -> {
+            closeThreadName.set(Thread.currentThread().getName());
+            return null;
+        }).when(model).close();
         return model;
     }
 
@@ -258,6 +268,45 @@ class VirtualClusterRegistryTest {
         RuntimeException boom = new RuntimeException("boom");
         assertThatThrownBy(() -> vcc.initializationFailed("nonexistent", boom))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // Model close always runs on the lifecycle thread, never the caller's
+
+    @Test
+    void shouldCloseModelOnLifecycleThreadOnInitializationFailure() {
+        // given
+        var closeThreadName = new AtomicReference<String>();
+        var model = mockModelRecordingCloseThread(CLUSTER_A, closeThreadName);
+        vcc = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
+
+        // when
+        vcc.initializationFailed(CLUSTER_A, new RuntimeException("filter init failed"));
+
+        // then
+        verify(model).close();
+        assertThat(Thread.currentThread().getName())
+                .doesNotStartWith(VirtualClusterRegistry.LIFECYCLE_THREAD_NAME_PREFIX);
+        assertThat(closeThreadName.get())
+                .startsWith(VirtualClusterRegistry.LIFECYCLE_THREAD_NAME_PREFIX);
+    }
+
+    @Test
+    void shouldCloseModelOnLifecycleThreadOnShutdown() {
+        // given
+        var closeThreadName = new AtomicReference<String>();
+        var model = mockModelRecordingCloseThread(CLUSTER_A, closeThreadName);
+        vcc = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
+        vcc.initializationSucceeded(CLUSTER_A);
+
+        // when
+        vcc.shutdownAllClusters();
+
+        // then
+        verify(model).close();
+        assertThat(Thread.currentThread().getName())
+                .doesNotStartWith(VirtualClusterRegistry.LIFECYCLE_THREAD_NAME_PREFIX);
+        assertThat(closeThreadName.get())
+                .startsWith(VirtualClusterRegistry.LIFECYCLE_THREAD_NAME_PREFIX);
     }
 
     // Bulk shutdown transitions
@@ -905,23 +954,29 @@ class VirtualClusterRegistryTest {
         // initializationFailed drives the lifecycle straight to Stopped; shutdownCluster
         // short-circuits on Stopped without closing, so initializationFailed itself must close
         // the model or the filters/routers initialized during model construction leak forever.
+        // given
         var model = mockModel(CLUSTER_A);
         var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
 
+        // when
         registry.initializationFailed(CLUSTER_A, new RuntimeException("bind failed"));
 
+        // then
         verify(model).close();
     }
 
     @Test
     void shouldNotCloseModelAgainOnShutdownAfterInitializationFailure() {
+        // given
         var model = mockModel(CLUSTER_A);
         var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
         registry.initializationFailed(CLUSTER_A, new RuntimeException("bind failed"));
         verify(model, times(1)).close();
 
+        // when
         registry.shutdownAllClusters();
 
+        // then
         verify(model, times(1)).close();
     }
 
@@ -931,12 +986,14 @@ class VirtualClusterRegistryTest {
         // The close failure is secondary (logged by closeModel); the callback still fires with
         // the original initialization cause — the failure the operator needs to see — and
         // initializationFailed itself must not throw so callers can proceed with rollback.
+        // given
         var initFailure = new RuntimeException("bind failed");
         var model = mockModel(CLUSTER_A);
         doThrow(new RuntimeException("close failed")).when(model).close();
         BiConsumer<String, Optional<Throwable>> callback = mock(BiConsumer.class);
         var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, callback);
 
+        // when / then
         assertThatCode(() -> registry.initializationFailed(CLUSTER_A, initFailure))
                 .doesNotThrowAnyException();
 

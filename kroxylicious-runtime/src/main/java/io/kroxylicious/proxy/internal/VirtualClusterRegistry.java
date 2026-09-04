@@ -209,13 +209,9 @@ public class VirtualClusterRegistry implements AutoCloseable {
     /**
      * Signals that the named virtual cluster failed to initialize.
      * Transitions the cluster from Initializing to Failed, then immediately to Stopped
-     * (no recovery path exists today), closes the cluster's model (releasing filter and
-     * router resources initialized during model construction), and fires the
+     * (no recovery path exists today) closing the cluster's model (releasing filter and
+     * router resources initialized during model construction) and firing the
      * {@code onVirtualClusterStopped} callback.
-     *
-     * <p>Closing here is essential: once the lifecycle is {@code Stopped},
-     * {@link #shutdownCluster} short-circuits without closing, so a model not closed
-     * now would never be closed.
      *
      * @param clusterName the virtual cluster name
      * @param cause the failure cause
@@ -223,12 +219,18 @@ public class VirtualClusterRegistry implements AutoCloseable {
      */
     public void initializationFailed(String clusterName, Throwable cause) {
         var lifecycle = requireKnownCluster(clusterName);
-        lifecycle.initializationFailed(cause);
-        lifecycle.stop();
-        // A close failure is logged by closeModel; the callback still fires with the
-        // original initialization cause, which is the failure the operator needs to see.
-        closeModel(clusterName);
-        onVirtualClusterStopped.accept(clusterName, Optional.of(cause));
+        runOnLifecycle(() -> {
+            lifecycle.initializationFailed(cause);
+            lifecycle.stop();
+            // Close on the lifecycle thread, matching where the model's initialize() ran. Unlike
+            // the shutdown path (closeAndFireStopped), a close failure here is secondary: closeModel
+            // logs it, and we swallow it so init-failure handling — and the caller's rollback — still
+            // completes. The callback fires with the initialization cause, the failure the operator
+            // needs to see, not the close failure.
+            closeModel(clusterName);
+            onVirtualClusterStopped.accept(clusterName, Optional.of(cause));
+            return null;
+        });
     }
 
     /**
