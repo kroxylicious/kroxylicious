@@ -61,6 +61,7 @@ public class DeploymentUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(DeploymentUtils.class);
     private static final Duration READINESS_TIMEOUT = Duration.ofMinutes(6);
     private static final Duration DELETION_TIMEOUT = Duration.ofMinutes(5);
+    private static final Duration PENDING_PHASE_TIMEOUT = Duration.ofMinutes(5);
     private static final String TEST_LOAD_BALANCER_NAME = "test-load-balancer";
 
     private DeploymentUtils() {
@@ -190,7 +191,7 @@ public class DeploymentUtils {
      */
     public static void waitForLeavingPendingPhase(String namespaceName, String podName) {
         await().alias("await pod to leave pending phase")
-                .atMost(Duration.ofMinutes(1))
+                .atMost(PENDING_PHASE_TIMEOUT)
                 .pollInterval(Duration.ofMillis(200))
                 .until(() -> Optional.ofNullable(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
                         s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent());
