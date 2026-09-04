@@ -141,7 +141,9 @@ echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
 ${SED} -i "s|\\\${changelog.link.prefix}|${CHANGELOG_LINK_PREFIX}|g" changelog/.templates/CHANGELOG.md
 mvn --quiet logchange:release
-git checkout -- changelog/.templates/CHANGELOG.md
+# logchange:release rewrites the CHANGELOG template and empties changelog/unreleased,
+# deleting the .gitkeep that keeps the directory tracked. Restore both.
+git checkout -- changelog/.templates/CHANGELOG.md changelog/unreleased/.gitkeep
 git add changelog/ CHANGELOG.md
 
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
