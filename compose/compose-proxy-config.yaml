@@ -9,10 +9,13 @@ useIoUring: false
 management:
   endpoints:
     prometheus: {}
+clusterDefinitions:
+  - name: demo-cluster
+    bootstrapServers: kafka-1:9092
 virtualClusters:
   - name: demo
-    targetCluster:
-      bootstrapServers: kafka-1:9092
+    target:
+      cluster: demo-cluster
     gateways:
       - name: compose
         portIdentifiesNode:

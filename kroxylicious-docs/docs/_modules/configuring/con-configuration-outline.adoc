@@ -24,10 +24,13 @@ filterDefinitions:
       # ...
 defaultFilters:
   - example
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
 virtualClusters:
   - name: my-cluster-proxy
-    targetCluster:
-      # ...
+    target:
+      cluster: my-cluster
     gateways:
     - name: ...
       # ...
@@ -47,9 +50,12 @@ where:
    The required configuration depends on the filter implementation.
 * `defaultFilters` defines an ordered list of filters that the traffic sent to the virtual cluster will pass through.
   You can override this list at the virtual cluster level.
+* `clusterDefinitions` lists named upstream Kafka clusters. Each definition comprises:
+** (Required) A `name` that identifies the cluster. Must be unique within the list.
+** (Required) `bootstrapServers` defines the bootstrap addresses of the Kafka cluster being proxied.
 * `virtualClusters` defines the virtual clusters and their cluster-specific configurations.
 ** (Required) A `name` that identifies the virtual cluster. Must be unique within the list.
-** `targetCluster` defines the Kafka cluster that the virtual cluster (`my-cluster-proxy`) proxies.
+** `target.cluster` names the `clusterDefinitions` entry that the virtual cluster (`my-cluster-proxy`) proxies.
 ** `gateways` defines the gateways configuration for this virtual cluster.
 ** `subjectBuilder` (Optional) defines the transport subject builder configuration.
 ** `proxyProtocol` (Optional) Enable HAProxy PROXY protocol decoding when deployed behind a PROXY protocol-capable load balancer.

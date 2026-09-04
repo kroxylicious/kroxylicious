@@ -43,10 +43,13 @@ public final class KroxyliciousConfigMapTemplates {
                 management:
                   endpoints:
                     prometheus: {}
+                clusterDefinitions:
+                  - name: demo-cluster
+                    bootstrapServers: %s:9094
                 virtualClusters:
                   - name: demo
-                    targetCluster:
-                      bootstrapServers: %s:9094
+                    target:
+                      cluster: demo-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
