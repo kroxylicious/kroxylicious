@@ -209,7 +209,7 @@ jobs:
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
               /repos/${{ github.repository }}/commits/${PR_REF}/check-runs \
-              | jq --exit-status -r '[.check_runs[] | select( .status != "completed" or .conclusion != "success")] | length')
+              | jq --exit-status -r '[.check_runs[] | select( .status != "completed" or ( .conclusion != "success" and .conclusion != "skipped"))] | length')
 
           if [[ ${UNFINISHED_OR_ERRORED} > 0 ]]; then
             gh pr comment --body "${UNFINISHED_OR_ERRORED} build check(s) have not completed successfully. If they are still running, you can ask me to promote-release again once they are finished." ${{ inputs.release-pr-issue-number }}
