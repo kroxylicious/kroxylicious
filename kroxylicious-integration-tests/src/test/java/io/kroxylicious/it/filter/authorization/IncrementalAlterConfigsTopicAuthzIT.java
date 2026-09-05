@@ -135,14 +135,15 @@ class IncrementalAlterConfigsTopicAuthzIT extends AuthzIT {
         ALL_TOPIC_NAMES_IN_TEST.forEach(topicName -> {
             specificTopics.resources().add(topicResource(topicName));
         });
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.INCREMENTAL_ALTER_CONFIGS),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.INCREMENTAL_ALTER_CONFIGS))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.INCREMENTAL_ALTER_CONFIGS),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.INCREMENTAL_ALTER_CONFIGS))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " specific topics request",
                                 new IncrementalAlterConfigsEquivalence((short) (int) apiVersion, specificTopics))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.INCREMENTAL_ALTER_CONFIGS.oldestVersion(), ApiKeys.INCREMENTAL_ALTER_CONFIGS.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.INCREMENTAL_ALTER_CONFIGS, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.INCREMENTAL_ALTER_CONFIGS, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.INCREMENTAL_ALTER_CONFIGS, (short) apiVersion)));

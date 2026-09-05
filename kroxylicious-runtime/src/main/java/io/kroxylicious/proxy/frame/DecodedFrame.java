@@ -8,16 +8,17 @@ package io.kroxylicious.proxy.frame;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.MessageSizeAccumulator;
-import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
+
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.MessageSizeAccumulator;
+import io.kroxylicious.kafka.common.protocol.ObjectSerializationCache;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -46,7 +47,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
     private @Nullable ObjectSerializationCache serializationCache;
-    private @Nullable String routeName;
+    private @Nullable PathElement routing;
     private int targetVirtualNodeId = NO_TARGET_VIRTUAL_NODE_ID;
 
     DecodedFrame(short apiVersion, int correlationId, H header, B body) {
@@ -175,13 +176,13 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     }
 
     @Override
-    public @Nullable String routeName() {
-        return routeName;
+    public @Nullable PathElement routing() {
+        return routing;
     }
 
     @Override
-    public void setRouteName(@Nullable String routeName) {
-        this.routeName = routeName;
+    public void setRouting(@Nullable PathElement routing) {
+        this.routing = routing;
     }
 
     /**

@@ -127,14 +127,15 @@ class AlterConfigsGroupAuthzIT extends AuthzIT {
     List<Arguments> shouldEnforceAccessToGroups() {
         AlterConfigsRequestData alterConfigs = new AlterConfigsRequestData();
         ALL_GROUPS.forEach(group -> alterConfigs.resources().add(groupResource(group)));
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.ALTER_CONFIGS),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.ALTER_CONFIGS))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.ALTER_CONFIGS),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.ALTER_CONFIGS))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " specific groups request",
                                 new AlterConfigsEquivalence((short) (int) apiVersion, alterConfigs))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.ALTER_CONFIGS.oldestVersion(), ApiKeys.ALTER_CONFIGS.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.ALTER_CONFIGS, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.ALTER_CONFIGS, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.ALTER_CONFIGS, (short) apiVersion)));

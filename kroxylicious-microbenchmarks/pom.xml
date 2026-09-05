@@ -12,7 +12,7 @@
     <parent>
         <artifactId>kroxylicious-parent</artifactId>
         <groupId>io.kroxylicious</groupId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-microbenchmarks</artifactId>
@@ -42,10 +42,6 @@
         </dependency>
 
         <!-- third party dependencies - runtime and compile -->
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>

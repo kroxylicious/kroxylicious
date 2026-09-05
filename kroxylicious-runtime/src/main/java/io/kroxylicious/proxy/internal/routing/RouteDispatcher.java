@@ -5,7 +5,9 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -14,36 +16,36 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.spi.LoggingEventBuilder;
 
 import io.netty.channel.ChannelHandlerContext;
 
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
+import io.kroxylicious.proxy.internal.InternalRequestFrame;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Creates request frames and fires them downstream, tracks them by
- * correlation ID, and matches returning response frames back to their
- * pending futures — translating node IDs and caching upstream broker
- * addresses along the way.
+ * Creates request frames and fires them downstream, and matches returning response frames back
+ * to their pending futures — translating node IDs and caching upstream broker addresses along
+ * the way.
  *
- * <p>Parameterised by a route prefix (empty for the top-level router,
- * {@code "routerName/"} for a nested router) so the same logic serves
- * every router in the routing tree.
+ * <p>Parameterised by the path leading to this dispatcher's own router so the same logic serves
+ * every router in the routing tree, and so each level's out-of-band ({@link RouterContextImpl#sendRequest})
+ * requests carry a path distinct from every other level's.
  *
- * <p>Not thread-safe; all callers must be on the same Netty event loop.
- * Off-loop calls are bridged via {@link #executeOnEventLoop}.
+ * <p>Not thread-safe; all callers must be on the same Netty event loop. Off-loop calls are
+ * bridged via {@link #executeOnEventLoop}.
  */
 public class RouteDispatcher implements RouterDispatch {
 
@@ -64,41 +66,56 @@ public class RouteDispatcher implements RouterDispatch {
             ApiKeys.SHARE_ACKNOWLEDGE,
             ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
-    private static final String LOG_KEY_ROUTING_CORRELATION_ID = "routingCorrelationId";
+    private static final String LOG_KEY_ROUTING_CORRELATION_ID = "correlationId";
     private static final String LOG_KEY_TARGET_NODE_ID = "targetNodeId";
     private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
     private static final String LOG_KEY_SESSION_ID = "sessionId";
+    private static final String LOG_KEY_ROUTE = "route";
 
     private final Map<String, RouteDescriptor> routes;
     private final NodeIdMapping nodeIdMapping;
-    private final String routePrefix;
+    /**
+     * Prefix applied to a local route name to match {@code VirtualClusterModel}'s config-level
+     * route-to-cluster lookup keys: empty for the top-level router (whose routes use unqualified
+     * names), {@code "<routerName>/"} for a nested router. This is a one-hop, config-key concern,
+     * independent of {@link #parentPath}'s full-lineage accumulation.
+     */
+    private final String qualificationPrefix;
+    private final PathElement.RoutePosition parentPath;
     private final CorrelationIdAllocator correlationIdAllocator;
     private final Map<Integer, HostPort> routerNodeAddresses;
     private final String virtualClusterName;
 
-    private final Map<Integer, PendingResponse> pendingResponses = new HashMap<>();
     private final Map<Integer, String> pendingStaticRoutes = new HashMap<>();
+
+    /**
+     * Outstanding promises for requests this dispatcher has sent, tracked only so they can be
+     * failed if the connection closes before a response arrives - not used for matching (that's
+     * done structurally via each response's own path, see {@link #handleResponse}).
+     */
+    private final Set<CompletableFuture<ApiMessage>> pendingPromises = Collections.newSetFromMap(new IdentityHashMap<>());
 
     @Nullable
     private ChannelHandlerContext ctx;
 
-    record PendingResponse(CompletableFuture<ApiMessage> future, String route, NodeIdMapping nodeIdMapping) {}
-
     enum ResponseOutcome {
         CONSUMED,
         STATIC_TRANSLATED,
-        UNHANDLED
+        UNHANDLED,
+        INVARIANT_VIOLATED
     }
 
     RouteDispatcher(Map<String, RouteDescriptor> routes,
                     NodeIdMapping nodeIdMapping,
-                    String routePrefix,
+                    String qualificationPrefix,
+                    PathElement.RoutePosition parentPath,
                     CorrelationIdAllocator correlationIdAllocator,
                     Map<Integer, HostPort> routerNodeAddresses,
                     String virtualClusterName) {
         this.routes = routes;
         this.nodeIdMapping = nodeIdMapping;
-        this.routePrefix = routePrefix;
+        this.qualificationPrefix = qualificationPrefix;
+        this.parentPath = parentPath;
         this.correlationIdAllocator = correlationIdAllocator;
         this.routerNodeAddresses = routerNodeAddresses;
         this.virtualClusterName = virtualClusterName;
@@ -119,7 +136,8 @@ public class RouteDispatcher implements RouterDispatch {
     }
 
     /**
-     * Returns the correlation ID allocator shared by all routing levels on this connection.
+     * Returns the correlation ID allocator used to mint ids for out-of-band requests this
+     * dispatcher issues. Shared connection-wide; see {@code ClientConnectionStateMachine}.
      *
      * @return the correlation ID allocator
      */
@@ -147,8 +165,26 @@ public class RouteDispatcher implements RouterDispatch {
         return Optional.ofNullable(routerNodeAddresses.get(virtualNodeId));
     }
 
-    String qualifyRoute(String route) {
-        return routePrefix + route;
+    /**
+     * Builds the route position for a request/response on the given local route name, at this
+     * dispatcher's own nesting level. The route element's name is qualified to match
+     * {@code VirtualClusterModel}'s config-level route-to-cluster lookup keys (see
+     * {@link #qualificationPrefix}); {@link PathElement.RoutePosition#parent()} carries the full ancestor lineage.
+     *
+     * @param route the local (unqualified) route name
+     * @return the path
+     */
+    PathElement.Route routePathFor(String route) {
+        return new PathElement.Route(qualificationPrefix + route, parentPath);
+    }
+
+    /**
+     * Recovers the local (unqualified) route name from one of this dispatcher's own route
+     * elements - the inverse of {@link #routePathFor(String)} - for looking up
+     * {@link RouteDescriptor}s and {@link NodeIdMapping} entries, which are keyed by local name.
+     */
+    private String localRouteName(PathElement.Route route) {
+        return route.name().substring(qualificationPrefix.length());
     }
 
     void trackStaticRoute(int correlationId, String route) {
@@ -173,7 +209,7 @@ public class RouteDispatcher implements RouterDispatch {
                                                           ApiMessage request,
                                                           String sessionId,
                                                           int clientCorrelationId) {
-        return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId));
+        return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId));
     }
 
     private CompletableFuture<ApiMessage> doSendToAnyNode(String route, RequestHeaderData header, ApiMessage request, String sessionId,
@@ -184,37 +220,14 @@ public class RouteDispatcher implements RouterDispatch {
                     .log("Router attempted to send to unknown route");
             return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown route: " + route));
         }
-        String qualifiedRoute = qualifyRoute(route);
-        short requestApiVersion = header.requestApiVersion();
-        int routingCorrelationId = correlationIdAllocator.allocateId();
-        var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
-        frame.setRouteName(qualifiedRoute);
-
-        if (!frame.hasResponse()) {
-            fireChannelRead(frame);
-            withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
-                    .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
-                    .log("Fire-and-forget request sent to route (no response expected)");
-            return CompletableFuture.completedFuture(null);
-        }
-
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        pendingResponses.put(routingCorrelationId, new PendingResponse(future, route, nodeIdMapping));
-        fireChannelRead(frame);
-
-        withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
-                .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
-                .addKeyValue("apiVersion", requestApiVersion)
-                .log("Request sent to route");
-        return future;
+        return sendInternal(route, header, request, null, () -> withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId));
     }
 
     private CompletableFuture<ApiMessage> doSendToSpecificNode(int targetNodeId,
                                                                String route,
                                                                RequestHeaderData header,
                                                                ApiMessage request,
-                                                               String sessionId,
-                                                               int clientCorrelationId) {
+                                                               String sessionId) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null) {
             withNodeContext(LOGGER.atWarn(), sessionId, route, targetNodeId)
@@ -222,66 +235,98 @@ public class RouteDispatcher implements RouterDispatch {
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Node " + targetNodeId + " resolved to unknown route: " + route));
         }
+        return sendInternal(route, header, request, targetNodeId, () -> withNodeContext(LOGGER.atTrace(), sessionId, route, targetNodeId));
+    }
 
-        String qualifiedRoute = qualifyRoute(route);
+    private CompletableFuture<ApiMessage> sendInternal(String route,
+                                                       RequestHeaderData header,
+                                                       ApiMessage request,
+                                                       @Nullable Integer targetNodeId,
+                                                       Supplier<LoggingEventBuilder> logContext) {
         short requestApiVersion = header.requestApiVersion();
-        int routingCorrelationId = correlationIdAllocator.allocateId();
-        var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
-        frame.setRouteName(qualifiedRoute);
-        frame.setTargetVirtualNodeId(targetNodeId);
+        // Distinct per request so plugin code (e.g. a route filter observing this traffic via
+        // onRequest/onResponse) that keys its own bookkeeping off correlation id doesn't collide
+        // when multiple such requests are in flight concurrently - matching back to the right
+        // promise never reads this value, it's carried on the frame's path instead.
+        int correlationId = correlationIdAllocator.allocateId();
+        header.setCorrelationId(correlationId);
+        var routePath = routePathFor(route);
 
-        if (!frame.hasResponse()) {
-            fireChannelRead(frame);
-            withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
-                    .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
-                    .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
-                    .log("Fire-and-forget request sent to specific node (no response expected)");
+        var probeFrame = new InternalRequestFrame<>(requestApiVersion, correlationId, true, header, request);
+        if (targetNodeId != null) {
+            probeFrame.setTargetVirtualNodeId(targetNodeId);
+        }
+
+        if (!probeFrame.hasResponse()) {
+            probeFrame.setRouting(routePath);
+            fireChannelRead(probeFrame);
+            logContext.get()
+                    .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, correlationId)
+                    .log("Fire-and-forget request sent (no response expected)");
             return CompletableFuture.completedFuture(null);
         }
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        pendingResponses.put(routingCorrelationId, new PendingResponse(future, route, nodeIdMapping));
-        fireChannelRead(frame);
-
-        withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
-                .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
-                .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
-                .log("Request sent to specific node");
+        pendingPromises.add(future);
+        probeFrame.setRouting(new PathElement.RouterOriginator(future, routePath));
+        fireChannelRead(probeFrame);
+        logContext.get()
+                .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, correlationId)
+                .addKeyValue("apiVersion", requestApiVersion)
+                .log("Request sent");
         return future;
     }
 
     // --- Response correlation ---
 
     ResponseOutcome handleResponse(DecodedResponseFrame<?> frame, String sessionId) {
-        int correlationId = frame.correlationId();
-        PendingResponse pending = pendingResponses.remove(correlationId);
-        if (pending != null) {
+        PathElement routing = frame.routing();
+        // Match on issuedAt (the route this OOB request was issued to), not the possibly-deeper
+        // position: a nested router may have grafted a further route beneath the originator, but the
+        // promise is still owned by - and must be translated by - the level that issued it. issuedAt
+        // is never deepened by grafting, so issuedAt.parent() uniquely identifies the issuing level.
+        if (routing instanceof PathElement.RouterOriginator(CompletableFuture<?> promise, PathElement.Route issuedAt, PathElement.Route ignored)
+                && Objects.equals(issuedAt.parent(), parentPath)) {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<ApiMessage> future = (CompletableFuture<ApiMessage>) promise;
+            if (!pendingPromises.remove(future)) {
+                var invariantViolation = new IllegalStateException(
+                        "Router OOB response matched a future that wasn't pending (route=" + issuedAt.name() + ")");
+                LOGGER.atError()
+                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                        .addKeyValue(LOG_KEY_ROUTE, issuedAt.name())
+                        .setCause(invariantViolation)
+                        .log("Router-issued OOB response matched by path but its future was not pending; invariant violated");
+                future.completeExceptionally(invariantViolation);
+                frame.release();
+                return ResponseOutcome.INVARIANT_VIOLATED;
+            }
             ApiMessage body = frame.body();
             try {
-                NodeIdResponseTranslator.translate(body, frame.apiVersion(),
-                        pending.nodeIdMapping(), pending.route());
+                NodeIdResponseTranslator.translate(body, frame.apiVersion(), nodeIdMapping, localRouteName(issuedAt));
                 cacheNodeAddressesIfMetadata(body, sessionId);
-                pending.future().complete(body);
+                future.complete(body);
             }
             catch (Exception t) {
-                pending.future().completeExceptionally(t);
+                future.completeExceptionally(t);
             }
             finally {
                 // Safe: DecodedResponseFrames decoded from the network carry no managed ByteBufs
                 // (KafkaResponseDecoder adds none), and RouteFilterHandler only intercepts frames
-                // whose routeName matches its route — upstream responses have null routeName and
-                // pass through unmodified. So body does not alias any ByteBuf released here.
+                // whose path lies on its own route — upstream responses not on any route pass
+                // through unmodified. So body does not alias any ByteBuf released here.
                 frame.release();
             }
             LOGGER.atTrace()
                     .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                     .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                    .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, correlationId)
+                    .addKeyValue(LOG_KEY_ROUTE, issuedAt.name())
                     .log("Routed response matched to pending request");
             return ResponseOutcome.CONSUMED;
         }
 
-        String staticRoute = pendingStaticRoutes.remove(correlationId);
+        String staticRoute = pendingStaticRoutes.remove(frame.correlationId());
         if (staticRoute != null) {
             NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(),
                     nodeIdMapping, staticRoute);
@@ -290,28 +335,6 @@ public class RouteDispatcher implements RouterDispatch {
         }
 
         return ResponseOutcome.UNHANDLED;
-    }
-
-    // --- Lifecycle ---
-
-    @VisibleForTesting
-    boolean hasPendingResponses() {
-        return !pendingResponses.isEmpty();
-    }
-
-    @VisibleForTesting
-    void addPendingResponse(int correlationId, PendingResponse pending) {
-        pendingResponses.put(correlationId, pending);
-    }
-
-    @VisibleForTesting
-    PendingResponse getPendingResponse(int correlationId) {
-        return pendingResponses.get(correlationId);
-    }
-
-    @VisibleForTesting
-    int pendingResponseCount() {
-        return pendingResponses.size();
     }
 
     @VisibleForTesting
@@ -324,14 +347,21 @@ public class RouteDispatcher implements RouterDispatch {
         return pendingStaticRoutes.containsKey(correlationId);
     }
 
+    @VisibleForTesting
+    void addPendingPromise(CompletableFuture<ApiMessage> future) {
+        pendingPromises.add(future);
+    }
+
+    // --- Lifecycle ---
+
     void failAllPending(String sessionId) {
-        int abandoned = pendingResponses.size();
+        int abandoned = pendingPromises.size();
         if (abandoned > 0) {
             var cause = new IllegalStateException("Connection closed with " + abandoned + " pending router response(s)");
-            for (var entry : pendingResponses.values()) {
-                entry.future().completeExceptionally(cause);
+            for (var future : pendingPromises) {
+                future.completeExceptionally(cause);
             }
-            pendingResponses.clear();
+            pendingPromises.clear();
             LOGGER.atWarn()
                     .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                     .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
@@ -345,7 +375,8 @@ public class RouteDispatcher implements RouterDispatch {
     // FutureReturnValueIgnored: a synchronous throw from work.get() is caught and
     // propagated to `bridge`, so the submitted task cannot complete exceptionally and the
     // whenComplete callback completes `bridge` in both branches.
-    @SuppressWarnings("FutureReturnValueIgnored")
+    // resource: executor is owned by the context
+    @SuppressWarnings({ "FutureReturnValueIgnored", "resource" })
     private <T> CompletionStage<T> executeOnEventLoop(Supplier<CompletableFuture<T>> work) {
         var executor = Objects.requireNonNull(ctx, "sendRequest called before handlerAdded").executor();
         if (executor.inEventLoop()) {
@@ -392,7 +423,7 @@ public class RouteDispatcher implements RouterDispatch {
     private LoggingEventBuilder withSendContext(LoggingEventBuilder event, String sessionId, String route, int clientCorrelationId) {
         return event.addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                .addKeyValue("route", route)
+                .addKeyValue(LOG_KEY_ROUTE, route)
                 .addKeyValue("clientCorrelationId", clientCorrelationId);
     }
 
@@ -400,6 +431,6 @@ public class RouteDispatcher implements RouterDispatch {
         return event.addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                 .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
-                .addKeyValue("route", route);
+                .addKeyValue(LOG_KEY_ROUTE, route);
     }
 }

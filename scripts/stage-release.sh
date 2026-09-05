@@ -94,7 +94,7 @@ replaceInFile() {
 }
 
 updateVersionInBenchmarks() {
-  replaceInFile "s|KROXYLICIOUS_VERSION:-[0-9]+\.[0-9]+\.[0-9]+|KROXYLICIOUS_VERSION:-${1}|g" \
+  replaceInFile "s|KROXYLICIOUS_VERSION:-[^}]*|KROXYLICIOUS_VERSION:-${1}|g" \
     kroxylicious-openmessaging-benchmarks/scripts/setup-cluster.sh
 }
 
@@ -141,7 +141,9 @@ echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
 ${SED} -i "s|\\\${changelog.link.prefix}|${CHANGELOG_LINK_PREFIX}|g" changelog/.templates/CHANGELOG.md
 mvn --quiet logchange:release
-git checkout -- changelog/.templates/CHANGELOG.md
+# logchange:release rewrites the CHANGELOG template and empties changelog/unreleased,
+# deleting the .gitkeep that keeps the directory tracked. Restore both.
+git checkout -- changelog/.templates/CHANGELOG.md changelog/unreleased/.gitkeep
 git add changelog/ CHANGELOG.md
 
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
@@ -151,6 +153,7 @@ replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylic
 
 updateVersionInBenchmarks "${RELEASE_VERSION}"
 replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${RELEASE_VERSION}_g" performance-tests/docker-compose.yaml
+replaceInFile "s_io\.kroxylicious:kroxylicious-migrations:[^ ]*_io.kroxylicious:kroxylicious-migrations:${RELEASE_VERSION}_g" kroxylicious-proxy-core/kroxylicious-migrations/README.md
 
 echo "Validating things still build"
 mvn --quiet --batch-mode clean install --activate-profiles quick
@@ -195,6 +198,7 @@ replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylic
 
 updateVersionInBenchmarks "${NEXT_VERSION}"
 replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${NEXT_VERSION}_g" performance-tests/docker-compose.yaml
+replaceInFile "s_io\.kroxylicious:kroxylicious-migrations:[^ ]*_io.kroxylicious:kroxylicious-migrations:${NEXT_VERSION}_g" kroxylicious-proxy-core/kroxylicious-migrations/README.md
 
 # bump the reference version in kroxylicious-api
 mvn --quiet --batch-mode --projects :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false

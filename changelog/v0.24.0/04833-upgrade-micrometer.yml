@@ -1,0 +1,8 @@
+title: bump micrometer to v1.17.1
+merge_requests:
+  - 4833
+links:
+  - name: CVE-2026-59295
+    url: https://www.cve.org/CVERecord?id=CVE-2026-59295
+type: dependency_update
+

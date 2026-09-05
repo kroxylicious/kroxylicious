@@ -8,8 +8,9 @@ package io.kroxylicious.testing.filter.assertj;
 
 import java.nio.charset.StandardCharsets;
 
-import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.jupiter.api.Test;
+
+import io.kroxylicious.kafka.common.header.internals.RecordHeaders;
 
 import static io.kroxylicious.testing.filter.assertj.Assertions.throwsAssertionErrorContaining;
 

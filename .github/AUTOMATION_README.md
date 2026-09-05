@@ -15,6 +15,13 @@ These tokens must belong to an account, so we use a shared account to hold them.
 is [kroxylicious-robot](https://github.com/kroxylicious-robot) and credentials are shared by some committers, ask in #team-developers
 on slack if you require a new PAT for a GitHub action.
 
+The corresponding secrets in github are:
+
+| Secret                                        | Description                                                                                                                       |
+|-----------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `KROXYLICIOUS_CHANGELOG_TOKEN`                | GitHub PAT with write (contents) permission for this repository. Used to commit logchange entry files to Renovate/Dependabot PRs. |
+| `KROXYLICIOUS_RELEASE_TOKEN`                  | GitHub PAT used during the release. See [RELEASING.md](../RELEASING.md) for detail about required permissions                     |
+
 ## Dependabot Integration
 
 We use Dependabot to automatically create Pull Requests (PR) upgrading dependencies. Dependabot is also allowed to merge

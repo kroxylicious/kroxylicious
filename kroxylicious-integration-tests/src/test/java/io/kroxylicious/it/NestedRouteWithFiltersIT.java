@@ -17,7 +17,6 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -29,6 +28,7 @@ import io.kroxylicious.it.testplugins.RequestCountingFilter;
 import io.kroxylicious.it.testplugins.RequestCountingFilterFactory;
 import io.kroxylicious.it.testplugins.router.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.router.DynamicProduceRouterFactory;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;
@@ -150,10 +150,10 @@ class NestedRouteWithFiltersIT {
                 .extracting(ConsumerRecord::key)
                 .containsExactly("key-0", "key-1", "key-2");
         assertThat(consumeFrom(verifyB, topic)).isEmpty();
-        assertThat(RequestCountingFilter.countFor(outerCtr, ApiKeys.PRODUCE))
+        assertThat(RequestCountingFilter.countFor(outerCtr, io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE))
                 .as("outer filter should not fire for direct route")
                 .isZero();
-        assertThat(RequestCountingFilter.countFor(innerCtr, ApiKeys.PRODUCE))
+        assertThat(RequestCountingFilter.countFor(innerCtr, io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE))
                 .as("inner filter should not fire for direct route")
                 .isZero();
     }
@@ -190,10 +190,10 @@ class NestedRouteWithFiltersIT {
         assertThat(consumeFrom(verifyB, topic))
                 .extracting(ConsumerRecord::key)
                 .containsExactly("key-0", "key-1", "key-2");
-        assertThat(RequestCountingFilter.countFor(outerCtr, ApiKeys.PRODUCE))
+        assertThat(RequestCountingFilter.countFor(outerCtr, io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE))
                 .as("outer filter should fire for each produce through nested route")
                 .isEqualTo(3);
-        assertThat(RequestCountingFilter.countFor(innerCtr, ApiKeys.PRODUCE))
+        assertThat(RequestCountingFilter.countFor(innerCtr, io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE))
                 .as("inner filter should fire for each produce through nested route")
                 .isEqualTo(3);
     }

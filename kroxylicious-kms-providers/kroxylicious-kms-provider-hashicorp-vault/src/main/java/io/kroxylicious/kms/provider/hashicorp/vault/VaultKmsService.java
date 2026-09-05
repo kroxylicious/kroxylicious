@@ -20,7 +20,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * An implementation of the {@link KmsService} interface backed by a remote instance of HashiCorp Vault.
  */
 @Plugin(configType = Config.class)
-public class VaultKmsService implements KmsService<Config, String, VaultEdek> {
+public class VaultKmsService implements KmsService<Config, WrappingKey, VaultEdek> {
 
     @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
     private volatile @Nullable Config config;

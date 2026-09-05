@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -55,6 +55,18 @@
             <artifactId>rewrite-java-${java.version}</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.openrewrite.recipe</groupId>
+            <artifactId>rewrite-java-dependencies</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-maven</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- Provides RewriteTest interface and test runner -->
         <dependency>
             <groupId>org.openrewrite</groupId>
@@ -72,12 +84,63 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
+            <!-- the migration tests depend on kafka-clients 4.2.0 to provide org.apache.kafka.common.record.MemoryRecords, tests fail if we upgrade to 4.3.0 as the class moved to org.apache.kafka.common.record.internal-->
+            <version>4.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!--
+              Override the additionalClasspathDependencies inherited from the parent POM to silence
+              surefire's "Potential classpath conflict" warnings, which are specific to this module.
+              This module's OpenRewrite dependencies pull in byte-buddy 1.18.3 (via assertj-core) and
+              objenesis 3.6, which clash with the byte-buddy 1.17.7 / objenesis 3.3 that mockito-core
+              brings transitively. surefire resolves additionalClasspathDependencies independently of
+              <dependencyManagement>, so the versions must be reconciled here via exclusions.
+              mockito-core is not actually used by this module's tests (it is inherited globally),
+              so dropping its transitive byte-buddy/objenesis in favour of the versions already on
+              the project test classpath is safe:
+                - drop assertj-core (and its byte-buddy) from logsquelcher: only the SLF4J provider is
+                  needed, and the project test classpath already provides assertj/byte-buddy 1.18.3;
+                - drop byte-buddy and objenesis from mockito-core: the project test classpath already
+                  provides byte-buddy 1.18.3 and objenesis 3.6.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <additionalClasspathDependencies combine.self="override">
+                        <dependency>
+                            <groupId>io.github.sambarker</groupId>
+                            <artifactId>logsquelcher</artifactId>
+                            <version>${logsquelcher.version}</version>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>org.assertj</groupId>
+                                    <artifactId>assertj-core</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.mockito</groupId>
+                            <artifactId>mockito-core</artifactId>
+                            <version>${mockito.version}</version>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>net.bytebuddy</groupId>
+                                    <artifactId>byte-buddy</artifactId>
+                                </exclusion>
+                                <exclusion>
+                                    <groupId>org.objenesis</groupId>
+                                    <artifactId>objenesis</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </dependency>
+                    </additionalClasspathDependencies>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -89,7 +152,7 @@
                         </goals>
                         <configuration>
                             <ignoredUnusedDeclaredDependencies>
-                                org.openrewrite:rewrite-java-${java.version},org.apache.kafka:kafka-clients
+                                org.openrewrite:rewrite-java-${java.version},rewrite-maven,org.apache.kafka:kafka-clients
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
                     </execution>

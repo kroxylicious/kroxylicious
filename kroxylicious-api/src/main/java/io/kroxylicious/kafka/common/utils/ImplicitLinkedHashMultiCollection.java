@@ -24,7 +24,7 @@ import java.util.List;
 
 /**
  * A memory-efficient hash multiset which tracks the order of insertion of elements.
- * See org.apache.kafka.common.utils.ImplicitLinkedHashCollection for implementation details.
+ * See io.kroxylicious.kafka.common.utils.ImplicitLinkedHashCollection for implementation details.
  *
  * This class is a multi-set because it allows multiple elements to be inserted that
  * have equivalent keys.

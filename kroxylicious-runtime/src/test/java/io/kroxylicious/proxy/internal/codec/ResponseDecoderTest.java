@@ -12,10 +12,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +21,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 
@@ -56,7 +56,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     void testApiVersionsExactlyOneFrame_decoded(short apiVersion) {
-        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, true);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, true);
         assertEquals(52, exactlyOneFrame_decoded(apiVersion,
                 ApiKeys.API_VERSIONS::responseHeaderVersion,
                 v -> AbstractCodecTest.exampleResponseHeader(),
@@ -72,7 +72,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     void testApiVersionsExactlyOneFrame_opaque(short apiVersion) {
-        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, false);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, false);
         assertEquals(52, exactlyOneFrame_encoded(apiVersion,
                 ApiKeys.API_VERSIONS::responseHeaderVersion,
                 v -> AbstractCodecTest.exampleResponseHeader(),
@@ -164,7 +164,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
 
     @Test
     void supportsFallbackToApiResponseV0() {
-        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, true);
 
         // given
         ByteBuf buffer = Unpooled.wrappedBuffer(serializeUsingKafkaApis((short) 0,
@@ -186,7 +186,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
 
     @Test
     void throwsOnUndecodableV0ApiVersionsResponse() throws IOException {
-        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 0, 52, true, null, null, true);
+        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 0, 52, true, null, true);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
         dataOutputStream.writeInt(4); // framesize
@@ -205,7 +205,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
 
     @Test
     void throwsOnUndecodableNonV0ApiVersionsResponse() throws IOException {
-        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
+        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, true);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
         dataOutputStream.writeInt(4); // framesize

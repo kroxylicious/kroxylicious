@@ -55,7 +55,7 @@ import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
-import io.kroxylicious.testing.filter.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.record.KafkaRecordTestUtils;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.ResponsePayload;
@@ -119,7 +119,7 @@ class FilterRouteFilterApiIT {
     }
 
     private static Request produceRequest(String topicName, short acks) {
-        var records = RecordTestUtils.singleElementMemoryRecords("key", "value");
+        var records = KafkaRecordTestUtils.singleElementMemoryRecords("key", "value");
         var partitionData = new ProduceRequestData.PartitionProduceData()
                 .setIndex(0)
                 .setRecords(records);
@@ -300,11 +300,11 @@ class FilterRouteFilterApiIT {
             assertThat(records).hasSize(2);
             var secondRecordHeaders = records.get(1).headers();
             assertThat(ProtocolCounterFilter.fromBytes(
-                    secondRecordHeaders.lastHeader(ProtocolCounterFilter.requestCountHeaderKey(ApiKeys.PRODUCE)).value()))
+                    secondRecordHeaders.lastHeader(ProtocolCounterFilter.requestCountHeaderKey(io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE)).value()))
                     .as("route filter onRequest must have seen both PRODUCE requests")
                     .isEqualTo(2);
             assertThat(ProtocolCounterFilter.fromBytes(
-                    secondRecordHeaders.lastHeader(ProtocolCounterFilter.responseCountHeaderKey(ApiKeys.PRODUCE)).value()))
+                    secondRecordHeaders.lastHeader(ProtocolCounterFilter.responseCountHeaderKey(io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE)).value()))
                     .as("route filter onResponse must have completed for the first exchange before the second request was sent")
                     .isEqualTo(1);
         }
@@ -365,6 +365,6 @@ class FilterRouteFilterApiIT {
         }
 
         // Then: the filter was invoked for traffic through the route (API_VERSIONS is used during handshake)
-        assertThat(RequestCountingFilter.countFor("api-versions-test", ApiKeys.API_VERSIONS)).isGreaterThanOrEqualTo(1);
+        assertThat(RequestCountingFilter.countFor("api-versions-test", io.kroxylicious.kafka.common.protocol.ApiKeys.API_VERSIONS)).isGreaterThanOrEqualTo(1);
     }
 }

@@ -13,18 +13,18 @@ import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.List;
 
-import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.ControlRecordType;
-import org.apache.kafka.common.record.EndTransactionMarker;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
-import org.apache.kafka.common.record.MutableRecordBatch;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.utils.BufferSupplier;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import io.kroxylicious.kafka.common.compress.Compression;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.record.TimestampType;
+import io.kroxylicious.kafka.common.record.internal.ControlRecordType;
+import io.kroxylicious.kafka.common.record.internal.EndTransactionMarker;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecordsBuilder;
+import io.kroxylicious.kafka.common.record.internal.MutableRecordBatch;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
+import io.kroxylicious.kafka.common.utils.BufferSupplier;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

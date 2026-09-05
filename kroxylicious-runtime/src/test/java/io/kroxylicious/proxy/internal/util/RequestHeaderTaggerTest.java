@@ -8,9 +8,10 @@ package io.kroxylicious.proxy.internal.util;
 
 import java.nio.charset.StandardCharsets;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.junit.jupiter.api.Test;
+
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

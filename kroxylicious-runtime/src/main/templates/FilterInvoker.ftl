@@ -33,15 +33,15 @@ package ${outputPackage};
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.${inputSpec.name}Data;
+import io.kroxylicious.kafka.common.message.${inputSpec.name}Data;
 
 <#if inputSpec.type?lower_case == 'response'>
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 <#else>
-import org.apache.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
 </#if>
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.${filterClass};

@@ -122,4 +122,9 @@ public class TestVault implements Closeable {
         }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId));
     }
 
+    VaultResponse.ReadKeyData rotateKek(String keyId) {
+        return runVaultCommand(new TypeReference<>() {
+        }, "vault", "write", "-f", "transit/keys/%s/rotate".formatted(keyId));
+    }
+
 }

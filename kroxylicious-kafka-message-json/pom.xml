@@ -15,14 +15,15 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>kroxylicious-kafka-message-json</artifactId>
     <name>Kafka message JSON converter</name>
-    <description>KafkaApiMessageConverter: converts Kafka protocol request/response messages
-        between org.apache.kafka.common.protocol.ApiMessage and their JSON representation,
-        keyed by ApiMessageType.</description>
+    <description>KafkaApiMessageConverter and VendoredKafkaApiMessageConverter: convert Kafka
+        protocol request/response messages between ApiMessage and their JSON representation,
+        keyed by ApiMessageType, for the org.apache.kafka.* and vendored io.kroxylicious.kafka.*
+        message classes respectively.</description>
 
     <dependencies>
         <dependency>
@@ -32,6 +33,20 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -45,7 +60,103 @@
                         <id>unpack-message-specs</id>
                         <phase>generate-sources</phase>
                     </execution>
+                    <!-- Specs for the vendored io.kroxylicious.kafka.common.message.*Data classes are
+                         pinned to kafka.message-spec.version, which can differ from kafka.version (the
+                         Kafka-side converter's spec pin above). Mirrors kroxylicious-api's
+                         unpack-data-class-message-specs so the vendored JsonConverter classes generated
+                         below stay schema-consistent with the vendored *Data classes they convert. -->
+                    <execution>
+                        <id>unpack-data-class-message-specs</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.apache.kafka</groupId>
+                                    <artifactId>kafka-clients</artifactId>
+                                    <version>${kafka.message-spec.version}</version>
+                                    <overWrite>false</overWrite>
+                                    <includes>common/message/**/*.json</includes>
+                                    <outputDirectory>${project.build.directory}/data-class-message-specs
+                                    </outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
                 </executions>
+            </plugin>
+            <!-- Generate io.kroxylicious.kafka.common.message.*DataJsonConverter classes from the
+                 same specs used to generate the vendored *Data classes in kroxylicious-api. The
+                 forked generator is a plugin-scoped dependency so it stays off this module's own
+                 dependency graph. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-vendored-json-converters</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>io.kroxylicious.kafka.message.MessageGenerator</mainClass>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <arguments>
+                                <argument>-p</argument>
+                                <argument>io.kroxylicious.kafka.common.message</argument>
+                                <argument>-i</argument>
+                                <argument>${project.build.directory}/data-class-message-specs/common/message</argument>
+                                <argument>-o</argument>
+                                <argument>
+                                    ${project.build.directory}/generated-sources/vendored-json-converters/io/kroxylicious/kafka/common/message
+                                </argument>
+                                <argument>-m</argument>
+                                <argument>JsonConverterGenerator</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>io.kroxylicious</groupId>
+                        <artifactId>kroxylicious-kafka-message-generator</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <!-- This actually shouldn't be needed, as the plug-in itself adds that directory as a source directory;
+                 Unfortunately, Eclipse/M2E doesn't reliably pick it up without this helper plug-in -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/vendored-json-converters</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- The generated vendored io.kroxylicious.kafka.common.message.*DataJsonConverter
+                 classes carry Kafka's own Javadoc, which does not satisfy this project's doclint
+                 gate and is not something we publish API docs for. Mirrors kroxylicious-api's
+                 exclusion of the same package tree. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <excludePackageNames>io.kroxylicious.kafka.common:io.kroxylicious.kafka.common.*</excludePackageNames>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>io.kroxylicious</groupId>
@@ -63,6 +174,29 @@
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>KafkaApiMessageConverter.ftl</templateNames>
+                            <!--suppress MavenModelInspection -->
+                            <outputFilePattern>${templateName}.java</outputFilePattern>
+                            <outputPackage>io.kroxylicious.kafka.message.json</outputPackage>
+                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <!-- VendoredKafkaApiMessageConverter targets io.kroxylicious.kafka.common.message,
+                         generated from kafka.message-spec.version specs (see
+                         unpack-data-class-message-specs above), which can differ from kafka.version
+                         used by generate-converters above. Kept as its own execution so each template
+                         is generated from the spec set matching the classes it actually targets. -->
+                    <execution>
+                        <id>generate-vendored-converter</id>
+                        <goals>
+                            <goal>generate-multi</goal>
+                        </goals>
+                        <phase>process-sources</phase>
+                        <configuration>
+                            <messageSpecDirectory>${project.build.directory}/data-class-message-specs/common/message
+                            </messageSpecDirectory>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>VendoredKafkaApiMessageConverter.ftl</templateNames>
                             <!--suppress MavenModelInspection -->
                             <outputFilePattern>${templateName}.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.kafka.message.json</outputPackage>

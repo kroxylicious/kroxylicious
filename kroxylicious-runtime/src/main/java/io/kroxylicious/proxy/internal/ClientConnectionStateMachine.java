@@ -19,10 +19,6 @@ import java.util.function.Supplier;
 
 import javax.net.ssl.SSLSession;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.event.Level;
 import org.slf4j.spi.LoggingEventBuilder;
@@ -34,11 +30,14 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.util.ReferenceCountUtil;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
@@ -232,6 +231,16 @@ public class ClientConnectionStateMachine {
     private Function<Integer, Optional<HostPort>> upstreamAddressResolver;
 
     /**
+     * Allocates correlation ids for requests the proxy itself originates (router- and
+     * filter-issued out-of-band requests), kept out of the range a real client would plausibly
+     * choose. Shared by every routing level on this connection so that a filter or router
+     * observing such traffic sees a genuinely unique id per in-flight request - the proxy's own
+     * matching logic never reads this value, it exists purely so plugin-side bookkeeping keyed on
+     * correlation id doesn't collide.
+     */
+    private final CorrelationIdAllocator internalCorrelationIdAllocator = new CorrelationIdAllocator(Integer.MIN_VALUE, 0);
+
+    /**
      * Creates a state machine for a single client connection.
      * @param endpointBinding the binding identifying the virtual cluster endpoint the client connected to
      * @param transportSubjectBuilder builder used to derive the client {@link Subject} from transport-level information
@@ -342,6 +351,14 @@ public class ClientConnectionStateMachine {
      */
     public String clusterName() {
         return virtualCluster().getClusterName();
+    }
+
+    /**
+     * The correlation ids allocator for router- and filter-issued out-of-band requests.
+     * @return the allocator
+     */
+    public CorrelationIdAllocator internalCorrelationIdAllocator() {
+        return internalCorrelationIdAllocator;
     }
 
     EndpointBinding endpointBinding() {
@@ -481,7 +498,7 @@ public class ClientConnectionStateMachine {
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
         if (!routerActive
                 || !(msg instanceof DecodedResponseFrame<?> frame)
-                || !CorrelationIdSpace.isRoutingCorrelationId(frame.correlationId())) {
+                || !(frame.routing() instanceof PathElement.RouterOriginator)) {
             decrementInFlightCount();
         }
     }
@@ -799,7 +816,6 @@ public class ClientConnectionStateMachine {
     @SuppressWarnings("java:S5738")
     void onClientException(@Nullable Throwable cause) {
         var tlsEnabled = endpointGateway().getDownstreamSslContext().isPresent();
-        ApiException errorCodeEx;
         if (cause instanceof DecoderException de
                 && de.getCause() instanceof FrameOversizedException e) {
             String tlsHint;
@@ -813,7 +829,6 @@ public class ClientConnectionStateMachine {
                     .addKeyValue("receivedFrameSizeBytes", e.getReceivedFrameSizeBytes())
                     .addKeyValue("hint", tlsHint)
                     .log("Received over-sized frame from client, other possible causes are: an oversized Kafka frame, or something unexpected like an HTTP request");
-            errorCodeEx = Errors.INVALID_REQUEST.exception();
         }
         else {
             log(Level.WARN)
@@ -822,10 +837,9 @@ public class ClientConnectionStateMachine {
                     .log(LOGGER.isDebugEnabled()
                             ? "exception from client channel"
                             : "exception from client channel, increase log level to DEBUG for stacktrace");
-            errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
         clientToProxyErrorCounter.increment();
-        toClosed(errorCodeEx);
+        toClosed(cause);
     }
 
     /**

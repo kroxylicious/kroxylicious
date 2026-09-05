@@ -6,12 +6,13 @@
 
 package io.kroxylicious.testing.filter.assertj;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.Headers;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.assertj.core.api.IterableAssert;
+
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.header.Headers;
 
 /**
  * AssertJ assertions for {@link Headers}.

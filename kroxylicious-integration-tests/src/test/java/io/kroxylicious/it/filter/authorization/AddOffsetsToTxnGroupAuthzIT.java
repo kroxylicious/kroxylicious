@@ -119,8 +119,8 @@ class AddOffsetsToTxnGroupAuthzIT extends AuthzIT {
 
     List<Arguments> shouldEnforceAccessToTransactionalIds() {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(
-                AuthorizationFilter.minSupportedApiVersion(ApiKeys.ADD_OFFSETS_TO_TXN),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.ADD_OFFSETS_TO_TXN)).boxed()
+                AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.ADD_OFFSETS_TO_TXN),
+                AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.ADD_OFFSETS_TO_TXN)).boxed()
                 .flatMap(apiVersion -> ALL_GROUP_PREFIXES.stream().map(
                         groupPrefix -> Arguments.argumentSet("api version " + apiVersion + " groupPrefix " + groupPrefix,
                                 new AddOffsetsToTxnEquivalence(apiVersion.shortValue(), groupPrefix))));
@@ -128,7 +128,7 @@ class AddOffsetsToTxnGroupAuthzIT extends AuthzIT {
                 .rangeClosed(
                         ApiKeys.ADD_OFFSETS_TO_TXN.oldestVersion(),
                         ApiKeys.ADD_OFFSETS_TO_TXN.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.ADD_OFFSETS_TO_TXN, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.ADD_OFFSETS_TO_TXN, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.ADD_OFFSETS_TO_TXN, (short) apiVersion)));

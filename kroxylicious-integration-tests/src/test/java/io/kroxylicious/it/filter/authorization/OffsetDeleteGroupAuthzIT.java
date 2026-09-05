@@ -221,7 +221,7 @@ class OffsetDeleteGroupAuthzIT extends AuthzIT {
         // Compute the n-fold Cartesian product of the tuples (except for pruning)
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : apiVersions) {
-            if (!AuthorizationFilter.isApiVersionSupported(ApiKeys.OFFSET_DELETE, apiVersion)) {
+            if (!AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.OFFSET_DELETE, apiVersion)) {
                 UnsupportedApiVersion<ApiMessage, ApiMessage> apiMessageApiMessageUnsupportedApiVersion = new UnsupportedApiVersion<>(ApiKeys.OFFSET_DELETE, apiVersion);
                 result.add(
                         Arguments.of(apiMessageApiMessageUnsupportedApiVersion));

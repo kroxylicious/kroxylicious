@@ -8,53 +8,38 @@ package io.kroxylicious.proxy.internal;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
-
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 
 /**
- * A decoded request frame sent out-of-band by a {@link Filter}, rather than originating from
- * the downstream client. The corresponding response is delivered to the recipient filter as an
- * {@link InternalResponseFrame} and completes the supplied promise.
+ * A decoded request frame sent out-of-band by a {@link Filter} or a router, rather than
+ * originating from the downstream client. The corresponding response is delivered to the
+ * recipient as an {@link InternalResponseFrame} and completes the promise carried on this
+ * frame's {@link #routing()} (see {@link io.kroxylicious.proxy.frame.PathElement#pendingPromise()}).
  * @param <B> the type of the request body
  */
 public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFrame<B> {
 
-    private final CompletableFuture<?> promise;
-    private final Filter recipient;
-
     /**
-     * Creates an internal request frame.
+     * Creates an internal request frame. The recipient identity and promise to complete are
+     * carried by this frame's {@link #routing()}, which callers must set (via {@link #setRouting}
+     * immediately after construction, before this frame is fired into the pipeline.
      * @param apiVersion the API version of the request
      * @param correlationId the correlation id of the request
      * @param decodeResponse whether the corresponding response should be decoded
-     * @param recipient the filter that sent the request and should receive its response
-     * @param promise the promise to be completed with the response body
      * @param header the request header
      * @param body the request body
      */
     public InternalRequestFrame(short apiVersion,
                                 int correlationId,
                                 boolean decodeResponse,
-                                Filter recipient,
-                                CompletableFuture<?> promise,
                                 RequestHeaderData header,
                                 B body) {
         super(apiVersion, correlationId, decodeResponse, header, body);
-        this.promise = promise;
-        this.recipient = Objects.requireNonNull(recipient);
-    }
-
-    /**
-     * Returns the filter that sent this request and should receive its response.
-     * @return the recipient filter
-     */
-    public Filter recipient() {
-        return recipient;
     }
 
     /**
@@ -62,13 +47,15 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
      * @return the promise
      */
     public CompletableFuture<?> promise() {
-        return promise;
+        return Objects.requireNonNull(routing(), "InternalRequestFrame has no routing set")
+                .pendingPromise()
+                .orElseThrow(() -> new IllegalStateException("InternalRequestFrame's routing does not carry a promise: " + routing()));
     }
 
     @Override
     protected DecodedResponseFrame<? extends ApiMessage> createResponseFrame(ResponseHeaderData header, ApiMessage message) {
-        var response = new InternalResponseFrame<>(recipient, apiVersion, correlationId, header, message, promise);
-        response.setRouteName(this.routeName());
+        var response = new InternalResponseFrame<>(apiVersion, correlationId, header, message);
+        response.setRouting(this.routing());
         return response;
     }
 }

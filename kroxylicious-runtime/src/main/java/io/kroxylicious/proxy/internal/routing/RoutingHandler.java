@@ -11,12 +11,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiConsumer;
 
-import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.AbstractResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,16 +18,22 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.kafka.common.errors.ApiException;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.CloseReason;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
-import io.kroxylicious.proxy.internal.CorrelationIdSpace;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
@@ -67,8 +67,8 @@ import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
  * <p>One handler of this type is installed per router level per connection.
  * A router whose routes target a mix of upstream clusters and nested routers
  * results in one {@code RoutingHandler} per router-targeting route, each
- * intercepting only frames whose route name matches its
- * {@link RouterRequestSource#activationRoute()}; cluster-targeting frames pass
+ * intercepting only frames whose path matches its
+ * {@link RouterRequestSource#activationPath()}; cluster-targeting frames pass
  * through unchanged. Because each activation route has its own handler
  * instance and its own lazily-created {@link Router}, a router referenced from
  * multiple parent routes (a diamond in the routing DAG) is effectively
@@ -86,6 +86,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private static final String LOG_KEY_API_KEY = "apiKey";
     private static final String LOG_KEY_SESSION_ID = "sessionId";
     private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
+    private static final String LOG_KEY_ROUTE = "route";
 
     // --- Configuration ---
 
@@ -155,8 +156,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                           NodeIdMapping nodeIdMapping,
                                           @Nullable Integer nodeId) {
         String virtualClusterName = ccsm.clusterName();
-        var allocator = CorrelationIdSpace.createRouterAllocator();
-        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", allocator, sharedNodeAddresses, virtualClusterName);
+        var allocator = ccsm.internalCorrelationIdAllocator();
+        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", PathElement.ClientOrigin.INSTANCE, allocator, sharedNodeAddresses, virtualClusterName);
         return new RoutingHandler(dispatcher, virtualClusterName,
                 ccsm.sessionId(), ccsm.authenticatedSubject(), nodeId,
                 new VirtualClusterRequestSource(ccsm),
@@ -165,19 +166,23 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
     /**
      * Creates a nested routing handler that intercepts frames matching the given
-     * activation route. No response sequencing — the outer level handles ordering.
+     * activation path. No response sequencing — the outer level handles ordering.
      * Ignores router close-connection requests.
      *
-     * @param activationRoute the qualified route name (e.g. {@code "outerRouter/routeName"})
-     *        that this handler intercepts; frames with a different route name pass through
-     * @param nestedRouterName the name of the nested router, used to build the route prefix
-     *        ({@code "routerName/"}) for qualified route names at this level
+     * @param activationPath the path (e.g. the outer route that targets this router) that this
+     *        handler intercepts; frames on a different path pass through. Also used as the
+     *        parent path for every route this nested router itself dispatches to, so paths
+     *        accumulate the full lineage from the top-level virtual cluster down.
+     * @param nestedRouterName the name of the nested router, used for logging and out-of-band
+     *        leaf identification
      * @param virtualClusterName the virtual cluster name, used for logging
      * @param routerChainFactory factory for creating the nested router and its filter chain
-     * @param nestedRoutes the route descriptors for this nested router level (qualified names)
+     * @param nestedRoutes the route descriptors for this nested router level (local names)
      * @param nestedNodeIdMapping the virtual-to-target node ID mapping for this nested level
-     * @param correlationIdAllocator allocates upstream correlation IDs, shared with the top-level
-     *        handler so all in-flight requests on this connection use a single ID space
+     * @param correlationIdAllocator allocates ids for out-of-band requests, shared connection-wide
+     *        (see {@link ClientConnectionStateMachine#internalCorrelationIdAllocator()}) purely so
+     *        plugin code observing this traffic sees genuinely unique values - the proxy's own
+     *        matching never reads it
      * @param routerNodeAddresses node addresses known at this nesting level, populated from
      *        metadata responses received through this handler
      * @param sessionId the proxy session ID, used for logging and diagnostics
@@ -188,7 +193,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
      */
     // all parameters are genuinely needed: identity, routing config, protocol infrastructure, session, auth, network
     @SuppressWarnings("java:S107")
-    public static RoutingHandler nested(String activationRoute,
+    public static RoutingHandler nested(PathElement.Route activationPath,
                                         String nestedRouterName,
                                         String virtualClusterName,
                                         RouterChainFactory routerChainFactory,
@@ -199,12 +204,11 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                         String sessionId,
                                         Subject subject,
                                         @Nullable Integer nodeId) {
-        String routePrefix = nestedRouterName + "/";
-        var dispatcher = new RouteDispatcher(nestedRoutes, nestedNodeIdMapping, routePrefix,
+        var dispatcher = new RouteDispatcher(nestedRoutes, nestedNodeIdMapping, nestedRouterName + "/", activationPath,
                 correlationIdAllocator, routerNodeAddresses, virtualClusterName);
         return new RoutingHandler(dispatcher, virtualClusterName,
                 sessionId, subject, nodeId,
-                new RouterRequestSource(activationRoute, routerChainFactory, nestedRouterName),
+                new RouterRequestSource(activationPath, routerChainFactory, nestedRouterName),
                 null, null);
     }
 
@@ -291,19 +295,26 @@ public class RoutingHandler extends ChannelDuplexHandler {
     }
 
     private void dispatchStaticRoute(ChannelHandlerContext ctx, RequestFrame frame, Object msg, ApiKeys apiKey, String staticRoute) {
-        String qualifiedRoute = dispatcher.qualifyRoute(staticRoute);
-        // OOB frames all share the reserved out-of-band correlation ID, so tracking one for node-ID
-        // translation would collide with any other concurrently in-flight, statically-routed OOB request.
+        PathElement.Route routePath = dispatcher.routePathFor(staticRoute);
+        // Out-of-band frames are delivered by path, not via this correlationId-keyed side table -
+        // node-ID translation for them (if ever needed) belongs alongside that delivery, not here.
         if (!(msg instanceof InternalRequestFrame<?>) && RouteDispatcher.NODE_ID_TRANSLATION_APIS.contains(apiKey)) {
             dispatcher.trackStaticRoute(frame.correlationId(), staticRoute);
         }
-        ((Frame) msg).setRouteName(qualifiedRoute);
+        // A filter- or router-issued out-of-band request may already carry its own originator
+        // (identifying it for delivery back to its issuer) when it happens to target a
+        // statically-routed API key. Graft the resolved route onto that originator instead of
+        // overwriting it outright - discarding it here would silently strand the issuer's promise.
+        // A frame with no routing value yet simply takes the resolved route directly.
+        PathElement currentRouting = ((Frame) msg).routing();
+        PathElement newRouting = currentRouting == null ? routePath : currentRouting.graft(routePath);
+        ((Frame) msg).setRouting(newRouting);
         ctx.fireChannelRead(msg);
         LOGGER.atTrace()
                 .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
                 .addKeyValue(LOG_KEY_API_KEY, apiKey)
-                .addKeyValue("route", qualifiedRoute)
+                .addKeyValue(LOG_KEY_ROUTE, routePath)
                 .addKeyValue("routingMode", "static")
                 .log("Request forwarded via static route");
     }
@@ -439,7 +450,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
             }
             else {
                 Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
-                        ? rwe.exception()
+                        ? new ApiException(rwe.message())
                         : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
                 oobFrame.promise().completeExceptionally(cause);
                 if (rri.closeConnection()) {
@@ -466,9 +477,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                   InternalRequestFrame<?> oobFrame, short apiVersion, int correlationId) {
         var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
         header.setCorrelationId(correlationId);
-        var internalResponse = new InternalResponseFrame<>(
-                oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
-        internalResponse.setRouteName(oobFrame.routeName());
+        var internalResponse = new InternalResponseFrame<>(apiVersion, correlationId, header, rw.body());
+        internalResponse.setRouting(oobFrame.routing());
         ctx.channel().writeAndFlush(internalResponse).addListener(f -> {
             if (!f.isSuccess()) {
                 oobFrame.promise().completeExceptionally(f.cause());
@@ -510,15 +520,14 @@ public class RoutingHandler extends ChannelDuplexHandler {
         if (rri instanceof RouterResponseImpl.RespondWith rw) {
             var header = rw.header() != null ? rw.header() : new ResponseHeaderData();
             header.setCorrelationId(correlationId);
-            var internalResponse = new InternalResponseFrame<>(
-                    oobFrame.recipient(), apiVersion, correlationId, header, rw.body(), oobFrame.promise());
-            internalResponse.setRouteName(((RouterRequestSource) requestSource).activationRoute());
+            var internalResponse = new InternalResponseFrame<>(apiVersion, correlationId, header, rw.body());
+            internalResponse.setRouting(oobFrame.routing());
             ctx.write(internalResponse, ctx.voidPromise());
             ctx.flush();
         }
         else {
             Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
-                    ? rwe.exception()
+                    ? new ApiException(rwe.message())
                     : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
             oobFrame.promise().completeExceptionally(cause);
             // Nested handlers ignore andCloseConnection() — they do not own the client connection
@@ -600,11 +609,26 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 deliverResponseFrame(ctx, apiVersion, correlationId, header, body, sequence);
             }
             case RouterResponseImpl.RespondWithError rwe -> {
-                AbstractResponse errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
-                        rwe.requestHeader(), rwe.request(), rwe.exception());
-                ResponseHeaderData header = new ResponseHeaderData();
-                header.setCorrelationId(correlationId);
-                deliverResponseFrame(ctx, apiVersion, correlationId, header, errorResponse.data(), sequence);
+                ApiMessage message = rwe.request();
+                ApiMessage errorResponse = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, rwe.requestHeader().requestApiVersion(), rwe.error(),
+                        rwe.message());
+                if (errorResponse == null) {
+                    // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
+                    LOGGER.atTrace()
+                            .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                            .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                            .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                            .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, correlationId)
+                            .log("Router completed request with an error that this API key does not send a response for");
+                    if (responseSequencer != null) {
+                        responseSequencer.skip(sequence);
+                    }
+                }
+                else {
+                    ResponseHeaderData header = new ResponseHeaderData();
+                    header.setCorrelationId(correlationId);
+                    deliverResponseFrame(ctx, apiVersion, correlationId, header, errorResponse, sequence);
+                }
             }
             case RouterResponseImpl.RespondWithoutReply ignored -> {
                 LOGGER.atTrace()
@@ -637,7 +661,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
         }
         else {
             if (requestSource instanceof RouterRequestSource rs) {
-                responseFrame.setRouteName(rs.activationRoute());
+                responseFrame.setRouting(rs.activationPath());
             }
             ctx.write(responseFrame, ctx.voidPromise());
             ctx.flush();
@@ -652,13 +676,25 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private void writeErrorResponseUpstream(ChannelHandlerContext ctx,
                                             DecodedRequestFrame<?> requestFrame,
                                             Throwable error) {
+        RequestHeaderData requestHeaders = requestFrame.header();
+        ApiMessage message = requestFrame.body();
+        String errorMessage = error.getMessage();
+        ApiKeys apiKey = ApiKeys.forId(message.apiKey());
+        ApiMessage body = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), Errors.UNKNOWN_SERVER_ERROR, errorMessage);
+        if (body == null) {
+            // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
+            LOGGER.atTrace()
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, requestFrame.correlationId())
+                    .log("Not writing error response upstream for an API key that does not send a response");
+            return;
+        }
         var header = new ResponseHeaderData();
         header.setCorrelationId(requestFrame.correlationId());
-        ApiMessage body = KafkaProxyExceptionMapper.errorResponseForMessage(
-                requestFrame.header(), requestFrame.body(), new UnknownServerException(error.getMessage())).data();
         var responseFrame = new DecodedResponseFrame<>(requestFrame.apiVersion(), requestFrame.correlationId(), header, body);
         if (requestSource instanceof RouterRequestSource rs) {
-            responseFrame.setRouteName(rs.activationRoute());
+            responseFrame.setRouting(rs.activationPath());
         }
         ctx.write(responseFrame, ctx.voidPromise());
         ctx.flush();
@@ -683,21 +719,39 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 promise.setSuccess();
                 return;
             }
-            if (outcome == RouteDispatcher.ResponseOutcome.UNHANDLED && requestSource instanceof VirtualClusterRequestSource
-                    && dispatcher.correlationIdAllocator().inRange(frame.correlationId())) {
+            // A router-issued out-of-band request's RouterOriginator is only ever consumed by the
+            // dispatcher level that issued it (see RouteDispatcher.handleResponse). If one is still
+            // present once the response reaches the top level, no level claimed it, so close the
+            // connection rather than forward a bare internal frame toward the client. Scoped to
+            // RouterOriginator only (not FilterOriginator): a FilterOriginator destined for a
+            // VC-level filter legitimately still carries its originator at this point, since
+            // VC-level filters sit above (client-side of) the top-level router and haven't had a
+            // chance to claim it yet.
+            if (outcome == RouteDispatcher.ResponseOutcome.UNHANDLED
+                    && requestSource instanceof VirtualClusterRequestSource
+                    && frame.routing() instanceof PathElement.RouterOriginator) {
                 LOGGER.atWarn()
                         .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                         .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                        .addKeyValue("routingCorrelationId", frame.correlationId())
-                        .log("Received response with no pending routing future");
+                        .addKeyValue("routing", frame.routing())
+                        .log("Received router-issued out-of-band response with no pending promise; closing connection");
                 frame.release();
-                ctx.channel().close().addListener(logFailure(LOGGER, "close after response with no pending routing future"));
+                ctx.channel().close().addListener(logFailure(LOGGER, "close after out-of-band response with no pending promise"));
                 promise.setSuccess();
                 return;
             }
-            // Restore the outer route name so upstream route filters see the response.
-            if (requestSource instanceof RouterRequestSource rs) {
-                frame.setRouteName(rs.activationRoute());
+            if (outcome == RouteDispatcher.ResponseOutcome.INVARIANT_VIOLATED) {
+                // RouteDispatcher has already logged and released the frame. Only the top-level
+                // handler owns the client connection, so only it can turn this internal-bookkeeping
+                // corruption into a hard close, the same way the UNHANDLED case above does - a nested
+                // router can't close the client connection it doesn't own (see the TODO (#4157) note
+                // in handleCompletion, where a nested router's own close request is ignored for the
+                // same reason).
+                if (requestSource instanceof VirtualClusterRequestSource) {
+                    ctx.channel().close().addListener(logFailure(LOGGER, "close after router OOB response invariant violation"));
+                }
+                promise.setSuccess();
+                return;
             }
         }
         ctx.write(msg, promise);

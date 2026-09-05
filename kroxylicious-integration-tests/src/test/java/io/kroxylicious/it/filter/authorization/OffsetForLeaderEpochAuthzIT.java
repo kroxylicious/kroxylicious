@@ -90,13 +90,14 @@ class OffsetForLeaderEpochAuthzIT extends AuthzIT {
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.OFFSET_FOR_LEADER_EPOCH),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.OFFSET_FOR_LEADER_EPOCH))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.OFFSET_FOR_LEADER_EPOCH),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.OFFSET_FOR_LEADER_EPOCH))
                 .mapToObj(apiVersion -> Arguments.argumentSet("api version before batching version " + apiVersion,
                         new OffsetForLeaderEpochEquivalence((short) apiVersion)));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.OFFSET_FOR_LEADER_EPOCH.oldestVersion(), ApiKeys.OFFSET_FOR_LEADER_EPOCH.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.OFFSET_FOR_LEADER_EPOCH, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.OFFSET_FOR_LEADER_EPOCH, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.OFFSET_FOR_LEADER_EPOCH, (short) apiVersion)));

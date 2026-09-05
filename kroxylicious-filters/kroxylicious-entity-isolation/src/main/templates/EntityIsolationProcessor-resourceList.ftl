@@ -116,16 +116,16 @@ import java.util.stream.Collectors;
 
 import javax.annotation.processing.Generated;
 
-import org.apache.kafka.common.message.${inputSpec.response.dataClassName};
-import org.apache.kafka.common.message.${inputSpec.request.dataClassName};
+import io.kroxylicious.kafka.common.message.${inputSpec.response.dataClassName};
+import io.kroxylicious.kafka.common.message.${inputSpec.request.dataClassName};
 
 <#if inputSpec.request.hasResourceList>
-import org.apache.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
 </#if>
 <#if inputSpec.response.hasResourceList>
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 </#if>
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.filter.FilterContext;

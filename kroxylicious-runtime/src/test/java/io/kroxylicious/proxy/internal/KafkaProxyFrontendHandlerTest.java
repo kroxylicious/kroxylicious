@@ -12,13 +12,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +33,16 @@ import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
@@ -621,6 +625,62 @@ class KafkaProxyFrontendHandlerTest {
 
         // Then
         assertThat(handler.clientChannel()).isSameAs(inboundChannel);
+    }
+
+    @Test
+    void buildErrorResponseFrameReturnsNullForApiKeyThatSendsNoResponse() {
+        // Given
+        var frame = produceFrame(42, (short) 0);
+
+        // When
+        var result = KafkaProxyFrontendHandler.buildErrorResponseFrame(frame, new UnknownServerException("boom"));
+
+        // Then
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void buildErrorResponseFrameBuildsFrameForApiKeyThatSendsResponse() {
+        // Given
+        var frame = produceFrame(42, (short) 1);
+
+        // When
+        var result = KafkaProxyFrontendHandler.buildErrorResponseFrame(frame, new UnknownServerException("boom"));
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.correlationId()).isEqualTo(42);
+    }
+
+    @Test
+    void buildErrorResponseFrameHandlesFrameOversizedException() {
+        // Given
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.API_VERSIONS.id)
+                .setRequestApiVersion(ApiKeys.API_VERSIONS.latestVersion())
+                .setCorrelationId(42);
+        var frame = new DecodedRequestFrame<>((short) 9, 42, true, header, new ApiVersionsRequestData());
+        DecoderException exception = new DecoderException(new FrameOversizedException(1, 2));
+
+        // When
+        var result = KafkaProxyFrontendHandler.buildErrorResponseFrame(frame, exception);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.correlationId()).isEqualTo(42);
+        assertThat(result).isInstanceOfSatisfying(DecodedFrame.class, decodedFrame -> {
+            assertThat(decodedFrame.body()).isInstanceOfSatisfying(ApiVersionsResponseData.class, responseData -> {
+                assertThat(responseData.errorCode()).isEqualTo(Errors.INVALID_REQUEST.code());
+            });
+        });
+    }
+
+    private static DecodedRequestFrame<ProduceRequestData> produceFrame(int correlationId, short acks) {
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiVersion((short) 9)
+                .setCorrelationId(correlationId);
+        return new DecodedRequestFrame<>((short) 9, correlationId, true, header, new ProduceRequestData().setAcks(acks));
     }
 
 }

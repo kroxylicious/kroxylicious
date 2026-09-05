@@ -67,7 +67,6 @@ schemaValidationConfig:
       storePassword:
         passwordFile: /opt/proxy/trust/store.password
       storeType: PKCS12
-  wireFormatVersion: V3
 allowNulls: true
 allowEmpty: true
 ----
@@ -84,8 +83,6 @@ allowEmpty: true
 ** `storeFile` path to the truststore file that contains the trust anchors used to validate the server connection.
 ** `storePassword` (Optional) password used to protect the truststore.
 ** `storeType` truststore type. Supported values include `PKCS12`, `JKS`, and `PEM`.
-* `wireFormatVersion` specifies the Apicurio wire format version. `V3` is the default and only supported value.
-   The `apicurioId` property identifies schema by content ID, and the filter expects the Kafka producer to use content IDs to identify schema.
 * `allowNulls` specifies whether the validator allows record keys or values to be `null`. The default is `false`.
 * `allowEmpty` specifies whether the validator allows record keys or values to be empty. The default is `false`.
 

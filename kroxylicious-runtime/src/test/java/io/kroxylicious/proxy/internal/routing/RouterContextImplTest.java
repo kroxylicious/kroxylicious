@@ -9,21 +9,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.internal.CorrelationIdSpace;
+import io.kroxylicious.proxy.frame.PathElement;
+import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.topology.VirtualNode;
@@ -55,12 +56,16 @@ class RouterContextImplTest {
                 null, List.of()));
     }
 
+    private static CorrelationIdAllocator newAllocator() {
+        return new CorrelationIdAllocator(Integer.MIN_VALUE, 0);
+    }
+
     private RouterContextImpl createContext() {
         return createContext(null);
     }
 
     private RouterContextImpl createContext(Integer endpointVirtualNodeId) {
-        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", CorrelationIdSpace.createRouterAllocator(), new java.util.HashMap<>(), "test-cluster");
+        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", PathElement.ClientOrigin.INSTANCE, newAllocator(), new java.util.HashMap<>(), "test-cluster");
         return new RouterContextImpl(
                 clientFrame, dispatcher, "test-session", Subject.anonymous(),
                 endpointVirtualNodeId);
@@ -71,7 +76,7 @@ class RouterContextImplTest {
                 "route-a", new RouteDescriptor("route-a", 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of()),
                 "route-b", new RouteDescriptor("route-b", 1, new TargetCluster("localhost:9093", Optional.empty()), null, List.of()));
         var bijectiveMapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
-        var dispatcher = new RouteDispatcher(bijectiveRoutes, bijectiveMapping, "", CorrelationIdSpace.createRouterAllocator(), new java.util.HashMap<>(),
+        var dispatcher = new RouteDispatcher(bijectiveRoutes, bijectiveMapping, "", PathElement.ClientOrigin.INSTANCE, newAllocator(), new java.util.HashMap<>(),
                 "test-cluster");
         return new RouterContextImpl(clientFrame, dispatcher, "test-session", Subject.anonymous(), endpointVirtualNodeId);
     }
@@ -210,9 +215,8 @@ class RouterContextImplTest {
         // Then
         assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
         var rwe = (RouterResponseImpl.RespondWithError) response;
-        assertThat(rwe.exception())
-                .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
-                .hasMessage(Errors.INVALID_REQUEST.message());
+        assertThat(rwe.error()).isEqualTo(Errors.INVALID_REQUEST);
+        assertThat(rwe.message()).isEqualTo(null);
         assertThat(rwe.closeConnection()).isFalse();
     }
 
@@ -230,9 +234,8 @@ class RouterContextImplTest {
         // Then
         assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
         var rwe = (RouterResponseImpl.RespondWithError) response;
-        assertThat(rwe.exception())
-                .isInstanceOf(Errors.INVALID_REQUEST.exception().getClass())
-                .hasMessage(message);
+        assertThat(rwe.error()).isEqualTo(Errors.INVALID_REQUEST);
+        assertThat(rwe.message()).isEqualTo(message);
     }
 
     @Test

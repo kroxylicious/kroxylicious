@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +31,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
@@ -39,15 +39,22 @@ import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.ClientActive;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
+import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
@@ -288,49 +295,63 @@ public class KafkaProxyFrontendHandler
         var filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
         var allRouteFilters = new ArrayList<FilterAndInvoker>();
 
-        // Install route filters for top-level routes first, inserting nested RoutingHandlers
-        // after each router-targeting route's filters, then install nested route filters.
+        // Walk the routing tree top-down, so each route's PathElement is built by extending its
+        // parent's, accumulating the full lineage from the top-level virtual cluster down,
+        // before installing that route's filters and (if it targets a nested
+        // router) recursing into that router's own routes.
         for (var entry : dr.topLevelRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
-            String routeName = entry.getKey();
-            RouteDescriptor rd = entry.getValue();
-            allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, routeName));
-            if (rd.targetsRouter()) {
-                installNestedRoutingHandler(pipeline, dr, rd.routerName(), routeName);
-            }
-        }
-        // Install filters for nested routes (qualified names), inserting nested RoutingHandlers
-        // after each router-targeting nested route's filters to support arbitrary nesting depth.
-        for (var entry : dr.allRouteDescriptors().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
-            String qualifiedName = entry.getKey();
-            if (qualifiedName.contains("/")) {
-                RouteDescriptor nestedRd = entry.getValue();
-                allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, qualifiedName));
-                if (nestedRd.targetsRouter()) {
-                    installNestedRoutingHandler(pipeline, dr, nestedRd.routerName(), qualifiedName);
-                }
-            }
+            installRouteAndDescendants(pipeline, clientChannel, filterContext, vc, dr, entry.getKey(), entry.getValue(), PathElement.ClientOrigin.INSTANCE,
+                    allRouteFilters);
         }
         return allRouteFilters;
     }
 
+    // all parameters are genuinely needed: pipeline/channel plumbing, routing config, and recursion state
+    @SuppressWarnings("java:S107")
+    private void installRouteAndDescendants(ChannelPipeline pipeline,
+                                            Channel clientChannel,
+                                            NettyFilterContext filterContext,
+                                            VirtualClusterModel vc,
+                                            DynamicRouting dr,
+                                            String qualifiedName,
+                                            RouteDescriptor rd,
+                                            PathElement.RoutePosition parentPath,
+                                            List<FilterAndInvoker> allRouteFilters) {
+        PathElement.Route routePath = new PathElement.Route(qualifiedName, parentPath);
+        allRouteFilters.addAll(installFiltersForRoute(pipeline, clientChannel, filterContext, vc, qualifiedName, routePath));
+        if (rd.targetsRouter()) {
+            Map<String, RouteDescriptor> nestedRoutes = installNestedRoutingHandler(pipeline, dr, rd.routerName(), qualifiedName, routePath);
+            for (var nestedEntry : nestedRoutes.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+                String nestedQualifiedName = rd.routerName() + "/" + nestedEntry.getKey();
+                installRouteAndDescendants(pipeline, clientChannel, filterContext, vc, dr, nestedQualifiedName, nestedEntry.getValue(), routePath, allRouteFilters);
+            }
+        }
+    }
+
     private List<FilterAndInvoker> installFiltersForRoute(ChannelPipeline pipeline, Channel clientChannel,
                                                           NettyFilterContext filterContext,
-                                                          VirtualClusterModel vc, String routeName) {
+                                                          VirtualClusterModel vc, String routeName, PathElement.Route routePath) {
         List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routeName, filterContext);
         for (int i = 0; i < routeFilters.size(); i++) {
             FilterAndInvoker fi = routeFilters.get(i);
             String handlerName = "routeFilter-" + routeName + "-" + i + "-" + fi.filterName();
             pipeline.addBefore("routingTerminalHandler", handlerName,
                     new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
-                            clientConnectionStateMachine, routeName));
+                            clientConnectionStateMachine, routePath, i));
         }
         return routeFilters;
     }
 
-    private void installNestedRoutingHandler(ChannelPipeline pipeline,
-                                             DynamicRouting dr,
-                                             String nestedRouterName,
-                                             String activationRoute) {
+    /**
+     * Installs a nested {@link RoutingHandler} for the router targeted by {@code activationPath},
+     * returning that router's own local routes (name to descriptor) so the caller can recurse into
+     * them, extending {@code activationPath} one level further for each.
+     */
+    private Map<String, RouteDescriptor> installNestedRoutingHandler(ChannelPipeline pipeline,
+                                                                     DynamicRouting dr,
+                                                                     String nestedRouterName,
+                                                                     String activationRouteForLogging,
+                                                                     PathElement.Route activationPath) {
         var routerChainFactory = dr.routerChainFactory();
         // Build the nested router's routes and NodeIdMapping from allRouteDescriptors
         var nestedRoutes = new LinkedHashMap<String, RouteDescriptor>();
@@ -345,10 +366,10 @@ public class KafkaProxyFrontendHandler
         }
         NodeIdMapping nestedNodeIdMapping = NodeIdMapping.build(nestedRoutes);
         var topLevel = (RoutingHandler) pipeline.get("routerDispatchHandler");
-        String handlerName = "nestedRoutingHandler-" + activationRoute;
+        String handlerName = "nestedRoutingHandler-" + activationRouteForLogging;
         pipeline.addBefore("routingTerminalHandler", handlerName,
                 RoutingHandler.nested(
-                        activationRoute,
+                        activationPath,
                         nestedRouterName,
                         clientConnectionStateMachine.clusterName(),
                         routerChainFactory,
@@ -359,6 +380,7 @@ public class KafkaProxyFrontendHandler
                         clientConnectionStateMachine.sessionId(),
                         clientConnectionStateMachine.authenticatedSubject(),
                         clientConnectionStateMachine.endpointBinding() instanceof BrokerEndpointBinding beb ? beb.nodeId() : null));
+        return nestedRoutes;
     }
 
     private List<FilterAndInvoker> buildFilters() {
@@ -475,11 +497,10 @@ public class KafkaProxyFrontendHandler
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
-        int filterIndex = 0;
         String addNextFilterAfter = clientCtx().name();
-        for (FilterAndInvoker protocolFilter : filters) {
-            ++filterIndex;
-            String handlerName = "filter-" + filterIndex + "-" + protocolFilter.filterName();
+        for (int ordinal = 0; ordinal < filters.size(); ordinal++) {
+            FilterAndInvoker protocolFilter = filters.get(ordinal);
+            String handlerName = "filter-" + (ordinal + 1) + "-" + protocolFilter.filterName();
             pipeline.addAfter(addNextFilterAfter,
                     handlerName,
                     new FilterHandler(
@@ -487,7 +508,8 @@ public class KafkaProxyFrontendHandler
                             20000,
                             sniHostname,
                             inboundChannel,
-                            clientConnectionStateMachine));
+                            clientConnectionStateMachine,
+                            ordinal));
             addNextFilterAfter = handlerName;
         }
     }
@@ -525,10 +547,26 @@ public class KafkaProxyFrontendHandler
         return this.clientCtx != null ? this.clientCtx.channel() : null;
     }
 
-    private static ResponseFrame buildErrorResponseFrame(
-                                                         DecodedRequestFrame<?> triggerFrame,
-                                                         Throwable error) {
-        var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
+    @VisibleForTesting
+    static @Nullable ResponseFrame buildErrorResponseFrame(
+                                                           DecodedRequestFrame<?> triggerFrame,
+                                                           Throwable error) {
+        RequestHeaderData requestHeaders = triggerFrame.header();
+        ApiMessage message = triggerFrame.body();
+        String errorMessage = error.getMessage();
+        ApiKeys apiKey = ApiKeys.forId(message.apiKey());
+        var responseError = Errors.UNKNOWN_SERVER_ERROR;
+        if (error instanceof DecoderException && error.getCause() instanceof FrameOversizedException) {
+            responseError = Errors.INVALID_REQUEST;
+        }
+        var responseData = KafkaProxyExceptionMapper.errorResponseData(apiKey, message, requestHeaders.requestApiVersion(), responseError, errorMessage);
+        if (responseData == null) {
+            // e.g. a Produce request with acks=0: the client isn't waiting for any response, error or not.
+            LOGGER.atTrace()
+                    .addKeyValue("clientCorrelationId", triggerFrame.correlationId())
+                    .log("Not sending an error response for an API key that does not send a response");
+            return null;
+        }
         final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
         responseHeaderData.setCorrelationId(triggerFrame.correlationId());
         return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);

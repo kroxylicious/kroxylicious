@@ -18,3 +18,5 @@ io.kroxylicious.it.testplugins.ShortCircuitErrorResponse
 io.kroxylicious.it.testplugins.FailingInitFilterFactory
 io.kroxylicious.it.testplugins.RequestCountingFilterFactory
 io.kroxylicious.it.testplugins.ProduceCountingFilterFactory
+io.kroxylicious.it.testplugins.ResponseCountingFilterFactory
+io.kroxylicious.it.testplugins.CorrelationIdCollectingFilterFactory

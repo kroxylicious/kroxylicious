@@ -1,0 +1,4 @@
+title: "feat(kafka-message-json): add JSON converters for vendored kafka message classes"
+type: added
+issues:
+  - 4778

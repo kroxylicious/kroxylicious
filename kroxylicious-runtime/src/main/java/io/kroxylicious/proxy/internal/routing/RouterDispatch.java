@@ -8,8 +8,8 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 /**
  * Abstraction over the dispatch capabilities that {@link RouterContextImpl} needs.

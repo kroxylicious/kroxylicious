@@ -9,8 +9,8 @@ package io.kroxylicious.filter.encryption.encrypt;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

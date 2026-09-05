@@ -10,19 +10,18 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.RequestHeaderDataJsonConverter;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderDataJsonConverter;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
-import io.kroxylicious.kafka.message.json.KafkaApiMessageConverter;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.RequestHeaderDataJsonConverter;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderDataJsonConverter;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.message.json.VendoredKafkaApiMessageConverter;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -77,7 +76,7 @@ class MockUpstream {
         assertThat(toYaml(actualHeader))
                 .as("Header of request forwarded to broker")
                 .isEqualTo(toYaml(mockDefinition.expectedRequestHeader()));
-        JsonNode actualBody = KafkaApiMessageConverter.requestConverterFor(key.messageType).writer().apply(request, version);
+        JsonNode actualBody = VendoredKafkaApiMessageConverter.requestConverterFor(key.messageType).writer().apply(request, version);
         assertThat(toYaml(actualBody))
                 .as("Body of request forwarded to broker")
                 .isEqualTo(toYaml(mockDefinition.expectedRequest()));
@@ -86,7 +85,7 @@ class MockUpstream {
         }
         JsonNode jsonNode = mockDefinition.upstreamResponse();
         ResponseHeaderData header = ResponseHeaderDataJsonConverter.read(mockDefinition.upstreamResponseHeader(), key.requestHeaderVersion(version));
-        ApiMessage responseMessage = KafkaApiMessageConverter.responseConverterFor(key.messageType).reader().apply(jsonNode, version);
+        ApiMessage responseMessage = VendoredKafkaApiMessageConverter.responseConverterFor(key.messageType).reader().apply(jsonNode, version);
         return new Response(header, responseMessage);
     }
 

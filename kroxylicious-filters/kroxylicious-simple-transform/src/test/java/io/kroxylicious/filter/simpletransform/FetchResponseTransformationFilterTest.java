@@ -20,26 +20,25 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
-import org.apache.kafka.common.message.FetchResponseData.PartitionData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.Records;
-import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.requests.FetchResponse;
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.compress.Compression;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.FetchResponseData.FetchableTopicResponse;
+import io.kroxylicious.kafka.common.message.FetchResponseData.PartitionData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.record.TimestampType;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecordsBuilder;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
+import io.kroxylicious.kafka.common.record.internal.Records;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
@@ -220,7 +219,7 @@ class FetchResponseTransformationFilterTest {
                             PartitionData expectedErrorResponse = new PartitionData()
                                     .setPartitionIndex(partitionData.partitionIndex())
                                     .setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
-                                    .setHighWatermark(FetchResponse.INVALID_HIGH_WATERMARK)
+                                    .setHighWatermark(-1L) // Invalid high watermark
                                     .setRecords(MemoryRecords.EMPTY);
                             assertThat(partitionData).isEqualTo(expectedErrorResponse);
                         });

@@ -9,18 +9,16 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.DeleteRecordsRequestData;
-import org.apache.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsPartition;
-import org.apache.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsTopic;
-import org.apache.kafka.common.message.DeleteRecordsResponseData;
-import org.apache.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsPartitionResult;
-import org.apache.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsTopicResult;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.DeleteRecordsResponse;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.message.DeleteRecordsRequestData;
+import io.kroxylicious.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsPartition;
+import io.kroxylicious.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsTopic;
+import io.kroxylicious.kafka.common.message.DeleteRecordsResponseData;
+import io.kroxylicious.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsPartitionResult;
+import io.kroxylicious.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsTopicResult;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
@@ -60,7 +58,7 @@ class DeleteRecordsEnforcement extends ApiEnforcement<DeleteRecordsRequestData, 
                                 DeleteRecordsPartitionResult partitionResult = new DeleteRecordsPartitionResult();
                                 partitionResult.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
                                 partitionResult.setPartitionIndex(partition.partitionIndex());
-                                partitionResult.setLowWatermark(DeleteRecordsResponse.INVALID_LOW_WATERMARK);
+                                partitionResult.setLowWatermark(-1L); // Invalid low watermark
                                 deleteResult.partitions().add(partitionResult);
                             }
                             response.topics().mustAdd(deleteResult);

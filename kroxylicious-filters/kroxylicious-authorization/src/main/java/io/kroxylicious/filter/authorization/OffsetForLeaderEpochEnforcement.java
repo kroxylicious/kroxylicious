@@ -10,19 +10,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
-import org.apache.kafka.common.message.OffsetForLeaderEpochResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.message.OffsetForLeaderEpochRequestData;
+import io.kroxylicious.kafka.common.message.OffsetForLeaderEpochResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-import static org.apache.kafka.common.requests.OffsetsForLeaderEpochResponse.UNDEFINED_EPOCH;
-import static org.apache.kafka.common.requests.OffsetsForLeaderEpochResponse.UNDEFINED_EPOCH_OFFSET;
+import static io.kroxylicious.kafka.common.record.internal.RecordBatch.NO_PARTITION_LEADER_EPOCH;
 
 class OffsetForLeaderEpochEnforcement extends ApiEnforcement<OffsetForLeaderEpochRequestData, OffsetForLeaderEpochResponseData> {
     // lowest supported by proxy
@@ -58,8 +56,8 @@ class OffsetForLeaderEpochEnforcement extends ApiEnforcement<OffsetForLeaderEpoc
                     List<OffsetForLeaderEpochResponseData.EpochEndOffset> partitionErrors = offsetForLeaderTopic.partitions().stream()
                             .map(offsetForLeaderPartition -> new OffsetForLeaderEpochResponseData.EpochEndOffset().setPartition(offsetForLeaderPartition.partition())
                                     .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                                    .setLeaderEpoch(UNDEFINED_EPOCH)
-                                    .setEndOffset(UNDEFINED_EPOCH_OFFSET))
+                                    .setLeaderEpoch(NO_PARTITION_LEADER_EPOCH) // undefined epoch
+                                    .setEndOffset(NO_PARTITION_LEADER_EPOCH)) // undefined epoch offset
                             .toList();
                     responseTopic.setPartitions(partitionErrors);
                     return responseTopic;

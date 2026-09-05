@@ -13,14 +13,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,9 +24,18 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.EventExecutor;
 
+import io.kroxylicious.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -53,7 +54,6 @@ class RouteDispatcherTest {
     private static final int ROUTING_CORRELATION_ID = 100;
 
     private EmbeddedChannel channel;
-    private NodeIdMapping lastCreatedMapping;
 
     @Mock
     private CorrelationIdAllocator correlationIdAllocator;
@@ -73,7 +73,7 @@ class RouteDispatcherTest {
         return new RouteDescriptor(name, id, null, routerName, List.of());
     }
 
-    private RouteDispatcher createDispatcher(Map<String, RouteDescriptor> routes, String routePrefix) {
+    private RouteDispatcher createDispatcher(Map<String, RouteDescriptor> routes, String qualificationPrefix) {
         var capture = new ChannelInboundHandlerAdapter();
         channel = new EmbeddedChannel(capture);
         ChannelHandlerContext ctx = channel.pipeline().context(capture);
@@ -82,9 +82,9 @@ class RouteDispatcherTest {
                 : new BijectiveNodeIdMapping(
                         routes.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id())),
                         routes.size());
-        lastCreatedMapping = mapping;
         Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
-        var dispatcher = new RouteDispatcher(routes, mapping, routePrefix, correlationIdAllocator, routerNodeAddresses, "test-cluster");
+        var dispatcher = new RouteDispatcher(routes, mapping, qualificationPrefix, PathElement.ClientOrigin.INSTANCE, correlationIdAllocator, routerNodeAddresses,
+                "test-cluster");
         dispatcher.setContext(ctx);
         return dispatcher;
     }
@@ -127,7 +127,8 @@ class RouteDispatcherTest {
         // Then
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.routeName()).isEqualTo(ROUTER_NAME + "/r1");
+        assertThat(fired.routing()).isInstanceOfSatisfying(PathElement.RouterOriginator.class,
+                router -> assertThat(router.position()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -142,7 +143,8 @@ class RouteDispatcherTest {
         // Then
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
-        assertThat(fired.routeName()).isEqualTo("r1");
+        assertThat(fired.routing()).isInstanceOfSatisfying(PathElement.RouterOriginator.class,
+                router -> assertThat(router.position()).isEqualTo(new PathElement.Route("r1", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -155,10 +157,12 @@ class RouteDispatcherTest {
         var future = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
 
         // Then
-        assertThat(dispatcher.pendingResponseCount()).isEqualTo(1);
         assertThat(future.toCompletableFuture()).isNotDone();
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, new ResponseHeaderData(), new FetchResponseData());
+        responseFrame.setRouting(fired.routing());
+        assertThat(dispatcher.handleResponse(responseFrame, SESSION_ID)).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
+        assertThat(future.toCompletableFuture()).isCompleted();
     }
 
     @Test
@@ -172,7 +176,10 @@ class RouteDispatcherTest {
 
         // Then
         assertThat(future.toCompletableFuture()).isCompletedWithValue(null);
-        assertThat(dispatcher.hasPendingResponses()).isFalse();
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        assertThat(fired.routing())
+                .as("no response expected, so no promise-bearing originator is attached")
+                .isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE));
     }
 
     // --- sendToSpecificNode ---
@@ -202,7 +209,8 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
         assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
-        assertThat(fired.routeName()).isEqualTo(ROUTER_NAME + "/r1");
+        assertThat(fired.routing()).isInstanceOfSatisfying(PathElement.RouterOriginator.class,
+                router -> assertThat(router.position()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/r1", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -218,7 +226,8 @@ class RouteDispatcherTest {
         DecodedRequestFrame<?> fired = channel.readInbound();
         assertThat(fired).isNotNull();
         assertThat(fired.targetVirtualNodeId()).isEqualTo(5);
-        assertThat(fired.routeName()).isEqualTo(ROUTER_NAME + "/nested");
+        assertThat(fired.routing()).isInstanceOfSatisfying(PathElement.RouterOriginator.class,
+                router -> assertThat(router.position()).isEqualTo(new PathElement.Route(ROUTER_NAME + "/nested", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test
@@ -231,10 +240,12 @@ class RouteDispatcherTest {
         var future = dispatcher.sendToSpecificNode(5, "r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
 
         // Then
-        assertThat(dispatcher.pendingResponseCount()).isEqualTo(1);
         assertThat(future.toCompletableFuture()).isNotDone();
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, new ResponseHeaderData(), new FetchResponseData());
+        responseFrame.setRouting(fired.routing());
+        assertThat(dispatcher.handleResponse(responseFrame, SESSION_ID)).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
+        assertThat(future.toCompletableFuture()).isCompleted();
     }
 
     @Test
@@ -248,7 +259,6 @@ class RouteDispatcherTest {
 
         // Then
         assertThat(future.toCompletableFuture()).isCompletedWithValue(null);
-        assertThat(dispatcher.hasPendingResponses()).isFalse();
     }
 
     // --- event loop confinement ---
@@ -273,10 +283,9 @@ class RouteDispatcherTest {
         assertThat(dispatchThread.get())
                 .describedAs("caller must be off the event loop for this test to be meaningful")
                 .isNotEqualTo(eventLoopThread);
-        assertThat(dispatcher.pendingResponseCount()).isEqualTo(1);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID)).isNotNull();
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        assertThat(fired).isNotNull();
+        assertThat(fired.routing()).isInstanceOf(PathElement.RouterOriginator.class);
     }
 
     @Test
@@ -299,10 +308,9 @@ class RouteDispatcherTest {
         assertThat(dispatchThread.get())
                 .describedAs("caller must be off the event loop for this test to be meaningful")
                 .isNotEqualTo(eventLoopThread);
-        assertThat(dispatcher.pendingResponseCount()).isEqualTo(1);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID)).isNotNull();
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).nodeIdMapping()).isSameAs(lastCreatedMapping);
-        assertThat(dispatcher.getPendingResponse(ROUTING_CORRELATION_ID).route()).isEqualTo("r1");
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        assertThat(fired).isNotNull();
+        assertThat(fired.routing()).isInstanceOf(PathElement.RouterOriginator.class);
     }
 
     @Test
@@ -323,6 +331,7 @@ class RouteDispatcherTest {
                 Map.of("r1", clusterRoute("r1", 0)),
                 new IdentityNodeIdMapping("r1"),
                 ROUTER_NAME + "/",
+                PathElement.ClientOrigin.INSTANCE,
                 correlationIdAllocator,
                 new HashMap<>(),
                 "test-cluster");
@@ -375,19 +384,21 @@ class RouteDispatcherTest {
     @Test
     void handleResponseShouldReturnConsumedForPendingResponse() {
         // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
         var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        dispatcher.addPendingResponse(ROUTING_CORRELATION_ID, new RouteDispatcher.PendingResponse(future, "r1", lastCreatedMapping));
+        var future = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        DecodedRequestFrame<?> fired = channel.readInbound();
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), new FetchResponseData());
+        responseFrame.setRouting(fired.routing());
 
         // When
         var outcome = dispatcher.handleResponse(responseFrame, SESSION_ID);
 
         // Then
         assertThat(outcome).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
-        assertThat(future).isCompleted();
+        assertThat(future.toCompletableFuture()).isCompleted();
     }
 
     @Test
@@ -431,15 +442,17 @@ class RouteDispatcherTest {
     void handleResponseShouldTranslateNodeIdsForPendingResponse() {
         // Given
         var routes = Map.of("r1", clusterRoute("r1", 0), "r2", clusterRoute("r2", 1));
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
         var dispatcher = createDispatcher(routes, ROUTER_NAME + "/");
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        dispatcher.addPendingResponse(ROUTING_CORRELATION_ID, new RouteDispatcher.PendingResponse(future, "r1", lastCreatedMapping));
+        dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        DecodedRequestFrame<?> fired = channel.readInbound();
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker()
                 .setNodeId(3).setHost("broker1").setPort(9092));
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), metadataResponse);
+        responseFrame.setRouting(fired.routing());
 
         // When
         dispatcher.handleResponse(responseFrame, SESSION_ID);
@@ -453,9 +466,10 @@ class RouteDispatcherTest {
     @Test
     void handleResponseShouldCacheMetadataAddresses() {
         // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
         var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        dispatcher.addPendingResponse(ROUTING_CORRELATION_ID, new RouteDispatcher.PendingResponse(future, "r1", lastCreatedMapping));
+        dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        DecodedRequestFrame<?> fired = channel.readInbound();
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker()
                 .setNodeId(1).setHost("broker1").setPort(9092));
@@ -464,6 +478,7 @@ class RouteDispatcherTest {
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), metadataResponse);
+        responseFrame.setRouting(fired.routing());
 
         // When
         dispatcher.handleResponse(responseFrame, SESSION_ID);
@@ -480,14 +495,16 @@ class RouteDispatcherTest {
         var routes = Map.of("r1", clusterRoute("r1", 0), "r2", clusterRoute("r2", 1));
         var dispatcher = createDispatcher(routes, ROUTER_NAME + "/");
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        // Use a route name not in the BijectiveNodeIdMapping to force toVirtual() to throw
-        dispatcher.addPendingResponse(ROUTING_CORRELATION_ID, new RouteDispatcher.PendingResponse(future, "unknown-route", lastCreatedMapping));
+        dispatcher.addPendingPromise(future);
+        // A route name not known to the BijectiveNodeIdMapping, to force toVirtual() to throw.
+        var responsePath = new PathElement.RouterOriginator(future, dispatcher.routePathFor("unknown-route"));
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker()
                 .setNodeId(0).setHost("broker1").setPort(9092));
         var responseFrame = new DecodedResponseFrame<>(
                 (short) 12, ROUTING_CORRELATION_ID,
                 new ResponseHeaderData(), metadataResponse);
+        responseFrame.setRouting(responsePath);
 
         // When
         var outcome = dispatcher.handleResponse(responseFrame, SESSION_ID);
@@ -498,37 +515,142 @@ class RouteDispatcherTest {
         assertThat(responseFrame.refCnt()).isZero();
     }
 
+    /**
+     * If a response's {@link PathElement.RouterOriginator} structurally matches this dispatcher's
+     * own level ({@code issuedAt.parent()} equals this dispatcher's {@code parentPath}) but the
+     * carried future was never registered as pending here, that's an internal bookkeeping
+     * invariant violation - not a legitimate match - so the response must not be silently treated
+     * as an ordinary success.
+     */
+    @Test
+    void handleResponseShouldReturnInvariantViolatedWhenFutureNotPending() {
+        // Given
+        var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
+        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
+        var responsePath = new PathElement.RouterOriginator(future, dispatcher.routePathFor("r1"));
+        var responseFrame = new DecodedResponseFrame<>(
+                (short) 12, ROUTING_CORRELATION_ID,
+                new ResponseHeaderData(), new FetchResponseData());
+        responseFrame.setRouting(responsePath);
+
+        // When
+        var outcome = dispatcher.handleResponse(responseFrame, SESSION_ID);
+
+        // Then
+        assertThat(outcome).isEqualTo(RouteDispatcher.ResponseOutcome.INVARIANT_VIOLATED);
+        assertThat(future).isCompletedExceptionally();
+        assertThat(responseFrame.refCnt()).isZero();
+    }
+
+    /**
+     * A {@link PathElement.RouterOriginator} must be consumed only by the dispatcher level that
+     * issued it - the invariant asserted at {@code RoutingHandler.write} ("only ever consumed by
+     * the dispatcher level that issued it").
+     *
+     * <p>Reproduces the nested-routing case: a top-level router issues an out-of-band request to a
+     * route ({@code routeR}) that itself targets a nested router {@code N}. {@code N} intercepts the
+     * request and statically routes it onward to its own {@code innerRoute}, grafting its resolved
+     * route onto the carried originator exactly as {@code RoutingHandler.dispatchStaticRoute} does.
+     * When the response returns, the nested dispatcher must <em>not</em> claim it: the promise
+     * belongs to the outer router, which alone knows the correct {@link NodeIdMapping} and route
+     * name to translate the response with, and which alone is tracking the promise for
+     * connection-close cleanup.
+     */
+    @Test
+    void nestedDispatcherMustNotConsumeAnOuterRouterOriginator() {
+        // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
+        var outer = createDispatcher(Map.of("routeR", routerRoute("routeR", 0, "N")), "");
+        var outerFuture = outer.sendToAnyNode("routeR", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        PathElement issuedByOuter = fired.routing();
+
+        var nested = new RouteDispatcher(
+                Map.of("innerRoute", clusterRoute("innerRoute", 0)),
+                new IdentityNodeIdMapping("innerRoute"),
+                "N/",
+                issuedByOuter.routePosition(),
+                correlationIdAllocator, new HashMap<>(), "test-cluster");
+        PathElement grafted = issuedByOuter.graft(nested.routePathFor("innerRoute"));
+        var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, new ResponseHeaderData(), new FetchResponseData());
+        responseFrame.setRouting(grafted);
+
+        // When
+        var outcome = nested.handleResponse(responseFrame, SESSION_ID);
+
+        // Then
+        assertThat(outcome)
+                .as("the nested level did not issue this out-of-band request, so it must not claim the response")
+                .isEqualTo(RouteDispatcher.ResponseOutcome.UNHANDLED);
+        assertThat(outerFuture.toCompletableFuture())
+                .as("the outer router's promise must be left for the level that issued it")
+                .isNotDone();
+    }
+
     // --- failAllPending ---
 
     @Test
     void failAllPendingShouldCompleteOutstandingFuturesExceptionally() {
         // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(100, 101);
         var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
-        CompletableFuture<ApiMessage> future1 = new CompletableFuture<>();
-        CompletableFuture<ApiMessage> future2 = new CompletableFuture<>();
-        dispatcher.addPendingResponse(100, new RouteDispatcher.PendingResponse(future1, "r1", lastCreatedMapping));
-        dispatcher.addPendingResponse(101, new RouteDispatcher.PendingResponse(future2, "r1", lastCreatedMapping));
+        var future1 = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        var future2 = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
 
         // When
         dispatcher.failAllPending(SESSION_ID);
 
         // Then
-        assertThat(future1).isCompletedExceptionally();
-        assertThat(future2).isCompletedExceptionally();
-        assertThat(dispatcher.hasPendingResponses()).isFalse();
+        assertThat(future1.toCompletableFuture()).isCompletedExceptionally();
+        assertThat(future2.toCompletableFuture()).isCompletedExceptionally();
     }
 
-    // --- qualifyRoute ---
+    // --- concurrent same-route dispatch ---
+
+    /**
+     * Response matching relies entirely on the exact {@link PathElement.RouterOriginator} (and the
+     * {@code CompletableFuture} it carries) round-tripping on the response frame - there is no
+     * correlation-id-keyed lookup table backing it. This proves that guarantee holds when the same
+     * router has two sends to the same route concurrently in flight: a response addressed to one
+     * send's own routing value must not complete the other, concurrently in-flight, send's future.
+     */
+    @Test
+    void concurrentSendsToSameRouteShouldOnlyCompleteTheMatchingFuture() {
+        // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(100, 101);
+        var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
+        var future1 = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        var future2 = dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        channel.readInbound(); // the first send's own request frame; its response is deliberately withheld
+        DecodedRequestFrame<?> fired2 = channel.readInbound();
+        var response2 = new DecodedResponseFrame<>((short) 12, 101, new ResponseHeaderData(), new FetchResponseData());
+        response2.setRouting(fired2.routing());
+
+        // When
+        var outcome = dispatcher.handleResponse(response2, SESSION_ID);
+
+        // Then
+        assertThat(outcome).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
+        assertThat(future2.toCompletableFuture())
+                .as("the response carrying the second send's own routing value must complete that send's own future")
+                .isCompleted();
+        assertThat(future1.toCompletableFuture())
+                .as("without a correlation-id-keyed lookup table, the first send's future must not be completed "
+                        + "by a response addressed to a different, concurrently in-flight send to the same route")
+                .isNotDone();
+    }
+
+    // --- routePathFor ---
 
     @Test
-    void qualifyRouteShouldApplyPrefix() {
+    void routePathForShouldApplyPrefix() {
         // Given
         var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), "prefix/");
 
         // When
-        var qualified = dispatcher.qualifyRoute("route");
+        var routePath = dispatcher.routePathFor("route");
 
         // Then
-        assertThat(qualified).isEqualTo("prefix/route");
+        assertThat(routePath).isEqualTo(new PathElement.Route("prefix/route", PathElement.ClientOrigin.INSTANCE));
     }
 }

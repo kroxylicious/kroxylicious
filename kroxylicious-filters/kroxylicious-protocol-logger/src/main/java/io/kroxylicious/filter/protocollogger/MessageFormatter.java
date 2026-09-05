@@ -9,18 +9,17 @@ package io.kroxylicious.filter.protocollogger;
 import java.util.EnumSet;
 import java.util.Set;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import io.kroxylicious.kafka.message.json.KafkaApiMessageConverter;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.message.json.VendoredKafkaApiMessageConverter;
 
 class MessageFormatter {
 
@@ -57,7 +56,7 @@ class MessageFormatter {
             entry.put(PAYLOAD_WITHHELD_FIELD, PAYLOAD_WITHHELD_REASON);
         }
         else {
-            KafkaApiMessageConverter.Converter converter = KafkaApiMessageConverter.requestConverterFor(apiKey.messageType);
+            VendoredKafkaApiMessageConverter.Converter converter = VendoredKafkaApiMessageConverter.requestConverterFor(apiKey.messageType);
             JsonNode payload = converter.writer().apply(message, apiVersion);
             entry.set(PAYLOAD_FIELD, payload);
         }
@@ -72,7 +71,7 @@ class MessageFormatter {
             entry.put(PAYLOAD_WITHHELD_FIELD, PAYLOAD_WITHHELD_REASON);
         }
         else {
-            KafkaApiMessageConverter.Converter converter = KafkaApiMessageConverter.responseConverterFor(apiKey.messageType);
+            VendoredKafkaApiMessageConverter.Converter converter = VendoredKafkaApiMessageConverter.responseConverterFor(apiKey.messageType);
             JsonNode payload = converter.writer().apply(message, apiVersion);
             entry.set(PAYLOAD_FIELD, payload);
         }
