@@ -14,6 +14,8 @@ import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.Type;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ValidScalarStrategyTest {
@@ -28,6 +30,7 @@ class ValidScalarStrategyTest {
     private static final BoundField EMPTY_TAGGED_FIELDS_SECTION = new Schema(TaggedFieldsSection.of()).get("_tagged_fields");
     private static final BoundField COMPACT_BYTES_FIELD = new Schema(new Field("request_data", Type.COMPACT_BYTES, "doc")).get("request_data");
     private static final BoundField COMPACT_NULLABLE_BYTES_FIELD = new Schema(new Field("response_data", Type.COMPACT_NULLABLE_BYTES, "doc")).get("response_data");
+    private static final BoundField COMPACT_NULLABLE_RECORDS_FIELD = new Schema(new Field("records", Type.COMPACT_NULLABLE_RECORDS, "doc")).get("records");
 
     @Test
     void resolvesStringFieldToNonNullValue() {
@@ -147,6 +150,18 @@ class ValidScalarStrategyTest {
 
         // Then
         assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(byte[].class));
+    }
+
+    @Test
+    void resolvesCompactNullableRecordsFieldToEmptyRecords() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+
+        // When
+        FieldDecision decision = strategy.resolve(COMPACT_NULLABLE_RECORDS_FIELD);
+
+        // Then
+        assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isSameAs(MemoryRecords.EMPTY));
     }
 
     @Test

@@ -11,6 +11,8 @@ import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.TaggedFields;
 import org.apache.kafka.common.protocol.types.Type;
 
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+
 /**
  * Populates scalar fields with valid random values, reproducible given the same seed.
  */
@@ -42,6 +44,9 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         }
         if (field.def.type.equals(Type.COMPACT_NULLABLE_BYTES)) {
             return new FieldDecision.Value(randomBytes());
+        }
+        if (field.def.type.equals(Type.COMPACT_NULLABLE_RECORDS)) {
+            return new FieldDecision.Value(MemoryRecords.EMPTY);
         }
         if (field.def.type.equals(Type.INT32)) {
             return new FieldDecision.Value(random.nextInt());
