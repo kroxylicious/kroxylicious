@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kafka.common.message.AddOffsetsToTxnRequestData;
+import io.kroxylicious.kafka.common.message.AddRaftVoterResponseData;
 import io.kroxylicious.kafka.common.message.EndTxnRequestData;
 import io.kroxylicious.kafka.common.message.EnvelopeResponseData;
 import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
@@ -185,6 +186,20 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.responseData()).isNotNull();
+    }
+
+    @Test
+    void populatesCompactNullableStringField() {
+        // Given
+        AddRaftVoterResponseData instance = new AddRaftVoterResponseData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 0);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.errorMessage()).isNotNull();
     }
 
     @Test
