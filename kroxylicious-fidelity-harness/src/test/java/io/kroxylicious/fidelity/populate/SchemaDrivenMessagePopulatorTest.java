@@ -18,6 +18,7 @@ import io.kroxylicious.kafka.common.message.EnvelopeResponseData;
 import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
 import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
@@ -216,6 +217,20 @@ class SchemaDrivenMessagePopulatorTest {
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.clientSoftwareName()).isNotNull();
         assertThat(instance.clientSoftwareVersion()).isNotNull();
+    }
+
+    @Test
+    void populatesNullableStringField() {
+        // Given
+        RequestHeaderData instance = new RequestHeaderData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 1);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.clientId()).isNotNull();
     }
 
     @Test
