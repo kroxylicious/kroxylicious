@@ -8,17 +8,23 @@ package io.kroxylicious.fidelity.kafka;
 
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.fidelity.FidelityCheck;
 import io.kroxylicious.fidelity.ReadResult;
+import io.kroxylicious.fidelity.populate.PopulationResult;
+import io.kroxylicious.fidelity.populate.SchemaDrivenMessagePopulator;
+import io.kroxylicious.fidelity.populate.ValidScalarStrategy;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,6 +34,12 @@ class AllMessagesFidelityCheckTest {
     private static final String KAFKA_PACKAGE = "org.apache.kafka.common.message.";
     private static final String KROXYLICIOUS_PACKAGE = "io.kroxylicious.kafka.common.message.";
     private static final String CLASS_NAME_FORMAT = "%s%s%sData";
+    private SchemaDrivenMessagePopulator validScalarMessagePopulator;
+
+    @BeforeEach
+    void setUp() {
+        validScalarMessagePopulator = new SchemaDrivenMessagePopulator(new ValidScalarStrategy(new Random(42L)));
+    }
 
     @ParameterizedTest
     @MethodSource("allMessageVersions")
@@ -59,6 +71,48 @@ class AllMessagesFidelityCheckTest {
                 version);
 
         // Then
+        assertThat(result.error()).isNull();
+        assertThat(result.unreadBytes()).isZero();
+        assertThat(result.message()).usingRecursiveComparison().isEqualTo(kroxyliciousMessage);
+    }
+
+    @ParameterizedTest
+    @MethodSource("allMessageVersions")
+    @Disabled
+    void kroxyliciousShouldReadValidPopulatedKafkaSerialisedMessage(short version, ApiMessage kroxyliciousMessage,
+                                                                    org.apache.kafka.common.protocol.ApiMessage kafkaMessage) {
+        // Given
+        PopulationResult populated = validScalarMessagePopulator.populate(kafkaMessage, version);
+
+        // When
+        ReadResult<?> result = FidelityCheck.kroxyliciousReads(
+                kafkaMessage,
+                (io.kroxylicious.kafka.common.protocol.Message) kroxyliciousMessage,
+                version);
+
+        // Then
+        assertThat(populated).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(result.error()).isNull();
+        assertThat(result.unreadBytes()).isZero();
+        assertThat(result.message()).usingRecursiveComparison().isEqualTo(kafkaMessage);
+    }
+
+    @ParameterizedTest
+    @MethodSource("allMessageVersions")
+    @Disabled
+    void kafkaShouldReadValidPopulatedKroxyliciousSerialisedMessage(short version,
+                                                                    ApiMessage kroxyliciousMessage, org.apache.kafka.common.protocol.ApiMessage kafkaMessage) {
+        // Given
+        PopulationResult populated = validScalarMessagePopulator.populate(kroxyliciousMessage, version);
+
+        // When
+        ReadResult<?> result = FidelityCheck.kafkaReads(
+                kroxyliciousMessage,
+                (org.apache.kafka.common.protocol.Message) kafkaMessage,
+                version);
+
+        // Then
+        assertThat(populated).isInstanceOf(PopulationResult.Populated.class);
         assertThat(result.error()).isNull();
         assertThat(result.unreadBytes()).isZero();
         assertThat(result.message()).usingRecursiveComparison().isEqualTo(kroxyliciousMessage);
