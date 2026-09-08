@@ -19,6 +19,7 @@ class ValidScalarStrategyTest {
 
     private static final BoundField STRING_FIELD = new Schema(new Field("mechanism", Type.STRING, "doc")).get("mechanism");
     private static final BoundField BYTES_FIELD = new Schema(new Field("auth_bytes", Type.BYTES, "doc")).get("auth_bytes");
+    private static final BoundField INT32_FIELD = new Schema(new Field("generation_id", Type.INT32, "doc")).get("generation_id");
 
     @Test
     void resolvesStringFieldToNonNullValue() {
@@ -42,6 +43,18 @@ class ValidScalarStrategyTest {
 
         // Then
         assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(byte[].class));
+    }
+
+    @Test
+    void resolvesInt32FieldToNonNullValue() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+
+        // When
+        FieldDecision decision = strategy.resolve(INT32_FIELD);
+
+        // Then
+        assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(Integer.class));
     }
 
     @Test

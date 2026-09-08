@@ -10,6 +10,7 @@ import java.util.Random;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.kafka.common.message.HeartbeatRequestData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
 import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
 
@@ -64,6 +65,21 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.authBytes()).isNotEmpty();
+    }
+
+    @Test
+    void populatesInt32Field() {
+        // Given
+        HeartbeatRequestData instance = new HeartbeatRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 0);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.groupId()).isNotNull();
+        assertThat(instance.memberId()).isNotNull();
     }
 
     @Test

@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.fidelity.populate;
 
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
 import org.apache.kafka.common.protocol.types.BoundField;
@@ -60,8 +61,9 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
 
     private static void invokeSetter(Object instance, BoundField field, Object value) {
         String setterName = "set" + toCamelCase(field.def.name);
+        Class<?> setterParameterType = MethodType.methodType(value.getClass()).unwrap().returnType();
         try {
-            Method setter = instance.getClass().getMethod(setterName, value.getClass());
+            Method setter = instance.getClass().getMethod(setterName, setterParameterType);
             setter.invoke(instance, value);
         }
         catch (ReflectiveOperationException e) {
