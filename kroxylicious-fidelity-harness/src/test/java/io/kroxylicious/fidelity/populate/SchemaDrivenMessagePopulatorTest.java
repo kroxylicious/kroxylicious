@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kafka.common.message.AddOffsetsToTxnRequestData;
 import io.kroxylicious.kafka.common.message.AddRaftVoterResponseData;
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
 import io.kroxylicious.kafka.common.message.EndTxnRequestData;
 import io.kroxylicious.kafka.common.message.EnvelopeResponseData;
 import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
@@ -200,6 +201,21 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.errorMessage()).isNotNull();
+    }
+
+    @Test
+    void populatesCompactStringField() {
+        // Given
+        ApiVersionsRequestData instance = new ApiVersionsRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 3);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.clientSoftwareName()).isNotNull();
+        assertThat(instance.clientSoftwareVersion()).isNotNull();
     }
 
     @Test
