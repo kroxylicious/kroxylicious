@@ -21,6 +21,7 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
     private static final String ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final int MAX_STRING_LENGTH = 20;
     private static final int MAX_BYTES_LENGTH = 20;
+    private static final int UINT16_BOUND = 1 << 16;
 
     private final Random random;
 
@@ -71,6 +72,9 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         }
         if (field.def.type.equals(Type.RECORDS)) {
             return new FieldDecision.Value(MemoryRecords.EMPTY);
+        }
+        if (field.def.type.equals(Type.UINT16)) {
+            return new FieldDecision.Value(random.nextInt(UINT16_BOUND));
         }
         if (field.def.type.equals(Type.INT32)) {
             return new FieldDecision.Value(random.nextInt());
