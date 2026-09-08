@@ -9,6 +9,7 @@ import java.util.Random;
 
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.Field;
+import org.apache.kafka.common.protocol.types.Field.TaggedFieldsSection;
 import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.Type;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ class ValidScalarStrategyTest {
     private static final BoundField INT8_FIELD = new Schema(new Field("key_type", Type.INT8, "doc")).get("key_type");
     private static final BoundField INT64_FIELD = new Schema(new Field("producer_id", Type.INT64, "doc")).get("producer_id");
     private static final BoundField BOOLEAN_FIELD = new Schema(new Field("committed", Type.BOOLEAN, "doc")).get("committed");
+    private static final BoundField EMPTY_TAGGED_FIELDS_SECTION = new Schema(TaggedFieldsSection.of()).get("_tagged_fields");
 
     @Test
     void resolvesStringFieldToNonNullValue() {
@@ -107,6 +109,18 @@ class ValidScalarStrategyTest {
 
         // Then
         assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(Boolean.class));
+    }
+
+    @Test
+    void resolvesEmptyTaggedFieldsSectionToDefer() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+
+        // When
+        FieldDecision decision = strategy.resolve(EMPTY_TAGGED_FIELDS_SECTION);
+
+        // Then
+        assertThat(decision).isInstanceOf(FieldDecision.Defer.class);
     }
 
     @Test

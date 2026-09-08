@@ -10,6 +10,7 @@ import java.lang.reflect.Method;
 
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.Schema;
+import org.apache.kafka.common.protocol.types.TaggedFields;
 
 /**
  * Walks Kafka's authoritative runtime protocol schema for a message and drives the configured
@@ -38,11 +39,14 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
             FieldDecision decision = strategy.resolve(field);
             if (decision instanceof FieldDecision.Value(Object value1)) {
                 invokeSetter(instance, field, value1);
+                continue;
             }
-            else {
-                throw new UnsupportedOperationException(
-                        "Composite/array field walking is not yet supported: " + field.def.name);
+            if (field.def.type instanceof TaggedFields taggedFields && taggedFields.numFields() == 0) {
+                // An empty tagged-fields section has nothing to populate.
+                continue;
             }
+            throw new UnsupportedOperationException(
+                    "Composite/array field walking is not yet supported: " + field.def.name);
         }
         return new PopulationResult.Populated();
     }

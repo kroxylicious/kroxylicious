@@ -8,6 +8,7 @@ package io.kroxylicious.fidelity.populate;
 import java.util.Random;
 
 import org.apache.kafka.common.protocol.types.BoundField;
+import org.apache.kafka.common.protocol.types.TaggedFields;
 import org.apache.kafka.common.protocol.types.Type;
 
 /**
@@ -50,6 +51,9 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         }
         if (field.def.type.equals(Type.BOOLEAN)) {
             return new FieldDecision.Value(random.nextBoolean());
+        }
+        if (field.def.type instanceof TaggedFields) {
+            return new FieldDecision.Defer();
         }
         throw new UnsupportedOperationException("No valid-value strategy for type " + field.def.type);
     }

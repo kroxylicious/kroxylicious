@@ -15,6 +15,7 @@ import io.kroxylicious.kafka.common.message.EndTxnRequestData;
 import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
 import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
 
@@ -141,6 +142,20 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.transactionalId()).isNotNull();
+    }
+
+    @Test
+    void populatesMessageWithEmptyTaggedFieldsSection() {
+        // Given
+        ResponseHeaderData instance = new ResponseHeaderData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 1);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.correlationId()).isNotZero();
     }
 
     @Test
