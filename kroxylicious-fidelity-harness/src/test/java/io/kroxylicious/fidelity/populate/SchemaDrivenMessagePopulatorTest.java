@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kafka.common.message.AddOffsetsToTxnRequestData;
 import io.kroxylicious.kafka.common.message.EndTxnRequestData;
+import io.kroxylicious.kafka.common.message.EnvelopeResponseData;
 import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatResponseData;
@@ -170,6 +171,20 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.authBytes()).isNotEmpty();
+    }
+
+    @Test
+    void populatesCompactNullableBytesField() {
+        // Given
+        EnvelopeResponseData instance = new EnvelopeResponseData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 0);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.responseData()).isNotNull();
     }
 
     @Test

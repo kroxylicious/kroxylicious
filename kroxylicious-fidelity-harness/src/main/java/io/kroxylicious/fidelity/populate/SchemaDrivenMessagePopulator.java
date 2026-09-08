@@ -5,8 +5,8 @@
  */
 package io.kroxylicious.fidelity.populate;
 
-import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.Schema;
@@ -65,14 +65,29 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
 
     private static void invokeSetter(Object instance, BoundField field, Object value) {
         String setterName = "set" + toCamelCase(field.def.name);
-        Class<?> setterParameterType = MethodType.methodType(value.getClass()).unwrap().returnType();
+        Method setter = findSetter(instance.getClass(), setterName);
         try {
-            Method setter = instance.getClass().getMethod(setterName, setterParameterType);
-            setter.invoke(instance, value);
+            setter.invoke(instance, convertToParameterType(value, setter.getParameterTypes()[0]));
         }
         catch (ReflectiveOperationException e) {
             throw new IllegalStateException("Could not invoke " + setterName + " on " + instance.getClass(), e);
         }
+    }
+
+    private static Method findSetter(Class<?> instanceClass, String setterName) {
+        for (Method method : instanceClass.getMethods()) {
+            if (method.getName().equals(setterName) && method.getParameterCount() == 1) {
+                return method;
+            }
+        }
+        throw new IllegalStateException("No setter named " + setterName + " on " + instanceClass);
+    }
+
+    private static Object convertToParameterType(Object value, Class<?> parameterType) {
+        if (value instanceof byte[] bytes && parameterType == ByteBuffer.class) {
+            return ByteBuffer.wrap(bytes);
+        }
+        return value;
     }
 
     private static String toCamelCase(String snakeCaseName) {
