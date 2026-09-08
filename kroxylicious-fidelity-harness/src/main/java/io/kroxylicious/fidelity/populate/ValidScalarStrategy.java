@@ -17,6 +17,7 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
 
     private static final String ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final int MAX_STRING_LENGTH = 20;
+    private static final int MAX_BYTES_LENGTH = 20;
 
     private final Random random;
 
@@ -32,6 +33,9 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         if (field.def.type.equals(Type.STRING)) {
             return new FieldDecision.Value(randomString());
         }
+        if (field.def.type.equals(Type.BYTES)) {
+            return new FieldDecision.Value(randomBytes());
+        }
         throw new UnsupportedOperationException("No valid-value strategy for type " + field.def.type);
     }
 
@@ -42,5 +46,11 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
             value.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
         }
         return value.toString();
+    }
+
+    private byte[] randomBytes() {
+        byte[] value = new byte[1 + random.nextInt(MAX_BYTES_LENGTH)];
+        random.nextBytes(value);
+        return value;
     }
 }

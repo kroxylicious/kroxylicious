@@ -59,13 +59,31 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     }
 
     private static void invokeSetter(Object instance, BoundField field, Object value) {
-        String setterName = "set" + Character.toUpperCase(field.def.name.charAt(0)) + field.def.name.substring(1);
+        String setterName = "set" + toCamelCase(field.def.name);
         try {
-            Method setter = instance.getClass().getMethod(setterName, String.class);
+            Method setter = instance.getClass().getMethod(setterName, value.getClass());
             setter.invoke(instance, value);
         }
         catch (ReflectiveOperationException e) {
             throw new IllegalStateException("Could not invoke " + setterName + " on " + instance.getClass(), e);
         }
+    }
+
+    private static String toCamelCase(String snakeCaseName) {
+        StringBuilder camelCaseName = new StringBuilder();
+        boolean upperCaseNextChar = true;
+        for (char c : snakeCaseName.toCharArray()) {
+            if (c == '_') {
+                upperCaseNextChar = true;
+            }
+            else if (upperCaseNextChar) {
+                camelCaseName.append(Character.toUpperCase(c));
+                upperCaseNextChar = false;
+            }
+            else {
+                camelCaseName.append(c);
+            }
+        }
+        return camelCaseName.toString();
     }
 }
