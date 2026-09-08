@@ -40,6 +40,7 @@ class ValidScalarStrategyTest {
     private static final BoundField NULLABLE_STRING_FIELD = new Schema(new Field("client_id", Type.NULLABLE_STRING, "doc")).get("client_id");
     private static final BoundField RECORDS_FIELD = new Schema(new Field("records", Type.RECORDS, "doc")).get("records");
     private static final BoundField UINT16_FIELD = new Schema(new Field("port", Type.UINT16, "doc")).get("port");
+    private static final BoundField UNSIGNED_INT32_FIELD = new Schema(new Field("value", Type.UNSIGNED_INT32, "doc")).get("value");
 
     @Test
     void resolvesStringFieldToNonNullValue() {
@@ -279,6 +280,18 @@ class ValidScalarStrategyTest {
 
         // Then
         assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(Integer.class));
+    }
+
+    @Test
+    void resolvesUnsignedInt32FieldToNonNullValue() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+
+        // When
+        FieldDecision decision = strategy.resolve(UNSIGNED_INT32_FIELD);
+
+        // Then
+        assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(Long.class));
     }
 
     @Test

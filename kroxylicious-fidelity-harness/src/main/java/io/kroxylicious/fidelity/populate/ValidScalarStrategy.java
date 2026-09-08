@@ -22,6 +22,7 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
     private static final int MAX_STRING_LENGTH = 20;
     private static final int MAX_BYTES_LENGTH = 20;
     private static final int UINT16_BOUND = 1 << 16;
+    private static final long UNSIGNED_INT32_BOUND = 1L << 32;
 
     private final Random random;
 
@@ -75,6 +76,9 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         }
         if (field.def.type.equals(Type.UINT16)) {
             return new FieldDecision.Value(random.nextInt(UINT16_BOUND));
+        }
+        if (field.def.type.equals(Type.UNSIGNED_INT32)) {
+            return new FieldDecision.Value(random.nextLong(UNSIGNED_INT32_BOUND));
         }
         if (field.def.type.equals(Type.INT32)) {
             return new FieldDecision.Value(random.nextInt());
