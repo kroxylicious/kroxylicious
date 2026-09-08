@@ -48,6 +48,9 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         if (field.def.type.equals(Type.INT64)) {
             return new FieldDecision.Value(random.nextLong());
         }
+        if (field.def.type.equals(Type.BOOLEAN)) {
+            return new FieldDecision.Value(random.nextBoolean());
+        }
         throw new UnsupportedOperationException("No valid-value strategy for type " + field.def.type);
     }
 

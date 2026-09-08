@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kafka.common.message.AddOffsetsToTxnRequestData;
+import io.kroxylicious.kafka.common.message.EndTxnRequestData;
 import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatResponseData;
@@ -126,6 +127,20 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.producerId()).isNotZero();
+    }
+
+    @Test
+    void populatesBooleanField() {
+        // Given
+        EndTxnRequestData instance = new EndTxnRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 0);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.transactionalId()).isNotNull();
     }
 
     @Test

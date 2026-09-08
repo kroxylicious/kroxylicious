@@ -23,6 +23,7 @@ class ValidScalarStrategyTest {
     private static final BoundField INT16_FIELD = new Schema(new Field("error_code", Type.INT16, "doc")).get("error_code");
     private static final BoundField INT8_FIELD = new Schema(new Field("key_type", Type.INT8, "doc")).get("key_type");
     private static final BoundField INT64_FIELD = new Schema(new Field("producer_id", Type.INT64, "doc")).get("producer_id");
+    private static final BoundField BOOLEAN_FIELD = new Schema(new Field("committed", Type.BOOLEAN, "doc")).get("committed");
 
     @Test
     void resolvesStringFieldToNonNullValue() {
@@ -94,6 +95,18 @@ class ValidScalarStrategyTest {
 
         // Then
         assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(Long.class));
+    }
+
+    @Test
+    void resolvesBooleanFieldToNonNullValue() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+
+        // When
+        FieldDecision decision = strategy.resolve(BOOLEAN_FIELD);
+
+        // Then
+        assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(Boolean.class));
     }
 
     @Test
