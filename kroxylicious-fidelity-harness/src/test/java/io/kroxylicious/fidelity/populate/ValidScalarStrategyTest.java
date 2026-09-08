@@ -34,6 +34,7 @@ class ValidScalarStrategyTest {
     private static final BoundField COMPACT_NULLABLE_STRING_FIELD = new Schema(new Field("error_message", Type.COMPACT_NULLABLE_STRING, "doc")).get("error_message");
     private static final BoundField COMPACT_RECORDS_FIELD = new Schema(new Field("records", Type.COMPACT_RECORDS, "doc")).get("records");
     private static final BoundField COMPACT_STRING_FIELD = new Schema(new Field("client_software_name", Type.COMPACT_STRING, "doc")).get("client_software_name");
+    private static final BoundField FLOAT64_FIELD = new Schema(new Field("value", Type.FLOAT64, "doc")).get("value");
 
     @Test
     void resolvesStringFieldToNonNullValue() {
@@ -201,6 +202,18 @@ class ValidScalarStrategyTest {
 
         // Then
         assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(String.class));
+    }
+
+    @Test
+    void resolvesFloat64FieldToNonNullValue() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+
+        // When
+        FieldDecision decision = strategy.resolve(FLOAT64_FIELD);
+
+        // Then
+        assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(Double.class));
     }
 
     @Test
