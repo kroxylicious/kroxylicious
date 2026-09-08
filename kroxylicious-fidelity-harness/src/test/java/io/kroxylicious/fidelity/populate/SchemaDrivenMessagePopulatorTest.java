@@ -10,6 +10,7 @@ import java.util.Random;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatResponseData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
@@ -95,6 +96,21 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.errorCode()).isNotZero();
+    }
+
+    @Test
+    void populatesInt8Field() {
+        // Given
+        FindCoordinatorRequestData instance = new FindCoordinatorRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 1);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.key()).isNotNull();
+        assertThat(instance.keyType()).isNotZero();
     }
 
     @Test
