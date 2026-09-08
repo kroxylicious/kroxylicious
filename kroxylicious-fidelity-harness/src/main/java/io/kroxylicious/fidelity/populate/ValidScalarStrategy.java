@@ -60,6 +60,9 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         if (field.def.type.equals(Type.FLOAT64)) {
             return new FieldDecision.Value(random.nextDouble());
         }
+        if (field.def.type.equals(Type.NULLABLE_BYTES)) {
+            return new FieldDecision.Value(randomBytes());
+        }
         if (field.def.type.equals(Type.INT32)) {
             return new FieldDecision.Value(random.nextInt());
         }
