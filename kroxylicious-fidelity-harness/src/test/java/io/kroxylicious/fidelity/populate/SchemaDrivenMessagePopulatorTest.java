@@ -7,7 +7,6 @@ package io.kroxylicious.fidelity.populate;
 
 import java.util.Random;
 
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +30,7 @@ class SchemaDrivenMessagePopulatorTest {
         SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
 
         // When
-        PopulationResult result = populator.populate(instance, ApiKeys.SASL_HANDSHAKE, (short) 0);
+        PopulationResult result = populator.populate(instance, (short) 0);
 
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
@@ -45,7 +44,7 @@ class SchemaDrivenMessagePopulatorTest {
         SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
 
         // When
-        PopulationResult result = populator.populate(instance, ApiKeys.SASL_HANDSHAKE, (short) 0);
+        PopulationResult result = populator.populate(instance, (short) 0);
 
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
@@ -59,10 +58,10 @@ class SchemaDrivenMessagePopulatorTest {
         SaslHandshakeRequestData second = new SaslHandshakeRequestData();
         SchemaDrivenMessagePopulator firstPopulator = new SchemaDrivenMessagePopulator(new ValidScalarStrategy(new Random(798)));
         SchemaDrivenMessagePopulator secondPopulator = new SchemaDrivenMessagePopulator(new ValidScalarStrategy(new Random(798)));
-        firstPopulator.populate(first, ApiKeys.SASL_HANDSHAKE, (short) 0);
+        firstPopulator.populate(first, (short) 0);
 
         // When
-        secondPopulator.populate(second, ApiKeys.SASL_HANDSHAKE, (short) 0);
+        secondPopulator.populate(second, (short) 0);
 
         // Then
         assertThat(second.mechanism()).isEqualTo(first.mechanism());

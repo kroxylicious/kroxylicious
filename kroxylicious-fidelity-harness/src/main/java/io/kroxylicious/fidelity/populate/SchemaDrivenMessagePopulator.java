@@ -7,7 +7,6 @@ package io.kroxylicious.fidelity.populate;
 
 import java.lang.reflect.Method;
 
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.Schema;
 
@@ -32,12 +31,12 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     }
 
     @Override
-    public PopulationResult populate(Object instance, ApiKeys apiKey, short version) {
+    public PopulationResult populate(Object instance, short version) {
         Schema schema = kafkaSchemaFor(instance, version);
         for (BoundField field : schema.fields()) {
             FieldDecision decision = strategy.resolve(field);
-            if (decision instanceof FieldDecision.Value value) {
-                invokeSetter(instance, field, value.value());
+            if (decision instanceof FieldDecision.Value(Object value1)) {
+                invokeSetter(instance, field, value1);
             }
             else {
                 throw new UnsupportedOperationException(
