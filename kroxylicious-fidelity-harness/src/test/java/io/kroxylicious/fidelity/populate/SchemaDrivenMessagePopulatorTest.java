@@ -18,6 +18,7 @@ import io.kroxylicious.kafka.common.message.EnvelopeResponseData;
 import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatRequestData;
 import io.kroxylicious.kafka.common.message.HeartbeatResponseData;
+import io.kroxylicious.kafka.common.message.RemoveRaftVoterRequestData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
@@ -231,6 +232,20 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.clientId()).isNotNull();
+    }
+
+    @Test
+    void populatesUuidField() {
+        // Given
+        RemoveRaftVoterRequestData instance = new RemoveRaftVoterRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 0);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.voterDirectoryId()).isNotNull();
     }
 
     @Test

@@ -11,6 +11,7 @@ import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.TaggedFields;
 import org.apache.kafka.common.protocol.types.Type;
 
+import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 
 /**
@@ -80,6 +81,9 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         if (field.def.type.equals(Type.UNSIGNED_INT32)) {
             return new FieldDecision.Value(random.nextLong(UNSIGNED_INT32_BOUND));
         }
+        if (field.def.type.equals(Type.UUID)) {
+            return new FieldDecision.Value(randomUuid());
+        }
         if (field.def.type.equals(Type.INT32)) {
             return new FieldDecision.Value(random.nextInt());
         }
@@ -113,6 +117,14 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
     private byte[] randomBytes() {
         byte[] value = new byte[1 + random.nextInt(MAX_BYTES_LENGTH)];
         random.nextBytes(value);
+        return value;
+    }
+
+    private Uuid randomUuid() {
+        Uuid value = new Uuid(random.nextLong(), random.nextLong());
+        while (Uuid.RESERVED.contains(value) || value.toString().startsWith("-")) {
+            value = new Uuid(random.nextLong(), random.nextLong());
+        }
         return value;
     }
 }

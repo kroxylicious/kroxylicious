@@ -14,6 +14,7 @@ import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.Type;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +42,7 @@ class ValidScalarStrategyTest {
     private static final BoundField RECORDS_FIELD = new Schema(new Field("records", Type.RECORDS, "doc")).get("records");
     private static final BoundField UINT16_FIELD = new Schema(new Field("port", Type.UINT16, "doc")).get("port");
     private static final BoundField UNSIGNED_INT32_FIELD = new Schema(new Field("value", Type.UNSIGNED_INT32, "doc")).get("value");
+    private static final BoundField UUID_FIELD = new Schema(new Field("voter_directory_id", Type.UUID, "doc")).get("voter_directory_id");
 
     @Test
     void resolvesStringFieldToNonNullValue() {
@@ -292,6 +294,18 @@ class ValidScalarStrategyTest {
 
         // Then
         assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(Long.class));
+    }
+
+    @Test
+    void resolvesUuidFieldToNonNullValue() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+
+        // When
+        FieldDecision decision = strategy.resolve(UUID_FIELD);
+
+        // Then
+        assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(Uuid.class));
     }
 
     @Test
