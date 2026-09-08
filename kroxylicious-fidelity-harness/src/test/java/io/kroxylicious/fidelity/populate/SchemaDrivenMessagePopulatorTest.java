@@ -159,6 +159,20 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
+    void populatesCompactBytesField() {
+        // Given
+        SaslAuthenticateRequestData instance = new SaslAuthenticateRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 2);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.authBytes()).isNotEmpty();
+    }
+
+    @Test
     void sameSeedProducesSameValues() {
         // Given
         SaslHandshakeRequestData first = new SaslHandshakeRequestData();
