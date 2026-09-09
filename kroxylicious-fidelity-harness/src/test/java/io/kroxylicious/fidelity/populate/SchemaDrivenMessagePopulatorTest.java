@@ -269,6 +269,25 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
+    void populatesArrayOfUuidFieldOnKafkaInstance() {
+        // Given
+        // ValidScalarStrategy always produces io.kroxylicious.kafka.common.Uuid elements, but this
+        // instance's setter expects List<org.apache.kafka.common.Uuid> - List<X> erases to a plain List
+        // at the setter's parameter type, so the family mismatch isn't caught by matching the setter's
+        // own (erased) parameter type the way a directly Uuid-typed field's mismatch is.
+        org.apache.kafka.common.message.BrokerRegistrationRequestData instance = new org.apache.kafka.common.message.BrokerRegistrationRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 2);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.logDirs()).isNotEmpty();
+        assertThat(instance.logDirs()).allSatisfy(uuid -> assertThat(uuid).isInstanceOf(org.apache.kafka.common.Uuid.class));
+    }
+
+    @Test
     void populatesRecordsFieldOnKafkaInstance() {
         // Given
         // ValidScalarStrategy always produces an io.kroxylicious.kafka.common.record.internal.MemoryRecords,

@@ -8,6 +8,7 @@ package io.kroxylicious.fidelity.populate;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -238,7 +239,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     private static void invokeSetter(Object instance, BoundField field, Object value) {
         Method setter = findSetter(instance.getClass(), field.def.name);
         try {
-            setter.invoke(instance, convertToParameterType(value, setter.getParameterTypes()[0]));
+            setter.invoke(instance, convertToParameterType(value, setter));
         }
         catch (Exception e) {
             throw new IllegalStateException("Could not invoke setter (" + setter.getName() + ") for field '" + field.def.name + "' on " + instance.getClass(), e);
@@ -269,22 +270,53 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
      * equivalent type from the setter's own family - e.g. a {@code Uuid} field on a Kafka-side instance
      * needs an {@code org.apache.kafka.common.Uuid}, not the strategy's {@code io.kroxylicious} one.
      */
-    private static Object convertToParameterType(Object value, Class<?> parameterType) {
+    private static Object convertToParameterType(Object value, Method setter) {
+        Class<?> parameterType = setter.getParameterTypes()[0];
         if (value instanceof byte[] bytes && parameterType == ByteBuffer.class) {
             return ByteBuffer.wrap(bytes);
         }
         if (value instanceof io.kroxylicious.kafka.common.Uuid uuid && parameterType == org.apache.kafka.common.Uuid.class) {
-            return new org.apache.kafka.common.Uuid(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
+            return toKafkaUuid(uuid);
         }
         if (value instanceof io.kroxylicious.kafka.common.record.internal.MemoryRecords
                 && org.apache.kafka.common.record.internal.BaseRecords.class.isAssignableFrom(parameterType)) {
             return org.apache.kafka.common.record.internal.MemoryRecords.EMPTY;
         }
-        if (value instanceof List<?> elements && !parameterType.isAssignableFrom(value.getClass())
-                && Collection.class.isAssignableFrom(parameterType)) {
-            return newCollection(parameterType, elements);
+        if (value instanceof List<?> elements) {
+            List<Object> converted = convertElements(elements, elementTypeOf(setter));
+            return parameterType.isAssignableFrom(value.getClass()) ? converted : newCollection(parameterType, converted);
         }
         return value;
+    }
+
+    private static org.apache.kafka.common.Uuid toKafkaUuid(io.kroxylicious.kafka.common.Uuid uuid) {
+        return new org.apache.kafka.common.Uuid(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
+    }
+
+    /**
+     * A scalar-array field's setter parameter type is generic (e.g. {@code List<Uuid>}), so, unlike a
+     * directly-typed field, the erased parameter type alone ({@code List.class}) can't reveal which class
+     * family an element should belong to - that information only survives in the setter's generic signature.
+     */
+    private static Optional<Class<?>> elementTypeOf(Method setter) {
+        if (setter.getGenericParameterTypes()[0] instanceof ParameterizedType parameterized
+                && parameterized.getActualTypeArguments()[0] instanceof Class<?> elementClass) {
+            return Optional.of(elementClass);
+        }
+        return Optional.empty();
+    }
+
+    private static List<Object> convertElements(List<?> elements, Optional<Class<?>> elementType) {
+        List<Object> converted = new ArrayList<>(elements.size());
+        for (Object element : elements) {
+            if (element instanceof io.kroxylicious.kafka.common.Uuid uuid && elementType.filter(org.apache.kafka.common.Uuid.class::equals).isPresent()) {
+                converted.add(toKafkaUuid(uuid));
+            }
+            else {
+                converted.add(element);
+            }
+        }
+        return converted;
     }
 
     /**
