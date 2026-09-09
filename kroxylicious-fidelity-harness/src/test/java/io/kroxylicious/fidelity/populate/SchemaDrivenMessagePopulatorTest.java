@@ -399,18 +399,36 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
-    void unsupportedStructFieldInsideTaggedFieldsSectionExceptionNamesTheField() {
+    void populatesScalarArrayFieldInsideTaggedFieldsSection() {
         // Given
-        // node_endpoints is a struct-typed tag inside v1's non-empty tagged-fields section, a different,
-        // map-keyed wire mechanism that struct recursion does not walk into.
+        // "offline_log_dirs" is a []uuid field inside v1's non-empty tagged-fields section.
+        org.apache.kafka.common.message.BrokerHeartbeatRequestData instance = new org.apache.kafka.common.message.BrokerHeartbeatRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 1);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.offlineLogDirs()).isNotEmpty();
+    }
+
+    @Test
+    void populatesArrayOfStructFieldInsideTaggedFieldsSection() {
+        // Given
+        // "node_endpoints" is a struct-typed tag inside v1's non-empty tagged-fields section, and its
+        // struct (NodeEndpoint) has a mapKey field, so its generated setter also takes a custom
+        // NodeEndpointCollection rather than a plain List.
         org.apache.kafka.common.message.BeginQuorumEpochResponseData instance = new org.apache.kafka.common.message.BeginQuorumEpochResponseData();
         SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
 
         // When
+        PopulationResult result = populator.populate(instance, (short) 1);
+
         // Then
-        assertThatThrownBy(() -> populator.populate(instance, (short) 1))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("_tagged_fields");
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.nodeEndpoints()).isNotEmpty();
+        assertThat(instance.nodeEndpoints()).allSatisfy(nodeEndpoint -> assertThat(nodeEndpoint.host()).isNotNull());
     }
 
     @Test

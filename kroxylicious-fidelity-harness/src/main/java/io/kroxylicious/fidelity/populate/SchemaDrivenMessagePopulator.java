@@ -67,29 +67,55 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     private void populateStruct(Object instance, Class<?> kafkaClass, StructResolutionContext context) {
         Schema schema = kafkaSchemaFor(kafkaClass, context.version());
         for (BoundField field : schema.fields()) {
-            FieldDecision decision;
-            try {
-                decision = strategy.resolve(field);
-            }
-            catch (RuntimeException e) {
-                throw new UnsupportedOperationException("Could not populate " + describeField(field, context.rootKafkaClass()), e);
-            }
-            if (decision instanceof FieldDecision.Value(Object value1)) {
-                invokeSetter(instance, field, value1);
+            if (field.def.type instanceof TaggedFields taggedFields) {
+                populateTaggedFields(instance, taggedFields, context);
                 continue;
             }
-            if (field.def.type instanceof TaggedFields taggedFields && taggedFields.numFields() == 0) {
-                // An empty tagged-fields section has nothing to populate.
-                continue;
-            }
-            Optional<Object> composed = composeStructValue(field, context);
-            if (composed.isPresent()) {
-                invokeSetter(instance, field, composed.get());
-                continue;
-            }
-            throw new UnsupportedOperationException(
-                    "Composite/array field walking is not yet supported for " + describeField(field, context.rootKafkaClass()));
+            populateField(instance, field, context);
         }
+    }
+
+    /**
+     * Kafka's generator compiles every {@code taggedVersions}/{@code tag} field in a struct's JSON spec
+     * into individual {@link org.apache.kafka.common.protocol.types.Field} entries wrapped by a single
+     * synthetic {@code _tagged_fields} {@link BoundField}, rather than exposing them as top-level
+     * {@code BoundField}s the way {@link Schema#fields()} does - so they must be unwrapped and walked
+     * separately. Each wrapped {@code Field} shares the same shape ({@code name}/{@code type}) that
+     * {@link #populateField} already relies on, so it can be adapted into a {@link BoundField} and driven
+     * through the exact same per-field logic used for plain fields; the generated setter for a tagged
+     * field is an ordinary public setter, indistinguishable in shape from a non-tagged field's setter, and
+     * a tag's presence on the wire is implicit in its value being non-default, so no separate registration
+     * step is needed.
+     */
+    private void populateTaggedFields(Object instance, TaggedFields taggedFields, StructResolutionContext context) {
+        for (var entry : taggedFields.fields().entrySet()) {
+            populateField(instance, new BoundField(entry.getValue(), null, entry.getKey()), context);
+        }
+    }
+
+    private void populateField(Object instance, BoundField field, StructResolutionContext context) {
+        FieldDecision decision;
+        try {
+            decision = strategy.resolve(field);
+        }
+        catch (RuntimeException e) {
+            throw new UnsupportedOperationException("Could not populate " + describeField(field, context.rootKafkaClass()), e);
+        }
+        if (decision instanceof FieldDecision.Value(Object value1)) {
+            invokeSetter(instance, field, value1);
+            return;
+        }
+        if (field.def.type instanceof TaggedFields nested && nested.numFields() == 0) {
+            // An empty tagged-fields section has nothing to populate.
+            return;
+        }
+        Optional<Object> composed = composeStructValue(field, context);
+        if (composed.isPresent()) {
+            invokeSetter(instance, field, composed.get());
+            return;
+        }
+        throw new UnsupportedOperationException(
+                "Composite/array field walking is not yet supported for " + describeField(field, context.rootKafkaClass()));
     }
 
     /**
