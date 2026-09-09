@@ -28,6 +28,7 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
     private final Random random;
 
     /**
+     * Generate values using the provided random instance.
      * @param random the source of randomness; the caller owns the seed for reproducibility
      */
     public ValidScalarStrategy(Random random) {

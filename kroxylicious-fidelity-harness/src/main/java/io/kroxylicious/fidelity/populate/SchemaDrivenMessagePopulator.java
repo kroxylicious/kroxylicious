@@ -26,6 +26,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     private final FieldPopulationStrategy strategy;
 
     /**
+     * Construct the populator with the provided strategy
      * @param strategy decides the value, if any, for each field visited
      */
     public SchemaDrivenMessagePopulator(FieldPopulationStrategy strategy) {
