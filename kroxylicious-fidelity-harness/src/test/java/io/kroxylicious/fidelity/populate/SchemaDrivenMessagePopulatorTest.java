@@ -322,6 +322,23 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
+    void wrapsSetterArgumentTypeMismatchWithFieldContext() {
+        // Given
+        // "listeners" is an array-of-struct field whose generated setter takes a custom
+        // ImplicitLinkedHashMultiCollection type (ListenerCollection) rather than a plain List, so the
+        // composed List<Object> value mismatches the setter's parameter type.
+        UpdateRaftVoterRequestData instance = new UpdateRaftVoterRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        // Then
+        assertThatThrownBy(() -> populator.populate(instance, (short) 0))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("listeners")
+                .cause().isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void populateAddsFieldContextRegardlessOfStrategyFailureType() {
         // Given
         FieldPopulationStrategy opaqueFailingStrategy = field -> {

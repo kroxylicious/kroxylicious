@@ -215,7 +215,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         try {
             setter.invoke(instance, convertToParameterType(value, setter.getParameterTypes()[0]));
         }
-        catch (ReflectiveOperationException e) {
+        catch (ReflectiveOperationException | IllegalArgumentException e) {
             throw new IllegalStateException("Could not invoke setter for field '" + field.def.name + "' on " + instance.getClass(), e);
         }
     }
