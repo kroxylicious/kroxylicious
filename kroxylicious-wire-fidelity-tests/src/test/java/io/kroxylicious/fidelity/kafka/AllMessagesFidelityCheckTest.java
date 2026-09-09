@@ -78,7 +78,6 @@ class AllMessagesFidelityCheckTest {
 
     @ParameterizedTest
     @MethodSource("allMessageVersions")
-    @Disabled
     void kroxyliciousShouldReadValidPopulatedKafkaSerialisedMessage(short version, ApiMessage kroxyliciousMessage,
                                                                     org.apache.kafka.common.protocol.ApiMessage kafkaMessage) {
         // Given
