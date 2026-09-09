@@ -253,6 +253,22 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
+    void populatesUuidFieldOnKafkaInstance() {
+        // Given
+        // ValidScalarStrategy always produces an io.kroxylicious.kafka.common.Uuid, but this instance's
+        // setter expects org.apache.kafka.common.Uuid - a different class with the same shape.
+        org.apache.kafka.common.message.RemoveRaftVoterRequestData instance = new org.apache.kafka.common.message.RemoveRaftVoterRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 0);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.voterDirectoryId()).isNotNull();
+    }
+
+    @Test
     void populatesArrayOfScalarField() {
         // Given
         DeleteTopicsRequestData instance = new DeleteTopicsRequestData();

@@ -262,9 +262,18 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         throw new IllegalStateException("No setter for field '" + fieldName + "' on " + instanceClass);
     }
 
+    /**
+     * The strategy produces values without knowing which class family ({@code io.kroxylicious.*} or
+     * {@code org.apache.kafka.*}) the setter belongs to, so a value occasionally needs converting to the
+     * equivalent type from the setter's own family - e.g. a {@code Uuid} field on a Kafka-side instance
+     * needs an {@code org.apache.kafka.common.Uuid}, not the strategy's {@code io.kroxylicious} one.
+     */
     private static Object convertToParameterType(Object value, Class<?> parameterType) {
         if (value instanceof byte[] bytes && parameterType == ByteBuffer.class) {
             return ByteBuffer.wrap(bytes);
+        }
+        if (value instanceof io.kroxylicious.kafka.common.Uuid uuid && parameterType == org.apache.kafka.common.Uuid.class) {
+            return new org.apache.kafka.common.Uuid(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
         }
         return value;
     }
