@@ -278,6 +278,23 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
+    void populateAddsFieldContextRegardlessOfStrategyFailureType() {
+        // Given
+        FieldPopulationStrategy opaqueFailingStrategy = field -> {
+            throw new IllegalStateException("boom");
+        };
+        HeartbeatRequestData instance = new HeartbeatRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(opaqueFailingStrategy);
+
+        // When
+        // Then
+        assertThatThrownBy(() -> populator.populate(instance, (short) 0))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("of type")
+                .cause().isInstanceOf(IllegalStateException.class).hasMessage("boom");
+    }
+
+    @Test
     void sameSeedProducesSameValues() {
         // Given
         SaslHandshakeRequestData first = new SaslHandshakeRequestData();

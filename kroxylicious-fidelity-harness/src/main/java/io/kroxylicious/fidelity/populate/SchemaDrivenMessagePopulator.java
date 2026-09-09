@@ -46,8 +46,8 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
             try {
                 decision = strategy.resolve(field);
             }
-            catch (UnsupportedOperationException e) {
-                throw withStructContext(e, kafkaClass, field.def.type);
+            catch (RuntimeException e) {
+                throw new UnsupportedOperationException("Could not populate " + describeField(field, kafkaClass), e);
             }
             if (decision instanceof FieldDecision.Value(Object value1)) {
                 invokeSetter(instance, field, value1);
@@ -58,7 +58,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
                 continue;
             }
             throw new UnsupportedOperationException(
-                    "Composite/array field walking is not yet supported: " + field.def.name);
+                    "Composite/array field walking is not yet supported for " + describeField(field, kafkaClass));
         }
         return new PopulationResult.Populated();
     }
@@ -87,11 +87,12 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
      * The struct's own {@link Schema} carries no name; the generated class holding it as a
      * {@code SCHEMA_N} constant does, so recover it by identity from the message's nested classes.
      */
-    private static UnsupportedOperationException withStructContext(UnsupportedOperationException original, Class<?> kafkaClass, Type fieldType) {
-        return structTypeOf(fieldType)
+    private static String describeField(BoundField field, Class<?> kafkaClass) {
+        StringBuilder description = new StringBuilder("field '").append(field.def.name).append("' of type ").append(field.def.type);
+        structTypeOf(field.def.type)
                 .flatMap(structSchema -> resolveStructClassName(kafkaClass, structSchema))
-                .map(className -> new UnsupportedOperationException(original.getMessage() + " (struct type: " + className + ")", original))
-                .orElse(original);
+                .ifPresent(className -> description.append(" (struct type: ").append(className).append(")"));
+        return description.toString();
     }
 
     private static Optional<Schema> structTypeOf(Type type) {
