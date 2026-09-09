@@ -105,10 +105,6 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
             invokeSetter(instance, field, value1);
             return;
         }
-        if (field.def.type instanceof TaggedFields nested && nested.numFields() == 0) {
-            // An empty tagged-fields section has nothing to populate.
-            return;
-        }
         Optional<Object> composed = composeStructValue(field, context);
         if (composed.isPresent()) {
             invokeSetter(instance, field, composed.get());
