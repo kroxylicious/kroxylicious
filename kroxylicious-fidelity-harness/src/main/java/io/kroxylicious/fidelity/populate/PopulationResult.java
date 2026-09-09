@@ -18,6 +18,12 @@ public sealed interface PopulationResult permits PopulationResult.Populated, Pop
     /**
      * Setting a field failed. The populator makes no judgement about whether this is expected;
      * that's for the caller to decide.
+     * <p>
+     * Not produced by any populator yet - {@link SchemaDrivenMessagePopulator} currently throws
+     * from every failure path instead of returning this. It sketches the shape that future
+     * error-parity fidelity checks will need (proving Kroxylicious and Kafka fail alike on invalid
+     * input, field-for-field), so a caller can start being written against a stable contract; it is
+     * not yet load-bearing.
      *
      * @param fieldPath the field that failed
      * @param attemptedValue the value that was attempted
