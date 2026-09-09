@@ -66,11 +66,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
 
     private void populateStruct(Object instance, Class<?> kafkaClass, StructResolutionContext context) {
         Schema schema = kafkaSchemaFor(kafkaClass, context.version());
-        for (BoundField field : schema.fields()) {
-            if (field.def.type instanceof TaggedFields taggedFields) {
-                populateTaggedFields(instance, taggedFields, context);
-                continue;
-            }
+        for (BoundField field : expandFields(schema)) {
             populateField(instance, field, context);
         }
     }
@@ -79,18 +75,28 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
      * Kafka's generator compiles every {@code taggedVersions}/{@code tag} field in a struct's JSON spec
      * into individual {@link org.apache.kafka.common.protocol.types.Field} entries wrapped by a single
      * synthetic {@code _tagged_fields} {@link BoundField}, rather than exposing them as top-level
-     * {@code BoundField}s the way {@link Schema#fields()} does - so they must be unwrapped and walked
-     * separately. Each wrapped {@code Field} shares the same shape ({@code name}/{@code type}) that
-     * {@link #populateField} already relies on, so it can be adapted into a {@link BoundField} and driven
-     * through the exact same per-field logic used for plain fields; the generated setter for a tagged
-     * field is an ordinary public setter, indistinguishable in shape from a non-tagged field's setter, and
-     * a tag's presence on the wire is implicit in its value being non-default, so no separate registration
-     * step is needed.
+     * {@code BoundField}s the way {@link Schema#fields()} does - so this flattens the schema's raw field
+     * list into the fields actually available to populate, splicing each wrapped tag in as its own
+     * {@link BoundField} in place of the synthetic wrapper, so callers never need to know the wrapper
+     * exists. Each wrapped {@code Field} shares the same shape ({@code name}/{@code type}) that
+     * {@link #populateField} already relies on, so it can be adapted directly; the generated setter for a
+     * tagged field is an ordinary public setter, indistinguishable in shape from a non-tagged field's
+     * setter, and a tag's presence on the wire is implicit in its value being non-default, so no separate
+     * registration step is needed.
      */
-    private void populateTaggedFields(Object instance, TaggedFields taggedFields, StructResolutionContext context) {
-        for (var entry : taggedFields.fields().entrySet()) {
-            populateField(instance, new BoundField(entry.getValue(), null, entry.getKey()), context);
+    private static List<BoundField> expandFields(Schema schema) {
+        List<BoundField> expanded = new ArrayList<>();
+        for (BoundField field : schema.fields()) {
+            if (field.def.type instanceof TaggedFields taggedFields) {
+                for (var entry : taggedFields.fields().entrySet()) {
+                    expanded.add(new BoundField(entry.getValue(), null, entry.getKey()));
+                }
+            }
+            else {
+                expanded.add(field);
+            }
         }
+        return expanded;
     }
 
     private void populateField(Object instance, BoundField field, StructResolutionContext context) {
