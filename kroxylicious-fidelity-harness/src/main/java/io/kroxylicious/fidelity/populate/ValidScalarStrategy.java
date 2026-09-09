@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.kafka.common.protocol.types.BoundField;
+import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.TaggedFields;
 import org.apache.kafka.common.protocol.types.Type;
 
@@ -41,6 +42,10 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
     @Override
     public FieldDecision resolve(BoundField field) {
         if (field.def.type instanceof TaggedFields) {
+            return new FieldDecision.Defer();
+        }
+        Type leafType = field.def.type.arrayElementType().orElse(field.def.type);
+        if (leafType instanceof Schema) {
             return new FieldDecision.Defer();
         }
         if (field.def.type.arrayElementType().isPresent()) {

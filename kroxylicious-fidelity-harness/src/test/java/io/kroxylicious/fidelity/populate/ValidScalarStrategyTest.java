@@ -20,7 +20,6 @@ import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ValidScalarStrategyTest {
 
@@ -356,17 +355,31 @@ class ValidScalarStrategyTest {
     }
 
     @Test
-    void unsupportedTypeExceptionNamesTheField() {
+    void resolvesStructFieldToDefer() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+        Schema elementSchema = new Schema(new Field("value", Type.INT32, "doc"));
+        BoundField structField = new Schema(new Field("result", elementSchema, "doc")).get("result");
+
+        // When
+        FieldDecision decision = strategy.resolve(structField);
+
+        // Then
+        assertThat(decision).isInstanceOf(FieldDecision.Defer.class);
+    }
+
+    @Test
+    void resolvesStructArrayFieldToDefer() {
         // Given
         ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
         Schema elementSchema = new Schema(new Field("value", Type.INT32, "doc"));
         BoundField structArrayField = new Schema(new Field("results", new ArrayOf(elementSchema), "doc")).get("results");
 
         // When
+        FieldDecision decision = strategy.resolve(structArrayField);
+
         // Then
-        assertThatThrownBy(() -> strategy.resolve(structArrayField))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("results");
+        assertThat(decision).isInstanceOf(FieldDecision.Defer.class);
     }
 
     @Test
