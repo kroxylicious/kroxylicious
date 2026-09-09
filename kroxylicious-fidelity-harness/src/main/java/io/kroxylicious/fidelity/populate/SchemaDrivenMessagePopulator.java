@@ -275,6 +275,10 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         if (value instanceof io.kroxylicious.kafka.common.Uuid uuid && parameterType == org.apache.kafka.common.Uuid.class) {
             return new org.apache.kafka.common.Uuid(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
         }
+        if (value instanceof io.kroxylicious.kafka.common.record.internal.MemoryRecords
+                && org.apache.kafka.common.record.internal.BaseRecords.class.isAssignableFrom(parameterType)) {
+            return org.apache.kafka.common.record.internal.MemoryRecords.EMPTY;
+        }
         return value;
     }
 

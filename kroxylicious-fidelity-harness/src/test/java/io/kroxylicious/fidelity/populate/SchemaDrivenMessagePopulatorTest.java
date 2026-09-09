@@ -269,6 +269,28 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
+    void populatesRecordsFieldOnKafkaInstance() {
+        // Given
+        // ValidScalarStrategy always produces an io.kroxylicious.kafka.common.record.internal.MemoryRecords,
+        // but this instance's setter expects org.apache.kafka.common.record.internal.BaseRecords, satisfied
+        // by a different, same-shaped org.apache.kafka.common.record.internal.MemoryRecords class. Version 4
+        // is used because it is the lowest version with plain List setters throughout and no tagged-fields
+        // sections in the struct chain leading to Records, isolating this fix from the separate, unrelated,
+        // out-of-scope custom-collection-setter and tagged-struct-field cases.
+        org.apache.kafka.common.message.FetchResponseData instance = new org.apache.kafka.common.message.FetchResponseData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 4);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.responses()).isNotEmpty();
+        assertThat(instance.responses().get(0).partitions()).isNotEmpty();
+        assertThat(instance.responses().get(0).partitions().get(0).records()).isNotNull();
+    }
+
+    @Test
     void populatesArrayOfScalarField() {
         // Given
         DeleteTopicsRequestData instance = new DeleteTopicsRequestData();
