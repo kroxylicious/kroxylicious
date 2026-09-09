@@ -308,13 +308,7 @@ class SchemaDrivenMessagePopulatorTest {
     void populatesPlainStructField() {
         // Given
         UpdateRaftVoterRequestData instance = new UpdateRaftVoterRequestData();
-        // "listeners" is an array-of-struct field with a custom ImplicitLinkedHashMultiCollection
-        // setter rather than a plain List setter; that's a separate, out-of-scope case, so it's
-        // stubbed out here to isolate the plain-struct field this test targets.
-        FieldPopulationStrategy strategy = field -> field.def.name.equals("listeners")
-                ? new FieldDecision.Value(new UpdateRaftVoterRequestData.ListenerCollection(0))
-                : validScalarStrategy.resolve(field);
-        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(strategy);
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
 
         // When
         PopulationResult result = populator.populate(instance, (short) 0);
@@ -364,6 +358,28 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
+    void populatesArrayOfStructFieldWithCustomCollectionSetter() {
+        // Given
+        // "listeners" is an array-of-struct field whose generated setter takes a custom
+        // ImplicitLinkedHashMultiCollection-derived collection (ListenerCollection) rather than a
+        // plain List, so the composed List<Object> value must be adapted to the setter's own
+        // collection type.
+        UpdateRaftVoterRequestData instance = new UpdateRaftVoterRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 0);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.listeners()).isNotEmpty();
+        assertThat(instance.listeners()).allSatisfy(listener -> {
+            assertThat(listener.name()).isNotNull();
+            assertThat(listener.host()).isNotNull();
+        });
+    }
+
+    @Test
     void unsupportedStructFieldInsideTaggedFieldsSectionExceptionNamesTheField() {
         // Given
         // node_endpoints is a struct-typed tag inside v1's non-empty tagged-fields section, a different,
@@ -381,17 +397,19 @@ class SchemaDrivenMessagePopulatorTest {
     @Test
     void wrapsSetterArgumentTypeMismatchWithFieldContext() {
         // Given
-        // "listeners" is an array-of-struct field whose generated setter takes a custom
-        // ImplicitLinkedHashMultiCollection type (ListenerCollection) rather than a plain List, so the
-        // composed List<Object> value mismatches the setter's parameter type.
-        UpdateRaftVoterRequestData instance = new UpdateRaftVoterRequestData();
-        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+        // "generation_id" is an int32 field; a strategy that produces a String for it mismatches the
+        // generated setter's parameter type.
+        FieldPopulationStrategy mistypedStrategy = field -> field.def.name.equals("generation_id")
+                ? new FieldDecision.Value("not-an-int")
+                : validScalarStrategy.resolve(field);
+        HeartbeatRequestData instance = new HeartbeatRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(mistypedStrategy);
 
         // When
         // Then
         assertThatThrownBy(() -> populator.populate(instance, (short) 0))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("listeners")
+                .hasMessageContaining("generation_id")
                 .cause().isInstanceOf(IllegalArgumentException.class);
     }
 

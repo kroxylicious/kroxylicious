@@ -10,6 +10,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -279,7 +280,29 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
                 && org.apache.kafka.common.record.internal.BaseRecords.class.isAssignableFrom(parameterType)) {
             return org.apache.kafka.common.record.internal.MemoryRecords.EMPTY;
         }
+        if (value instanceof List<?> elements && !parameterType.isAssignableFrom(value.getClass())
+                && Collection.class.isAssignableFrom(parameterType)) {
+            return newCollection(parameterType, elements);
+        }
         return value;
+    }
+
+    /**
+     * An array-of-struct field whose generator-emitted setter declares a specialised
+     * {@code ImplicitLinkedHashMultiCollection}-derived collection type (e.g. {@code BrokerCollection}) rather
+     * than a plain {@code List} still exposes a no-arg constructor and {@link Collection#add}, so the composed
+     * list of populated struct instances can be adapted into it without knowing the concrete type up front.
+     */
+    private static Collection<Object> newCollection(Class<?> collectionType, List<?> elements) {
+        try {
+            @SuppressWarnings("unchecked")
+            Collection<Object> collection = (Collection<Object>) collectionType.getDeclaredConstructor().newInstance();
+            collection.addAll(elements);
+            return collection;
+        }
+        catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Could not instantiate collection " + collectionType, e);
+        }
     }
 
     private static String toSnakeCase(String pascalCaseName) {
