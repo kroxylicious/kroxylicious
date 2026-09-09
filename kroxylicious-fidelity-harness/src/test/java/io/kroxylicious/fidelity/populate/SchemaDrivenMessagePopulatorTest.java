@@ -307,6 +307,25 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
+    void populatesNullableStructField() {
+        // Given
+        // "topology" is a nullable struct field; Kafka's generator wraps its schema in a NullableSchema
+        // that copies the struct's Field defs into a brand new Schema instance rather than reusing the
+        // struct class's own SCHEMA_0 object, so identity-based struct-class resolution must see through
+        // that wrapper.
+        org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData instance = new org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 0);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.topology()).isNotNull();
+        assertThat(instance.topology().epoch()).isNotZero();
+    }
+
+    @Test
     void unsupportedStructFieldInsideTaggedFieldsSectionExceptionNamesTheField() {
         // Given
         // node_endpoints is a struct-typed tag inside v1's non-empty tagged-fields section, a different,

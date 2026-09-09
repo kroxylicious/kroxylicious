@@ -165,7 +165,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
             for (Field candidate : nested.getDeclaredFields()) {
                 if (Schema.class.equals(candidate.getType()) && Modifier.isStatic(candidate.getModifiers())) {
                     try {
-                        if (candidate.get(null).equals(target)) {
+                        if (sameStruct((Schema) candidate.get(null), target)) {
                             return Optional.of(nested);
                         }
                     }
@@ -180,6 +180,30 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * A nullable struct field's type is a {@link org.apache.kafka.common.protocol.types.NullableSchema}
+     * wrapping the struct's schema - it copies the struct's {@link org.apache.kafka.common.protocol.types.Field}
+     * defs into a brand new {@link Schema} instance rather than reusing the struct class's own {@code SCHEMA_N}
+     * object, so a plain identity/equality check on the {@link Schema} itself misses this case. The copied
+     * defs are the same {@code Field} objects, though, so comparing fields by identity sees through the wrapper.
+     */
+    private static boolean sameStruct(Schema candidate, Schema target) {
+        if (candidate.equals(target)) {
+            return true;
+        }
+        BoundField[] candidateFields = candidate.fields();
+        BoundField[] targetFields = target.fields();
+        if (candidateFields.length != targetFields.length) {
+            return false;
+        }
+        for (int i = 0; i < candidateFields.length; i++) {
+            if (!candidateFields[i].def.equals(targetFields[i].def)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -215,8 +239,8 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         try {
             setter.invoke(instance, convertToParameterType(value, setter.getParameterTypes()[0]));
         }
-        catch (ReflectiveOperationException | IllegalArgumentException e) {
-            throw new IllegalStateException("Could not invoke setter for field '" + field.def.name + "' on " + instance.getClass(), e);
+        catch (Exception e) {
+            throw new IllegalStateException("Could not invoke setter (" + setter.getName() + ") for field '" + field.def.name + "' on " + instance.getClass(), e);
         }
     }
 
