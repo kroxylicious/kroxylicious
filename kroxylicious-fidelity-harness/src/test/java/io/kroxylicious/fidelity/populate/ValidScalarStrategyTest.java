@@ -370,6 +370,20 @@ class ValidScalarStrategyTest {
     }
 
     @Test
+    void unsupportedStructTypeExceptionIncludesStructTypeName() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+        Schema nestedSchema = new Schema(new Field("value", Type.INT32, "doc"));
+        BoundField structField = new Schema(new Field("topic_data", nestedSchema, "doc")).get("topic_data");
+
+        // When
+        // Then
+        assertThatThrownBy(() -> strategy.resolve(structField))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("STRUCT{");
+    }
+
+    @Test
     void sameSeedResolvesToSameValue() {
         // Given
         ValidScalarStrategy first = new ValidScalarStrategy(new Random(42));

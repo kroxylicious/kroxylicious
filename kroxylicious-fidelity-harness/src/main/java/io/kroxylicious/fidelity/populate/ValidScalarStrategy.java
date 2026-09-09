@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.kafka.common.protocol.types.BoundField;
+import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.TaggedFields;
 import org.apache.kafka.common.protocol.types.Type;
 
@@ -119,7 +120,14 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         if (type.equals(Type.BOOLEAN)) {
             return random.nextBoolean();
         }
-        throw new UnsupportedOperationException("No valid-value strategy for field '" + fieldName + "' of type " + type);
+        throw new UnsupportedOperationException("No valid-value strategy for field '" + fieldName + "' of type " + describeType(type));
+    }
+
+    private static String describeType(Type type) {
+        if (type instanceof Schema schema) {
+            return schema.typeName() + schema;
+        }
+        return type.toString();
     }
 
     private List<Object> randomList(String fieldName, Type elementType) {
