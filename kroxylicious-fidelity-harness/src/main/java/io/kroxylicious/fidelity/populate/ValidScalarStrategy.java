@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.fidelity.populate;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.kafka.common.protocol.types.BoundField;
@@ -24,6 +26,7 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
     private static final int MAX_BYTES_LENGTH = 20;
     private static final int UINT16_BOUND = 1 << 16;
     private static final long UNSIGNED_INT32_BOUND = 1L << 32;
+    private static final int MAX_ARRAY_LENGTH = 3;
 
     private final Random random;
 
@@ -37,79 +40,95 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
 
     @Override
     public FieldDecision resolve(BoundField field) {
-        if (field.def.type.equals(Type.STRING)) {
-            return new FieldDecision.Value(randomString());
-        }
-        if (field.def.type.equals(Type.BYTES)) {
-            return new FieldDecision.Value(randomBytes());
-        }
-        if (field.def.type.equals(Type.COMPACT_BYTES)) {
-            return new FieldDecision.Value(randomBytes());
-        }
-        if (field.def.type.equals(Type.COMPACT_NULLABLE_BYTES)) {
-            return new FieldDecision.Value(randomBytes());
-        }
-        if (field.def.type.equals(Type.COMPACT_NULLABLE_RECORDS)) {
-            return new FieldDecision.Value(MemoryRecords.EMPTY);
-        }
-        if (field.def.type.equals(Type.COMPACT_NULLABLE_STRING)) {
-            return new FieldDecision.Value(randomString());
-        }
-        if (field.def.type.equals(Type.COMPACT_RECORDS)) {
-            return new FieldDecision.Value(MemoryRecords.EMPTY);
-        }
-        if (field.def.type.equals(Type.COMPACT_STRING)) {
-            return new FieldDecision.Value(randomString());
-        }
-        if (field.def.type.equals(Type.FLOAT64)) {
-            return new FieldDecision.Value(random.nextDouble());
-        }
-        if (field.def.type.equals(Type.NULLABLE_BYTES)) {
-            return new FieldDecision.Value(randomBytes());
-        }
-        if (field.def.type.equals(Type.NULLABLE_RECORDS)) {
-            return new FieldDecision.Value(MemoryRecords.EMPTY);
-        }
-        if (field.def.type.equals(Type.NULLABLE_STRING)) {
-            return new FieldDecision.Value(randomString());
-        }
-        if (field.def.type.equals(Type.RECORDS)) {
-            return new FieldDecision.Value(MemoryRecords.EMPTY);
-        }
-        if (field.def.type.equals(Type.UINT16)) {
-            return new FieldDecision.Value(random.nextInt(UINT16_BOUND));
-        }
-        if (field.def.type.equals(Type.UNSIGNED_INT32)) {
-            return new FieldDecision.Value(random.nextLong(UNSIGNED_INT32_BOUND));
-        }
-        if (field.def.type.equals(Type.UUID)) {
-            return new FieldDecision.Value(randomUuid());
-        }
-        if (field.def.type.equals(Type.VARINT)) {
-            return new FieldDecision.Value(random.nextInt());
-        }
-        if (field.def.type.equals(Type.VARLONG)) {
-            return new FieldDecision.Value(random.nextLong());
-        }
-        if (field.def.type.equals(Type.INT32)) {
-            return new FieldDecision.Value(random.nextInt());
-        }
-        if (field.def.type.equals(Type.INT16)) {
-            return new FieldDecision.Value((short) random.nextInt());
-        }
-        if (field.def.type.equals(Type.INT8)) {
-            return new FieldDecision.Value((byte) random.nextInt());
-        }
-        if (field.def.type.equals(Type.INT64)) {
-            return new FieldDecision.Value(random.nextLong());
-        }
-        if (field.def.type.equals(Type.BOOLEAN)) {
-            return new FieldDecision.Value(random.nextBoolean());
-        }
         if (field.def.type instanceof TaggedFields) {
             return new FieldDecision.Defer();
         }
-        throw new UnsupportedOperationException("No valid-value strategy for type " + field.def.type);
+        if (field.def.type.arrayElementType().isPresent()) {
+            return new FieldDecision.Value(randomList(field.def.type.arrayElementType().get()));
+        }
+        return new FieldDecision.Value(randomScalar(field.def.type));
+    }
+
+    private Object randomScalar(Type type) {
+        if (type.equals(Type.STRING)) {
+            return randomString();
+        }
+        if (type.equals(Type.BYTES)) {
+            return randomBytes();
+        }
+        if (type.equals(Type.COMPACT_BYTES)) {
+            return randomBytes();
+        }
+        if (type.equals(Type.COMPACT_NULLABLE_BYTES)) {
+            return randomBytes();
+        }
+        if (type.equals(Type.COMPACT_NULLABLE_RECORDS)) {
+            return MemoryRecords.EMPTY;
+        }
+        if (type.equals(Type.COMPACT_NULLABLE_STRING)) {
+            return randomString();
+        }
+        if (type.equals(Type.COMPACT_RECORDS)) {
+            return MemoryRecords.EMPTY;
+        }
+        if (type.equals(Type.COMPACT_STRING)) {
+            return randomString();
+        }
+        if (type.equals(Type.FLOAT64)) {
+            return random.nextDouble();
+        }
+        if (type.equals(Type.NULLABLE_BYTES)) {
+            return randomBytes();
+        }
+        if (type.equals(Type.NULLABLE_RECORDS)) {
+            return MemoryRecords.EMPTY;
+        }
+        if (type.equals(Type.NULLABLE_STRING)) {
+            return randomString();
+        }
+        if (type.equals(Type.RECORDS)) {
+            return MemoryRecords.EMPTY;
+        }
+        if (type.equals(Type.UINT16)) {
+            return random.nextInt(UINT16_BOUND);
+        }
+        if (type.equals(Type.UNSIGNED_INT32)) {
+            return random.nextLong(UNSIGNED_INT32_BOUND);
+        }
+        if (type.equals(Type.UUID)) {
+            return randomUuid();
+        }
+        if (type.equals(Type.VARINT)) {
+            return random.nextInt();
+        }
+        if (type.equals(Type.VARLONG)) {
+            return random.nextLong();
+        }
+        if (type.equals(Type.INT32)) {
+            return random.nextInt();
+        }
+        if (type.equals(Type.INT16)) {
+            return (short) random.nextInt();
+        }
+        if (type.equals(Type.INT8)) {
+            return (byte) random.nextInt();
+        }
+        if (type.equals(Type.INT64)) {
+            return random.nextLong();
+        }
+        if (type.equals(Type.BOOLEAN)) {
+            return random.nextBoolean();
+        }
+        throw new UnsupportedOperationException("No valid-value strategy for type " + type);
+    }
+
+    private List<Object> randomList(Type elementType) {
+        int length = 1 + random.nextInt(MAX_ARRAY_LENGTH);
+        List<Object> values = new ArrayList<>(length);
+        for (int i = 0; i < length; i++) {
+            values.add(randomScalar(elementType));
+        }
+        return values;
     }
 
     private String randomString() {

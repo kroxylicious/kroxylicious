@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.kafka.common.message.AddOffsetsToTxnRequestData;
 import io.kroxylicious.kafka.common.message.AddRaftVoterResponseData;
 import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.DeleteTopicsRequestData;
 import io.kroxylicious.kafka.common.message.EndTxnRequestData;
 import io.kroxylicious.kafka.common.message.EnvelopeResponseData;
 import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
@@ -246,6 +247,20 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.voterDirectoryId()).isNotNull();
+    }
+
+    @Test
+    void populatesArrayOfScalarField() {
+        // Given
+        DeleteTopicsRequestData instance = new DeleteTopicsRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 1);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.topicNames()).isNotEmpty();
     }
 
     @Test

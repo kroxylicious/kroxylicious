@@ -5,8 +5,10 @@
  */
 package io.kroxylicious.fidelity.populate;
 
+import java.util.List;
 import java.util.Random;
 
+import org.apache.kafka.common.protocol.types.ArrayOf;
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.Field;
 import org.apache.kafka.common.protocol.types.Field.TaggedFieldsSection;
@@ -45,6 +47,7 @@ class ValidScalarStrategyTest {
     private static final BoundField UUID_FIELD = new Schema(new Field("voter_directory_id", Type.UUID, "doc")).get("voter_directory_id");
     private static final BoundField VARINT_FIELD = new Schema(new Field("value", Type.VARINT, "doc")).get("value");
     private static final BoundField VARLONG_FIELD = new Schema(new Field("value", Type.VARLONG, "doc")).get("value");
+    private static final BoundField STRING_ARRAY_FIELD = new Schema(new Field("topic_names", new ArrayOf(Type.STRING), "doc")).get("topic_names");
 
     @Test
     void resolvesStringFieldToNonNullValue() {
@@ -332,6 +335,23 @@ class ValidScalarStrategyTest {
 
         // Then
         assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> assertThat(value.value()).isInstanceOf(Long.class));
+    }
+
+    @Test
+    void resolvesArrayFieldToListOfElementValues() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+
+        // When
+        FieldDecision decision = strategy.resolve(STRING_ARRAY_FIELD);
+
+        // Then
+        assertThat(decision).isInstanceOfSatisfying(FieldDecision.Value.class, value -> {
+            assertThat(value.value()).isInstanceOf(List.class);
+            List<?> elements = (List<?>) value.value();
+            assertThat(elements).isNotEmpty();
+            assertThat(elements).allSatisfy(element -> assertThat(element).isInstanceOf(String.class));
+        });
     }
 
     @Test
