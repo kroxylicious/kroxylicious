@@ -26,6 +26,7 @@ import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
 import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SchemaDrivenMessagePopulatorTest {
 
@@ -261,6 +262,19 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.topicNames()).isNotEmpty();
+    }
+
+    @Test
+    void unsupportedStructFieldExceptionIncludesGeneratedStructClassName() {
+        // Given
+        org.apache.kafka.common.message.DescribeLogDirsResponseData instance = new org.apache.kafka.common.message.DescribeLogDirsResponseData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        // Then
+        assertThatThrownBy(() -> populator.populate(instance, (short) 1))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("DescribeLogDirsResult");
     }
 
     @Test

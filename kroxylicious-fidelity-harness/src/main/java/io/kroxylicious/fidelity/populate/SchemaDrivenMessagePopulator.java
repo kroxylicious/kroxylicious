@@ -5,12 +5,16 @@
  */
 package io.kroxylicious.fidelity.populate;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
+import java.util.Optional;
 
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.TaggedFields;
+import org.apache.kafka.common.protocol.types.Type;
 
 /**
  * Walks Kafka's authoritative runtime protocol schema for a message and drives the configured
@@ -35,9 +39,16 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
 
     @Override
     public PopulationResult populate(Object instance, short version) {
-        Schema schema = kafkaSchemaFor(instance, version);
+        Class<?> kafkaClass = kafkaClassFor(instance);
+        Schema schema = kafkaSchemaFor(kafkaClass, version);
         for (BoundField field : schema.fields()) {
-            FieldDecision decision = strategy.resolve(field);
+            FieldDecision decision;
+            try {
+                decision = strategy.resolve(field);
+            }
+            catch (UnsupportedOperationException e) {
+                throw withStructContext(e, kafkaClass, field.def.type);
+            }
             if (decision instanceof FieldDecision.Value(Object value1)) {
                 invokeSetter(instance, field, value1);
                 continue;
@@ -52,16 +63,64 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         return new PopulationResult.Populated();
     }
 
-    private static Schema kafkaSchemaFor(Object instance, short version) {
+    private static Class<?> kafkaClassFor(Object instance) {
         String kafkaClassName = "org.apache.kafka.common.message." + instance.getClass().getSimpleName();
         try {
-            Class<?> kafkaClass = Class.forName(kafkaClassName);
+            return Class.forName(kafkaClassName);
+        }
+        catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("Could not resolve Kafka class for " + kafkaClassName, e);
+        }
+    }
+
+    private static Schema kafkaSchemaFor(Class<?> kafkaClass, short version) {
+        try {
             Schema[] schemas = (Schema[]) kafkaClass.getField("SCHEMAS").get(null);
             return schemas[version];
         }
         catch (ReflectiveOperationException e) {
-            throw new IllegalArgumentException("Could not resolve Kafka schema for " + kafkaClassName, e);
+            throw new IllegalArgumentException("Could not resolve Kafka schema for " + kafkaClass.getName(), e);
         }
+    }
+
+    /**
+     * The struct's own {@link Schema} carries no name; the generated class holding it as a
+     * {@code SCHEMA_N} constant does, so recover it by identity from the message's nested classes.
+     */
+    private static UnsupportedOperationException withStructContext(UnsupportedOperationException original, Class<?> kafkaClass, Type fieldType) {
+        return structTypeOf(fieldType)
+                .flatMap(structSchema -> resolveStructClassName(kafkaClass, structSchema))
+                .map(className -> new UnsupportedOperationException(original.getMessage() + " (struct type: " + className + ")", original))
+                .orElse(original);
+    }
+
+    private static Optional<Schema> structTypeOf(Type type) {
+        if (type instanceof Schema schema) {
+            return Optional.of(schema);
+        }
+        return type.arrayElementType().filter(Schema.class::isInstance).map(Schema.class::cast);
+    }
+
+    private static Optional<String> resolveStructClassName(Class<?> containingClass, Schema target) {
+        for (Class<?> nested : containingClass.getDeclaredClasses()) {
+            for (Field candidate : nested.getDeclaredFields()) {
+                if (Schema.class.equals(candidate.getType()) && Modifier.isStatic(candidate.getModifiers())) {
+                    try {
+                        if (candidate.get(null).equals(target)) {
+                            return Optional.of(nested.getSimpleName());
+                        }
+                    }
+                    catch (IllegalAccessException e) {
+                        // Not this field; keep searching.
+                    }
+                }
+            }
+            Optional<String> nestedMatch = resolveStructClassName(nested, target);
+            if (nestedMatch.isPresent()) {
+                return nestedMatch;
+            }
+        }
+        return Optional.empty();
     }
 
     private static void invokeSetter(Object instance, BoundField field, Object value) {
