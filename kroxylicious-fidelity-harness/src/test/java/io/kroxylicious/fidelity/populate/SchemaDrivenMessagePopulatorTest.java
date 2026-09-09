@@ -24,6 +24,7 @@ import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
 import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.message.UpdateRaftVoterRequestData;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -262,6 +263,28 @@ class SchemaDrivenMessagePopulatorTest {
         // Then
         assertThat(result).isInstanceOf(PopulationResult.Populated.class);
         assertThat(instance.topicNames()).isNotEmpty();
+    }
+
+    @Test
+    void populatesPlainStructField() {
+        // Given
+        UpdateRaftVoterRequestData instance = new UpdateRaftVoterRequestData();
+        // "listeners" is an array-of-struct field with a custom ImplicitLinkedHashMultiCollection
+        // setter rather than a plain List setter; that's a separate, out-of-scope case, so it's
+        // stubbed out here to isolate the plain-struct field this test targets.
+        FieldPopulationStrategy strategy = field -> field.def.name.equals("listeners")
+                ? new FieldDecision.Value(new UpdateRaftVoterRequestData.ListenerCollection(0))
+                : validScalarStrategy.resolve(field);
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(strategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 0);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.kRaftVersionFeature()).isNotNull();
+        assertThat(instance.kRaftVersionFeature().minSupportedVersion()).isNotZero();
+        assertThat(instance.kRaftVersionFeature().maxSupportedVersion()).isNotZero();
     }
 
     @Test

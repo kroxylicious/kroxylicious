@@ -39,7 +39,11 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
 
     @Override
     public PopulationResult populate(Object instance, short version) {
-        Class<?> kafkaClass = kafkaClassFor(instance);
+        populateStruct(instance, kafkaClassFor(instance), version);
+        return new PopulationResult.Populated();
+    }
+
+    private void populateStruct(Object instance, Class<?> kafkaClass, short version) {
         Schema schema = kafkaSchemaFor(kafkaClass, version);
         for (BoundField field : schema.fields()) {
             FieldDecision decision;
@@ -57,10 +61,37 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
                 // An empty tagged-fields section has nothing to populate.
                 continue;
             }
+            Optional<Object> composed = composeStructValue(instance, kafkaClass, field, version);
+            if (composed.isPresent()) {
+                invokeSetter(instance, field, composed.get());
+                continue;
+            }
             throw new UnsupportedOperationException(
                     "Composite/array field walking is not yet supported for " + describeField(field, kafkaClass));
         }
-        return new PopulationResult.Populated();
+    }
+
+    /**
+     * Composes the value for a struct-typed (or array-of-struct-typed) field by recursively populating
+     * a freshly constructed nested instance. Only the plain, non-array struct case is implemented so far;
+     * an array-of-struct field resolves to {@link Optional#empty()}, leaving the caller's existing
+     * "not yet supported" handling in place.
+     */
+    private Optional<Object> composeStructValue(Object instance, Class<?> kafkaClass, BoundField field, short version) {
+        Type leafType = field.def.type.arrayElementType().orElse(field.def.type);
+        if (!(leafType instanceof Schema structSchema)) {
+            return Optional.empty();
+        }
+        if (field.def.type.arrayElementType().isPresent()) {
+            return Optional.empty();
+        }
+        return resolveStructClass(kafkaClass, structSchema)
+                .flatMap(kafkaStructClass -> resolveNestedClassByName(instance.getClass(), kafkaStructClass.getSimpleName())
+                        .map(instanceStructClass -> {
+                            Object structInstance = instantiate(instanceStructClass);
+                            populateStruct(structInstance, kafkaStructClass, version);
+                            return structInstance;
+                        }));
     }
 
     private static Class<?> kafkaClassFor(Object instance) {
@@ -90,8 +121,8 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     private static String describeField(BoundField field, Class<?> kafkaClass) {
         StringBuilder description = new StringBuilder("field '").append(field.def.name).append("' of type ").append(field.def.type);
         structTypeOf(field.def.type)
-                .flatMap(structSchema -> resolveStructClassName(kafkaClass, structSchema))
-                .ifPresent(className -> description.append(" (struct type: ").append(className).append(")"));
+                .flatMap(structSchema -> resolveStructClass(kafkaClass, structSchema))
+                .ifPresent(structClass -> description.append(" (struct type: ").append(structClass.getSimpleName()).append(")"));
         return description.toString();
     }
 
@@ -102,13 +133,13 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         return type.arrayElementType().filter(Schema.class::isInstance).map(Schema.class::cast);
     }
 
-    private static Optional<String> resolveStructClassName(Class<?> containingClass, Schema target) {
+    private static Optional<Class<?>> resolveStructClass(Class<?> containingClass, Schema target) {
         for (Class<?> nested : containingClass.getDeclaredClasses()) {
             for (Field candidate : nested.getDeclaredFields()) {
                 if (Schema.class.equals(candidate.getType()) && Modifier.isStatic(candidate.getModifiers())) {
                     try {
                         if (candidate.get(null).equals(target)) {
-                            return Optional.of(nested.getSimpleName());
+                            return Optional.of(nested);
                         }
                     }
                     catch (IllegalAccessException e) {
@@ -116,7 +147,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
                     }
                 }
             }
-            Optional<String> nestedMatch = resolveStructClassName(nested, target);
+            Optional<Class<?>> nestedMatch = resolveStructClass(nested, target);
             if (nestedMatch.isPresent()) {
                 return nestedMatch;
             }
@@ -124,24 +155,60 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         return Optional.empty();
     }
 
+    /**
+     * The Kafka-side struct class found by {@link #resolveStructClass} identifies the field's type by
+     * object identity, but the value must be an instance of the analogous class in {@code instance}'s
+     * own class family (Kroxylicious or Kafka). That class shares the Kafka-side class's simple name but
+     * is otherwise unrelated, so it can only be found by name, not by identity.
+     */
+    private static Optional<Class<?>> resolveNestedClassByName(Class<?> containingClass, String simpleName) {
+        for (Class<?> nested : containingClass.getDeclaredClasses()) {
+            if (nested.getSimpleName().equals(simpleName)) {
+                return Optional.of(nested);
+            }
+            Optional<Class<?>> nestedMatch = resolveNestedClassByName(nested, simpleName);
+            if (nestedMatch.isPresent()) {
+                return nestedMatch;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Object instantiate(Class<?> clazz) {
+        try {
+            return clazz.getDeclaredConstructor().newInstance();
+        }
+        catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Could not instantiate " + clazz, e);
+        }
+    }
+
     private static void invokeSetter(Object instance, BoundField field, Object value) {
-        String setterName = "set" + toCamelCase(field.def.name);
-        Method setter = findSetter(instance.getClass(), setterName);
+        Method setter = findSetter(instance.getClass(), field.def.name);
         try {
             setter.invoke(instance, convertToParameterType(value, setter.getParameterTypes()[0]));
         }
         catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Could not invoke " + setterName + " on " + instance.getClass(), e);
+            throw new IllegalStateException("Could not invoke setter for field '" + field.def.name + "' on " + instance.getClass(), e);
         }
     }
 
-    private static Method findSetter(Class<?> instanceClass, String setterName) {
+    /**
+     * Finds the generated setter for {@code fieldName} by converting each candidate setter's name back to
+     * the schema's snake_case convention and comparing, rather than guessing the setter name forward from
+     * {@code fieldName}. Forward guessing is lossy: Kafka's generator derives the wire field name from a
+     * PascalCase Java name by lower-casing runs of leading capitals without inserting separators (e.g. both
+     * {@code KRaftVersionFeature} and {@code KraftVersionFeature} would yield {@code kraft_version_feature}),
+     * so a snake_case name alone cannot always be turned back into the correct Java name.
+     */
+    private static Method findSetter(Class<?> instanceClass, String fieldName) {
         for (Method method : instanceClass.getMethods()) {
-            if (method.getName().equals(setterName) && method.getParameterCount() == 1) {
+            if (method.getParameterCount() == 1 && method.getName().startsWith("set")
+                    && toSnakeCase(method.getName().substring(3)).equals(fieldName)) {
                 return method;
             }
         }
-        throw new IllegalStateException("No setter named " + setterName + " on " + instanceClass);
+        throw new IllegalStateException("No setter for field '" + fieldName + "' on " + instanceClass);
     }
 
     private static Object convertToParameterType(Object value, Class<?> parameterType) {
@@ -151,21 +218,22 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         return value;
     }
 
-    private static String toCamelCase(String snakeCaseName) {
-        StringBuilder camelCaseName = new StringBuilder();
-        boolean upperCaseNextChar = true;
-        for (char c : snakeCaseName.toCharArray()) {
-            if (c == '_') {
-                upperCaseNextChar = true;
-            }
-            else if (upperCaseNextChar) {
-                camelCaseName.append(Character.toUpperCase(c));
-                upperCaseNextChar = false;
+    private static String toSnakeCase(String pascalCaseName) {
+        StringBuilder snakeCaseName = new StringBuilder();
+        boolean previousWasUpperCase = true;
+        for (char c : pascalCaseName.toCharArray()) {
+            if (Character.isUpperCase(c)) {
+                if (!previousWasUpperCase) {
+                    snakeCaseName.append('_');
+                }
+                snakeCaseName.append(Character.toLowerCase(c));
+                previousWasUpperCase = true;
             }
             else {
-                camelCaseName.append(c);
+                snakeCaseName.append(c);
+                previousWasUpperCase = false;
             }
         }
-        return camelCaseName.toString();
+        return snakeCaseName.toString();
     }
 }
