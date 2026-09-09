@@ -40,18 +40,21 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.api.model.apps.DeploymentCondition;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.fabric8.openshift.api.model.Route;
@@ -211,6 +214,101 @@ public class KafkaProxyReconcilerIT {
 
         // then
         assertDeploymentReplicaCount(created.proxy(), 3);
+    }
+
+    @Test
+    void shouldConfigureServiceAccountOnDeployment() {
+        // Given
+        var suffix = uniqueSuffix();
+        String serviceAccountName = "proxy-sa" + suffix;
+        createServiceAccount(serviceAccountName);
+
+        // When
+        var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP),
+                withServiceAccountName(kafkaProxy(PROXY_A + suffix), serviceAccountName));
+
+        // Then
+        assertDeploymentServiceAccount(created.proxy(), serviceAccountName);
+        assertProxyPodServiceAccount(created.proxy(), serviceAccountName);
+    }
+
+    @Test
+    void shouldRollProxyPodsWhenServiceAccountChanges() {
+        // Given
+        var suffix = uniqueSuffix();
+        String oldServiceAccountName = "proxy-sa-old" + suffix;
+        String newServiceAccountName = "proxy-sa-new" + suffix;
+        createServiceAccount(oldServiceAccountName);
+        createServiceAccount(newServiceAccountName);
+        var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP),
+                withServiceAccountName(kafkaProxy(PROXY_A + suffix), oldServiceAccountName));
+
+        // When
+        updateServiceAccountName(created.proxy(), newServiceAccountName);
+
+        // Then
+        assertDeploymentServiceAccount(created.proxy(), newServiceAccountName);
+        assertProxyPodServiceAccount(created.proxy(), newServiceAccountName);
+    }
+
+    @Test
+    void shouldRestoreDefaultServiceAccountWhenConfigurationIsRemoved() {
+        // Given
+        var suffix = uniqueSuffix();
+        String serviceAccountName = "proxy-sa" + suffix;
+        createServiceAccount(serviceAccountName);
+        var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP),
+                withServiceAccountName(kafkaProxy(PROXY_A + suffix), serviceAccountName));
+
+        // When
+        updateServiceAccountName(created.proxy(), null);
+
+        // Then
+        assertDeploymentServiceAccount(created.proxy(), null);
+        assertProxyPodServiceAccount(created.proxy(), "default");
+    }
+
+    @Test
+    void shouldReportReplicaFailureWithoutFallingBackToDefaultWhenServiceAccountIsMissing() {
+        // Given
+        var suffix = uniqueSuffix();
+        String serviceAccountName = "proxy-sa" + suffix;
+        createServiceAccount(serviceAccountName);
+        var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP),
+                withServiceAccountName(kafkaProxy(PROXY_A + suffix), serviceAccountName));
+
+        // When
+        updateServiceAccountName(created.proxy(), "missing-sa" + suffix);
+
+        // Then
+        AWAIT.alias("Deployment reports failed pod creation").untilAsserted(() -> {
+            var deployment = clusterUser.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(created.proxy()));
+            assertThat(deployment).isNotNull();
+            assertThat(deployment.getStatus().getConditions())
+                    .anySatisfy(condition -> assertThat(condition)
+                            .returns("ReplicaFailure", DeploymentCondition::getType)
+                            .returns("True", DeploymentCondition::getStatus)
+                            .returns("FailedCreate", DeploymentCondition::getReason));
+        });
+        assertProxyPodServiceAccount(created.proxy(), serviceAccountName);
+    }
+
+    @Test
+    void shouldCompleteRolloutWhenMissingServiceAccountIsCreated() {
+        // Given
+        var suffix = uniqueSuffix();
+        String serviceAccountName = "proxy-sa" + suffix;
+        String missingServiceAccountName = "missing-sa" + suffix;
+        createServiceAccount(serviceAccountName);
+        var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP),
+                withServiceAccountName(kafkaProxy(PROXY_A + suffix), serviceAccountName));
+        updateServiceAccountName(created.proxy(), missingServiceAccountName);
+
+        // When
+        createServiceAccount(missingServiceAccountName);
+
+        // Then
+        assertProxyPodServiceAccount(created.proxy(), missingServiceAccountName);
     }
 
     @Test
@@ -1692,6 +1790,48 @@ public class KafkaProxyReconcilerIT {
                     .withConfigTemplate(Map.of("transformation", "UpperCasing", "transformationConfig", Map.of("charset", "UTF-8")))
                 .endSpec().build();
         // @formatter:on
+    }
+
+    private void createServiceAccount(String serviceAccountName) {
+        clusterUser.create(new ServiceAccountBuilder()
+                .withNewMetadata()
+                .withName(serviceAccountName)
+                .endMetadata()
+                .build());
+    }
+
+    private void updateServiceAccountName(KafkaProxy proxy, @Nullable String serviceAccountName) {
+        clusterUser.replace(withServiceAccountName(Objects.requireNonNull(clusterUser.get(KafkaProxy.class, name(proxy))), serviceAccountName));
+    }
+
+    private static KafkaProxy withServiceAccountName(KafkaProxy proxy, @Nullable String serviceAccountName) {
+        return proxy.edit().editOrNewSpec()
+                .editOrNewInfrastructure()
+                .withServiceAccountName(serviceAccountName)
+                .endInfrastructure()
+                .endSpec()
+                .build();
+    }
+
+    private void assertDeploymentServiceAccount(KafkaProxy proxy, @Nullable String expectedServiceAccountName) {
+        AWAIT.alias("Deployment ServiceAccount as expected").untilAsserted(() -> {
+            var deployment = clusterUser.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
+            assertThat(deployment).isNotNull();
+            var podSpec = deployment.getSpec().getTemplate().getSpec();
+            assertThat(podSpec.getServiceAccountName()).isEqualTo(expectedServiceAccountName);
+            assertThat(podSpec.getServiceAccount()).isEqualTo(expectedServiceAccountName);
+        });
+    }
+
+    private void assertProxyPodServiceAccount(KafkaProxy proxy, String expectedServiceAccountName) {
+        // A pod's ServiceAccount is immutable, so a change can only be observed via replacement pods
+        AWAIT.alias("Proxy pods use expected ServiceAccount").untilAsserted(() -> assertThat(clusterUser.resources(Pod.class)
+                .withLabels(ProxyDeploymentDependentResource.podLabels(proxy))
+                .list().getItems())
+                .filteredOn(pod -> pod.getMetadata().getDeletionTimestamp() == null)
+                .singleElement()
+                .extracting(pod -> pod.getSpec().getServiceAccountName())
+                .isEqualTo(expectedServiceAccountName));
     }
 
     KafkaProxy kafkaProxy(String name) {
