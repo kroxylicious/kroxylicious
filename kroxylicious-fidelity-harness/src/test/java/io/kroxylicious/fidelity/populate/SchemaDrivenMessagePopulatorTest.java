@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kafka.common.message.AddOffsetsToTxnRequestData;
 import io.kroxylicious.kafka.common.message.AddRaftVoterResponseData;
+import io.kroxylicious.kafka.common.message.AlterUserScramCredentialsResponseData;
 import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
 import io.kroxylicious.kafka.common.message.DeleteTopicsRequestData;
 import io.kroxylicious.kafka.common.message.EndTxnRequestData;
@@ -288,16 +289,36 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
-    void unsupportedStructFieldExceptionIncludesGeneratedStructClassName() {
+    void populatesArrayOfStructField() {
         // Given
-        org.apache.kafka.common.message.DescribeLogDirsResponseData instance = new org.apache.kafka.common.message.DescribeLogDirsResponseData();
+        AlterUserScramCredentialsResponseData instance = new AlterUserScramCredentialsResponseData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 0);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.results()).isNotEmpty();
+        assertThat(instance.results()).allSatisfy(scramCredentialsResult -> {
+            assertThat(scramCredentialsResult.user()).isNotNull();
+            assertThat(scramCredentialsResult.errorMessage()).isNotNull();
+        });
+    }
+
+    @Test
+    void unsupportedStructFieldInsideTaggedFieldsSectionExceptionNamesTheField() {
+        // Given
+        // node_endpoints is a struct-typed tag inside v1's non-empty tagged-fields section, a different,
+        // map-keyed wire mechanism that struct recursion does not walk into.
+        org.apache.kafka.common.message.BeginQuorumEpochResponseData instance = new org.apache.kafka.common.message.BeginQuorumEpochResponseData();
         SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
 
         // When
         // Then
         assertThatThrownBy(() -> populator.populate(instance, (short) 1))
                 .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("DescribeLogDirsResult");
+                .hasMessageContaining("_tagged_fields");
     }
 
     @Test

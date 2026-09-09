@@ -9,6 +9,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.apache.kafka.common.protocol.types.BoundField;
@@ -27,6 +29,13 @@ import org.apache.kafka.common.protocol.types.Type;
  */
 public final class SchemaDrivenMessagePopulator implements MessagePopulator {
 
+    /**
+     * Number of elements to populate for an array-of-struct field. One element is enough to prove the
+     * struct round-trips correctly through the wire format; element-count variety is already exercised
+     * for scalar arrays and is orthogonal to this feature.
+     */
+    private static final int STRUCT_ARRAY_LENGTH = 1;
+
     private final FieldPopulationStrategy strategy;
 
     /**
@@ -39,19 +48,29 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
 
     @Override
     public PopulationResult populate(Object instance, short version) {
-        populateStruct(instance, kafkaClassFor(instance), version);
+        Class<?> kafkaClass = kafkaClassFor(instance);
+        populateStruct(instance, kafkaClass, new StructResolutionContext(kafkaClass, instance.getClass(), version));
         return new PopulationResult.Populated();
     }
 
-    private void populateStruct(Object instance, Class<?> kafkaClass, short version) {
-        Schema schema = kafkaSchemaFor(kafkaClass, version);
+    /**
+     * Kafka's code generator declares every struct in a message, however deeply the JSON nests them, as a
+     * flat, static nested class directly on the top-level message class (confirmed against real generated
+     * code) rather than truly nesting them to match the JSON shape. So resolving a struct's class by name
+     * or by identity must always search from the top-level message class, not from the struct currently
+     * being populated - {@code root} carries that fixed search root through the recursion.
+     */
+    private record StructResolutionContext(Class<?> rootKafkaClass, Class<?> rootInstanceClass, short version) {}
+
+    private void populateStruct(Object instance, Class<?> kafkaClass, StructResolutionContext context) {
+        Schema schema = kafkaSchemaFor(kafkaClass, context.version());
         for (BoundField field : schema.fields()) {
             FieldDecision decision;
             try {
                 decision = strategy.resolve(field);
             }
             catch (RuntimeException e) {
-                throw new UnsupportedOperationException("Could not populate " + describeField(field, kafkaClass), e);
+                throw new UnsupportedOperationException("Could not populate " + describeField(field, context.rootKafkaClass()), e);
             }
             if (decision instanceof FieldDecision.Value(Object value1)) {
                 invokeSetter(instance, field, value1);
@@ -61,37 +80,45 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
                 // An empty tagged-fields section has nothing to populate.
                 continue;
             }
-            Optional<Object> composed = composeStructValue(instance, kafkaClass, field, version);
+            Optional<Object> composed = composeStructValue(field, context);
             if (composed.isPresent()) {
                 invokeSetter(instance, field, composed.get());
                 continue;
             }
             throw new UnsupportedOperationException(
-                    "Composite/array field walking is not yet supported for " + describeField(field, kafkaClass));
+                    "Composite/array field walking is not yet supported for " + describeField(field, context.rootKafkaClass()));
         }
     }
 
     /**
      * Composes the value for a struct-typed (or array-of-struct-typed) field by recursively populating
-     * a freshly constructed nested instance. Only the plain, non-array struct case is implemented so far;
-     * an array-of-struct field resolves to {@link Optional#empty()}, leaving the caller's existing
-     * "not yet supported" handling in place.
+     * one or more freshly constructed nested instances.
      */
-    private Optional<Object> composeStructValue(Object instance, Class<?> kafkaClass, BoundField field, short version) {
+    private Optional<Object> composeStructValue(BoundField field, StructResolutionContext context) {
         Type leafType = field.def.type.arrayElementType().orElse(field.def.type);
         if (!(leafType instanceof Schema structSchema)) {
             return Optional.empty();
         }
-        if (field.def.type.arrayElementType().isPresent()) {
-            return Optional.empty();
+        boolean isArray = field.def.type.arrayElementType().isPresent();
+        return resolveStructClass(context.rootKafkaClass(), structSchema)
+                .flatMap(kafkaStructClass -> resolveNestedClassByName(context.rootInstanceClass(), kafkaStructClass.getSimpleName())
+                        .map(instanceStructClass -> isArray
+                                ? populateStructList(instanceStructClass, kafkaStructClass, context)
+                                : populateStructInstance(instanceStructClass, kafkaStructClass, context)));
+    }
+
+    private Object populateStructInstance(Class<?> instanceStructClass, Class<?> kafkaStructClass, StructResolutionContext context) {
+        Object structInstance = instantiate(instanceStructClass);
+        populateStruct(structInstance, kafkaStructClass, context);
+        return structInstance;
+    }
+
+    private List<Object> populateStructList(Class<?> instanceStructClass, Class<?> kafkaStructClass, StructResolutionContext context) {
+        List<Object> structInstances = new ArrayList<>(STRUCT_ARRAY_LENGTH);
+        for (int i = 0; i < STRUCT_ARRAY_LENGTH; i++) {
+            structInstances.add(populateStructInstance(instanceStructClass, kafkaStructClass, context));
         }
-        return resolveStructClass(kafkaClass, structSchema)
-                .flatMap(kafkaStructClass -> resolveNestedClassByName(instance.getClass(), kafkaStructClass.getSimpleName())
-                        .map(instanceStructClass -> {
-                            Object structInstance = instantiate(instanceStructClass);
-                            populateStruct(structInstance, kafkaStructClass, version);
-                            return structInstance;
-                        }));
+        return structInstances;
     }
 
     private static Class<?> kafkaClassFor(Object instance) {
