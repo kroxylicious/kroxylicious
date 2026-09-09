@@ -44,12 +44,12 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
             return new FieldDecision.Defer();
         }
         if (field.def.type.arrayElementType().isPresent()) {
-            return new FieldDecision.Value(randomList(field.def.type.arrayElementType().get()));
+            return new FieldDecision.Value(randomList(field.def.name, field.def.type.arrayElementType().get()));
         }
-        return new FieldDecision.Value(randomScalar(field.def.type));
+        return new FieldDecision.Value(randomScalar(field.def.name, field.def.type));
     }
 
-    private Object randomScalar(Type type) {
+    private Object randomScalar(String fieldName, Type type) {
         if (type.equals(Type.STRING)) {
             return randomString();
         }
@@ -119,14 +119,14 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         if (type.equals(Type.BOOLEAN)) {
             return random.nextBoolean();
         }
-        throw new UnsupportedOperationException("No valid-value strategy for type " + type);
+        throw new UnsupportedOperationException("No valid-value strategy for field '" + fieldName + "' of type " + type);
     }
 
-    private List<Object> randomList(Type elementType) {
+    private List<Object> randomList(String fieldName, Type elementType) {
         int length = 1 + random.nextInt(MAX_ARRAY_LENGTH);
         List<Object> values = new ArrayList<>(length);
         for (int i = 0; i < length; i++) {
-            values.add(randomScalar(elementType));
+            values.add(randomScalar(fieldName, elementType));
         }
         return values;
     }

@@ -20,6 +20,7 @@ import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ValidScalarStrategyTest {
 
@@ -352,6 +353,20 @@ class ValidScalarStrategyTest {
             assertThat(elements).isNotEmpty();
             assertThat(elements).allSatisfy(element -> assertThat(element).isInstanceOf(String.class));
         });
+    }
+
+    @Test
+    void unsupportedTypeExceptionNamesTheField() {
+        // Given
+        ValidScalarStrategy strategy = new ValidScalarStrategy(new Random(42));
+        Schema elementSchema = new Schema(new Field("value", Type.INT32, "doc"));
+        BoundField structArrayField = new Schema(new Field("results", new ArrayOf(elementSchema), "doc")).get("results");
+
+        // When
+        // Then
+        assertThatThrownBy(() -> strategy.resolve(structArrayField))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("results");
     }
 
     @Test
