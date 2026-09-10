@@ -296,28 +296,44 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     }
 
     /**
-     * The strategy produces values in Kafka's own type system, without knowing which class family
-     * ({@code io.kroxylicious.*} or {@code org.apache.kafka.*}) the setter belongs to, so a Kafka-native
-     * value occasionally needs converting to the equivalent Kroxylicious type - e.g. a {@code Uuid} field
-     * on a Kroxylicious-side instance needs an {@code io.kroxylicious.kafka.common.Uuid}, not the
-     * strategy's {@code org.apache.kafka.common.Uuid}. A setter on a Kafka-side instance never needs
-     * conversion, since the strategy's values already are Kafka-native.
+     * Adapts a value produced by the (Kafka-native) strategy to whatever the setter's own parameter type
+     * requires. Three independent concerns are involved, each with its own reason to change - see
+     * {@link #convertToZeroCopyShape}, {@link #convertToKroxyliciousFamily} and
+     * {@link #convertToCollectionShape}.
      */
     private static Object convertToParameterType(Object value, Method setter) {
         Class<?> parameterType = setter.getParameterTypes()[0];
-        if (value instanceof byte[] bytes && parameterType == ByteBuffer.class) {
-            return ByteBuffer.wrap(bytes);
+        if (value instanceof byte[] bytes) {
+            return convertToZeroCopyShape(bytes, parameterType);
         }
+        if (value instanceof List<?> elements) {
+            return convertToCollectionShape(elements, setter, parameterType);
+        }
+        return convertToKroxyliciousFamily(value, parameterType);
+    }
+
+    /**
+     * Kafka's {@code zeroCopy: true} JSON message-spec annotation makes a {@code bytes}-typed field's
+     * generated setter declare {@link ByteBuffer} instead of {@code byte[]}, identically in both class
+     * families - a per-field wire-shape choice, unrelated to which class family the setter belongs to.
+     */
+    private static Object convertToZeroCopyShape(byte[] bytes, Class<?> parameterType) {
+        return parameterType == ByteBuffer.class ? ByteBuffer.wrap(bytes) : bytes;
+    }
+
+    /**
+     * Converts a Kafka-native scalar value to the equivalent Kroxylicious type, for the handful of types
+     * ({@code Uuid}, record types) that don't share a single Java representation across both class
+     * families. A value of any other type - or one already targeting a Kafka-family setter - needs no
+     * conversion and is returned as-is.
+     */
+    private static Object convertToKroxyliciousFamily(Object value, Class<?> parameterType) {
         if (value instanceof org.apache.kafka.common.Uuid uuid && parameterType == io.kroxylicious.kafka.common.Uuid.class) {
             return toKroxyliciousUuid(uuid);
         }
         if (value instanceof org.apache.kafka.common.record.internal.MemoryRecords
                 && io.kroxylicious.kafka.common.record.internal.BaseRecords.class.isAssignableFrom(parameterType)) {
             return io.kroxylicious.kafka.common.record.internal.MemoryRecords.EMPTY;
-        }
-        if (value instanceof List<?> elements) {
-            List<Object> converted = convertElementsToKroxyliciousTypes(elements, elementTypeOf(setter));
-            return parameterType.isAssignableFrom(value.getClass()) ? converted : newCollection(parameterType, converted);
         }
         return value;
     }
@@ -339,17 +355,19 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         return Optional.empty();
     }
 
-    private static List<Object> convertElementsToKroxyliciousTypes(List<?> elements, Optional<Class<?>> elementType) {
+    /**
+     * Adapts a composed list of values to whatever concrete collection type the setter declares - a plain
+     * {@code List}, or a specialised {@code ImplicitLinkedHashMultiCollection}-derived collection (see
+     * {@link #newCollection}) - converting each element to the Kroxylicious family first, where the
+     * setter's generic signature reveals it's needed.
+     */
+    private static Object convertToCollectionShape(List<?> elements, Method setter, Class<?> parameterType) {
+        Optional<Class<?>> elementType = elementTypeOf(setter);
         List<Object> converted = new ArrayList<>(elements.size());
         for (Object element : elements) {
-            if (element instanceof org.apache.kafka.common.Uuid uuid && elementType.filter(io.kroxylicious.kafka.common.Uuid.class::equals).isPresent()) {
-                converted.add(toKroxyliciousUuid(uuid));
-            }
-            else {
-                converted.add(element);
-            }
+            converted.add(elementType.map(type -> convertToKroxyliciousFamily(element, type)).orElse(element));
         }
-        return converted;
+        return parameterType.isAssignableFrom(elements.getClass()) ? converted : newCollection(parameterType, converted);
     }
 
     /**
