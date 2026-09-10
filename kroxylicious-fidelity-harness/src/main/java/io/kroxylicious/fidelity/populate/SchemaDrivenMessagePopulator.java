@@ -64,8 +64,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
      * or by identity must always search from the top-level message class, not from the struct currently
      * being populated - {@code root} carries that fixed search root through the recursion.
      */
-    private record StructResolutionContext(Class<?> rootKafkaClass, Class<?> rootInstanceClass, short version) {
-    }
+    private record StructResolutionContext(Class<?> rootKafkaClass, Class<?> rootInstanceClass, short version) {}
 
     private void populateStruct(Object instance, Class<?> kafkaClass, StructResolutionContext context) {
         Schema schema = kafkaSchemaFor(kafkaClass, context.version());
@@ -166,8 +165,8 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
             Schema[] schemas = (Schema[]) kafkaClass.getField("SCHEMAS").get(null);
             return schemas[version];
         }
-        catch (ReflectiveOperationException e) {
-            throw new IllegalArgumentException("Could not resolve Kafka schema for " + kafkaClass.getName(), e);
+        catch (ReflectiveOperationException | IndexOutOfBoundsException e) {
+            throw new IllegalArgumentException("Could not resolve Kafka schema for " + kafkaClass.getName() + " version " + version, e);
         }
     }
 

@@ -468,6 +468,20 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
+    void wrapsOutOfRangeVersionWithDiagnosticContext() {
+        // Given
+        org.apache.kafka.common.message.HeartbeatRequestData instance = new org.apache.kafka.common.message.HeartbeatRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        // Then
+        assertThatThrownBy(() -> populator.populate(instance, (short) 99))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("HeartbeatRequestData")
+                .hasMessageContaining("99");
+    }
+
+    @Test
     void sameSeedProducesSameValues() {
         // Given
         SaslHandshakeRequestData first = new SaslHandshakeRequestData();
