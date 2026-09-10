@@ -11,9 +11,11 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.Schema;
@@ -62,13 +64,12 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
      * or by identity must always search from the top-level message class, not from the struct currently
      * being populated - {@code root} carries that fixed search root through the recursion.
      */
-    private record StructResolutionContext(Class<?> rootKafkaClass, Class<?> rootInstanceClass, short version) {}
+    private record StructResolutionContext(Class<?> rootKafkaClass, Class<?> rootInstanceClass, short version) {
+    }
 
     private void populateStruct(Object instance, Class<?> kafkaClass, StructResolutionContext context) {
         Schema schema = kafkaSchemaFor(kafkaClass, context.version());
-        for (BoundField field : expandFields(schema)) {
-            populateField(instance, field, context);
-        }
+        expandFields(schema).forEach(field -> populateField(instance, field, context));
     }
 
     /**
@@ -84,19 +85,18 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
      * setter, and a tag's presence on the wire is implicit in its value being non-default, so no separate
      * registration step is needed.
      */
-    private static List<BoundField> expandFields(Schema schema) {
-        List<BoundField> expanded = new ArrayList<>();
-        for (BoundField field : schema.fields()) {
+    private static Stream<BoundField> expandFields(Schema schema) {
+        return Arrays.stream(schema.fields()).flatMap(field -> {
             if (field.def.type instanceof TaggedFields taggedFields) {
-                for (var entry : taggedFields.fields().entrySet()) {
-                    expanded.add(new BoundField(entry.getValue(), null, entry.getKey()));
-                }
+                return taggedFields.fields()
+                        .entrySet()
+                        .stream()
+                        .map(entry -> new BoundField(entry.getValue(), null, entry.getKey()));
             }
             else {
-                expanded.add(field);
+                return Stream.of(field);
             }
-        }
-        return expanded;
+        });
     }
 
     private void populateField(Object instance, BoundField field, StructResolutionContext context) {
