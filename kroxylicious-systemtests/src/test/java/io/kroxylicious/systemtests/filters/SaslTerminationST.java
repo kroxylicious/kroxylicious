@@ -19,7 +19,6 @@ import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -34,7 +33,6 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileManager;
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
@@ -44,7 +42,6 @@ import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.StrimziTestClient;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
-import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
@@ -54,7 +51,6 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemp
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
-import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -77,7 +73,6 @@ class SaslTerminationST extends AbstractSystemTests {
 
     private final String clusterName = "sasl-termination-st-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
-    private static Kroxylicious kroxylicious;
 
     @BeforeAll
     void setUp() {
@@ -107,23 +102,6 @@ class SaslTerminationST extends AbstractSystemTests {
         kroxyliciousOperator.deploy();
     }
 
-    @BeforeEach
-    void deleteExistingProxy() {
-        var client = kubeClient().getClient();
-        var proxy = client.resources(KafkaProxy.class)
-                .inNamespace(Constants.KROXYLICIOUS_NAMESPACE)
-                .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
-                .get();
-        if (proxy != null) {
-            LOGGER.atInfo().log("Deleting existing proxy to ensure clean state");
-            client.resources(KafkaProxy.class)
-                    .inNamespace(Constants.KROXYLICIOUS_NAMESPACE)
-                    .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
-                    .delete();
-            DeploymentUtils.waitForDeploymentDeletion(Constants.KROXYLICIOUS_NAMESPACE, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
-        }
-    }
-
     @AfterAll
     void cleanUp() {
         if (kroxyliciousOperator != null) {
@@ -146,12 +124,12 @@ class SaslTerminationST extends AbstractSystemTests {
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, ALICE_USER, ALICE_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         resourceManager.createOrUpdateResourceFromBuilderWithWait(
-                KroxyliciousSecretTemplates.createKeystoreSecret(Constants.KROXYLICIOUS_NAMESPACE, "scram-keystore", "credentials.jks", keystorePath),
-                KroxyliciousSecretTemplates.createPasswordSecret(Constants.KROXYLICIOUS_NAMESPACE, "scram-keystore-password", KEYSTORE_PASSWORD));
+                KroxyliciousSecretTemplates.createKeystoreSecret(namespace, "scram-keystore", "credentials.jks", keystorePath),
+                KroxyliciousSecretTemplates.createPasswordSecret(namespace, "scram-keystore-password", KEYSTORE_PASSWORD));
 
-        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(Constants.KROXYLICIOUS_NAMESPACE, clusterName, 1)
+        var kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1)
                 .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslTerminationScramFilter(
-                        Constants.KROXYLICIOUS_NAMESPACE, SCRAM_FILTER_NAME, "SCRAM-SHA-256",
+                        namespace, SCRAM_FILTER_NAME, "SCRAM-SHA-256",
                         "scram-keystore", "credentials.jks",
                         "scram-keystore-password", "password").build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(
@@ -160,7 +138,7 @@ class SaslTerminationST extends AbstractSystemTests {
                 .build();
         kroxylicious.createOrUpdateResources();
 
-        String bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
+        String bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
 
         // When
         String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
@@ -189,23 +167,23 @@ class SaslTerminationST extends AbstractSystemTests {
         int numberOfMessages = 1;
 
         // Given
-        deployMockOAuth2Server(Constants.KROXYLICIOUS_NAMESPACE);
+        deployMockOAuth2Server(namespace);
 
-        String baseUrl = "http://" + MOCK_OAUTH_SERVER_NAME + "." + Constants.KROXYLICIOUS_NAMESPACE + ".svc.cluster.local:" + MOCK_OAUTH_SERVER_PORT;
+        String baseUrl = "http://" + MOCK_OAUTH_SERVER_NAME + "." + namespace + ".svc.cluster.local:" + MOCK_OAUTH_SERVER_PORT;
         String jwksUrl = baseUrl + "/default/jwks";
         String tokenUrl = baseUrl + "/default/token";
         String issuer = baseUrl + "/default";
 
-        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(Constants.KROXYLICIOUS_NAMESPACE, clusterName, 1)
+        var kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1)
                 .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslTerminationOauthFilter(
-                        Constants.KROXYLICIOUS_NAMESPACE, OAUTH_FILTER_NAME, jwksUrl, "default", issuer).build())
+                        namespace, OAUTH_FILTER_NAME, jwksUrl, "default", issuer).build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         List.of(OAUTH_FILTER_NAME)).build())
                 .build();
         kroxylicious.createOrUpdateResources();
 
-        String bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
+        String bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
 
         Map<String, String> oauthProps = oauthSaslProps(tokenUrl);
         Map<String, String> allowedUrlsSystemProps = Map.of(
