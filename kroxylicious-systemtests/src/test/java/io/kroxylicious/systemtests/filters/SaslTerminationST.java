@@ -162,7 +162,9 @@ class SaslTerminationST extends AbstractSystemTests {
     @Test
     void testOauthBearerAuthentication(String namespace) {
         // kcat does not support OAUTHBEARER authentication
-        assumeThat(Environment.KAFKA_CLIENT).isNotEqualToIgnoringCase(KafkaClientType.KCAT.name());
+        // kaf does support OAUTHBEARER but needs configuration that can't be passed from its CLI
+        assumeThat(Environment.KAFKA_CLIENT).isNotEqualToIgnoringCase(KafkaClientType.KCAT.name())
+                .isNotEqualToIgnoringCase(KafkaClientType.KAF.name());
 
         int numberOfMessages = 1;
 
@@ -240,14 +242,24 @@ class SaslTerminationST extends AbstractSystemTests {
     }
 
     private Map<String, String> oauthSaslProps(String tokenEndpointUrl) {
-        return new HashMap<>(Map.of(
+        var props = new HashMap<>(Map.of(
                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
                 SaslConfigs.SASL_MECHANISM, "OAUTHBEARER",
-                SaslConfigs.SASL_JAAS_CONFIG, "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;",
-                SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS, "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler",
                 "sasl.oauthbearer.token.endpoint.url", tokenEndpointUrl,
                 "sasl.oauthbearer.client.credentials.client.id", OAUTH_CLIENT_ID,
                 "sasl.oauthbearer.client.credentials.client.secret", OAUTH_CLIENT_SECRET));
+
+        var clientType = KafkaClientType.valueOf(Environment.KAFKA_CLIENT.toUpperCase(Locale.ROOT));
+        if (clientType.isJvmClient()) {
+            props.put(SaslConfigs.SASL_JAAS_CONFIG, "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;");
+            props.put(SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS, "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler");
+        }
+        else if (clientType == KafkaClientType.PYTHON_TEST_CLIENT) {
+            // librdkafka defaults sasl.oauthbearer.method to 'default', which expects the application to supply the
+            // token via a callback. Without 'oidc' it never contacts the token endpoint and the client hangs.
+            props.put("sasl.oauthbearer.method", "oidc");
+        }
+        return props;
     }
 
     private void deployMockOAuth2Server(String namespace) {
