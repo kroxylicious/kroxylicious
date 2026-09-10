@@ -6,9 +6,12 @@
 package io.kroxylicious.fidelity.populate;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.function.Supplier;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.protocol.types.BoundField;
@@ -34,6 +37,7 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
     private static final int MAX_ARRAY_LENGTH = 3;
 
     private final Random random;
+    private final Map<Type, Supplier<Object>> suppliersByType;
 
     /**
      * Generate values using the provided random instance.
@@ -41,6 +45,35 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
      */
     public ValidScalarStrategy(Random random) {
         this.random = random;
+        this.suppliersByType = createScalarSuppliers();
+    }
+
+    private Map<Type, Supplier<Object>> createScalarSuppliers() {
+        Map<Type, Supplier<Object>> suppliers = new HashMap<>();
+        suppliers.put(Type.STRING, this::randomString);
+        suppliers.put(Type.COMPACT_STRING, this::randomString);
+        suppliers.put(Type.COMPACT_NULLABLE_STRING, this::randomString);
+        suppliers.put(Type.NULLABLE_STRING, this::randomString);
+        suppliers.put(Type.BYTES, this::randomBytes);
+        suppliers.put(Type.COMPACT_BYTES, this::randomBytes);
+        suppliers.put(Type.COMPACT_NULLABLE_BYTES, this::randomBytes);
+        suppliers.put(Type.NULLABLE_BYTES, this::randomBytes);
+        suppliers.put(Type.RECORDS, () -> MemoryRecords.EMPTY);
+        suppliers.put(Type.COMPACT_RECORDS, () -> MemoryRecords.EMPTY);
+        suppliers.put(Type.COMPACT_NULLABLE_RECORDS, () -> MemoryRecords.EMPTY);
+        suppliers.put(Type.NULLABLE_RECORDS, () -> MemoryRecords.EMPTY);
+        suppliers.put(Type.UUID, this::randomUuid);
+        suppliers.put(Type.FLOAT64, random::nextDouble);
+        suppliers.put(Type.UINT16, () -> random.nextInt(UINT16_BOUND));
+        suppliers.put(Type.UNSIGNED_INT32, () -> random.nextLong(UNSIGNED_INT32_BOUND));
+        suppliers.put(Type.VARINT, random::nextInt);
+        suppliers.put(Type.VARLONG, random::nextLong);
+        suppliers.put(Type.INT32, random::nextInt);
+        suppliers.put(Type.INT16, () -> (short) random.nextInt());
+        suppliers.put(Type.INT8, () -> (byte) random.nextInt());
+        suppliers.put(Type.INT64, random::nextLong);
+        suppliers.put(Type.BOOLEAN, random::nextBoolean);
+        return suppliers;
     }
 
     @Override
@@ -58,76 +91,11 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
     }
 
     private Object randomScalar(String fieldName, Type type) {
-        if (type.equals(Type.STRING)) {
-            return randomString();
+        Supplier<Object> supplier = suppliersByType.get(type);
+        if (supplier == null) {
+            throw new UnsupportedOperationException("No valid-value strategy for field '" + fieldName + "'");
         }
-        if (type.equals(Type.BYTES)) {
-            return randomBytes();
-        }
-        if (type.equals(Type.COMPACT_BYTES)) {
-            return randomBytes();
-        }
-        if (type.equals(Type.COMPACT_NULLABLE_BYTES)) {
-            return randomBytes();
-        }
-        if (type.equals(Type.COMPACT_NULLABLE_RECORDS)) {
-            return MemoryRecords.EMPTY;
-        }
-        if (type.equals(Type.COMPACT_NULLABLE_STRING)) {
-            return randomString();
-        }
-        if (type.equals(Type.COMPACT_RECORDS)) {
-            return MemoryRecords.EMPTY;
-        }
-        if (type.equals(Type.COMPACT_STRING)) {
-            return randomString();
-        }
-        if (type.equals(Type.FLOAT64)) {
-            return random.nextDouble();
-        }
-        if (type.equals(Type.NULLABLE_BYTES)) {
-            return randomBytes();
-        }
-        if (type.equals(Type.NULLABLE_RECORDS)) {
-            return MemoryRecords.EMPTY;
-        }
-        if (type.equals(Type.NULLABLE_STRING)) {
-            return randomString();
-        }
-        if (type.equals(Type.RECORDS)) {
-            return MemoryRecords.EMPTY;
-        }
-        if (type.equals(Type.UINT16)) {
-            return random.nextInt(UINT16_BOUND);
-        }
-        if (type.equals(Type.UNSIGNED_INT32)) {
-            return random.nextLong(UNSIGNED_INT32_BOUND);
-        }
-        if (type.equals(Type.UUID)) {
-            return randomUuid();
-        }
-        if (type.equals(Type.VARINT)) {
-            return random.nextInt();
-        }
-        if (type.equals(Type.VARLONG)) {
-            return random.nextLong();
-        }
-        if (type.equals(Type.INT32)) {
-            return random.nextInt();
-        }
-        if (type.equals(Type.INT16)) {
-            return (short) random.nextInt();
-        }
-        if (type.equals(Type.INT8)) {
-            return (byte) random.nextInt();
-        }
-        if (type.equals(Type.INT64)) {
-            return random.nextLong();
-        }
-        if (type.equals(Type.BOOLEAN)) {
-            return random.nextBoolean();
-        }
-        throw new UnsupportedOperationException("No valid-value strategy for field '" + fieldName + "'");
+        return supplier.get();
     }
 
     private List<Object> randomList(String fieldName, Type elementType) {
