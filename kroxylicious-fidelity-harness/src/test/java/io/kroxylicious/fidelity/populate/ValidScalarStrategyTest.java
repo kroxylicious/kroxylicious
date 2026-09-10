@@ -8,16 +8,15 @@ package io.kroxylicious.fidelity.populate;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.protocol.types.ArrayOf;
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.Field;
 import org.apache.kafka.common.protocol.types.Field.TaggedFieldsSection;
 import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.Type;
+import org.apache.kafka.common.record.internal.MemoryRecords;
 import org.junit.jupiter.api.Test;
-
-import io.kroxylicious.kafka.common.Uuid;
-import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

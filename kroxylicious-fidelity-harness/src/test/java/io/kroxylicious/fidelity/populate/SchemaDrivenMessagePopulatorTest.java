@@ -241,6 +241,8 @@ class SchemaDrivenMessagePopulatorTest {
     @Test
     void populatesUuidField() {
         // Given
+        // ValidScalarStrategy always produces an org.apache.kafka.common.Uuid, but this instance's
+        // setter expects io.kroxylicious.kafka.common.Uuid - a different class with the same shape.
         RemoveRaftVoterRequestData instance = new RemoveRaftVoterRequestData();
         SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
 
@@ -255,8 +257,8 @@ class SchemaDrivenMessagePopulatorTest {
     @Test
     void populatesUuidFieldOnKafkaInstance() {
         // Given
-        // ValidScalarStrategy always produces an io.kroxylicious.kafka.common.Uuid, but this instance's
-        // setter expects org.apache.kafka.common.Uuid - a different class with the same shape.
+        // ValidScalarStrategy always produces an org.apache.kafka.common.Uuid, which already matches
+        // this instance's setter directly - no conversion needed.
         org.apache.kafka.common.message.RemoveRaftVoterRequestData instance = new org.apache.kafka.common.message.RemoveRaftVoterRequestData();
         SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
 
@@ -271,10 +273,9 @@ class SchemaDrivenMessagePopulatorTest {
     @Test
     void populatesArrayOfUuidFieldOnKafkaInstance() {
         // Given
-        // ValidScalarStrategy always produces io.kroxylicious.kafka.common.Uuid elements, but this
-        // instance's setter expects List<org.apache.kafka.common.Uuid> - List<X> erases to a plain List
-        // at the setter's parameter type, so the family mismatch isn't caught by matching the setter's
-        // own (erased) parameter type the way a directly Uuid-typed field's mismatch is.
+        // ValidScalarStrategy always produces org.apache.kafka.common.Uuid elements, which already
+        // match this instance's List<org.apache.kafka.common.Uuid> setter directly - no conversion
+        // needed.
         org.apache.kafka.common.message.BrokerRegistrationRequestData instance = new org.apache.kafka.common.message.BrokerRegistrationRequestData();
         SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
 
@@ -288,15 +289,54 @@ class SchemaDrivenMessagePopulatorTest {
     }
 
     @Test
+    void populatesArrayOfUuidField() {
+        // Given
+        // ValidScalarStrategy always produces org.apache.kafka.common.Uuid elements, but this
+        // instance's setter expects List<io.kroxylicious.kafka.common.Uuid> - List<X> erases to a plain
+        // List at the setter's parameter type, so the family mismatch isn't caught by matching the
+        // setter's own (erased) parameter type the way a directly Uuid-typed field's mismatch is.
+        io.kroxylicious.kafka.common.message.BrokerRegistrationRequestData instance = new io.kroxylicious.kafka.common.message.BrokerRegistrationRequestData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 2);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.logDirs()).isNotEmpty();
+        assertThat(instance.logDirs()).allSatisfy(uuid -> assertThat(uuid).isInstanceOf(io.kroxylicious.kafka.common.Uuid.class));
+    }
+
+    @Test
     void populatesRecordsFieldOnKafkaInstance() {
         // Given
-        // ValidScalarStrategy always produces an io.kroxylicious.kafka.common.record.internal.MemoryRecords,
-        // but this instance's setter expects org.apache.kafka.common.record.internal.BaseRecords, satisfied
-        // by a different, same-shaped org.apache.kafka.common.record.internal.MemoryRecords class. Version 4
-        // is used because it is the lowest version with plain List setters throughout and no tagged-fields
-        // sections in the struct chain leading to Records, isolating this fix from the separate, unrelated,
-        // out-of-scope custom-collection-setter and tagged-struct-field cases.
+        // ValidScalarStrategy always produces an org.apache.kafka.common.record.internal.MemoryRecords,
+        // which already matches this instance's org.apache.kafka.common.record.internal.BaseRecords
+        // setter directly - no conversion needed. Version 4 is used because it is the lowest version
+        // with plain List setters throughout and no tagged-fields sections in the struct chain leading
+        // to Records, isolating this case from the separate, unrelated, out-of-scope
+        // custom-collection-setter and tagged-struct-field cases.
         org.apache.kafka.common.message.FetchResponseData instance = new org.apache.kafka.common.message.FetchResponseData();
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
+
+        // When
+        PopulationResult result = populator.populate(instance, (short) 4);
+
+        // Then
+        assertThat(result).isInstanceOf(PopulationResult.Populated.class);
+        assertThat(instance.responses()).isNotEmpty();
+        assertThat(instance.responses().get(0).partitions()).isNotEmpty();
+        assertThat(instance.responses().get(0).partitions().get(0).records()).isNotNull();
+    }
+
+    @Test
+    void populatesRecordsField() {
+        // Given
+        // ValidScalarStrategy always produces an org.apache.kafka.common.record.internal.MemoryRecords,
+        // but this instance's setter expects io.kroxylicious.kafka.common.record.internal.BaseRecords,
+        // satisfied by a different, same-shaped io.kroxylicious.kafka.common.record.internal.MemoryRecords
+        // class. Version 4 is used for the same isolation reason as populatesRecordsFieldOnKafkaInstance.
+        io.kroxylicious.kafka.common.message.FetchResponseData instance = new io.kroxylicious.kafka.common.message.FetchResponseData();
         SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(validScalarStrategy);
 
         // When

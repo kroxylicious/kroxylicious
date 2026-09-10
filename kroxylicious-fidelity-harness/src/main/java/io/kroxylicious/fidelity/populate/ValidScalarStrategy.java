@@ -9,16 +9,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.TaggedFields;
 import org.apache.kafka.common.protocol.types.Type;
-
-import io.kroxylicious.kafka.common.Uuid;
-import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import org.apache.kafka.common.record.internal.MemoryRecords;
 
 /**
  * Populates scalar fields with valid random values, reproducible given the same seed.
+ * <p>
+ * Values are produced in Kafka's own type system, matching the schema vocabulary
+ * {@link #resolve(BoundField)} already operates in - conversion to the Kroxylicious family, where a
+ * setter needs it, is {@link SchemaDrivenMessagePopulator}'s concern, not this strategy's.
  */
 public final class ValidScalarStrategy implements FieldPopulationStrategy {
 

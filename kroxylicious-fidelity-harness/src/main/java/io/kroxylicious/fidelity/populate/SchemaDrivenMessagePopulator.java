@@ -296,32 +296,34 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     }
 
     /**
-     * The strategy produces values without knowing which class family ({@code io.kroxylicious.*} or
-     * {@code org.apache.kafka.*}) the setter belongs to, so a value occasionally needs converting to the
-     * equivalent type from the setter's own family - e.g. a {@code Uuid} field on a Kafka-side instance
-     * needs an {@code org.apache.kafka.common.Uuid}, not the strategy's {@code io.kroxylicious} one.
+     * The strategy produces values in Kafka's own type system, without knowing which class family
+     * ({@code io.kroxylicious.*} or {@code org.apache.kafka.*}) the setter belongs to, so a Kafka-native
+     * value occasionally needs converting to the equivalent Kroxylicious type - e.g. a {@code Uuid} field
+     * on a Kroxylicious-side instance needs an {@code io.kroxylicious.kafka.common.Uuid}, not the
+     * strategy's {@code org.apache.kafka.common.Uuid}. A setter on a Kafka-side instance never needs
+     * conversion, since the strategy's values already are Kafka-native.
      */
     private static Object convertToParameterType(Object value, Method setter) {
         Class<?> parameterType = setter.getParameterTypes()[0];
         if (value instanceof byte[] bytes && parameterType == ByteBuffer.class) {
             return ByteBuffer.wrap(bytes);
         }
-        if (value instanceof io.kroxylicious.kafka.common.Uuid uuid && parameterType == org.apache.kafka.common.Uuid.class) {
-            return toKafkaUuid(uuid);
+        if (value instanceof org.apache.kafka.common.Uuid uuid && parameterType == io.kroxylicious.kafka.common.Uuid.class) {
+            return toKroxyliciousUuid(uuid);
         }
-        if (value instanceof io.kroxylicious.kafka.common.record.internal.MemoryRecords
-                && org.apache.kafka.common.record.internal.BaseRecords.class.isAssignableFrom(parameterType)) {
-            return org.apache.kafka.common.record.internal.MemoryRecords.EMPTY;
+        if (value instanceof org.apache.kafka.common.record.internal.MemoryRecords
+                && io.kroxylicious.kafka.common.record.internal.BaseRecords.class.isAssignableFrom(parameterType)) {
+            return io.kroxylicious.kafka.common.record.internal.MemoryRecords.EMPTY;
         }
         if (value instanceof List<?> elements) {
-            List<Object> converted = convertElements(elements, elementTypeOf(setter));
+            List<Object> converted = convertElementsToKroxyliciousTypes(elements, elementTypeOf(setter));
             return parameterType.isAssignableFrom(value.getClass()) ? converted : newCollection(parameterType, converted);
         }
         return value;
     }
 
-    private static org.apache.kafka.common.Uuid toKafkaUuid(io.kroxylicious.kafka.common.Uuid uuid) {
-        return new org.apache.kafka.common.Uuid(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
+    private static io.kroxylicious.kafka.common.Uuid toKroxyliciousUuid(org.apache.kafka.common.Uuid uuid) {
+        return new io.kroxylicious.kafka.common.Uuid(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
     }
 
     /**
@@ -337,11 +339,11 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         return Optional.empty();
     }
 
-    private static List<Object> convertElements(List<?> elements, Optional<Class<?>> elementType) {
+    private static List<Object> convertElementsToKroxyliciousTypes(List<?> elements, Optional<Class<?>> elementType) {
         List<Object> converted = new ArrayList<>(elements.size());
         for (Object element : elements) {
-            if (element instanceof io.kroxylicious.kafka.common.Uuid uuid && elementType.filter(org.apache.kafka.common.Uuid.class::equals).isPresent()) {
-                converted.add(toKafkaUuid(uuid));
+            if (element instanceof org.apache.kafka.common.Uuid uuid && elementType.filter(io.kroxylicious.kafka.common.Uuid.class::equals).isPresent()) {
+                converted.add(toKroxyliciousUuid(uuid));
             }
             else {
                 converted.add(element);
