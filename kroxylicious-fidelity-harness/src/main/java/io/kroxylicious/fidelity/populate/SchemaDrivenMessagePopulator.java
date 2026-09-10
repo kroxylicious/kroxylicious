@@ -116,7 +116,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
             return;
         }
         throw new UnsupportedOperationException(
-                "Composite/array field walking is not yet supported for " + describeField(field, context.rootKafkaClass()));
+                "Could not resolve a struct class to populate " + describeField(field, context.rootKafkaClass()));
     }
 
     /**
