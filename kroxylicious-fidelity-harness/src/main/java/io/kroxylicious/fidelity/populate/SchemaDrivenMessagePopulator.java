@@ -191,20 +191,23 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
 
     private static Optional<Class<?>> resolveStructClass(Class<?> containingClass, Schema target) {
         for (Class<?> nested : containingClass.getDeclaredClasses()) {
-            Optional<Class<?>> nested1 = resolveStructFromNestedClass(target, nested);
-            if (nested1.isPresent()) {
-                return nested1;
+            if (hasMatchingSchemaField(nested, target)) {
+                return Optional.of(nested);
+            }
+            Optional<Class<?>> fromChildren = resolveStructClass(nested, target);
+            if (fromChildren.isPresent()) {
+                return fromChildren;
             }
         }
         return Optional.empty();
     }
 
-    private static Optional<Class<?>> resolveStructFromNestedClass(Schema target, Class<?> nested) {
-        for (Field candidate : nested.getDeclaredFields()) {
-            if (Schema.class.equals(candidate.getType()) && Modifier.isStatic(candidate.getModifiers())) {
+    private static boolean hasMatchingSchemaField(Class<?> candidate, Schema target) {
+        for (Field field : candidate.getDeclaredFields()) {
+            if (Schema.class.equals(field.getType()) && Modifier.isStatic(field.getModifiers())) {
                 try {
-                    if (sameStruct((Schema) candidate.get(null), target)) {
-                        return Optional.of(nested);
+                    if (sameStruct((Schema) field.get(null), target)) {
+                        return true;
                     }
                 }
                 catch (IllegalAccessException e) {
@@ -212,7 +215,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
                 }
             }
         }
-        return resolveStructClass(nested, target);
+        return false;
     }
 
     /**
