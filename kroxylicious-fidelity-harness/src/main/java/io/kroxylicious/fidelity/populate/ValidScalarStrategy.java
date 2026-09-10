@@ -7,6 +7,7 @@ package io.kroxylicious.fidelity.populate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 import org.apache.kafka.common.Uuid;
@@ -47,14 +48,13 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         if (field.def.type instanceof TaggedFields) {
             return new FieldDecision.Defer();
         }
-        Type leafType = field.def.type.arrayElementType().orElse(field.def.type);
+        Optional<Type> arrayElementType = field.def.type.arrayElementType();
+        Type leafType = arrayElementType.orElse(field.def.type);
         if (leafType instanceof Schema) {
             return new FieldDecision.Defer();
         }
-        if (field.def.type.arrayElementType().isPresent()) {
-            return new FieldDecision.Value(randomList(field.def.name, field.def.type.arrayElementType().get()));
-        }
-        return new FieldDecision.Value(randomScalar(field.def.name, field.def.type));
+        return arrayElementType.map(type -> new FieldDecision.Value(randomList(field.def.name, type)))
+                .orElseGet(() -> new FieldDecision.Value(randomScalar(field.def.name, field.def.type)));
     }
 
     private Object randomScalar(String fieldName, Type type) {
