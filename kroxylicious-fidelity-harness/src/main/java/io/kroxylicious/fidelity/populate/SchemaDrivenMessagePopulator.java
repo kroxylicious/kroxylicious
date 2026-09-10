@@ -192,24 +192,28 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
 
     private static Optional<Class<?>> resolveStructClass(Class<?> containingClass, Schema target) {
         for (Class<?> nested : containingClass.getDeclaredClasses()) {
-            for (Field candidate : nested.getDeclaredFields()) {
-                if (Schema.class.equals(candidate.getType()) && Modifier.isStatic(candidate.getModifiers())) {
-                    try {
-                        if (sameStruct((Schema) candidate.get(null), target)) {
-                            return Optional.of(nested);
-                        }
-                    }
-                    catch (IllegalAccessException e) {
-                        // Not this field; keep searching.
-                    }
-                }
-            }
-            Optional<Class<?>> nestedMatch = resolveStructClass(nested, target);
-            if (nestedMatch.isPresent()) {
-                return nestedMatch;
+            Optional<Class<?>> nested1 = resolveStructFromNestedClass(target, nested);
+            if (nested1.isPresent()) {
+                return nested1;
             }
         }
         return Optional.empty();
+    }
+
+    private static Optional<Class<?>> resolveStructFromNestedClass(Schema target, Class<?> nested) {
+        for (Field candidate : nested.getDeclaredFields()) {
+            if (Schema.class.equals(candidate.getType()) && Modifier.isStatic(candidate.getModifiers())) {
+                try {
+                    if (sameStruct((Schema) candidate.get(null), target)) {
+                        return Optional.of(nested);
+                    }
+                }
+                catch (IllegalAccessException e) {
+                    // Not this field; keep searching.
+                }
+            }
+        }
+        return resolveStructClass(nested, target);
     }
 
     /**
