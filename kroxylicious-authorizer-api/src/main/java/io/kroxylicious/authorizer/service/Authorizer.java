@@ -21,6 +21,7 @@ import io.kroxylicious.identity.Identity;
  * doesn't prescribe any specific kinds of resource or operations. Instead, resource kinds and the operations they support
  * are represented as subclasses of {@link ResourceType}.</p>
  */
+@SuppressWarnings({ "java:S5738", "removal" })
 public interface Authorizer {
 
     /**

@@ -50,6 +50,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *     according to a simple grammar (see {@code src/main/antlr4/io/kroxylicious/authorizer/provider/acl/parser/AclRules.g4}).</li>
  * </ul>
  */
+@SuppressWarnings({ "java:S5738", "removal" })
 public class AclAuthorizer implements Authorizer {
 
     record ResourceGrants(
