@@ -20,6 +20,7 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
  *
  * <p>See {@link SaslSubjectBuilder} for a similar interface used for building a {@code Subject} based on SASL authentication.</p>
  */
+@SuppressWarnings({ "java:S5738", "removal" })
 public interface TransportSubjectBuilder {
 
     /**

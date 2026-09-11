@@ -13,6 +13,7 @@ Filters in this module are intended for production use by end users. They demons
 - ✅ `kroxylicious-api`
 - ✅ `kroxylicious-kms` (if implementing encryption)
 - ✅ `kroxylicious-authorizer-api` (if implementing authorization)
+- ✅ `kroxylicious-identity-api` (if working with `Subject`/`Principal` types directly)
 - ✅ Standard Java libraries
 - ❌ `kroxylicious-runtime` - **prohibited**
 - ❌ `kroxylicious-integration-test-support` - test scope only

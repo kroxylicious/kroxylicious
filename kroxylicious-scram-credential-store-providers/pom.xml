@@ -46,6 +46,7 @@
                                     <includes combine.children="append">
                                         <include>io.kroxylicious:kroxylicious-scram-credential-store</include>
                                         <include>io.kroxylicious:kroxylicious-api</include>
+                                        <include>io.kroxylicious:kroxylicious-identity-api</include>
                                         <include>io.kroxylicious:kroxylicious-annotations</include>
                                     </includes>
                                 </bannedDependencies>

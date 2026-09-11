@@ -169,7 +169,8 @@ public class TestClientsJobTemplates {
      */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
                                                           @Nullable String messageKey, Map<String, String> additionalConfig) {
-        return defaultTestClientProducerJob(jobName, bootstrap, topicName, numOfMessages, message, messageKey, additionalConfig, Map.of());
+        return defaultTestClientProducerJob(jobName, bootstrap, topicName, numOfMessages, message, messageKey, additionalConfig, Environment.TEST_CLIENTS_IMAGE,
+                Map.of());
     }
 
     /**
@@ -182,17 +183,18 @@ public class TestClientsJobTemplates {
      * @param message the message
      * @param messageKey the message key
      * @param additionalConfig the additional config
+     * @param image the container image to use for the producer
      * @param javaSystemProperties JVM system properties to set via JAVA_TOOL_OPTIONS
      * @return  the job builder
      */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
-                                                          @Nullable String messageKey, Map<String, String> additionalConfig,
+                                                          @Nullable String messageKey, Map<String, String> additionalConfig, String image,
                                                           Map<String, String> javaSystemProperties) {
         List<EnvVar> envVars = testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey, additionalConfig);
         addJavaToolOptionsEnvVar(envVars, javaSystemProperties);
         return newJobForContainer(jobName,
                 "test-client-producer",
-                Environment.TEST_CLIENTS_IMAGE,
+                image,
                 envVars);
     }
 
@@ -222,7 +224,8 @@ public class TestClientsJobTemplates {
      */
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages,
                                                           Map<String, String> additionalKafkaProps, String consumerGroup) {
-        return defaultTestClientConsumerJob(jobName, bootstrap, topicName, numOfMessages, additionalKafkaProps, consumerGroup, Map.of());
+        return defaultTestClientConsumerJob(jobName, bootstrap, topicName, numOfMessages, additionalKafkaProps, consumerGroup, Environment.TEST_CLIENTS_IMAGE,
+                Map.of());
     }
 
     /**
@@ -234,17 +237,18 @@ public class TestClientsJobTemplates {
      * @param numOfMessages the num of messages
      * @param additionalKafkaProps the additional kafka props
      * @param consumerGroup the consumer group
+     * @param image the container image to use for the consumer
      * @param javaSystemProperties JVM system properties to set via JAVA_TOOL_OPTIONS
      * @return  the job builder
      */
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages,
-                                                          Map<String, String> additionalKafkaProps, String consumerGroup,
+                                                          Map<String, String> additionalKafkaProps, String consumerGroup, String image,
                                                           Map<String, String> javaSystemProperties) {
         List<EnvVar> envVars = new ArrayList<>(testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages, additionalKafkaProps, consumerGroup));
         addJavaToolOptionsEnvVar(envVars, javaSystemProperties);
         return newJobForContainer(jobName,
                 "test-client-consumer",
-                Environment.TEST_CLIENTS_IMAGE,
+                image,
                 envVars);
     }
 

@@ -186,6 +186,7 @@ public interface FilterContext {
      * @param mechanism The SASL mechanism used
      * @param subject The subject
      */
+    @SuppressWarnings({ "java:S5738", "removal" })
     void clientSaslAuthenticationSuccess(String mechanism,
                                          Subject subject);
 
@@ -203,6 +204,7 @@ public interface FilterContext {
      * @param authorizedId The authorizedId, or null if this is not known.
      * @param exception An exception describing the authentication failure.
      */
+    @SuppressWarnings({ "java:S5738", "removal" })
     void clientSaslAuthenticationFailure(@Nullable String mechanism,
                                          @Nullable String authorizedId,
                                          Exception exception);
@@ -241,6 +243,7 @@ public interface FilterContext {
      * @return The client subject
      * @see #clientSaslAuthenticationSuccess(String, Subject)
      */
+    @SuppressWarnings({ "java:S5738", "removal" })
     Subject authenticatedSubject();
 
 }

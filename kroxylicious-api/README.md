@@ -109,14 +109,18 @@ CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS)
 
 ## Using Subject and Principals
 
+> **Deprecated:** `io.kroxylicious.proxy.authentication.{Subject,Principal,Unique}` are deprecated in favour of `io.kroxylicious.identity.{Subject,Principal,SingularPrincipal}` in the new, dependency-free `kroxylicious-identity-api` module — see [`../kroxylicious-identity-api/README.md`](../kroxylicious-identity-api/README.md).
+> The existing types remain fully functional until Kroxylicious 1.0, and `FilterContext.authenticatedSubject()` continues to return the existing `Subject` type until then, so no immediate action is required.
+> New code should prefer the `io.kroxylicious.identity` types where practical.
+
 **Subject composition rules you must follow:**
 - Non-anonymous subjects must have exactly one `User` principal
-- Use `@Unique` annotation on your custom principal types to enforce at-most-one constraint
+- Use `@SingularPrincipal` (or the deprecated `@Unique`) annotation on your custom principal types to enforce an at-most-one constraint
 
 **Pattern for extracting principals:**
 ```java
-Subject subject = context.getAuthenticatedSubject();
-Optional<User> user = subject.principals(User.class).findFirst();
+Subject subject = context.authenticatedSubject();
+Optional<User> user = subject.uniquePrincipalOfType(User.class);
 if (user.isPresent()) {
     String username = user.get().name();
     // ...
@@ -127,11 +131,6 @@ if (user.isPresent()) {
 ```java
 // Implement Principal interface
 public record MyPrincipal(String value) implements Principal {
-    @Override
-    public String type() {
-        return MyPrincipal.class.getName();
-    }
-
     @Override
     public String name() {
         return value;
@@ -164,7 +163,7 @@ The runtime provides these services via `FilterContext`:
 - Client address, session ID, connection information
 
 **Authentication state**:
-- `getAuthenticatedSubject()` - Authenticated client identity (may be anonymous)
+- `authenticatedSubject()` - Authenticated client identity (may be anonymous)
 
 ## Runtime Guarantees
 

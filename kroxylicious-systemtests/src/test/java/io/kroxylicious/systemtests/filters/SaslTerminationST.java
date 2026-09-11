@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -18,8 +19,6 @@ import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -34,15 +33,15 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileManager;
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.clients.KafkaClient;
 import io.kroxylicious.systemtests.clients.KafkaClients;
+import io.kroxylicious.systemtests.clients.StrimziTestClient;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
-import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
@@ -52,7 +51,6 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemp
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
-import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,11 +73,16 @@ class SaslTerminationST extends AbstractSystemTests {
 
     private final String clusterName = "sasl-termination-st-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
-    private static Kroxylicious kroxylicious;
 
     @BeforeAll
     void setUp() {
-        KafkaClients.getKafkaClient().preloadImage();
+        KafkaClient defaultClient = KafkaClients.getKafkaClient();
+        defaultClient.preloadImage();
+        // Only the JVM client needs the jose4j-augmented image (see testOauthBearerAuthentication);
+        // preload it once here rather than in every test that might use it.
+        if (defaultClient instanceof StrimziTestClient strimziTestClient) {
+            strimziTestClient.withImage(Environment.TEST_CLIENTS_OAUTH_IMAGE).preloadImage();
+        }
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.atInfo().log("Skipping kafka deployment. It is already deployed!");
@@ -99,23 +102,6 @@ class SaslTerminationST extends AbstractSystemTests {
         kroxyliciousOperator.deploy();
     }
 
-    @BeforeEach
-    void deleteExistingProxy() {
-        var client = kubeClient().getClient();
-        var proxy = client.resources(KafkaProxy.class)
-                .inNamespace(Constants.KROXYLICIOUS_NAMESPACE)
-                .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
-                .get();
-        if (proxy != null) {
-            LOGGER.atInfo().log("Deleting existing proxy to ensure clean state");
-            client.resources(KafkaProxy.class)
-                    .inNamespace(Constants.KROXYLICIOUS_NAMESPACE)
-                    .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
-                    .delete();
-            DeploymentUtils.waitForDeploymentDeletion(Constants.KROXYLICIOUS_NAMESPACE, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
-        }
-    }
-
     @AfterAll
     void cleanUp() {
         if (kroxyliciousOperator != null) {
@@ -124,7 +110,7 @@ class SaslTerminationST extends AbstractSystemTests {
     }
 
     @Test
-    void testScramSha256Authentication(String namespace, @TempDir Path tempDir) throws Exception {
+    void testScramSha256Authentication(String namespace, @TempDir Path tempDir) {
         // kcat does not support SCRAM authentication
         assumeThat(Environment.KAFKA_CLIENT).isNotEqualToIgnoringCase(KafkaClientType.KCAT.name());
 
@@ -138,12 +124,12 @@ class SaslTerminationST extends AbstractSystemTests {
         credentialManager.addUser(keystorePath, KEYSTORE_PASSWORD, ALICE_USER, ALICE_PASSWORD, ScramMechanism.SCRAM_SHA_256);
 
         resourceManager.createOrUpdateResourceFromBuilderWithWait(
-                KroxyliciousSecretTemplates.createKeystoreSecret(Constants.KROXYLICIOUS_NAMESPACE, "scram-keystore", "credentials.jks", keystorePath),
-                KroxyliciousSecretTemplates.createPasswordSecret(Constants.KROXYLICIOUS_NAMESPACE, "scram-keystore-password", KEYSTORE_PASSWORD));
+                KroxyliciousSecretTemplates.createKeystoreSecret(namespace, "scram-keystore", "credentials.jks", keystorePath),
+                KroxyliciousSecretTemplates.createPasswordSecret(namespace, "scram-keystore-password", KEYSTORE_PASSWORD));
 
-        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(Constants.KROXYLICIOUS_NAMESPACE, clusterName, 1)
+        var kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1)
                 .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslTerminationScramFilter(
-                        Constants.KROXYLICIOUS_NAMESPACE, SCRAM_FILTER_NAME, "SCRAM-SHA-256",
+                        namespace, SCRAM_FILTER_NAME, "SCRAM-SHA-256",
                         "scram-keystore", "credentials.jks",
                         "scram-keystore-password", "password").build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(
@@ -152,7 +138,7 @@ class SaslTerminationST extends AbstractSystemTests {
                 .build();
         kroxylicious.createOrUpdateResources();
 
-        String bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
+        String bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
 
         // When
         String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
@@ -173,8 +159,6 @@ class SaslTerminationST extends AbstractSystemTests {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
-    @Disabled("Blocked by KAFKA-20184: Kafka 4.1+ eagerly loads jose4j via DefaultJwtValidator"
-            + " during OAUTHBEARER client login, but the Strimzi test-clients image does not bundle jose4j")
     @Test
     void testOauthBearerAuthentication(String namespace) {
         // kcat does not support OAUTHBEARER authentication
@@ -183,37 +167,47 @@ class SaslTerminationST extends AbstractSystemTests {
         int numberOfMessages = 1;
 
         // Given
-        deployMockOAuth2Server(Constants.KROXYLICIOUS_NAMESPACE);
+        deployMockOAuth2Server(namespace);
 
-        String baseUrl = "http://" + MOCK_OAUTH_SERVER_NAME + "." + Constants.KROXYLICIOUS_NAMESPACE + ".svc.cluster.local:" + MOCK_OAUTH_SERVER_PORT;
+        String baseUrl = "http://" + MOCK_OAUTH_SERVER_NAME + "." + namespace + ".svc.cluster.local:" + MOCK_OAUTH_SERVER_PORT;
         String jwksUrl = baseUrl + "/default/jwks";
         String tokenUrl = baseUrl + "/default/token";
         String issuer = baseUrl + "/default";
 
-        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(Constants.KROXYLICIOUS_NAMESPACE, clusterName, 1)
+        var kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1)
                 .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslTerminationOauthFilter(
-                        Constants.KROXYLICIOUS_NAMESPACE, OAUTH_FILTER_NAME, jwksUrl, "default", issuer).build())
+                        namespace, OAUTH_FILTER_NAME, jwksUrl, "default", issuer).build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         List.of(OAUTH_FILTER_NAME)).build())
                 .build();
         kroxylicious.createOrUpdateResources();
 
-        String bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
+        String bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
 
         Map<String, String> oauthProps = oauthSaslProps(tokenUrl);
         Map<String, String> allowedUrlsSystemProps = Map.of(
                 "org.apache.kafka.sasl.oauthbearer.allowed.urls", tokenUrl + "," + jwksUrl);
 
+        KafkaClient client = KafkaClients.getKafkaClient().inNamespace(namespace);
+        // Kafka 4.1+ clients eagerly load jose4j during OAUTHBEARER login (KAFKA-20184), but
+        // due to https://issues.apache.org/jira/browse/KAFKA-20184 jose4j is not treated
+        // as a runtime dependency of kafka-clients. The upstream Strimzi test-clients image
+        // doesn't bundle it, so the JVM client uses our jose4j-augmented build of that image for
+        // this test only (already preloaded in setUp()).
+        if (client instanceof StrimziTestClient strimziTestClient) {
+            strimziTestClient.withImage(Environment.TEST_CLIENTS_OAUTH_IMAGE);
+        }
+
         // When
         String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
         KafkaSteps.createTopic(namespace, topicName, kafkaBootstrap, 1, 1);
 
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, oauthProps, allowedUrlsSystemProps);
+        client.produceMessages(topicName, bootstrap, MESSAGE, null, numberOfMessages, oauthProps, allowedUrlsSystemProps);
 
         // Then
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), oauthProps,
-                allowedUrlsSystemProps);
+        List<ConsumerRecord> result = client.consumeMessages(topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), oauthProps,
+                Constants.CONSUMER_GROUP_NAME, allowedUrlsSystemProps);
         LOGGER.atInfo()
                 .addKeyValue("received", result)
                 .log("Consumed messages");
@@ -225,14 +219,24 @@ class SaslTerminationST extends AbstractSystemTests {
     }
 
     private Map<String, String> scramSaslProps(String username, String password) {
-        String jaasConfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\";"
-                .formatted(username, password);
-        return new HashMap<>(Map.of(
+        Map<String, String> props = new HashMap<>(Map.of(
                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
-                SaslConfigs.SASL_MECHANISM, "SCRAM-SHA-256",
-                SaslConfigs.SASL_JAAS_CONFIG, jaasConfig,
-                "sasl.username", username,
-                "sasl.password", password));
+                SaslConfigs.SASL_MECHANISM, "SCRAM-SHA-256"));
+
+        // SCRAM credentials are configured differently per client dialect:
+        // - the Apache Kafka Java client takes them via sasl.jaas.config;
+        // - librdkafka-based clients (python, kcat) take them via sasl.username/sasl.password and
+        // reject the Java-only sasl.jaas.config property.
+        if (KafkaClientType.valueOf(Environment.KAFKA_CLIENT.toUpperCase(Locale.ROOT)).isJvmClient()) {
+            String jaasConfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\";"
+                    .formatted(username, password);
+            props.put(SaslConfigs.SASL_JAAS_CONFIG, jaasConfig);
+        }
+        else {
+            props.put("sasl.username", username);
+            props.put("sasl.password", password);
+        }
+        return props;
     }
 
     private Map<String, String> oauthSaslProps(String tokenEndpointUrl) {

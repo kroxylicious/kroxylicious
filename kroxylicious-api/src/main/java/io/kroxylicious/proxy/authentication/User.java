@@ -13,4 +13,5 @@ package io.kroxylicious.proxy.authentication;
  * @param name The name of the user.
  */
 @Unique
+@SuppressWarnings({ "java:S5738", "removal" })
 public record User(String name) implements Principal {}

@@ -66,6 +66,7 @@
                                     </excludes>
                                     <includes combine.children="append">
                                         <include>io.kroxylicious:kroxylicious-api</include>
+                                        <include>io.kroxylicious:kroxylicious-identity-api</include>
                                         <include>io.kroxylicious:kroxylicious-runtime</include>
                                         <include>io.kroxylicious:kroxylicious-annotations</include>
                                         <include>io.kroxylicious:kroxylicious-operator</include>

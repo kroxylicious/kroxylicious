@@ -11,3 +11,9 @@ enableStartupScripts: true
 startupScriptContent: |
   #!/bin/bash
   awslocal configure set region us-east-2
+service:
+  edgeService:
+    # Let Kubernetes assign the node port dynamically rather than using the chart's fixed
+    # default (31566), which may already be allocated to another service in the cluster,
+    # causing the install to fail. https://github.com/kroxylicious/kroxylicious/issues/4643
+    nodePort: ""

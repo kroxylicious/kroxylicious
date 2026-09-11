@@ -11,6 +11,7 @@ import java.util.Set;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings({ "java:S5738", "removal" })
 class SubjectTest {
 
     User user1 = new User("name");
@@ -31,13 +32,11 @@ class SubjectTest {
     void uniquenessIsEnforced() {
         Assertions.assertThatThrownBy(() -> new Subject(user1, user2))
                 .hasMessage("2 principals of class io.kroxylicious.proxy.authentication.User were found, "
-                        + "but class io.kroxylicious.proxy.authentication.User is annotated with interface "
-                        + "io.kroxylicious.proxy.authentication.Unique");
+                        + "but class io.kroxylicious.proxy.authentication.User is a singular principal type.");
 
         Assertions.assertThatThrownBy(() -> new Subject(user1, unique, unique2))
                 .hasMessage("2 principals of class io.kroxylicious.proxy.authentication.FakeUniquePrincipal were found, "
-                        + "but class io.kroxylicious.proxy.authentication.FakeUniquePrincipal is annotated with interface "
-                        + "io.kroxylicious.proxy.authentication.Unique");
+                        + "but class io.kroxylicious.proxy.authentication.FakeUniquePrincipal is a singular principal type.");
     }
 
     @Test
@@ -56,7 +55,7 @@ class SubjectTest {
         Assertions.assertThatThrownBy(() -> subject.uniquePrincipalOfType(FakeMultiplePrincipal.class))
                 .isExactlyInstanceOf(IllegalArgumentException.class)
                 .hasMessage(
-                        "class io.kroxylicious.proxy.authentication.FakeMultiplePrincipal is not annotated with interface io.kroxylicious.proxy.authentication.Unique");
+                        "class io.kroxylicious.proxy.authentication.FakeMultiplePrincipal is not a singular principal type.");
 
     }
 

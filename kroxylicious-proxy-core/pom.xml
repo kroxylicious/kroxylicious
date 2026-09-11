@@ -37,6 +37,7 @@
         <module>../kroxylicious-kafka-message-generator</module>
         <module>../kroxylicious-kafka-message-tools</module>
         <module>../kroxylicious-bom</module>
+        <module>../kroxylicious-identity-api</module>
         <module>../kroxylicious-api</module>
         <module>../kroxylicious-kafka-message-json</module>
         <module>../kroxylicious-fidelity-harness</module>

@@ -178,6 +178,7 @@ public interface RouterContext {
      *
      * @return the client subject
      */
+    @SuppressWarnings({ "java:S5738", "removal" })
     Subject authenticatedSubject();
 
     /**

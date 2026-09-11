@@ -27,6 +27,11 @@
             <artifactId>kroxylicious-api</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-identity-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
         <!-- project dependencies - test -->
         <dependency>
@@ -218,7 +223,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.5.6</version>
+                <version>3.6.0</version>
                 <configuration>
                     <skipTests>${skipITs}</skipTests>
                     <environmentVariables>
