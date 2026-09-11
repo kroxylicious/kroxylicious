@@ -14,16 +14,12 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-kms-providers</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-kms-provider-hashicorp-vault-test-support</artifactId>
     <name>HashiCorp Vault KMS test support</name>
     <description>Test support code for modules testing the HashiCorp Vault KMS</description>
-
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->

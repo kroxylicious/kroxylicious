@@ -43,6 +43,9 @@ spec:
           args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
+          env:
+          - name: "KROXYLICIOUS_DANGEROUSLY_CHANGE_PERMISSION_CHECK"
+            value: "0640"
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -93,6 +96,7 @@ spec:
               readOnly: true
       securityContext:
         runAsNonRoot: true
+        fsGroup: 185
         seccompProfile:
           type: "RuntimeDefault"
       volumes:
@@ -101,6 +105,7 @@ spec:
           name: "config-volume"
         - name: "secrets-upstream-tls-cert"
           secret:
+            defaultMode: 416
             secretName: "upstream-tls-cert"
         - configMap:
             name: "upstream-ca"

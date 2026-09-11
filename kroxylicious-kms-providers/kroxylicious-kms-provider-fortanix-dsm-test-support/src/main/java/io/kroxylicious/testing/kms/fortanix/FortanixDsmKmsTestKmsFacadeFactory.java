@@ -14,6 +14,14 @@ import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
  * Factory for the FortanixDsm test facade.
  */
 public class FortanixDsmKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, FortanixDsmKmsEdek> {
+
+    /**
+     * Creates the factory.
+     */
+    public FortanixDsmKmsTestKmsFacadeFactory() {
+        // Intentionally empty
+    }
+
     /**
      * {@inheritDoc}
      */

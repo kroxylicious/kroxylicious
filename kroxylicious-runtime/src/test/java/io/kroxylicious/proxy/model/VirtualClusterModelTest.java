@@ -197,7 +197,7 @@ class VirtualClusterModelTest {
 
         assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
         assertThat(((DynamicRouting) model.routing()).routerName()).isEqualTo("myrouter");
-        assertThat(((DynamicRouting) model.routing()).routeDescriptors()).containsKey("route1");
+        assertThat(((DynamicRouting) model.routing()).topLevelRouteDescriptors()).containsKey("route1");
         assertThatThrownBy(() -> model.getUpstreamClusterForRoute("route1")).isInstanceOf(NoUpstreamClusterForRouteException.class);
     }
 

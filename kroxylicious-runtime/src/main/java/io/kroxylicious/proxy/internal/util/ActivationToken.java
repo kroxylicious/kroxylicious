@@ -32,6 +32,11 @@ public class ActivationToken {
     // the tracker of all active instances
     private final AtomicInteger currentCounter;
 
+    /**
+     * Creates a token that contributes to the given counter of active instances.
+     *
+     * @param currentCounter the counter of all active instances
+     */
     public ActivationToken(AtomicInteger currentCounter) {
         this.currentCounter = currentCounter;
     }
@@ -46,6 +51,10 @@ public class ActivationToken {
         }
     }
 
+    /**
+     * Attempts to decrement the counter if it is in the ACQUIRED state.
+     * If the state is INITIAL or already RELEASED, this method has no effect.
+     */
     public void release() {
         if (this.state.compareAndSet(ACQUIRED, RELEASED)) {
             this.currentCounter.decrementAndGet();

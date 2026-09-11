@@ -71,21 +71,45 @@ public class SniHostIdentifiesNodeIdentificationStrategy
     @JsonIgnore
     private final Integer bootstrapPort;
 
+    /**
+     * The host part of the configured bootstrap address, with any port specifier removed.
+     *
+     * @return the bootstrap address pattern
+     */
     @JsonIgnore
     public String getBootstrapAddressPattern() {
         return parsedBootstrapAddressPattern;
     }
 
+    /**
+     * The port advertised to clients in broker addresses. It is the port given by
+     * {@code advertisedBrokerAddressPattern}, defaulting to the bootstrap port if the pattern
+     * does not specify one.
+     *
+     * @return the advertised port
+     */
     @JsonIgnore
     public int getAdvertisedPort() {
         return advertisedPort;
     }
 
+    /**
+     * The port part of the configured bootstrap address.
+     *
+     * @return the bootstrap port
+     */
     @JsonIgnore
     public int getBootstrapPort() {
         return bootstrapPort;
     }
 
+    /**
+     * Creates an SNI based node identification strategy.
+     *
+     * @param bootstrapAddress host and port of the bootstrap address; a port is required
+     * @param advertisedBrokerAddressPattern address pattern used to advertise broker addresses; must contain the
+     *        {@code $(nodeId)} replacement token and may specify an advertised port
+     */
     @JsonCreator
     public SniHostIdentifiesNodeIdentificationStrategy(@JsonProperty(required = true, value = "bootstrapAddress") String bootstrapAddress,
                                                        @JsonProperty(required = true, value = "advertisedBrokerAddressPattern") String advertisedBrokerAddressPattern) {
@@ -125,11 +149,21 @@ public class SniHostIdentifiesNodeIdentificationStrategy
         this.parsedBrokerAddressPattern = brokerAddressPatternPart;
     }
 
+    /**
+     * The configured bootstrap address, as given in the configuration.
+     *
+     * @return the bootstrap address
+     */
     @JsonProperty(required = true)
     public String getBootstrapAddress() {
         return bootstrapAddress;
     }
 
+    /**
+     * The configured advertised broker address pattern, as given in the configuration.
+     *
+     * @return the advertised broker address pattern
+     */
     @JsonProperty(required = true)
     public String getAdvertisedBrokerAddressPattern() {
         return advertisedBrokerAddressPattern;
@@ -162,7 +196,16 @@ public class SniHostIdentifiesNodeIdentificationStrategy
                 "advertisedBrokerAddressPattern=" + advertisedBrokerAddressPattern + ']';
     }
 
+    /**
+     * Thrown when the bootstrap address still contains the unresolved route host placeholder
+     * token (for example because the associated OpenShift Route is not yet ready).
+     */
     public static class UnresolvedHostException extends RuntimeException {
+        /**
+         * Creates the exception.
+         *
+         * @param m detail message
+         */
         public UnresolvedHostException(String m) {
             super(m);
         }

@@ -15,7 +15,18 @@ import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 
+/**
+ * A {@link SaslSubjectBuilder} that builds a {@link Subject} containing a single
+ * {@link User} principal named after the SASL authorization id.
+ */
 public class SaslSubjectBuilderImpl implements SaslSubjectBuilder {
+
+    /**
+     * Creates a SASL subject builder.
+     */
+    public SaslSubjectBuilderImpl() {
+        // Intentionally empty
+    }
 
     @Override
     public CompletionStage<Subject> buildSaslSubject(Context context) {

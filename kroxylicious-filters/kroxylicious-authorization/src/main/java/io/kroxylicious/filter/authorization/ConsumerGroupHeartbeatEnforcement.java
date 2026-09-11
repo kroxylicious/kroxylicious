@@ -13,13 +13,12 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.message.ConsumerGroupHeartbeatRequestData;
+import io.kroxylicious.kafka.common.message.ConsumerGroupHeartbeatResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
@@ -52,7 +51,7 @@ class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHear
         List<Action> actions = Stream.concat(Stream.of(groupReadAction), topicDescribeActions(request)).toList();
         return authorizationFilter.authorization(context, actions).thenCompose(result -> {
             if (result.denied().contains(groupReadAction)) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
             }
             else if (request.subscribedTopicNames() == null || request.subscribedTopicNames().isEmpty()) {
                 return context.forwardRequest(header, request);

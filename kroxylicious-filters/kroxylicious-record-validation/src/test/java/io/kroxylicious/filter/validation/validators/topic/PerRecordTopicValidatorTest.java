@@ -10,9 +10,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
-import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
-import org.apache.kafka.common.record.Record;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -20,6 +17,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.filter.validation.validators.Result;
 import io.kroxylicious.filter.validation.validators.record.RecordValidator;
+import io.kroxylicious.kafka.common.message.ProduceRequestData.PartitionProduceData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData.TopicProduceData;
+import io.kroxylicious.kafka.common.record.internal.Record;
 import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;

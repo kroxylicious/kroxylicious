@@ -37,8 +37,8 @@ import io.kroxylicious.it.testplugins.ProtocolCounterFilter;
 import io.kroxylicious.proxy.authentication.UserFactory;
 import io.kroxylicious.proxy.internal.subject.DefaultSaslSubjectBuilderService;
 import io.kroxylicious.proxy.internal.subject.PrincipalAdderConf;
-import io.kroxylicious.testing.filter.assertj.HeadersAssert;
 import io.kroxylicious.testing.filter.assertj.KafkaAssertions;
+import io.kroxylicious.testing.filter.assertj.KafkaHeadersAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
@@ -122,10 +122,10 @@ class SaslInspectionIT extends BaseIT {
         assertClientsCanAccessCluster(cluster, null, null, topic, mechanism,
                 clientLoginModule, username, password,
                 1, 2, Duration.ofMillis(0), headers -> {
-                    HeadersAssert.assertThat(headers)
+                    KafkaHeadersAssert.assertThat(headers)
                             .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                             .hasValueEqualTo("alice");
-                    HeadersAssert.assertThat(headers).singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
+                    KafkaHeadersAssert.assertThat(headers).singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
                             .hasValueEqualTo(mechanism);
                 });
     }
@@ -185,10 +185,10 @@ class SaslInspectionIT extends BaseIT {
         assertClientsCanAccessCluster(cluster, Set.of(mechanism), null, topic, mechanism, clientLoginModule, username, password,
                 2, 1,
                 Duration.ofMillis(10_000), headers -> {
-                    HeadersAssert.assertThat(headers)
+                    KafkaHeadersAssert.assertThat(headers)
                             .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                             .hasValueEqualTo("alice");
-                    HeadersAssert.assertThat(headers).singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
+                    KafkaHeadersAssert.assertThat(headers).singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
                             .hasValueEqualTo(mechanism);
                 });
     }
@@ -211,10 +211,10 @@ class SaslInspectionIT extends BaseIT {
         assertClientsCanAccessCluster(cluster, Set.of(mechanism), null, topic, mechanism, clientLoginModule, username, password,
                 2, 2,
                 Duration.ofMillis(10_000), headers -> {
-                    HeadersAssert.assertThat(headers)
+                    KafkaHeadersAssert.assertThat(headers)
                             .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                             .hasValueEqualTo("alice");
-                    HeadersAssert.assertThat(headers).singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
+                    KafkaHeadersAssert.assertThat(headers).singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
                             .hasValueEqualTo(mechanism);
                 });
     }
@@ -287,7 +287,7 @@ class SaslInspectionIT extends BaseIT {
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, null, 2, clientLoginModule, username, password, headers -> HeadersAssert.assertThat(headers)
+        assertClientsCanAccessCluster(cluster, topic, mechanism, null, 2, clientLoginModule, username, password, headers -> KafkaHeadersAssert.assertThat(headers)
                 .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
                 .hasValueEqualTo("Subject[principals=[User[name=%s]]]".formatted(username)));
     }
@@ -314,7 +314,7 @@ class SaslInspectionIT extends BaseIT {
 
         var expectedUpperCasedUserName = username.toUpperCase(Locale.ROOT);
         assertClientsCanAccessCluster(cluster, topic, mechanism, subjectBuilderConfig, 2, clientLoginModule, username, password,
-                headers -> HeadersAssert.assertThat(headers)
+                headers -> KafkaHeadersAssert.assertThat(headers)
                         .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
                         .hasValueEqualTo("Subject[principals=[User[name=%s]]]".formatted(expectedUpperCasedUserName)));
     }
@@ -345,10 +345,10 @@ class SaslInspectionIT extends BaseIT {
                                                       String username,
                                                       String password) {
         assertClientsCanAccessCluster(cluster, topic, mechanism, null, numAuthReqPerAuth, clientLoginModule, username, password, headers -> {
-            HeadersAssert.assertThat(headers)
+            KafkaHeadersAssert.assertThat(headers)
                     .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                     .hasValueEqualTo(username);
-            HeadersAssert.assertThat(headers).singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
+            KafkaHeadersAssert.assertThat(headers).singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
                     .hasValueEqualTo(mechanism);
         });
     }
@@ -408,7 +408,8 @@ class SaslInspectionIT extends BaseIT {
                         .satisfies(headersAssertion);
 
                 int newCount = ProtocolCounterFilter.fromBytes(
-                        headers.singleHeaderWithKey(ProtocolCounterFilter.requestCountHeaderKey(ApiKeys.SASL_AUTHENTICATE)).value().actual());
+                        headers.singleHeaderWithKey(ProtocolCounterFilter.requestCountHeaderKey(io.kroxylicious.kafka.common.protocol.ApiKeys.SASL_AUTHENTICATE)).value()
+                                .actual());
 
                 assertThat(newCount)
                         .as("Observed number of %s requests @ batch #%s", ApiKeys.SASL_AUTHENTICATE, batchNum)

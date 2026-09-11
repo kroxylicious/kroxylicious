@@ -39,6 +39,7 @@ public class EncryptionDekCache<K, E> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EncryptionDekCache.class);
 
+    /** The value to pass as {@code dekCacheMaxItems} for a cache with no maximum size. */
     public static final int NO_MAX_CACHE_SIZE = -1;
     private CipherSpecResolver cipherSpecResolver;
     private final AtomicLong invalidationCount = new AtomicLong(0L);
@@ -53,6 +54,14 @@ public class EncryptionDekCache<K, E> {
 
     private final AsyncLoadingCache<CacheKey<K>, Dek<E>> dekCache;
 
+    /**
+     * Creates an encryption DEK cache.
+     * @param dekManager the DEK manager used to generate DEKs on a cache miss.
+     * @param dekCacheExecutor the executor used to load cache entries, or null to use the cache's default executor.
+     * @param dekCacheMaxItems the maximum number of DEKs to cache, or {@link #NO_MAX_CACHE_SIZE} for no maximum.
+     * @param refreshAfterWrite how long after being cached a DEK becomes eligible for a refresh.
+     * @param expireAfterWrite how long after being cached a DEK is removed from the cache.
+     */
     public EncryptionDekCache(@NonNull DekManager<K, E> dekManager,
                               @Nullable Executor dekCacheExecutor,
                               int dekCacheMaxItems,

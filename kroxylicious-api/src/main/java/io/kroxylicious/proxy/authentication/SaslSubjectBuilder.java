@@ -29,6 +29,7 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
  * However, note that a {@code SaslSubjectBuilder} is not specified directly
  * on a virtual cluster as a {@code TransportSubjectBuilder} is.</p>
  */
+@SuppressWarnings({ "java:S5738", "removal" })
 public interface SaslSubjectBuilder {
 
     /**

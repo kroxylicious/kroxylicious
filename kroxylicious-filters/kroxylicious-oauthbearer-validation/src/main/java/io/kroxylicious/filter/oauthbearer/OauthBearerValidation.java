@@ -47,6 +47,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 
+/**
+ * A {@link FilterFactory} for {@link OauthBearerValidationFilter} instances, which validate
+ * the JWT token presented by a client during SASL OAUTHBEARER authentication before
+ * forwarding it to the Kafka cluster.
+ */
 @Plugin(configType = OauthBearerValidation.Config.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.oauthbearer.OauthBearerValidation", since = "0.19.0")
 public class OauthBearerValidation implements FilterFactory<OauthBearerValidation.Config, SharedOauthBearerValidationContext> {
@@ -62,6 +67,9 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
 
     private final Deque<Runnable> oauthSystemPropertyCleanupTasks = new ConcurrentLinkedDeque<>();
 
+    /**
+     * Creates a new factory instance, invoked by the plugin framework.
+     */
     @SuppressWarnings("unused")
     public OauthBearerValidation() {
         this(new OAuthBearerValidatorCallbackHandler());
@@ -138,6 +146,22 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
 
     }
 
+    /**
+     * The configuration for the {@link OauthBearerValidation} filter factory.
+     * @param jwksEndpointUrl The OAuth/OIDC provider URL from which the provider's JSON Web Key Set (JWKS) is retrieved.
+     * @param jwksEndpointRefreshMs The interval, in milliseconds, between refreshes of the JWKS cache used to verify JWT signatures.
+     * @param jwksEndpointRetryBackoffMs The initial delay, in milliseconds, between attempts to retrieve the JWKS from the external authentication provider.
+     * @param jwksEndpointRetryBackoffMaxMs The maximum delay, in milliseconds, between JWKS retrieval attempts.
+     * @param scopeClaimName An alternative claim name for the scope in the JWT payload.
+     * @param subClaimName An alternative claim name for the subject in the JWT payload.
+     * @param authenticateBackOffMaxMs The maximum backoff time, in milliseconds, applied to repeated authentication attempts.
+     *        A value of 0 disables backoff. Otherwise, an exponential delay is added to each authenticate request
+     *        until the maximum has been reached.
+     * @param authenticateCacheMaxSize The maximum number of failed tokens retained in the cache.
+     * @param expectedAudience A comma-delimited list of valid audiences used to verify the JWT.
+     * @param expectedIssuer The expected issuer used to verify the JWT.
+     * @param jwtValidatorClass The fully-qualified name of the JWT validator class used to validate tokens.
+     */
     public record Config(
                          @JsonProperty(required = true) URI jwksEndpointUrl,
                          @JsonProperty @Nullable Long jwksEndpointRefreshMs,

@@ -12,10 +12,21 @@ package io.kroxylicious.proxy.internal.tls;
  */
 public class BadTlsCredentialsException extends RuntimeException {
 
+    /**
+     * Constructor.
+     *
+     * @param message the detail message.
+     */
     public BadTlsCredentialsException(String message) {
         super(message);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param message the detail message.
+     * @param cause the underlying cause.
+     */
     public BadTlsCredentialsException(String message, Throwable cause) {
         super(message, cause);
     }

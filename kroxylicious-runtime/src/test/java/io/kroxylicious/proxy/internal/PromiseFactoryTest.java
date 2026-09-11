@@ -47,7 +47,7 @@ class PromiseFactoryTest {
 
     @AfterEach
     void tearDown() {
-        eventLoop.shutdownGracefully(0, 0, TimeUnit.SECONDS);
+        eventLoop.shutdownGracefully(0, 0, TimeUnit.SECONDS).syncUninterruptibly();
     }
 
     @Test

@@ -210,8 +210,8 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
-        assertThat(((DynamicRouting) model.routing()).routeDescriptors()).containsKey("route1");
-        RouteDescriptor rd = ((DynamicRouting) model.routing()).routeDescriptors().get("route1");
+        assertThat(((DynamicRouting) model.routing()).topLevelRouteDescriptors()).containsKey("route1");
+        RouteDescriptor rd = ((DynamicRouting) model.routing()).topLevelRouteDescriptors().get("route1");
         assertThat(rd.name()).isEqualTo("route1");
         assertThat(rd.id()).isZero();
         assertThat(rd.targetsCluster()).isTrue();
@@ -235,7 +235,7 @@ class ConfigurationValidationTest {
 
         assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
         var dr = (DynamicRouting) model.routing();
-        assertThat(dr.routeDescriptors()).containsKeys("r1", "r2");
+        assertThat(dr.topLevelRouteDescriptors()).containsKeys("r1", "r2");
     }
 
     @Test
@@ -253,7 +253,7 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
-        assertThat(((DynamicRouting) model.routing()).routeDescriptors()).hasSize(2).containsKeys("r1", "r2");
+        assertThat(((DynamicRouting) model.routing()).topLevelRouteDescriptors()).hasSize(2).containsKeys("r1", "r2");
     }
 
     @Test
@@ -270,7 +270,7 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
-        RouteDescriptor rd = ((DynamicRouting) model.routing()).routeDescriptors().get("r1");
+        RouteDescriptor rd = ((DynamicRouting) model.routing()).topLevelRouteDescriptors().get("r1");
         assertThat(rd.filters()).hasSize(1);
         assertThat(rd.filters().get(0).name()).isEqualTo("f1");
     }
@@ -348,7 +348,7 @@ class ConfigurationValidationTest {
         assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
         var dr = (DynamicRouting) model.routing();
         assertThat(dr.routerName()).isEqualTo("myrouter");
-        assertThat(dr.routeDescriptors()).containsKey("r1");
+        assertThat(dr.topLevelRouteDescriptors()).containsKey("r1");
     }
 
     @Test
@@ -452,7 +452,8 @@ class ConfigurationValidationTest {
     }
 
     @Test
-    void shouldRejectRouteTargetingNestedRouter() {
+    void shouldAcceptRouteTargetingNestedRouter() {
+        // Given
         var cluster = new ClusterDefinition("c1", "broker:9092", null);
         var innerRoute = new RouteDefinition("inner-r", 0, null, new RouteTarget("c1", null));
         var innerRouter = new RouterDefinition("inner", "Type", null, List.of(innerRoute));
@@ -462,14 +463,22 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "outer"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
-        assertThatThrownBy(() -> new Configuration(null, List.of(cluster), null, null, List.of(outerRouter, innerRouter),
-                List.of(vc), null, false, Optional.empty(), null, null))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("nested routers are not yet supported");
+        // When
+        var config = new Configuration(null, List.of(cluster), null, null, List.of(outerRouter, innerRouter),
+                List.of(vc), null, false, Optional.empty(), null, null);
+        var dr = (DynamicRouting) config.virtualClusterModel(noOpRouterPfr()).get(0).routing();
+
+        // Then
+        assertThat(dr.topLevelRouteDescriptors()).containsOnlyKeys("outer-r");
+        assertThat(dr.topLevelRouteDescriptors().get("outer-r").targetsRouter()).isTrue();
+        assertThat(dr.topLevelRouteDescriptors().get("outer-r").routerName()).isEqualTo("inner");
+        assertThat(dr.allRouteDescriptors()).containsOnlyKeys("outer-r", "inner/inner-r");
+        assertThat(dr.allRouteDescriptors().get("inner/inner-r").targetsCluster()).isTrue();
     }
 
     @Test
-    void shouldRejectMixedRouteWithNestedRouterTarget() {
+    void shouldAcceptMixedRouteWithNestedRouterTarget() {
+        // Given
         var c1 = new ClusterDefinition("c1", "broker1:9092", null);
         var c2 = new ClusterDefinition("c2", "broker2:9092", null);
         var innerRoute = new RouteDefinition("ir", 0, null, new RouteTarget("c2", null));
@@ -481,9 +490,17 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "myrouter"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
-        assertThatThrownBy(() -> new Configuration(null, List.of(c1, c2), null, null, List.of(router, innerRouter),
-                List.of(vc), null, false, Optional.empty(), null, null))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("nested routers are not yet supported");
+        // When
+        var config = new Configuration(null, List.of(c1, c2), null, null, List.of(router, innerRouter),
+                List.of(vc), null, false, Optional.empty(), null, null);
+        var dr = (DynamicRouting) config.virtualClusterModel(noOpRouterPfr()).get(0).routing();
+
+        // Then
+        assertThat(dr.topLevelRouteDescriptors()).containsOnlyKeys("r1", "r2");
+        assertThat(dr.topLevelRouteDescriptors().get("r1").targetsRouter()).isTrue();
+        assertThat(dr.topLevelRouteDescriptors().get("r1").routerName()).isEqualTo("inner");
+        assertThat(dr.topLevelRouteDescriptors().get("r2").targetsCluster()).isTrue();
+        assertThat(dr.allRouteDescriptors()).containsOnlyKeys("r1", "r2", "inner/ir");
+        assertThat(dr.allRouteDescriptors().get("inner/ir").targetsCluster()).isTrue();
     }
 }

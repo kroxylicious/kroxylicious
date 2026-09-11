@@ -6,6 +6,9 @@
 
 package io.kroxylicious.proxy.config;
 
+/**
+ * A registry of {@link PluginFactory} instances, one per plugin interface type.
+ */
 public interface PluginFactoryRegistry {
 
     /**

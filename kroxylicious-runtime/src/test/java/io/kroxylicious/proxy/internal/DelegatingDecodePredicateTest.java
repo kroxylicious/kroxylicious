@@ -8,11 +8,11 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.Set;
 
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;

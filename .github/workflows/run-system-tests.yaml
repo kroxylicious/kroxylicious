@@ -53,7 +53,7 @@ jobs:
       test_chunks: ${{ steps.discover.outputs.test_chunks }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
       - name: 'Check out repository'
@@ -85,35 +85,35 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
       - name: Setup Minikube
-        uses: ./.github/actions/common/setup-minikube
+        uses: $/.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Set up Docker Buildx'
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Download Kroxylicious Maven artifacts'
-        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
+        uses: dawidd6/action-download-artifact@d63b86af1b34672e53c440b1b83979861906bad7
         with:
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts
           run_id: ${{github.run_id}}
       - name: Download kroxylicious proxy container artifact
-        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
+        uses: dawidd6/action-download-artifact@d63b86af1b34672e53c440b1b83979861906bad7
         with:
           name: kroxylicious-proxy
           run_id: ${{github.run_id}}
       - name: Download kroxylicious operator container artifact
-        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
+        uses: dawidd6/action-download-artifact@d63b86af1b34672e53c440b1b83979861906bad7
         with:
           name: kroxylicious-operator
           run_id: ${{github.run_id}}
       - name: Download kroxylicious admission-webhook container artifact
-        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
+        uses: dawidd6/action-download-artifact@d63b86af1b34672e53c440b1b83979861906bad7
         with:
           name: kroxylicious-admission-webhook
           run_id: ${{github.run_id}}
@@ -122,18 +122,24 @@ jobs:
           mkdir -p "$HOME/.m2/repository"
           cd "$HOME/.m2/repository"
           tar xzf /tmp/kroxylicious-artifacts/maven-repo.tar.gz
+      - name: 'Build OAuth test-clients image'
+        working-directory: kroxylicious-test-images
+        run: mvn --batch-mode --quiet --activate-profiles dist -DskipTests package
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
           minikube image load kroxylicious-proxy.img.tar.gz
           minikube image load kroxylicious-operator.img.tar.gz
           minikube image load kroxylicious-webhook.img.tar.gz
-          
+          minikube image load kroxylicious-test-images/target/oauth-test-clients.img.tar.gz
+
           # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
           KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects :kroxylicious-app --activate-profiles dist help:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
           KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects :kroxylicious-operator --activate-profiles dist help:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"
+          KROXYLICIOUS_OAUTH_TEST_CLIENTS_IMAGE="$(mvn --quiet --projects :kroxylicious-test-images help:evaluate -Dexpression=io.kroxylicious.oauth.test.clients.image.name -DforceStdout)"
           KROXYLICIOUS_VERSION="$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)"
           minikube image ls | grep --fixed-strings ${KROXYLICIOUS_PROXY_IMAGE}
           minikube image ls | grep --fixed-strings ${KROXYLICIOUS_OPERATOR_IMAGE}
+          minikube image ls | grep --fixed-strings ${KROXYLICIOUS_OAUTH_TEST_CLIENTS_IMAGE}
 
       - name: 'Run system tests'
         id: run_system_tests

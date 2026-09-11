@@ -136,8 +136,9 @@ class DeleteRecordsAuthzIT extends AuthzIT {
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.DELETE_RECORDS),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.DELETE_RECORDS))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.DELETE_RECORDS),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.DELETE_RECORDS))
                 .boxed().flatMap(apiVersion -> {
                     Stream<Arguments.ArgumentSet> allTopic = Stream.of(
                             Arguments.argumentSet("api version " + apiVersion + " all topics request",
@@ -150,7 +151,7 @@ class DeleteRecordsAuthzIT extends AuthzIT {
                 });
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.DELETE_RECORDS.oldestVersion(), ApiKeys.DELETE_RECORDS.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.DELETE_RECORDS, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.DELETE_RECORDS, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.DELETE_RECORDS, (short) apiVersion)));

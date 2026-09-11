@@ -5,14 +5,14 @@
  */
 package io.kroxylicious.proxy.internal.util;
 
-import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import io.kroxylicious.kafka.common.compress.Compression;
+import io.kroxylicious.kafka.common.record.TimestampType;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecordsBuilder;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 
 /**
- * This introduces additional factory builder methods for {@link org.apache.kafka.common.record.MemoryRecords} that
+ * This introduces additional factory builder methods for {@link io.kroxylicious.kafka.common.record.internal.MemoryRecords} that
  * accepts {@link ByteBufOutputStream}<br>
  *
  */
@@ -21,6 +21,16 @@ public class MemoryRecordsHelper {
     private MemoryRecordsHelper() {
     }
 
+    /**
+     * Creates a {@link MemoryRecordsBuilder} writing to the given stream, using the current magic
+     * value and defaults suitable for non-transactional, non-control batches.
+     *
+     * @param stream the stream the records are written to
+     * @param compression the compression type to use
+     * @param timestampType the timestamp type of the records
+     * @param baseOffset the initial offset of the batch
+     * @return the builder
+     */
     public static MemoryRecordsBuilder builder(ByteBufferOutputStream stream,
                                                Compression compression,
                                                TimestampType timestampType,

@@ -79,6 +79,7 @@ class VaultKmsTest {
 
     @Test
     void resolveAlias() {
+        // Given
         String response = """
                 {
                   "data": {
@@ -88,11 +89,14 @@ class VaultKmsTest {
                     "exportable": false,
                     "allow_plaintext_backup": false,
                     "keys": {
-                      "1": 1442851412
+                      "1": 1442851412,
+                      "2": 1442851413,
+                      "3": 1442851414
                     },
                     "min_decryption_version": 1,
                     "min_encryption_version": 0,
                     "name": "resolved",
+                    "latest_version": 3,
                     "supports_encryption": true,
                     "supports_decryption": true,
                     "supports_derivation": true,
@@ -105,17 +109,63 @@ class VaultKmsTest {
         server.stubFor(get(urlEqualTo("/v1/transit/keys/alias"))
                 .willReturn(aResponse().withBody(response)));
 
+        // When / Then
         assertThat(kms.resolveAlias("alias"))
                 .succeedsWithin(Duration.ofSeconds(5))
-                .isEqualTo("resolved");
+                .extracting(WrappingKey::name, WrappingKey::version)
+                .containsExactly("resolved", 3);
+    }
+
+    @Test
+    void resolveAliasChangesIdentityAfterRotation() {
+        // Given - version 1
+        String responseV1 = """
+                {
+                  "data": {
+                    "keys": { "1": 1442851412 },
+                    "name": "mykey",
+                    "latest_version": 1
+                  }
+                }
+                """;
+        server.stubFor(get(urlEqualTo("/v1/transit/keys/mykey"))
+                .willReturn(aResponse().withBody(responseV1)));
+
+        // When
+        var first = kms.resolveAlias("mykey").toCompletableFuture().join();
+
+        // Given - version 2 after rotation
+        server.resetAll();
+        String responseV2 = """
+                {
+                  "data": {
+                    "keys": { "1": 1442851412, "2": 1442851500 },
+                    "name": "mykey",
+                    "latest_version": 2
+                  }
+                }
+                """;
+        server.stubFor(get(urlEqualTo("/v1/transit/keys/mykey"))
+                .willReturn(aResponse().withBody(responseV2)));
+
+        // When
+        var second = kms.resolveAlias("mykey").toCompletableFuture().join();
+
+        // Then
+        assertThat(first.name()).isEqualTo(second.name());
+        assertThat(first).isNotEqualTo(second);
+        assertThat(first.version()).isEqualTo(1);
+        assertThat(second.version()).isEqualTo(2);
     }
 
     @Test
     void resolveAliasNotFound() {
+        // Given
         server.stubFor(
                 get(urlEqualTo("/v1/transit/keys/alias"))
                         .willReturn(aResponse().withStatus(404)));
 
+        // When / Then
         var aliasStage = kms.resolveAlias("alias");
         assertThat(aliasStage)
                 .failsWithin(Duration.ofSeconds(5))
@@ -126,10 +176,12 @@ class VaultKmsTest {
 
     @Test
     void resolveAliasInternalServerError() {
+        // Given
         server.stubFor(
                 get(urlEqualTo("/v1/transit/keys/alias"))
                         .willReturn(aResponse().withStatus(500)));
 
+        // When / Then
         var aliasStage = kms.resolveAlias("alias");
         assertThat(aliasStage)
                 .failsWithin(Duration.ofSeconds(5))
@@ -140,6 +192,7 @@ class VaultKmsTest {
 
     @Test
     void generateDekPair() {
+        // Given
         String plaintext = "dGhlIHF1aWNrIGJyb3duIGZveAo=";
         String ciphertext = "vault:v1:abcdefgh";
         byte[] decoded = Base64.getDecoder().decode(plaintext);
@@ -157,7 +210,8 @@ class VaultKmsTest {
         server.stubFor(post(urlEqualTo("/v1/transit/datakey/plaintext/kekref"))
                 .willReturn(aResponse().withBody(response)));
 
-        assertThat(kms.generateDekPair("kekref"))
+        // When / Then
+        assertThat(kms.generateDekPair(new WrappingKey("kekref", 1)))
                 .succeedsWithin(Duration.ofSeconds(5))
                 .satisfies(dekPair -> {
                     assertThat(dekPair)
@@ -168,11 +222,62 @@ class VaultKmsTest {
                             .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
                             .matches(key -> SecretKeyUtils.same(key, expectedKey));
                 });
+    }
 
+    @Test
+    void generateDekPairUsesKeyNameNotVersion() {
+        // Given - the datakey URL must contain the plain name, not the version
+        String plaintext = "dGhlIHF1aWNrIGJyb3duIGZveAo=";
+        String ciphertext = "vault:v2:abcdefgh";
+
+        var response = """
+                {
+                  "data": {
+                    "plaintext": "%s",
+                    "ciphertext": "%s"
+                  }
+                }
+                """.formatted(plaintext, ciphertext);
+
+        server.stubFor(post(urlEqualTo("/v1/transit/datakey/plaintext/kekref"))
+                .willReturn(aResponse().withBody(response)));
+
+        // When / Then - WrappingKey with version 2, but URL path uses the name only
+        assertThat(kms.generateDekPair(new WrappingKey("kekref", 2)))
+                .succeedsWithin(Duration.ofSeconds(5))
+                .satisfies(dekPair -> {
+                    // EDEK still keyed on plain name, not version — wire format unchanged
+                    assertThat(dekPair.edek().kekRef()).isEqualTo("kekref");
+                });
+    }
+
+    @Test
+    void generateDekPairWithUriEncodedKeyName() {
+        // Given - key name containing a space (requires URI encoding in path)
+        String plaintext = "dGhlIHF1aWNrIGJyb3duIGZveAo=";
+        String ciphertext = "vault:v1:abcdefgh";
+
+        var response = """
+                {
+                  "data": {
+                    "plaintext": "%s",
+                    "ciphertext": "%s"
+                  }
+                }
+                """.formatted(plaintext, ciphertext);
+
+        server.stubFor(post(urlEqualTo("/v1/transit/datakey/plaintext/my+key"))
+                .willReturn(aResponse().withBody(response)));
+
+        // When / Then
+        assertThat(kms.generateDekPair(new WrappingKey("my key", 1)))
+                .succeedsWithin(Duration.ofSeconds(5))
+                .satisfies(dekPair -> assertThat(dekPair.edek().kekRef()).isEqualTo("my key"));
     }
 
     @Test
     void decryptEdek() {
+        // Given
         String edek = "dGhlIHF1aWNrIGJyb3duIGZveAo=";
         byte[] edekBytes = Base64.getDecoder().decode(edek);
         String plaintext = "qWruWwlmc7USk6uP41LZBs+gLVfkFWChb+jKivcWK0c=";
@@ -190,6 +295,7 @@ class VaultKmsTest {
         server.stubFor(post(urlEqualTo("/v1/transit/decrypt/kekref"))
                 .willReturn(aResponse().withBody(response)));
 
+        // When / Then
         assertThat(kms.decryptEdek(new VaultEdek("kekref", edekBytes)))
                 .succeedsWithin(Duration.ofSeconds(5))
                 .isInstanceOf(DestroyableRawSecretKey.class)

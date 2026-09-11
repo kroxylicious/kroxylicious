@@ -1,0 +1,24 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.testing.filter.record;
+
+import org.apache.kafka.common.record.internal.MemoryRecords;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class KafkaRecordTestUtilsTest {
+
+    @Test
+    void testMemoryRecordsWithAllRecordsDeleted() {
+        MemoryRecords records = KafkaRecordTestUtils.memoryRecordsWithAllRecordsRemoved();
+        assertThat(records.firstBatch()).isNotNull();
+        assertThat(records.sizeInBytes()).isPositive();
+        assertThat(records.records()).isEmpty();
+    }
+
+}

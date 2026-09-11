@@ -14,17 +14,13 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-filter-parent</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>kroxylicious-connection-expiration</artifactId>
     <name>Connection Expiration filter</name>
     <description>A filter that closes client connections after a configurable expiration age, with optional jitter, to prevent connection skew during proxy scaling.</description>
-
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
@@ -37,10 +33,6 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>

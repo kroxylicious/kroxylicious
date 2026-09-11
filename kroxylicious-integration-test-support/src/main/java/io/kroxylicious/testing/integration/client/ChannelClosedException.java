@@ -10,6 +10,11 @@ package io.kroxylicious.testing.integration.client;
  */
 public class ChannelClosedException extends RuntimeException {
 
+    /**
+     * Creates a ChannelClosedException.
+     *
+     * @param message the detail message
+     */
     public ChannelClosedException(String message) {
         super(message);
     }

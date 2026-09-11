@@ -4,6 +4,9 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+/**
+ * Validators that operate on whole Kafka records, applying validation to their keys and values.
+ */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)

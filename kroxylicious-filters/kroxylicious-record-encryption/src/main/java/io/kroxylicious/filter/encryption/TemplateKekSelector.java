@@ -14,8 +14,20 @@ import io.kroxylicious.proxy.plugin.Plugin;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * A {@link KekSelectorService} which builds KEK selectors that derive the KEK alias
+ * from the topic name using a template.
+ * @param <K> The type of KEK id.
+ */
 @Plugin(configType = TemplateConfig.class)
 public class TemplateKekSelector<K> implements KekSelectorService<TemplateConfig, K> {
+
+    /**
+     * Creates a new selector service instance, invoked by the plugin framework.
+     */
+    public TemplateKekSelector() {
+        // nothing to initialise: state is created in buildSelector(Kms, TemplateConfig)
+    }
 
     @NonNull
     @Override

@@ -10,22 +10,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.AbstractRequest;
-import org.apache.kafka.common.requests.ApiVersionsRequest;
-import org.apache.kafka.common.requests.MetadataRequest;
-import org.apache.kafka.common.requests.ProduceRequest;
-import org.apache.kafka.common.requests.SaslAuthenticateRequest;
-import org.apache.kafka.common.requests.SaslHandshakeRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,6 +18,16 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
 
@@ -55,11 +49,18 @@ class EagerMetadataLearnerTest {
         learner = new EagerMetadataLearner();
     }
 
+    record Request(ApiMessage data, short version) {
+
+        public ApiKeys apiKey() {
+            return ApiKeys.forId(data.apiKey());
+        }
+    }
+
     public static Stream<Arguments> preludeRequests() {
         return Stream.of(
-                toArgs("ApiVersionsRequest", new ApiVersionsRequest(new ApiVersionsRequestData(), ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION)),
-                toArgs("SaslHandshakeRequest", new SaslHandshakeRequest(new SaslHandshakeRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)),
-                toArgs("SaslAuthenticateRequest", new SaslAuthenticateRequest(new SaslAuthenticateRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)));
+                toArgs("ApiVersionsRequest", new Request(new ApiVersionsRequestData(), ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION)),
+                toArgs("SaslHandshakeRequest", new Request(new SaslHandshakeRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)),
+                toArgs("SaslAuthenticateRequest", new Request(new SaslAuthenticateRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -72,10 +73,10 @@ class EagerMetadataLearnerTest {
 
     public static Stream<Arguments> postPreludeRequests() {
         return Stream.of(
-                toArgs("ProduceRequest replaced by MetadataRequest", new ProduceRequest(new ProduceRequestData(), ProduceRequestData.HIGHEST_SUPPORTED_VERSION)),
-                toArgs("MetadataRequest (highest supported)", new MetadataRequest(new MetadataRequestData(), MetadataRequestData.HIGHEST_SUPPORTED_VERSION)),
-                toArgs("MetadataRequest (lowest supported)", new MetadataRequest(new MetadataRequestData(), MetadataRequestData.LOWEST_SUPPORTED_VERSION)),
-                toArgs("MetadataRequest (payload fidelity)", new MetadataRequest(new MetadataRequestData().setTopics(List.of(new MetadataRequestTopic().setName("foo"))),
+                toArgs("ProduceRequest replaced by MetadataRequest", new Request(new ProduceRequestData(), ProduceRequestData.HIGHEST_SUPPORTED_VERSION)),
+                toArgs("MetadataRequest (highest supported)", new Request(new MetadataRequestData(), MetadataRequestData.HIGHEST_SUPPORTED_VERSION)),
+                toArgs("MetadataRequest (lowest supported)", new Request(new MetadataRequestData(), MetadataRequestData.LOWEST_SUPPORTED_VERSION)),
+                toArgs("MetadataRequest (payload fidelity)", new Request(new MetadataRequestData().setTopics(List.of(new MetadataRequestTopic().setName("foo"))),
                         MetadataRequestData.LOWEST_SUPPORTED_VERSION)));
     }
 
@@ -103,7 +104,7 @@ class EagerMetadataLearnerTest {
         assertThat(result.closeConnection()).isTrue();
     }
 
-    private static Arguments toArgs(String name, AbstractRequest request) {
+    private static Arguments toArgs(String name, Request request) {
         var header = new RequestHeaderData().setRequestApiKey(request.apiKey().id).setRequestApiVersion(request.version());
         var apiKey = request.apiKey();
         var request1 = request.data();

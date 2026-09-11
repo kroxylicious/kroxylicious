@@ -16,6 +16,9 @@ import io.kroxylicious.proxy.config.TargetCluster;
  * upstream Kafka cluster.
  * <p>
  * Owns the {@link UpstreamClusterModel} for that cluster and closes it when {@link #close()} is called.
+ *
+ * @param routeName the name of the single route handled by this routing model
+ * @param upstreamCluster the model of the upstream cluster that the route forwards to
  */
 public record DirectRouting(String routeName, UpstreamClusterModel upstreamCluster)
         implements RoutingModel {
@@ -23,11 +26,17 @@ public record DirectRouting(String routeName, UpstreamClusterModel upstreamClust
     /**
      * Test-only constructor: creates a routing model with no TLS resources resolved.
      * Production code should always supply a fully-built {@link UpstreamClusterModel}.
+     *
+     * @param routeName the name of the single route handled by this routing model
+     * @param targetCluster the statically-configured upstream cluster
      */
     public DirectRouting(String routeName, TargetCluster targetCluster) {
         this(routeName, new UpstreamClusterModel(targetCluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured()));
     }
 
+    /**
+     * Validates that both components are present.
+     */
     public DirectRouting {
         Objects.requireNonNull(routeName, "routeName");
         Objects.requireNonNull(upstreamCluster, "upstreamCluster");
@@ -46,6 +55,12 @@ public record DirectRouting(String routeName, UpstreamClusterModel upstreamClust
         upstreamCluster.close();
     }
 
+    /**
+     * Derives the fixed route name used for a virtual cluster's direct route.
+     *
+     * @param virtualClusterName the name of the virtual cluster
+     * @return the route name
+     */
     public static String routeName(String virtualClusterName) {
         return virtualClusterName + "Upstream";
     }

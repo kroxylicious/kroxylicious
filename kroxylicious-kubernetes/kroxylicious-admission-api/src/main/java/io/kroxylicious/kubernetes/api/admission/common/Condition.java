@@ -50,10 +50,18 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private java.time.Instant lastTransitionTime;
 
+    /**
+     * Gets the last time the condition transitioned from one status to another.
+     * @return the last transition time
+     */
     public java.time.Instant getLastTransitionTime() {
         return lastTransitionTime;
     }
 
+    /**
+     * Sets the last time the condition transitioned from one status to another.
+     * @param lastTransitionTime the last transition time; must not be null
+     */
     public void setLastTransitionTime(java.time.Instant lastTransitionTime) {
         this.lastTransitionTime = Objects.requireNonNull(lastTransitionTime);
     }
@@ -68,10 +76,18 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     @Default("")
     private String message;
 
+    /**
+     * Gets the human readable message indicating details about the transition.
+     * @return the message; may be an empty string
+     */
     public String getMessage() {
         return message;
     }
 
+    /**
+     * Sets the human readable message indicating details about the transition.
+     * @param message the message; must not be null but may be empty
+     */
     public void setMessage(String message) {
         this.message = Objects.requireNonNull(message);
     }
@@ -87,10 +103,18 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = Nulls.FAIL)
     private Long observedGeneration;
 
+    /**
+     * Gets the {@code .metadata.generation} that the condition was set based upon.
+     * @return the observed generation
+     */
     public Long getObservedGeneration() {
         return observedGeneration;
     }
 
+    /**
+     * Sets the {@code .metadata.generation} that the condition was set based upon.
+     * @param observedGeneration the observed generation; must not be null
+     */
     public void setObservedGeneration(Long observedGeneration) {
         this.observedGeneration = Objects.requireNonNull(observedGeneration);
     }
@@ -108,10 +132,18 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     @Required
     private String reason;
 
+    /**
+     * Gets the programmatic identifier indicating the reason for the condition's last transition.
+     * @return the reason
+     */
     public String getReason() {
         return reason;
     }
 
+    /**
+     * Sets the programmatic identifier indicating the reason for the condition's last transition.
+     * @param reason the reason, a CamelCase string; must not be null
+     */
     public void setReason(String reason) {
         this.reason = Objects.requireNonNull(reason);
     }
@@ -128,12 +160,24 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
                 '}';
     }
 
+    /**
+     * The status of a condition.
+     */
     public enum Status {
 
+        /**
+         * The condition holds.
+         */
         @com.fasterxml.jackson.annotation.JsonProperty("True")
         TRUE("True"),
+        /**
+         * The condition does not hold.
+         */
         @com.fasterxml.jackson.annotation.JsonProperty("False")
         FALSE("False"),
+        /**
+         * Whether the condition holds is not known.
+         */
         @com.fasterxml.jackson.annotation.JsonProperty("Unknown")
         UNKNOWN("Unknown");
 
@@ -143,6 +187,10 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
             this.value = value;
         }
 
+        /**
+         * Gets the value used to represent this status in the Kubernetes API.
+         * @return the Kubernetes API value
+         */
         @com.fasterxml.jackson.annotation.JsonValue()
         public String getValue() {
             return value;
@@ -157,10 +205,18 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = Nulls.SKIP)
     private Status status;
 
+    /**
+     * Gets the status of the condition.
+     * @return the status
+     */
     public Status getStatus() {
         return status;
     }
 
+    /**
+     * Sets the status of the condition.
+     * @param status the status
+     */
     public void setStatus(Status status) {
         this.status = status;
     }
@@ -173,15 +229,29 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = Nulls.FAIL)
     private Type type;
 
+    /**
+     * Gets the type of the condition.
+     * @return the type
+     */
     public Type getType() {
         return type;
     }
 
+    /**
+     * Sets the type of the condition.
+     * @param type the type; must not be null
+     */
     public void setType(Type type) {
         this.type = Objects.requireNonNull(type);
     }
 
+    /**
+     * The type of a condition.
+     */
     public enum Type {
+        /**
+         * The resource has been reconciled successfully and is ready for use.
+         */
         Ready("Ready");
 
         private final String value;
@@ -190,6 +260,10 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
             this.value = value;
         }
 
+        /**
+         * Gets the value used to represent this type in the Kubernetes API.
+         * @return the Kubernetes API value
+         */
         public String getValue() {
             return value;
         }

@@ -108,4 +108,32 @@ public class KroxyliciousSecretTemplates {
                 .withStringData(Map.of("password", secretPassword));
         // @formatter:on
     }
+
+    /**
+     * Create keystore secret builder.
+     *
+     * @param namespace the namespace
+     * @param secretName the secret name
+     * @param dataKey the key under which the keystore file content is stored
+     * @param keystorePath the path to the keystore file
+     * @return  the secret builder
+     */
+    public static SecretBuilder createKeystoreSecret(String namespace, String secretName, String dataKey, Path keystorePath) {
+        String encoded;
+        try {
+            encoded = Base64.getEncoder().encodeToString(Files.readAllBytes(keystorePath));
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Failed to read keystore file: " + keystorePath, e);
+        }
+        // @formatter:off
+        return new SecretBuilder()
+                .withKind(Constants.SECRET)
+                .withNewMetadata()
+                    .withName(secretName)
+                    .withNamespace(namespace)
+                .endMetadata()
+                .addToData(dataKey, encoded);
+        // @formatter:on
+    }
 }

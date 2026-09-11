@@ -63,6 +63,11 @@ public class VirtualClusterLifecycle {
     /** When the current {@link #state} was entered; used to time {@code state_duration}. */
     private final AtomicLong stateEnteredNanos;
 
+    /**
+     * Creates a lifecycle tracker for the named virtual cluster, initially in {@link Initializing}.
+     * @param clusterName the virtual cluster name
+     * @param drainTimeout maximum time to wait for in-flight requests when draining connections
+     */
     public VirtualClusterLifecycle(String clusterName, Duration drainTimeout) {
         this(clusterName, drainTimeout, Clock.SYSTEM);
     }
@@ -94,6 +99,7 @@ public class VirtualClusterLifecycle {
 
     /**
      * Transitions from {@link Initializing} to {@link Failed}, recording the cause.
+     * @param cause the failure cause
      */
     public void initializationFailed(Throwable cause) {
         Objects.requireNonNull(cause);
@@ -132,6 +138,7 @@ public class VirtualClusterLifecycle {
     /**
      * Returns the future that completes when all connections have drained.
      * Only valid to call when the cluster is in {@link Draining} state.
+     * @return future that completes when all connections have closed
      */
     public CompletableFuture<Void> drainFuture() {
         return Objects.requireNonNull(drainFuture, "drainFuture is only set after startDraining()");
@@ -167,14 +174,27 @@ public class VirtualClusterLifecycle {
         });
     }
 
+    /**
+     * Returns the current lifecycle state.
+     * @return the current state
+     */
     public synchronized VirtualClusterLifecycleState state() {
         return state;
     }
 
+    /**
+     * Returns the name of the virtual cluster this lifecycle tracks.
+     * @return the virtual cluster name
+     */
     public String clusterName() {
         return clusterName;
     }
 
+    /**
+     * Registers an active connection, provided the cluster is currently {@link Serving}.
+     * @param ccsm the state machine of the connection being registered
+     * @return {@code true} if the connection was accepted, {@code false} if the cluster is not serving
+     */
     public synchronized boolean registerConnection(ClientConnectionStateMachine ccsm) {
         if (!(state instanceof Serving)) {
             return false;
@@ -183,10 +203,18 @@ public class VirtualClusterLifecycle {
         return true;
     }
 
+    /**
+     * Deregisters a connection that has closed.
+     * @param ccsm the state machine of the connection being deregistered
+     */
     public synchronized void deregisterConnection(ClientConnectionStateMachine ccsm) {
         activeConnections.remove(ccsm);
     }
 
+    /**
+     * Returns a snapshot of the currently active connections.
+     * @return copy of the set of active connection state machines
+     */
     public Set<ClientConnectionStateMachine> activeConnections() {
         return Set.copyOf(activeConnections);
     }

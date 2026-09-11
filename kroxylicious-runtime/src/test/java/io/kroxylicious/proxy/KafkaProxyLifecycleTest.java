@@ -68,9 +68,10 @@ class KafkaProxyLifecycleTest {
 
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             // when
-            kafkaProxy.startup();
+            var shutdownFuture = kafkaProxy.startup();
 
             // then
+            assertThat(shutdownFuture).isNotDone();
             assertThat(kafkaProxy.lifecycleFor("demo1"))
                     .isNotNull()
                     .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
@@ -105,9 +106,10 @@ class KafkaProxyLifecycleTest {
 
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             // when
-            kafkaProxy.startup();
+            var shutdownFuture = kafkaProxy.startup();
 
             // then
+            assertThat(shutdownFuture).isNotDone();
             assertThat(kafkaProxy.lifecycleFor("cluster-a"))
                     .isNotNull()
                     .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
@@ -120,13 +122,15 @@ class KafkaProxyLifecycleTest {
     @Test
     void shouldTransitionToStoppedAfterShutdown() {
         this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
-        proxy.startup();
+        var lifecycleFuture = proxy.startup();
+        assertThat(lifecycleFuture).isNotDone();
         var manager = proxy.lifecycleFor("demo1");
 
         // when
-        proxy.shutdown();
+        var shutdownResult = proxy.shutdown();
 
         // then
+        assertThat(shutdownResult).isCompletedWithValue(null);
         assertThat(manager).isNotNull();
         assertThat(manager.state()).isInstanceOf(Stopped.class);
     }
@@ -166,7 +170,8 @@ class KafkaProxyLifecycleTest {
                 """;
 
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(initial), Features.defaultFeatures())) {
-            kafkaProxy.startup();
+            var lifecycleFuture = kafkaProxy.startup();
+            assertThat(lifecycleFuture).isNotDone();
             kafkaProxy.reconfigure(configParser.parseConfiguration(afterReload)).get(5, TimeUnit.SECONDS);
 
             var lifecycleA = kafkaProxy.lifecycleFor("vc-a");
@@ -175,9 +180,10 @@ class KafkaProxyLifecycleTest {
             assertThat(lifecycleB.state()).as("vc-b should reach Serving after reload").isInstanceOf(Serving.class);
 
             // when
-            kafkaProxy.shutdown();
+            var shutdownResult = kafkaProxy.shutdown();
 
             // then — BOTH the originally-configured vc-a AND the runtime-added vc-b must reach Stopped.
+            assertThat(shutdownResult).isCompletedWithValue(null);
             assertThat(lifecycleA.state())
                     .as("originally-configured vc-a should reach Stopped on shutdown")
                     .isInstanceOf(Stopped.class);
@@ -192,8 +198,12 @@ class KafkaProxyLifecycleTest {
         this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         CompletableFuture<Void> future = proxy.startup();
         assertThat(future).isNotNull().isNotDone();
-        proxy.shutdown();
-        assertThat(future).isCompletedWithValue(null);
+
+        // when
+        var shutdownResult = proxy.shutdown();
+
+        // then
+        assertThat(shutdownResult).isSameAs(future).isCompletedWithValue(null);
     }
 
     @Test
@@ -205,7 +215,8 @@ class KafkaProxyLifecycleTest {
             assertThat(second).isSameAs(first);
         }
         finally {
-            proxy.shutdown();
+            var shutdownResult = proxy.shutdown();
+            assertThat(shutdownResult).isCompletedWithValue(null);
         }
     }
 
@@ -218,16 +229,20 @@ class KafkaProxyLifecycleTest {
     @Test
     void shutdownTwiceIsNoOp() {
         this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
-        proxy.startup();
-        proxy.shutdown();
+        var lifecycleFuture = proxy.startup();
+        assertThat(lifecycleFuture).isNotDone();
+        var firstShutdown = proxy.shutdown();
+        assertThat(firstShutdown).isCompletedWithValue(null);
         assertThatCode(proxy::shutdown).doesNotThrowAnyException();
     }
 
     @Test
     void startupAfterStopThrowsIllegalState() {
         this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
-        proxy.startup();
-        proxy.shutdown();
+        var lifecycleFuture = proxy.startup();
+        assertThat(lifecycleFuture).isNotDone();
+        var shutdownResult = proxy.shutdown();
+        assertThat(shutdownResult).isCompletedWithValue(null);
         assertThatThrownBy(proxy::startup)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("KafkaProxy is not restartable");
@@ -236,7 +251,8 @@ class KafkaProxyLifecycleTest {
     @Test
     void closeIsIdempotent() {
         this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
-        proxy.startup();
+        var lifecycleFuture = proxy.startup();
+        assertThat(lifecycleFuture).isNotDone();
         assertThatCode(proxy::close).doesNotThrowAnyException();
         assertThatCode(proxy::close).doesNotThrowAnyException();
     }
@@ -245,10 +261,14 @@ class KafkaProxyLifecycleTest {
     void shutdownFromDifferentThread() {
         this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         CompletableFuture<Void> future = proxy.startup();
+        assertThat(future).isNotDone();
 
-        CompletableFuture.runAsync(proxy::shutdown).join();
+        // when
+        var capturedShutdown = new AtomicReference<CompletableFuture<Void>>();
+        CompletableFuture.runAsync(() -> capturedShutdown.set(proxy.shutdown())).join();
 
-        assertThat(future).isCompletedWithValue(null);
+        // then
+        assertThat(capturedShutdown.get()).isSameAs(future).isCompletedWithValue(null);
     }
 
     @Test
@@ -279,9 +299,11 @@ class KafkaProxyLifecycleTest {
         };
 
         this.proxy = new KafkaProxy(configParser, configuration, Features.defaultFeatures(), blockingRegistry);
-        proxy.startup();
+        var lifecycleFuture = proxy.startup();
+        assertThat(lifecycleFuture).isNotDone();
 
-        var shutdownThread = new Thread(proxy::shutdown);
+        var capturedShutdown = new AtomicReference<CompletableFuture<Void>>();
+        var shutdownThread = new Thread(() -> capturedShutdown.set(proxy.shutdown()));
         shutdownThread.start();
         shutdownStarted.await();
 
@@ -294,6 +316,7 @@ class KafkaProxyLifecycleTest {
         finally {
             allowShutdown.countDown();
             shutdownThread.join(5_000);
+            assertThat(capturedShutdown.get()).isCompletedWithValue(null);
         }
     }
 
@@ -324,10 +347,13 @@ class KafkaProxyLifecycleTest {
 
         this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         CompletableFuture<Void> future = proxy.startup();
+        assertThat(future).isNotDone();
 
-        proxy.shutdown();
+        // when
+        var shutdownResult = proxy.shutdown();
 
-        assertThat(future)
+        // then
+        assertThat(shutdownResult).isSameAs(future)
                 .isCompletedExceptionally()
                 .failsWithin(java.time.Duration.ZERO)
                 .withThrowableOfType(java.util.concurrent.ExecutionException.class)
@@ -383,7 +409,7 @@ class KafkaProxyLifecycleTest {
         assertThat(initializationCompleted.await(5, TimeUnit.SECONDS)).isTrue();
 
         // Trigger shutdown from this thread: transitions STARTING → STOPPING → STOPPED.
-        proxy.shutdown();
+        var shutdownResult = proxy.shutdown();
 
         // Release the startup thread to resume past initializationSucceeded().
         allowStartupToComplete.countDown();
@@ -391,6 +417,7 @@ class KafkaProxyLifecycleTest {
 
         assertThat(startupException.get()).isNull();
         assertThat(startupResult.get()).isCompletedWithValue(null);
+        assertThat(shutdownResult).isCompletedWithValue(null);
     }
 
     @Test
@@ -428,5 +455,32 @@ class KafkaProxyLifecycleTest {
                 .isInstanceOf(LifecycleException.class)
                 .cause()
                 .isInstanceOf(PluginConfigurationException.class);
+    }
+
+    @Test
+    void closeWaitsForShutdownToComplete() {
+        // Given
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
+        var startupFuture = proxy.startup();
+        assertThat(startupFuture).isNotDone();
+
+        // When: close() must block until shutdown completes
+        proxy.close();
+
+        // Then: startup future is done before close() returned — proving close() did not return early
+        assertThat(startupFuture).isDone();
+    }
+
+    @Test
+    void closeTwiceDoesNotThrow() {
+        // Given
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
+        var lifecycleFuture = proxy.startup();
+        assertThat(lifecycleFuture).isNotDone();
+        proxy.close();
+
+        // When: close() is called again (e.g. try-with-resources after an explicit shutdown)
+        // Then: must not throw — close() is idempotent
+        assertThatCode(proxy::close).doesNotThrowAnyException();
     }
 }

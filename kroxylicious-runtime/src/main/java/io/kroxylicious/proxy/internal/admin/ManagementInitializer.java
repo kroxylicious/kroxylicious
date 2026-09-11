@@ -19,12 +19,23 @@ import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 
+/**
+ * Netty channel initializer for the management HTTP server.  Configures the pipeline with an HTTP codec
+ * and a {@link RoutingHttpServer} exposing the liveness endpoint and, if configured, the Prometheus
+ * metrics scrape endpoint.
+ */
 public class ManagementInitializer extends ChannelInitializer<SocketChannel> {
 
     private static final String LIVEZ = "/livez";
     private final MeterRegistries registries;
     private final ManagementConfiguration managementConfiguration;
 
+    /**
+     * Creates a management initializer.
+     *
+     * @param registries meter registries backing the metrics endpoint
+     * @param managementConfiguration management server configuration
+     */
     public ManagementInitializer(MeterRegistries registries,
                                  ManagementConfiguration managementConfiguration) {
         Objects.requireNonNull(registries);

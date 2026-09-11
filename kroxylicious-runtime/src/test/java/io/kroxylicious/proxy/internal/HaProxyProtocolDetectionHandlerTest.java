@@ -241,7 +241,7 @@ class HaProxyProtocolDetectionHandlerTest {
         channel.writeInbound(partial);
 
         // Close the channel — cumulation should be released
-        channel.close();
+        channel.close().syncUninterruptibly();
 
         // Verify no leak (partial buf should have been released)
         assertThat(partial.refCnt()).isZero();

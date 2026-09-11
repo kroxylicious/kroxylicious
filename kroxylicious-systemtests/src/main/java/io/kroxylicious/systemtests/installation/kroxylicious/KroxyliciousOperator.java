@@ -8,8 +8,8 @@ package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.util.Map;
 
-import io.skodjob.testframe.enums.InstallType;
-import io.skodjob.testframe.installation.InstallationMethod;
+import io.skodjob.kubetest4j.enums.InstallType;
+import io.skodjob.kubetest4j.installation.InstallationMethod;
 
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.resources.operator.KroxyliciousOperatorOlmBundleInstaller;

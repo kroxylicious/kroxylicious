@@ -9,6 +9,10 @@ package io.kroxylicious.filter.oauthbearer.sasl;
 import java.time.Duration;
 import java.util.Random;
 
+/**
+ * A {@link BackoffStrategy} which increases the delay exponentially with the number of
+ * attempts, adding a random jitter, up to a maximum delay.
+ */
 public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
 
     private final Duration initialDelay;
@@ -16,6 +20,14 @@ public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
     private final double multiplier;
     private final Random random;
 
+    /**
+     * Creates an exponential jitter backoff strategy.
+     * @param initialDelay the delay for the first retry, must be greater than zero
+     * @param maximumDelay the upper bound on the computed delay, must be greater than zero
+     * @param multiplier the factor by which the delay grows with each attempt, must be greater than one
+     * @param random the source of randomness used to compute the jitter
+     * @throws IllegalArgumentException if any argument is outside its permitted range
+     */
     public ExponentialJitterBackoffStrategy(Duration initialDelay,
                                             Duration maximumDelay,
                                             double multiplier,

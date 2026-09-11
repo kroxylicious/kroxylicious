@@ -30,15 +30,32 @@ import io.kroxylicious.proxy.config.tls.TrustStore;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+/**
+ * Applies a configured {@link TrustProvider} to a Netty {@link SslContextBuilder}, configuring
+ * the trust manager, hostname verification and client authentication mode appropriate to the
+ * kind of trust provider (trust store, insecure TLS or platform trust).
+ */
 public class NettyTrustProvider {
 
+    /** The endpoint identification algorithm enabling HTTPS-style hostname verification. */
     public static final String HTTPS_HOSTNAME_VERIFICATION = "HTTPS";
     private final TrustProvider trustProvider;
 
+    /**
+     * Constructor.
+     *
+     * @param trustProvider the trust configuration to apply.
+     */
     public NettyTrustProvider(TrustProvider trustProvider) {
         this.trustProvider = trustProvider;
     }
 
+    /**
+     * Configures the given builder with the trust material and settings from the trust provider.
+     *
+     * @param builder the builder to configure.
+     * @return the configured builder.
+     */
     public SslContextBuilder apply(SslContextBuilder builder) {
         return trustProvider.accept(new TrustProviderVisitor<>() {
             @SuppressFBWarnings("PATH_TRAVERSAL_IN")

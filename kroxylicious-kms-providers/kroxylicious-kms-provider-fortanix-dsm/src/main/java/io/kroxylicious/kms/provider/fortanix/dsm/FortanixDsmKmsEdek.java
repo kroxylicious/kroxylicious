@@ -22,6 +22,13 @@ public record FortanixDsmKmsEdek(String kekRef,
 
     public static final int IV_LENGTH = 16;
 
+    /**
+     * Validates the record components.
+     *
+     * @throws NullPointerException if any component is null.
+     * @throws IllegalArgumentException if {@code kekRef} or {@code edek} is empty, or if
+     * {@code iv} is not exactly {@value #IV_LENGTH} bytes long.
+     */
     public FortanixDsmKmsEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(iv);

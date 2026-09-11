@@ -12,9 +12,11 @@ import java.security.GeneralSecurityException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -37,6 +39,7 @@ import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
@@ -50,6 +53,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -660,6 +664,46 @@ class DefaultKroxyliciousTesterTest {
             // Then - port is the actual OS-bound port, not the configured 0
             assertThat(HostPort.parse(address).port()).isPositive();
         }
+    }
+
+    @Test
+    void proxyDeathIsSurfacedOnClose() {
+        // Given — capture the startup future so we can complete it exceptionally from the test
+        AtomicReference<CompletableFuture<Void>> futureRef = new AtomicReference<>();
+        var tester = new KroxyliciousTesterBuilder()
+                .setConfigurationBuilder(proxy(backingCluster))
+                .setKroxyliciousFactory((config, features) -> {
+                    KafkaProxy proxy = DefaultKroxyliciousTester.spawnProxy(config, features);
+                    futureRef.set(proxy.startup()); // idempotent — returns the same future used at startup
+                    return proxy;
+                })
+                .setClientFactory(clientFactory)
+                .createDefaultKroxyliciousTester();
+
+        // Simulate proxy crash: completing the startup future exceptionally fires the
+        // whenComplete callback synchronously, setting proxyDeathCause before close() reads it.
+        var crashCause = new RuntimeException("proxy crashed mid-test");
+        futureRef.get().completeExceptionally(crashCause);
+
+        // When / Then
+        assertThatThrownBy(tester::close)
+                .isInstanceOf(IllegalStateException.class)
+                .cause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Proxy died unexpectedly during test")
+                .hasCause(crashCause);
+    }
+
+    @Test
+    void nonKafkaProxyFactorySkipsDeathDetectionAndClosesNormally() throws Exception {
+        // Given — factory returns a plain AutoCloseable (not a KafkaProxy), so the instanceof
+        // guard in the constructor is not entered and no death callback is registered.
+        AutoCloseable fakeProxy = mock(AutoCloseable.class);
+        var tester = new DefaultKroxyliciousTester(proxy(backingCluster), config -> fakeProxy, clientFactory, null);
+
+        // When / Then
+        assertThatCode(tester::close).doesNotThrowAnyException();
+        verify(fakeProxy).close();
     }
 
     private void allowCreateTopic(KroxyliciousClients kroxyliciousClients, Admin admin) {

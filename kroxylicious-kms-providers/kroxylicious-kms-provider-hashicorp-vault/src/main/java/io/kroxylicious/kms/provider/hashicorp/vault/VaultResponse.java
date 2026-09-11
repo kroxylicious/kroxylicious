@@ -11,15 +11,39 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Envelope of a response from the <a href="https://developer.hashicorp.com/vault/api-docs">Vault API</a>.
+ *
+ * @param data the payload of the response.
+ * @param <D> the type of the response payload.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record VaultResponse<D>(D data) {
 
+    /**
+     * Validates the record components.
+     */
     public VaultResponse {
         Objects.requireNonNull(data);
     }
 
+    /**
+     * Payload of a response from the Vault
+     * <a href="https://developer.hashicorp.com/vault/api-docs/secret/transit#read-key">read key</a> API.
+     *
+     * @param name the name of the key.
+     * @param latestVersion the latest (current) version of the key. Not currently listed on
+     *                      HashiCorp's read-key API documentation, but observed present and
+     *                      incrementing on rotation in every Vault release line from 1.2 through
+     *                      2.0, and on every key type creatable on CE — including hmac, where the
+     *                      {@code keys} map is absent but this field is not.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ReadKeyData(String name, @JsonProperty("latest_version") int latestVersion) {
+    public record ReadKeyData(String name,
+                              @JsonProperty(value = "latest_version", required = true) int latestVersion) {
+        /**
+         * Validates the record components.
+         */
         public ReadKeyData {
             Objects.requireNonNull(name);
         }

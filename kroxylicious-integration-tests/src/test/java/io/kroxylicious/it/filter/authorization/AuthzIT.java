@@ -59,10 +59,10 @@ import io.kroxylicious.authorizer.provider.acl.AclAuthorizerService;
 import io.kroxylicious.filter.authorization.Authorization;
 import io.kroxylicious.it.BaseIT;
 import io.kroxylicious.it.testplugins.SaslPlainTermination;
+import io.kroxylicious.kafka.message.json.KafkaApiMessageConverter;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.testing.filter.RequestFactory;
-import io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter;
+import io.kroxylicious.testing.filter.KafkaRequestFactory;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.client.KafkaClient;
@@ -286,7 +286,7 @@ public abstract class AuthzIT extends BaseIT {
 
         @Override
         public Q requestData(String user, BaseClusterFixture clusterFixture) {
-            return (Q) RequestFactory.apiMessageFor(apiKey(), apiVersion()).apiMessage();
+            return (Q) KafkaRequestFactory.apiMessageFor(apiKey(), apiVersion()).apiMessage();
         }
 
         @Override
@@ -309,7 +309,7 @@ public abstract class AuthzIT extends BaseIT {
             return Map.of(
                     ALICE,
                     new Request(apiKey(), apiVersion(), "test",
-                            RequestFactory.apiMessageFor(apiKey(), apiVersion()).apiMessage()));
+                            KafkaRequestFactory.apiMessageFor(apiKey(), apiVersion()).apiMessage()));
         }
 
         @Override
@@ -426,9 +426,10 @@ public abstract class AuthzIT extends BaseIT {
                 .untilAsserted(() -> {
                     producer.initTransactions();
                     producer.beginTransaction();
-                    producer.send(new ProducerRecord<>("top", "", "")).get();
-                    var coordId = admin.describeTransactions(List.of(transactionalId)).all().toCompletionStage().toCompletableFuture()
-                            .join().get(transactionalId).coordinatorId();
+                    assertThat(producer.send(new ProducerRecord<>("top", "", ""))).succeedsWithin(Duration.ofSeconds(10));
+                    var describedTransactions = admin.describeTransactions(List.of(transactionalId)).all().toCompletionStage().toCompletableFuture();
+                    assertThat(describedTransactions).succeedsWithin(Duration.ofSeconds(10));
+                    var coordId = describedTransactions.join().get(transactionalId).coordinatorId();
                     producer.abortTransaction();
                     assertThat(coordId).isNotEqualTo(-1);
                 });

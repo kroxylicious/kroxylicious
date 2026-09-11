@@ -22,7 +22,9 @@ import org.junit.jupiter.api.Test;
 import com.github.tomakehurst.wiremock.WireMockServer;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
+import io.kroxylicious.kms.provider.aws.kms.config.CredentialsConfig;
 import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
+import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.KmsException;
@@ -63,7 +65,8 @@ class AwsKmsTest {
     @BeforeEach
     void beforeEach() {
         var longTermCredentialsProviderConfig = new LongTermCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret"));
-        var config = new Config(URI.create(server.baseUrl()), longTermCredentialsProviderConfig, null, null, "us-west-2", null);
+        var credentials = new CredentialsConfig(longTermCredentialsProviderConfig, null, null, null);
+        var config = new Config(URI.create(server.baseUrl()), credentials, "us-west-2", null);
         awsKmsService = new AwsKmsService();
         awsKmsService.initialize(config);
         kms = awsKmsService.buildKms();
@@ -73,6 +76,23 @@ class AwsKmsTest {
     void afterEach() {
         Optional.ofNullable(awsKmsService).ifPresent(AwsKmsService::close);
         server.resetAll();
+    }
+
+    @Test
+    void appliesConnectTimeout() {
+        // When
+        var connectTimeout = kms.getHttpClient().connectTimeout();
+        // Then
+        assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
+    }
+
+    @Test
+    void appliesRequestTimeout() {
+        // When
+        var builtRequest = kms.createRequest(new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + "alias"), "TrentService.DescribeKey")
+                .toCompletableFuture().join();
+        // Then
+        assertThat(builtRequest.timeout()).hasValue(Duration.ofSeconds(20));
     }
 
     @Test

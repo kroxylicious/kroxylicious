@@ -9,22 +9,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
+import io.kroxylicious.proxy.frame.PathElement;
+import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.topology.VirtualNode;
@@ -41,9 +41,6 @@ class RouterContextImplTest {
     @Mock
     private Router router;
 
-    @Mock
-    private ClientConnectionStateMachine ccsm;
-
     private DecodedRequestFrame<?> clientFrame;
     private NodeIdMapping nodeIdMapping;
     private Map<String, RouteDescriptor> routes;
@@ -59,15 +56,29 @@ class RouterContextImplTest {
                 null, List.of()));
     }
 
+    private static CorrelationIdAllocator newAllocator() {
+        return new CorrelationIdAllocator(Integer.MIN_VALUE, 0);
+    }
+
     private RouterContextImpl createContext() {
         return createContext(null);
     }
 
     private RouterContextImpl createContext(Integer endpointVirtualNodeId) {
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm, "test-cluster", nodeIdMapping, null);
+        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", PathElement.ClientOrigin.INSTANCE, newAllocator(), new java.util.HashMap<>(), "test-cluster");
         return new RouterContextImpl(
-                clientFrame, handler, "test-session", Subject.anonymous(),
+                clientFrame, dispatcher, "test-session", Subject.anonymous(),
                 endpointVirtualNodeId);
+    }
+
+    private RouterContextImpl createBijectiveContext(Integer endpointVirtualNodeId) {
+        var bijectiveRoutes = Map.of(
+                "route-a", new RouteDescriptor("route-a", 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of()),
+                "route-b", new RouteDescriptor("route-b", 1, new TargetCluster("localhost:9093", Optional.empty()), null, List.of()));
+        var bijectiveMapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
+        var dispatcher = new RouteDispatcher(bijectiveRoutes, bijectiveMapping, "", PathElement.ClientOrigin.INSTANCE, newAllocator(), new java.util.HashMap<>(),
+                "test-cluster");
+        return new RouterContextImpl(clientFrame, dispatcher, "test-session", Subject.anonymous(), endpointVirtualNodeId);
     }
 
     @Test
@@ -133,6 +144,33 @@ class RouterContextImplTest {
     }
 
     @Test
+    void nodeForIdPreservesVirtualIdWithBijectiveMapping() {
+        // Given
+        var ctx = createBijectiveContext(null);
+
+        // When: fromVirtual(1) → RouteAndNode("route-b", physicalNode=0); virtual ID must be retained as 1, not 0
+        var node = ctx.nodeForId(1);
+
+        // Then
+        assertThat(((VirtualNodeImpl) node).route()).isEqualTo("route-b");
+        assertThat(((VirtualNodeImpl) node).virtualNodeId()).isEqualTo(1);
+    }
+
+    @Test
+    void virtualNodePreservesVirtualIdWithBijectiveMapping() {
+        // Given: endpoint virtual node ID 1 → route-b, physical node 0
+        var ctx = createBijectiveContext(1);
+
+        // When
+        var vn = ctx.virtualNode();
+
+        // Then: virtual ID must be retained as 1, not the physical node ID 0
+        assertThat(vn).isPresent();
+        assertThat(((VirtualNodeImpl) vn.get()).route()).isEqualTo("route-b");
+        assertThat(((VirtualNodeImpl) vn.get()).virtualNodeId()).isEqualTo(1);
+    }
+
+    @Test
     void respondWithBodyShouldBuildRespondWithResult() {
         // Given
         var ctx = createContext();
@@ -165,21 +203,39 @@ class RouterContextImplTest {
     }
 
     @Test
-    void respondWithErrorShouldBuildErrorResult() {
+    void respondWithErrorFromErrorsShouldBuildErrorResult() {
         // Given
         var ctx = createContext();
         var header = new RequestHeaderData();
         var request = new MetadataRequestData();
-        ApiException exception = new UnknownServerException("test error");
 
         // When
-        RouterResponse response = ctx.respondWithError(header, request, exception).build();
+        RouterResponse response = ctx.respondWithError(header, request, Errors.INVALID_REQUEST).build();
 
         // Then
         assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
         var rwe = (RouterResponseImpl.RespondWithError) response;
-        assertThat(rwe.exception()).isSameAs(exception);
+        assertThat(rwe.error()).isEqualTo(Errors.INVALID_REQUEST);
+        assertThat(rwe.message()).isEqualTo(null);
         assertThat(rwe.closeConnection()).isFalse();
+    }
+
+    @Test
+    void respondWithErrorFromErrorsWithMessageShouldSetMessage() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+        var message = "custom explanation";
+
+        // When
+        RouterResponse response = ctx.respondWithError(header, request, Errors.INVALID_REQUEST, message).build();
+
+        // Then
+        assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
+        var rwe = (RouterResponseImpl.RespondWithError) response;
+        assertThat(rwe.error()).isEqualTo(Errors.INVALID_REQUEST);
+        assertThat(rwe.message()).isEqualTo(message);
     }
 
     @Test
@@ -241,15 +297,62 @@ class RouterContextImplTest {
     void respondWithErrorWithCloseConnectionShouldSetFlag() {
         // Given
         var ctx = createContext();
-        ApiException exception = new UnknownServerException("test error");
 
         // When
-        RouterResponse response = ctx.respondWithError(new RequestHeaderData(), new MetadataRequestData(), exception)
+        RouterResponse response = ctx.respondWithError(new RequestHeaderData(), new MetadataRequestData(), Errors.UNKNOWN_SERVER_ERROR)
                 .withCloseConnection().build();
 
         // Then
         assertThat(response).isInstanceOf(RouterResponseImpl.RespondWithError.class);
         assertThat(((RouterResponseImpl.RespondWithError) response).closeConnection()).isTrue();
+    }
+
+    @Test
+    void respondWithErrorFromErrorsRejectsNone() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, Errors.NONE))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void respondWithErrorFromErrorsWithMessageRejectsNone() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, Errors.NONE, "some message"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void respondWithErrorFromErrorsRejectsNullError() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void respondWithErrorFromErrorsWithMessageRejectsNullError() {
+        // Given
+        var ctx = createContext();
+        var header = new RequestHeaderData();
+        var request = new MetadataRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> ctx.respondWithError(header, request, null, "some message"))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test

@@ -27,6 +27,11 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Manages the authenticated {@link Subject} of a downstream client connection, tracking the TLS
+ * certificates and SASL mechanism used to establish it. Acts as the {@link ClientTlsContext},
+ * {@link ClientSaslContext} and {@link TransportSubjectBuilder.Context} for the connection.
+ */
 public class ClientSubjectManager implements
         ClientSaslContext,
         ClientTlsContext,
@@ -85,6 +90,14 @@ public class ClientSubjectManager implements
         this.subject = Subject.anonymous();
     }
 
+    /**
+     * Asynchronously builds the client subject from transport-level information (the TLS session, if any).
+     * If the builder fails, the client is treated as anonymous.
+     * @param session the TLS session established with the client, or {@code null} for a plaintext connection
+     * @param transportSubjectBuilder builder used to derive the subject from this context
+     * @param eventLoopExecutor executor on which to apply the built subject and run the callback
+     * @param whenDoneCallback invoked once the subject has been applied (whether built successfully or not)
+     */
     public void subjectFromTransport(@Nullable SSLSession session,
                                      TransportSubjectBuilder transportSubjectBuilder,
                                      Executor eventLoopExecutor,
@@ -113,6 +126,10 @@ public class ClientSubjectManager implements
         this.subject = Objects.requireNonNull(subject, "subject");
     }
 
+    /**
+     * Returns the currently authenticated subject.
+     * @return the authenticated subject (anonymous if the client has not authenticated)
+     */
     public Subject authenticatedSubject() {
         return this.subject;
     }
@@ -138,6 +155,10 @@ public class ClientSubjectManager implements
         return Optional.ofNullable(clientCertificate);
     }
 
+    /**
+     * Returns the SASL context for the client connection, if the client has successfully authenticated via SASL.
+     * @return the client SASL context, or empty if the client has not authenticated via SASL
+     */
     public Optional<ClientSaslContext> clientSaslContext() {
         return mechanismName != null ? Optional.of(this) : Optional.empty();
     }

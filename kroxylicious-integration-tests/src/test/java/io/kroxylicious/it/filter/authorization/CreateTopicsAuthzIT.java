@@ -167,7 +167,7 @@ class CreateTopicsAuthzIT extends AuthzIT {
         // Compute the n-fold Cartesian product of the tuples (except for pruning)
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : apiVersions) {
-            if (!AuthorizationFilter.isApiVersionSupported(ApiKeys.CREATE_TOPICS, apiVersion)) {
+            if (!AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.CREATE_TOPICS, apiVersion)) {
                 UnsupportedApiVersion<ApiMessage, ApiMessage> apiMessageApiMessageUnsupportedApiVersion = new UnsupportedApiVersion<>(ApiKeys.CREATE_TOPICS, apiVersion);
                 result.add(
                         Arguments.of(apiMessageApiMessageUnsupportedApiVersion));

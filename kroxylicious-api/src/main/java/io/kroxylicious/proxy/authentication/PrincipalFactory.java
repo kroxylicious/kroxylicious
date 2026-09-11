@@ -11,6 +11,7 @@ package io.kroxylicious.proxy.authentication;
  *
  * @param <P> The type of {@link Principal} created by this factory.
  */
+@SuppressWarnings({ "java:S5738", "removal" })
 public interface PrincipalFactory<P extends Principal> {
     /**
      * Creates a new principal with the given name.

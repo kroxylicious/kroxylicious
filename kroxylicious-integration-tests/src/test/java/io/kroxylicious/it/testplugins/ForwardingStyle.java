@@ -13,12 +13,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import org.apache.kafka.common.message.ListGroupsRequestData;
-import org.apache.kafka.common.message.ListGroupsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
-
+import io.kroxylicious.kafka.common.message.ListGroupsRequestData;
+import io.kroxylicious.kafka.common.message.ListGroupsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 
 public enum ForwardingStyle implements Function<ForwardingContext, CompletionStage<ApiMessage>> {
@@ -30,6 +29,7 @@ public enum ForwardingStyle implements Function<ForwardingContext, CompletionSta
     },
     ASYNCHRONOUS_DELAYED {
         @Override
+        @SuppressWarnings("FutureReturnValueIgnored") // callback completes `result`; executor.shutdown() in finally allows the task to complete; the ScheduledFuture carries no unobserved failure
         public CompletionStage<ApiMessage> apply(ForwardingContext context) {
             CompletableFuture<ApiMessage> result = new CompletableFuture<>();
             ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
@@ -46,6 +46,7 @@ public enum ForwardingStyle implements Function<ForwardingContext, CompletionSta
     },
     ASYNCHRONOUS_DELAYED_ON_EVENTlOOP {
         @Override
+        @SuppressWarnings("FutureReturnValueIgnored") // callback completes `result`; the ScheduledFuture carries no unobserved failure — all outcomes are captured by `result`
         public CompletionStage<ApiMessage> apply(ForwardingContext context) {
             ScheduledExecutorService executor = context.constructionContext().filterDispatchExecutor();
             CompletableFuture<ApiMessage> result = new CompletableFuture<>();

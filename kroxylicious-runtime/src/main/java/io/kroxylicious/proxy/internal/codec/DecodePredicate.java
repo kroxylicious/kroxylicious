@@ -7,8 +7,7 @@ package io.kroxylicious.proxy.internal.codec;
 
 import java.util.List;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.FilterInvoker;
 
@@ -21,6 +20,11 @@ import io.kroxylicious.proxy.internal.filter.FilterInvoker;
  * who the authorized user or, or which back-end cluster they're connected to.
  */
 public interface DecodePredicate {
+    /**
+     * Creates a predicate that decodes a request or response if any of the given filters would handle it.
+     * @param filterAndInvokers The filters in use.
+     * @return The predicate.
+     */
     static DecodePredicate forFilters(List<FilterAndInvoker> filterAndInvokers) {
 
         List<FilterInvoker> invokers = filterAndInvokers.stream().map(FilterAndInvoker::invoker).toList();
@@ -52,8 +56,20 @@ public interface DecodePredicate {
         };
     }
 
+    /**
+     * Whether a request with the given api key and version should be fully decoded.
+     * @param apiKey The api key of the request.
+     * @param apiVersion The api version of the request.
+     * @return true if the request should be decoded, false otherwise.
+     */
     boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion);
 
+    /**
+     * Whether a response with the given api key and version should be fully decoded.
+     * @param apiKey The api key of the response.
+     * @param apiVersion The api version of the response.
+     * @return true if the response should be decoded, false otherwise.
+     */
     boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion);
 
 }

@@ -16,18 +16,17 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
-import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData;
-import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData.Assignment;
-import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData.DescribedGroup;
-import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData.Member;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.message.ConsumerGroupDescribeRequestData;
+import io.kroxylicious.kafka.common.message.ConsumerGroupDescribeResponseData;
+import io.kroxylicious.kafka.common.message.ConsumerGroupDescribeResponseData.Assignment;
+import io.kroxylicious.kafka.common.message.ConsumerGroupDescribeResponseData.DescribedGroup;
+import io.kroxylicious.kafka.common.message.ConsumerGroupDescribeResponseData.Member;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -67,7 +66,7 @@ class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescr
         List<Action> describeGroupActions = getActions(request, includeAuthorizedOperations);
         return authorizationFilter.authorization(context, describeGroupActions).thenCompose(authorizeResult -> {
             if (authorizeResult.allowed(GroupResource.DESCRIBE).isEmpty()) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
             }
             else if (!authorizeResult.denied().isEmpty()) {
                 Map<Decision, List<String>> groupsByDecision = authorizeResult.partition(request.groupIds(), GroupResource.DESCRIBE, Function.identity());

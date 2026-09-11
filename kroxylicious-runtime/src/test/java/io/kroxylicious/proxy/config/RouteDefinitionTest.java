@@ -59,6 +59,26 @@ class RouteDefinitionTest {
     }
 
     @Test
+    void shouldRejectNameContainingSlash() {
+        assertThatThrownBy(() -> new RouteDefinition("bad/name", 0, null, CLUSTER_TARGET))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("bad/name");
+    }
+
+    @Test
+    void shouldRejectNameStartingWithUnderscore() {
+        assertThatThrownBy(() -> new RouteDefinition("_bad", 0, null, CLUSTER_TARGET))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("_bad");
+    }
+
+    @Test
+    void shouldAcceptNameWithInternalSpecialChars() {
+        assertThatCode(() -> new RouteDefinition("route-1.a_b", 0, null, CLUSTER_TARGET))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void shouldRejectNullTarget() {
         assertThatThrownBy(() -> new RouteDefinition("route1", 0, null, null))
                 .isInstanceOf(NullPointerException.class)

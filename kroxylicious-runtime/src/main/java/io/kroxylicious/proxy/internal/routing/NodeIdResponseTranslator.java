@@ -7,18 +7,18 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.util.List;
 
-import org.apache.kafka.common.message.DescribeClusterResponseData;
-import org.apache.kafka.common.message.DescribeClusterResponseData.DescribeClusterBrokerCollection;
-import org.apache.kafka.common.message.DescribeTopicPartitionsResponseData;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.FindCoordinatorResponseData;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBrokerCollection;
-import org.apache.kafka.common.message.ProduceResponseData;
-import org.apache.kafka.common.message.ProduceResponseData.NodeEndpointCollection;
-import org.apache.kafka.common.message.ShareAcknowledgeResponseData;
-import org.apache.kafka.common.message.ShareFetchResponseData;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.DescribeClusterResponseData;
+import io.kroxylicious.kafka.common.message.DescribeClusterResponseData.DescribeClusterBrokerCollection;
+import io.kroxylicious.kafka.common.message.DescribeTopicPartitionsResponseData;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.FindCoordinatorResponseData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData.MetadataResponseBrokerCollection;
+import io.kroxylicious.kafka.common.message.ProduceResponseData;
+import io.kroxylicious.kafka.common.message.ProduceResponseData.NodeEndpointCollection;
+import io.kroxylicious.kafka.common.message.ShareAcknowledgeResponseData;
+import io.kroxylicious.kafka.common.message.ShareFetchResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 /**
  * Translates target-cluster node IDs to virtual node IDs in response

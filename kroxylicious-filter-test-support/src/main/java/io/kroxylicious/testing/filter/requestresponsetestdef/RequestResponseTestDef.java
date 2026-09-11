@@ -16,10 +16,6 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiMessageType;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -27,12 +23,32 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
+import io.kroxylicious.kafka.common.message.ApiMessageType;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.message.json.VendoredKafkaApiMessageConverter;
+
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+/**
+ * A test definition pairing a Kafka API request and the corresponding response, read from a YAML test resource.
+ *
+ * @param testName a human readable name identifying the test case
+ * @param apiKey the API message type of the request/response pair
+ * @param header the request header carrying the API key and version of the test case
+ * @param request the request part of the test definition, or null if the test case has no request
+ * @param response the response part of the test definition, or null if the test case has no response
+ */
 public record RequestResponseTestDef(String testName, ApiMessageType apiKey, RequestHeaderData header, ApiMessageTestDef request, ApiMessageTestDef response) {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 
+    /**
+     * Reads request/response test definitions from the given YAML test resources, excluding disabled ones.
+     *
+     * @param resources the test resources to read
+     * @return a stream of test definitions
+     */
     public static Stream<RequestResponseTestDef> requestResponseTestDefinitions(List<ResourceInfo> resources) {
         return resources.stream()
                 .map(RequestResponseTestDef::readTestResource)
@@ -73,8 +89,8 @@ public record RequestResponseTestDef(String testName, ApiMessageType apiKey, Req
 
         var testName = String.format("%s,%s,v%d[%s]", source, messageType, versionNode.intValue(),
                 Optional.ofNullable(descriptionNode).map(JsonNode::asText).orElse("-"));
-        var requestConverter = KafkaApiMessageConverter.requestConverterFor(messageType);
-        var responseConverter = KafkaApiMessageConverter.responseConverterFor(messageType);
+        var requestConverter = VendoredKafkaApiMessageConverter.requestConverterFor(messageType);
+        var responseConverter = VendoredKafkaApiMessageConverter.responseConverterFor(messageType);
         var request = buildApiMessageTestDef(header.requestApiVersion(), jsonNode.get("request"), requestConverter.reader());
         var response = buildApiMessageTestDef(header.requestApiVersion(), jsonNode.get("response"), responseConverter.reader());
         return new RequestResponseTestDef(testName, messageType, header, request, response);

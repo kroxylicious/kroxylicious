@@ -29,11 +29,15 @@ public interface ReconfigureResult {
      * reconfigure succeeded with no failed components.
      *
      * <p>The returned collection is immutable; iteration order is unspecified.
+     *
+     * @return the per-component failures; empty when the reconfigure fully succeeded
      */
     Collection<ReconfigureError> errors();
 
     /**
      * Convenience predicate equivalent to {@code !errors().isEmpty()}.
+     *
+     * @return true if at least one component failed to reconfigure
      */
     default boolean hasErrors() {
         return !errors().isEmpty();

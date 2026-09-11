@@ -1,0 +1,13 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.kroxylicious.migrations.rewrite.MigrateToLatest
+displayName: Upgrade Kroxylicious Filter API to Latest
+description: Applies all changes required to upgrade from any previous version to the latest version of the Kroxylicious API
+recipeList:
+  - io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24

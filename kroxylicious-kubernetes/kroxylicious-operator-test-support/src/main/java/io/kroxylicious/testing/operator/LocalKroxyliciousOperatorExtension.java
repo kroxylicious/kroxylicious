@@ -261,6 +261,8 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
 
     /**
      * Returns the Kubernetes namespace created for this test.
+     *
+     * @return the namespace name
      */
     public String getNamespace() {
         return localOperatorExtension.getNamespace();
@@ -273,6 +275,8 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
      * operator reactions. The operator is the system-under-test; the {@code ClusterUser} is the actor.
      * <p>
      * Must be called after {@code beforeAll}.
+     *
+     * @return a cluster user scoped to the test namespace
      */
     @NonNull
     public ClusterUser clusterUser() {
@@ -287,16 +291,27 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
      * patching status to avoid 409 Conflict errors from concurrent reconciliation.
      * <p>
      * Must be called after {@code beforeAll}.
+     *
+     * @return an external operator stub scoped to the test namespace
      */
     @NonNull
     public ExternalOperator externalOperator() {
         return new ExternalOperator(clusterUserClient, localOperatorExtension.getNamespace());
     }
 
+    /**
+     * Returns a new builder for configuring a {@link LocalKroxyliciousOperatorExtension}.
+     *
+     * @return a new builder
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Builder for {@link LocalKroxyliciousOperatorExtension}.
+     * At least one reconciler must be registered via {@link #withReconciler(Reconciler)}.
+     */
     public static final class Builder {
         private final List<Reconciler<?>> reconcilers = new ArrayList<>();
         private final List<Class<?>> additionalCRDs = new ArrayList<>();
@@ -309,17 +324,37 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         private Builder() {
         }
 
+        /**
+         * Registers a reconciler to run in the operator under test.
+         *
+         * @param reconciler the reconciler
+         * @return this builder
+         */
         public Builder withReconciler(@NonNull Reconciler<?> reconciler) {
             this.reconcilers.add(reconciler);
             return this;
         }
 
+        /**
+         * Registers an additional custom resource type whose CRD should be installed
+         * alongside the standard Kroxylicious CRDs.
+         *
+         * @param crd the custom resource class
+         * @return this builder
+         */
         @SuppressWarnings("unused")
         public Builder withAdditionalCRD(@NonNull Class<?> crd) {
             this.additionalCRDs.add(crd);
             return this;
         }
 
+        /**
+         * Registers additional custom resource types whose CRDs should be installed
+         * alongside the standard Kroxylicious CRDs.
+         *
+         * @param crds the custom resource classes
+         * @return this builder
+         */
         @SuppressWarnings("unused")
         public Builder withAdditionalCRDs(@NonNull Class<?>... crds) {
             this.additionalCRDs.addAll(Arrays.asList(crds));
@@ -329,6 +364,9 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         /**
          * Registers an action to run after RBAC setup but before the operator starts.
          * Useful for installing third-party CRDs that the operator watches.
+         *
+         * @param action the setup action
+         * @return this builder
          */
         @SuppressWarnings("unused")
         public Builder withSetupAction(@NonNull Executable action) {
@@ -339,6 +377,9 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         /**
          * Registers an action to run after the operator stops.
          * Useful for cleaning up third-party CRDs installed via {@link #withSetupAction}.
+         *
+         * @param action the teardown action
+         * @return this builder
          */
         @SuppressWarnings("unused")
         public Builder withTeardownAction(@NonNull Executable action) {
@@ -350,6 +391,9 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
          * Registers additional resource types to delete between tests (in {@code afterEach}).
          * Use this for third-party CRD resources (e.g. Strimzi {@code Kafka}) that tests create
          * and that the extension does not clean up automatically.
+         *
+         * @param types the resource types to clean up between tests
+         * @return this builder
          */
         @SuppressWarnings("unused")
         @SafeVarargs
@@ -358,6 +402,13 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
             return this;
         }
 
+        /**
+         * Sets the directory from which install manifests (e.g. cluster roles) are loaded.
+         * If not called, the default is {@code packaging/install}.
+         *
+         * @param dir the install manifests directory
+         * @return this builder
+         */
         @SuppressWarnings("unused")
         public Builder withInstallManifestsDir(@NonNull String dir) {
             this.installManifestsDir = dir;
@@ -367,6 +418,9 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         /**
          * Replaces all cluster role glob(s) used to load RBAC rules with the given values.
          * If not called, the default is {@value DEFAULT_CLUSTER_ROLE_GLOB}.
+         *
+         * @param globs the cluster role file globs
+         * @return this builder
          */
         public Builder replaceClusterRoleGlobs(@NonNull String... globs) {
             this.clusterRoleGlobs.clear();
@@ -374,6 +428,12 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
             return this;
         }
 
+        /**
+         * Builds the extension.
+         *
+         * @return a new {@link LocalKroxyliciousOperatorExtension}
+         * @throws IllegalStateException if no reconciler has been registered
+         */
         public LocalKroxyliciousOperatorExtension build() {
             return new LocalKroxyliciousOperatorExtension(this);
         }

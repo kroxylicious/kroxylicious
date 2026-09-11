@@ -45,7 +45,7 @@ final class ModelUtils {
 
     static <E extends Enum<E>> Set<E> asEnumSet(SimpleSequence seq, Class<E> enumClazz) throws TemplateModelException {
         var ow = (ObjectWrapperAndUnwrapper) seq.getObjectWrapper();
-        var set = new HashSet<E>(seq.size());
+        var set = HashSet.<E> newHashSet(seq.size());
         for (int i = 0; i < seq.size(); i++) {
             try {
                 TemplateModel obj = seq.get(i);

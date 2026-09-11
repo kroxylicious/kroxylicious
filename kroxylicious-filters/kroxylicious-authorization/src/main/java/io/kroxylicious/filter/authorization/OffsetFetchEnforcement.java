@@ -16,24 +16,22 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.OffsetFetchRequestData;
-import org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestGroup;
-import org.apache.kafka.common.message.OffsetFetchResponseData;
-import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseGroup;
-import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponsePartition;
-import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponsePartitions;
-import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopic;
-import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopics;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.requests.OffsetFetchResponse;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.OffsetFetchRequestData;
+import io.kroxylicious.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestGroup;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseGroup;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponsePartition;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponsePartitions;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopic;
+import io.kroxylicious.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopics;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -41,18 +39,33 @@ import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static org.apache.kafka.common.record.RecordBatch.NO_PARTITION_LEADER_EPOCH;
+import static io.kroxylicious.kafka.common.record.internal.RecordBatch.NO_PARTITION_LEADER_EPOCH;
 
+/**
+ * Enforces authorization of the OffsetFetch API, requiring {@link GroupResource#DESCRIBE}
+ * on each consumer group and {@link TopicResource#DESCRIBE} on each topic named in the request.
+ */
 public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestData, OffsetFetchResponseData> {
-    /*
+    /**
      * At api version 8 the OffsetFetch API was evolved significantly,
      * introducing an OffsetFetchRequestGroup list at the top level, so that
      * offsets for multiple groups can be retrieved with a single RPC.
      */
     public static final short FIRST_VERSION_USING_GROUP_BATCHING = 8;
+    /**
+     * The first API version whose response has a top-level error code and whose request
+     * can use a null topics list to identify "all topics" consumed by the group.
+     */
     public static final short TOP_LEVEL_ERROR_AND_NULL_TOPICS_MIN_VERSION = 2;
     private static final long INVALID_OFFSET = -1L;
     private static final String NO_METADATA = "";
+
+    /**
+     * Creates the enforcement.
+     */
+    public OffsetFetchEnforcement() {
+        // Intentionally empty
+    }
 
     // lowest version supported by proxy
     @Override
@@ -311,8 +324,8 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
     private static OffsetFetchResponsePartition unauthorizedTopLevelPartition(int partitionIndex) {
         return new OffsetFetchResponsePartition()
                 .setPartitionIndex(partitionIndex)
-                .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
-                .setMetadata(OffsetFetchResponse.NO_METADATA)
+                .setCommittedOffset(INVALID_OFFSET)
+                .setMetadata(NO_METADATA)
                 .setCommittedLeaderEpoch(RecordBatch.NO_PARTITION_LEADER_EPOCH)
                 .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
     }
@@ -321,8 +334,8 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
         // this looks almost identical to the above method: the difference is plural vs singular of the type names in the method signature
         return new OffsetFetchResponsePartitions()
                 .setPartitionIndex(partitionIndex)
-                .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
-                .setMetadata(OffsetFetchResponse.NO_METADATA)
+                .setCommittedOffset(INVALID_OFFSET)
+                .setMetadata(NO_METADATA)
                 .setCommittedLeaderEpoch(RecordBatch.NO_PARTITION_LEADER_EPOCH)
                 .setErrorCode(errors.code());
     }

@@ -27,11 +27,40 @@ public class BackPressureAnalyser {
      */
     static final double SWEEP_START_RATE_FRACTION = 0.75;
 
+    /**
+     * Creates the analyser.
+     */
+    public BackPressureAnalyser() {
+        // empty
+    }
+
+    /**
+     * An OMB result together with the label identifying the scenario that produced it.
+     *
+     * @param label  display label for the result (typically the scenario name)
+     * @param result the parsed OMB result
+     */
     public record LabelledResult(String label, OmbResult result) {}
 
+    /**
+     * Back-pressure report for a single saturated result.
+     *
+     * @param label            display label of the affected result
+     * @param delayAvgNs       average publish delay in nanoseconds
+     * @param delayP99Ns       99th percentile publish delay in nanoseconds
+     * @param saturated        whether the result shows producer back-pressure
+     * @param suggestedMaxRate suggested upper bound in msg/sec for a rate sweep
+     * @param suggestedMinRate suggested lower bound in msg/sec for a rate sweep
+     */
     public record Report(String label, double delayAvgNs, double delayP99Ns, boolean saturated,
                          long suggestedMaxRate, long suggestedMinRate) {}
 
+    /**
+     * Analyses the given results for producer back-pressure.
+     *
+     * @param results labelled OMB results to analyse
+     * @return a report for each result showing back-pressure; empty if none do
+     */
     public List<Report> analyse(List<LabelledResult> results) {
         return results.stream()
                 .filter(lr -> lr.result().getPublishDelayLatencyAvgNs() > THRESHOLD_NS)

@@ -9,17 +9,27 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
-import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
+import io.kroxylicious.kafka.common.message.AddOffsetsToTxnRequestData;
+import io.kroxylicious.kafka.common.message.AddOffsetsToTxnResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the AddOffsetsToTxn API, requiring {@link TransactionalIdResource#WRITE}
+ * on the transactional id and {@link GroupResource#READ} on the consumer group.
+ */
 public class AddOffsetsToTxnEnforcement extends ApiEnforcement<AddOffsetsToTxnRequestData, AddOffsetsToTxnResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public AddOffsetsToTxnEnforcement() {
+        // Intentionally empty
+    }
 
     @Override
     short minSupportedVersion() {

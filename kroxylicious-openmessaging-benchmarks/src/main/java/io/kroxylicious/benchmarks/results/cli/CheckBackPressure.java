@@ -43,6 +43,13 @@ import picocli.CommandLine.Parameters;
 @SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106", "java:S7476", "java:S125" })
 public class CheckBackPressure implements Callable<Integer> {
 
+    /**
+     * Creates the command instance; option fields are populated by picocli.
+     */
+    public CheckBackPressure() {
+        // empty
+    }
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Parameters(description = "OMB result JSON files to check")
@@ -54,10 +61,21 @@ public class CheckBackPressure implements Callable<Integer> {
     @Option(names = "--scripts-dir", description = "Path to the scripts directory for the rate-sweep hint (default: scripts/)", defaultValue = "scripts")
     private String scriptsDir;
 
+    /**
+     * Entry point; exits the JVM with the code returned by {@link #execute(String...)}.
+     *
+     * @param args command line arguments
+     */
     public static void main(String... args) {
         System.exit(execute(args));
     }
 
+    /**
+     * Runs the command without exiting the JVM, for use from tests.
+     *
+     * @param args command line arguments
+     * @return the exit code: 0 if no back-pressure detected, 1 otherwise
+     */
     public static int execute(String... args) {
         return new CommandLine(new CheckBackPressure()).execute(args);
     }

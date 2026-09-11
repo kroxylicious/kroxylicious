@@ -11,6 +11,18 @@ import java.util.function.Function;
 
 import static java.util.Objects.requireNonNullElse;
 
+/**
+ * Configuration of the caches which sit in front of the KMS.
+ *
+ * @param decryptedDekCacheSize The maximum number of decrypted DEKs to cache.
+ * @param decryptedDekExpireAfterAccessDuration How long after last access a decrypted DEK is removed from the cache.
+ * @param resolvedAliasCacheSize The maximum number of resolved aliases to cache.
+ * @param resolvedAliasExpireAfterWriteDuration How long after being cached a resolved alias is removed from the cache.
+ * @param resolvedAliasRefreshAfterWriteDuration How long after being cached a resolved alias becomes eligible for a refresh.
+ * @param notFoundAliasExpireAfterWriteDuration How long an unresolvable alias is remembered before the KMS is asked to resolve it again.
+ * @param encryptionDekCacheRefreshAfterWriteDuration How long after being cached a DEK used for encryption becomes eligible for a refresh.
+ * @param encryptionDekCacheExpireAfterWriteDuration How long after being cached a DEK used for encryption is removed from the cache.
+ */
 public record KmsCacheConfig(
                              Integer decryptedDekCacheSize,
                              Duration decryptedDekExpireAfterAccessDuration,
@@ -21,6 +33,9 @@ public record KmsCacheConfig(
                              Duration encryptionDekCacheRefreshAfterWriteDuration,
                              Duration encryptionDekCacheExpireAfterWriteDuration) {
 
+    /**
+     * Creates a KMS cache config, applying defaults for any null argument.
+     */
     public KmsCacheConfig {
         decryptedDekCacheSize = requireNonNullElse(decryptedDekCacheSize, 1000);
         decryptedDekExpireAfterAccessDuration = requireNonNullElse(decryptedDekExpireAfterAccessDuration, Duration.ofHours(1));

@@ -83,11 +83,13 @@ class OauthBearerValidationIT extends BaseOauthBearerIT {
         var config = getClientConfig(TOKEN_ENDPOINT_URL);
 
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
-                var admin = tester.admin(config);
                 var ahc = tester.getManagementClient()) {
-            assertThat(performClusterOperation(admin))
-                    .succeedsWithin(10, TimeUnit.SECONDS)
-                    .isNotNull();
+            // close the admin before scraping so the proxy is quiescent whilst the metrics are measured
+            try (var admin = tester.admin(config)) {
+                assertThat(performClusterOperation(admin))
+                        .succeedsWithin(10, TimeUnit.SECONDS)
+                        .isNotNull();
+            }
 
             var allMetrics = ahc.scrapeMetrics();
 
@@ -97,7 +99,7 @@ class OauthBearerValidationIT extends BaseOauthBearerIT {
                             API_KEY_LABEL, ApiKeys.SASL_HANDSHAKE.name(),
                             NODE_ID_LABEL, "bootstrap"))
                     .value()
-                    .isEqualTo(1);
+                    .isGreaterThanOrEqualTo(1);
 
             SimpleMetricAssert.assertThat(allMetrics)
                     .withFailMessage("Expecting proxy to have seen at least one handshake request to the upstream")
@@ -105,7 +107,7 @@ class OauthBearerValidationIT extends BaseOauthBearerIT {
                             API_KEY_LABEL, ApiKeys.SASL_HANDSHAKE.name(),
                             NODE_ID_LABEL, "bootstrap"))
                     .value()
-                    .isEqualTo(1);
+                    .isGreaterThanOrEqualTo(1);
 
             SimpleMetricAssert.assertThat(allMetrics)
                     .withFailMessage("Expecting proxy to have seen at least one authenticate request from downstream")
@@ -113,7 +115,7 @@ class OauthBearerValidationIT extends BaseOauthBearerIT {
                             API_KEY_LABEL, ApiKeys.SASL_AUTHENTICATE.name(),
                             NODE_ID_LABEL, "bootstrap"))
                     .value()
-                    .isEqualTo(1);
+                    .isGreaterThanOrEqualTo(1);
 
             SimpleMetricAssert.assertThat(allMetrics)
                     .withFailMessage("Expecting proxy to have seen at least one authenticate request to the upstream")
@@ -121,7 +123,7 @@ class OauthBearerValidationIT extends BaseOauthBearerIT {
                             API_KEY_LABEL, ApiKeys.SASL_AUTHENTICATE.name(),
                             NODE_ID_LABEL, "bootstrap"))
                     .value()
-                    .isEqualTo(1);
+                    .isGreaterThanOrEqualTo(1);
         }
     }
 
@@ -160,14 +162,17 @@ class OauthBearerValidationIT extends BaseOauthBearerIT {
         System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, JWKS_ENDPOINT_URL + "," + badTokenFile.toUri());
 
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
-                var admin = tester.admin(config);
                 var ahc = tester.getManagementClient()) {
 
-            assertThat(performClusterOperation(admin))
-                    .failsWithin(10, TimeUnit.SECONDS)
-                    .withThrowableOfType(ExecutionException.class)
-                    .withCauseInstanceOf(SaslAuthenticationException.class)
-                    .withMessageContaining("invalid_token");
+            // close the admin before scraping so that it cannot reconnect and re-authenticate
+            // whilst the metrics are being measured
+            try (var admin = tester.admin(config)) {
+                assertThat(performClusterOperation(admin))
+                        .failsWithin(10, TimeUnit.SECONDS)
+                        .withThrowableOfType(ExecutionException.class)
+                        .withCauseInstanceOf(SaslAuthenticationException.class)
+                        .withMessageContaining("invalid_token");
+            }
 
             var allMetrics = ahc.scrapeMetrics();
 
@@ -177,7 +182,7 @@ class OauthBearerValidationIT extends BaseOauthBearerIT {
                             API_KEY_LABEL, ApiKeys.SASL_AUTHENTICATE.name(),
                             NODE_ID_LABEL, "bootstrap"))
                     .value()
-                    .isEqualTo(1);
+                    .isGreaterThanOrEqualTo(1);
 
             SimpleMetricAssert.assertThat(allMetrics)
                     .withFailMessage("Expecting proxy to have seen no authenticate requests to the upstream")

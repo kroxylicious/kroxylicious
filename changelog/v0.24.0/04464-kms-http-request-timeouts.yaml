@@ -1,0 +1,4 @@
+title: "fix(kms): apply missing HTTP request timeouts and standardize KMS provider timeouts to 20s"
+type: fixed
+issues:
+  - 4464

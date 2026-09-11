@@ -21,4 +21,11 @@ public class UnknownTaggedFields {
                 .map(RawTaggedField::data)
                 .map(b -> new String(b, UTF_8));
     }
+
+    public static Stream<String> unknownKroxyTaggedFieldsToStrings(io.kroxylicious.kafka.common.protocol.Message message, int tag) {
+        return message.unknownTaggedFields().stream()
+                .filter(t -> t.tag() == tag)
+                .map(io.kroxylicious.kafka.common.protocol.types.RawTaggedField::data)
+                .map(b -> new String(b, UTF_8));
+    }
 }

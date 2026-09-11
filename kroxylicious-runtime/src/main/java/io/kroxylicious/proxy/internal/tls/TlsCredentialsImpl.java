@@ -17,10 +17,16 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Runtime implementation of TlsCredentials containing the actual private key and certificate chain.
+ *
+ * @param privateKey the private key
+ * @param certificateChain the certificate chain, starting with the end-entity certificate
  */
 public record TlsCredentialsImpl(@NonNull PrivateKey privateKey, @SuppressWarnings("ArrayRecordComponent") @NonNull X509Certificate[] certificateChain)
         implements TlsCredentials { // array retained: cloned in constructor and accessor; deep equals/hashCode provided
 
+    /**
+     * Validates the credentials and takes a defensive copy of the certificate chain.
+     */
     public TlsCredentialsImpl {
         Objects.requireNonNull(privateKey, "privateKey must not be null");
         Objects.requireNonNull(certificateChain, "certificateChain must not be null");
@@ -30,6 +36,11 @@ public record TlsCredentialsImpl(@NonNull PrivateKey privateKey, @SuppressWarnin
         certificateChain = certificateChain.clone();
     }
 
+    /**
+     * Returns a defensive copy of the certificate chain.
+     *
+     * @return the certificate chain, starting with the end-entity certificate.
+     */
     @Override
     public X509Certificate[] certificateChain() {
         return certificateChain.clone();

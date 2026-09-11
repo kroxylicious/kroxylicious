@@ -9,11 +9,10 @@ package io.kroxylicious.filter.encryption.decrypt;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
-
 import io.kroxylicious.filter.encryption.dek.Dek;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 import io.kroxylicious.kafka.transform.RecordTransform;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -21,6 +20,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@link RecordTransform} that decrypts records that were previously encrypted by {@link io.kroxylicious.filter.encryption.encrypt.RecordEncryptor}.
+ * @param <E> The type of encrypted DEK.
  */
 public class RecordDecryptor<E> implements RecordTransform<DecryptState<E>> {
 
@@ -31,6 +31,11 @@ public class RecordDecryptor<E> implements RecordTransform<DecryptState<E>> {
     private ByteBuffer transformedValue;
     private Header[] transformedHeaders;
 
+    /**
+     * Creates a record decryptor.
+     * @param topicName the name of the topic from which the records are being fetched.
+     * @param partition the index of the partition from which the records are being fetched.
+     */
     public RecordDecryptor(@NonNull String topicName, int partition) {
         this.topicName = Objects.requireNonNull(topicName);
         this.partition = partition;

@@ -1,0 +1,1000 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.proxy.internal;
+
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+import org.apache.kafka.common.ElectionType;
+import org.apache.kafka.common.IsolationLevel;
+import org.apache.kafka.common.acl.AccessControlEntryFilter;
+import org.apache.kafka.common.acl.AclBindingFilter;
+import org.apache.kafka.common.acl.AclOperation;
+import org.apache.kafka.common.acl.AclPermissionType;
+import org.apache.kafka.common.errors.UnknownServerException;
+import org.apache.kafka.common.errors.UnsupportedVersionException;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.requests.AbstractRequest;
+import org.apache.kafka.common.requests.AddOffsetsToTxnRequest;
+import org.apache.kafka.common.requests.AddPartitionsToTxnRequest;
+import org.apache.kafka.common.requests.AddRaftVoterRequest;
+import org.apache.kafka.common.requests.AllocateProducerIdsRequest;
+import org.apache.kafka.common.requests.AlterClientQuotasRequest;
+import org.apache.kafka.common.requests.AlterConfigsRequest;
+import org.apache.kafka.common.requests.AlterPartitionReassignmentsRequest;
+import org.apache.kafka.common.requests.AlterPartitionRequest;
+import org.apache.kafka.common.requests.AlterReplicaLogDirsRequest;
+import org.apache.kafka.common.requests.AlterShareGroupOffsetsRequest;
+import org.apache.kafka.common.requests.AlterUserScramCredentialsRequest;
+import org.apache.kafka.common.requests.ApiVersionsRequest;
+import org.apache.kafka.common.requests.AssignReplicasToDirsRequest;
+import org.apache.kafka.common.requests.BeginQuorumEpochRequest;
+import org.apache.kafka.common.requests.BrokerHeartbeatRequest;
+import org.apache.kafka.common.requests.BrokerRegistrationRequest;
+import org.apache.kafka.common.requests.ConsumerGroupDescribeRequest;
+import org.apache.kafka.common.requests.ConsumerGroupHeartbeatRequest;
+import org.apache.kafka.common.requests.ControllerRegistrationRequest;
+import org.apache.kafka.common.requests.CreateAclsRequest;
+import org.apache.kafka.common.requests.CreateDelegationTokenRequest;
+import org.apache.kafka.common.requests.CreatePartitionsRequest;
+import org.apache.kafka.common.requests.CreateTopicsRequest;
+import org.apache.kafka.common.requests.DeleteAclsRequest;
+import org.apache.kafka.common.requests.DeleteGroupsRequest;
+import org.apache.kafka.common.requests.DeleteRecordsRequest;
+import org.apache.kafka.common.requests.DeleteShareGroupOffsetsRequest;
+import org.apache.kafka.common.requests.DeleteShareGroupStateRequest;
+import org.apache.kafka.common.requests.DeleteTopicsRequest;
+import org.apache.kafka.common.requests.DescribeAclsRequest;
+import org.apache.kafka.common.requests.DescribeClientQuotasRequest;
+import org.apache.kafka.common.requests.DescribeClusterRequest;
+import org.apache.kafka.common.requests.DescribeConfigsRequest;
+import org.apache.kafka.common.requests.DescribeDelegationTokenRequest;
+import org.apache.kafka.common.requests.DescribeGroupsRequest;
+import org.apache.kafka.common.requests.DescribeLogDirsRequest;
+import org.apache.kafka.common.requests.DescribeProducersRequest;
+import org.apache.kafka.common.requests.DescribeQuorumRequest;
+import org.apache.kafka.common.requests.DescribeShareGroupOffsetsRequest;
+import org.apache.kafka.common.requests.DescribeTopicPartitionsRequest;
+import org.apache.kafka.common.requests.DescribeTransactionsRequest;
+import org.apache.kafka.common.requests.DescribeUserScramCredentialsRequest;
+import org.apache.kafka.common.requests.ElectLeadersRequest;
+import org.apache.kafka.common.requests.EndQuorumEpochRequest;
+import org.apache.kafka.common.requests.EndTxnRequest;
+import org.apache.kafka.common.requests.EnvelopeRequest;
+import org.apache.kafka.common.requests.ExpireDelegationTokenRequest;
+import org.apache.kafka.common.requests.FetchRequest;
+import org.apache.kafka.common.requests.FetchSnapshotRequest;
+import org.apache.kafka.common.requests.FindCoordinatorRequest;
+import org.apache.kafka.common.requests.GetTelemetrySubscriptionsRequest;
+import org.apache.kafka.common.requests.HeartbeatRequest;
+import org.apache.kafka.common.requests.IncrementalAlterConfigsRequest;
+import org.apache.kafka.common.requests.InitProducerIdRequest;
+import org.apache.kafka.common.requests.InitializeShareGroupStateRequest;
+import org.apache.kafka.common.requests.JoinGroupRequest;
+import org.apache.kafka.common.requests.LeaveGroupRequest;
+import org.apache.kafka.common.requests.ListConfigResourcesRequest;
+import org.apache.kafka.common.requests.ListGroupsRequest;
+import org.apache.kafka.common.requests.ListOffsetsRequest;
+import org.apache.kafka.common.requests.ListPartitionReassignmentsRequest;
+import org.apache.kafka.common.requests.ListTransactionsRequest;
+import org.apache.kafka.common.requests.MetadataRequest;
+import org.apache.kafka.common.requests.OffsetCommitRequest;
+import org.apache.kafka.common.requests.OffsetDeleteRequest;
+import org.apache.kafka.common.requests.OffsetFetchRequest;
+import org.apache.kafka.common.requests.OffsetsForLeaderEpochRequest;
+import org.apache.kafka.common.requests.ProduceRequest;
+import org.apache.kafka.common.requests.PushTelemetryRequest;
+import org.apache.kafka.common.requests.ReadShareGroupStateRequest;
+import org.apache.kafka.common.requests.ReadShareGroupStateSummaryRequest;
+import org.apache.kafka.common.requests.RemoveRaftVoterRequest;
+import org.apache.kafka.common.requests.RenewDelegationTokenRequest;
+import org.apache.kafka.common.requests.SaslAuthenticateRequest;
+import org.apache.kafka.common.requests.SaslHandshakeRequest;
+import org.apache.kafka.common.requests.ShareAcknowledgeRequest;
+import org.apache.kafka.common.requests.ShareFetchRequest;
+import org.apache.kafka.common.requests.ShareGroupDescribeRequest;
+import org.apache.kafka.common.requests.ShareGroupHeartbeatRequest;
+import org.apache.kafka.common.requests.StreamsGroupDescribeRequest;
+import org.apache.kafka.common.requests.StreamsGroupHeartbeatRequest;
+import org.apache.kafka.common.requests.SyncGroupRequest;
+import org.apache.kafka.common.requests.TxnOffsetCommitRequest;
+import org.apache.kafka.common.requests.UnregisterBrokerRequest;
+import org.apache.kafka.common.requests.UpdateFeaturesRequest;
+import org.apache.kafka.common.requests.UpdateRaftVoterRequest;
+import org.apache.kafka.common.requests.VoteRequest;
+import org.apache.kafka.common.requests.WriteShareGroupStateRequest;
+import org.apache.kafka.common.requests.WriteTxnMarkersRequest;
+import org.apache.kafka.common.resource.PatternType;
+import org.apache.kafka.common.resource.ResourcePatternFilter;
+import org.apache.kafka.common.resource.ResourceType;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.protocol.Errors;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Differential test: for every {@link ApiKeys} that {@link KafkaProxyExceptionMapper} currently handles, across every
+ * version that {@code ApiKeys} supports, asserts that the factory's output is identical to kafka-clients' own
+ * {@code AbstractRequest.getErrorResponse(int, Throwable)} oracle.
+ * <p>
+ */
+class KafkaProxyExceptionMapperParityTest {
+
+    private static final Errors ERROR = Errors.UNKNOWN_SERVER_ERROR;
+    private static final String MESSAGE = "boom";
+
+    private static final Uuid TOPIC_ID = Uuid.randomUuid();
+    private static final org.apache.kafka.common.Uuid KAFKA_TOPIC_ID = new org.apache.kafka.common.Uuid(TOPIC_ID.getMostSignificantBits(),
+            TOPIC_ID.getLeastSignificantBits());
+
+    record MatchedInput(io.kroxylicious.kafka.common.protocol.ApiMessage kroxyliciousRequest, org.apache.kafka.common.protocol.ApiMessage kafkaRequest) {
+
+    }
+
+    private static final Map<ApiKeys, Function<Short, MatchedInput>> REQUEST_BUILDERS = requestBuilders();
+    private static final Map<ApiKeys, BiFunction<org.apache.kafka.common.protocol.ApiMessage, Short, AbstractRequest>> ORACLE_BUILDERS = oracleBuilders();
+
+    @ParameterizedTest
+    @MethodSource("coveredApiKeyVersions")
+    void factoryMatchesKafkaClientsOracle(ApiKeys apiKey, short version) {
+        // Given
+        MatchedInput requests = REQUEST_BUILDERS.get(apiKey).apply(version);
+        AbstractRequest oracleRequest = ORACLE_BUILDERS.get(apiKey).apply(requests.kafkaRequest(), version);
+        org.apache.kafka.common.protocol.ApiMessage expected = oracleRequest.getErrorResponse(0, new UnknownServerException(MESSAGE)).data();
+        io.kroxylicious.kafka.common.protocol.ApiKeys kroxyliciousKey = io.kroxylicious.kafka.common.protocol.ApiKeys.forId(apiKey.id);
+        // When
+        io.kroxylicious.kafka.common.protocol.ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(kroxyliciousKey, requests.kroxyliciousRequest, version,
+                ERROR, MESSAGE);
+
+        // Then
+        assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
+    }
+
+    public static Stream<Arguments> produceVersions() {
+        return ApiKeys.PRODUCE.allVersions().stream().map(version -> Arguments.argumentSet("version " + version, version));
+    }
+
+    @ParameterizedTest
+    @MethodSource("produceVersions")
+    void produceReturnsNullWhenAcksZero(short version) {
+        // Given
+        io.kroxylicious.kafka.common.message.ProduceRequestData request = new io.kroxylicious.kafka.common.message.ProduceRequestData().setAcks((short) 0)
+                .setTimeoutMs(1000);
+
+        // When
+        io.kroxylicious.kafka.common.protocol.ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE,
+                request, version, ERROR, MESSAGE);
+
+        // Then
+        assertThat(actual).isNull();
+    }
+
+    @Test
+    void apiVersionsUnsupportedVersionIncludesSupportedApiKeys() {
+        // Given
+        short version = ApiKeys.API_VERSIONS.latestVersion();
+        org.apache.kafka.common.message.ApiVersionsRequestData kafkaRequest = new org.apache.kafka.common.message.ApiVersionsRequestData();
+        ApiVersionsRequest oracleRequest = new ApiVersionsRequest(kafkaRequest, version);
+        org.apache.kafka.common.protocol.ApiMessage expected = oracleRequest.getErrorResponse(0, new UnsupportedVersionException(MESSAGE)).data();
+
+        io.kroxylicious.kafka.common.message.ApiVersionsRequestData request = new io.kroxylicious.kafka.common.message.ApiVersionsRequestData();
+        // When
+        io.kroxylicious.kafka.common.protocol.ApiMessage actual = KafkaProxyExceptionMapper.errorResponseData(io.kroxylicious.kafka.common.protocol.ApiKeys.API_VERSIONS,
+                request, version, Errors.UNSUPPORTED_VERSION, MESSAGE);
+
+        // Then
+        assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
+    }
+
+    static Stream<Arguments> coveredApiKeyVersions() {
+        return REQUEST_BUILDERS.keySet().stream().flatMap(apiKey -> {
+            org.apache.kafka.common.protocol.ApiMessage sample = REQUEST_BUILDERS.get(apiKey).apply((short) 0).kafkaRequest();
+            short lowest = sample.lowestSupportedVersion();
+            short highest = sample.highestSupportedVersion();
+            return IntStream.rangeClosed(lowest, highest)
+                    .mapToObj(version -> Arguments.argumentSet(apiKey + " v" + version, apiKey, (short) version));
+        });
+    }
+
+    private static Map<ApiKeys, Function<Short, MatchedInput>> requestBuilders() {
+        Map<ApiKeys, Function<Short, MatchedInput>> builders = new EnumMap<>(ApiKeys.class);
+        // Regular-flat: response content never reads the request body, so an empty instance suffices at every version.
+        builders.put(ApiKeys.ADD_OFFSETS_TO_TXN,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AddOffsetsToTxnRequestData(),
+                        new org.apache.kafka.common.message.AddOffsetsToTxnRequestData()));
+        builders.put(ApiKeys.ADD_RAFT_VOTER,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AddRaftVoterRequestData(), new org.apache.kafka.common.message.AddRaftVoterRequestData()));
+        builders.put(ApiKeys.ALLOCATE_PRODUCER_IDS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AllocateProducerIdsRequestData(),
+                        new org.apache.kafka.common.message.AllocateProducerIdsRequestData()));
+        builders.put(ApiKeys.ALTER_PARTITION, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AlterPartitionRequestData(),
+                new org.apache.kafka.common.message.AlterPartitionRequestData()));
+        builders.put(ApiKeys.ASSIGN_REPLICAS_TO_DIRS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AssignReplicasToDirsRequestData(),
+                        new org.apache.kafka.common.message.AssignReplicasToDirsRequestData()));
+        builders.put(ApiKeys.BEGIN_QUORUM_EPOCH,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.BeginQuorumEpochRequestData(),
+                        new org.apache.kafka.common.message.BeginQuorumEpochRequestData()));
+        builders.put(ApiKeys.BROKER_HEARTBEAT,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.BrokerHeartbeatRequestData(),
+                        new org.apache.kafka.common.message.BrokerHeartbeatRequestData()));
+        builders.put(ApiKeys.BROKER_REGISTRATION,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.BrokerRegistrationRequestData(),
+                        new org.apache.kafka.common.message.BrokerRegistrationRequestData()));
+        builders.put(ApiKeys.CONSUMER_GROUP_HEARTBEAT,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ConsumerGroupHeartbeatRequestData(),
+                        new org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData()));
+        builders.put(ApiKeys.CONTROLLER_REGISTRATION,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ControllerRegistrationRequestData(),
+                        new org.apache.kafka.common.message.ControllerRegistrationRequestData()));
+        builders.put(ApiKeys.DESCRIBE_CLIENT_QUOTAS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.DescribeClientQuotasRequestData(),
+                        new org.apache.kafka.common.message.DescribeClientQuotasRequestData()));
+        builders.put(ApiKeys.DESCRIBE_CLUSTER,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.DescribeClusterRequestData(),
+                        new org.apache.kafka.common.message.DescribeClusterRequestData()));
+        builders.put(ApiKeys.DESCRIBE_LOG_DIRS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.DescribeLogDirsRequestData(),
+                        new org.apache.kafka.common.message.DescribeLogDirsRequestData()));
+        builders.put(ApiKeys.END_QUORUM_EPOCH, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.EndQuorumEpochRequestData(),
+                new org.apache.kafka.common.message.EndQuorumEpochRequestData()));
+        builders.put(ApiKeys.ENVELOPE,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.EnvelopeRequestData(), new org.apache.kafka.common.message.EnvelopeRequestData()));
+        builders.put(ApiKeys.EXPIRE_DELEGATION_TOKEN,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ExpireDelegationTokenRequestData(),
+                        new org.apache.kafka.common.message.ExpireDelegationTokenRequestData()));
+        builders.put(ApiKeys.FETCH_SNAPSHOT, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.FetchSnapshotRequestData(),
+                new org.apache.kafka.common.message.FetchSnapshotRequestData()));
+        builders.put(ApiKeys.GET_TELEMETRY_SUBSCRIPTIONS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.GetTelemetrySubscriptionsRequestData(),
+                        new org.apache.kafka.common.message.GetTelemetrySubscriptionsRequestData()));
+        builders.put(ApiKeys.HEARTBEAT,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.HeartbeatRequestData(), new org.apache.kafka.common.message.HeartbeatRequestData()));
+        builders.put(ApiKeys.LIST_GROUPS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ListGroupsRequestData(), new org.apache.kafka.common.message.ListGroupsRequestData()));
+        builders.put(ApiKeys.LIST_TRANSACTIONS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ListTransactionsRequestData(),
+                        new org.apache.kafka.common.message.ListTransactionsRequestData()));
+        builders.put(ApiKeys.REMOVE_RAFT_VOTER,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.RemoveRaftVoterRequestData(),
+                        new org.apache.kafka.common.message.RemoveRaftVoterRequestData()));
+        builders.put(ApiKeys.RENEW_DELEGATION_TOKEN,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.RenewDelegationTokenRequestData(),
+                        new org.apache.kafka.common.message.RenewDelegationTokenRequestData()));
+        builders.put(ApiKeys.SASL_AUTHENTICATE,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData(),
+                        new org.apache.kafka.common.message.SaslAuthenticateRequestData()));
+        builders.put(ApiKeys.SASL_HANDSHAKE, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.SaslHandshakeRequestData(),
+                new org.apache.kafka.common.message.SaslHandshakeRequestData()));
+        builders.put(ApiKeys.SHARE_ACKNOWLEDGE,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ShareAcknowledgeRequestData(),
+                        new org.apache.kafka.common.message.ShareAcknowledgeRequestData()));
+        builders.put(ApiKeys.SHARE_GROUP_HEARTBEAT,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ShareGroupHeartbeatRequestData(),
+                        new org.apache.kafka.common.message.ShareGroupHeartbeatRequestData()));
+        builders.put(ApiKeys.STREAMS_GROUP_HEARTBEAT,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.StreamsGroupHeartbeatRequestData(),
+                        new org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData()));
+        builders.put(ApiKeys.UNREGISTER_BROKER,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.UnregisterBrokerRequestData(),
+                        new org.apache.kafka.common.message.UnregisterBrokerRequestData()));
+        builders.put(ApiKeys.UPDATE_RAFT_VOTER,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.UpdateRaftVoterRequestData(),
+                        new org.apache.kafka.common.message.UpdateRaftVoterRequestData()));
+        builders.put(ApiKeys.VOTE,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.VoteRequestData(), new org.apache.kafka.common.message.VoteRequestData()));
+
+        // Array-copy: populate with real elements so per-element error stamping is actually exercised.
+        builders.put(ApiKeys.DELETE_GROUPS, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DeleteGroupsRequestData().setGroupsNames(List.of("group-1", "group-2")),
+                new org.apache.kafka.common.message.DeleteGroupsRequestData().setGroupsNames(List.of("group-1", "group-2"))));
+        builders.put(ApiKeys.INCREMENTAL_ALTER_CONFIGS, KafkaProxyExceptionMapperParityTest::incrementalAlterConfigsInput);
+        builders.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.ConsumerGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")),
+                new org.apache.kafka.common.message.ConsumerGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2"))));
+        builders.put(ApiKeys.SHARE_GROUP_DESCRIBE, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.ShareGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")),
+                new org.apache.kafka.common.message.ShareGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2"))));
+        builders.put(ApiKeys.STREAMS_GROUP_DESCRIBE, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.StreamsGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2")),
+                new org.apache.kafka.common.message.StreamsGroupDescribeRequestData().setGroupIds(List.of("group-1", "group-2"))));
+        builders.put(ApiKeys.CREATE_ACLS, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.CreateAclsRequestData().setCreations(List.of(validAclCreation("topic-a"), validAclCreation("topic-b"))),
+                new org.apache.kafka.common.message.CreateAclsRequestData().setCreations(List.of(validAclCreationKafka("topic-a"), validAclCreationKafka("topic-b")))));
+        builders.put(ApiKeys.DELETE_ACLS, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DeleteAclsRequestData().setFilters(List.of(validDeleteAclsFilter("topic-a"), validDeleteAclsFilter("topic-b"))),
+                new org.apache.kafka.common.message.DeleteAclsRequestData()
+                        .setFilters(List.of(validDeleteAclsFilterKafka("topic-a"), validDeleteAclsFilterKafka("topic-b")))));
+        builders.put(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, KafkaProxyExceptionMapperParityTest::describeUserScramCredentialsInput);
+        builders.put(ApiKeys.CREATE_PARTITIONS, KafkaProxyExceptionMapperParityTest::createPartitionsInput);
+        builders.put(ApiKeys.CREATE_TOPICS, KafkaProxyExceptionMapperParityTest::createTopicsInput);
+        builders.put(ApiKeys.DESCRIBE_CONFIGS, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DescribeConfigsRequestData().setResources(
+                        List.of(new io.kroxylicious.kafka.common.message.DescribeConfigsRequestData.DescribeConfigsResource().setResourceName("topic-a")
+                                .setResourceType((byte) 2))),
+                new org.apache.kafka.common.message.DescribeConfigsRequestData().setResources(
+                        List.of(new org.apache.kafka.common.message.DescribeConfigsRequestData.DescribeConfigsResource().setResourceName("topic-a")
+                                .setResourceType((byte) 2)))));
+        builders.put(ApiKeys.DESCRIBE_TRANSACTIONS, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DescribeTransactionsRequestData().setTransactionalIds(List.of("txn-1", "txn-2")),
+                new org.apache.kafka.common.message.DescribeTransactionsRequestData().setTransactionalIds(List.of("txn-1", "txn-2"))));
+        builders.put(ApiKeys.DESCRIBE_PRODUCERS, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DescribeProducersRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.DescribeProducersRequestData.TopicRequest().setName("topic-a")
+                                .setPartitionIndexes(List.of(0, 1)))),
+                new org.apache.kafka.common.message.DescribeProducersRequestData().setTopics(
+                        List.of(new org.apache.kafka.common.message.DescribeProducersRequestData.TopicRequest().setName("topic-a").setPartitionIndexes(List.of(0, 1))))));
+        builders.put(ApiKeys.DESCRIBE_TOPIC_PARTITIONS, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DescribeTopicPartitionsRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.DescribeTopicPartitionsRequestData.TopicRequest().setName("topic-a"))),
+                new org.apache.kafka.common.message.DescribeTopicPartitionsRequestData().setTopics(
+                        List.of(new org.apache.kafka.common.message.DescribeTopicPartitionsRequestData.TopicRequest().setName("topic-a")))));
+        builders.put(ApiKeys.READ_SHARE_GROUP_STATE, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.ReadShareGroupStateRequestData().setTopics(shareGroupReadTopics()),
+                new org.apache.kafka.common.message.ReadShareGroupStateRequestData().setTopics(shareGroupReadTopicsKafka())));
+        builders.put(ApiKeys.WRITE_SHARE_GROUP_STATE, KafkaProxyExceptionMapperParityTest::writeShareGroupStateInput);
+        builders.put(ApiKeys.INITIALIZE_SHARE_GROUP_STATE, KafkaProxyExceptionMapperParityTest::initializeShareGroupStateInput);
+        builders.put(ApiKeys.DELETE_SHARE_GROUP_STATE, KafkaProxyExceptionMapperParityTest::deleteShareGroupStateInput);
+        builders.put(ApiKeys.READ_SHARE_GROUP_STATE_SUMMARY, KafkaProxyExceptionMapperParityTest::readShareGroupStateSummaryInput);
+
+        // Chunk 2: moderate structural/version quirks, still no field renames.
+        builders.put(ApiKeys.ALTER_CLIENT_QUOTAS, KafkaProxyExceptionMapperParityTest::alterClientQuotasInput);
+        builders.put(ApiKeys.ALTER_CONFIGS, KafkaProxyExceptionMapperParityTest::alterConfigsInput);
+        builders.put(ApiKeys.ALTER_PARTITION_REASSIGNMENTS, KafkaProxyExceptionMapperParityTest::alterPartitionReassignmentsInput);
+        builders.put(ApiKeys.ALTER_REPLICA_LOG_DIRS, KafkaProxyExceptionMapperParityTest::alterReplicaLogDirsInput);
+        builders.put(ApiKeys.ALTER_SHARE_GROUP_OFFSETS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.AlterShareGroupOffsetsRequestData(),
+                        new org.apache.kafka.common.message.AlterShareGroupOffsetsRequestData()));
+        builders.put(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, KafkaProxyExceptionMapperParityTest::alterUserScramCredentialsInput);
+        builders.put(ApiKeys.CREATE_DELEGATION_TOKEN,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.CreateDelegationTokenRequestData(),
+                        new org.apache.kafka.common.message.CreateDelegationTokenRequestData()));
+        builders.put(ApiKeys.DELETE_SHARE_GROUP_OFFSETS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.DeleteShareGroupOffsetsRequestData(),
+                        new org.apache.kafka.common.message.DeleteShareGroupOffsetsRequestData()));
+        builders.put(ApiKeys.DELETE_TOPICS, KafkaProxyExceptionMapperParityTest::deleteTopicsInput);
+        builders.put(ApiKeys.DESCRIBE_GROUPS, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DescribeGroupsRequestData().setGroups(List.of("group-1", "group-2")),
+                new org.apache.kafka.common.message.DescribeGroupsRequestData().setGroups(List.of("group-1", "group-2"))));
+        builders.put(ApiKeys.DESCRIBE_QUORUM, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.DescribeQuorumRequestData(),
+                new org.apache.kafka.common.message.DescribeQuorumRequestData()));
+        builders.put(ApiKeys.DESCRIBE_SHARE_GROUP_OFFSETS, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DescribeShareGroupOffsetsRequestData().setGroups(List.of(
+                        new io.kroxylicious.kafka.common.message.DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-1"),
+                        new io.kroxylicious.kafka.common.message.DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-2"))),
+                new org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData().setGroups(List.of(
+                        new org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-1"),
+                        new org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup().setGroupId("group-2")))));
+        builders.put(ApiKeys.LIST_PARTITION_REASSIGNMENTS, KafkaProxyExceptionMapperParityTest::listPartitionReassignmentsInput);
+        builders.put(ApiKeys.OFFSET_COMMIT, KafkaProxyExceptionMapperParityTest::offsetCommitInput);
+        builders.put(ApiKeys.OFFSET_DELETE,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.OffsetDeleteRequestData(), new org.apache.kafka.common.message.OffsetDeleteRequestData()));
+        builders.put(ApiKeys.PUSH_TELEMETRY, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.PushTelemetryRequestData(),
+                new org.apache.kafka.common.message.PushTelemetryRequestData()));
+        builders.put(ApiKeys.SHARE_FETCH,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ShareFetchRequestData(), new org.apache.kafka.common.message.ShareFetchRequestData()));
+        builders.put(ApiKeys.UPDATE_FEATURES, v -> new MatchedInput(new io.kroxylicious.kafka.common.message.UpdateFeaturesRequestData(),
+                new org.apache.kafka.common.message.UpdateFeaturesRequestData()));
+
+        // Chunk 3: bespoke RPCs (sentinel defaults, conditional responses, multi-era wire shapes).
+        builders.put(ApiKeys.PRODUCE, KafkaProxyExceptionMapperParityTest::produceInput);
+        builders.put(ApiKeys.FETCH, KafkaProxyExceptionMapperParityTest::fetchInput);
+        builders.put(ApiKeys.OFFSET_FETCH, KafkaProxyExceptionMapperParityTest::offsetFetchInput);
+        builders.put(ApiKeys.METADATA, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.MetadataRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.MetadataRequestData.MetadataRequestTopic().setName("topic-a").setTopicId(TOPIC_ID))),
+                new org.apache.kafka.common.message.MetadataRequestData().setTopics(
+                        List.of(new org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic().setName("topic-a").setTopicId(KAFKA_TOPIC_ID)))));
+        builders.put(ApiKeys.LIST_OFFSETS, KafkaProxyExceptionMapperParityTest::listOffsetsInput);
+        builders.put(ApiKeys.API_VERSIONS,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.ApiVersionsRequestData(), new org.apache.kafka.common.message.ApiVersionsRequestData()));
+        builders.put(ApiKeys.END_TXN,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.EndTxnRequestData(), new org.apache.kafka.common.message.EndTxnRequestData()));
+        builders.put(ApiKeys.LEAVE_GROUP, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.LeaveGroupRequestData().setGroupId("group-1")
+                        .setMembers(List.of(new io.kroxylicious.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("member-1"))),
+                new org.apache.kafka.common.message.LeaveGroupRequestData().setGroupId("group-1").setMembers(
+                        List.of(new org.apache.kafka.common.message.LeaveGroupRequestData.MemberIdentity().setMemberId("member-1")))));
+        builders.put(ApiKeys.LIST_CONFIG_RESOURCES, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.ListConfigResourcesRequestData().setResourceTypes(
+                        List.of(org.apache.kafka.common.config.ConfigResource.Type.CLIENT_METRICS.id())),
+                new org.apache.kafka.common.message.ListConfigResourcesRequestData().setResourceTypes(
+                        List.of(org.apache.kafka.common.config.ConfigResource.Type.CLIENT_METRICS.id()))));
+        builders.put(ApiKeys.DESCRIBE_ACLS, KafkaProxyExceptionMapperParityTest::describeAclsInput);
+        builders.put(ApiKeys.ELECT_LEADERS, KafkaProxyExceptionMapperParityTest::electLeadersInput);
+        builders.put(ApiKeys.DESCRIBE_DELEGATION_TOKEN, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DescribeDelegationTokenRequestData().setOwners(
+                        List.of(new io.kroxylicious.kafka.common.message.DescribeDelegationTokenRequestData.DescribeDelegationTokenOwner().setPrincipalType("User")
+                                .setPrincipalName("alice"))),
+                new org.apache.kafka.common.message.DescribeDelegationTokenRequestData().setOwners(
+                        List.of(new org.apache.kafka.common.message.DescribeDelegationTokenRequestData.DescribeDelegationTokenOwner().setPrincipalType("User")
+                                .setPrincipalName("alice")))));
+        builders.put(ApiKeys.ADD_PARTITIONS_TO_TXN, KafkaProxyExceptionMapperParityTest::addPartitionsToTxnInput);
+        builders.put(ApiKeys.DELETE_RECORDS, KafkaProxyExceptionMapperParityTest::deleteRecordsInput);
+        builders.put(ApiKeys.FIND_COORDINATOR, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.FindCoordinatorRequestData().setCoordinatorKeys(List.of("key-1")).setKeyType((byte) 0),
+                new org.apache.kafka.common.message.FindCoordinatorRequestData().setCoordinatorKeys(List.of("key-1")).setKeyType((byte) 0)));
+        builders.put(ApiKeys.JOIN_GROUP,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.JoinGroupRequestData(), new org.apache.kafka.common.message.JoinGroupRequestData()));
+        builders.put(ApiKeys.OFFSET_FOR_LEADER_EPOCH, KafkaProxyExceptionMapperParityTest::offsetForLeaderEpochInput);
+        builders.put(ApiKeys.SYNC_GROUP,
+                v -> new MatchedInput(new io.kroxylicious.kafka.common.message.SyncGroupRequestData(), new org.apache.kafka.common.message.SyncGroupRequestData()));
+        builders.put(ApiKeys.TXN_OFFSET_COMMIT, KafkaProxyExceptionMapperParityTest::txnOffsetCommitInput);
+        builders.put(ApiKeys.WRITE_TXN_MARKERS, KafkaProxyExceptionMapperParityTest::writeTxnMarkersInput);
+        builders.put(ApiKeys.INIT_PRODUCER_ID, v -> new MatchedInput(
+                new io.kroxylicious.kafka.common.message.InitProducerIdRequestData().setTransactionTimeoutMs(60000).setTransactionalId("txn-1"),
+                new org.apache.kafka.common.message.InitProducerIdRequestData().setTransactionTimeoutMs(60000).setTransactionalId("txn-1")));
+        return builders;
+    }
+
+    private static MatchedInput incrementalAlterConfigsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.IncrementalAlterConfigsRequestData().setResources(
+                        new io.kroxylicious.kafka.common.message.IncrementalAlterConfigsRequestData.AlterConfigsResourceCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.IncrementalAlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a")
+                                        .setResourceType((byte) 2)).iterator())),
+                new org.apache.kafka.common.message.IncrementalAlterConfigsRequestData().setResources(
+                        new org.apache.kafka.common.message.IncrementalAlterConfigsRequestData.AlterConfigsResourceCollection(
+                                List.of(new org.apache.kafka.common.message.IncrementalAlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a")
+                                        .setResourceType((byte) 2)).iterator())));
+    }
+
+    private static MatchedInput describeUserScramCredentialsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DescribeUserScramCredentialsRequestData().setUsers(
+                        List.of(new io.kroxylicious.kafka.common.message.DescribeUserScramCredentialsRequestData.UserName().setName("alice"),
+                                new io.kroxylicious.kafka.common.message.DescribeUserScramCredentialsRequestData.UserName().setName("bob"))),
+                new org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData().setUsers(
+                        List.of(new org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData.UserName().setName("alice"),
+                                new org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData.UserName().setName("bob"))));
+    }
+
+    private static MatchedInput createPartitionsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.CreatePartitionsRequestData().setTopics(
+                        new io.kroxylicious.kafka.common.message.CreatePartitionsRequestData.CreatePartitionsTopicCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.CreatePartitionsRequestData.CreatePartitionsTopic().setName("topic-a")).iterator())),
+                new org.apache.kafka.common.message.CreatePartitionsRequestData().setTopics(
+                        new org.apache.kafka.common.message.CreatePartitionsRequestData.CreatePartitionsTopicCollection(
+                                List.of(new org.apache.kafka.common.message.CreatePartitionsRequestData.CreatePartitionsTopic().setName("topic-a")).iterator())));
+    }
+
+    private static MatchedInput createTopicsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.CreateTopicsRequestData().setTopics(
+                        new io.kroxylicious.kafka.common.message.CreateTopicsRequestData.CreatableTopicCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.CreateTopicsRequestData.CreatableTopic().setName("topic-a")).iterator())),
+                new org.apache.kafka.common.message.CreateTopicsRequestData().setTopics(
+                        new org.apache.kafka.common.message.CreateTopicsRequestData.CreatableTopicCollection(
+                                List.of(new org.apache.kafka.common.message.CreateTopicsRequestData.CreatableTopic().setName("topic-a")).iterator())));
+    }
+
+    private static MatchedInput writeShareGroupStateInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.WriteShareGroupStateRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.WriteShareGroupStateRequestData.WriteStateData().setTopicId(TOPIC_ID).setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.WriteShareGroupStateRequestData.PartitionData().setPartition(0))))),
+                new org.apache.kafka.common.message.WriteShareGroupStateRequestData().setTopics(
+                        List.of(new org.apache.kafka.common.message.WriteShareGroupStateRequestData.WriteStateData().setTopicId(KAFKA_TOPIC_ID).setPartitions(
+                                List.of(new org.apache.kafka.common.message.WriteShareGroupStateRequestData.PartitionData().setPartition(0))))));
+    }
+
+    private static MatchedInput initializeShareGroupStateInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.InitializeShareGroupStateRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.InitializeShareGroupStateRequestData.InitializeStateData().setTopicId(TOPIC_ID).setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.InitializeShareGroupStateRequestData.PartitionData().setPartition(0))))),
+                new org.apache.kafka.common.message.InitializeShareGroupStateRequestData().setTopics(
+                        List.of(new org.apache.kafka.common.message.InitializeShareGroupStateRequestData.InitializeStateData().setTopicId(KAFKA_TOPIC_ID).setPartitions(
+                                List.of(new org.apache.kafka.common.message.InitializeShareGroupStateRequestData.PartitionData().setPartition(0))))));
+    }
+
+    private static MatchedInput deleteShareGroupStateInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DeleteShareGroupStateRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.DeleteShareGroupStateRequestData.DeleteStateData().setTopicId(TOPIC_ID).setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.DeleteShareGroupStateRequestData.PartitionData().setPartition(0))))),
+                new org.apache.kafka.common.message.DeleteShareGroupStateRequestData().setTopics(
+                        List.of(new org.apache.kafka.common.message.DeleteShareGroupStateRequestData.DeleteStateData().setTopicId(KAFKA_TOPIC_ID).setPartitions(
+                                List.of(new org.apache.kafka.common.message.DeleteShareGroupStateRequestData.PartitionData().setPartition(0))))));
+    }
+
+    private static MatchedInput readShareGroupStateSummaryInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.ReadShareGroupStateSummaryRequestData().setTopics(
+                        List.of(new io.kroxylicious.kafka.common.message.ReadShareGroupStateSummaryRequestData.ReadStateSummaryData().setTopicId(TOPIC_ID).setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.ReadShareGroupStateSummaryRequestData.PartitionData().setPartition(0))))),
+                new org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData().setTopics(
+                        List.of(new org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData.ReadStateSummaryData().setTopicId(KAFKA_TOPIC_ID).setPartitions(
+                                List.of(new org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData.PartitionData().setPartition(0))))));
+    }
+
+    private static MatchedInput alterClientQuotasInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.AlterClientQuotasRequestData().setEntries(List.of(
+                        new io.kroxylicious.kafka.common.message.AlterClientQuotasRequestData.EntryData().setEntity(List.of(
+                                new io.kroxylicious.kafka.common.message.AlterClientQuotasRequestData.EntityData().setEntityType("client-id")
+                                        .setEntityName("client-a"))))),
+                new org.apache.kafka.common.message.AlterClientQuotasRequestData().setEntries(List.of(
+                        new org.apache.kafka.common.message.AlterClientQuotasRequestData.EntryData().setEntity(List.of(
+                                new org.apache.kafka.common.message.AlterClientQuotasRequestData.EntityData().setEntityType("client-id").setEntityName("client-a"))))));
+    }
+
+    private static MatchedInput alterConfigsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.AlterConfigsRequestData().setResources(
+                        new io.kroxylicious.kafka.common.message.AlterConfigsRequestData.AlterConfigsResourceCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.AlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a")
+                                        .setResourceType((byte) 2)).iterator())),
+                new org.apache.kafka.common.message.AlterConfigsRequestData().setResources(
+                        new org.apache.kafka.common.message.AlterConfigsRequestData.AlterConfigsResourceCollection(
+                                List.of(new org.apache.kafka.common.message.AlterConfigsRequestData.AlterConfigsResource().setResourceName("topic-a")
+                                        .setResourceType((byte) 2)).iterator())));
+    }
+
+    private static MatchedInput alterPartitionReassignmentsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.AlterPartitionReassignmentsRequestData().setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.AlterPartitionReassignmentsRequestData.ReassignableTopic().setName("topic-a").setPartitions(List.of(
+                                new io.kroxylicious.kafka.common.message.AlterPartitionReassignmentsRequestData.ReassignablePartition().setPartitionIndex(0))))),
+                new org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData().setTopics(List.of(
+                        new org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData.ReassignableTopic().setName("topic-a").setPartitions(List.of(
+                                new org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData.ReassignablePartition().setPartitionIndex(0))))));
+    }
+
+    private static MatchedInput alterReplicaLogDirsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.AlterReplicaLogDirsRequestData().setDirs(
+                        new io.kroxylicious.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDir().setPath("/data/1").setTopics(
+                                        new io.kroxylicious.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopicCollection(
+                                                List.of(new io.kroxylicious.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopic().setName(
+                                                        "topic-a").setPartitions(List.of(0, 1)))
+                                                        .iterator())))
+                                        .iterator())),
+                new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData().setDirs(
+                        new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirCollection(
+                                List.of(new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDir().setPath("/data/1").setTopics(
+                                        new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopicCollection(
+                                                List.of(new org.apache.kafka.common.message.AlterReplicaLogDirsRequestData.AlterReplicaLogDirTopic().setName("topic-a")
+                                                        .setPartitions(List.of(0, 1)))
+                                                        .iterator())))
+                                        .iterator())));
+    }
+
+    private static MatchedInput alterUserScramCredentialsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.AlterUserScramCredentialsRequestData()
+                        .setDeletions(List.of(new io.kroxylicious.kafka.common.message.AlterUserScramCredentialsRequestData.ScramCredentialDeletion().setName("alice")))
+                        .setUpsertions(List.of(new io.kroxylicious.kafka.common.message.AlterUserScramCredentialsRequestData.ScramCredentialUpsertion().setName("bob"))),
+                new org.apache.kafka.common.message.AlterUserScramCredentialsRequestData()
+                        .setDeletions(List.of(new org.apache.kafka.common.message.AlterUserScramCredentialsRequestData.ScramCredentialDeletion().setName("alice")))
+                        .setUpsertions(List.of(new org.apache.kafka.common.message.AlterUserScramCredentialsRequestData.ScramCredentialUpsertion().setName("bob"))));
+    }
+
+    // Version-sensitive: v0-5 carry the deprecated flat TopicNames field; v6+ replace it with a structured
+    // Topics list (name + topicId) — the two shapes are mutually exclusive on the real wire, so build
+    // whichever one matches the version under test rather than populating both unconditionally.
+    private static MatchedInput deleteTopicsInput(short version) {
+        return version < 6
+                ? new MatchedInput(
+                        new io.kroxylicious.kafka.common.message.DeleteTopicsRequestData().setTopicNames(List.of("topic-a", "topic-b")),
+                        new org.apache.kafka.common.message.DeleteTopicsRequestData().setTopicNames(List.of("topic-a", "topic-b")))
+                : new MatchedInput(
+                        new io.kroxylicious.kafka.common.message.DeleteTopicsRequestData().setTopics(List.of(
+                                new io.kroxylicious.kafka.common.message.DeleteTopicsRequestData.DeleteTopicState().setName("topic-a").setTopicId(TOPIC_ID),
+                                new io.kroxylicious.kafka.common.message.DeleteTopicsRequestData.DeleteTopicState().setName("topic-b").setTopicId(TOPIC_ID))),
+                        new org.apache.kafka.common.message.DeleteTopicsRequestData().setTopics(List.of(
+                                new org.apache.kafka.common.message.DeleteTopicsRequestData.DeleteTopicState().setName("topic-a").setTopicId(KAFKA_TOPIC_ID),
+                                new org.apache.kafka.common.message.DeleteTopicsRequestData.DeleteTopicState().setName("topic-b").setTopicId(KAFKA_TOPIC_ID))));
+    }
+
+    private static MatchedInput listPartitionReassignmentsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.ListPartitionReassignmentsRequestData().setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.ListPartitionReassignmentsRequestData.ListPartitionReassignmentsTopics().setName("topic-a")
+                                .setPartitionIndexes(List.of(0, 1)))),
+                new org.apache.kafka.common.message.ListPartitionReassignmentsRequestData().setTopics(List.of(
+                        new org.apache.kafka.common.message.ListPartitionReassignmentsRequestData.ListPartitionReassignmentsTopics().setName("topic-a")
+                                .setPartitionIndexes(List.of(0, 1)))));
+    }
+
+    private static MatchedInput offsetCommitInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.OffsetCommitRequestData().setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic().setName("topic-a").setTopicId(TOPIC_ID)
+                                .setPartitions(List.of(
+                                        new io.kroxylicious.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestPartition().setPartitionIndex(0)
+                                                .setCommittedOffset(10L))))),
+                new org.apache.kafka.common.message.OffsetCommitRequestData().setTopics(List.of(
+                        new org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic().setName("topic-a").setTopicId(KAFKA_TOPIC_ID)
+                                .setPartitions(List.of(
+                                        new org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestPartition().setPartitionIndex(0)
+                                                .setCommittedOffset(10L))))));
+    }
+
+    private static MatchedInput produceInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.ProduceRequestData().setAcks((short) 1).setTimeoutMs(1000).setTopicData(
+                        new io.kroxylicious.kafka.common.message.ProduceRequestData.TopicProduceDataCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.ProduceRequestData.TopicProduceData().setName("topic-a").setTopicId(TOPIC_ID)
+                                        .setPartitionData(List.of(new io.kroxylicious.kafka.common.message.ProduceRequestData.PartitionProduceData().setIndex(0)
+                                                .setRecords(io.kroxylicious.kafka.common.record.internal.MemoryRecords.EMPTY))))
+                                        .iterator())),
+                new org.apache.kafka.common.message.ProduceRequestData().setAcks((short) 1).setTimeoutMs(1000).setTopicData(
+                        new org.apache.kafka.common.message.ProduceRequestData.TopicProduceDataCollection(
+                                List.of(new org.apache.kafka.common.message.ProduceRequestData.TopicProduceData().setName("topic-a").setTopicId(KAFKA_TOPIC_ID)
+                                        .setPartitionData(List.of(new org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData().setIndex(0)
+                                                .setRecords(org.apache.kafka.common.record.internal.MemoryRecords.EMPTY))))
+                                        .iterator())));
+    }
+
+    private static MatchedInput fetchInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.FetchRequestData().setSessionId(5).setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.FetchRequestData.FetchTopic().setTopic("topic-a").setTopicId(TOPIC_ID).setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.FetchRequestData.FetchPartition().setPartition(0))))),
+                new org.apache.kafka.common.message.FetchRequestData().setSessionId(5).setTopics(List.of(
+                        new org.apache.kafka.common.message.FetchRequestData.FetchTopic().setTopic("topic-a").setTopicId(KAFKA_TOPIC_ID).setPartitions(
+                                List.of(new org.apache.kafka.common.message.FetchRequestData.FetchPartition().setPartition(0))))));
+    }
+
+    // Legacy (pre-v8) top-level topics and batched (v8+) groups are both marked ignorable in the schema, so
+    // populating both shapes unconditionally is safe at every version — kept as a single fixture.
+    private static MatchedInput offsetFetchInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.OffsetFetchRequestData()
+                        .setTopics(List.of(new io.kroxylicious.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopic().setName("topic-a")
+                                .setPartitionIndexes(List.of(0))))
+                        .setGroups(
+                                List.of(new io.kroxylicious.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestGroup().setGroupId("group-1").setTopics(List.of(
+                                        new io.kroxylicious.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopics().setName("topic-a").setTopicId(TOPIC_ID)
+                                                .setPartitionIndexes(List.of(0)))))),
+                new org.apache.kafka.common.message.OffsetFetchRequestData()
+                        .setTopics(List.of(new org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopic().setName("topic-a")
+                                .setPartitionIndexes(List.of(0))))
+                        .setGroups(List.of(new org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestGroup().setGroupId("group-1").setTopics(List.of(
+                                new org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopics().setName("topic-a").setTopicId(KAFKA_TOPIC_ID)
+                                        .setPartitionIndexes(List.of(0)))))));
+    }
+
+    private static MatchedInput listOffsetsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.ListOffsetsRequestData().setReplicaId(ListOffsetsRequest.CONSUMER_REPLICA_ID)
+                        .setIsolationLevel(IsolationLevel.READ_UNCOMMITTED.id())
+                        .setTopics(List.of(new io.kroxylicious.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic().setName("topic-a").setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.ListOffsetsRequestData.ListOffsetsPartition().setPartitionIndex(0).setTimestamp(-1L))))),
+                new org.apache.kafka.common.message.ListOffsetsRequestData().setReplicaId(ListOffsetsRequest.CONSUMER_REPLICA_ID)
+                        .setIsolationLevel(IsolationLevel.READ_UNCOMMITTED.id())
+                        .setTopics(List.of(new org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic().setName("topic-a").setPartitions(
+                                List.of(new org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsPartition().setPartitionIndex(0).setTimestamp(-1L))))));
+    }
+
+    private static MatchedInput describeAclsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DescribeAclsRequestData()
+                        .setResourceTypeFilter(ResourceType.TOPIC.code())
+                        .setPatternTypeFilter(PatternType.LITERAL.code())
+                        .setOperation(AclOperation.ANY.code())
+                        .setPermissionType(AclPermissionType.ANY.code()),
+                new org.apache.kafka.common.message.DescribeAclsRequestData()
+                        .setResourceTypeFilter(ResourceType.TOPIC.code())
+                        .setPatternTypeFilter(PatternType.LITERAL.code())
+                        .setOperation(AclOperation.ANY.code())
+                        .setPermissionType(AclPermissionType.ANY.code()));
+    }
+
+    private static MatchedInput electLeadersInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.ElectLeadersRequestData().setElectionType((byte) 0).setTimeoutMs(1000).setTopicPartitions(
+                        new io.kroxylicious.kafka.common.message.ElectLeadersRequestData.TopicPartitionsCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.ElectLeadersRequestData.TopicPartitions().setTopic("topic-a")
+                                        .setPartitions(List.of(0, 1))).iterator())),
+                new org.apache.kafka.common.message.ElectLeadersRequestData().setElectionType((byte) 0).setTimeoutMs(1000).setTopicPartitions(
+                        new org.apache.kafka.common.message.ElectLeadersRequestData.TopicPartitionsCollection(
+                                List.of(new org.apache.kafka.common.message.ElectLeadersRequestData.TopicPartitions().setTopic("topic-a").setPartitions(List.of(0, 1)))
+                                        .iterator())));
+    }
+
+    private static MatchedInput addPartitionsToTxnInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.AddPartitionsToTxnRequestData().setV3AndBelowTopics(
+                        new io.kroxylicious.kafka.common.message.AddPartitionsToTxnRequestData.AddPartitionsToTxnTopicCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic().setName("topic-a")
+                                        .setPartitions(List.of(0, 1))).iterator())),
+                new org.apache.kafka.common.message.AddPartitionsToTxnRequestData().setV3AndBelowTopics(
+                        new org.apache.kafka.common.message.AddPartitionsToTxnRequestData.AddPartitionsToTxnTopicCollection(
+                                List.of(new org.apache.kafka.common.message.AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic().setName("topic-a")
+                                        .setPartitions(List.of(0, 1))).iterator())));
+    }
+
+    private static MatchedInput deleteRecordsInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.DeleteRecordsRequestData().setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsTopic().setName("topic-a").setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsPartition().setPartitionIndex(0))))),
+                new org.apache.kafka.common.message.DeleteRecordsRequestData().setTopics(List.of(
+                        new org.apache.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsTopic().setName("topic-a").setPartitions(
+                                List.of(new org.apache.kafka.common.message.DeleteRecordsRequestData.DeleteRecordsPartition().setPartitionIndex(0))))));
+    }
+
+    private static MatchedInput offsetForLeaderEpochInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.OffsetForLeaderEpochRequestData().setTopics(
+                        new io.kroxylicious.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopicCollection(
+                                List.of(new io.kroxylicious.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopic().setTopic("topic-a").setPartitions(
+                                        List.of(new io.kroxylicious.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderPartition().setPartition(0)
+                                                .setLeaderEpoch(5))))
+                                        .iterator())),
+                new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData().setTopics(
+                        new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopicCollection(
+                                List.of(new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopic().setTopic("topic-a").setPartitions(
+                                        List.of(new org.apache.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderPartition().setPartition(0)
+                                                .setLeaderEpoch(5))))
+                                        .iterator())));
+    }
+
+    private static MatchedInput txnOffsetCommitInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.TxnOffsetCommitRequestData().setTopics(List.of(
+                        new io.kroxylicious.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestTopic().setName("topic-a").setPartitions(
+                                List.of(new io.kroxylicious.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestPartition().setPartitionIndex(0)
+                                        .setCommittedOffset(5L))))),
+                new org.apache.kafka.common.message.TxnOffsetCommitRequestData().setTopics(List.of(
+                        new org.apache.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestTopic().setName("topic-a").setPartitions(
+                                List.of(new org.apache.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestPartition().setPartitionIndex(0)
+                                        .setCommittedOffset(5L))))));
+    }
+
+    private static MatchedInput writeTxnMarkersInput(short version) {
+        return new MatchedInput(
+                new io.kroxylicious.kafka.common.message.WriteTxnMarkersRequestData().setMarkers(List.of(
+                        new io.kroxylicious.kafka.common.message.WriteTxnMarkersRequestData.WritableTxnMarker().setProducerId(100L).setProducerEpoch((short) 0)
+                                .setCoordinatorEpoch(0)
+                                .setTransactionResult(true).setTopics(List.of(
+                                        new io.kroxylicious.kafka.common.message.WriteTxnMarkersRequestData.WritableTxnMarkerTopic().setName("topic-a")
+                                                .setPartitionIndexes(List.of(0)))))),
+                new org.apache.kafka.common.message.WriteTxnMarkersRequestData().setMarkers(List.of(
+                        new org.apache.kafka.common.message.WriteTxnMarkersRequestData.WritableTxnMarker().setProducerId(100L).setProducerEpoch((short) 0)
+                                .setCoordinatorEpoch(0).setTransactionResult(true).setTopics(List.of(
+                                        new org.apache.kafka.common.message.WriteTxnMarkersRequestData.WritableTxnMarkerTopic().setName("topic-a")
+                                                .setPartitionIndexes(List.of(0)))))));
+    }
+
+    private static io.kroxylicious.kafka.common.message.CreateAclsRequestData.AclCreation validAclCreation(String resourceName) {
+        return new io.kroxylicious.kafka.common.message.CreateAclsRequestData.AclCreation()
+                .setResourceType((byte) 2) // TOPIC
+                .setResourceName(resourceName)
+                .setResourcePatternType((byte) 3) // LITERAL
+                .setPrincipal("User:alice")
+                .setHost("*")
+                .setOperation((byte) 3) // READ
+                .setPermissionType((byte) 3); // ALLOW
+    }
+
+    private static io.kroxylicious.kafka.common.message.DeleteAclsRequestData.DeleteAclsFilter validDeleteAclsFilter(String resourceName) {
+        return new io.kroxylicious.kafka.common.message.DeleteAclsRequestData.DeleteAclsFilter()
+                .setResourceTypeFilter((byte) 2) // TOPIC
+                .setResourceNameFilter(resourceName)
+                .setPatternTypeFilter((byte) 3) // LITERAL
+                .setPrincipalFilter("User:alice")
+                .setHostFilter("*")
+                .setOperation((byte) 3) // READ
+                .setPermissionType((byte) 3); // ALLOW
+    }
+
+    private static List<io.kroxylicious.kafka.common.message.ReadShareGroupStateRequestData.ReadStateData> shareGroupReadTopics() {
+        return List.of(new io.kroxylicious.kafka.common.message.ReadShareGroupStateRequestData.ReadStateData().setTopicId(TOPIC_ID).setPartitions(
+                List.of(new io.kroxylicious.kafka.common.message.ReadShareGroupStateRequestData.PartitionData().setPartition(0))));
+    }
+
+    private static org.apache.kafka.common.message.CreateAclsRequestData.AclCreation validAclCreationKafka(String resourceName) {
+        return new org.apache.kafka.common.message.CreateAclsRequestData.AclCreation()
+                .setResourceType((byte) 2) // TOPIC
+                .setResourceName(resourceName)
+                .setResourcePatternType((byte) 3) // LITERAL
+                .setPrincipal("User:alice")
+                .setHost("*")
+                .setOperation((byte) 3) // READ
+                .setPermissionType((byte) 3); // ALLOW
+    }
+
+    private static org.apache.kafka.common.message.DeleteAclsRequestData.DeleteAclsFilter validDeleteAclsFilterKafka(String resourceName) {
+        return new org.apache.kafka.common.message.DeleteAclsRequestData.DeleteAclsFilter()
+                .setResourceTypeFilter((byte) 2) // TOPIC
+                .setResourceNameFilter(resourceName)
+                .setPatternTypeFilter((byte) 3) // LITERAL
+                .setPrincipalFilter("User:alice")
+                .setHostFilter("*")
+                .setOperation((byte) 3) // READ
+                .setPermissionType((byte) 3); // ALLOW
+    }
+
+    private static List<org.apache.kafka.common.message.ReadShareGroupStateRequestData.ReadStateData> shareGroupReadTopicsKafka() {
+        return List.of(new org.apache.kafka.common.message.ReadShareGroupStateRequestData.ReadStateData().setTopicId(KAFKA_TOPIC_ID).setPartitions(
+                List.of(new org.apache.kafka.common.message.ReadShareGroupStateRequestData.PartitionData().setPartition(0))));
+    }
+
+    private static Map<ApiKeys, BiFunction<org.apache.kafka.common.protocol.ApiMessage, Short, AbstractRequest>> oracleBuilders() {
+        Map<ApiKeys, BiFunction<org.apache.kafka.common.protocol.ApiMessage, Short, AbstractRequest>> builders = new EnumMap<>(ApiKeys.class);
+        builders.put(ApiKeys.ADD_OFFSETS_TO_TXN, (data, v) -> new AddOffsetsToTxnRequest((org.apache.kafka.common.message.AddOffsetsToTxnRequestData) data, v));
+        builders.put(ApiKeys.ADD_RAFT_VOTER, (data, v) -> new AddRaftVoterRequest((org.apache.kafka.common.message.AddRaftVoterRequestData) data, v));
+        builders.put(ApiKeys.ALLOCATE_PRODUCER_IDS,
+                (data, v) -> new AllocateProducerIdsRequest((org.apache.kafka.common.message.AllocateProducerIdsRequestData) data, v));
+        builders.put(ApiKeys.ALTER_PARTITION, (data, v) -> new AlterPartitionRequest((org.apache.kafka.common.message.AlterPartitionRequestData) data, v));
+        builders.put(ApiKeys.ASSIGN_REPLICAS_TO_DIRS,
+                (data, v) -> new AssignReplicasToDirsRequest((org.apache.kafka.common.message.AssignReplicasToDirsRequestData) data, v));
+        builders.put(ApiKeys.BEGIN_QUORUM_EPOCH,
+                (data, v) -> new BeginQuorumEpochRequest.Builder((org.apache.kafka.common.message.BeginQuorumEpochRequestData) data).build(v));
+        builders.put(ApiKeys.BROKER_HEARTBEAT, (data, v) -> new BrokerHeartbeatRequest((org.apache.kafka.common.message.BrokerHeartbeatRequestData) data, v));
+        builders.put(ApiKeys.BROKER_REGISTRATION, (data, v) -> new BrokerRegistrationRequest((org.apache.kafka.common.message.BrokerRegistrationRequestData) data, v));
+        builders.put(ApiKeys.CONSUMER_GROUP_HEARTBEAT,
+                (data, v) -> new ConsumerGroupHeartbeatRequest((org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData) data, v));
+        builders.put(ApiKeys.CONTROLLER_REGISTRATION,
+                (data, v) -> new ControllerRegistrationRequest((org.apache.kafka.common.message.ControllerRegistrationRequestData) data, v));
+        builders.put(ApiKeys.DESCRIBE_CLIENT_QUOTAS,
+                (data, v) -> new DescribeClientQuotasRequest((org.apache.kafka.common.message.DescribeClientQuotasRequestData) data, v));
+        builders.put(ApiKeys.DESCRIBE_CLUSTER, (data, v) -> new DescribeClusterRequest((org.apache.kafka.common.message.DescribeClusterRequestData) data, v));
+        builders.put(ApiKeys.DESCRIBE_LOG_DIRS, (data, v) -> new DescribeLogDirsRequest((org.apache.kafka.common.message.DescribeLogDirsRequestData) data, v));
+        builders.put(ApiKeys.END_QUORUM_EPOCH, (data, v) -> new EndQuorumEpochRequest.Builder((org.apache.kafka.common.message.EndQuorumEpochRequestData) data).build(v));
+        builders.put(ApiKeys.ENVELOPE, (data, v) -> new EnvelopeRequest((org.apache.kafka.common.message.EnvelopeRequestData) data, v));
+        builders.put(ApiKeys.EXPIRE_DELEGATION_TOKEN,
+                (data, v) -> new ExpireDelegationTokenRequest.Builder((org.apache.kafka.common.message.ExpireDelegationTokenRequestData) data).build(v));
+        builders.put(ApiKeys.FETCH_SNAPSHOT, (data, v) -> new FetchSnapshotRequest((org.apache.kafka.common.message.FetchSnapshotRequestData) data, v));
+        builders.put(ApiKeys.GET_TELEMETRY_SUBSCRIPTIONS,
+                (data, v) -> new GetTelemetrySubscriptionsRequest((org.apache.kafka.common.message.GetTelemetrySubscriptionsRequestData) data, v));
+        builders.put(ApiKeys.HEARTBEAT, (data, v) -> new HeartbeatRequest.Builder((org.apache.kafka.common.message.HeartbeatRequestData) data).build(v));
+        builders.put(ApiKeys.LIST_GROUPS, (data, v) -> new ListGroupsRequest((org.apache.kafka.common.message.ListGroupsRequestData) data, v));
+        builders.put(ApiKeys.LIST_TRANSACTIONS,
+                (data, v) -> new ListTransactionsRequest.Builder((org.apache.kafka.common.message.ListTransactionsRequestData) data).build(v));
+        builders.put(ApiKeys.REMOVE_RAFT_VOTER, (data, v) -> new RemoveRaftVoterRequest((org.apache.kafka.common.message.RemoveRaftVoterRequestData) data, v));
+        builders.put(ApiKeys.RENEW_DELEGATION_TOKEN,
+                (data, v) -> new RenewDelegationTokenRequest.Builder((org.apache.kafka.common.message.RenewDelegationTokenRequestData) data).build(v));
+        builders.put(ApiKeys.SASL_AUTHENTICATE, (data, v) -> new SaslAuthenticateRequest((org.apache.kafka.common.message.SaslAuthenticateRequestData) data, v));
+        builders.put(ApiKeys.SASL_HANDSHAKE, (data, v) -> new SaslHandshakeRequest((org.apache.kafka.common.message.SaslHandshakeRequestData) data, v));
+        builders.put(ApiKeys.SHARE_ACKNOWLEDGE, (data, v) -> new ShareAcknowledgeRequest((org.apache.kafka.common.message.ShareAcknowledgeRequestData) data, v));
+        builders.put(ApiKeys.SHARE_GROUP_HEARTBEAT,
+                (data, v) -> new ShareGroupHeartbeatRequest((org.apache.kafka.common.message.ShareGroupHeartbeatRequestData) data, v));
+        builders.put(ApiKeys.STREAMS_GROUP_HEARTBEAT,
+                (data, v) -> new StreamsGroupHeartbeatRequest((org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData) data, v));
+        builders.put(ApiKeys.UNREGISTER_BROKER, (data, v) -> new UnregisterBrokerRequest((org.apache.kafka.common.message.UnregisterBrokerRequestData) data, v));
+        builders.put(ApiKeys.UPDATE_RAFT_VOTER, (data, v) -> new UpdateRaftVoterRequest((org.apache.kafka.common.message.UpdateRaftVoterRequestData) data, v));
+        builders.put(ApiKeys.VOTE, (data, v) -> new VoteRequest.Builder((org.apache.kafka.common.message.VoteRequestData) data).build(v));
+
+        builders.put(ApiKeys.DELETE_GROUPS, (data, v) -> new DeleteGroupsRequest((org.apache.kafka.common.message.DeleteGroupsRequestData) data, v));
+        builders.put(ApiKeys.INCREMENTAL_ALTER_CONFIGS,
+                (data, v) -> new IncrementalAlterConfigsRequest((org.apache.kafka.common.message.IncrementalAlterConfigsRequestData) data, v));
+        builders.put(ApiKeys.CONSUMER_GROUP_DESCRIBE,
+                (data, v) -> new ConsumerGroupDescribeRequest((org.apache.kafka.common.message.ConsumerGroupDescribeRequestData) data, v));
+        builders.put(ApiKeys.SHARE_GROUP_DESCRIBE, (data, v) -> new ShareGroupDescribeRequest((org.apache.kafka.common.message.ShareGroupDescribeRequestData) data, v));
+        builders.put(ApiKeys.STREAMS_GROUP_DESCRIBE,
+                (data, v) -> new StreamsGroupDescribeRequest((org.apache.kafka.common.message.StreamsGroupDescribeRequestData) data, v));
+        builders.put(ApiKeys.CREATE_ACLS, (data, v) -> new CreateAclsRequest.Builder((org.apache.kafka.common.message.CreateAclsRequestData) data).build(v));
+        builders.put(ApiKeys.DELETE_ACLS, (data, v) -> new DeleteAclsRequest.Builder((org.apache.kafka.common.message.DeleteAclsRequestData) data).build(v));
+        builders.put(ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS,
+                (data, v) -> new DescribeUserScramCredentialsRequest.Builder((org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData) data).build(v));
+        builders.put(ApiKeys.CREATE_PARTITIONS,
+                (data, v) -> new CreatePartitionsRequest.Builder((org.apache.kafka.common.message.CreatePartitionsRequestData) data).build(v));
+        builders.put(ApiKeys.CREATE_TOPICS, (data, v) -> new CreateTopicsRequest((org.apache.kafka.common.message.CreateTopicsRequestData) data, v));
+        builders.put(ApiKeys.DESCRIBE_CONFIGS, (data, v) -> new DescribeConfigsRequest((org.apache.kafka.common.message.DescribeConfigsRequestData) data, v));
+        builders.put(ApiKeys.DESCRIBE_TRANSACTIONS,
+                (data, v) -> new DescribeTransactionsRequest.Builder((org.apache.kafka.common.message.DescribeTransactionsRequestData) data).build(v));
+        builders.put(ApiKeys.DESCRIBE_PRODUCERS,
+                (data, v) -> new DescribeProducersRequest.Builder((org.apache.kafka.common.message.DescribeProducersRequestData) data).build(v));
+        builders.put(ApiKeys.DESCRIBE_TOPIC_PARTITIONS,
+                (data, v) -> new DescribeTopicPartitionsRequest((org.apache.kafka.common.message.DescribeTopicPartitionsRequestData) data, v));
+        builders.put(ApiKeys.READ_SHARE_GROUP_STATE,
+                (data, v) -> new ReadShareGroupStateRequest((org.apache.kafka.common.message.ReadShareGroupStateRequestData) data, v));
+        builders.put(ApiKeys.WRITE_SHARE_GROUP_STATE,
+                (data, v) -> new WriteShareGroupStateRequest((org.apache.kafka.common.message.WriteShareGroupStateRequestData) data, v));
+        builders.put(ApiKeys.INITIALIZE_SHARE_GROUP_STATE,
+                (data, v) -> new InitializeShareGroupStateRequest((org.apache.kafka.common.message.InitializeShareGroupStateRequestData) data, v));
+        builders.put(ApiKeys.DELETE_SHARE_GROUP_STATE,
+                (data, v) -> new DeleteShareGroupStateRequest((org.apache.kafka.common.message.DeleteShareGroupStateRequestData) data, v));
+        builders.put(ApiKeys.READ_SHARE_GROUP_STATE_SUMMARY,
+                (data, v) -> new ReadShareGroupStateSummaryRequest((org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData) data, v));
+
+        builders.put(ApiKeys.ALTER_CLIENT_QUOTAS, (data, v) -> new AlterClientQuotasRequest((org.apache.kafka.common.message.AlterClientQuotasRequestData) data, v));
+        builders.put(ApiKeys.ALTER_CONFIGS, (data, v) -> new AlterConfigsRequest((org.apache.kafka.common.message.AlterConfigsRequestData) data, v));
+        builders.put(ApiKeys.ALTER_PARTITION_REASSIGNMENTS,
+                (data, v) -> new AlterPartitionReassignmentsRequest.Builder((org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData) data)
+                        .build(v));
+        builders.put(ApiKeys.ALTER_REPLICA_LOG_DIRS,
+                (data, v) -> new AlterReplicaLogDirsRequest((org.apache.kafka.common.message.AlterReplicaLogDirsRequestData) data, v));
+        builders.put(ApiKeys.ALTER_SHARE_GROUP_OFFSETS,
+                (data, v) -> new AlterShareGroupOffsetsRequest.Builder((org.apache.kafka.common.message.AlterShareGroupOffsetsRequestData) data).build(v));
+        builders.put(ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
+                (data, v) -> new AlterUserScramCredentialsRequest.Builder((org.apache.kafka.common.message.AlterUserScramCredentialsRequestData) data).build(v));
+        builders.put(ApiKeys.CREATE_DELEGATION_TOKEN,
+                (data, v) -> new CreateDelegationTokenRequest.Builder((org.apache.kafka.common.message.CreateDelegationTokenRequestData) data).build(v));
+        builders.put(ApiKeys.DELETE_SHARE_GROUP_OFFSETS,
+                (data, v) -> new DeleteShareGroupOffsetsRequest((org.apache.kafka.common.message.DeleteShareGroupOffsetsRequestData) data, v));
+        builders.put(ApiKeys.DELETE_TOPICS, (data, v) -> new DeleteTopicsRequest.Builder((org.apache.kafka.common.message.DeleteTopicsRequestData) data).build(v));
+        builders.put(ApiKeys.DESCRIBE_GROUPS, (data, v) -> new DescribeGroupsRequest.Builder((org.apache.kafka.common.message.DescribeGroupsRequestData) data).build(v));
+        builders.put(ApiKeys.DESCRIBE_QUORUM, (data, v) -> new DescribeQuorumRequest.Builder((org.apache.kafka.common.message.DescribeQuorumRequestData) data).build(v));
+        builders.put(ApiKeys.DESCRIBE_SHARE_GROUP_OFFSETS,
+                (data, v) -> new DescribeShareGroupOffsetsRequest((org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData) data, v));
+        builders.put(ApiKeys.LIST_PARTITION_REASSIGNMENTS,
+                (data, v) -> new ListPartitionReassignmentsRequest.Builder((org.apache.kafka.common.message.ListPartitionReassignmentsRequestData) data).build(v));
+        builders.put(ApiKeys.OFFSET_COMMIT, (data, v) -> new OffsetCommitRequest((org.apache.kafka.common.message.OffsetCommitRequestData) data, v));
+        builders.put(ApiKeys.OFFSET_DELETE, (data, v) -> new OffsetDeleteRequest((org.apache.kafka.common.message.OffsetDeleteRequestData) data, v));
+        builders.put(ApiKeys.PUSH_TELEMETRY, (data, v) -> new PushTelemetryRequest((org.apache.kafka.common.message.PushTelemetryRequestData) data, v));
+        builders.put(ApiKeys.SHARE_FETCH, (data, v) -> new ShareFetchRequest((org.apache.kafka.common.message.ShareFetchRequestData) data, v));
+        builders.put(ApiKeys.UPDATE_FEATURES, (data, v) -> new UpdateFeaturesRequest((org.apache.kafka.common.message.UpdateFeaturesRequestData) data, v));
+
+        builders.put(ApiKeys.PRODUCE, (data, v) -> new ProduceRequest((org.apache.kafka.common.message.ProduceRequestData) data, v));
+        builders.put(ApiKeys.FETCH, (data, v) -> new FetchRequest((org.apache.kafka.common.message.FetchRequestData) data, v));
+        builders.put(ApiKeys.OFFSET_FETCH,
+                (data, v) -> OffsetFetchRequest.Builder.forTopicIdsOrNames((org.apache.kafka.common.message.OffsetFetchRequestData) data, false).build(v));
+        builders.put(ApiKeys.METADATA, (data, v) -> new MetadataRequest((org.apache.kafka.common.message.MetadataRequestData) data, v));
+        builders.put(ApiKeys.LIST_OFFSETS, (data, v) -> {
+            org.apache.kafka.common.message.ListOffsetsRequestData listOffsetsRequestData = (org.apache.kafka.common.message.ListOffsetsRequestData) data;
+            return ListOffsetsRequest.Builder.forConsumer(true, IsolationLevel.forId(listOffsetsRequestData.isolationLevel()))
+                    .setTargetTimes(listOffsetsRequestData.topics())
+                    .build(v);
+        });
+        builders.put(ApiKeys.API_VERSIONS, (data, v) -> new ApiVersionsRequest((org.apache.kafka.common.message.ApiVersionsRequestData) data, v));
+        builders.put(ApiKeys.END_TXN,
+                (data,
+                 v) -> new EndTxnRequest.Builder((org.apache.kafka.common.message.EndTxnRequestData) data, v > EndTxnRequest.LAST_STABLE_VERSION_BEFORE_TRANSACTION_V2)
+                         .build(v));
+        builders.put(ApiKeys.LEAVE_GROUP, (data, v) -> {
+            org.apache.kafka.common.message.LeaveGroupRequestData leaveGroupRequestData = (org.apache.kafka.common.message.LeaveGroupRequestData) data;
+            return new LeaveGroupRequest.Builder(leaveGroupRequestData.groupId(), leaveGroupRequestData.members()).build(v);
+        });
+        builders.put(ApiKeys.LIST_CONFIG_RESOURCES,
+                (data, v) -> new ListConfigResourcesRequest.Builder((org.apache.kafka.common.message.ListConfigResourcesRequestData) data).build(v));
+        builders.put(ApiKeys.DESCRIBE_ACLS, (data, v) -> {
+            org.apache.kafka.common.message.DescribeAclsRequestData d = (org.apache.kafka.common.message.DescribeAclsRequestData) data;
+            return new DescribeAclsRequest.Builder(new AclBindingFilter(
+                    new ResourcePatternFilter(ResourceType.fromCode(d.resourceTypeFilter()), d.resourceNameFilter(), PatternType.fromCode(d.patternTypeFilter())),
+                    new AccessControlEntryFilter(d.principalFilter(), d.hostFilter(), AclOperation.fromCode(d.operation()),
+                            AclPermissionType.fromCode(d.permissionType()))))
+                    .build(v);
+        });
+        builders.put(ApiKeys.ELECT_LEADERS, (data, v) -> {
+            org.apache.kafka.common.message.ElectLeadersRequestData electLeaders = (org.apache.kafka.common.message.ElectLeadersRequestData) data;
+            return new ElectLeadersRequest.Builder(
+                    ElectionType.valueOf(electLeaders.electionType()),
+                    electLeaders.topicPartitions().stream().flatMap(
+                            t -> t.partitions().stream().map(p -> new org.apache.kafka.common.TopicPartition(t.topic(), p)))
+                            .toList(),
+                    electLeaders.timeoutMs())
+                    .build(v);
+        });
+        builders.put(ApiKeys.DESCRIBE_DELEGATION_TOKEN, (data, v) -> {
+            org.apache.kafka.common.message.DescribeDelegationTokenRequestData tokenRequestData = (org.apache.kafka.common.message.DescribeDelegationTokenRequestData) data;
+            return new DescribeDelegationTokenRequest.Builder(
+                    tokenRequestData.owners().stream().map(o -> new KafkaPrincipal(o.principalType(), o.principalName())).toList())
+                    .build(v);
+        });
+        builders.put(ApiKeys.ADD_PARTITIONS_TO_TXN, (data, v) -> new AddPartitionsToTxnRequest((org.apache.kafka.common.message.AddPartitionsToTxnRequestData) data, v));
+        builders.put(ApiKeys.DELETE_RECORDS, (data, v) -> new DeleteRecordsRequest.Builder((org.apache.kafka.common.message.DeleteRecordsRequestData) data).build(v));
+        builders.put(ApiKeys.FIND_COORDINATOR,
+                (data, v) -> new FindCoordinatorRequest.Builder((org.apache.kafka.common.message.FindCoordinatorRequestData) data).build(v));
+        builders.put(ApiKeys.JOIN_GROUP, (data, v) -> new JoinGroupRequest((org.apache.kafka.common.message.JoinGroupRequestData) data, v));
+        builders.put(ApiKeys.OFFSET_FOR_LEADER_EPOCH,
+                (data, v) -> new OffsetsForLeaderEpochRequest((org.apache.kafka.common.message.OffsetForLeaderEpochRequestData) data, v));
+        builders.put(ApiKeys.SYNC_GROUP, (data, v) -> new SyncGroupRequest((org.apache.kafka.common.message.SyncGroupRequestData) data, v));
+        builders.put(ApiKeys.TXN_OFFSET_COMMIT, (data, v) -> new TxnOffsetCommitRequest((org.apache.kafka.common.message.TxnOffsetCommitRequestData) data, v));
+        builders.put(ApiKeys.WRITE_TXN_MARKERS,
+                (data, v) -> new WriteTxnMarkersRequest.Builder((org.apache.kafka.common.message.WriteTxnMarkersRequestData) data).build(v));
+        builders.put(ApiKeys.INIT_PRODUCER_ID, (data, v) -> new InitProducerIdRequest.Builder((org.apache.kafka.common.message.InitProducerIdRequestData) data).build(v));
+        return builders;
+    }
+}

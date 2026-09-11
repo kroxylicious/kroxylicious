@@ -5,5 +5,8 @@
  */
 package io.kroxylicious.proxy.frame;
 
+/**
+ * A {@link Frame} carrying a Kafka response, flowing from the broker towards the client.
+ */
 public interface ResponseFrame extends Frame {
 }

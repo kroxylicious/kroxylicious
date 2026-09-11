@@ -33,6 +33,13 @@ public class Authorization implements FilterFactory<AuthorizationConfig, Authori
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Authorization.class);
 
+    /**
+     * Creates the filter factory.
+     */
+    public Authorization() {
+        // Intentionally empty
+    }
+
     private @Nullable AuthorizerService<?> authorizerService = null;
 
     @SuppressWarnings({ "unchecked", "rawtypes" })

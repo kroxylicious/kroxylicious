@@ -11,7 +11,7 @@
     <parent>
         <artifactId>kroxylicious-filter-parent</artifactId>
         <groupId>io.kroxylicious</groupId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>kroxylicious-entity-isolation</artifactId>
@@ -27,11 +27,16 @@
             <artifactId>kroxylicious-api</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-identity-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-filter-test-support</artifactId>
+            <artifactId>kroxylicious-kafka-message-json</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -218,7 +223,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.5.6</version>
+                <version>3.6.0</version>
                 <configuration>
                     <skipTests>${skipITs}</skipTests>
                     <environmentVariables>

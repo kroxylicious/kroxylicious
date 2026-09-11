@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -26,6 +26,8 @@
     <properties>
         <!-- derived from snappy's resource-config.json -->
         <native.library.include.patterns>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</native.library.include.patterns>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
     </properties>
 
     <dependencies>
@@ -402,6 +404,16 @@
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-sasl-termination</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-scram-credential-store-provider-file</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-authorization</artifactId>
                     <scope>runtime</scope>
                 </dependency>
@@ -413,6 +425,11 @@
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-entity-isolation</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-protocol-logger</artifactId>
                     <scope>runtime</scope>
                 </dependency>
             </dependencies>

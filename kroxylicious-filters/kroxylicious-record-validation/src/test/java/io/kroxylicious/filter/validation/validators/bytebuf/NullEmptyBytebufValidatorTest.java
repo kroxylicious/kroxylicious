@@ -10,13 +10,13 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.record.Record;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.filter.validation.validators.Result;
+import io.kroxylicious.kafka.common.record.internal.Record;
 
 import static io.kroxylicious.filter.validation.validators.bytebuf.BytebufValidators.nullEmptyValidator;
 import static org.assertj.core.api.Assertions.assertThat;

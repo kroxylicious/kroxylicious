@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
@@ -77,6 +76,7 @@ import io.kroxylicious.testing.operator.OperatorTestUtils;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.testing.operator.OperatorTestUtils.uniqueSuffix;
 import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -135,17 +135,11 @@ class AllReconcilersIT {
         externalOperator = operator.externalOperator();
     }
 
-    // unique per-test suffix to avoid stale reconciler events from a previous test
-    // racing against resources created by the next test with the same name
-    private static String uniqueSuffix() {
-        return UUID.randomUUID().toString().substring(0, 8);
-    }
-
     @Test
     void emptyProxyIsAllowed() {
         // Given
         var suffix = uniqueSuffix();
-        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
 
         // When
         createAll(myProxy);
@@ -160,7 +154,7 @@ class AllReconcilersIT {
                         (BiFunction<ClusterUser, String, KafkaProtocolFilter>) ((actor, suffix) -> null)),
                 argumentSet("filter with simple config", uniqueSuffix(),
                         (BiFunction<ClusterUser, String, KafkaProtocolFilter>) ((actor, suffix) -> {
-                            var filter = editableFilter(CLUSTER_FOO_FILTER + "-" + suffix).build();
+                            var filter = editableFilter(CLUSTER_FOO_FILTER + suffix).build();
                             actor.create(filter);
                             return filter;
                         })),
@@ -169,13 +163,13 @@ class AllReconcilersIT {
                         // @formatter:off
                             var filterConfigMap = new ConfigMapBuilder()
                                     .withNewMetadata()
-                                    .withName("filter-configmap-" + suffix)
+                                    .withName("filter-configmap" + suffix)
                                     .endMetadata()
                                     .addToData("key", "value")
                                     .build();
-                            var filter = editableFilter(CLUSTER_FOO_FILTER + "-" + suffix)
+                            var filter = editableFilter(CLUSTER_FOO_FILTER + suffix)
                                     .editOrNewSpec()
-                                        .withConfigTemplate(Map.of("configMapProp", "${configmap:filter-configmap-" + suffix + ":key}"))
+                                        .withConfigTemplate(Map.of("configMapProp", "${configmap:filter-configmap" + suffix + ":key}"))
                                     .endSpec()
                                     .build();
                             // @formatter:on
@@ -189,9 +183,9 @@ class AllReconcilersIT {
     @MethodSource("filterScenarios")
     void singleVirtualCluster(String suffix, BiFunction<ClusterUser, String, KafkaProtocolFilter> filterFunc) {
         // Given
-        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
         // @formatter:off
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewClusterIP()
                         .withProtocol(Protocol.TCP)
@@ -199,11 +193,11 @@ class AllReconcilersIT {
                 .endSpec()
                 .build();
         // @formatter:on
-        var myService = editableService(CLUSTER_FOO_SERVICE + "-" + suffix).build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
 
         var myFilter = filterFunc.apply(clusterUser, suffix);
 
-        var myCluster = editableVirtualCluster(CLUSTER_FOO + "-" + suffix, myProxy, myService, List.of(myIngress), Optional.ofNullable(myFilter).stream().toList())
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(myIngress), Optional.ofNullable(myFilter).stream().toList())
                 .build();
 
         // When
@@ -219,8 +213,8 @@ class AllReconcilersIT {
         // The accepted condition and ingresses may be set in separate reconciliation cycles,
         // so we wait explicitly for the ingresses to be populated rather than checking the
         // snapshot returned when the accepted condition first became true.
-        AWAIT.alias("cluster %s has ingresses with bootstrap servers".formatted(CLUSTER_FOO + "-" + suffix))
-                .untilAsserted(() -> assertThat(clusterUser.get(VirtualKafkaCluster.class, CLUSTER_FOO + "-" + suffix))
+        AWAIT.alias("cluster %s has ingresses with bootstrap servers".formatted(CLUSTER_FOO + suffix))
+                .untilAsserted(() -> assertThat(clusterUser.get(VirtualKafkaCluster.class, CLUSTER_FOO + suffix))
                         .isNotNull()
                         .extracting(VirtualKafkaCluster::getStatus)
                         .satisfies(vcs -> assertThat(vcs)
@@ -239,10 +233,10 @@ class AllReconcilersIT {
         // Given
         var suffix = uniqueSuffix();
         var domain = OpenShiftUtils.getDefaultIngressControllerDomain();
-        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
-        var myService = editableService(CLUSTER_FOO_SERVICE + "-" + suffix).build();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
         // @formatter:off
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewOpenShiftRoute()
                     .endOpenShiftRoute()
@@ -251,7 +245,7 @@ class AllReconcilersIT {
                 .build();
         var tlsCert = new SecretBuilder()
                 .withNewMetadata()
-                    .withName("downstream-tls-certificate-" + suffix)
+                    .withName("downstream-tls-certificate" + suffix)
                 .endMetadata()
                 .withType("kubernetes.io/tls")
                 .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
@@ -267,7 +261,7 @@ class AllReconcilersIT {
                 .build();
         var myCluster = new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
-                    .withName(CLUSTER_FOO + "-" + suffix)
+                    .withName(CLUSTER_FOO + suffix)
                 .endMetadata()
                 .withNewSpec()
                     .withNewProxyRef()
@@ -284,8 +278,8 @@ class AllReconcilersIT {
 
         // Then
         assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
-        AWAIT.alias("cluster %s has route-based bootstrap server".formatted(CLUSTER_FOO + "-" + suffix))
-                .untilAsserted(() -> assertThat(clusterUser.get(VirtualKafkaCluster.class, CLUSTER_FOO + "-" + suffix))
+        AWAIT.alias("cluster %s has route-based bootstrap server".formatted(CLUSTER_FOO + suffix))
+                .untilAsserted(() -> assertThat(clusterUser.get(VirtualKafkaCluster.class, CLUSTER_FOO + suffix))
                         .isNotNull()
                         .extracting(VirtualKafkaCluster::getStatus)
                         .satisfies(vcs -> assertThat(vcs)
@@ -304,7 +298,7 @@ class AllReconcilersIT {
                         // @formatter:off
                             var trust = new SecretBuilder()
                                     .withNewMetadata()
-                                        .withName("upstream-trust-" + suffix)
+                                        .withName("upstream-trust" + suffix)
                                     .endMetadata()
                                     .addToStringData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
                                     .build();
@@ -326,7 +320,7 @@ class AllReconcilersIT {
                         // @formatter:off
                             var trust = new SecretBuilder()
                                     .withNewMetadata()
-                                        .withName("upstream-trust-" + suffix)
+                                        .withName("upstream-trust" + suffix)
                                     .endMetadata()
                                     .addToStringData("trust.crt", TestKeyMaterial.TEST_CERT_PEM)
                                     .build();
@@ -352,9 +346,9 @@ class AllReconcilersIT {
         // Given
         var tlsScenario = tlsFunc.apply(clusterUser, suffix);
 
-        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
         // @formatter:off
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewClusterIP()
                         .withProtocol(Protocol.TCP)
@@ -362,14 +356,14 @@ class AllReconcilersIT {
                 .endSpec()
                 .build();
 
-        var myService = editableService(CLUSTER_FOO_SERVICE + "-" + suffix)
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix)
                 .editOrNewSpec()
                     .withTls(tlsScenario)
                 .endSpec()
                 .build();
         // @formatter:on
 
-        var myCluster = editableVirtualCluster(CLUSTER_FOO + "-" + suffix, myProxy, myService, List.of(myIngress), List.of()).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(myIngress), List.of()).build();
 
         // When
         createAll(myProxy, myCluster, myIngress, myService);
@@ -386,7 +380,7 @@ class AllReconcilersIT {
                         // @formatter:off
                             var downstreamCert = new SecretBuilder()
                                     .withNewMetadata()
-                                        .withName("downstream-cert-" + suffix)
+                                        .withName("downstream-cert" + suffix)
                                     .endMetadata()
                                     .withType("kubernetes.io/tls")
                                     .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
@@ -405,7 +399,7 @@ class AllReconcilersIT {
                         // @formatter:off
                             var downstreamCert = new SecretBuilder()
                                     .withNewMetadata()
-                                        .withName("downstream-cert-" + suffix)
+                                        .withName("downstream-cert" + suffix)
                                     .endMetadata()
                                     .withType("kubernetes.io/tls")
                                     .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
@@ -413,7 +407,7 @@ class AllReconcilersIT {
                                     .build();
                             var downstreamTrust = new ConfigMapBuilder()
                                     .withNewMetadata()
-                                        .withName("downstream-trust-configmap-" + suffix)
+                                        .withName("downstream-trust-configmap" + suffix)
                                     .endMetadata()
                                     .addToData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
                                     .build();
@@ -438,7 +432,7 @@ class AllReconcilersIT {
                         // @formatter:off
                             var downstreamCert = new SecretBuilder()
                                     .withNewMetadata()
-                                        .withName("downstream-cert-" + suffix)
+                                        .withName("downstream-cert" + suffix)
                                     .endMetadata()
                                     .withType("kubernetes.io/tls")
                                     .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
@@ -446,7 +440,7 @@ class AllReconcilersIT {
                                     .build();
                             var downstreamTrust = new SecretBuilder()
                                     .withNewMetadata()
-                                        .withName("downstream-trust-secret-" + suffix)
+                                        .withName("downstream-trust-secret" + suffix)
                                     .endMetadata()
                                     .addToStringData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
                                     .build();
@@ -472,7 +466,7 @@ class AllReconcilersIT {
                         // @formatter:off
                             var downstreamCert = new SecretBuilder()
                                     .withNewMetadata()
-                                        .withName("downstream-cert-" + suffix)
+                                        .withName("downstream-cert" + suffix)
                                     .endMetadata()
                                     .withType("kubernetes.io/tls")
                                     .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
@@ -480,7 +474,7 @@ class AllReconcilersIT {
                                     .build();
                             var downstreamTrust = new ConfigMapBuilder()
                                     .withNewMetadata()
-                                        .withName("downstream-trust-configmap-" + suffix)
+                                        .withName("downstream-trust-configmap" + suffix)
                                     .endMetadata()
                                     .addToData("trust.crt", TestKeyMaterial.TEST_CERT_PEM)
                                     .build();
@@ -509,9 +503,9 @@ class AllReconcilersIT {
         // Given
         var tlsScenario = tlsFunc.apply(clusterUser, suffix);
 
-        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
         // @formatter:off
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewClusterIP()
                         .withProtocol(Protocol.TLS)
@@ -519,9 +513,9 @@ class AllReconcilersIT {
                 .endSpec()
                 .build();
 
-        var myService = editableService(CLUSTER_FOO_SERVICE + "-" + suffix).build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
 
-        var myCluster = editableVirtualCluster(CLUSTER_FOO + "-" + suffix, myProxy, myService, List.of(myIngress), List.of())
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(myIngress), List.of())
                 .editOrNewSpec()
                     .editIngress(0)
                         .withTls(tlsScenario)
@@ -542,9 +536,9 @@ class AllReconcilersIT {
     void infrastructureAnnotationsAppliedToServices() {
         // Given
         var suffix = uniqueSuffix();
-        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
         // @formatter:off
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewInfrastructure()
                         .addToAnnotations("example.com/custom-annotation", "test-value")
@@ -557,8 +551,8 @@ class AllReconcilersIT {
                 .build();
         // @formatter:on
 
-        var myService = editableService(CLUSTER_FOO_SERVICE + "-" + suffix).build();
-        var myCluster = editableVirtualCluster(CLUSTER_FOO + "-" + suffix, myProxy, myService, List.of(myIngress), List.of()).build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(myIngress), List.of()).build();
 
         // When
         createAll(myProxy, myIngress, myService, myCluster);
@@ -569,9 +563,9 @@ class AllReconcilersIT {
         assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
 
         // Verify Service has infrastructure annotations
-        AWAIT.alias("Service for cluster %s has infrastructure annotations".formatted(CLUSTER_FOO + "-" + suffix))
+        AWAIT.alias("Service for cluster %s has infrastructure annotations".formatted(CLUSTER_FOO + suffix))
                 .untilAsserted(() -> {
-                    String serviceName = CLUSTER_FOO + "-" + suffix + "-" + CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix + "-bootstrap";
+                    String serviceName = CLUSTER_FOO + suffix + "-" + CLUSTER_FOO_CLUSTER_IP_INGRESS + suffix + "-bootstrap";
                     var service = clusterUser.get(Service.class, serviceName);
                     assertThat(service)
                             .isNotNull()
@@ -587,7 +581,7 @@ class AllReconcilersIT {
     void upstreamTlsFromStrimziKafkaRef() {
         // Given
         var suffix = uniqueSuffix();
-        String kafkaName = "my-cluster-" + suffix;
+        String kafkaName = "my-cluster" + suffix;
         // @formatter:off
         clusterUser.create(new KafkaBuilder()
                 .withNewMetadata()
@@ -628,9 +622,9 @@ class AllReconcilersIT {
                 .addToData(STRIMZI_CLUSTER_CA_BUNDLE, "dGVzdC1jYQ==")
                 .build());
 
-        var myService = editableStrimziService(CLUSTER_FOO_SERVICE + "-" + suffix, kafkaName, STRIMZI_TLS_LISTENER).build();
-        var myProxy = editableProxy(PROXY_A + "-" + suffix).build();
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + "-" + suffix, myProxy)
+        var myService = editableStrimziService(CLUSTER_FOO_SERVICE + suffix, kafkaName, STRIMZI_TLS_LISTENER).build();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS + suffix, myProxy)
                 .editOrNewSpec()
                     .withNewClusterIP()
                         .withProtocol(Protocol.TCP)
@@ -639,7 +633,7 @@ class AllReconcilersIT {
                 .build();
         // @formatter:on
 
-        var myCluster = editableVirtualCluster(CLUSTER_FOO + "-" + suffix, myProxy, myService, List.of(myIngress), List.of()).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(myIngress), List.of()).build();
 
         // When
         createAll(myProxy, myCluster, myIngress, myService);

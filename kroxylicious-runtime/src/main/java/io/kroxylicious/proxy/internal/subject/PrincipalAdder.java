@@ -14,6 +14,14 @@ import java.util.stream.Stream;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.PrincipalFactory;
 
+/**
+ * Derives principals from an authentication context by extracting names, transforming each name
+ * with the first matching mapping rule and passing the result to a principal factory.
+ *
+ * @param extractor extracts the names from the authentication context.
+ * @param rules the mapping rules tried in order; the first that matches a name determines its mapping.
+ * @param factory creates a principal from each mapped name.
+ */
 public record PrincipalAdder(
                              Function<Object, Stream<String>> extractor,
                              List<MappingRule> rules,

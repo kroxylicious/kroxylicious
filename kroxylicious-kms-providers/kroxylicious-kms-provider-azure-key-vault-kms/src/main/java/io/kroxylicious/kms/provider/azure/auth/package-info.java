@@ -4,6 +4,10 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+/**
+ * Services for obtaining the Microsoft Entra bearer tokens used to authenticate
+ * requests to Azure Key Vault.
+ */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)

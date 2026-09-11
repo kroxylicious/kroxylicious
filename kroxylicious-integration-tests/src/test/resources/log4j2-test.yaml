@@ -62,3 +62,9 @@ Configuration:
          AppenderRef:
            - ref: Console
 
+      -  name: io.kroxylicious.filter.protocollogger.ProtocolLoggerFilter
+         additivity: false
+         level: DEBUG
+         AppenderRef:
+           - ref: Console
+

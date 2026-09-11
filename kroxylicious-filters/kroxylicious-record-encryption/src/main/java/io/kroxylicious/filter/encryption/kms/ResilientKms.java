@@ -32,6 +32,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
+/**
+ * A KMS decorator which retries failed operations, delaying each retry according to a
+ * {@link BackoffStrategy}.
+ * @param <K> The type of Key Encryption Key id.
+ * @param <E> The type of encrypted Data Encryption Key.
+ */
 public class ResilientKms<K, E> implements Kms<K, E> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ResilientKms.class);
@@ -50,6 +56,16 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         this.retries = retries;
     }
 
+    /**
+     * Wraps the given KMS with retries.
+     * @param delegate the KMS to be wrapped.
+     * @param executorService the executor used to schedule the delayed retries.
+     * @param strategy the strategy used to compute the delay before each retry.
+     * @param retries the maximum number of attempts at an operation.
+     * @param <K> The type of Key Encryption Key id.
+     * @param <E> The type of encrypted Data Encryption Key.
+     * @return a resilient KMS wrapping the delegate.
+     */
     public static <K, E> Kms<K, E> wrap(@NonNull Kms<K, E> delegate,
                                         @NonNull ScheduledExecutorService executorService,
                                         @NonNull BackoffStrategy strategy,
@@ -82,6 +98,14 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         return retry("resolveAlias", () -> inner.resolveAlias(alias));
     }
 
+    /**
+     * Invokes the given operation, retrying it if it fails.
+     * @param name the name of the operation, used in logging and error messages.
+     * @param operation the operation to be invoked.
+     * @param <A> the result type of the operation.
+     * @return a completion stage that completes with the result of the operation, or fails
+     *         if the operation did not succeed within the configured number of attempts.
+     */
     public <A> CompletionStage<A> retry(String name, Supplier<CompletionStage<A>> operation) {
         return retry(name, operation, 0, null);
     }
@@ -113,19 +137,30 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         return e instanceof UnknownAliasException || e instanceof UnknownKeyException;
     }
 
+    // FutureReturnValueIgnored: a synchronous throw from operation.get() is caught and
+    // propagated to `future`, so the scheduled task cannot complete exceptionally and the
+    // discarded ScheduledFuture carries no unobserved failure.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private <A> CompletionStage<A> schedule(Supplier<CompletionStage<A>> operation, Duration duration) {
         if (duration.equals(Duration.ZERO)) {
             return operation.get();
         }
         CompletableFuture<A> future = new CompletableFuture<>();
-        executorService.schedule((Runnable) () -> operation.get().whenComplete((a, throwable) -> {
-            if (throwable != null) {
-                future.completeExceptionally(throwable);
+        executorService.schedule((Runnable) () -> {
+            try {
+                operation.get().whenComplete((a, throwable) -> {
+                    if (throwable != null) {
+                        future.completeExceptionally(throwable);
+                    }
+                    else {
+                        future.complete(a);
+                    }
+                });
             }
-            else {
-                future.complete(a);
+            catch (Exception e) {
+                future.completeExceptionally(e);
             }
-        }), duration.toMillis(), TimeUnit.MILLISECONDS);
+        }, duration.toMillis(), TimeUnit.MILLISECONDS);
         return future;
     }
 }

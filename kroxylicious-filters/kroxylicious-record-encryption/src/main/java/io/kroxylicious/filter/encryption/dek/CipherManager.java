@@ -20,6 +20,10 @@ import io.kroxylicious.filter.encryption.config.CipherSpec;
  */
 public interface CipherManager extends PersistedIdentifiable<CipherSpec> {
 
+    /**
+     * The value returned by {@link #constantParamsSize()} when the size of the serialized
+     * parameters depends on the parameters themselves.
+     */
     int VARIABLE_SIZE_PARAMETERS = -1;
 
     @Override
@@ -28,13 +32,23 @@ public interface CipherManager extends PersistedIdentifiable<CipherSpec> {
     @Override
     CipherSpec name();
 
+    /**
+     * Returns the maximum number of encryption operations which may safely be
+     * performed using a single key with this cipher.
+     * @return the maximum number of encryption operations per key.
+     */
     long maxEncryptionsPerKey();
 
+    /**
+     * Creates a new {@link Cipher} instance for this cipher.
+     * @return a new cipher instance.
+     */
     Cipher newCipher();
 
     /**
      * Return a supplier of parameters for use with the cipher.
      * The supplier need not be thread-safe.
+     * @return a supplier of cipher parameters.
      */
     Supplier<AlgorithmParameterSpec> paramSupplier();
 
@@ -43,6 +57,7 @@ public interface CipherManager extends PersistedIdentifiable<CipherSpec> {
      * does not depend on the parameters, then returns the number.
      * Otherwise, if the number of bytes required by  {@link #writeParameters(ByteBuffer, AlgorithmParameterSpec)} is variable
      * returns {@link #VARIABLE_SIZE_PARAMETERS}.
+     * @return the number of bytes required to serialize the parameters, or {@link #VARIABLE_SIZE_PARAMETERS}.
      */
     int constantParamsSize();
 
@@ -50,12 +65,16 @@ public interface CipherManager extends PersistedIdentifiable<CipherSpec> {
      * Return the number of bytes required by {@link #writeParameters(ByteBuffer, AlgorithmParameterSpec)}
      * to serialize the given parameters.
      * If {@link #constantParamsSize()} returns a number >= 0 then this must return the same number.
+     * @param parameterSpec the parameters to be serialized.
+     * @return the number of bytes required to serialize the given parameters.
      */
     int size(AlgorithmParameterSpec parameterSpec);
 
     /**
      * Serialize the given parameters to the given buffer, which should have at least
      * {@link #size(AlgorithmParameterSpec)} bytes {@linkplain ByteBuffer#remaining() remaining}.
+     * @param parametersBuffer the buffer to serialize the parameters to.
+     * @param params the parameters to be serialized.
      */
     void writeParameters(
                          ByteBuffer parametersBuffer,
@@ -66,6 +85,8 @@ public interface CipherManager extends PersistedIdentifiable<CipherSpec> {
      * The implementation should know how many bytes to read, so the number of
      * {@linkplain ByteBuffer#remaining() remaining} bytes need only be ≥ (not =)
      * the {@link #size(AlgorithmParameterSpec)} at the time the buffer was written.
+     * @param parametersBuffer the buffer to read the parameters from.
+     * @return the deserialized parameters.
      */
     AlgorithmParameterSpec readParameters(ByteBuffer parametersBuffer);
 

@@ -9,20 +9,31 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.InitProducerIdRequestData;
-import org.apache.kafka.common.message.InitProducerIdResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.kafka.common.message.InitProducerIdRequestData;
+import io.kroxylicious.kafka.common.message.InitProducerIdResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Enforces authorization of the InitProducerId API, requiring {@link TransactionalIdResource#WRITE}
+ * on the transactional id when the request names one.
+ */
 public class InitProducerIdEnforcement extends ApiEnforcement<InitProducerIdRequestData, InitProducerIdResponseData> {
 
+    /** The first API version supporting participation in two-phase commit (KIP-939). */
     public static final short MIN_VERSION_SUPPORTING_2PC = 6;
+
+    /**
+     * Creates the enforcement.
+     */
+    public InitProducerIdEnforcement() {
+        // Intentionally empty
+    }
 
     @Override
     short minSupportedVersion() {

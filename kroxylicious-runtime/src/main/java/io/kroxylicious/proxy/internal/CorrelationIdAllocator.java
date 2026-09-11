@@ -30,7 +30,7 @@ public class CorrelationIdAllocator {
      * @param maxExc upper bound, exclusive
      * @throws IllegalArgumentException if {@code minInc >= maxExc}
      */
-    CorrelationIdAllocator(int minInc, int maxExc) {
+    public CorrelationIdAllocator(int minInc, int maxExc) {
         this(minInc, maxExc, minInc);
     }
 
@@ -42,15 +42,11 @@ public class CorrelationIdAllocator {
      * @param initial first value to allocate; must be in {@code [minInc, maxExc)}
      * @throws IllegalArgumentException if {@code minInc >= maxExc}, or {@code initial} is outside {@code [minInc, maxExc)}
      */
+    @VisibleForTesting
     CorrelationIdAllocator(int minInc, int maxExc, int initial) {
-        this(new AtomicInteger(initial), minInc, maxExc);
-    }
-
-    private CorrelationIdAllocator(AtomicInteger nextCorrelationId, int minInc, int maxExc) {
         if (minInc >= maxExc) {
             throw new IllegalArgumentException("Invalid min/max values: " + minInc + "/" + maxExc);
         }
-        int initial = nextCorrelationId.get();
         if (initial < minInc) {
             throw new IllegalArgumentException("start must be greater than or equal to " + minInc);
         }
@@ -71,29 +67,4 @@ public class CorrelationIdAllocator {
         return nextCorrelationId.getAndUpdate(operand -> operand >= maxExc - 1 ? minInc : operand + 1);
     }
 
-    /**
-     * Checks whether the given id falls within this allocator's range.
-     *
-     * @param id id
-     * @return true if this id is part of the range this allocator will allocate from
-     */
-    public boolean inRange(int id) {
-        return minInc <= id && id < maxExc;
-    }
-
-    /**
-     * Returns the minimum allocatable id, inclusive.
-     */
-    @VisibleForTesting
-    int minInc() {
-        return minInc;
-    }
-
-    /**
-     * Returns the maximum allocatable id, exclusive.
-     */
-    @VisibleForTesting
-    int maxExc() {
-        return maxExc;
-    }
 }

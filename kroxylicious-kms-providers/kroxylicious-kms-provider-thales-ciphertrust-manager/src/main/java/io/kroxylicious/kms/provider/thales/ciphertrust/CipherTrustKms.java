@@ -116,6 +116,7 @@ public class CipherTrustKms implements Kms<WrappingKey, CipherTrustEdek> {
     private final URI endpointUrl;
     private final BearerTokenService tokenService;
     private final HttpClient client;
+    private final Duration timeout;
 
     /**
      * Create a CipherTrust Manager KMS instance.
@@ -136,6 +137,7 @@ public class CipherTrustKms implements Kms<WrappingKey, CipherTrustEdek> {
 
         this.endpointUrl = endpointUrl;
         this.tokenService = tokenService;
+        this.timeout = timeout;
         this.client = createClient(timeout, tlsConfigurator);
     }
 
@@ -324,8 +326,10 @@ public class CipherTrustKms implements Kms<WrappingKey, CipherTrustEdek> {
         return client;
     }
 
-    private HttpRequest buildGetRequest(URI uri, String bearerToken) {
+    @VisibleForTesting
+    HttpRequest buildGetRequest(URI uri, String bearerToken) {
         return HttpRequest.newBuilder()
+                .timeout(timeout)
                 .uri(uri)
                 .header("Authorization", bearerToken(bearerToken))
                 .header("Accept", JSON_CONTENT_TYPE)
@@ -333,8 +337,10 @@ public class CipherTrustKms implements Kms<WrappingKey, CipherTrustEdek> {
                 .build();
     }
 
-    private HttpRequest buildPostJsonRequest(URI uri, String bearerToken, String jsonBody) {
+    @VisibleForTesting
+    HttpRequest buildPostJsonRequest(URI uri, String bearerToken, String jsonBody) {
         return HttpRequest.newBuilder()
+                .timeout(timeout)
                 .uri(uri)
                 .header("Authorization", bearerToken(bearerToken))
                 .header("Content-Type", JSON_CONTENT_TYPE)

@@ -31,11 +31,13 @@ public interface PersistedIdentifiable<E extends Enum<E>> {
 
     /**
      * Returns the id to be used when serializing a reference to an implementation.
+     * @return the id to be used when serializing a reference to an implementation.
      */
     byte serializedId();
 
     /**
      * Returns the name to be used to refer to the implementation.
+     * @return the name to be used to refer to the implementation.
      */
     E name();
 }

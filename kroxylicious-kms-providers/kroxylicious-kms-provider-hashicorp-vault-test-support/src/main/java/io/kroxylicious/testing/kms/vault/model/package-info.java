@@ -4,6 +4,9 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+/**
+ * Model classes for the subset of the HashiCorp Vault REST API used to prepare Vault for tests.
+ */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)

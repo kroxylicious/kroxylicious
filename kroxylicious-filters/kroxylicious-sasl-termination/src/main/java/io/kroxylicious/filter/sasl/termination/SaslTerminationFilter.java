@@ -15,21 +15,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.common.errors.InvalidRequestException;
-import org.apache.kafka.common.errors.SaslAuthenticationException;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Errors;
+import javax.security.sasl.AuthenticationException;
+
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,11 +27,22 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -88,9 +89,11 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
             ApiKeys.CREATE_DELEGATION_TOKEN.id,
             ApiKeys.RENEW_DELEGATION_TOKEN.id,
             ApiKeys.EXPIRE_DELEGATION_TOKEN.id,
-            ApiKeys.DESCRIBE_DELEGATION_TOKEN.id);
+            ApiKeys.DESCRIBE_DELEGATION_TOKEN.id,
+            ApiKeys.ALTER_USER_SCRAM_CREDENTIALS.id,
+            ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS.id);
 
-    private final ScheduledExecutorService executorService;
+    private final FilterDispatchExecutor executorService;
     private final SaslTermination.SaslTerminationContext context;
     private final Clock clock;
     private final long maxTimeBeforeReauthMs;
@@ -105,10 +108,10 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     /**
      * Constructs the filter.
      *
-     * @param executorService the executor for scheduling delayed responses
+     * @param executorService the filter dispatch executor, used for scheduling delayed responses and ensuring thread safety
      * @param context the SASL termination context
      */
-    SaslTerminationFilter(ScheduledExecutorService executorService, SaslTermination.SaslTerminationContext context) {
+    SaslTerminationFilter(FilterDispatchExecutor executorService, SaslTermination.SaslTerminationContext context) {
         this.executorService = executorService;
         this.context = context;
         this.clock = context.clock();
@@ -257,6 +260,14 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         return switch (mechanism) {
             case OauthBearerMechanismConfig.MECHANISM_NAME -> new OauthBearerStateMachine(Objects.requireNonNull(context.oauthCallbackHandler()),
                     context.oauthMaxAuthBytes());
+            case ScramMechanismConfig.MECHANISM_NAME_SCRAM_SHA_256 -> new ScramStateMachine(ScramMechanism.SCRAM_SHA_256,
+                    context.scramCredentialStores().get(ScramMechanism.SCRAM_SHA_256),
+                    context.scramPhantomIterations().get(ScramMechanism.SCRAM_SHA_256),
+                    executorService);
+            case ScramMechanismConfig.MECHANISM_NAME_SCRAM_SHA_512 -> new ScramStateMachine(ScramMechanism.SCRAM_SHA_512,
+                    context.scramCredentialStores().get(ScramMechanism.SCRAM_SHA_512),
+                    context.scramPhantomIterations().get(ScramMechanism.SCRAM_SHA_512),
+                    executorService);
             default -> throw new IllegalStateException("No state machine for configured mechanism: " + mechanism);
         };
     }
@@ -316,7 +327,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .log("Rejecting oversized SASL authenticate payload");
         return rejectAuthenticateAndClose(
                 filterContext, stateMachine,
-                new InvalidRequestException("Authentication payload exceeds maximum size"));
+                new AuthenticationException("Authentication payload exceeds maximum size"));
     }
 
     private CompletionStage<RequestFilterResult> rejectAuthenticateNotExpected(FilterContext filterContext) {
@@ -386,7 +397,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .addKeyValue("newAuthorizationId", authorizationId)
                 .log("Reauthentication rejected: authorization ID changed");
         return rejectAuthenticateAndClose(filterContext, stateMachine,
-                new SaslAuthenticationException("Reauthentication failed: authorization identity changed"));
+                new AuthenticationException("Reauthentication failed: authorization identity changed"));
     }
 
     private CompletionStage<RequestFilterResult> completeSubjectBuild(FilterContext filterContext,
@@ -403,7 +414,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                     .addKeyValue(LOG_KEY_MECHANISM, mechanism)
                     .log("Token expired during authentication");
             return rejectAuthenticateAndClose(filterContext, stateMachine,
-                    new SaslAuthenticationException("Token expired during authentication"));
+                    new AuthenticationException("Token expired during authentication"));
         }
 
         return acceptAuthenticateDone(filterContext, success, subject, mechanism, reauthentication, sessionExpiry);
@@ -567,7 +578,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         }
 
         return filterContext.requestFilterResultBuilder()
-                .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED.exception())
+                .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED)
                 .withCloseConnection()
                 .completed();
     }
@@ -585,7 +596,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .addKeyValue(LOG_KEY_REASON, reason)
                 .log("Rejecting unsupported API request");
         return filterContext.requestFilterResultBuilder()
-                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception(reason))
+                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION, reason)
                 .completed();
     }
 
@@ -652,7 +663,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                 .addKeyValue("apiVersion", apiVersion)
                 .log("Rejecting SASL request with unsupported API version");
         return filterContext.requestFilterResultBuilder()
-                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
+                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION)
                 .withCloseConnection()
                 .completed();
     }

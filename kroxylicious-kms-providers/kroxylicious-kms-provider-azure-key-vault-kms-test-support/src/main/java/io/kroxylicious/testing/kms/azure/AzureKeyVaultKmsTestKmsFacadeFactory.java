@@ -17,6 +17,13 @@ import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
 public class AzureKeyVaultKmsTestKmsFacadeFactory extends AbstractAzureKeyVaultKmsTestKmsFacadeFactory
         implements TestKmsFacadeFactory<AzureKeyVaultConfig, WrappingKey, AzureKeyVaultEdek> {
 
+    /**
+     * Creates the factory.
+     */
+    public AzureKeyVaultKmsTestKmsFacadeFactory() {
+        // Intentionally empty
+    }
+
     @Override
     public AzureKeyVaultKmsTestKmsFacade build() {
         return new AzureKeyVaultKmsTestKmsFacade();

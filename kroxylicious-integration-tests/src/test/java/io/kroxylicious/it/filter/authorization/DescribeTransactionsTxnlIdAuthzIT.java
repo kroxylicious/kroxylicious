@@ -141,14 +141,15 @@ class DescribeTransactionsTxnlIdAuthzIT extends AuthzIT {
 
     List<Arguments> shouldEnforceAccessToTopics() {
         List<String> transactionalIds = List.of(ALICE_TRANSACTION_PREFIX + "-" + UUID.randomUUID(), BOB_TRANSACTION_PREFIX + "-" + UUID.randomUUID());
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.DESCRIBE_TRANSACTIONS),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.DESCRIBE_TRANSACTIONS))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_TRANSACTIONS),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_TRANSACTIONS))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " specific topics request",
                                 new DescribeTransactionsEquivalence((short) (int) apiVersion, transactionalIds))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.DESCRIBE_TRANSACTIONS.oldestVersion(), ApiKeys.DESCRIBE_TRANSACTIONS.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.DESCRIBE_TRANSACTIONS, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_TRANSACTIONS, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.DESCRIBE_TRANSACTIONS, (short) apiVersion)));

@@ -5,6 +5,9 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Maps between target-cluster node IDs and the virtual node IDs
  * presented to clients. Implementations must be thread-safe.
@@ -17,6 +20,29 @@ package io.kroxylicious.proxy.internal.routing;
  * {@link #toVirtual} and {@link #fromVirtual(String, int)}.
  */
 public sealed interface NodeIdMapping permits BijectiveNodeIdMapping, IdentityNodeIdMapping {
+
+    /**
+     * Builds a {@link NodeIdMapping} from the given route descriptors.
+     * Returns an {@link IdentityNodeIdMapping} for single-route cases,
+     * or a {@link BijectiveNodeIdMapping} for multiple routes.
+     *
+     * @param routeDescriptors the route descriptors keyed by route name; must not be empty
+     * @return the appropriate mapping for the number of routes
+     * @throws IllegalArgumentException if {@code routeDescriptors} is empty
+     */
+    static NodeIdMapping build(Map<String, RouteDescriptor> routeDescriptors) {
+        if (routeDescriptors.isEmpty()) {
+            throw new IllegalArgumentException("At least one route descriptor is required");
+        }
+        if (routeDescriptors.size() == 1) {
+            return new IdentityNodeIdMapping(routeDescriptors.keySet().iterator().next());
+        }
+        var routeIds = HashMap.<String, Integer> newHashMap(routeDescriptors.size());
+        for (var entry : routeDescriptors.entrySet()) {
+            routeIds.put(entry.getKey(), entry.getValue().id());
+        }
+        return new BijectiveNodeIdMapping(routeIds, routeIds.size());
+    }
 
     /**
      * Translates a target-cluster node ID to a virtual node ID.
@@ -58,6 +84,9 @@ public sealed interface NodeIdMapping permits BijectiveNodeIdMapping, IdentityNo
 
     /**
      * A route name and target-cluster node ID pair.
+     *
+     * @param route the route name
+     * @param targetNodeId the node ID on the target cluster
      */
     record RouteAndNode(String route, int targetNodeId) {}
 }

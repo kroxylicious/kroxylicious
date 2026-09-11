@@ -23,6 +23,12 @@ public class ResultComparator {
     private final OmbResult candidate;
     private final SignificanceTester significanceTester;
 
+    /**
+     * Creates a comparator using the Mann-Whitney U test for significance assessment.
+     *
+     * @param baseline  the baseline result
+     * @param candidate the candidate result to compare against the baseline
+     */
     public ResultComparator(OmbResult baseline, OmbResult candidate) {
         this(baseline, candidate, new SignificanceTester());
     }

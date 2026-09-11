@@ -49,16 +49,34 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Parses the proxy's YAML configuration file into a {@link Configuration}, resolving plugin
+ * references (such as filter types) to their configuration types via {@link java.util.ServiceLoader} discovery.
+ */
 public class ConfigParser implements PluginFactoryRegistry {
 
     private static final ObjectMapper MAPPER = createObjectMapper();
     private static final ServiceBasedPluginFactoryRegistry pluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
+
+    /**
+     * Creates a config parser.
+     */
+    public ConfigParser() {
+        // Intentionally empty
+    }
 
     @Override
     public <T> PluginFactory<T> pluginFactory(Class<T> pluginClass) {
         return pluginFactoryRegistry.pluginFactory(pluginClass);
     }
 
+    /**
+     * Parses a YAML configuration document.
+     *
+     * @param configuration the YAML configuration text
+     * @return the parsed configuration
+     * @throws IllegalArgumentException if the configuration could not be parsed
+     */
     public Configuration parseConfiguration(String configuration) {
         try {
             return MAPPER.readValue(configuration, Configuration.class);
@@ -68,6 +86,13 @@ public class ConfigParser implements PluginFactoryRegistry {
         }
     }
 
+    /**
+     * Parses a YAML configuration document from a stream.
+     *
+     * @param configuration stream yielding the YAML configuration text
+     * @return the parsed configuration
+     * @throws IllegalArgumentException if the configuration could not be parsed
+     */
     public Configuration parseConfiguration(InputStream configuration) {
         try {
             return MAPPER.readValue(configuration, Configuration.class);
@@ -77,6 +102,13 @@ public class ConfigParser implements PluginFactoryRegistry {
         }
     }
 
+    /**
+     * Serializes a configuration back to YAML.
+     *
+     * @param configuration the configuration to serialize
+     * @return the YAML representation of the configuration
+     * @throws IllegalArgumentException if the configuration could not be encoded
+     */
     public String toYaml(Configuration configuration) {
         try {
             return MAPPER.writeValueAsString(configuration);
@@ -86,6 +118,12 @@ public class ConfigParser implements PluginFactoryRegistry {
         }
     }
 
+    /**
+     * Creates the object mapper used for parsing kroxylicious configuration, including the
+     * plugin loading extensions that resolve plugin config types by plugin implementation name.
+     *
+     * @return object mapper
+     */
     public static ObjectMapper createObjectMapper() {
         return (ObjectMapper) createBaseObjectMapper()
                 .registerModule(new PluginModule())

@@ -1,0 +1,10 @@
+title: "build(release): stop publishing operator/admission jars to Maven Central"
+type: changed
+issues:
+  - 4469
+important_notes:
+  - |
+    `kroxylicious-operator` and `kroxylicious-admission` are no longer published to Maven Central.
+    We do not expect these artefacts to be consumed as Maven dependencies, please raise an issue if
+    this affects you. We continue to publish container images to quay.io and distribution tarballs
+    via GitHub Releases.

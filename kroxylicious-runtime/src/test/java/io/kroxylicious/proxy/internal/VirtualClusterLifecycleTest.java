@@ -84,9 +84,10 @@ class VirtualClusterLifecycleTest {
         manager.initializationSucceeded();
 
         // when
-        manager.startDraining();
+        var drainFuture = manager.startDraining();
 
         // then
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
         VirtualClusterLifecycleState state = manager.state();
         assertThat(state).asInstanceOf(InstanceOfAssertFactories.type(Draining.class))
                 .satisfies(draining -> assertThat(draining.drainTimeout()).isEqualTo(DRAIN_TIMEOUT));
@@ -96,12 +97,14 @@ class VirtualClusterLifecycleTest {
     void shouldTransitionFromDrainingToStopped() {
         // given
         manager.initializationSucceeded();
-        manager.startDraining();
+        var drainFuture = manager.startDraining();
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
 
         // when
         manager.drainComplete();
 
         // then
+        assertThat(drainFuture).isCompletedWithValue(null);
         assertThat(manager.state()).isInstanceOf(Stopped.class);
     }
 
@@ -160,16 +163,22 @@ class VirtualClusterLifecycleTest {
     void shouldHaveNoPriorFailureCauseWhenStoppedFromDraining() {
         // given
         manager.initializationSucceeded();
-        manager.startDraining();
+        var drainFuture = manager.startDraining();
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
 
         // when
         manager.drainComplete();
 
         // then
+        assertThat(drainFuture).isCompletedWithValue(null);
         assertThat(manager.state())
                 .isInstanceOfSatisfying(Stopped.class, stopped -> assertThat(stopped.priorFailureCause()).isNull());
     }
 
+    // FutureReturnValueIgnored: the startDraining() call in "startDraining from INITIALIZING" is
+    // the invalid transition under test — it throws before a future is returned. The call in
+    // "stop from DRAINING" is valid setup to reach Draining state; stop() is the invalid call.
+    @SuppressWarnings("FutureReturnValueIgnored")
     static Stream<Arguments> invalidTransitions() {
         return Stream.of(
                 argumentSet("initializationSucceeded from SERVING", (Runnable) () -> {
@@ -243,7 +252,8 @@ class VirtualClusterLifecycleTest {
     void shouldRejectConnectionRegistrationWhenDraining() {
         // given
         manager.initializationSucceeded();
-        manager.startDraining();
+        var drainFuture = manager.startDraining();
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
         var ccsm = mock(ClientConnectionStateMachine.class);
 
         // when

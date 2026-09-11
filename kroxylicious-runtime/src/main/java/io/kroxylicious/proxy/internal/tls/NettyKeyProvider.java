@@ -25,6 +25,10 @@ import io.kroxylicious.proxy.config.tls.KeyStore;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+/**
+ * Creates Netty {@link SslContextBuilder}s configured with the key material described by a
+ * configured {@link KeyProvider} (a key pair or a key store, in PEM or key store format).
+ */
 public class NettyKeyProvider {
 
     interface SslContextBuilderA {
@@ -37,15 +41,30 @@ public class NettyKeyProvider {
 
     private final KeyProvider delegate;
 
+    /**
+     * Constructor.
+     *
+     * @param delegate the key configuration providing the key material.
+     */
     public NettyKeyProvider(KeyProvider delegate) {
         this.delegate = delegate;
     }
 
+    /**
+     * Creates a client-mode {@link SslContextBuilder} configured with this provider's key material.
+     *
+     * @return the configured builder.
+     */
     public SslContextBuilder forClient() {
         SslContextBuilder client = SslContextBuilder.forClient();
         return configureBuilder(client::keyManager, client::keyManager);
     }
 
+    /**
+     * Creates a server-mode {@link SslContextBuilder} configured with this provider's key material.
+     *
+     * @return the configured builder.
+     */
     public SslContextBuilder forServer() {
         return configureBuilder(SslContextBuilder::forServer, SslContextBuilder::forServer);
     }

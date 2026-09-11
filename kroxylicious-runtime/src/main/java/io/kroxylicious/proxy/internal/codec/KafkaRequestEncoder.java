@@ -5,27 +5,38 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.frame.RequestFrame;
-import io.kroxylicious.proxy.internal.InternalRequestFrame;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Encodes {@link RequestFrame}s for sending to the upstream broker, rewriting the
+ * correlation id to one allocated by the {@link CorrelationManager}.
+ */
 public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestEncoder.class);
 
+    /** Number of bytes used by the frame size prefix. */
     public static final int LENGTH = 4;
+    /** Number of bytes used by the api key field. */
     public static final int API_KEY = 2;
+    /** Number of bytes used by the api version field. */
     public static final int API_VERSION = 2;
     private final CorrelationManager correlationManager;
 
+    /**
+     * Constructs a request encoder.
+     * @param correlationManager The manager used to allocate upstream correlation ids.
+     * @param listener Listener notified of each encoded message, or null.
+     */
     public KafkaRequestEncoder(CorrelationManager correlationManager,
                                @Nullable KafkaMessageListener listener) {
         super(listener);
@@ -50,8 +61,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
                 apiVersion,
                 downstreamCorrelationId,
                 hasResponse,
-                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).recipient() : null,
-                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null,
+                frame.routing(),
                 decodeResponse);
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);

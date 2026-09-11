@@ -12,7 +12,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
     </parent>
 
     <!-- Pure aggregator — do not declare this as <parent> in any child module. -->
@@ -38,6 +38,8 @@
         <module>../kroxylicious-kms-test-support</module>
         <module>../kroxylicious-kms-tls-support</module>
         <module>../kroxylicious-kms-providers</module>
+        <module>../kroxylicious-scram-credential-store</module>
+        <module>../kroxylicious-scram-credential-store-providers</module>
         <module>../kroxylicious-filter-test-support</module>
         <module>../kroxylicious-filter-archetype</module>
         <module>../kroxylicious-filters</module>

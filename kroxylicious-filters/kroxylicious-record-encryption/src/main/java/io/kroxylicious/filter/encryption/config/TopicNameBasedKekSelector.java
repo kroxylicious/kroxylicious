@@ -18,6 +18,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public abstract class TopicNameBasedKekSelector<K> {
 
     /**
+     * Creates a selector.
+     */
+    protected TopicNameBasedKekSelector() {
+        // this class holds no state of its own
+    }
+
+    /**
      * Returns a completion stage whose value, on successful completion, is a topic name selection containing the
      * resolved key ids for topics which could be resolved, and a set of unresolved topic names.
      * @param topicNames A set of topic names

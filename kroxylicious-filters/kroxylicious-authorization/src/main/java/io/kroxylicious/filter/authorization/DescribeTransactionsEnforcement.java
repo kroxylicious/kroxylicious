@@ -13,21 +13,32 @@ import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.DescribeTransactionsRequestData;
-import org.apache.kafka.common.message.DescribeTransactionsResponseData;
-import org.apache.kafka.common.message.DescribeTransactionsResponseData.TopicData;
-import org.apache.kafka.common.message.DescribeTransactionsResponseData.TopicDataCollection;
-import org.apache.kafka.common.message.DescribeTransactionsResponseData.TransactionState;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsResponseData;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsResponseData.TopicData;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsResponseData.TopicDataCollection;
+import io.kroxylicious.kafka.common.message.DescribeTransactionsResponseData.TransactionState;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
+/**
+ * Enforces authorization of the DescribeTransactions API, requiring {@link TransactionalIdResource#DESCRIBE}
+ * on each transactional id named in the request and {@link TopicResource#DESCRIBE} on the topics
+ * referenced by the response.
+ */
 public class DescribeTransactionsEnforcement extends ApiEnforcement<DescribeTransactionsRequestData, DescribeTransactionsResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public DescribeTransactionsEnforcement() {
+        // Intentionally empty
+    }
 
     private static final TopicDataCollection EMPTY_TOPICS = new TopicDataCollection();
 

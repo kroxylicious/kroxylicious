@@ -10,8 +10,8 @@
 :localstack-tag: 4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a
 // A Renovate rule will update the strimzi-version but not kafka-version. Update the kafka-version to the point
 // at the latest kafka version supported by that strimzi.
-:strimzi-version: 0.51.0
-:kafka-version: 4.1.1
+:strimzi-version: 1.2.0
+:kafka-version: 4.3.1
 :kafka-image: quay.io/strimzi/kafka:{strimzi-version}-kafka-{kafka-version}
 
 include::_assets/attributes.adoc[]
@@ -64,11 +64,11 @@ You'll need the following software installed:
 == Start Minikube
 
 We'll use a Minikube profile to keep it separate from any other work you are doing in Minikube.
-We use a profile called `quickstart-nnnnn`
+We use a profile called `quickstart-nnnnn` (if you already have `MINIKUBE_PROFILE` set, that profile is used instead).
 
 [source,terminal]
 ----
-$ export MINIKUBE_PROFILE=quickstart-${RANDOM}
+$ export MINIKUBE_PROFILE=${MINIKUBE_PROFILE:-quickstart-${RANDOM}}
 ----
 
 Let's get the Kubernetes Cluster up and running.  Minikube defaults work just fine for this quickstart.

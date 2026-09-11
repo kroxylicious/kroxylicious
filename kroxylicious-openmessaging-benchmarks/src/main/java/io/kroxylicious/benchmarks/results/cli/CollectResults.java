@@ -33,6 +33,13 @@ import picocli.CommandLine.Option;
 @SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106", "java:S7476", "java:S125" }) // CLI tool that intentionally writes to System.out/err
 public class CollectResults implements Callable<Integer> {
 
+    /**
+     * Creates the command instance; option fields are populated by picocli.
+     */
+    public CollectResults() {
+        // empty
+    }
+
     @Option(names = "--generate-run-metadata", description = "Generate run-metadata.json in the given directory")
     private Path metadataDir;
 
@@ -78,6 +85,11 @@ public class CollectResults implements Callable<Integer> {
     @Option(names = "--namespace", description = "Kubernetes namespace containing the proxy pod")
     private String namespace;
 
+    /**
+     * Entry point; exits the JVM with the code returned by the command.
+     *
+     * @param args command line arguments
+     */
     public static void main(String... args) {
         int exitCode = execute(args);
         System.exit(exitCode);

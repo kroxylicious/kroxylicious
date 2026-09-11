@@ -37,12 +37,24 @@ public class DecryptionDekCache<K, E> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DecryptionDekCache.class);
 
+    /** The value to pass as {@code dekCacheMaxItems} for a cache with no maximum size. */
     public static final int NO_MAX_CACHE_SIZE = -1;
     private final DekManager<K, E> dekManager;
 
+    /**
+     * The key to the cache.
+     * Either both, or neither, of {@code cipherManager} and {@code edek} must be null.
+     * @param <E> The type of encrypted DEK.
+     * @param cipherManager The cipher manager, or null if the record was not encrypted.
+     * @param edek The encrypted DEK, or null if the record was not encrypted.
+     */
     public record CacheKey<E>(
                               @Nullable CipherManager cipherManager,
                               @Nullable E edek) {
+        /**
+         * Creates a cache key.
+         * @throws IllegalArgumentException if exactly one of the components is null.
+         */
         public CacheKey {
             if (cipherManager == null ^ edek == null) {
                 throw new IllegalArgumentException();
@@ -59,7 +71,10 @@ public class DecryptionDekCache<K, E> {
             return UNENCRYPTED;
         }
 
-        /** Tests whether this cache key is the sentinel value representing unencrypted records */
+        /**
+         * Tests whether this cache key is the sentinel value representing unencrypted records
+         * @return true if this cache key represents unencrypted records.
+         */
         public boolean isUnencrypted() {
             return cipherManager == null || edek == null;
         }
@@ -67,6 +82,12 @@ public class DecryptionDekCache<K, E> {
 
     private final AsyncLoadingCache<CacheKey<E>, Dek<E>> decryptorCache;
 
+    /**
+     * Creates a decryption DEK cache.
+     * @param dekManager the DEK manager used to decrypt encrypted DEKs on a cache miss.
+     * @param dekCacheExecutor the executor used to load cache entries, or null to use the cache's default executor.
+     * @param dekCacheMaxItems the maximum number of DEKs to cache, or {@link #NO_MAX_CACHE_SIZE} for no maximum.
+     */
     public DecryptionDekCache(@NonNull DekManager<K, E> dekManager,
                               @Nullable Executor dekCacheExecutor,
                               int dekCacheMaxItems) {

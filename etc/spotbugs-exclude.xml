@@ -49,4 +49,14 @@
         <Class name="io.kroxylicious.proxy.config.model.VisitorListener" />
         <Bug pattern="USO_UNSAFE_OBJECT_SYNCHRONIZATION" />
     </Match>
+    <!--
+        Kafka protocol support classes vendored/forked verbatim into io.kroxylicious.kafka.* (see
+        tools/kafka-vendoring: io.kroxylicious.kafka.common.* support classes, their forked Apache
+        Kafka unit tests and test-support helper) and the *Data/*JsonConverter message classes
+        generated from the protocol JSON specs. This code is copied/generated from Apache Kafka,
+        not hand-maintained, so it is excluded from SpotBugs analysis.
+        -->
+    <Match>
+        <Class name="~io\.kroxylicious\.kafka\..*" />
+    </Match>
 </FindBugsFilter>

@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.security.sasl.Sasl;
@@ -17,12 +18,6 @@ import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
 
 import org.apache.kafka.common.errors.SaslAuthenticationException;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +29,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
 import io.kroxylicious.filter.oauthbearer.sasl.BackoffStrategy;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -41,19 +42,21 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
+import static io.kroxylicious.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
+import static io.kroxylicious.kafka.common.protocol.Errors.SASL_AUTHENTICATION_FAILED;
+import static io.kroxylicious.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR;
 import static io.kroxylicious.testing.filter.condition.kafka.SaslAuthenticateResponseDataCondition.saslAuthenticateResponseMatching;
-import static org.apache.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
-import static org.apache.kafka.common.protocol.Errors.SASL_AUTHENTICATION_FAILED;
-import static org.apache.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR;
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -374,5 +377,36 @@ class OauthBearerValidationFilterTest {
                     .thenReturn(saslServer);
             filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
         }
+    }
+
+    @Test
+    void scheduleOperationThrowingSynchronouslyCompletesReturnedStageExceptionally() throws Exception {
+        // Given: executor immediately runs the scheduled Runnable; operation.get() throws
+        // synchronously, exercising the synchronous-throw handling added to schedule
+        var cause = new RuntimeException("sync throw from operation.get()");
+        byte[] givenBytes = "test_bytes".getBytes(StandardCharsets.UTF_8);
+        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
+        when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
+        when(strategy.getDelay(0)).thenReturn(Duration.ofMillis(1));
+        when(saslServer.evaluateResponse(givenBytes)).thenThrow(cause);
+        doAnswer(inv -> {
+            ((Runnable) inv.getArgument(0)).run();
+            return null;
+        }).when(executor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        mockBuilder();
+        try (var dummy = mockStatic(Sasl.class)) {
+            dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
+                    .thenReturn(saslServer);
+            filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(),
+                    new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM), context);
+        }
+
+        // When
+        var stage = filter.onSaslAuthenticateRequest(
+                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(),
+                new SaslAuthenticateRequestData().setAuthBytes(givenBytes), context);
+
+        // Then — stage is done, not hanging (the exception was caught and the stage completed)
+        assertThat(stage.toCompletableFuture()).isDone();
     }
 }

@@ -8,12 +8,12 @@ package io.kroxylicious.testing.filter.assertj;
 
 import java.nio.charset.StandardCharsets;
 
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MutableRecordBatch;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.MutableRecordBatch;
 import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
 import static io.kroxylicious.testing.filter.assertj.Assertions.throwsAssertionErrorContaining;

@@ -8,12 +8,11 @@ package io.kroxylicious.proxy.internal.metrics;
 
 import java.util.Objects;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Meter;
 
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -27,6 +26,12 @@ public class MetricEmittingKafkaMessageListener implements KafkaMessageListener 
     private final Meter.MeterProvider<Counter> messageCounterProvider;
     private final Meter.MeterProvider<DistributionSummary> messageSizeProvider;
 
+    /**
+     * Creates a metric emitting listener.
+     *
+     * @param messageCounterProvider provider of the counter used to record message counts
+     * @param messageSizeProvider provider of the distribution summary used to record message sizes
+     */
     public MetricEmittingKafkaMessageListener(Meter.MeterProvider<Counter> messageCounterProvider,
                                               Meter.MeterProvider<DistributionSummary> messageSizeProvider) {
         this.messageCounterProvider = Objects.requireNonNull(messageCounterProvider);

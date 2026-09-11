@@ -5,18 +5,18 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import org.apache.kafka.common.errors.UnsupportedVersionException;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
+import io.kroxylicious.kafka.common.errors.UnsupportedVersionException;
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Readable;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -26,6 +26,11 @@ import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Decodes requests received from the downstream client, deserializing header and body
+ * into a {@link DecodedRequestFrame} when required by the {@link DecodePredicate},
+ * otherwise passing the bytes through as an {@link OpaqueRequestFrame}.
+ */
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestDecoder.class);
@@ -35,6 +40,13 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private final ApiVersionsServiceImpl apiVersionsService;
 
+    /**
+     * Constructs a request decoder.
+     * @param decodePredicate The predicate deciding whether requests and responses should be fully decoded.
+     * @param socketFrameMaxSize The maximum permitted frame size in bytes.
+     * @param apiVersionsService The service providing the api versions supported by the proxy.
+     * @param listener Listener notified of each decoded message, or null.
+     */
     public KafkaRequestDecoder(DecodePredicate decodePredicate,
                                int socketFrameMaxSize,
                                ApiVersionsServiceImpl apiVersionsService,

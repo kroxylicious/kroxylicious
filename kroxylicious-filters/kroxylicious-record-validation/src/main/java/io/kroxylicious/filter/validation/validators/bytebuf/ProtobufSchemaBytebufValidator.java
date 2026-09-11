@@ -26,7 +26,6 @@ import io.apicurio.registry.utils.protobuf.schema.ProtobufSchema;
 import io.apicurio.schema.validation.protobuf.ProtobufSchemaParser;
 import io.apicurio.schema.validation.protobuf.ProtobufValidator;
 
-import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
 
 /**
@@ -50,8 +49,8 @@ class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final ProtobufValidator protobufValidator;
     private final Descriptors.Descriptor messageDescriptor;
 
-    ProtobufSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
-        super(schemaId, wireFormatVersion);
+    ProtobufSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId) {
+        super(schemaId);
         this.protobufValidator = new ProtobufValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromContentId(schemaId)));
         this.messageDescriptor = resolveProtobufDescriptor(schemaResolverConfig, schemaId);
     }

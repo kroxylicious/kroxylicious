@@ -12,7 +12,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
     </parent>
 
     <!-- Pure aggregator — do not declare this as <parent> in any child module. -->
@@ -34,11 +34,18 @@
     <modules>
         <module>../kroxylicious-annotations</module>
         <module>../kroxylicious-krpc-plugin</module>
+        <module>../kroxylicious-kafka-message-generator</module>
         <module>../kroxylicious-kafka-message-tools</module>
         <module>../kroxylicious-bom</module>
+        <module>../kroxylicious-identity-api</module>
         <module>../kroxylicious-api</module>
+        <module>../kroxylicious-kafka-message-json</module>
+        <module>../kroxylicious-fidelity-harness</module>
+        <module>../kroxylicious-wire-fidelity-tests</module>
         <module>../kroxylicious-integration-test-support</module>
         <module>../kroxylicious-runtime</module>
         <module>../kroxylicious-app</module>
+        <module>kroxylicious-migrations</module>
+        <module>../tools/kafka-vendoring</module>
     </modules>
 </project>

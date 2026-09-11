@@ -15,20 +15,17 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-kubernetes-parent</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
     </parent>
 
     <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-operator-test-support</artifactId>
-    <version>0.24.0-SNAPSHOT</version>
+    <version>0.25.0-SNAPSHOT</version>
     <name>Kubernetes Operator test support</name>
     <description>Custom assertions and other tooling to make writing tests about the state of Kroxylicious Kubernetes
         resources easier.
     </description>
 
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
 
     <dependencyManagement>
         <dependencies>

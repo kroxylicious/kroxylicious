@@ -28,6 +28,8 @@ import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.codec.DecodedRequestFrame;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
 /**
  * MockHandler is responsible for:
  * <ol>
@@ -83,12 +85,13 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         logger.error("Exception in Mock Handler", cause);
         // Close the connection when an exception is raised.
-        ctx.close();
+        ctx.close().addListener(logFailure(logger, "close after exception in mock handler"));
     }
 
     /**
      * Set the response
      *
+     * @param keys the api key of the requests to respond to
      * @param response response
      */
     public void setMockResponseForApiKey(ApiKeys keys, ApiMessage response) {
@@ -108,6 +111,7 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
     /**
      * Set the response
      *
+     * @param keys the api key of the requests to respond to
      * @param response response
      * @param responseApiVersion apiVersion used to encode mock response
      */
@@ -125,6 +129,12 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
         }, Action.respond(response, responseApiVersion));
     }
 
+    /**
+     * Registers an action to be applied to requests matching the matcher.
+     *
+     * @param matcher matcher selecting the requests the action applies to
+     * @param action the action to take (respond or drop)
+     */
     public void addMockResponse(Matcher<Request> matcher, Action action) {
         conditionalMockResponses.add(new ConditionalMockResponse(matcher, action, new AtomicLong(0)));
     }
@@ -137,6 +147,11 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
         return Collections.unmodifiableList(requests);
     }
 
+    /**
+     * Asserts that every registered mock response has been invoked at least once.
+     *
+     * @throws AssertionError if any mock response was never invoked
+     */
     public void assertAllMockInteractionsInvoked() {
         List<ConditionalMockResponse> anyUninvoked = conditionalMockResponses.stream().filter(r -> r.invocations.get() <= 0).toList();
         if (!anyUninvoked.isEmpty()) {

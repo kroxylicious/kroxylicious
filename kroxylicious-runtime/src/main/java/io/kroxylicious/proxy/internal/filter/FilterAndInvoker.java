@@ -32,6 +32,7 @@ public record FilterAndInvoker(String filterName, Filter filter, FilterInvoker i
 
     /**
      * Builds a list of invokers for a filter
+     * @param filterName the name of the filter (from the config)
      * @param filter filter
      * @return a filter and its respective invoker
      */

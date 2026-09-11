@@ -6,9 +6,16 @@
 
 package io.kroxylicious.proxy.internal.routing;
 
-// Exception thrown when the runtime tries to determine the upstream cluster for a route
-// and one cannot be determined.
+/**
+ * Thrown when the runtime tries to determine the upstream cluster for a route
+ * and one cannot be determined.
+ */
 public class NoUpstreamClusterForRouteException extends RuntimeException {
+    /**
+     * Creates the exception.
+     *
+     * @param message detail message identifying the route without an upstream cluster
+     */
     public NoUpstreamClusterForRouteException(String message) {
         super(message);
     }

@@ -23,11 +23,13 @@ import java.util.function.UnaryOperator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthResponse;
 import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * Abstract base class for CipherTrust Manager authentication token services.
@@ -59,6 +61,11 @@ abstract class AbstractTokenService implements BearerTokenService {
     protected final HttpClient client;
 
     /**
+     * HTTP request timeout applied to authentication requests.
+     */
+    protected final Duration timeout;
+
+    /**
      * Create an authentication token service.
      *
      * @param endpointUrl base URL of CipherTrust Manager instance
@@ -73,6 +80,7 @@ abstract class AbstractTokenService implements BearerTokenService {
         Objects.requireNonNull(tlsConfigurator, "tlsConfigurator cannot be null");
 
         this.authEndpoint = endpointUrl.resolve("/api/v1/auth/tokens/");
+        this.timeout = timeout;
         this.client = createClient(timeout, tlsConfigurator);
     }
 
@@ -81,6 +89,11 @@ abstract class AbstractTokenService implements BearerTokenService {
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(timeout)
                 .build();
+    }
+
+    @VisibleForTesting
+    HttpClient getHttpClient() {
+        return client;
     }
 
     /**
@@ -96,14 +109,7 @@ abstract class AbstractTokenService implements BearerTokenService {
                     .addKeyValue("operation", operationType)
                     .addKeyValue("authRequest", authRequest)
                     .log("sending authentication request");
-            String requestBody = OBJECT_MAPPER.writeValueAsString(authRequest);
-
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(authEndpoint)
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
-                    .build();
+            HttpRequest httpRequest = buildAuthenticationRequest(authRequest);
 
             return client.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofByteArray())
                     .thenApply(response -> {
@@ -134,6 +140,18 @@ abstract class AbstractTokenService implements BearerTokenService {
                     .log("failed to serialize authentication request");
             return CompletableFuture.failedFuture(new KmsException("Failed to serialize authentication request", e));
         }
+    }
+
+    @VisibleForTesting
+    HttpRequest buildAuthenticationRequest(AuthRequest authRequest) throws JsonProcessingException {
+        String requestBody = OBJECT_MAPPER.writeValueAsString(authRequest);
+        return HttpRequest.newBuilder()
+                .timeout(timeout)
+                .uri(authEndpoint)
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
+                .build();
     }
 
     /**

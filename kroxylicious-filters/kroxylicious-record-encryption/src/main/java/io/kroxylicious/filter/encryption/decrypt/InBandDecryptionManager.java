@@ -16,11 +16,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
-
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
@@ -29,6 +24,10 @@ import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.kms.service.Serde;
 
@@ -50,6 +49,13 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
 
     private final EncryptionResolver encryptionResolver;
 
+    /**
+     * Creates a decryption manager.
+     * @param encryptionResolver the resolver of the encryptions supported by this manager.
+     * @param dekManager the DEK manager used to decrypt encrypted DEKs.
+     * @param dekCache the cache of DEKs used for decryption.
+     * @param filterThreadExecutor the executor used to complete futures on the filter thread.
+     */
     public InBandDecryptionManager(EncryptionResolver encryptionResolver,
                                    @NonNull DekManager<K, E> dekManager,
                                    @NonNull DecryptionDekCache<K, E> dekCache,

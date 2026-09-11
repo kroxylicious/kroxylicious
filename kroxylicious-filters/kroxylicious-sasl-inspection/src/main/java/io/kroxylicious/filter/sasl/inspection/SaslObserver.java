@@ -8,7 +8,7 @@ package io.kroxylicious.filter.sasl.inspection;
 
 import javax.security.sasl.SaslException;
 
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
 
 /**
  * A Sasl observer merely watches a SASL negotiation between client and server extracting the

@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.filter.metadata;
 
 import java.util.Objects;
 
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 /**
  * Indicates there was some problem obtaining a name for a topic id
@@ -24,16 +24,17 @@ public class TopicNameMappingException extends RuntimeException {
      * @param error the kafka error underlying this exception
      */
     public TopicNameMappingException(Errors error) {
-        this(error, error.message(), error.exception());
+        this(error, error.message());
     }
 
     /**
-     * Creates a new exception for the given error with a custom message.
+     * Creates a new exception for the given error with a custom message and cause.
      * @param error the kafka error underlying this exception
      * @param message the detail message
      */
     public TopicNameMappingException(Errors error, String message) {
-        this(error, message, error.exception());
+        super(message);
+        this.error = Objects.requireNonNull(error);
     }
 
     /**

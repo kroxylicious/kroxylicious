@@ -27,6 +27,10 @@ import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHook;
 import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookService;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+/**
+ * Owns the proxy's Micrometer meter registries: registers a Prometheus registry with the global
+ * registry, applies configured {@link MicrometerConfigurationHook}s, and removes both on close.
+ */
 public class MeterRegistries implements AutoCloseable {
     private final PrometheusMeterRegistry prometheusMeterRegistry;
 
@@ -34,6 +38,12 @@ public class MeterRegistries implements AutoCloseable {
     private final PluginFactoryRegistry pfr;
     private final List<MicrometerConfigurationHook> hooks;
 
+    /**
+     * Creates the registries, applying the configured Micrometer hooks and registering a
+     * Prometheus registry with the global registry.
+     * @param pfr registry used to instantiate the configured Micrometer hook plugins
+     * @param micrometerConfig the Micrometer hook definitions from the proxy configuration
+     */
     public MeterRegistries(PluginFactoryRegistry pfr, List<MicrometerDefinition> micrometerConfig) {
         this.pfr = pfr;
         this.hooks = registerHooks(micrometerConfig);
@@ -84,6 +94,7 @@ public class MeterRegistries implements AutoCloseable {
      * future we may wish to use a different micrometer backend. Clients should use the global
      * io.micrometer.core.instrument.Metrics static methods to record metrics, not this implementation. This is used to
      * support specialisations like scraping the prometheus metrics.
+     * @return the prometheus meter registry, or empty if none is available
      */
     public Optional<PrometheusMeterRegistry> maybePrometheusMeterRegistry() {
         return Optional.ofNullable(prometheusMeterRegistry);

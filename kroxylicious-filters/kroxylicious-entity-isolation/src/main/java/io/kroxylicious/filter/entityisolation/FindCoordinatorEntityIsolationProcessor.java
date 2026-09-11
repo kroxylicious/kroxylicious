@@ -10,13 +10,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Predicate;
 
-import org.apache.kafka.common.message.FindCoordinatorRequestData;
-import org.apache.kafka.common.message.FindCoordinatorResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType;
-
 import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
+import io.kroxylicious.kafka.common.message.FindCoordinatorRequestData;
+import io.kroxylicious.kafka.common.message.FindCoordinatorResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;

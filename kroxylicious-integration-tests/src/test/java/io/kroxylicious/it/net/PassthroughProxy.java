@@ -30,6 +30,8 @@ import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
 /**
  * A Proxy server that listens on a random ephemeral port, and proxies all data received to
  * a remote host/port. This is to enable us to test cases where Kroxylicious sits behind
@@ -118,7 +120,7 @@ public class PassthroughProxy implements Closeable {
                     inboundChannel.read();
                 }
                 else {
-                    inboundChannel.close();
+                    inboundChannel.close().addListener(logFailure(LOGGER, "close inbound after outbound connect failure"));
                 }
             });
         }
@@ -131,7 +133,7 @@ public class PassthroughProxy implements Closeable {
                         ctx.channel().read();
                     }
                     else {
-                        channelFuture.channel().close();
+                        channelFuture.channel().close().addListener(logFailure(LOGGER, "close outbound channel after write failure"));
                     }
                 });
             }
@@ -184,7 +186,7 @@ public class PassthroughProxy implements Closeable {
                     ctx.channel().read();
                 }
                 else {
-                    channelFuture.channel().close();
+                    channelFuture.channel().close().addListener(logFailure(LOGGER, "close inbound channel after write failure"));
                 }
             });
         }

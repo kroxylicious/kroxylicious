@@ -15,8 +15,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.header.internals.RecordHeaders;
-import org.apache.kafka.common.record.Record;
 import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwk.JsonWebKey;
 import org.jose4j.jwk.JsonWebKeySet;
@@ -29,6 +27,8 @@ import org.jose4j.lang.UnresolvableKeyException;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.filter.validation.validators.Result;
+import io.kroxylicious.kafka.common.header.internals.RecordHeaders;
+import io.kroxylicious.kafka.common.record.internal.Record;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -49,10 +49,22 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 @SuppressWarnings("java:S5411") // Need to use Boolean for config JSON serialization
 public class JwsSignatureBytebufValidator implements BytebufValidator {
+    /**
+     * Options controlling which record header carries the JWS and whether its presence is required.
+     *
+     * @param key the name of the record header expected to carry the JWS
+     * @param requireJwsRecordHeader whether validation fails when the JWS record header is absent
+     */
     public record JwsHeaderOptions(@JsonProperty(value = "key", defaultValue = "kroxylicious.io/jws") @Nullable String key,
                                    @JsonProperty(value = "required", defaultValue = "true") @Nullable Boolean requireJwsRecordHeader) {
+        /**
+         * The default options: the JWS is carried by the {@code kroxylicious.io/jws} record header and is required.
+         */
         public static final JwsHeaderOptions DEFAULT = new JwsHeaderOptions("kroxylicious.io/jws", true);
 
+        /**
+         * Replaces null components with their {@link #DEFAULT} values.
+         */
         public JwsHeaderOptions {
             if (key == null) {
                 key = DEFAULT.key();
@@ -63,9 +75,20 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
         }
     }
 
+    /**
+     * Options controlling how the JWS payload is obtained.
+     *
+     * @param isContentDetached whether the JWS uses a detached payload, in which case the record content is used as the payload
+     */
     public record JwsContentOptions(@JsonProperty(value = "detached", defaultValue = "false") @Nullable Boolean isContentDetached) {
+        /**
+         * The default options: the JWS payload is not detached.
+         */
         public static final JwsContentOptions DEFAULT = new JwsContentOptions(false);
 
+        /**
+         * Replaces null components with their {@link #DEFAULT} values.
+         */
         public JwsContentOptions {
             if (isContentDetached == null) {
                 isContentDetached = DEFAULT.isContentDetached();
@@ -86,6 +109,10 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
     /**
      * Constructor for {@link JwsSignatureBytebufValidator}.
      *
+     * @param trustedJsonWebKeySet the set of trusted JSON Web Keys used to verify signatures
+     * @param algorithms the allowed/denied JWS algorithms
+     * @param headerOptions options controlling which record header carries the JWS and whether it is required
+     * @param contentOptions options controlling whether the JWS payload is detached
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
     public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> algorithms, JwsHeaderOptions headerOptions,

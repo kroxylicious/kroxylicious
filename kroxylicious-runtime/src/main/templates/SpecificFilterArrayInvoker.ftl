@@ -30,11 +30,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.OptionalInt;
 
-import org.apache.kafka.common.message.ApiMessageType;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.message.ApiMessageType;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -55,6 +55,12 @@ public class SpecificFilterArrayInvoker implements FilterInvoker {
     private final FilterInvoker[] requestInvokers;
     private final FilterInvoker[] responseInvokers;
 
+    /**
+     * Creates an invoker for the given filter, wiring up an invoker for each
+     * specific message filter interface the filter implements.
+     *
+     * @param filter the filter to invoke
+     */
     public SpecificFilterArrayInvoker(Filter filter) {
         Map<Integer, FilterInvoker> requestInvokers = new HashMap<>();
         Map<Integer, FilterInvoker> responseInvokers = new HashMap<>();

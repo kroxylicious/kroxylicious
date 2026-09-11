@@ -51,6 +51,9 @@ spec:
           args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
+          env:
+          - name: "KROXYLICIOUS_DANGEROUSLY_CHANGE_PERMISSION_CHECK"
+            value: "0640"
           ports:
             - containerPort: 9190
               name: "management"
@@ -76,6 +79,7 @@ spec:
               subPath: "proxy-config.yaml"
       securityContext:
         runAsNonRoot: true
+        fsGroup: 185
         seccompProfile:
           type: "RuntimeDefault"
       volumes:

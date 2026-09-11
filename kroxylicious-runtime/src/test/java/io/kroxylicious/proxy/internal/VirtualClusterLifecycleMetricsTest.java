@@ -121,7 +121,8 @@ class VirtualClusterLifecycleMetricsTest {
 
         // when — two seconds elapse in the serving state, then it transitions out
         clock.add(Duration.ofSeconds(2));
-        lifecycle.startDraining();
+        var drainFuture = lifecycle.startDraining();
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
 
         // then — the serving state's recorded duration reflects the elapsed time.
         assertThat(meterRegistry.get("kroxylicious_virtual_cluster_state_duration_seconds")

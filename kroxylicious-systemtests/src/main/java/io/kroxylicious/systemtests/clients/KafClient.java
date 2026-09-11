@@ -22,7 +22,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.skodjob.testframe.utils.KubeUtils;
+import io.skodjob.kubetest4j.utils.KubeUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;

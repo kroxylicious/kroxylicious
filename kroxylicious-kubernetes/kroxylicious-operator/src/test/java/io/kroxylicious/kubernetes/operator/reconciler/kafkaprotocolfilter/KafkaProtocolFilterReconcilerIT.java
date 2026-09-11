@@ -37,6 +37,7 @@ import io.kroxylicious.testing.operator.OperatorTestUtils;
 import io.kroxylicious.testing.operator.assertj.KafkaProtocolFilterStatusAssert;
 
 import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
+import static io.kroxylicious.testing.operator.OperatorTestUtils.uniqueSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -68,38 +69,41 @@ class KafkaProtocolFilterReconcilerIT {
 
     @Test
     void shouldEventuallyResolveWhenFilterCreatedFirst() {
-        createFilterFirst();
+        var suffix = uniqueSuffix();
+        createFilterFirst(suffix);
     }
 
-    private KafkaProtocolFilter createFilterFirst() {
-        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE,
-                "${secret:" + A + ":foo}", "${configmap:" + B + ":foo}"));
-        assertResolvedRefsFalse(filterOne, "Referenced Secrets [a] ConfigMaps [b] not found");
-        clusterUser.create(secret(A));
-        assertResolvedRefsFalse(filterOne, "Referenced ConfigMaps [b] not found");
-        clusterUser.create(cm(B));
+    private KafkaProtocolFilter createFilterFirst(String suffix) {
+        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE + suffix,
+                "${secret:" + (A + suffix) + ":foo}", "${configmap:" + (B + suffix) + ":foo}"));
+        assertResolvedRefsFalse(filterOne, "Referenced Secrets [" + (A + suffix) + "] ConfigMaps [" + (B + suffix) + "] not found");
+        clusterUser.create(secret(A + suffix));
+        assertResolvedRefsFalse(filterOne, "Referenced ConfigMaps [" + (B + suffix) + "] not found");
+        clusterUser.create(cm(B + suffix));
         assertAllConditionsTrue(filterOne);
         return filterOne;
     }
 
     @Test
     void shouldEventuallyResolveWhenASecretCreatedFirst() {
-        clusterUser.create(secret(A));
-        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE,
-                "${secret:" + A + ":foo}", "${secret:" + B + ":foo}"));
-        assertResolvedRefsFalse(filterOne, "Referenced Secrets [b] not found");
-        clusterUser.create(secret(B));
+        var suffix = uniqueSuffix();
+        clusterUser.create(secret(A + suffix));
+        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE + suffix,
+                "${secret:" + (A + suffix) + ":foo}", "${secret:" + (B + suffix) + ":foo}"));
+        assertResolvedRefsFalse(filterOne, "Referenced Secrets [" + (B + suffix) + "] not found");
+        clusterUser.create(secret(B + suffix));
         assertAllConditionsTrue(filterOne);
     }
 
     @Test
     void shouldEventuallyResolveWhenAllSecretsCreatedFirst() {
-        clusterUser.create(secret(A));
-        clusterUser.create(secret(B));
-        clusterUser.create(secret(C));
-        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE,
-                "${secret:" + A + ":foo}",
-                "${secret:" + B + ":foo}"));
+        var suffix = uniqueSuffix();
+        clusterUser.create(secret(A + suffix));
+        clusterUser.create(secret(B + suffix));
+        clusterUser.create(secret(C + suffix));
+        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE + suffix,
+                "${secret:" + (A + suffix) + ":foo}",
+                "${secret:" + (B + suffix) + ":foo}"));
         assertAllConditionsTrue(filterOne);
     }
 
@@ -122,32 +126,35 @@ class KafkaProtocolFilterReconcilerIT {
 
     @Test
     void shouldEventuallyResolveWhenSecretsAndConfigMapsFirst() {
-        clusterUser.create(secret(A));
-        clusterUser.create(cm(B));
-        clusterUser.create(secret(C));
-        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE,
-                "${secret:" + A + ":foo}",
-                "${configmap:" + B + ":foo}"));
+        var suffix = uniqueSuffix();
+        clusterUser.create(secret(A + suffix));
+        clusterUser.create(cm(B + suffix));
+        clusterUser.create(secret(C + suffix));
+        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE + suffix,
+                "${secret:" + (A + suffix) + ":foo}",
+                "${configmap:" + (B + suffix) + ":foo}"));
         assertAllConditionsTrue(filterOne);
     }
 
     @Test
     void shouldUpdateStatusOnFilterModify() {
-        shouldEventuallyResolveWhenFilterCreatedFirst();
+        var suffix = uniqueSuffix();
+        createFilterFirst(suffix);
 
-        KafkaProtocolFilter filterOne = clusterUser.replace(filter(FILTER_ONE,
-                "${secret:" + C + ":foo}", "${configmap:" + B + ":foo}"));
-        assertResolvedRefsFalse(filterOne, "Referenced Secrets [c] not found");
+        KafkaProtocolFilter filterOne = clusterUser.replace(filter(FILTER_ONE + suffix,
+                "${secret:" + (C + suffix) + ":foo}", "${configmap:" + (B + suffix) + ":foo}"));
+        assertResolvedRefsFalse(filterOne, "Referenced Secrets [" + (C + suffix) + "] not found");
 
-        clusterUser.create(secret(C));
+        clusterUser.create(secret(C + suffix));
         assertAllConditionsTrue(filterOne);
     }
 
     @Test
     void shouldUpdateStatusOnSecretModify() {
-        var filterOne = createFilterFirst();
+        var suffix = uniqueSuffix();
+        var filterOne = createFilterFirst(suffix);
 
-        clusterUser.resources(Secret.class).withName(A).edit(secret -> secret.edit()
+        clusterUser.resources(Secret.class).withName(A + suffix).edit(secret -> secret.edit()
                 .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
                 .build());
         assertAllConditionsTrue(filterOne);
@@ -156,12 +163,13 @@ class KafkaProtocolFilterReconcilerIT {
     @Test
     void shouldUpdateReferentAnnotationOnSecretModify() {
         // given
-        var filterOne = createFilterFirst();
+        var suffix = uniqueSuffix();
+        var filterOne = createFilterFirst(suffix);
         String checksum = clusterUser.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
                 .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
 
         // when
-        clusterUser.resources(Secret.class).withName(A).edit(secret -> secret.edit()
+        clusterUser.resources(Secret.class).withName(A + suffix).edit(secret -> secret.edit()
                 .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
                 .build());
 
@@ -187,12 +195,13 @@ class KafkaProtocolFilterReconcilerIT {
     @Test
     void shouldUpdateReferentAnnotationOnConfigMapModify() {
         // given
-        var filterOne = createFilterFirst();
+        var suffix = uniqueSuffix();
+        var filterOne = createFilterFirst(suffix);
         String checksum = clusterUser.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
                 .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
 
         // when
-        clusterUser.resources(ConfigMap.class).withName(B).edit(configMap -> configMap.edit()
+        clusterUser.resources(ConfigMap.class).withName(B + suffix).edit(configMap -> configMap.edit()
                 .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
                 .build());
 
@@ -217,18 +226,20 @@ class KafkaProtocolFilterReconcilerIT {
 
     @Test
     void shouldUpdateStatusOnSecretDelete() {
-        var filterOne = createFilterFirst();
+        var suffix = uniqueSuffix();
+        var filterOne = createFilterFirst(suffix);
 
-        clusterUser.delete(secret(A));
-        assertResolvedRefsFalse(filterOne, "Referenced Secrets [a] not found");
+        clusterUser.delete(secret(A + suffix));
+        assertResolvedRefsFalse(filterOne, "Referenced Secrets [" + (A + suffix) + "] not found");
     }
 
     @Test
     void shouldUpdateStatusOnConfigMapDelete() {
-        var filterOne = createFilterFirst();
+        var suffix = uniqueSuffix();
+        var filterOne = createFilterFirst(suffix);
 
-        clusterUser.delete(cm(B));
-        assertResolvedRefsFalse(filterOne, "Referenced ConfigMaps [b] not found");
+        clusterUser.delete(cm(B + suffix));
+        assertResolvedRefsFalse(filterOne, "Referenced ConfigMaps [" + (B + suffix) + "] not found");
     }
 
     private KafkaProtocolFilter filter(String filterName, String refA, String refB) {

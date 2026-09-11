@@ -10,9 +10,8 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.record.Record;
-
 import io.kroxylicious.filter.validation.validators.Result;
+import io.kroxylicious.kafka.common.record.internal.Record;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

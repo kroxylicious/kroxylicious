@@ -13,8 +13,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
+import io.netty.channel.embedded.EmbeddedChannel;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -26,10 +34,16 @@ class ResponseSequencerTest {
     @Mock
     private Channel channel;
 
+    @Mock
+    private ChannelFuture defaultWriteFuture;
+
     private ResponseSequencer sequencer;
 
     @BeforeEach
     void setUp() {
+        lenient().when(channel.write(any())).thenReturn(defaultWriteFuture);
+        lenient().when(defaultWriteFuture.addListener(any())).thenReturn(defaultWriteFuture);
+        lenient().when(defaultWriteFuture.isSuccess()).thenReturn(true);
         sequencer = new ResponseSequencer(channel);
     }
 
@@ -164,6 +178,52 @@ class ResponseSequencerTest {
         order.verify(channel).flush(); // flush from skip(seq0) with nothing buffered
         order.verify(channel).write(frame1);
         order.verify(channel).flush();
+    }
+
+    @Test
+    void failedResponseWriteClosesChannel() {
+        // Given
+        var cause = new RuntimeException("write failed");
+        var embeddedChannel = new EmbeddedChannel(new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+                promise.setFailure(cause);
+            }
+        });
+        var localSequencer = new ResponseSequencer(embeddedChannel);
+        long seq = localSequencer.allocateSequence();
+
+        // When
+        localSequencer.submit(seq, new Object());
+        embeddedChannel.runPendingTasks();
+
+        // Then
+        assertThat(embeddedChannel.isOpen()).isFalse();
+    }
+
+    @Test
+    void failedResponseWriteClosesChannelWhenBufferedResponsesArePending() {
+        // Given: seq 1 and 2 are buffered; when seq 0 arrives its write fails
+        var cause = new RuntimeException("write failed");
+        var embeddedChannel = new EmbeddedChannel(new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+                promise.setFailure(cause);
+            }
+        });
+        var localSequencer = new ResponseSequencer(embeddedChannel);
+        long seq0 = localSequencer.allocateSequence();
+        long seq1 = localSequencer.allocateSequence();
+        long seq2 = localSequencer.allocateSequence();
+        localSequencer.submit(seq1, new Object());
+        localSequencer.submit(seq2, new Object());
+
+        // When: seq 0 arrives, triggering a write that fails while seq 1 and 2 are still buffered
+        localSequencer.submit(seq0, new Object());
+        embeddedChannel.runPendingTasks();
+
+        // Then: channel is closed; no hang despite in-flight buffered responses
+        assertThat(embeddedChannel.isOpen()).isFalse();
     }
 
     @Test

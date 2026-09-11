@@ -122,6 +122,7 @@ class VaultKmsTlsIT {
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)
                 .succeedsWithin(Duration.ofSeconds(5))
+                .extracting(WrappingKey::name)
                 .isEqualTo(keyName);
         testVault.close();
     }
@@ -135,6 +136,7 @@ class VaultKmsTlsIT {
         var resolved = vaultKms.resolveAlias(keyName);
         assertThat(resolved)
                 .succeedsWithin(Duration.ofSeconds(5))
+                .extracting(WrappingKey::name)
                 .isEqualTo(keyName);
 
     }

@@ -9,16 +9,27 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.SyncGroupRequestData;
-import org.apache.kafka.common.message.SyncGroupResponseData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.SyncGroupRequestData;
+import io.kroxylicious.kafka.common.message.SyncGroupResponseData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the SyncGroup API, requiring {@link GroupResource#READ}
+ * on the consumer group.
+ */
 public class SyncGroupEnforcement extends ApiEnforcement<SyncGroupRequestData, SyncGroupResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public SyncGroupEnforcement() {
+        // Intentionally empty
+    }
+
     @Override
     short minSupportedVersion() {
         return 0;
@@ -37,7 +48,7 @@ public class SyncGroupEnforcement extends ApiEnforcement<SyncGroupRequestData, S
         Action readGroup = new Action(GroupResource.READ, request.groupId());
         return authorizationFilter.authorization(context, List.of(readGroup)).thenCompose(authorizeResult -> {
             if (authorizeResult.denied().contains(readGroup)) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
             }
             else {
                 return context.forwardRequest(header, request);

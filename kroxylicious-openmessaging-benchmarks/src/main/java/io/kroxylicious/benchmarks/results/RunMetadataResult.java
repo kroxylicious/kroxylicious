@@ -17,6 +17,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /**
  * Deserialized view of a {@code run-metadata.json} file produced alongside each OMB result.
  * Only the fields needed for result analysis are mapped; all others are ignored.
+ *
+ * @param scenario the benchmark scenario name (e.g. {@code baseline}, {@code proxy-no-filters}), or {@code null} if not recorded
+ * @param workload the OMB workload name (e.g. {@code 1topic-1kb}), or {@code null} if not recorded
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record RunMetadataResult(
@@ -28,6 +31,9 @@ public record RunMetadataResult(
     /**
      * Reads the {@code run-metadata.json} file that sits alongside the given result file,
      * returning empty if the file does not exist or cannot be parsed.
+     *
+     * @param resultFile the OMB result file whose sibling metadata file should be read
+     * @return the parsed metadata, or empty if the file does not exist or cannot be parsed
      */
     public static Optional<RunMetadataResult> fromSiblingOf(File resultFile) {
         File metadataFile = new File(resultFile.getParentFile(), "run-metadata.json");

@@ -9,7 +9,7 @@ package io.kroxylicious.systemtests.resources.strimzi;
 import java.util.function.Consumer;
 
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.skodjob.testframe.interfaces.ResourceType;
+import io.skodjob.kubetest4j.interfaces.ResourceType;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePoolList;
 

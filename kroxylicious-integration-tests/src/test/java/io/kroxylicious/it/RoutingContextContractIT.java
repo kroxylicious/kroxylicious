@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
@@ -19,11 +18,8 @@ import org.apache.kafka.common.message.ListGroupsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +27,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.it.testplugins.router.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
@@ -41,6 +41,7 @@ import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.topology.VirtualNode;
 import io.kroxylicious.testing.integration.Request;
@@ -244,7 +245,7 @@ class RoutingContextContractIT {
 
             // Router: send via the VirtualNode returned by nodeForId(0), always to broker 0
             ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
-                if (apiKey == ApiKeys.API_VERSIONS) {
+                if (apiKey == io.kroxylicious.kafka.common.protocol.ApiKeys.API_VERSIONS) {
                     var node0 = ctx.nodeForId(0);
                     return ctx.sendRequest(node0, header, request)
                             .thenCompose(body -> ctx.respondWith(body).completed());
@@ -312,8 +313,8 @@ class RoutingContextContractIT {
     @Test
     void respondWithBodyDeliversCustomResponseToClient(KafkaCluster cluster) {
         // Given: router synthesises an API_VERSIONS response with a known set of API keys
-        var customResponse = new ApiVersionsResponseData();
-        customResponse.apiKeys().add(new ApiVersionsResponseData.ApiVersion()
+        var customResponse = new io.kroxylicious.kafka.common.message.ApiVersionsResponseData();
+        customResponse.apiKeys().add(new io.kroxylicious.kafka.common.message.ApiVersionsResponseData.ApiVersion()
                 .setApiKey(ApiKeys.PRODUCE.id).setMinVersion((short) 0).setMaxVersion((short) 9));
 
         ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> ctx.respondWith(customResponse).completed());
@@ -339,10 +340,10 @@ class RoutingContextContractIT {
         // Given: router provides an explicit response header with an unknown tagged field.
         // API_VERSIONS always uses response header v0 (no tagged fields); LIST_GROUPS v3+ uses
         // flexible versioning (response header v1) so tagged fields can be encoded.
-        var customBody = new ListGroupsResponseData();
+        var customBody = new io.kroxylicious.kafka.common.message.ListGroupsResponseData();
 
         ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
-            var customHeader = new ResponseHeaderData();
+            var customHeader = new io.kroxylicious.kafka.common.message.ResponseHeaderData();
             customHeader.unknownTaggedFields().add(new RawTaggedField(99, new byte[]{ 0x42 }));
             return ctx.respondWith(customHeader, customBody).completed();
         });
@@ -365,7 +366,8 @@ class RoutingContextContractIT {
     void respondWithErrorDeliversApiSpecificErrorResponseToClient(KafkaCluster cluster) {
         // Given: router returns an error for every API_VERSIONS request
         ContextCapturingRouterFactory.currentAction
-                .set((apiKey, apiVersion, header, request, ctx) -> ctx.respondWithError(header, request, new UnknownServerException("routing failed")).completed());
+                .set((apiKey, apiVersion, header, request, ctx) -> ctx
+                        .respondWithError(header, request, io.kroxylicious.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR, "routing failed").completed());
 
         try (var tester = KroxyliciousTesters.newBuilder(config(cluster))
                 .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
@@ -383,11 +385,12 @@ class RoutingContextContractIT {
     }
 
     @Test
+    @SuppressWarnings("FutureReturnValueIgnored") // acks=0 fire-and-forget: send() returns before broker acknowledgement; see producer config in the try block below
     void respondWithoutReplyCompletesFireAndForgetProduce(KafkaCluster cluster, Topic topic) {
         // Given: router calls respondWithoutReply() for acks=0 PRODUCE; all other keys pass through
         var produceHandled = new CompletableFuture<Void>();
         ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
-            if (apiKey == ApiKeys.PRODUCE && request instanceof ProduceRequestData pd && pd.acks() == 0) {
+            if (apiKey == io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE && request instanceof ProduceRequestData pd && pd.acks() == 0) {
                 produceHandled.complete(null);
                 return ctx.respondWithoutReply().completed();
             }
@@ -406,6 +409,327 @@ class RoutingContextContractIT {
             // Then: the router's onRequest was invoked and chose respondWithoutReply
             assertThat(produceHandled).succeedsWithin(Duration.ofSeconds(10));
         }
+    }
+
+    /**
+     * Checks that a Router can send a request to {@link RouterContext#nodeForId(int)}} in a multi-upstream configuration like:
+     * <pre>
+     * mapping: BijectiveNodeIdMapping
+     * routes:
+     *   route-a:
+     *     upstream: { nodeId: 0, port: mockA }
+     *     virtualId: 0
+     *   route-b:
+     *     upstream: { nodeId: 0, port: mockB }
+     *     virtualId: 1
+     * </pre>
+     * With the expectation that the request will be forwarded on to the expected virtual node.
+     */
+    @Test
+    void nodeForIdWithBijectiveMappingRoutesToCorrectUpstream() {
+        try (var mockA = MockServer.startOnRandomPort();
+                var mockB = MockServer.startOnRandomPort()) {
+
+            // Given
+            var mdA = new MetadataResponseData();
+            mdA.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockA.port()));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdA));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+            var mdB = new MetadataResponseData();
+            mdB.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockB.port()));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+            var metadataHeader = new io.kroxylicious.kafka.common.message.RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.METADATA.id)
+                    .setRequestApiVersion((short) 12);
+
+            // Internal METADATA to each route populates routerNodeAddresses before nodeForId(1) resolves.
+            ContextCapturingRouterFactory.currentAction
+                    .set((apiKey, apiVersion, header, request, ctx) -> ctx
+                            .sendRequest(ctx.anyNode("route-a"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData())
+                            .thenCompose(
+                                    ignored -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData()))
+                            .thenCompose(ignored -> {
+                                var node = ctx.nodeForId(1);
+                                return ctx.sendRequest(node, header, request)
+                                        .thenCompose(body -> ctx.respondWith(body).completed());
+                            }));
+
+            try (var tester = KroxyliciousTesters.newBuilder(bijectiveConfig(mockA, mockB))
+                    .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                    var client = tester.simpleTestClient()) {
+
+                // When
+                var response = client.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+
+                // Then
+                assertThat(response.payload().message()).isInstanceOf(ListGroupsResponseData.class);
+                assertThat(mockB.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .contains(ApiKeys.LIST_GROUPS);
+                assertThat(mockA.getReceivedRequests())
+                        .filteredOn(r -> r.apiKeys() == ApiKeys.LIST_GROUPS)
+                        .isEmpty();
+            }
+        }
+    }
+
+    /**
+     * Checks that a Router can send a request to {@link RouterContext#virtualNode()} in a multi-upstream configuration like:
+     * <pre>
+     * mapping: BijectiveNodeIdMapping
+     * routes:
+     *   route-a:
+     *     upstream: { nodeId: 0, port: mockA }
+     *     virtualId: 0
+     *   route-b:
+     *     upstream: { nodeId: 0, port: mockB }
+     *     virtualId: 1
+     * </pre>
+     * With the expectation that the request will be forwarded on to the virtual node associated with the client's connection.
+     */
+    @Test
+    void virtualNodeWithBijectiveMappingRoutesToCorrectUpstream() {
+        try (var mockA = MockServer.startOnRandomPort();
+                var mockB = MockServer.startOnRandomPort()) {
+
+            // Given
+            var mdA = new MetadataResponseData();
+            mdA.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockA.port()));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdA));
+
+            var mdB = new MetadataResponseData();
+            mdB.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockB.port()));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
+
+            var metadataHeader = new io.kroxylicious.kafka.common.message.RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.METADATA.id)
+                    .setRequestApiVersion((short) 12);
+
+            ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
+                var vn = ctx.virtualNode();
+                if (vn.isEmpty()) {
+                    return ctx.sendRequest(ctx.anyNode("route-a"), header, request)
+                            .thenCompose(bodyA -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData())
+                                    .thenCompose(bodyB -> {
+                                        ((io.kroxylicious.kafka.common.message.MetadataResponseData) bodyB).brokers()
+                                                .forEach(b -> ((io.kroxylicious.kafka.common.message.MetadataResponseData) bodyA).brokers().add(b.duplicate()));
+                                        return ctx.respondWith(bodyA).completed();
+                                    }));
+                }
+                return ctx.sendRequest(vn.get(), header, request)
+                        .thenCompose(body -> ctx.respondWith(body).completed());
+            });
+
+            try (var tester = KroxyliciousTesters.newBuilder(bijectiveConfig(mockA, mockB))
+                    .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
+                // Given
+                // Pre-condition: Bootstrap merges METADATA from both routes so BrokerAddressFilter reconciles both node-port bindings.
+                // This prevents EagerMetadataLearner from firing when the test connects to 9193 and 9194.
+                primeProxyWithBrokerAddresses(tester);
+                mockA.clear();
+                mockB.clear();
+                mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+                mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+                // When
+                try (var nodeZero = tester.simpleTestClient("localhost:9193", false)) {
+                    nodeZero.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+                }
+                try (var nodeOne = tester.simpleTestClient("localhost:9194", false)) {
+                    nodeOne.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+                }
+
+                // Then
+                assertThat(mockA.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .containsExactly(ApiKeys.LIST_GROUPS);
+                assertThat(mockB.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .containsExactly(ApiKeys.LIST_GROUPS);
+            }
+        }
+    }
+
+    private ConfigurationBuilder bijectiveConfig(MockServer mockA, MockServer mockB) {
+        var clusterA = new ClusterDefinition("cluster-a", "localhost:" + mockA.port(), null);
+        var clusterB = new ClusterDefinition("cluster-b", "localhost:" + mockB.port(), null);
+        var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
+        var routerDef = new RouterDefinition(ROUTER,
+                ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config("route-a"),
+                List.of(routeA, routeB));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, ROUTER))
+                .addToGateways(defaultGatewayBuilder()
+                        .withNewPortIdentifiesNode()
+                        .withBootstrapAddress(HostPort.parse(BOOTSTRAP))
+                        .withNodeIdRanges(new NamedRange("nodes", 0, 1))
+                        .endPortIdentifiesNode()
+                        .build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterA)
+                .addToClusterDefinitions(clusterB)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+    }
+
+    /**
+     * Same scenario as {@link #nodeForIdWithBijectiveMappingRoutesToCorrectUpstream()} but with
+     * the bijective-mapped router nested inside an outer router. Verifies that {@link RouterContext#nodeForId(int)}
+     * works correctly through the {@code NestedRouterDispatch} path.
+     */
+    @Test
+    void nodeForIdWithBijectiveMappingRoutesToCorrectUpstreamThroughNestedRouter() {
+        try (var mockA = MockServer.startOnRandomPort();
+                var mockB = MockServer.startOnRandomPort()) {
+
+            // Given
+            var mdA = new MetadataResponseData();
+            mdA.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockA.port()));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdA));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+            var mdB = new MetadataResponseData();
+            mdB.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockB.port()));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+            var metadataHeader = new io.kroxylicious.kafka.common.message.RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.METADATA.id)
+                    .setRequestApiVersion((short) 12);
+
+            ContextCapturingRouterFactory.currentAction
+                    .set((apiKey, apiVersion, header, request, ctx) -> ctx
+                            .sendRequest(ctx.anyNode("route-a"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData())
+                            .thenCompose(
+                                    ignored -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData()))
+                            .thenCompose(ignored -> {
+                                var node = ctx.nodeForId(1);
+                                return ctx.sendRequest(node, header, request)
+                                        .thenCompose(body -> ctx.respondWith(body).completed());
+                            }));
+
+            try (var tester = KroxyliciousTesters.newBuilder(nestedBijectiveConfig(mockA, mockB))
+                    .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                    var client = tester.simpleTestClient()) {
+
+                // When
+                var response = client.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+
+                // Then
+                assertThat(response.payload().message()).isInstanceOf(ListGroupsResponseData.class);
+                assertThat(mockB.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .contains(ApiKeys.LIST_GROUPS);
+                assertThat(mockA.getReceivedRequests())
+                        .filteredOn(r -> r.apiKeys() == ApiKeys.LIST_GROUPS)
+                        .isEmpty();
+            }
+        }
+    }
+
+    /**
+     * Same scenario as {@link #virtualNodeWithBijectiveMappingRoutesToCorrectUpstream()} but with
+     * the bijective-mapped router nested inside an outer router. Verifies that {@link RouterContext#virtualNode()}
+     * works correctly when the gateway's virtual node ID is passed through to the nested router.
+     */
+    @Test
+    void virtualNodeWithBijectiveMappingRoutesToCorrectUpstreamThroughNestedRouter() {
+        try (var mockA = MockServer.startOnRandomPort();
+                var mockB = MockServer.startOnRandomPort()) {
+
+            // Given
+            var mdA = new MetadataResponseData();
+            mdA.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockA.port()));
+            mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdA));
+
+            var mdB = new MetadataResponseData();
+            mdB.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockB.port()));
+            mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA, (short) 12, mdB));
+
+            var metadataHeader = new RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.METADATA.id)
+                    .setRequestApiVersion((short) 12);
+
+            ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
+                var vn = ctx.virtualNode();
+                if (vn.isEmpty()) {
+                    return ctx.sendRequest(ctx.anyNode("route-a"), header, request)
+                            .thenCompose(bodyA -> ctx.sendRequest(ctx.anyNode("route-b"), metadataHeader, new io.kroxylicious.kafka.common.message.MetadataRequestData())
+                                    .thenCompose(bodyB -> {
+                                        ((io.kroxylicious.kafka.common.message.MetadataResponseData) bodyB).brokers()
+                                                .forEach(b -> ((io.kroxylicious.kafka.common.message.MetadataResponseData) bodyA).brokers().add(b.duplicate()));
+                                        return ctx.respondWith(bodyA).completed();
+                                    }));
+                }
+                return ctx.sendRequest(vn.get(), header, request)
+                        .thenCompose(body -> ctx.respondWith(body).completed());
+            });
+
+            try (var tester = KroxyliciousTesters.newBuilder(nestedBijectiveConfig(mockA, mockB))
+                    .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
+                // Given
+                primeProxyWithBrokerAddresses(tester);
+                mockA.clear();
+                mockB.clear();
+                mockA.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+                mockB.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+
+                // When
+                try (var nodeZero = tester.simpleTestClient("localhost:9193", false)) {
+                    nodeZero.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+                }
+                try (var nodeOne = tester.simpleTestClient("localhost:9194", false)) {
+                    nodeOne.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
+                }
+
+                // Then
+                assertThat(mockA.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .containsExactly(ApiKeys.LIST_GROUPS);
+                assertThat(mockB.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .containsExactly(ApiKeys.LIST_GROUPS);
+            }
+        }
+    }
+
+    private ConfigurationBuilder nestedBijectiveConfig(MockServer mockA, MockServer mockB) {
+        var clusterA = new ClusterDefinition("cluster-a", "localhost:" + mockA.port(), null);
+        var clusterB = new ClusterDefinition("cluster-b", "localhost:" + mockB.port(), null);
+        var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
+        var innerRouter = new RouterDefinition(ROUTER,
+                ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config("route-a"),
+                List.of(routeA, routeB));
+        var outerRoute = new RouteDefinition("to-inner", 0, List.of(), new RouteTarget(null, ROUTER));
+        var outerRouter = new RouterDefinition("outer",
+                ClientIdRouterFactory.class.getName(),
+                new ClientIdRouterFactory.Config(Map.of(), "to-inner"),
+                List.of(outerRoute));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, "outer"))
+                .addToGateways(defaultGatewayBuilder()
+                        .withNewPortIdentifiesNode()
+                        .withBootstrapAddress(HostPort.parse(BOOTSTRAP))
+                        .withNodeIdRanges(new NamedRange("nodes", 0, 1))
+                        .endPortIdentifiesNode()
+                        .build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterA)
+                .addToClusterDefinitions(clusterB)
+                .addToRouterDefinitions(innerRouter)
+                .addToRouterDefinitions(outerRouter)
+                .addToVirtualClusters(vc);
     }
 
     private static void primeProxyWithBrokerAddresses(KroxyliciousTester tester) {

@@ -11,15 +11,14 @@ import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
-import org.apache.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestTopic;
-import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.TxnOffsetCommitRequestData;
+import io.kroxylicious.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestTopic;
+import io.kroxylicious.kafka.common.message.TxnOffsetCommitResponseData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
@@ -44,11 +43,11 @@ class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestDa
         return authorization.thenCompose(result -> {
             Decision transactionalResult = result.decision(TransactionalIdResource.WRITE, request.transactionalId());
             if (transactionalResult == Decision.DENY) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED).completed();
             }
             Decision groupResult = result.decision(GroupResource.READ, request.groupId());
             if (groupResult == Decision.DENY) {
-                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
             }
             Map<Decision, List<TxnOffsetCommitRequestTopic>> partitioned = result.partition(request.topics(), TopicResource.READ,
                     TxnOffsetCommitRequestTopic::name);

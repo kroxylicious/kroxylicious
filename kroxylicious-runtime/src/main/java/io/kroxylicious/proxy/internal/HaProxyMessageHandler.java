@@ -32,6 +32,10 @@ public class HaProxyMessageHandler extends SimpleChannelInboundHandler<HAProxyMe
 
     private final KafkaSession kafkaSession;
 
+    /**
+     * Creates a handler that stores decoded PROXY-protocol messages in the given session.
+     * @param kafkaSession the session in which the extracted {@link HaProxyContext} is stored
+     */
     public HaProxyMessageHandler(KafkaSession kafkaSession) {
         this.kafkaSession = kafkaSession;
     }

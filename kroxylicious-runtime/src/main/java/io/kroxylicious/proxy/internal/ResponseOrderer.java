@@ -37,6 +37,13 @@ import io.kroxylicious.proxy.frame.RequestFrame;
  */
 public class ResponseOrderer extends ChannelDuplexHandler {
 
+    /**
+     * Creates a response orderer.
+     */
+    public ResponseOrderer() {
+        // Intentionally empty
+    }
+
     Deque<Integer> inflightCorrelationIds = new ArrayDeque<>();
     Map<Integer, QueuedResponse> queuedResponses = new HashMap<>();
     private static final Logger logger = LoggerFactory.getLogger(ResponseOrderer.class);

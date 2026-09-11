@@ -12,8 +12,15 @@ import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.testing.integration.client.SequencedResponse;
 
+/**
+ * A frame in the Kafka protocol carrying a request.
+ */
 public interface RequestFrame extends Frame {
 
+    /**
+     * The future that will be completed with the response to this request.
+     * @return the response future
+     */
     CompletableFuture<SequencedResponse> getResponseFuture();
 
     /**
@@ -32,10 +39,14 @@ public interface RequestFrame extends Frame {
 
     /**
      * Get apiVersion of frame
-     * @return apiKey
+     * @return apiVersion
      */
     short apiVersion();
 
+    /**
+     * The API version with which the response to this request should be decoded
+     * @return the response API version, defaults to {@link #apiVersion()}
+     */
     default short responseApiVersion() {
         return apiVersion();
     }

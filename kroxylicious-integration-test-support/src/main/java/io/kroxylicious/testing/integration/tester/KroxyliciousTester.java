@@ -266,6 +266,7 @@ public interface KroxyliciousTester extends Closeable {
      *
      * @param groupName name of share group
      * @param virtualCluster the virtual cluster we want the client to connect to
+     * @param gatewayName the name of the gateway through which the client should connect
      * @return ShareConsumer
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
      */
@@ -327,6 +328,13 @@ public interface KroxyliciousTester extends Closeable {
      */
     KafkaClient simpleTestClient();
 
+    /**
+     * Creates a Mock Request client that connects to an arbitrary address. This client
+     * can be used to send multiple ApiMessage to kroxilicious and receive many ApiMessage responses.
+     * @param address the address ({@code host:port}) the client should connect to
+     * @param useTls whether the client should connect over TLS (trusting all certificates)
+     * @return KafkaClient
+     */
     KafkaClient simpleTestClient(String address, boolean useTls);
 
     /**
@@ -398,7 +406,7 @@ public interface KroxyliciousTester extends Closeable {
      * The number of partitions can be increased via {@link  Admin#createPartitions(Map) Admin.createParitions}.
      * The number of replicas can be increased via {@link Admin#alterPartitionReassignments(Map) Admin.alterParitionsReassignments} by altering the replica assignments.
      * See the <a href="https://kafka.apache.org/documentation/#basic_ops_increase_replication_factor"> Kafka docs</a> for details
-     * <p>
+     *
      * @param clusterName the name of the virtual cluster on which to create the topic
      * @return the name of the created topic
      */
@@ -412,7 +420,7 @@ public interface KroxyliciousTester extends Closeable {
      * The number of partitions can be increased via {@link  Admin#createPartitions(Map) Admin.createParitions}.
      * The number of replicas can be increased via {@link Admin#alterPartitionReassignments(Map) Admin.alterParitionsReassignments} by altering the replica assignments.
      * See the <a href="https://kafka.apache.org/documentation/#basic_ops_increase_replication_factor"> Kafka docs</a> for details
-     * <p>
+     *
      * @param clusterName the name of the virtual cluster on which to create the topic
      * @param numberOfTopics the number of topics to create on the cluster
      * @return the Set of topic names which have been created.
@@ -425,23 +433,35 @@ public interface KroxyliciousTester extends Closeable {
      */
     void deleteTopics(String clusterName);
 
+    /**
+     * Returns the client configuration used to connect to the only virtual cluster.
+     *
+     * @return the client configuration
+     * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
+     */
     Map<String, Object> clientConfiguration();
 
     /**
      * Returns the bootstrap address of the only virtual cluster.
      *
+     * @return the bootstrap address
      * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
      */
     String getBootstrapAddress();
 
     /**
      * Returns the bootstrap address of the named virtual cluster.
+     *
+     * @param clusterName the name of the virtual cluster
+     * @param gateway the name of the gateway
+     * @return the bootstrap address
      */
     String getBootstrapAddress(String clusterName, String gateway);
 
     /**
      * Returns the admin HTTP client.
      *
+     * @return the management client
      * @throws IllegalStateException admin interface not available
      */
     ManagementClient getManagementClient();

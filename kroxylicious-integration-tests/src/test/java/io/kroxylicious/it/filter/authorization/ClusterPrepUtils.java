@@ -27,6 +27,7 @@ import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AclBinding;
+import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.awaitility.core.ConditionFactory;
 
@@ -44,6 +45,10 @@ final class ClusterPrepUtils {
      * Uses the supplied admin to create topic(s) and apply the given ACL bindings, awaiting
      * the topics to become visible with partition leaders and operationally ready before
      * returning to the caller.
+     * <p>
+     * Topic creation is retried while the cluster reports transient errors (e.g.
+     * {@code InvalidReplicationFactorException: All brokers are currently fenced} while KRaft
+     * brokers are registered but not yet unfenced).
      * <p>
      * This method performs a two-phase readiness check:
      * <ul>
@@ -69,8 +74,24 @@ final class ClusterPrepUtils {
             admin.createAcls(bindings).all()
                     .toCompletionStage().toCompletableFuture().join();
         }
-        var res = admin.createTopics(topicNames.stream().map(topicName -> new NewTopic(topicName, 1, (short) 1)).toList());
-        res.all().toCompletionStage().toCompletableFuture().join();
+        // Topic creation fails transiently while the KRaft brokers are registered but not yet
+        // unfenced (InvalidReplicationFactorException: "All brokers are currently fenced"), so
+        // retry until every topic exists. A TopicExistsException on a retry means the topic was
+        // created by an earlier attempt, which counts as success.
+        AWAIT.alias("await until topics are created")
+                .untilAsserted(() -> {
+                    var res = admin.createTopics(topicNames.stream().map(topicName -> new NewTopic(topicName, 1, (short) 1)).toList());
+                    res.values().forEach((topicName, future) -> {
+                        try {
+                            future.toCompletionStage().toCompletableFuture().join();
+                        }
+                        catch (CompletionException e) {
+                            if (!(e.getCause() instanceof TopicExistsException)) {
+                                throw new AssertionError("failed to create topic " + topicName, e);
+                            }
+                        }
+                    });
+                });
         // Phase 1: Wait for metadata readiness
         AWAIT.alias("await until topics visible and partitions have leader")
                 .untilAsserted(() -> {
@@ -84,7 +105,9 @@ final class ClusterPrepUtils {
         // Phase 2: Wait for operational readiness
         ensureTopicsOperationallyReady(admin, topicNames);
 
-        return topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> res.topicId(topicName).toCompletionStage().toCompletableFuture().join()));
+        return admin.describeTopics(topicNames).allTopicNames().toCompletionStage().toCompletableFuture().join()
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().topicId()));
     }
 
     /**
@@ -129,9 +152,28 @@ final class ClusterPrepUtils {
      * @return true if all topic partitions have a leader.
      */
     static boolean allTopicPartitionsHaveALeader(Admin admin, List<String> topicNames) {
+        return allTopicPartitionsHaveALeader(admin, topicNames, 1);
+    }
+
+    /**
+     * Tests whether the given topics are visible with at least {@code expectedPartitions} partitions,
+     * all of which have a leader assigned.
+     * <p>
+     * The partition count check matters after a {@code createPartitions} call: the controller acknowledges
+     * the request before every broker's metadata cache has caught up, so a describe issued in between can
+     * still report the old, smaller partition set. Without asserting the expected count, a leader check
+     * alone is satisfied vacuously by the stale partitions and the caller proceeds too early.
+     *
+     * @param admin admin client
+     * @param topicNames topic names
+     * @param expectedPartitions the number of partitions each topic is expected to have
+     * @return true if every topic has at least {@code expectedPartitions} partitions and all of them have a leader.
+     */
+    static boolean allTopicPartitionsHaveALeader(Admin admin, List<String> topicNames, int expectedPartitions) {
         Map<String, TopicDescription> join = admin.describeTopics(topicNames).allTopicNames().toCompletionStage().toCompletableFuture().join();
-        return join.values().stream()
-                .allMatch(ClusterPrepUtils::topicPartitionsHaveALeader);
+        return join.size() == topicNames.size()
+                && join.values().stream()
+                        .allMatch(td -> td.partitions().size() >= expectedPartitions && topicPartitionsHaveALeader(td));
     }
 
     private static Stream<TopicDescription> describeTopics(List<String> topics, Admin admin) {

@@ -17,16 +17,6 @@ import java.util.stream.Stream;
 
 import javax.net.ssl.SSLSession;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.errors.InvalidRequestException;
-import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +29,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -54,12 +43,19 @@ import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.ScheduledFuture;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.MetadataRequestData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
@@ -279,7 +275,7 @@ class ClientConnectionStateMachineTest {
         // Then
         assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(serverConnectionStateMachine).close();
-        verify(frontendHandler).inClosed(ArgumentMatchers.notNull(UnknownServerException.class));
+        verify(frontendHandler).inClosed(cause);
     }
 
     private void useDownstreamSsl() {
@@ -300,7 +296,7 @@ class ClientConnectionStateMachineTest {
         // Then
         assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(serverConnectionStateMachine).close();
-        verify(frontendHandler).inClosed(ArgumentMatchers.notNull(InvalidRequestException.class));
+        verify(frontendHandler).inClosed(cause);
     }
 
     @Test
@@ -622,10 +618,9 @@ class ClientConnectionStateMachineTest {
     void inForwardingShouldTransitionToClosedOnClientException(boolean tlsEnabled) {
         // Given
         stateMachineInForwarding();
-        final ApiException expectedException = Errors.UNKNOWN_SERVER_ERROR.exception();
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
         doAnswer(invocation -> assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class)).when(frontendHandler)
-                .inClosed(expectedException);
+                .inClosed(illegalStateException);
         doNothing().when(serverConnectionStateMachine).close();
         if (tlsEnabled) {
             useDownstreamSsl();
@@ -636,7 +631,7 @@ class ClientConnectionStateMachineTest {
 
         // Then
         assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
-        verify(frontendHandler).inClosed(expectedException);
+        verify(frontendHandler).inClosed(illegalStateException);
         verify(serverConnectionStateMachine).close();
     }
 
@@ -1776,13 +1771,14 @@ class ClientConnectionStateMachineTest {
             // Given — drain in progress with in-flight work pending
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> firstFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
             // When — drain() called again while already draining
             CompletableFuture<Void> secondFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
             // Then — only one timer scheduled in total (from the first drain call), second future pending
             verify(eventLoop, times(1)).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            assertThat(firstFuture).isNotCompleted();
             assertThat(secondFuture).isNotCompleted();
         }
 
@@ -1791,8 +1787,9 @@ class ClientConnectionStateMachineTest {
             // Given — drain in progress with in-flight work, second drain() already called
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> firstFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
             CompletableFuture<Void> secondFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(firstFuture).isNotCompleted();
             assertThat(secondFuture).isNotCompleted();
 
             // When — the in-flight response arrives, completing the drain naturally
@@ -1845,14 +1842,14 @@ class ClientConnectionStateMachineTest {
             bumpClientInFlightCount();
             var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
             assertThat(closedFuture).isNotCompleted();
-            var routingFrame = new DecodedResponseFrame<>((short) 12,
-                    CorrelationIdSpace.RESERVED_ROUTING_ID_RANGE_START_INC,
+            var routingFrame = new DecodedResponseFrame<>((short) 12, 0,
                     new ResponseHeaderData(), new MetadataResponseData());
+            routingFrame.setRouting(new PathElement.RouterOriginator(new CompletableFuture<>(), new PathElement.Route("route-a", PathElement.ClientOrigin.INSTANCE)));
 
             // When
             clientConnectionStateMachine.onResponseFromServer(routingFrame);
 
-            // Then: routing-range ID with routerActive → decrement skipped → drain NOT fired
+            // Then: a router-issued OOB response with routerActive → decrement skipped → drain NOT fired
             assertThat(closedFuture).isNotCompleted();
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
         }
@@ -1869,7 +1866,8 @@ class ClientConnectionStateMachineTest {
                     true,
                     Map.of("route", BROKER_ADDRESS));
             bumpClientInFlightCount();
-            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            var drainFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(drainFuture).isNotCompleted();
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
             var msg = new Object();
 
@@ -1888,7 +1886,8 @@ class ClientConnectionStateMachineTest {
             stateMachineInForwarding();
             clientConnectionStateMachine.setUpstreamAddressResolver(id -> Optional.of(BROKER_ADDRESS));
             bumpClientInFlightCount();
-            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            var drainFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(drainFuture).isNotCompleted();
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
             var msg = new Object();
 
@@ -1942,6 +1941,38 @@ class ClientConnectionStateMachineTest {
 
             // Then: no crash, state unchanged
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
+        }
+
+        @Test
+        void onShortCircuitResponseCompleteShouldDecrementAndFireDrainWhenCountReachesZero() {
+            // Given
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When
+            clientConnectionStateMachine.onShortCircuitResponseComplete();
+
+            // Then
+            assertThat(closedFuture).isCompleted();
+        }
+
+        @Test
+        void onShortCircuitResponseCompleteShouldDecrementWithoutFiringDrainWhenCountStillPositive() {
+            // Given
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When
+            clientConnectionStateMachine.onShortCircuitResponseComplete();
+
+            // Then: one decrement, one still in-flight
+            assertThat(closedFuture).isNotCompleted();
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
         }
 
         /**

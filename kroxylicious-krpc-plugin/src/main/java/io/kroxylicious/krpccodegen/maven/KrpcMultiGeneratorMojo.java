@@ -12,9 +12,9 @@ import io.kroxylicious.krpccodegen.main.KrpcGenerator;
 
 /**
  * A Maven plugin capable of generating java source from Apache Kafka message
- * specifications definitions.  The generator is invoked once per message specification.
- * The Apache FreeMaker variable {@code messageSpec} is defined with the message specification
- * being processed.
+ * specification definitions.  The generator is invoked once per execution.
+ * The Apache FreeMarker variable {@code inputSpecs} is defined with a list containing
+ * all message specifications.
  */
 @Mojo(name = "generate-multi", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
 public class KrpcMultiGeneratorMojo extends AbstractKrpcGeneratorMojo {

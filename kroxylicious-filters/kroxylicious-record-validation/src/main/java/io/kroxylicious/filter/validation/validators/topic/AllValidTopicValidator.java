@@ -9,7 +9,7 @@ package io.kroxylicious.filter.validation.validators.topic;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
 
 class AllValidTopicValidator implements TopicValidator {
     @Override

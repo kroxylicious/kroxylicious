@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.azure.keyvault;
 
 import java.net.URI;
+import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -132,6 +133,40 @@ class KeyVaultClientTest {
 
     private static String getBaseUri() {
         return server.baseUrl();
+    }
+
+    @Test
+    void appliesConnectTimeout() {
+        // Given
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
+            // When
+            var connectTimeout = keyVaultClient.getHttpClient().connectTimeout();
+            // Then
+            assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
+        }
+    }
+
+    @Test
+    void appliesRequestTimeoutToGetKeyRequest() {
+        // Given
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
+            // When
+            HttpRequest request = keyVaultClient.getKeyRequest(VAULT_NAME, KEY_NAME, BEARER_TOKEN);
+            // Then
+            assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
+        }
+    }
+
+    @Test
+    void appliesRequestTimeoutToWrapOrUnwrapKeyRequest() {
+        // Given
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
+            // When
+            HttpRequest request = keyVaultClient.wrapOrUnwrapKeyRequest(wrappingKey, DEK_BYTES, BEARER_TOKEN, "wrapkey");
+            // Then
+            assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
+        }
     }
 
     @CsvSource({ "301", "302", "303", "400", "401", "404", "500", "201" })

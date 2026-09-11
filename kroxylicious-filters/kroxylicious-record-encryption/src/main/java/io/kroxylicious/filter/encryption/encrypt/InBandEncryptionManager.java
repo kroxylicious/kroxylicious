@@ -13,8 +13,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
 import org.apache.kafka.common.errors.NetworkException;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
@@ -25,12 +23,21 @@ import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DestroyedDekException;
 import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * An implementation of {@link EncryptionManager}
+ * that uses envelope encryption and stores the KEK id and encrypted DEK
+ * alongside the record ("in-band").
+ * @param <K> The type of KEK id.
+ * @param <E> The type of the encrypted DEK.
+ */
 public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
     private static final int MAX_ATTEMPTS = 100;
@@ -47,6 +54,15 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private final int recordBufferInitialBytes;
     private final int recordBufferMaxBytes;
 
+    /**
+     * Creates an encryption manager.
+     * @param encryption the encryption used on the produce path.
+     * @param edekSerde the serde for encrypted DEKs.
+     * @param recordBufferInitialBytes the initial size, in bytes, of the buffer used to hold the encrypted record.
+     * @param recordBufferMaxBytes the maximum size, in bytes, of the buffer used to hold the encrypted record.
+     * @param dekCache the cache of DEKs used for encryption.
+     * @param filterThreadExecutor the executor used to complete futures on the filter thread.
+     */
     public InBandEncryptionManager(@NonNull Encryption encryption,
                                    @NonNull Serde<E> edekSerde,
                                    int recordBufferInitialBytes,
@@ -68,6 +84,11 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
     }
 
+    /**
+     * Returns the current DEK for the given encryption scheme, obtaining a new DEK from the cache if necessary.
+     * @param encryptionScheme the encryption scheme.
+     * @return a completion stage that completes with the current DEK for the given encryption scheme.
+     */
     @VisibleForTesting
     public CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.

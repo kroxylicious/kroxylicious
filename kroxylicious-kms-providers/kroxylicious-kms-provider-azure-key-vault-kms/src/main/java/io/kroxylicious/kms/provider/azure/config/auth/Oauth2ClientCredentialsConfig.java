@@ -21,6 +21,16 @@ import io.kroxylicious.proxy.config.tls.Tls;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Configuration for authenticating with Microsoft Entra using the OAuth 2.0 client credentials flow.
+ *
+ * @param oauthEndpoint required base URI of the Entra OAuth endpoint, e.g. {@code https://login.microsoftonline.com}
+ * @param tenantId required Entra tenant id
+ * @param clientId required provider of the client id
+ * @param clientSecret required provider of the client secret
+ * @param scope required scope to request tokens for, e.g. {@code https://vault.azure.net/.default}
+ * @param tls optional TLS configuration for requests to the OAuth endpoint
+ */
 @JsonPropertyOrder({ "oauthEndpoint", "tenantId", "clientId", "clientSecret", "scope", "tls" })
 public record Oauth2ClientCredentialsConfig(@JsonProperty(required = true) URI oauthEndpoint,
                                             @JsonProperty(required = true) String tenantId,
@@ -31,6 +41,10 @@ public record Oauth2ClientCredentialsConfig(@JsonProperty(required = true) URI o
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Oauth2ClientCredentialsConfig.class);
 
+    /**
+     * Validates the record components, warning if {@code oauthEndpoint} is not using HTTPS.
+     * @throws NullPointerException if any required component is null.
+     */
     public Oauth2ClientCredentialsConfig {
         Objects.requireNonNull(oauthEndpoint, "oauthEndpoint cannot be null");
         Objects.requireNonNull(tenantId, "tenantId cannot be null");

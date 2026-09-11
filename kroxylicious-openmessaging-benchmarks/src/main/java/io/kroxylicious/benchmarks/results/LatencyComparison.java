@@ -14,6 +14,12 @@ import java.util.Optional;
  * <p>
  * Rendering is separated from computation: callers build a {@code LatencyComparison} first,
  * then pass it to a render method. Significance is computed on demand via {@link #assess}.
+ *
+ * @param label            display name for the metric being compared (e.g. {@code p99})
+ * @param baseline         full-run aggregated value for the baseline
+ * @param candidate        full-run aggregated value for the candidate
+ * @param baselineWindows  per-sample-window values for the baseline, or {@code null} if not available
+ * @param candidateWindows per-sample-window values for the candidate, or {@code null} if not available
  */
 public record LatencyComparison(String label, double baseline, double candidate,
                                 @SuppressWarnings("ArrayRecordComponent") double[] baselineWindows, @SuppressWarnings("ArrayRecordComponent") double[] candidateWindows) { // double[] retained: deep
@@ -54,14 +60,30 @@ public record LatencyComparison(String label, double baseline, double candidate,
                 + ", candidateWindows=" + Arrays.toString(candidateWindows) + "]";
     }
 
+    /**
+     * The absolute difference between candidate and baseline.
+     *
+     * @return candidate value minus baseline value
+     */
     public double delta() {
         return candidate - baseline;
     }
 
+    /**
+     * The relative difference between candidate and baseline.
+     *
+     * @return percentage change from baseline to candidate, or {@code 0.0} if the baseline is zero
+     */
     public double pct() {
         return baseline != 0 ? delta() / baseline * 100.0 : 0.0;
     }
 
+    /**
+     * Tests whether the difference between the per-window samples is statistically significant.
+     *
+     * @param tester the significance tester to apply
+     * @return the test result, or empty if either per-window sample array is absent
+     */
     public Optional<SignificanceTester.Result> assess(SignificanceTester tester) {
         if (baselineWindows == null || candidateWindows == null) {
             return Optional.empty();

@@ -18,9 +18,10 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.ResourceType;
-import io.kroxylicious.proxy.authentication.Principal;
-import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.identity.Identity;
+import io.kroxylicious.identity.Principal;
 
+@SuppressWarnings({ "java:S5738", "removal" })
 class SimpleAuthorizer implements Authorizer {
 
     private final Set<AllowedOperation> allowedOperations;
@@ -33,8 +34,8 @@ class SimpleAuthorizer implements Authorizer {
     }
 
     @Override
-    public CompletionStage<AuthorizeResult> authorize(Subject subject, List<io.kroxylicious.authorizer.service.Action> actions) {
-        Set<Principal> principals = subject.principals();
+    public CompletionStage<AuthorizeResult> authorize(Identity subject, List<io.kroxylicious.authorizer.service.Action> actions) {
+        Set<? extends Principal> principals = subject.principals();
         if (principals.size() != 1) {
             throw new IllegalStateException("Subject must have exactly one principal");
         }

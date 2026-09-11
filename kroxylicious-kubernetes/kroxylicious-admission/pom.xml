@@ -13,7 +13,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-kubernetes-parent</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-admission</artifactId>
@@ -31,6 +31,8 @@
         <!-- Test plugin OCI image (simple-transform filter packaged as a scratch image) -->
         <io.kroxylicious.test.plugin.image.name>localhost/kroxylicious/test-plugin:latest</io.kroxylicious.test.plugin.image.name>
         <io.kroxylicious.test.plugin.image.archive>target/test-plugin.img.tar.gz</io.kroxylicious.test.plugin.image.archive>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
     </properties>
 
     <dependencyManagement>

@@ -38,6 +38,14 @@ public class ClusterUser {
         this.namespace = namespace;
     }
 
+    /**
+     * Creates the given resource in the test namespace.
+     *
+     * @param <T> the resource type
+     * @param resource the resource to create
+     * @return the created resource, as returned by the API server
+     * @throws KubernetesClientException if the creation fails
+     */
     @NonNull
     public <T extends HasMetadata> T create(@NonNull T resource) {
         try {
@@ -49,6 +57,15 @@ public class ClusterUser {
         }
     }
 
+    /**
+     * Gets the named resource from the test namespace.
+     *
+     * @param <T> the resource type
+     * @param type the resource class
+     * @param name the resource name
+     * @return the resource, or {@code null} if it does not exist
+     * @throws KubernetesClientException if the get fails
+     */
     @Nullable
     public <T extends HasMetadata> T get(@NonNull Class<T> type, @NonNull String name) {
         try {
@@ -60,6 +77,14 @@ public class ClusterUser {
         }
     }
 
+    /**
+     * Replaces the given resource in the test namespace.
+     *
+     * @param <T> the resource type
+     * @param resource the resource to replace
+     * @return the updated resource, as returned by the API server
+     * @throws KubernetesClientException if the replacement fails
+     */
     @NonNull
     public <T extends HasMetadata> T replace(@NonNull T resource) {
         try {
@@ -71,6 +96,14 @@ public class ClusterUser {
         }
     }
 
+    /**
+     * Deletes the given resource from the test namespace.
+     *
+     * @param <T> the resource type
+     * @param resource the resource to delete
+     * @return {@code true} if exactly one resource was deleted without causes, {@code false} otherwise
+     * @throws KubernetesClientException if the deletion fails
+     */
     public <T extends HasMetadata> boolean delete(@NonNull T resource) {
         try {
             var result = client.resource(resource).inNamespace(namespace).delete();
@@ -82,6 +115,13 @@ public class ClusterUser {
         }
     }
 
+    /**
+     * Returns the client operation for the given resource type, scoped to the test namespace.
+     *
+     * @param <T> the resource type
+     * @param type the resource class
+     * @return the namespaced operation for the given resource type
+     */
     @NonNull
     public <T extends HasMetadata> NonNamespaceOperation<T, KubernetesResourceList<T>, Resource<T>> resources(@NonNull Class<T> type) {
         return client.resources(type).inNamespace(namespace);

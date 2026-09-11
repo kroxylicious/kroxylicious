@@ -21,18 +21,21 @@
     <allow pkg="io.kroxylicious.kafka.transform"/>
 
     <!-- top level package (these are all local-only=true)  -->
-    <allow pkg="org.apache.kafka.common.message" local-only="true"/>
-    <allow pkg="org.apache.kafka.common.record" local-only="true"/>
+    <allow pkg="io.kroxylicious.kafka.common.message" local-only="true"/>
+    <allow pkg="io.kroxylicious.kafka.common.record.internal" local-only="true"/>
+    <allow pkg="io.kroxylicious.kafka.common.errors" local-only="true"/>
     <allow pkg="org.apache.kafka.common.errors" local-only="true"/>
+    <allow pkg="io.kroxylicious.kafka.common" local-only="true"/>
     <allow pkg="org.apache.kafka.common" local-only="true"/>
-    <allow pkg="org.apache.kafka.common.utils" local-only="true"/>
-    <allow pkg="org.apache.kafka.common.protocol" local-only="true"/>
+    <allow pkg="io.kroxylicious.kafka.common.utils" local-only="true"/>
+    <allow pkg="io.kroxylicious.kafka.common.protocol" local-only="true"/>
     <allow pkg="io.kroxylicious.proxy.filter" local-only="true"/> <!-- the filter api -->
     <allow pkg="io.kroxylicious.proxy.plugin" local-only="true"/> <!-- the plugin api -->
     <allow pkg="io.kroxylicious.kms.service" local-only="true"/> <!-- the kms api -->
     <allow pkg="io.kroxylicious.filter.encryption" local-only="true"/><!-- all subpackages -->
 
     <subpackage name="common">
+        <allow pkg="io.kroxylicious.kafka.common"/>
         <allow pkg="org.apache.kafka.common"/>
     </subpackage>
     <subpackage name="config">
@@ -41,9 +44,9 @@
         <allow pkg="io.kroxylicious.kms.service"/>
     </subpackage>
     <subpackage name="records">
-        <allow pkg="org.apache.kafka.common.record"/>
-        <allow pkg="org.apache.kafka.common.utils"/>
-        <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="io.kroxylicious.kafka.common.record.internal"/>
+        <allow pkg="io.kroxylicious.kafka.common.utils"/>
+        <allow pkg="io.kroxylicious.kafka.common.header"/>
     </subpackage>
     <subpackage name="dek">
         <allow pkg="io.kroxylicious.kms.service"/>
@@ -51,9 +54,9 @@
         <allow pkg="io.kroxylicious.filter.encryption.config"/>
     </subpackage>
     <subpackage name="crypto">
-        <allow pkg="org.apache.kafka.common.utils"/>
-        <allow pkg="org.apache.kafka.common.record"/>
-        <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="io.kroxylicious.kafka.common.utils"/>
+        <allow pkg="io.kroxylicious.kafka.common.record.internal"/>
+        <allow pkg="io.kroxylicious.kafka.common.header"/>
         <allow pkg="io.kroxylicious.kafka.transform"/>
         <allow pkg="io.kroxylicious.kms.service"/> <!-- serde -->
         <!-- allowed deps in this module: -->
@@ -65,10 +68,12 @@
         <allow pkg="com.github.benmanes.caffeine.cache"/>
     </subpackage>
     <subpackage name="encrypt">
-        <allow pkg="org.apache.kafka.common.record"/>
-        <allow pkg="org.apache.kafka.common.utils"/>
-        <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="io.kroxylicious.kafka.common.record.internal"/>
+        <allow pkg="io.kroxylicious.kafka.common.utils"/>
+        <allow pkg="io.kroxylicious.kafka.common.header"/>
+        <allow pkg="io.kroxylicious.kafka.common.errors"/>
         <allow pkg="org.apache.kafka.common.errors"/>
+        <allow pkg="org.apache.kafka.common"/>
         <allow pkg="io.kroxylicious.kafka.transform"/>
         <allow pkg="com.github.benmanes.caffeine.cache"/>
         <allow pkg="io.kroxylicious.kms.service"/> <!-- serde -->
@@ -80,9 +85,9 @@
         <allow pkg="io.kroxylicious.filter.encryption.crypto"/>
     </subpackage>
     <subpackage name="decrypt">
-        <allow pkg="org.apache.kafka.common.record"/>
-        <allow pkg="org.apache.kafka.common.utils"/>
-        <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="io.kroxylicious.kafka.common.record.internal"/>
+        <allow pkg="io.kroxylicious.kafka.common.utils"/>
+        <allow pkg="io.kroxylicious.kafka.common.header"/>
         <allow pkg="io.kroxylicious.kafka.transform"/>
         <allow pkg="com.github.benmanes.caffeine.cache"/>
         <allow pkg="io.kroxylicious.kms.service"/> <!-- serde -->

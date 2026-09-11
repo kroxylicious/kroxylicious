@@ -25,6 +25,9 @@ public record ConnectionExpirationFilterConfig(
                                                @JsonProperty(required = true) Duration maxAge,
                                                @JsonProperty @Nullable Duration jitter) {
 
+    /**
+     * Validates the configuration.
+     */
     public ConnectionExpirationFilterConfig {
         if (maxAge.isNegative() || maxAge.isZero()) {
             throw new IllegalArgumentException("maxAge must be positive");

@@ -108,6 +108,28 @@ class Ec2MetadataCredentialsProviderTest {
     }
 
     @Test
+    void appliesConnectTimeout() {
+        // Given
+        try (var provider = new Ec2MetadataCredentialsProvider(config)) {
+            // When
+            var connectTimeout = provider.getHttpClient().connectTimeout();
+            // Then
+            assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
+        }
+    }
+
+    @Test
+    void appliesRequestTimeout() {
+        // Given
+        try (var provider = new Ec2MetadataCredentialsProvider(config)) {
+            // When
+            var request = provider.createTokenRequest();
+            // Then
+            assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
+        }
+    }
+
+    @Test
     void credentialFromKnownGood() {
 
         metadataServer.stubFor(

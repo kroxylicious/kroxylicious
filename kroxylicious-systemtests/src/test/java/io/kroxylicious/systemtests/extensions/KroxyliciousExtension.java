@@ -23,7 +23,7 @@ import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.skodjob.testframe.resources.KubeResourceManager;
+import io.skodjob.kubetest4j.resources.KubeResourceManager;
 
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.logs.TestLogCollector;

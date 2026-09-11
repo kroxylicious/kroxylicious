@@ -13,10 +13,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
@@ -87,14 +86,20 @@ public class InvocationCountingRouterFactory implements RouterFactory<Invocation
     }
 
     public static void assertAllClosedAndResetCounts() {
-        for (var entry : initializeCounts.entrySet()) {
-            UUID uuid = entry.getKey();
-            assertThat(closeCounts.get(uuid))
-                    .as("every initialize() call for %s must have a matching close()", uuid)
-                    .hasValue(entry.getValue().intValue());
+        // Reset in a finally so a failing assertion doesn't leak this test's counts into
+        // every subsequent test (and test class) sharing these static maps.
+        try {
+            for (var entry : initializeCounts.entrySet()) {
+                UUID uuid = entry.getKey();
+                assertThat(closeCounts.get(uuid))
+                        .as("every initialize() call for %s must have a matching close()", uuid)
+                        .hasValue(entry.getValue().intValue());
+            }
+            assertThat(closeCounts.keySet()).isEqualTo(initializeCounts.keySet());
         }
-        assertThat(closeCounts.keySet()).isEqualTo(initializeCounts.keySet());
-        initializeCounts.clear();
-        closeCounts.clear();
+        finally {
+            initializeCounts.clear();
+            closeCounts.clear();
+        }
     }
 }

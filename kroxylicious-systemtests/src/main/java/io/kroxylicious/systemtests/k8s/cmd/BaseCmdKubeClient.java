@@ -96,7 +96,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     }
 
     private Map<File, ExecResult> execRecursive(String subcommand, File[] files, Comparator<File> cmp) {
-        Map<File, ExecResult> execResults = new HashMap<>(25);
+        Map<File, ExecResult> execResults = HashMap.newHashMap(25);
         for (File f : files) {
             if (f.isFile()) {
                 if (f.getName().endsWith(".yaml")) {

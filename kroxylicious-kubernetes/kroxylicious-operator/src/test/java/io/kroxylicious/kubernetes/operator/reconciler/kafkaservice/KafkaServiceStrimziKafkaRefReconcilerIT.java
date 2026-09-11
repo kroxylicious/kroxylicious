@@ -53,6 +53,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE;
 import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
+import static io.kroxylicious.testing.operator.OperatorTestUtils.uniqueSuffix;
 import static io.kroxylicious.testing.operator.assertj.OperatorAssertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -102,11 +103,12 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldResolveStrimziKafkaWithPlainListener() {
         // Given
-        var kafka = clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        var suffix = uniqueSuffix();
+        var kafka = clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME + suffix));
         reconcileStrimziResource(kafka);
 
         // When
-        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A + suffix, "plain", KAFKA_RESOURCE_NAME + suffix));
 
         // Then
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
@@ -115,11 +117,12 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldResolveStrimziKafkaWithTlsListener() {
         // Given
-        var kafka = clusterUser.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
+        var suffix = uniqueSuffix();
+        var kafka = clusterUser.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME + suffix));
         reconcileStrimziResource(kafka);
 
         // When
-        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "tls", KAFKA_RESOURCE_NAME));
+        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A + suffix, "tls", KAFKA_RESOURCE_NAME + suffix));
 
         // Then
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
@@ -127,15 +130,17 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
 
     @Test
     void shouldResolveStrimziKafkaInDifferentNamespace() {
+        var suffix = uniqueSuffix();
         String strimziNamespace = "strimzi-" + UUID.randomUUID();
 
         try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
             client.namespaces().resource(new NamespaceBuilder().withNewMetadata().withName(strimziNamespace).endMetadata().build()).create();
             try {
-                var kafka = client.resources(Kafka.class).inNamespace(strimziNamespace).resource(kafkaResource(KAFKA_RESOURCE_NAME)).create();
+                var kafka = client.resources(Kafka.class).inNamespace(strimziNamespace).resource(kafkaResource(KAFKA_RESOURCE_NAME + suffix)).create();
                 reconcileStrimziResource(kafka, strimziNamespace);
 
-                KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME, strimziNamespace));
+                KafkaService service = clusterUser
+                        .create(kafkaServiceWithStrimziKafkaRef(SERVICE_A + suffix, "plain", KAFKA_RESOURCE_NAME + suffix, strimziNamespace));
 
                 assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
             }
@@ -148,20 +153,23 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
 
     @Test
     void shouldResolveStrimziCaSecretInReferencedKafkaNamespace() {
+        var suffix = uniqueSuffix();
+        String kafkaResourceName = KAFKA_RESOURCE_NAME + suffix;
         String strimziNamespace = "strimzi-" + UUID.randomUUID();
 
         try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
             client.namespaces().resource(new NamespaceBuilder().withNewMetadata().withName(strimziNamespace).endMetadata().build()).create();
             try {
-                var kafka = client.resources(Kafka.class).inNamespace(strimziNamespace).resource(kafkaResourceWithTls(KAFKA_RESOURCE_NAME)).create();
+                var kafka = client.resources(Kafka.class).inNamespace(strimziNamespace).resource(kafkaResourceWithTls(kafkaResourceName)).create();
                 reconcileStrimziResource(kafka, strimziNamespace);
-                String clusterCaSecretName = KAFKA_RESOURCE_NAME + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
+                String clusterCaSecretName = kafkaResourceName + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
                 client.secrets().inNamespace(strimziNamespace).resource(strimziTrustAnchorSecret(clusterCaSecretName)).create();
 
-                KafkaService service = clusterUser.create(kafkaServiceWithCrossNamespaceStrimziCa("service-cross-namespace-strimzi-ca", "tls", strimziNamespace));
+                KafkaService service = clusterUser
+                        .create(kafkaServiceWithCrossNamespaceStrimziCa("service-cross-namespace-strimzi-ca" + suffix, "tls", strimziNamespace, kafkaResourceName));
 
                 assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
-                assertKafkaService("service-cross-namespace-strimzi-ca", clusterCaSecretName, "Secret");
+                assertKafkaService("service-cross-namespace-strimzi-ca" + suffix, clusterCaSecretName, "Secret");
             }
             finally {
                 client.namespaces().withName(strimziNamespace).delete();
@@ -172,14 +180,15 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoReconciledListeners() {
         // Given
-        clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME));
-        externalOperator.updateStatus(Kafka.class, KAFKA_RESOURCE_NAME, fresh -> new KafkaBuilder(fresh)
+        var suffix = uniqueSuffix();
+        clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME + suffix));
+        externalOperator.updateStatus(Kafka.class, KAFKA_RESOURCE_NAME + suffix, fresh -> new KafkaBuilder(fresh)
                 .withNewStatus()
                 .endStatus()
                 .build());
 
         // When
-        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A + suffix, "plain", KAFKA_RESOURCE_NAME + suffix));
 
         // Then
         assertResolvedRefsFalse(service, Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED, "Referenced resource has not yet reconciled listener name: plain");
@@ -188,10 +197,11 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoStatus() {
         // Given
-        clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        var suffix = uniqueSuffix();
+        clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME + suffix));
 
         // When
-        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A + suffix, "plain", KAFKA_RESOURCE_NAME + suffix));
 
         // Then
         assertResolvedRefsFalse(service, Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED, "Referenced resource has not yet reconciled listener name: plain");
@@ -200,11 +210,12 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldUpdateStatusOnceStrimziKafkaResourceDeleted() {
         // Given
-        var kafka = clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        var suffix = uniqueSuffix();
+        var kafka = clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME + suffix));
         reconcileStrimziResource(kafka);
 
         // When
-        KafkaService updated = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService updated = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A + suffix, "plain", KAFKA_RESOURCE_NAME + suffix));
         assertResolvedRefsTrue(updated, FOO_BOOTSTRAP_9090, true);
 
         // When
@@ -221,18 +232,21 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void trustAnchorRefAlwaysTakesPrecedenceWhenPresent() {
         // Given
-        var kafka = clusterUser.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
+        var suffix = uniqueSuffix();
+        String kafkaResourceName = KAFKA_RESOURCE_NAME + suffix;
+        var kafka = clusterUser.create(kafkaResourceWithTls(kafkaResourceName));
         reconcileStrimziResource(kafka);
-        createTrustAnchorSecret("explicit-trust", "ca-bundle.pem");
+        createTrustAnchorSecret("explicit-trust" + suffix, "ca-bundle.pem");
 
-        var tar = createTrustAnchorRef("explicit-trust", "Secret");
+        var tar = createTrustAnchorRef("explicit-trust" + suffix, "Secret");
 
         // When - Create KafkaService with trustAnchorRef AND trustStrimziCaCertificate=true
-        var service = clusterUser.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-with-both-refs", "tls", true, tar));
+        var service = clusterUser
+                .create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-with-both-refs" + suffix, "tls", true, tar, kafkaResourceName));
 
         // Then - Explicit trustAnchorRef should be used (not Strimzi CA)
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
-        assertKafkaService("service-with-both-refs", "explicit-trust", "Secret");
+        assertKafkaService("service-with-both-refs" + suffix, "explicit-trust" + suffix, "Secret");
     }
 
     /**
@@ -241,18 +255,21 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void trustAnchorRefUsedWhenTrustStrimziCaDisabled() {
         // Given
-        var kafka = clusterUser.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
+        var suffix = uniqueSuffix();
+        String kafkaResourceName = KAFKA_RESOURCE_NAME + suffix;
+        var kafka = clusterUser.create(kafkaResourceWithTls(kafkaResourceName));
         reconcileStrimziResource(kafka);
-        createTrustAnchorConfigMap("explicit-trust");
+        createTrustAnchorConfigMap("explicit-trust" + suffix);
 
-        var tar = createTrustAnchorRef("explicit-trust", "ConfigMap");
+        var tar = createTrustAnchorRef("explicit-trust" + suffix, "ConfigMap");
 
         // When - Create KafkaService with trustAnchorRef AND trustStrimziCaCertificate=false
-        var service = clusterUser.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-trust-anchor-only", "tls", false, tar));
+        var service = clusterUser
+                .create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-trust-anchor-only" + suffix, "tls", false, tar, kafkaResourceName));
 
         // Then - Explicit trustAnchorRef should be used
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
-        assertKafkaService("service-trust-anchor-only", "explicit-trust", "ConfigMap");
+        assertKafkaService("service-trust-anchor-only" + suffix, "explicit-trust" + suffix, "ConfigMap");
     }
 
     /**
@@ -262,17 +279,20 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void strimziCaUsedWhenTrustAnchorRefNotPresent() {
         // Given
-        var kafka = clusterUser.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
+        var suffix = uniqueSuffix();
+        String kafkaResourceName = KAFKA_RESOURCE_NAME + suffix;
+        var kafka = clusterUser.create(kafkaResourceWithTls(kafkaResourceName));
         reconcileStrimziResource(kafka);
-        String clusterCaSecretName = KAFKA_RESOURCE_NAME + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
+        String clusterCaSecretName = kafkaResourceName + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
         createStrimziTrustAnchorSecret(clusterCaSecretName);
 
         // When - Create KafkaService with trustStrimziCaCertificate=true but NO trustAnchorRef
-        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-strimzi-only", "tls", true, null));
+        KafkaService service = clusterUser
+                .create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-strimzi-only" + suffix, "tls", true, null, kafkaResourceName));
 
         // Then - Strimzi CA should be used
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
-        assertKafkaService("service-strimzi-only", clusterCaSecretName, "Secret");
+        assertKafkaService("service-strimzi-only" + suffix, clusterCaSecretName, "Secret");
     }
 
     /**
@@ -283,18 +303,20 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldBuildStatusTlsWhenSpecTlsIsNullButTrustAnchorRefDiscovered() {
         // Given
-        var kafka = clusterUser.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
+        var suffix = uniqueSuffix();
+        String kafkaResourceName = KAFKA_RESOURCE_NAME + suffix;
+        var kafka = clusterUser.create(kafkaResourceWithTls(kafkaResourceName));
         reconcileStrimziResource(kafka);
-        String clusterCaSecretName = KAFKA_RESOURCE_NAME + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
+        String clusterCaSecretName = kafkaResourceName + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
         createStrimziTrustAnchorSecret(clusterCaSecretName);
 
         // When - Create KafkaService with spec.tls=null and trustStrimziCaCertificate=true
-        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRefAndNullTls("service-null-tls", "tls"));
+        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRefAndNullTls("service-null-tls" + suffix, "tls", kafkaResourceName));
 
         // Then - status.tls should be built with Strimzi CA as trust anchor
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
         AWAIT.untilAsserted(() -> {
-            var kafkaService = clusterUser.get(KafkaService.class, "service-null-tls");
+            var kafkaService = clusterUser.get(KafkaService.class, "service-null-tls" + suffix);
             assertThat(kafkaService)
                     .isNotNull()
                     .extracting(KafkaService::getStatus)
@@ -354,7 +376,8 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     private KafkaService kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor(String serviceName,
                                                                                String listenerName,
                                                                                boolean trustStrimziCa,
-                                                                               @Nullable TrustAnchorRef explictTrust) {
+                                                                               @Nullable TrustAnchorRef explictTrust,
+                                                                               String kafkaResourceName) {
         // @formatter:off
         var builder = new KafkaServiceBuilder()
                 .withNewMetadata()
@@ -365,7 +388,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                         .withListenerName(listenerName)
                         .withTrustStrimziCaCertificate(trustStrimziCa)
                         .withNewRef()
-                            .withName(KAFKA_RESOURCE_NAME)
+                            .withName(kafkaResourceName)
                         .endRef()
                     .endStrimziKafkaRef();
 
@@ -456,7 +479,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
         // @formatter:on
     }
 
-    private static KafkaService kafkaServiceWithCrossNamespaceStrimziCa(String resourceName, String listenerName, String clusterNamespace) {
+    private static KafkaService kafkaServiceWithCrossNamespaceStrimziCa(String resourceName, String listenerName, String clusterNamespace, String kafkaResourceName) {
         // @formatter:off
         return new KafkaServiceBuilder()
                 .withNewMetadata()
@@ -468,7 +491,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                 .withTrustStrimziCaCertificate(true)
                 .withNamespace(clusterNamespace)
                 .withNewRef()
-                .withName(KAFKA_RESOURCE_NAME)
+                .withName(kafkaResourceName)
                 .endRef()
                 .endStrimziKafkaRef()
                 .endSpec()
@@ -476,7 +499,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
         // @formatter:on
     }
 
-    private static KafkaService kafkaServiceWithStrimziKafkaRefAndNullTls(String resourceName, String listenerName) {
+    private static KafkaService kafkaServiceWithStrimziKafkaRefAndNullTls(String resourceName, String listenerName, String kafkaResourceName) {
         // @formatter:off
         return new KafkaServiceBuilder()
                 .withNewMetadata()
@@ -487,7 +510,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                         .withListenerName(listenerName)
                         .withTrustStrimziCaCertificate(true)
                         .withNewRef()
-                            .withName(KAFKA_RESOURCE_NAME)
+                            .withName(kafkaResourceName)
                         .endRef()
                     .endStrimziKafkaRef()
                     .withTls(null)

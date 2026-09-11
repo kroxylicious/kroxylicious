@@ -17,9 +17,20 @@ import io.kroxylicious.proxy.plugin.Plugins;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A {@link FilterFactory} for {@link RecordValidationFilter}, which validates records
+ * contained in produce requests before they are forwarded to the broker.
+ */
 @Plugin(configType = ValidationConfig.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.validation.RecordValidation", since = "0.19.0")
 public class RecordValidation implements FilterFactory<ValidationConfig, ValidationConfig> {
+
+    /**
+     * Creates a new factory instance, invoked by the plugin framework.
+     */
+    public RecordValidation() {
+        // nothing to initialise: state is created in createFilter(FilterFactoryContext, ValidationConfig)
+    }
 
     @Override
     public @NonNull ValidationConfig initialize(FilterFactoryContext context, @Nullable ValidationConfig config) {

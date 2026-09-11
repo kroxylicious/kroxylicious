@@ -58,8 +58,8 @@ public class PodIdentityCredentialsProvider extends AbstractRefreshingCredential
     private static final TypeReference<PodIdentityCredentials> CREDENTIALS_TYPE_REF = new TypeReference<>() {
     };
 
-    private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(10);
-    private static final Duration HTTP_CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(20);
+    private static final Duration HTTP_CONNECT_TIMEOUT = Duration.ofSeconds(20);
 
     static final String ENV_FULL_URI = "AWS_CONTAINER_CREDENTIALS_FULL_URI";
     static final String ENV_AUTH_TOKEN_FILE = "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE";
@@ -115,18 +115,28 @@ public class PodIdentityCredentialsProvider extends AbstractRefreshingCredential
                 .build();
     }
 
+    @VisibleForTesting
+    HttpClient getHttpClient() {
+        return client;
+    }
+
     @Override
     protected CompletionStage<PodIdentityCredentials> fetchCredentials() {
         var token = readAuthorizationToken();
-        var request = HttpRequest.newBuilder()
+        var request = createCredentialsRequest(token);
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+                .thenApply(this::parseCredentialsResponse);
+    }
+
+    @VisibleForTesting
+    HttpRequest createCredentialsRequest(String token) {
+        return HttpRequest.newBuilder()
                 .uri(credentialsFullUri)
                 .header("Authorization", token)
                 .header("Accept", "application/json")
                 .timeout(HTTP_REQUEST_TIMEOUT)
                 .GET()
                 .build();
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-                .thenApply(this::parseCredentialsResponse);
     }
 
     @Override

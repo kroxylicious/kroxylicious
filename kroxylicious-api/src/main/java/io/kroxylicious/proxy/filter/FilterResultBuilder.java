@@ -6,8 +6,7 @@
 
 package io.kroxylicious.proxy.filter;
 
-import org.apache.kafka.common.protocol.ApiMessage;
-
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;

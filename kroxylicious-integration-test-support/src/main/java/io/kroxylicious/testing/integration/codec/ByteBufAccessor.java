@@ -65,6 +65,7 @@ public interface ByteBufAccessor extends Writable, Readable {
 
     /**
      * set reader index of underlying buffer
+     * @param index the new reader index
      */
     void readerIndex(int index);
 }

@@ -337,9 +337,10 @@ class MultiTenantIT extends BaseMultiTenantIT {
                         Optional.of(transactionalId));
                 Awaitility.await().untilAsserted(() -> {
                     var describeTransactionsResult = admin.describeTransactions(List.of(transactionalId));
-                    var transactionMap = describeTransactionsResult.all().get();
-                    assertThat(transactionMap).hasEntrySatisfying(transactionalId,
-                            allOf(matches(TransactionDescription::state, TransactionState.COMPLETE_COMMIT)));
+                    assertThat(describeTransactionsResult.all().toCompletionStage().toCompletableFuture())
+                            .succeedsWithin(10, TimeUnit.SECONDS)
+                            .satisfies(transactionMap -> assertThat(transactionMap).hasEntrySatisfying(transactionalId,
+                                    allOf(matches(TransactionDescription::state, TransactionState.COMPLETE_COMMIT))));
                 });
             }
         }

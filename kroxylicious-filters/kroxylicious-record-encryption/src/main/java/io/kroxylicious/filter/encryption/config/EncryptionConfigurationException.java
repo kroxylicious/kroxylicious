@@ -14,6 +14,10 @@ import io.kroxylicious.filter.encryption.common.EncryptionException;
  */
 public class EncryptionConfigurationException extends EncryptionException {
 
+    /**
+     * Creates an exception with the given message.
+     * @param message the detail message.
+     */
     public EncryptionConfigurationException(String message) {
         super(message);
     }

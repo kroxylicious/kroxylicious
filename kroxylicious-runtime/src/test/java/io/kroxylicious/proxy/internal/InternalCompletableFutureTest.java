@@ -48,7 +48,7 @@ class InternalCompletableFutureTest {
 
     @AfterAll
     static void afterAll() {
-        executor.shutdownGracefully(0, 0, TimeUnit.SECONDS);
+        executor.shutdownGracefully(0, 0, TimeUnit.SECONDS).syncUninterruptibly();
     }
 
     @Test

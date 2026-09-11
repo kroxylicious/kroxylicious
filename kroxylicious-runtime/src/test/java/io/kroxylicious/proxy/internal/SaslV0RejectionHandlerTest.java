@@ -9,10 +9,6 @@ package io.kroxylicious.proxy.internal;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +20,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
 
@@ -55,7 +55,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn((short) 0);
         when(frame.apiKeyId()).thenReturn(ApiKeys.SASL_HANDSHAKE.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         Object o = channel.readOutbound();
         assertThat(o).isInstanceOfSatisfying(DecodedResponseFrame.class, decodedResponseFrame -> {
             assertThat(decodedResponseFrame.apiVersion()).isEqualTo((short) 0);
@@ -80,7 +80,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn(apiVersion);
         when(frame.apiKeyId()).thenReturn(ApiKeys.SASL_HANDSHAKE.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         Object o = channel.readInbound();
         assertThat(o).isSameAs(frame);
         assertThat(channel.isOpen()).isTrue();
@@ -94,7 +94,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn((short) 0);
         when(frame.apiKeyId()).thenReturn(apiKeys.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         Object o = channel.readInbound();
         assertThat(o).isSameAs(frame);
         assertThat(channel.isOpen()).isTrue();
@@ -108,7 +108,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn((short) 0);
         when(frame.apiKeyId()).thenReturn(apiKeys.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         assertThat(channel.pipeline().first()).isNull();
     }
 
@@ -119,7 +119,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn((short) 1);
         when(frame.apiKeyId()).thenReturn(ApiKeys.SASL_HANDSHAKE.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         assertThat(channel.pipeline().first()).isNull();
     }
 
@@ -129,7 +129,7 @@ class SaslV0RejectionHandlerTest {
         when(frame.apiVersion()).thenReturn((short) 0);
         when(frame.apiKeyId()).thenReturn(ApiKeys.API_VERSIONS.id);
         when(frame.correlationId()).thenReturn(3);
-        channel.writeOneInbound(frame);
+        assertThat(channel.writeOneInbound(frame).cause()).isNull();
         assertThat(channel.pipeline().first()).isSameAs(saslV0RejectionHandler);
     }
 

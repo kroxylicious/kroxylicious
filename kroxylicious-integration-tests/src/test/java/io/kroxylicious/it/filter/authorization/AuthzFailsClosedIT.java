@@ -73,7 +73,8 @@ class AuthzFailsClosedIT extends AuthzIT {
                 .map(apiKey -> {
                     Stream<Short> apiVersions;
 
-                    apiVersions = apiKey.allVersions().stream().filter(apiVersion -> !AuthorizationFilter.isApiVersionSupported(apiKey, apiVersion));
+                    apiVersions = apiKey.allVersions().stream().filter(apiVersion -> !AuthorizationFilter.isApiVersionSupported(
+                            io.kroxylicious.kafka.common.protocol.ApiKeys.forId(apiKey.id), apiVersion));
 
                     return DynamicContainer.dynamicContainer(apiKey.toString(), apiVersions.map(apiVersion -> {
                         return DynamicTest.dynamicTest("v" + apiVersion, () -> {

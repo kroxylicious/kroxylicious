@@ -36,8 +36,25 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServiceBasedPluginFactoryRegistry.class);
 
+    /**
+     * Creates a plugin factory registry backed by {@link ServiceLoader} discovery.
+     */
+    public ServiceBasedPluginFactoryRegistry() {
+        // Intentionally empty
+    }
+
+    /**
+     * Pairs a discovered plugin service provider with the plugin's configuration type
+     * (taken from its {@link Plugin} annotation).
+     *
+     * @param provider service loader provider for the plugin implementation
+     * @param config the plugin's configuration type
+     */
     public record ProviderAndConfigType(ServiceLoader.Provider<?> provider,
                                         Class<?> config) {
+        /**
+         * Validates that both the provider and config type are given.
+         */
         public ProviderAndConfigType {
             Objects.requireNonNull(provider);
             Objects.requireNonNull(config);

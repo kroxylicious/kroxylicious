@@ -14,17 +14,13 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-kms-providers</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>kroxylicious-kms-provider-azure-key-vault-kms</artifactId>
     <name>Azure Key Vault KMS</name>
     <description>An Azure Key Vault KMS Implementation</description>
-
-    <properties>
-        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
-    </properties>
 
     <dependencies>
         <dependency>

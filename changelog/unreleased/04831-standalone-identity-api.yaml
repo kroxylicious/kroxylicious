@@ -1,0 +1,8 @@
+title: "feat(identity): add standalone kroxylicious-identity-api module"
+type: added
+links:
+  - name: "proposal 119"
+    url: https://github.com/kroxylicious/design/blob/main/proposals/119-auth-api-refactor.md
+important_notes:
+  - "`Authorizer.authorize` and `AuthorizeResult` now use `io.kroxylicious.identity.Identity` instead of `io.kroxylicious.proxy.authentication.Subject`. Existing `Authorizer` implementations must update their `authorize` signature; callers passing the deprecated `Subject` are unaffected as it now implements `Identity`."
+  - "`io.kroxylicious.proxy.authentication.Subject`, `Principal` and `@Unique` are deprecated in favour of `io.kroxylicious.identity.Subject`, `Principal` and `@SingularPrincipal`."

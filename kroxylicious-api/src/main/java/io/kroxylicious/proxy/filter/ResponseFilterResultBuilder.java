@@ -6,7 +6,7 @@
 
 package io.kroxylicious.proxy.filter;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 
 /**
  * Builder for response filter results.

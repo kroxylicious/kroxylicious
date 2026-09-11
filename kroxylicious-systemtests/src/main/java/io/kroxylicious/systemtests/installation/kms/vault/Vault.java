@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
 import io.fabric8.openshift.client.OpenShiftClient;
-import io.skodjob.testframe.utils.KubeUtils;
+import io.skodjob.kubetest4j.utils.KubeUtils;
 
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;

@@ -12,6 +12,10 @@ import io.kroxylicious.filter.encryption.common.EncryptionException;
  * The encryption operation failed because we could not resolve a Key for some of the records.
  */
 public class UnresolvedKeyException extends EncryptionException {
+    /**
+     * Creates an exception with the given message.
+     * @param message the detail message.
+     */
     public UnresolvedKeyException(String message) {
         super(message);
     }

@@ -80,6 +80,11 @@ public enum Feature {
      */
     public abstract Stream<String> supports(Configuration configuration, boolean enabled);
 
+    /**
+     * Indicates whether this feature is enabled when not explicitly configured.
+     *
+     * @return true if this feature is enabled by default
+     */
     public boolean enabledByDefault() {
         return false;
     }
@@ -88,6 +93,7 @@ public enum Feature {
      * At proxy initialisation time, this method will be invoked to give the feature an opportunity to log
      * any disclaimers.
      * @param enabled true if this feature is enabled
+     * @return a warning message to be logged, or empty if there is nothing to warn about
      */
     public abstract Optional<String> maybeWarning(boolean enabled);
 }

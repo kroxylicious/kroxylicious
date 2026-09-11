@@ -12,7 +12,6 @@ import java.util.Objects;
 
 import org.jose4j.jwk.JsonWebKeySet;
 
-import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 /**
@@ -59,33 +58,30 @@ public class BytebufValidators {
      * get validator that validates if a non-null/non-empty buffer contains data that matches a JSONSchema registered in the Schema Registry
      * @param schemaResolverConfig schema resolver configuration
      * @param contentId content ID to validate against
-     * @param wireFormatVersion wire format version (V2 or V3)
      * @return validator
      */
-    public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId, WireFormatVersion wireFormatVersion) {
-        return new JsonSchemaBytebufValidator(schemaResolverConfig, contentId, wireFormatVersion);
+    public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId) {
+        return new JsonSchemaBytebufValidator(schemaResolverConfig, contentId);
     }
 
     /**
      * get validator that validates if a non-null/non-empty buffer contains data that matches an Avro schema registered in the Schema Registry
      * @param schemaResolverConfig schema resolver configuration
      * @param contentId content ID to validate against
-     * @param wireFormatVersion wire format version (V2 or V3)
      * @return validator
      */
-    public static BytebufValidator avroSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId, WireFormatVersion wireFormatVersion) {
-        return new AvroSchemaBytebufValidator(schemaResolverConfig, contentId, wireFormatVersion);
+    public static BytebufValidator avroSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId) {
+        return new AvroSchemaBytebufValidator(schemaResolverConfig, contentId);
     }
 
     /**
      * get validator that validates if a non-null/non-empty buffer contains data that matches a Protobuf schema registered in the Schema Registry
      * @param schemaResolverConfig schema resolver configuration
      * @param contentId content ID to validate against
-     * @param wireFormatVersion wire format version (V2 or V3)
      * @return validator
      */
-    public static BytebufValidator protobufSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId, WireFormatVersion wireFormatVersion) {
-        return new ProtobufSchemaBytebufValidator(schemaResolverConfig, contentId, wireFormatVersion);
+    public static BytebufValidator protobufSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId) {
+        return new ProtobufSchemaBytebufValidator(schemaResolverConfig, contentId);
     }
 
     /**
@@ -95,6 +91,10 @@ public class BytebufValidators {
      * WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
      * </p>
      *
+     * @param trustedJsonWebKeySet the set of trusted JSON Web Keys used to verify signatures
+     * @param algorithms the allowed/denied JWS algorithms
+     * @param headerOptions options controlling which record header carries the JWS and whether it is required
+     * @param contentOptions options controlling whether the JWS payload is detached
      * @return validator
      */
     public static BytebufValidator jwsSignatureValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> algorithms,

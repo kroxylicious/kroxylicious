@@ -30,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -60,6 +61,15 @@ class VirtualClusterRegistryTest {
         var model = mock(VirtualClusterModel.class);
         when(model.getClusterName()).thenReturn(name);
         when(model.drainTimeout()).thenReturn(Duration.ofSeconds(30));
+        return model;
+    }
+
+    private static VirtualClusterModel mockModelRecordingCloseThread(String name, AtomicReference<String> closeThreadName) {
+        var model = mockModel(name);
+        doAnswer(invocation -> {
+            closeThreadName.set(Thread.currentThread().getName());
+            return null;
+        }).when(model).close();
         return model;
     }
 
@@ -120,10 +130,10 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void modelForFollowsRuntimeAddAndRemove() {
+    void modelForFollowsRuntimeAddAndRemove() throws Exception {
         // After addVirtualCluster, modelFor returns the new model.
         var added = mockModel(CLUSTER_B);
-        vcc.addVirtualCluster(added);
+        vcc.addVirtualCluster(added).get(5, TimeUnit.SECONDS);
         assertThat(vcc.modelFor(CLUSTER_B)).isSameAs(added);
 
         // After removeVirtualCluster, the entry is retained (append-only policy) so modelFor
@@ -258,6 +268,45 @@ class VirtualClusterRegistryTest {
         RuntimeException boom = new RuntimeException("boom");
         assertThatThrownBy(() -> vcc.initializationFailed("nonexistent", boom))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // Model close always runs on the lifecycle thread, never the caller's
+
+    @Test
+    void shouldCloseModelOnLifecycleThreadOnInitializationFailure() {
+        // given
+        var closeThreadName = new AtomicReference<String>();
+        var model = mockModelRecordingCloseThread(CLUSTER_A, closeThreadName);
+        vcc = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
+
+        // when
+        vcc.initializationFailed(CLUSTER_A, new RuntimeException("filter init failed"));
+
+        // then
+        verify(model).close();
+        assertThat(Thread.currentThread().getName())
+                .doesNotStartWith(VirtualClusterRegistry.LIFECYCLE_THREAD_NAME_PREFIX);
+        assertThat(closeThreadName.get())
+                .startsWith(VirtualClusterRegistry.LIFECYCLE_THREAD_NAME_PREFIX);
+    }
+
+    @Test
+    void shouldCloseModelOnLifecycleThreadOnShutdown() {
+        // given
+        var closeThreadName = new AtomicReference<String>();
+        var model = mockModelRecordingCloseThread(CLUSTER_A, closeThreadName);
+        vcc = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
+        vcc.initializationSucceeded(CLUSTER_A);
+
+        // when
+        vcc.shutdownAllClusters();
+
+        // then
+        verify(model).close();
+        assertThat(Thread.currentThread().getName())
+                .doesNotStartWith(VirtualClusterRegistry.LIFECYCLE_THREAD_NAME_PREFIX);
+        assertThat(closeThreadName.get())
+                .startsWith(VirtualClusterRegistry.LIFECYCLE_THREAD_NAME_PREFIX);
     }
 
     // Bulk shutdown transitions
@@ -428,12 +477,14 @@ class VirtualClusterRegistryTest {
         // Given — cluster already draining (e.g. from hot-reload) with no active connections
         vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A)), NO_OP_RESOLVER, noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
-        requireLifecycle(CLUSTER_A).startDraining();
+        var drainFuture = requireLifecycle(CLUSTER_A).startDraining();
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
 
         // When
         vcc.shutdownAllClusters();
 
         // Then — shutdown joins the in-progress drain rather than leaving it in Draining
+        assertThat(drainFuture).isCompleted(); // drain completed when shutdown drove cluster to Stopped
         assertThat(vcc.lifecycleFor(CLUSTER_A))
                 .isNotNull()
                 .extracting(VirtualClusterLifecycle::state)
@@ -445,12 +496,14 @@ class VirtualClusterRegistryTest {
         // Given
         vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A)), NO_OP_RESOLVER, noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
-        requireLifecycle(CLUSTER_A).startDraining();
+        var drainFuture = requireLifecycle(CLUSTER_A).startDraining();
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
 
         // When
         vcc.shutdownAllClusters();
 
         // Then
+        assertThat(drainFuture).isCompleted(); // still completed after shutdown
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
     }
 
@@ -464,7 +517,8 @@ class VirtualClusterRegistryTest {
         var ccsm = mock(ClientConnectionStateMachine.class);
         when(ccsm.drain(any())).thenReturn(pendingDrain);
         vcc.registerConnection(CLUSTER_A, ccsm);
-        requireLifecycle(CLUSTER_A).startDraining();
+        var drainFuture = requireLifecycle(CLUSTER_A).startDraining();
+        assertThat(drainFuture).isNotDone(); // drain is pending — active connection blocks completion
 
         // shutdownAllClusters() blocks, so run it asynchronously
         var shutdown = CompletableFuture.runAsync(() -> vcc.shutdownAllClusters());
@@ -538,7 +592,8 @@ class VirtualClusterRegistryTest {
         // auto-stop logic to simulate states that will be reachable via the normal API
         // once hot-reload and retry/rollback are implemented.
         requireLifecycle(draining).initializationSucceeded();
-        requireLifecycle(draining).startDraining();
+        var drainFuture = requireLifecycle(draining).startDraining();
+        assertThat(drainFuture).isCompletedWithValue(null); // no active connections — drain completes immediately
         requireLifecycle(failed).initializationFailed(failureCause);
         requireLifecycle(stopped).initializationFailed(failureCause);
         requireLifecycle(stopped).stop();
@@ -815,12 +870,12 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void virtualClusterModelsReflectsRuntimeAddedModel() {
+    void virtualClusterModelsReflectsRuntimeAddedModel() throws Exception {
         // Contract relied on by OperationsPlanner: a model handed to addVirtualCluster appears
         // in virtualClusterModels() so a subsequent reconfigure can resolve it by name.
         var addedModel = mockModel(CLUSTER_B);
 
-        vcc.addVirtualCluster(addedModel);
+        vcc.addVirtualCluster(addedModel).get(5, TimeUnit.SECONDS);
 
         // Order is unspecified (backing map is ConcurrentHashMap); both the constructor-supplied
         // model and the runtime-added one must be present.
@@ -895,6 +950,58 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
+    void shouldCloseModelOnInitializationFailure() {
+        // initializationFailed drives the lifecycle straight to Stopped; shutdownCluster
+        // short-circuits on Stopped without closing, so initializationFailed itself must close
+        // the model or the filters/routers initialized during model construction leak forever.
+        // given
+        var model = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
+
+        // when
+        registry.initializationFailed(CLUSTER_A, new RuntimeException("bind failed"));
+
+        // then
+        verify(model).close();
+    }
+
+    @Test
+    void shouldNotCloseModelAgainOnShutdownAfterInitializationFailure() {
+        // given
+        var model = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
+        registry.initializationFailed(CLUSTER_A, new RuntimeException("bind failed"));
+        verify(model, times(1)).close();
+
+        // when
+        registry.shutdownAllClusters();
+
+        // then
+        verify(model, times(1)).close();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldFireCallbackWithInitializationCauseEvenWhenModelCloseThrows() {
+        // The close failure is secondary (logged by closeModel); the callback still fires with
+        // the original initialization cause — the failure the operator needs to see — and
+        // initializationFailed itself must not throw so callers can proceed with rollback.
+        // given
+        var initFailure = new RuntimeException("bind failed");
+        var model = mockModel(CLUSTER_A);
+        doThrow(new RuntimeException("close failed")).when(model).close();
+        BiConsumer<String, Optional<Throwable>> callback = mock(BiConsumer.class);
+        var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, callback);
+
+        // when / then
+        assertThatCode(() -> registry.initializationFailed(CLUSTER_A, initFailure))
+                .doesNotThrowAnyException();
+
+        verify(model).close();
+        verify(callback).accept(CLUSTER_A, Optional.of(initFailure));
+    }
+
+    @Test
     void shouldCloseModelWhenDrainingClusterCompletesDrain() {
         // Close must fire only after the drain completes — not at drain start. Mocks the connection's
         // drain future so we can hold the cluster in Draining and assert close has not yet fired.
@@ -924,7 +1031,7 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void shouldCloseFreshModelAfterReAddOfStoppedCluster() {
+    void shouldCloseFreshModelAfterReAddOfStoppedCluster() throws Exception {
         // Hot-reload scenario: cluster goes Serving → Stopped (model M1 closed and tracked as
         // closed by name), then a re-add via addVirtualCluster replaces the entry with a fresh
         // model M2. A subsequent shutdown of the re-added cluster MUST close M2 — the
@@ -938,7 +1045,7 @@ class VirtualClusterRegistryTest {
 
         // Re-add with a fresh model under the same cluster name (ReplaceCluster's add half).
         var freshModel = mockModel(CLUSTER_A);
-        registry.addVirtualCluster(freshModel);
+        registry.addVirtualCluster(freshModel).get(5, TimeUnit.SECONDS);
         registry.initializationSucceeded(CLUSTER_A);
 
         // Drive the re-added cluster to Stopped — its fresh model must be closed.

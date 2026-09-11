@@ -37,21 +37,36 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.micrometer.core.instrument.Metrics.counter;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
+/**
+ * Factory methods for the Micrometer meters emitted by the proxy, together with the label
+ * (tag) names shared between them. All meters are registered with the Micrometer global registry.
+ */
 public class Metrics {
 
     // Common Labels
+    /** Label identifying the virtual cluster a metric relates to. */
     public static final String VIRTUAL_CLUSTER_LABEL = "virtual_cluster";
+    /** Label identifying the target cluster node id, or {@code bootstrap} for bootstrap connections. */
     public static final String NODE_ID_LABEL = "node_id";
+    /** Label identifying the Kafka API key of a message. */
     public static final String API_KEY_LABEL = "api_key";
+    /** Label identifying the Kafka API version of a message. */
     public static final String API_VERSION_LABEL = "api_version";
+    /** Label identifying the SASL mechanism used for authentication. */
     public static final String MECHANISM_LABEL = "mechanism";
+    /** Label indicating whether a message was decoded by the proxy. */
     public static final String DECODED_LABEL = "decoded";
 
     // Hot-reload / lifecycle labels
+    /** Label identifying the outcome of an operation (e.g. {@code success}, {@code failure}). */
     public static final String OUTCOME_LABEL = "outcome";
+    /** Label identifying the reconfigure operation applied to a virtual cluster ({@code add}, {@code remove}, {@code modify}). */
     public static final String OPERATION_LABEL = "operation";
+    /** Label identifying a virtual cluster lifecycle state. */
     public static final String STATE_LABEL = "state";
+    /** Label identifying the lifecycle state a virtual cluster transitioned from. */
     public static final String FROM_STATE_LABEL = "from";
+    /** Label identifying the lifecycle state a virtual cluster transitioned to. */
     public static final String TO_STATE_LABEL = "to";
 
     // Base Metric Names
@@ -113,36 +128,78 @@ public class Metrics {
         // unused
     }
 
+    /**
+     * Provides a counter of requests received by the proxy from the client.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the counter
+     */
     public static MeterProvider<Counter> clientToProxyMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
         return buildCounterMeterProvider(CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME,
                 "Count of the number of requests received by the proxy from the client.",
                 clusterName, nodeId);
     }
 
+    /**
+     * Provides a distribution summary of the size, in bytes, of responses sent from the proxy to the client.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the distribution summary
+     */
     public static MeterProvider<DistributionSummary> proxyToClientMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
         return buildDistributionSummaryMeterProvider(PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME,
                 "Distribution of the size, in bytes, of responses sent from the proxy to the client.",
                 clusterName, BaseUnits.BYTES, nodeId);
     }
 
+    /**
+     * Provides a counter of responses sent from the proxy to the client.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the counter
+     */
     public static MeterProvider<Counter> proxyToClientMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
         return buildCounterMeterProvider(PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME,
                 "Count of the number of responses sent from the proxy to the client.", clusterName,
                 nodeId);
     }
 
+    /**
+     * Provides a distribution summary of the size, in bytes, of requests received from the client.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the distribution summary
+     */
     public static MeterProvider<DistributionSummary> clientToProxyMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
         return buildDistributionSummaryMeterProvider(CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME,
                 "Distribution of the size, in bytes, of the requests received from the client.",
                 clusterName, BaseUnits.BYTES, nodeId);
     }
 
+    /**
+     * Provides a distribution summary of the size, in bytes, of responses received from the server.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the distribution summary
+     */
     public static MeterProvider<DistributionSummary> serverToProxyMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
         return buildDistributionSummaryMeterProvider(SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME,
                 "Distribution of the size, in bytes, of responses received from the server.",
                 clusterName, BaseUnits.BYTES, nodeId);
     }
 
+    /**
+     * Provides a distribution summary of the size, in bytes, of requests sent from the proxy to the server.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the distribution summary
+     */
     public static MeterProvider<DistributionSummary> proxyToServerMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
         return buildDistributionSummaryMeterProvider(PROXY_TO_SERVER_REQUEST_BASE_METER_NAME,
                 "Distribution of size, in bytes, of requests sent to the server",
@@ -150,18 +207,39 @@ public class Metrics {
                 BaseUnits.BYTES, nodeId);
     }
 
+    /**
+     * Provides a counter of responses received by the proxy from the server.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the counter
+     */
     public static MeterProvider<Counter> serverToProxyMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
         return buildCounterMeterProvider(SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME,
                 "Count of the number of responses received by the proxy from the server.",
                 clusterName, nodeId);
     }
 
+    /**
+     * Provides a counter of requests sent from the proxy to the server.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the counter
+     */
     public static MeterProvider<Counter> proxyToServerMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
         return buildCounterMeterProvider(PROXY_TO_SERVER_REQUEST_BASE_METER_NAME,
                 "Count of the number of requests sent to the server.",
                 clusterName, nodeId);
     }
 
+    /**
+     * Provides a counter of connections accepted by the proxy from clients.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the counter
+     */
     public static MeterProvider<Counter> clientToProxyConnectionCounter(String clusterName, @Nullable Integer nodeId) {
         return buildCounterMeterProvider(CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME,
                 "Count of the number of times a connection is accepted from the clients.", clusterName,
@@ -186,12 +264,26 @@ public class Metrics {
                 .withRegistry(globalRegistry);
     }
 
+    /**
+     * Provides a counter of connections closed due to a downstream (client side) error.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the counter
+     */
     public static MeterProvider<Counter> clientToProxyErrorCounter(String clusterName, @Nullable Integer nodeId) {
         return buildCounterMeterProvider(CLIENT_TO_PROXY_ERROR_BASE_METER_NAME,
                 "Count of the number of times a connection is closed due to any downstream error.",
                 clusterName, nodeId);
     }
 
+    /**
+     * Provides a counter of connections made from the proxy to the server.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the counter
+     */
     public static MeterProvider<Counter> proxyToServerConnectionCounter(String clusterName, @Nullable Integer nodeId) {
         return buildCounterMeterProvider(PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME,
                 "Count of the number of times a connection is made to the server from the proxy.",
@@ -199,29 +291,66 @@ public class Metrics {
                 nodeId);
     }
 
+    /**
+     * Provides a counter of connections closed due to an upstream (server side) error.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the counter
+     */
     public static MeterProvider<Counter> proxyToServerErrorCounter(String clusterName, @Nullable Integer nodeId) {
         return buildCounterMeterProvider(PROXY_TO_SERVER_ERROR_BASE_METER_NAME,
                 "Count of the number of times a connection is closed due to any upstream error.",
                 clusterName, nodeId);
     }
 
+    /**
+     * Provides a timer recording how long the proxy paused reading from an upstream connection
+     * because the downstream connection was unwriteable.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the timer
+     */
     public static MeterProvider<Timer> serverToProxyBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
         return buildTimerMeterProvider(KROXYLICIOUS_SERVER_TO_PROXY_READS_PAUSED_NAME,
                 "Timer showing how long the proxy has paused reading from a upstream connection because the downstream connection is unwriteable.",
                 clusterName, nodeId);
     }
 
+    /**
+     * Provides a timer recording how long the proxy paused reading from a downstream connection
+     * because the upstream connection was unwriteable.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (null for bootstrap connections)
+     * @return a meter provider for the timer
+     */
     public static MeterProvider<Timer> clientToProxyBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
         return buildTimerMeterProvider(KROXYLICIOUS_CLIENT_TO_PROXY_READS_PAUSED_NAME,
                 "Timer showing how long the proxy has paused reading from a downstream connection because the upstream connection is unwriteable.",
                 clusterName, nodeId);
     }
 
+    /**
+     * Obtains a token that increments the client-to-proxy active connection gauge for the given
+     * node and decrements it again when the token is closed.
+     *
+     * @param node the virtual cluster node the connection targets
+     * @return a token tracking the lifetime of one client-to-proxy connection
+     */
     public static ActivationToken clientToProxyConnectionToken(VirtualClusterNode node) {
         AtomicInteger currentCounter = clientToProxyConnectionCounter(node);
         return new ActivationToken(currentCounter);
     }
 
+    /**
+     * Gets (registering on first use) the value backing the client-to-proxy active connection
+     * gauge for the given node.
+     *
+     * @param node the virtual cluster node the connection targets
+     * @return the mutable count of active client-to-proxy connections for the node
+     */
     public static AtomicInteger clientToProxyConnectionCounter(VirtualClusterNode node) {
         return CLIENT_TO_PROXY_CONNECTION_CACHE.computeIfAbsent(node, n -> {
             AtomicInteger activeCount = new AtomicInteger();
@@ -235,11 +364,25 @@ public class Metrics {
         });
     }
 
+    /**
+     * Obtains a token that increments the proxy-to-server active connection gauge for the given
+     * node and decrements it again when the token is closed.
+     *
+     * @param node the virtual cluster node the connection targets
+     * @return a token tracking the lifetime of one proxy-to-server connection
+     */
     public static ActivationToken proxyToServerConnectionToken(VirtualClusterNode node) {
         AtomicInteger currentCounter = proxyToServerConnectionCounter(node);
         return new ActivationToken(currentCounter);
     }
 
+    /**
+     * Gets (registering on first use) the value backing the proxy-to-server active connection
+     * gauge for the given node.
+     *
+     * @param node the virtual cluster node the connection targets
+     * @return the mutable count of active proxy-to-server connections for the node
+     */
     public static AtomicInteger proxyToServerConnectionCounter(VirtualClusterNode node) {
         return PROXY_TO_SERVER_CONNECTION_CACHE.computeIfAbsent(node, n -> {
             AtomicInteger activeCount = new AtomicInteger();
@@ -253,18 +396,48 @@ public class Metrics {
         });
     }
 
+    /**
+     * Gets a counter with the given name and tags from the global registry.
+     *
+     * @param counterName the counter name
+     * @param tags the tags to apply to the counter
+     * @return the counter
+     */
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
         return counter(counterName, tags);
     }
 
+    /**
+     * Creates a single-element tag list.
+     *
+     * @param name the tag name
+     * @param value the tag value (must be non-null and non-blank)
+     * @return an immutable list containing the tag
+     */
     public static List<Tag> tags(String name, String value) {
         return List.of(Tag.of(name, required(value)));
     }
 
+    /**
+     * Creates a two-element tag list.
+     *
+     * @param name1 the first tag name
+     * @param value1 the first tag value (must be non-null and non-blank)
+     * @param name2 the second tag name
+     * @param value2 the second tag value (must be non-null and non-blank)
+     * @return an immutable list containing the tags
+     */
     public static List<Tag> tags(String name1, String value1, String name2, String value2) {
         return List.of(Tag.of(name1, required(value1)), Tag.of(name2, required(value2)));
     }
 
+    /**
+     * Creates a tag list from alternating name/value pairs.
+     *
+     * @param tagsAndValues alternating tag names and values; values must be non-null and non-blank
+     * @return an immutable list containing the tags
+     * @throws IllegalArgumentException if a tag name is supplied without a value
+     */
     public static List<Tag> tags(String... tagsAndValues) {
         if (tagsAndValues.length % 2 != 0) {
             throw new IllegalArgumentException("tag name supplied without a value");
@@ -346,6 +519,9 @@ public class Metrics {
      * by {@code outcome} ({@code success}, {@code partial_failure}, {@code catastrophic}).
      * Pre-attempt rejections (concurrent / static-section change) are deliberately not counted
      * here — they surface as distinct exceptions and would otherwise pollute failure alerting.
+     *
+     * @param outcome the reconfigure outcome
+     * @return the counter
      */
     public static Counter reconfigureCounter(String outcome) {
         return Counter.builder(RECONFIGURE_COUNTER_NAME)
@@ -358,6 +534,8 @@ public class Metrics {
      * Timer for end-to-end reconfigure duration. Percentile histogram is published because
      * reconfigures are rare events, so the extra bucket series are cheap and make the
      * distribution queryable in Prometheus.
+     *
+     * @return the timer
      */
     public static Timer reconfigureDurationTimer() {
         return Timer.builder(RECONFIGURE_DURATION_NAME)
@@ -370,6 +548,10 @@ public class Metrics {
      * Counter of per-virtual-cluster operations applied during reconfigures, tagged by
      * {@code operation} ({@code add}, {@code remove}, {@code modify}) and {@code outcome}
      * ({@code success}, {@code failure}).
+     *
+     * @param operation the operation applied to the virtual cluster
+     * @param outcome the outcome of the operation
+     * @return the counter
      */
     public static Counter reconfigureClustersAffectedCounter(String operation, String outcome) {
         return Counter.builder(RECONFIGURE_CLUSTERS_AFFECTED_COUNTER_NAME)
@@ -388,6 +570,7 @@ public class Metrics {
      * @param virtualCluster the virtual cluster name
      * @param mechanism the SASL mechanism name, or {@code "unknown"} if the mechanism is not known
      * @param outcome the authentication outcome
+     * @return the counter
      */
     public static Counter clientAuthCounter(String virtualCluster, String mechanism, String outcome) {
         return Counter.builder(CLIENT_AUTH_COUNTER_NAME)
@@ -407,6 +590,9 @@ public class Metrics {
      * <p>The first call for a cluster registers a gauge for every {@link VirtualClusterLifecycleState}
      * at once. This must only be invoked once the proxy is past startup (i.e. on a lifecycle
      * transition, not at lifecycle construction)
+     *
+     * @param clusterName the virtual cluster name
+     * @param state the lifecycle state that is now active
      */
     public static void updateVirtualClusterState(String clusterName, String state) {
         var perCluster = VIRTUAL_CLUSTER_STATE_CACHE.computeIfAbsent(clusterName, Metrics::registerVirtualClusterStateGauges);
@@ -441,6 +627,10 @@ public class Metrics {
     /**
      * Timer for the time a virtual cluster spent in a given lifecycle state (recorded when it
      * leaves that state). Percentile histogram is published — lifecycle transitions are rare.
+     *
+     * @param clusterName the virtual cluster name
+     * @param state the lifecycle state the duration was spent in
+     * @return the timer
      */
     public static Timer virtualClusterStateDurationTimer(String clusterName, String state) {
         return Timer.builder(VIRTUAL_CLUSTER_STATE_DURATION_NAME)
@@ -454,6 +644,11 @@ public class Metrics {
     /**
      * Counter of virtual cluster lifecycle state transitions, tagged by {@code from} and
      * {@code to} state.
+     *
+     * @param clusterName the virtual cluster name
+     * @param from the lifecycle state transitioned from
+     * @param to the lifecycle state transitioned to
+     * @return the counter
      */
     public static Counter virtualClusterTransitionsCounter(String clusterName, String from, String to) {
         return Counter.builder(VIRTUAL_CLUSTER_TRANSITIONS_COUNTER_NAME)
@@ -464,18 +659,31 @@ public class Metrics {
                 .register(globalRegistry);
     }
 
+    /**
+     * Clears the connection and state caches. Intended for use by tests.
+     */
     public static void clear() {
         CLIENT_TO_PROXY_CONNECTION_CACHE.clear();
         PROXY_TO_SERVER_CONNECTION_CACHE.clear();
         VIRTUAL_CLUSTER_STATE_CACHE.clear();
     }
 
+    /**
+     * Binds Netty event executor metrics for the given event loop groups to the global registry.
+     *
+     * @param eventLoopGroups the event loop groups to instrument
+     */
     public static void bindNettyEventExecutorMetrics(final EventLoopGroup... eventLoopGroups) {
         for (final var eventLoopGroup : eventLoopGroups) {
             new NettyEventExecutorMetrics(eventLoopGroup).bindTo(globalRegistry);
         }
     }
 
+    /**
+     * Binds Netty allocator metrics to the global registry, if the allocator exposes them.
+     *
+     * @param alloc the allocator to instrument
+     */
     public static void bindNettyAllocatorMetrics(final ByteBufAllocator alloc) {
         if (alloc instanceof ByteBufAllocatorMetricProvider byteBufAllocatorMetricProvider) {
             new NettyAllocatorMetrics(byteBufAllocatorMetricProvider).bindTo(globalRegistry);

@@ -4,6 +4,11 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+/**
+ * Configuration model for the record validation filter.
+ * These declarations are exposed to end users through configuration and
+ * represent a public API with a compatibility guarantee.
+ */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)

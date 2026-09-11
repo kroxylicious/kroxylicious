@@ -80,7 +80,7 @@ sealed interface ClientConnectionState permits
     }
 
     /**
-     * A backend connection has been initiated. The {@link ClientConnectionStateMachine#progressionLatch}
+     * A backend connection has been initiated. The {@link ClientConnectionStateMachine}
      * gates client unblocking until both the transport subject is built and the backend
      * connection is active.
      */

@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
 
 import org.asciidoctor.Attributes;
@@ -57,6 +58,8 @@ class QuickStartDT {
 
     private static List<Arguments> quickStarts() {
         Assertions.assertThat(Utils.OPERATOR_ZIP).exists();
+        Assertions.assertThat(Utils.PROXY_IMAGE_TARBALL).exists();
+        Assertions.assertThat(Utils.OPERATOR_IMAGE_TARBALL).exists();
 
         var attributes = Attributes.builder()
                 .attribute("OperatorAssetZipLink", pathToFileUrl(Utils.OPERATOR_ZIP))
@@ -71,25 +74,57 @@ class QuickStartDT {
     @ParameterizedTest
     @MethodSource("quickStarts")
     void quickStart(List<Block> shellBlocks) {
-        // Given
-        Path shellScript = writeShellScript(shellBlocks);
-
-        // When
-        var actual = executeScript(shellScript);
-
-        // Then
+        // One throw-away Minikube profile per @ParameterizedTest invocation (i.e. per KMS variant),
+        // seeded with the locally built images. The quick start's
+        // `export MINIKUBE_PROFILE=${MINIKUBE_PROFILE:-quickstart-${RANDOM}}` line reuses this value.
+        var profile = "quickstart-" + ThreadLocalRandom.current().nextInt(100_000);
         try {
-            assertThat(actual)
-                    .succeedsWithin(Duration.ofMinutes(10))
-                    .satisfies(er -> assertThat(er.exitValue())
-                            .withFailMessage("Script failed - %s", er)
-                            .isZero());
-        }
-        finally {
-            if (!actual.isDone()) {
-                actual.cancel(true);
+            ShellUtils.exec("minikube", "start", "-p", profile);
+            loadImage(profile, Utils.PROXY_IMAGE_TARBALL, "kroxylicious/proxy");
+            loadImage(profile, Utils.OPERATOR_IMAGE_TARBALL, "kroxylicious/operator");
+
+            // Check 2: the quick start's kubectl commands follow the *active* context, not MINIKUBE_PROFILE.
+            // If it is not our profile, the operator lands in a cluster without the images.
+            boolean contextOk = ShellUtils.execValidate(lines -> lines.anyMatch(l -> l.trim().equals(profile)), lines -> true,
+                    "kubectl", "config", "current-context");
+            if (!contextOk) {
+                throw new AssertionError("active kube-context is not '" + profile + "' before running the quick start (issue #4404)");
+            }
+            LOGGER.atInfo().addKeyValue("profile", profile).log("Quick start: kube-context confirmed, running shell script");
+
+            var actual = executeScript(writeShellScript(shellBlocks), profile);
+            try {
+                assertThat(actual)
+                        .succeedsWithin(Duration.ofMinutes(10))
+                        .satisfies(er -> assertThat(er.exitValue())
+                                .withFailMessage("Script failed - %s", er)
+                                .isZero());
+            }
+            finally {
+                if (!actual.isDone()) {
+                    actual.cancel(true);
+                }
             }
         }
+        finally {
+            try {
+                ShellUtils.exec("minikube", "delete", "-p", profile);
+            }
+            catch (RuntimeException | AssertionError e) {
+                // The quick start's own "minikube delete" cleanup step may already have removed it.
+                LOGGER.atWarn().addKeyValue("profile", profile).setCause(e).log("Minikube profile cleanup failed");
+            }
+        }
+    }
+
+    /**
+     * Loads a container-image tarball into {@code profile}. Delegates to {@code scripts/minikube-image-load.sh},
+     * which fails (unlike a bare {@code minikube image load} — kubernetes/minikube#23471) if the load errored
+     * or if {@code expectedRepo} (e.g. {@code kroxylicious/operator}) is not listed afterwards.
+     */
+    private static void loadImage(String profile, Path tarball, String expectedRepo) {
+        ShellUtils.exec(Utils.SCRIPTS_DIR.resolve("minikube-image-load.sh").toString(), "--profile", profile, tarball.toString(), expectedRepo);
+        LOGGER.atInfo().addKeyValue("profile", profile).addKeyValue("image", expectedRepo).log("Image loaded into Minikube profile");
     }
 
     private static String pathToFileUrl(Path path) {
@@ -122,9 +157,10 @@ class QuickStartDT {
                 Objects.equals(sn.getAttribute("language", null), "terminal");
     }
 
-    private CompletableFuture<ExecutionResult> executeScript(Path shellScript) {
+    private CompletableFuture<ExecutionResult> executeScript(Path shellScript, String minikubeProfile) {
         return CompletableFuture.supplyAsync(() -> {
             var builder = new ProcessBuilder(shellScript.toAbsolutePath().toString());
+            builder.environment().put("MINIKUBE_PROFILE", minikubeProfile);
 
             try (var stdoutExecutor = Executors.newSingleThreadExecutor();
                     var stderrExecutor = Executors.newSingleThreadExecutor()) {

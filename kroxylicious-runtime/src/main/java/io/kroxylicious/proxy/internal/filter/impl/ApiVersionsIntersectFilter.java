@@ -7,9 +7,8 @@ package io.kroxylicious.proxy.internal.filter.impl;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -22,6 +21,11 @@ import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 public class ApiVersionsIntersectFilter implements ApiVersionsResponseFilter {
     private final ApiVersionsServiceImpl apiVersionsService;
 
+    /**
+     * Creates the filter.
+     *
+     * @param service the service used to intersect the broker's versions with the proxy's
+     */
     public ApiVersionsIntersectFilter(ApiVersionsServiceImpl service) {
         this.apiVersionsService = service;
     }

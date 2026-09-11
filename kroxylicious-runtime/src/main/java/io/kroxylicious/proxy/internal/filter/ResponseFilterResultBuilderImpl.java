@@ -6,18 +6,28 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
-
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Builder of {@link ResponseFilterResult} instances, validating that forwarded messages
+ * are Kafka response data classes.
+ */
 public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<ResponseHeaderData, ResponseFilterResult>
         implements ResponseFilterResultBuilder {
 
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
+
+    /**
+     * Creates an empty builder.
+     */
+    public ResponseFilterResultBuilderImpl() {
+        // Intentionally empty
+    }
 
     @Override
     protected void validateForward(ResponseHeaderData header, ApiMessage message) {

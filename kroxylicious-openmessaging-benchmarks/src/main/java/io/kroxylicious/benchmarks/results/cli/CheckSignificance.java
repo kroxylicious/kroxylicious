@@ -39,6 +39,13 @@ import picocli.CommandLine.Parameters;
 @SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106", "java:S7476", "java:S125" }) // CLI tool that intentionally writes to System.err
 public class CheckSignificance implements Callable<Integer> {
 
+    /**
+     * Creates the command instance; parameter fields are populated by picocli.
+     */
+    public CheckSignificance() {
+        // empty
+    }
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Parameters(index = "0", description = "Path to the baseline OMB result JSON file")
@@ -47,10 +54,21 @@ public class CheckSignificance implements Callable<Integer> {
     @Parameters(index = "1", description = "Path to the candidate OMB result JSON file")
     private File candidateFile;
 
+    /**
+     * Entry point; exits the JVM with the code returned by {@link #execute(String...)}.
+     *
+     * @param args command line arguments
+     */
     public static void main(String... args) {
         System.exit(execute(args));
     }
 
+    /**
+     * Runs the command without exiting the JVM, for use from tests.
+     *
+     * @param args command line arguments
+     * @return the exit code: 0 if the delta is statistically significant, 1 otherwise
+     */
     public static int execute(String... args) {
         return new CommandLine(new CheckSignificance()).execute(args);
     }

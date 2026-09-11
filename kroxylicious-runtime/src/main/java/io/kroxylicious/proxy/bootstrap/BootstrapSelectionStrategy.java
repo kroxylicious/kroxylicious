@@ -31,11 +31,24 @@ public interface BootstrapSelectionStrategy extends Function<List<HostPort>, Hos
     @JsonIgnore
     HostPort apply(List<HostPort> hostPorts);
 
+    /**
+     * No-op setter that allows the {@code strategy} discriminator property to be present in the
+     * configuration YAML; the actual strategy selection is performed by Jackson polymorphic
+     * deserialization.
+     *
+     * @param strategy the strategy name from the configuration; ignored
+     */
     @SuppressWarnings("unused")
     @JsonSetter("strategy")
     default void setStrategy(String strategy) {
     }
 
+    /**
+     * Returns the name identifying this strategy (e.g. {@code random} or {@code round-robin}),
+     * used as the {@code strategy} discriminator property when serializing the configuration.
+     *
+     * @return the strategy name
+     */
     @JsonGetter("strategy")
     String getStrategy();
 }

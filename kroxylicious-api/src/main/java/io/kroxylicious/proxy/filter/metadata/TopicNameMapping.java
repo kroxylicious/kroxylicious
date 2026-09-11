@@ -8,8 +8,8 @@ package io.kroxylicious.proxy.filter.metadata;
 
 import java.util.Map;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.protocol.Errors;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.protocol.Errors;
 
 /**
  * The result of discovering the topic names for a collection of topic ids

@@ -32,6 +32,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Runtime representation of an upstream Kafka cluster, bundling its connection target with the
  * TLS resources needed to reach it. Owned by the {@link RoutingModel} implementation that holds it;
  * closed via {@link #close()} when the owning routing model is closed.
+ *
+ * @param targetCluster the connection target for the upstream cluster
+ * @param upstreamSslContext the SSL context used to connect to the upstream cluster, or empty when TLS is not configured
+ * @param tlsManager the manager of dynamically-supplied TLS credentials; owned and closed by this record
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record UpstreamClusterModel(
@@ -40,22 +44,47 @@ public record UpstreamClusterModel(
                                    TlsCredentialSupplierManager tlsManager)
         implements AutoCloseable {
 
+    /**
+     * The TLS configuration of the target cluster.
+     *
+     * @return the TLS configuration, or empty when TLS is not configured
+     */
     public Optional<Tls> tls() {
         return targetCluster.tls();
     }
 
+    /**
+     * The bootstrap servers of the target cluster.
+     *
+     * @return the bootstrap server addresses
+     */
     public List<HostPort> bootstrapServersList() {
         return targetCluster.bootstrapServersList();
     }
 
+    /**
+     * The first bootstrap server of the target cluster.
+     *
+     * @return the bootstrap server address
+     */
     public HostPort bootstrapServer() {
         return targetCluster.bootstrapServer();
     }
 
+    /**
+     * Whether the target cluster's TLS configuration uses a credential supplier plugin.
+     *
+     * @return true if TLS credentials are supplied dynamically
+     */
     public boolean usesDynamicTlsCredentials() {
         return tls().map(t -> t.credentialSupplier() != null).orElse(false);
     }
 
+    /**
+     * Whether connections to the upstream cluster require TLS.
+     *
+     * @return true if TLS is configured for the upstream cluster
+     */
     public boolean requiresTls() {
         return upstreamSslContext().isPresent();
     }
@@ -63,6 +92,10 @@ public record UpstreamClusterModel(
     /**
      * Builds a fully-resolved {@link UpstreamClusterModel} for the given target cluster, constructing
      * the SSL context and TLS credential supplier manager from the cluster's TLS configuration.
+     *
+     * @param targetCluster the connection target for the upstream cluster
+     * @param pfr the plugin factory registry used to instantiate a TLS credential supplier plugin, or null when plugins are unavailable
+     * @return the upstream cluster model
      */
     public static UpstreamClusterModel build(TargetCluster targetCluster, @Nullable PluginFactoryRegistry pfr) {
         var sslContext = targetCluster.tls().map(targetClusterTls -> {

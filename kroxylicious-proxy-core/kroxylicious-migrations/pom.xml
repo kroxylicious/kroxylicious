@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.25.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>kroxylicious-migrations</artifactId>
+    <name>Kroxylicious migrations</name>
+    <description>Provides automated migrations for kroxylicious</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Manages OpenRewrite test library versions -->
+            <dependency>
+                <groupId>org.openrewrite.recipe</groupId>
+                <artifactId>rewrite-recipe-bom</artifactId>
+                <version>3.37.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-java</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-java-${java.version}</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite.recipe</groupId>
+            <artifactId>rewrite-java-dependencies</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-maven</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Provides RewriteTest interface and test runner -->
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JUnit 5 test framework -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <!-- the migration tests depend on kafka-clients 4.2.0 to provide org.apache.kafka.common.record.MemoryRecords, tests fail if we upgrade to 4.3.0 as the class moved to org.apache.kafka.common.record.internal-->
+            <version>4.2.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              Override the additionalClasspathDependencies inherited from the parent POM to silence
+              surefire's "Potential classpath conflict" warnings, which are specific to this module.
+              This module's OpenRewrite dependencies pull in byte-buddy 1.18.3 (via assertj-core) and
+              objenesis 3.6, which clash with the byte-buddy 1.17.7 / objenesis 3.3 that mockito-core
+              brings transitively. surefire resolves additionalClasspathDependencies independently of
+              <dependencyManagement>, so the versions must be reconciled here via exclusions.
+              mockito-core is not actually used by this module's tests (it is inherited globally),
+              so dropping its transitive byte-buddy/objenesis in favour of the versions already on
+              the project test classpath is safe:
+                - drop assertj-core (and its byte-buddy) from logsquelcher: only the SLF4J provider is
+                  needed, and the project test classpath already provides assertj/byte-buddy 1.18.3;
+                - drop byte-buddy and objenesis from mockito-core: the project test classpath already
+                  provides byte-buddy 1.18.3 and objenesis 3.6.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <additionalClasspathDependencies combine.self="override">
+                        <dependency>
+                            <groupId>io.github.sambarker</groupId>
+                            <artifactId>logsquelcher</artifactId>
+                            <version>${logsquelcher.version}</version>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>org.assertj</groupId>
+                                    <artifactId>assertj-core</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.mockito</groupId>
+                            <artifactId>mockito-core</artifactId>
+                            <version>${mockito.version}</version>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>net.bytebuddy</groupId>
+                                    <artifactId>byte-buddy</artifactId>
+                                </exclusion>
+                                <exclusion>
+                                    <groupId>org.objenesis</groupId>
+                                    <artifactId>objenesis</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </dependency>
+                    </additionalClasspathDependencies>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>analyze</id>
+                        <goals>
+                            <goal>analyze-only</goal>
+                        </goals>
+                        <configuration>
+                            <ignoredUnusedDeclaredDependencies>
+                                org.openrewrite:rewrite-java-${java.version},rewrite-maven,org.apache.kafka:kafka-clients
+                            </ignoredUnusedDeclaredDependencies>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>validate-tree</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.openrewrite.maven</groupId>
+                        <artifactId>rewrite-maven-plugin</artifactId>
+                        <version>${rewrite-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>migrate-project-sources</id>
+                                <phase>process-sources</phase>
+                                <goals>
+                                    <goal>dryRunNoFork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

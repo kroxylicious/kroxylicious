@@ -13,11 +13,23 @@ import java.util.function.UnaryOperator;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
 
+/**
+ * A {@link MappingRule} configured from a sed-like {@code cPATTERNcREPLACEMENTcFLAGS} expression,
+ * where {@code c} is a separator character of the user's choosing. Names matching the RE2 pattern
+ * are rewritten using the replacement (which may reference capture groups), optionally lower-cased
+ * ({@code L}) or upper-cased ({@code U}); non-matching names yield an empty result.
+ */
 public final class ReplaceMatchMappingRule implements MappingRule {
     private final Pattern pattern;
     private final UnaryOperator<String> flags;
     private final String replacement;
 
+    /**
+     * Constructor.
+     *
+     * @param mappingRule the rule expression in {@code cPATTERNcREPLACEMENTcFLAGS} form.
+     * @throws IllegalArgumentException if the expression is malformed or the pattern is not valid RE2.
+     */
     public ReplaceMatchMappingRule(String mappingRule) {
         if (mappingRule.isEmpty()) {
             throw new IllegalArgumentException("Invalid mapping rule: rule is empty, but it should have the format `cPATTERNcREPLACEMENTcFLAGS`, "

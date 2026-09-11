@@ -10,8 +10,10 @@ package io.kroxylicious.filter.encryption.config;
  * The version of the wrapper schema used to persist information in the wrapper.
  */
 public enum WrapperVersion {
+    /** Version 1, used by pre-release versions of the filter. No longer supported. */
     V1_UNSUPPORTED,
 
+    /** Version 2 of the wrapper schema. */
     V2;
 
 }

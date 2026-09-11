@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 
+@SuppressWarnings({ "java:S5738", "removal" })
 class AuthorizeResultTest {
 
     enum TestResource implements ResourceType<TestResource> {

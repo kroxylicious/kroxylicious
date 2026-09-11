@@ -24,6 +24,10 @@ import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A {@link FilterDispatchExecutor} backed by a Netty {@link EventLoop}, ensuring filter work
+ * and completion callbacks are executed on the channel's event loop thread.
+ */
 public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
 
     private final EventLoop eventLoop;
@@ -33,6 +37,11 @@ public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
         this.eventLoop = eventLoop;
     }
 
+    /**
+     * Creates a dispatch executor backed by the given event loop.
+     * @param loop the event loop to dispatch onto
+     * @return a dispatch executor delegating to the event loop
+     */
     public static FilterDispatchExecutor eventLoopExecutor(EventLoop loop) {
         return new NettyFilterDispatchExecutor(loop);
     }

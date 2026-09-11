@@ -98,6 +98,7 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
 
     /**
      * Get the only request recorded by the MockServer for a given ApiKey
+     * @param apiKeys the api key of the requests to select
      * @return the only request
      * @throws IllegalStateException if the mock server has recorded more than one request received for that key
      */
@@ -111,6 +112,7 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
 
     /**
      * Get all requests recorded by the MockServer for a given ApiKey
+     * @param apiKeys the api key of the requests to select
      * @return requests
      */
     public List<Request> getRequestsForApiKey(ApiKeys apiKeys) {
@@ -126,6 +128,10 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
         super.close();
     }
 
+    /**
+     * A matcher that matches produce requests with acks set to zero.
+     * @return the matcher
+     */
     public static Matcher<Request> zeroAckProduceRequestMatcher() {
         return new TypeSafeMatcher<>() {
             @Override
@@ -140,6 +146,10 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
         };
     }
 
+    /**
+     * The number of requests received by the MockServer.
+     * @return the received request count
+     */
     public int getReceivedRequestCount() {
         return mockServer.getReceivedRequests().size();
     }

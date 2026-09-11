@@ -44,6 +44,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import io.kroxylicious.testing.filter.record.KafkaRecordTestUtils;
 import io.kroxylicious.testing.filter.record.RecordTestUtils;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -202,7 +203,7 @@ class ProduceAuthzIT extends AuthzIT {
         // It's important to use different pid different client instances, else ProduceReequests will get fenced out
         long producerId = pid++;
         long currentTimeMillis = System.currentTimeMillis();
-        var mr = RecordTestUtils.memoryRecords(RecordTestUtils.singleElementRecordBatch(
+        var mr = KafkaRecordTestUtils.memoryRecords(KafkaRecordTestUtils.singleElementRecordBatch(
                 RecordTestUtils.DEFAULT_MAGIC_VALUE,
                 RecordTestUtils.DEFAULT_OFFSET,
                 Compression.NONE,

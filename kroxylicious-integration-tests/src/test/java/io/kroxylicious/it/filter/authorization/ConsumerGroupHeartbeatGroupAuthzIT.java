@@ -141,8 +141,9 @@ public class ConsumerGroupHeartbeatGroupAuthzIT extends AuthzIT {
     List<Arguments> shouldEnforceAccessToTopics() {
         ConsumerGroupHeartbeatRequestData aliceGroupHeartbeat = createHeartbeatRequest(ALL_TOPIC_NAMES_IN_TEST, ALICE_GROUP);
         ConsumerGroupHeartbeatRequestData bobGroupHeartbeat = createHeartbeatRequest(ALL_TOPIC_NAMES_IN_TEST, BOB_GROUP);
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.CONSUMER_GROUP_HEARTBEAT),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.CONSUMER_GROUP_HEARTBEAT))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_HEARTBEAT),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_HEARTBEAT))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " alice group heartbeat",
                                 new ConsumerGroupHeartbeatEquivalence((short) (int) apiVersion, aliceGroupHeartbeat)),
@@ -150,7 +151,7 @@ public class ConsumerGroupHeartbeatGroupAuthzIT extends AuthzIT {
                                 new ConsumerGroupHeartbeatEquivalence((short) (int) apiVersion, bobGroupHeartbeat))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.CONSUMER_GROUP_HEARTBEAT.oldestVersion(), ApiKeys.CONSUMER_GROUP_HEARTBEAT.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.CONSUMER_GROUP_HEARTBEAT, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_HEARTBEAT, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.CONSUMER_GROUP_HEARTBEAT, (short) apiVersion)));

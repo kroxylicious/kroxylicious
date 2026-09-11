@@ -140,8 +140,9 @@ public class ConsumerGroupHeartbeatTopicAuthzIT extends AuthzIT {
         ConsumerGroupHeartbeatRequestData bobTopic = createHeartbeatRequest(List.of(BOB_TOPIC_NAME));
         ConsumerGroupHeartbeatRequestData eveTopic = createHeartbeatRequest(List.of(EVE_TOPIC_NAME));
 
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.CONSUMER_GROUP_HEARTBEAT),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.CONSUMER_GROUP_HEARTBEAT))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_HEARTBEAT),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_HEARTBEAT))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " all topics request",
                                 new ConsumerGroupHeartbeatEquivalence((short) (int) apiVersion, allTopics)),
@@ -153,7 +154,7 @@ public class ConsumerGroupHeartbeatTopicAuthzIT extends AuthzIT {
                                 new ConsumerGroupHeartbeatEquivalence((short) (int) apiVersion, eveTopic))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.CONSUMER_GROUP_HEARTBEAT.oldestVersion(), ApiKeys.CONSUMER_GROUP_HEARTBEAT.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.CONSUMER_GROUP_HEARTBEAT, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_HEARTBEAT, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.CONSUMER_GROUP_HEARTBEAT, (short) apiVersion)));

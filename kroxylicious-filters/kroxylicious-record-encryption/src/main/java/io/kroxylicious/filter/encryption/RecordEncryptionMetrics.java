@@ -13,6 +13,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
+/**
+ * Factory methods for the meters published by the filter.
+ */
 public class RecordEncryptionMetrics {
 
     /**
@@ -22,18 +25,30 @@ public class RecordEncryptionMetrics {
         // private constructor
     }
 
+    /** The name of the metric label holding the virtual cluster name. */
     public static final String VIRTUAL_CLUSTER_LABEL = "virtual_cluster";
+    /** The name of the metric label holding the topic name. */
     public static final String TOPIC_NAME = "topic_name";
 
     // Base Metric Names
     private static final String ENCRYPTED_RECORDS = "kroxylicious_filter_record_encryption_encrypted_records";
     private static final String PLAIN_RECORDS = "kroxylicious_filter_record_encryption_plain_records";
 
+    /**
+     * Creates a provider of counters of the records which the filter encrypted.
+     * @param clusterName the name of the virtual cluster.
+     * @return a provider of counters of the records which the filter encrypted.
+     */
     public static Meter.MeterProvider<Counter> encryptedRecordsCounter(String clusterName) {
         return buildCounterMeterProvider(ENCRYPTED_RECORDS, "A count of the number of records which the filter encrypted.",
                 clusterName);
     }
 
+    /**
+     * Creates a provider of counters of the records the filter sent without encrypting them.
+     * @param clusterName the name of the virtual cluster.
+     * @return a provider of counters of the records the filter sent without encrypting them.
+     */
     public static Meter.MeterProvider<Counter> plainRecordsCounter(String clusterName) {
         return buildCounterMeterProvider(PLAIN_RECORDS, "A count of records the filter sent without encrypting them.",
                 clusterName);

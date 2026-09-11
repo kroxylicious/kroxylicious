@@ -21,6 +21,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class KroxyliciousTesterBuilder {
 
+    /**
+     * Creates a KroxyliciousTesterBuilder with sensible defaults.
+     */
+    public KroxyliciousTesterBuilder() {
+        // explicit default constructor for javadoc
+    }
+
     @Nullable
     private String trustStoreLocation = null;
     @Nullable

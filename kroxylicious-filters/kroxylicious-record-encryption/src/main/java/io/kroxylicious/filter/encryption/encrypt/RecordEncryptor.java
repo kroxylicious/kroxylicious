@@ -9,16 +9,15 @@ package io.kroxylicious.filter.encryption.encrypt;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
-
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.Dek;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 import io.kroxylicious.kafka.transform.RecordTransform;
 import io.kroxylicious.kms.service.Serde;
 
@@ -28,6 +27,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * A {@link RecordTransform} that encrypts records so that they can be later decrypted by {@link io.kroxylicious.filter.encryption.decrypt.RecordDecryptor}.
  * @param <K> The type of KEK id
+ * @param <E> The type of encrypted DEK.
  */
 public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> {
 
@@ -49,7 +49,9 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
     private RecordBatch batch;
 
     /**
-     * Constructor (obviously).
+     * Creates a record encryptor.
+     * @param topicName The name of the topic to which the records are being produced.
+     * @param partition The index of the partition to which the records are being produced.
      * @param encryption The encryption version
      * @param encryptionScheme The encryption scheme for this key
      * @param edekSerde Serde for the encrypted DEK.

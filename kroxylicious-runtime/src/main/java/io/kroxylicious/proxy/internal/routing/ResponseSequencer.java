@@ -8,7 +8,13 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
+
+import io.kroxylicious.proxy.internal.util.NettyFutures;
 
 /**
  * Ensures dynamically-routed responses are flushed to the client channel
@@ -17,6 +23,7 @@ import io.netty.channel.Channel;
  */
 class ResponseSequencer {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ResponseSequencer.class);
     private static final Object SKIP_SENTINEL = new Object();
 
     private final Channel clientChannel;
@@ -43,7 +50,7 @@ class ResponseSequencer {
      */
     void submit(long sequence, Object responseFrame) {
         if (sequence == nextSequenceToWrite) {
-            clientChannel.write(responseFrame);
+            clientChannel.write(responseFrame).addListener(closeOnWriteFailure());
             nextSequenceToWrite++;
             drainAndFlush();
         }
@@ -74,9 +81,21 @@ class ResponseSequencer {
             Object value = buffered.remove(nextSequenceToWrite);
             nextSequenceToWrite++;
             if (value != SKIP_SENTINEL) {
-                clientChannel.write(value);
+                clientChannel.write(value).addListener(closeOnWriteFailure());
             }
         }
         clientChannel.flush();
+    }
+
+    private ChannelFutureListener closeOnWriteFailure() {
+        return future -> {
+            if (!future.isSuccess() && future.cause() != null) {
+                LOGGER.atWarn()
+                        .setCause(future.cause())
+                        .addKeyValue("operation", "write response to client")
+                        .log("Response write failed; closing client channel to preserve ordering contract");
+                clientChannel.close().addListener(NettyFutures.logFailure(LOGGER, "close after response write failure"));
+            }
+        };
     }
 }

@@ -10,16 +10,27 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.EndTxnRequestData;
-import org.apache.kafka.common.message.EndTxnResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.kafka.common.message.EndTxnRequestData;
+import io.kroxylicious.kafka.common.message.EndTxnResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * Enforces authorization of the EndTxn API, requiring {@link TransactionalIdResource#WRITE}
+ * on the transactional id.
+ */
 public class EndTxnEnforcement extends ApiEnforcement<EndTxnRequestData, EndTxnResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public EndTxnEnforcement() {
+        // Intentionally empty
+    }
+
     @Override
     short minSupportedVersion() {
         return 0;

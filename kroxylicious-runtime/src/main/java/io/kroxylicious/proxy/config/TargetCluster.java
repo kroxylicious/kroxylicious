@@ -33,6 +33,9 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
 
     private static final BootstrapSelectionStrategy DEFAULT_SELECTION_STRATEGY = new RoundRobinBootstrapSelectionStrategy();
 
+    /**
+     * Validates the target cluster, stripping whitespace from {@code bootstrapServers}.
+     */
     @JsonCreator
     public TargetCluster {
         if (bootstrapServers == null) {
@@ -41,6 +44,12 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
         bootstrapServers = bootstrapServers.replaceAll("\\s", "");
     }
 
+    /**
+     * Convenience constructor using the default (round-robin) bootstrap server selection strategy.
+     *
+     * @param bootstrapServers comma separated list of host/port pairs
+     * @param tls tls configuration if a secure connection is to be used
+     */
     public TargetCluster(String bootstrapServers, @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Tls> tls) {
         this(bootstrapServers, tls, DEFAULT_SELECTION_STRATEGY);
     }
@@ -56,10 +65,21 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
         return bootstrapServers;
     }
 
+    /**
+     * The configured bootstrap servers, parsed into host/port pairs.
+     *
+     * @return list of bootstrap server addresses
+     */
     public List<HostPort> bootstrapServersList() {
         return Arrays.stream(bootstrapServers.split(",")).map(HostPort::parse).toList();
     }
 
+    /**
+     * Selects a single bootstrap server using the configured selection strategy
+     * (round-robin by default).
+     *
+     * @return the selected bootstrap server address
+     */
     public HostPort bootstrapServer() {
         return resolveSelectionStrategy().apply(bootstrapServersList());
     }

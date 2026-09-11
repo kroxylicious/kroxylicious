@@ -8,8 +8,8 @@ package io.kroxylicious.kafka.transform;
 
 import java.util.Arrays;
 
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

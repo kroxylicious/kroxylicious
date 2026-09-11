@@ -7,7 +7,6 @@ package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
 import java.util.ArrayDeque;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,12 +14,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collector;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterEach;
 
 import io.netty.buffer.ByteBuf;
@@ -30,6 +26,10 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
 
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.Filter;
@@ -37,6 +37,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
@@ -49,6 +50,8 @@ import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -59,6 +62,7 @@ public abstract class FilterHarness {
     public static final String TEST_CLIENT = "test-client";
     public static final List<HostPort> TARGET_CLUSTER_BOOTSTRAP = List.of(HostPort.parse("targetCluster:9091"));
     protected EmbeddedChannel channel;
+    protected EmbeddedChannel inboundChannel;
 
     private final AtomicInteger outboundCorrelationId = new AtomicInteger(1);
     private final Map<Integer, Correlation> pendingInternalRequestMap = new HashMap<>();
@@ -81,6 +85,9 @@ public abstract class FilterHarness {
      *
      * @param filters - the filters to associate with the channel.
      */
+    // FutureReturnValueIgnored: closing the EmbeddedChannel in this test-only mock callback is
+    // best-effort; tests observe the outcome via channel.isOpen(), not the close future.
+    @SuppressWarnings("FutureReturnValueIgnored")
     protected void buildChannel(Filter... filters) {
         assertNull(channel, "Channel already built");
 
@@ -89,7 +96,7 @@ public abstract class FilterHarness {
         var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", new DirectRouting("upstream", targetCluster), false,
                 false, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
         testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
-        var inboundChannel = new EmbeddedChannel();
+        inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new CorrelationIdIssuer(), new InternalRequestTracker());
 
         var endpointBinding = mock(EndpointBinding.class);
@@ -102,25 +109,35 @@ public abstract class FilterHarness {
         clientConnectionStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), kafkaSession);
         var forwarding = new ClientConnectionState.Forwarding();
         var mockScsm = mock(ServerConnectionStateMachine.class);
+        var mockFrontendHandler = mock(KafkaProxyFrontendHandler.class);
+        when(mockFrontendHandler.clientChannel()).thenReturn(inboundChannel);
         clientConnectionStateMachine.forceState(
                 forwarding,
-                mock(KafkaProxyFrontendHandler.class),
+                mockFrontendHandler,
                 java.util.Map.of(new io.kroxylicious.proxy.service.HostPort("broker", 9092), mockScsm),
                 kafkaSession,
                 true);
-        var filterHandlers = Arrays.stream(filters)
-                .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addLast, (d1, d2) -> {
+        var filterHandlers = IntStream.range(0, filters.length)
+                .mapToObj(i -> Map.entry(i, filters[i]))
+                .collect(Collector.of(ArrayDeque<Map.Entry<Integer, Filter>>::new, ArrayDeque::addLast, (d1, d2) -> {
                     d2.addAll(d1);
                     return d2;
                 })) // reverses order
                 .stream()
-                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, inboundChannel,
-                        clientConnectionStateMachine))
+                .map(e -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(e.getValue().getClass().getSimpleName(), e.getValue())), timeoutMs, null,
+                        inboundChannel, clientConnectionStateMachine, e.getKey()))
 
                 .map(ChannelHandler.class::cast);
         var handlers = Stream.concat(filterHandlers, channelProcessors);
 
         channel = new EmbeddedChannel(handlers.toArray(ChannelHandler[]::new));
+        // When requestClose() initiates drain, the CCSM calls inClosed() on the frontend handler
+        // once all in-flight requests drain. Configure that callback to close the test channel so
+        // that channel.isOpen() correctly reflects the connection-closed state in tests.
+        doAnswer(inv -> {
+            channel.close();
+            return null;
+        }).when(mockFrontendHandler).inClosed(any());
     }
 
     /**
@@ -170,9 +187,19 @@ public abstract class FilterHarness {
     }
 
     protected <B extends ApiMessage> InternalRequestFrame<B> writeInternalRequest(RequestHeaderData headerData, B data, Filter recipient) {
-        var frame = new InternalRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, recipient, new CompletableFuture<>(), headerData, data);
+        var frame = new InternalRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, headerData, data);
+        frame.setRouting(new PathElement.FilterOriginator(filterIdentity(recipient), 0, new CompletableFuture<>(), PathElement.ClientOrigin.INSTANCE));
         writeRequest(frame);
         return frame;
+    }
+
+    /**
+     * A name that uniquely identifies {@code recipient} for the lifetime of the test, standing in
+     * for the recipient identity a real {@code RouteFilterHandler} would derive from its own
+     * filter's configured name and position.
+     */
+    private static String filterIdentity(Filter recipient) {
+        return recipient.getClass().getSimpleName() + "@" + System.identityHashCode(recipient);
     }
 
     /**
@@ -198,7 +225,7 @@ public abstract class FilterHarness {
 
     protected OpaqueRequestFrame writeArbitraryOpaqueRequest(ByteBuf buffer) {
         OpaqueRequestFrame frame = new OpaqueRequestFrame(buffer, ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), 55, false, buffer.readableBytes(), false);
-        channel.writeOneInbound(frame);
+        assertNull(channel.writeOneInbound(frame).cause());
         return frame;
     }
 
@@ -214,7 +241,7 @@ public abstract class FilterHarness {
 
     protected OpaqueResponseFrame writeArbitraryOpaqueResponse(ByteBuf buffer) {
         OpaqueResponseFrame frame = new OpaqueResponseFrame(ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), buffer, 55, buffer.readableBytes());
-        channel.writeOneOutbound(frame);
+        assertNull(channel.writeOneOutbound(frame).cause());
         return frame;
     }
 
@@ -252,21 +279,31 @@ public abstract class FilterHarness {
         if (correlation == null) {
             throw new IllegalStateException("No corresponding internal request known for correlationId=" + requestCorrelationId);
         }
-        var frame = new InternalResponseFrame<>(correlation.recipient(), apiKey.latestVersion(), requestCorrelationId, header, data, correlation.promise());
+        var frame = new InternalResponseFrame<>(apiKey.latestVersion(), requestCorrelationId, header, data);
+        frame.setRouting(correlation.routing());
         channel.writeOutbound(frame);
         return frame;
 
     }
 
     /**
-     * Shutdown the channel, asserting there were no further requests or responses to read.
+     * Runs all pending tasks on both the main channel and the inbound channel event loops.
+     * Needed when the CCSM drain dispatches work to {@code inboundChannel}'s event loop
+     * (e.g. when a filter calls closeConnection()).
      */
+    protected void runAllPendingTasks() {
+        channel.runPendingTasks();
+        inboundChannel.runPendingTasks();
+        channel.runPendingTasks(); // inboundChannel tasks may enqueue further work on channel
+    }
+
     @AfterEach
     public void assertFinish() {
         if (channel == null) {
             // enable mixing FilterHarness tests with other unit tests that don't create the channel
             return;
         }
+        inboundChannel.finishAndReleaseAll();
         boolean finish = channel.finish();
         if (finish) {
             Object inbound = channel.readInbound();
@@ -286,7 +323,7 @@ public abstract class FilterHarness {
         }
     }
 
-    public record Correlation(Filter recipient, CompletableFuture<?> promise) {}
+    public record Correlation(PathElement routing) {}
 
     /**
      * Tracks outstanding internal requests by associating the correlation id with the recipient/promise tuple.
@@ -296,7 +333,7 @@ public abstract class FilterHarness {
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg instanceof InternalRequestFrame<?> irf) {
                 if (irf.hasResponse()) {
-                    if (pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.recipient(), irf.promise())) != null) {
+                    if (pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.routing())) != null) {
                         throw new IllegalStateException("correlationId %d already has a promise associated with it".formatted(irf.correlationId()));
                     }
                 }

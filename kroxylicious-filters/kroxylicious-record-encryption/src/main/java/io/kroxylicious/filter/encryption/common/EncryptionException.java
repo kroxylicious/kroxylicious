@@ -15,6 +15,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * Exceptions to do with encryption.
  */
 public class EncryptionException extends RuntimeException {
+    /** The exception to be sent to the client. */
     @NonNull
     private final ApiException apiException;
 
@@ -36,6 +37,10 @@ public class EncryptionException extends RuntimeException {
         this.apiException = apiException;
     }
 
+    /**
+     * Returns the exception to be sent to the client.
+     * @return the exception to be sent to the client.
+     */
     public ApiException getApiException() {
         return apiException;
     }

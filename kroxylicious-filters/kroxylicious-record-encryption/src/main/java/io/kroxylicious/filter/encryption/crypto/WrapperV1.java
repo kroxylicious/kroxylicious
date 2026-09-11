@@ -11,22 +11,30 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
-
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.config.WrapperVersion;
 import io.kroxylicious.filter.encryption.dek.CipherManager;
 import io.kroxylicious.filter.encryption.dek.Dek;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Version 1 of the wrapper schema, used by pre-release versions of the filter.
+ * No longer supported: all its operations throw {@link EncryptionException}.
+ */
 public class WrapperV1 implements Wrapper {
 
+    /** The singleton instance of this wrapper. */
     public static final WrapperV1 INSTANCE = new WrapperV1();
+
+    private WrapperV1() {
+        // singleton: use INSTANCE
+    }
 
     @Override
     public byte serializedId() {

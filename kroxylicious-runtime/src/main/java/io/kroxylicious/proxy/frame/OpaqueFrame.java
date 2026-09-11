@@ -30,11 +30,13 @@ public abstract class OpaqueFrame implements Frame {
     /* Api Key version */
     private final short apiVersion;
 
+    /** The length in bytes of the frame within {@link #buf}, excluding the frame size prefix. */
     protected final int length;
+    /** The correlation id. */
     protected final int correlationId;
     /** The message buffer excluding the frame size, including the header and body. */
     protected final ByteBuf buf;
-    private @Nullable String routeName;
+    private @Nullable PathElement routing;
 
     /**
      * @param apiKeyId api key id
@@ -105,19 +107,23 @@ public abstract class OpaqueFrame implements Frame {
         buf.release();
     }
 
+    /**
+     * The underlying message buffer.
+     * @return The message buffer, excluding the frame size prefix.
+     */
     @VisibleForTesting
     public ByteBuf buf() {
         return buf;
     }
 
     @Override
-    public @Nullable String routeName() {
-        return routeName;
+    public @Nullable PathElement routing() {
+        return routing;
     }
 
     @Override
-    public void setRouteName(@Nullable String routeName) {
-        this.routeName = routeName;
+    public void setRouting(@Nullable PathElement routing) {
+        this.routing = routing;
     }
 
     @Override

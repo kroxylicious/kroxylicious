@@ -21,10 +21,19 @@ public class ConcurrentReconfigureException extends RuntimeException {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Creates the exception with a default message indicating that a reconfigure is already
+     * in progress and that the trigger should retry.
+     */
     public ConcurrentReconfigureException() {
         super("a reconfigure is already in progress; the trigger should retry");
     }
 
+    /**
+     * Creates the exception with the given message.
+     *
+     * @param message the detail message
+     */
     public ConcurrentReconfigureException(String message) {
         super(message);
     }

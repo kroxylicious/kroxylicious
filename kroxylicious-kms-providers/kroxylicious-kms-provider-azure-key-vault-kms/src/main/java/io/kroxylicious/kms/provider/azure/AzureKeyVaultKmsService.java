@@ -22,6 +22,10 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A {@link KmsService} plugin implementation providing a {@link Kms} backed by
+ * <a href="https://learn.microsoft.com/en-us/azure/key-vault/general/overview">Azure Key Vault</a>.
+ */
 @Plugin(configType = AzureKeyVaultConfig.class)
 public class AzureKeyVaultKmsService implements KmsService<AzureKeyVaultConfig, WrappingKey, AzureKeyVaultEdek> {
 
@@ -31,6 +35,14 @@ public class AzureKeyVaultKmsService implements KmsService<AzureKeyVaultConfig, 
     private KeyVaultClient client;
     @Nullable
     private AzureKeyVaultConfig config;
+
+    /**
+     * Creates the service. Instances are expected to be obtained via the {@link java.util.ServiceLoader}
+     * mechanism and must be {@linkplain #initialize(AzureKeyVaultConfig) initialized} before use.
+     */
+    public AzureKeyVaultKmsService() {
+        // Intentionally empty
+    }
 
     @Override
     public void initialize(AzureKeyVaultConfig config) {

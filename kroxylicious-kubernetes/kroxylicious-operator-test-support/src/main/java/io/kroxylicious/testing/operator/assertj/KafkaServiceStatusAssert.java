@@ -14,7 +14,15 @@ import org.assertj.core.api.ListAssert;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 
+/**
+ * Assertions on a {@link KafkaServiceStatus}.
+ */
 public class KafkaServiceStatusAssert extends AbstractStatusAssert<KafkaServiceStatus, KafkaServiceStatusAssert> {
+    /**
+     * Creates an assertion on the given status.
+     *
+     * @param o the status to assert on
+     */
     protected KafkaServiceStatusAssert(
                                        KafkaServiceStatus o) {
         super(o, KafkaServiceStatusAssert.class,
@@ -22,6 +30,12 @@ public class KafkaServiceStatusAssert extends AbstractStatusAssert<KafkaServiceS
                 KafkaServiceStatus::getConditions);
     }
 
+    /**
+     * Creates an assertion on the given status.
+     *
+     * @param actual the status to assert on
+     * @return a new assertion
+     */
     public static KafkaServiceStatusAssert assertThat(KafkaServiceStatus actual) {
         return new KafkaServiceStatusAssert(actual);
     }

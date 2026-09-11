@@ -91,12 +91,12 @@ class FetchAuthzIT extends AuthzIT {
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.FETCH),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.FETCH))
+        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.FETCH),
+                AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.FETCH))
                 .boxed().map(apiVersion -> Arguments.argumentSet("fetch version " + apiVersion, new FetchEquivalence((short) (int) apiVersion)));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.FETCH.oldestVersion(), ApiKeys.FETCH.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.FETCH, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.FETCH, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.FETCH, (short) apiVersion)));

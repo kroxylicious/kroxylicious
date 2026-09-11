@@ -13,10 +13,21 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.ImageNameSubstitutor;
 
+/**
+ * A testcontainers {@link ImageNameSubstitutor} that redirects image pulls to a mirror
+ * registry, unless the image comes from an allow-listed registry.
+ */
 public class MirrorImageNameSubstitutor extends ImageNameSubstitutor {
     private static final Set<String> DOMAIN_ALLOW_LIST = Set.of("quay.io", "ghcr.io", "gcr.io", "redhat.com");
     private static final String MIRROR_REPOSITORY = "mirror.gcr.io";
     private static final Logger LOGGER = LoggerFactory.getLogger(MirrorImageNameSubstitutor.class);
+
+    /**
+     * Creates a MirrorImageNameSubstitutor
+     */
+    public MirrorImageNameSubstitutor() {
+        // explicit default constructor for javadoc
+    }
 
     @Override
     public DockerImageName apply(DockerImageName dockerImageName) {

@@ -101,6 +101,30 @@ class WebIdentityCredentialsProviderTest {
     }
 
     @Test
+    void appliesConnectTimeout() {
+        // Given
+        var cfg = config(ROLE_ARN, tokenFile, null, null);
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK)) {
+            // When
+            var connectTimeout = provider.getHttpClient().connectTimeout();
+            // Then
+            assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
+        }
+    }
+
+    @Test
+    void appliesRequestTimeout() {
+        // Given
+        var cfg = config(ROLE_ARN, tokenFile, null, null);
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK)) {
+            // When
+            var request = provider.createAssumeRoleRequest("header.payload.signature");
+            // Then
+            assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
+        }
+    }
+
+    @Test
     void resolvesRoleArnFromEnv() {
         var cfg = config(null, tokenFile, null, null);
         var env = envOf(Map.of(WebIdentityCredentialsProvider.ENV_ROLE_ARN, ROLE_ARN));

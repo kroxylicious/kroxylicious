@@ -299,7 +299,7 @@ class ResponseOrdererTest {
     }
 
     private void whenWriteOutboundMessage(Object object) {
-        embeddedChannel.writeOneOutbound(object);
+        assertThat(embeddedChannel.writeOneOutbound(object).cause()).isNull();
     }
 
     private void thenQueuedResponseCountEquals(int expecteQueuedResponses) {
@@ -326,7 +326,7 @@ class ResponseOrdererTest {
     }
 
     private void whenWriteInboundMessage(Object object) {
-        embeddedChannel.writeOneInbound(object);
+        assertThat(embeddedChannel.writeOneInbound(object).cause()).isNull();
     }
 
 }

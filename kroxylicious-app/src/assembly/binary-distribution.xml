@@ -22,6 +22,7 @@
       <includes>
         <include>run-java.sh</include>
         <include>kroxylicious-start.sh</include>
+        <include>scram-credential-tool.sh</include>
       </includes>
     </fileSet>
     <fileSet>
@@ -43,6 +44,13 @@
       <outputDirectory>/config/</outputDirectory>
       <includes>
         <include>log4j2.yaml</include>
+      </includes>
+    </fileSet>
+    <fileSet>
+      <directory>${project.basedir}/src/assembly</directory>
+      <outputDirectory>/config/</outputDirectory>
+      <includes>
+        <include>log4j2-tools.yaml</include>
       </includes>
     </fileSet>
       <fileSet>

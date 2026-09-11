@@ -9,14 +9,6 @@ package io.kroxylicious.proxy.internal.filter;
 import java.time.Duration;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.LeaveGroupRequestData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
@@ -24,6 +16,16 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.FetchRequestData;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.LeaveGroupRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.testing.filter.RequestFactory;
 
@@ -32,7 +34,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RequestFilterResultBuilderTest {
 
-    private final UnknownServerException filterRuntimeException = new UnknownServerException("Filter says yeah, nah!");
     private final RequestFilterResultBuilder builder = new RequestFilterResultBuilderImpl();
 
     @Test
@@ -152,7 +153,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, versionedMessage.apiMessage(), filterRuntimeException).completed();
+        var future = builder.errorResponse(header, versionedMessage.apiMessage(), Errors.UNKNOWN_SERVER_ERROR).completed();
 
         // Then
         assertThat(future)
@@ -176,7 +177,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, new LeaveGroupRequestData(), filterRuntimeException).completed();
+        var future = builder.errorResponse(header, new LeaveGroupRequestData(), Errors.UNKNOWN_SERVER_ERROR).completed();
 
         // Then
         assertThat(future)
@@ -199,7 +200,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, request.apiMessage(), filterRuntimeException).completed();
+        var future = builder.errorResponse(header, request.apiMessage(), Errors.UNKNOWN_SERVER_ERROR).completed();
 
         // Then
         assertThat(future)
@@ -220,7 +221,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, request.apiMessage(), filterRuntimeException).completed();
+        var future = builder.errorResponse(header, request.apiMessage(), Errors.UNKNOWN_SERVER_ERROR).completed();
 
         // Then
         assertThat(future)
@@ -228,6 +229,101 @@ class RequestFilterResultBuilderTest {
                 .satisfies(result -> {
                     assertThat(result.closeConnection()).describedAs("connection closed").isFalse();
                 });
+    }
+
+    @Test
+    void errorResponseFromErrorsSetsErrorCode() {
+        // Given
+        var header = apiVersionsHeader();
+
+        // When
+        var result = builder.errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST).build();
+
+        // Then
+        assertThat(result.message())
+                .asInstanceOf(InstanceOfAssertFactories.type(ApiVersionsResponseData.class))
+                .satisfies(response -> assertThat(response.errorCode()).isEqualTo(Errors.INVALID_REQUEST.code()));
+    }
+
+    @Test
+    void errorResponseFromErrorsWithMessageSetsErrorCode() {
+        // Given
+        var header = apiVersionsHeader();
+        var message = "custom explanation";
+
+        // When
+        var result = builder.errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST, message).build();
+
+        // Then
+        assertThat(result.message())
+                .asInstanceOf(InstanceOfAssertFactories.type(ApiVersionsResponseData.class))
+                .satisfies(response -> assertThat(response.errorCode()).isEqualTo(Errors.INVALID_REQUEST.code()));
+    }
+
+    @Test
+    void errorResponseFromErrorsWithNullMessageUsesDefaultMessage() {
+        // Given
+        var header = apiVersionsHeader();
+
+        // When
+        var fromNullMessage = builder.errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST, null).build();
+        var fromNoMessage = new RequestFilterResultBuilderImpl()
+                .errorResponse(header, new ApiVersionsRequestData(), Errors.INVALID_REQUEST).build();
+
+        // Then
+        assertThat(fromNullMessage.message()).isEqualTo(fromNoMessage.message());
+    }
+
+    @Test
+    void errorResponseFromErrorsRejectsNone() {
+        // Given
+        var header = apiVersionsHeader();
+        var requestMessage = new ApiVersionsRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> builder.errorResponse(header, requestMessage, Errors.NONE))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void errorResponseFromErrorsWithMessageRejectsNone() {
+        // Given
+        var header = apiVersionsHeader();
+        var requestMessage = new ApiVersionsRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> builder.errorResponse(header, requestMessage, Errors.NONE, "some message"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void errorResponseFromErrorsRejectsNullError() {
+        // Given
+        var header = apiVersionsHeader();
+        var requestMessage = new ApiVersionsRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> builder.errorResponse(header, requestMessage, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void errorResponseFromErrorsWithMessageRejectsNullError() {
+        // Given
+        var header = apiVersionsHeader();
+        var requestMessage = new ApiVersionsRequestData();
+
+        // When / Then
+        assertThatThrownBy(() -> builder.errorResponse(header, requestMessage, null, "some message"))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    private static RequestHeaderData apiVersionsHeader() {
+        var header = new RequestHeaderData();
+        header.setRequestApiKey(ApiKeys.API_VERSIONS.id);
+        header.setRequestApiVersion(ApiKeys.API_VERSIONS.latestVersion());
+        header.setCorrelationId(23456);
+        return header;
     }
 
     public static Stream<Arguments> latestVersions() {

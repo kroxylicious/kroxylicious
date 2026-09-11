@@ -22,6 +22,8 @@ public sealed interface ProxyNodeId permits ProxyNodeId.Bootstrap, ProxyNodeId.B
 
     /**
      * The gateway this node identity belongs to.
+     *
+     * @return the gateway
      */
     EndpointGateway gateway();
 
@@ -29,11 +31,16 @@ public sealed interface ProxyNodeId permits ProxyNodeId.Bootstrap, ProxyNodeId.B
      * Identity for a bootstrap connection — no specific broker node targeted.
      * Bootstrap connections are handled by forwarding to any upstream broker
      * for initial topology discovery.
+     *
+     * @param gateway the gateway this node identity belongs to
      */
     record Bootstrap(EndpointGateway gateway) implements ProxyNodeId {}
 
     /**
      * Identity for a connection targeting a specific broker node.
+     *
+     * @param gateway the gateway this node identity belongs to
+     * @param nodeId the ID of the targeted broker node
      */
     record Broker(EndpointGateway gateway, int nodeId) implements ProxyNodeId {}
 }

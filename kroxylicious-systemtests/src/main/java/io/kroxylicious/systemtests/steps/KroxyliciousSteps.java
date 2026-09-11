@@ -100,6 +100,15 @@ public class KroxyliciousSteps {
     }
 
     /**
+     * Produce messages with JVM system properties.
+     */
+    public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages,
+                                             Map<String, String> additionalConfig, Map<String, String> javaSystemProperties) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, null, numberOfMessages, additionalConfig,
+                javaSystemProperties);
+    }
+
+    /**
      * Produce messages without wait.
      *
      * @param namespace the namespace
@@ -142,6 +151,15 @@ public class KroxyliciousSteps {
                                                        Map<String, String> additionalConfig) {
         return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig,
                 Constants.CONSUMER_GROUP_NAME);
+    }
+
+    /**
+     * Consume messages with JVM system properties.
+     */
+    public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout,
+                                                       Map<String, String> additionalConfig, Map<String, String> javaSystemProperties) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig,
+                Constants.CONSUMER_GROUP_NAME, javaSystemProperties);
     }
 
     /**

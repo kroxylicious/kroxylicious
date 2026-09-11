@@ -47,6 +47,7 @@ import static org.apache.kafka.clients.producer.ProducerConfig.RECONNECT_BACKOFF
 import static org.apache.kafka.clients.producer.ProducerConfig.RECONNECT_BACKOFF_MS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.RETRY_BACKOFF_MS_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * Tests with the aim of demonstrating that system survives a Kroxylicious restart.
@@ -164,11 +165,12 @@ class ResilienceIT extends BaseIT {
             var afterRestartTopic = admin.createTopics(List.of(new NewTopic("afterRestart", Optional.empty(), Optional.empty()))).all();
             assertThat(afterRestartTopic).succeedsWithin(Duration.ofSeconds(10));
 
-            var topics = admin.listTopics().names();
-            assertThat(topics)
+            // a successful create is not immediately reflected in the metadata served by
+            // listTopics after the cluster restart, so retry until it propagates
+            await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(admin.listTopics().names())
                     .succeedsWithin(Duration.ofSeconds(10))
                     .asInstanceOf(InstanceOfAssertFactories.set(String.class))
-                    .containsAll(List.of("beforeStop", "afterRestart"));
+                    .containsAll(List.of("beforeStop", "afterRestart")));
         }
     }
 

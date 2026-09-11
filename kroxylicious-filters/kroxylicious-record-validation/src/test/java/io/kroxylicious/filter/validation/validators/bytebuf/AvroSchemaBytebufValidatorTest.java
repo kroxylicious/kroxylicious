@@ -18,9 +18,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -31,8 +28,10 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import io.apicurio.registry.serde.BaseSerde;
 import io.apicurio.registry.serde.kafka.headers.KafkaSerdeHeaders;
 
-import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
+import io.kroxylicious.kafka.common.header.Header;
+import io.kroxylicious.kafka.common.header.internals.RecordHeader;
+import io.kroxylicious.kafka.common.record.internal.Record;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -104,7 +103,7 @@ class AvroSchemaBytebufValidatorTest {
     @Test
     void valuePassesSchemaValidation() {
         Record record = record(RECORD_KEY, validAvroBytes);
-        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -115,7 +114,7 @@ class AvroSchemaBytebufValidatorTest {
     @Test
     void nonAvroValueFailsDeserialization() {
         Record record = record(RECORD_KEY, "not avro data".getBytes(StandardCharsets.UTF_8));
-        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -130,7 +129,7 @@ class AvroSchemaBytebufValidatorTest {
     void valueWithCorrectSchemaIdInHeaderPassesValidation() {
         Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_CONTENT_ID, toByteArray(CONTENT_ID)) };
         Record record = record(RECORD_KEY, validAvroBytes, headers);
-        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -142,7 +141,7 @@ class AvroSchemaBytebufValidatorTest {
     void valueWithWrongSchemaIdInHeaderRejected() {
         Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_CONTENT_ID, toByteArray(CONTENT_ID + 1)) };
         Record record = record(RECORD_KEY, validAvroBytes, headers);
-        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -154,7 +153,7 @@ class AvroSchemaBytebufValidatorTest {
     void valueWithCorrectSchemaIdInBodyPassesValidation() {
         var value = asV3SchemaIdPrefixBuf(CONTENT_ID, validAvroBytes);
         Record record = record(RECORD_KEY, value);
-        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -166,7 +165,7 @@ class AvroSchemaBytebufValidatorTest {
     void valueWithUnexpectedSchemaIdInBodyRejected() {
         var value = asV3SchemaIdPrefixBuf(CONTENT_ID + 1, validAvroBytes);
         Record record = record(RECORD_KEY, value);
-        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -197,7 +196,7 @@ class AvroSchemaBytebufValidatorTest {
                                 .withHeader("Content-Type", "application/json")
                                 .withBody("{\"message\":\"No artifact with ID '999' was found.\",\"error_code\":404}")));
 
-        assertThatThrownBy(() -> BytebufValidators.avroSchemaValidator(apicurioConfig, nonExistentContentId, WireFormatVersion.V3))
+        assertThatThrownBy(() -> BytebufValidators.avroSchemaValidator(apicurioConfig, nonExistentContentId))
                 .isInstanceOf(RuntimeException.class);
     }
 
@@ -205,7 +204,7 @@ class AvroSchemaBytebufValidatorTest {
     void bufferTooSmallForSchemaIdHandledGracefully() {
         byte[] tinyBuffer = new byte[]{ BaseSerde.MAGIC_BYTE, 0x01 };
         Record record = record(RECORD_KEY, tinyBuffer);
-        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
+        BytebufValidator validator = BytebufValidators.avroSchemaValidator(apicurioConfig, CONTENT_ID);
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)

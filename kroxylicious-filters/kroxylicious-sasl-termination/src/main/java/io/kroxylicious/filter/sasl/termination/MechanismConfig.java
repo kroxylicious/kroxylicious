@@ -14,15 +14,18 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
  * <p>
  * Jackson uses name-based polymorphism with the {@code mechanism} field as the
  * type discriminator. The mechanism name is the IANA-registered SASL mechanism
- * name (e.g. {@code OAUTHBEARER}).
+ * name (e.g. {@code SCRAM-SHA-256}, {@code OAUTHBEARER}).
  * </p>
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "mechanism")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "mechanism", visible = true)
+// `visible` allows ScramMechanismConfig to consume that property ^^
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = OauthBearerMechanismConfig.class, name = OauthBearerMechanismConfig.MECHANISM_NAME)
+        @JsonSubTypes.Type(value = OauthBearerMechanismConfig.class, name = OauthBearerMechanismConfig.MECHANISM_NAME),
+        @JsonSubTypes.Type(value = ScramMechanismConfig.class, names = { ScramMechanismConfig.MECHANISM_NAME_SCRAM_SHA_256,
+                ScramMechanismConfig.MECHANISM_NAME_SCRAM_SHA_512 })
 })
 public sealed interface MechanismConfig
-        permits OauthBearerMechanismConfig {
+        permits ScramMechanismConfig, OauthBearerMechanismConfig {
 
     /**
      * Returns the IANA-registered mechanism name.

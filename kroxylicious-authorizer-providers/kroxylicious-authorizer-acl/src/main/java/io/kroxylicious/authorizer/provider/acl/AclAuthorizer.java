@@ -24,8 +24,8 @@ import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.authorizer.service.ResourceType;
-import io.kroxylicious.proxy.authentication.Principal;
-import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.identity.Identity;
+import io.kroxylicious.identity.Principal;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -50,6 +50,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *     according to a simple grammar (see {@code src/main/antlr4/io/kroxylicious/authorizer/provider/acl/parser/AclRules.g4}).</li>
  * </ul>
  */
+@SuppressWarnings({ "java:S5738", "removal" })
 public class AclAuthorizer implements Authorizer {
 
     record ResourceGrants(
@@ -407,7 +408,7 @@ public class AclAuthorizer implements Authorizer {
 
     private static @Nullable Decision authorizeInternal(
                                                         TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
-                                                        Subject subject,
+                                                        Identity subject,
                                                         Action action,
                                                         Decision whenFound,
                                                         @Nullable Decision whenNotFound) {
@@ -476,7 +477,7 @@ public class AclAuthorizer implements Authorizer {
     }
 
     @Override
-    public CompletionStage<AuthorizeResult> authorize(Subject subject, List<Action> actions) {
+    public CompletionStage<AuthorizeResult> authorize(Identity subject, List<Action> actions) {
         List<Action> allowedActions = new ArrayList<>();
         List<Action> deniedActions = new ArrayList<>();
         for (var action : actions) {

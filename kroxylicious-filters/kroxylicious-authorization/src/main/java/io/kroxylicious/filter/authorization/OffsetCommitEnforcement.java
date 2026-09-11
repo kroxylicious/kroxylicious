@@ -11,15 +11,14 @@ import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.OffsetCommitRequestData;
-import org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic;
-import org.apache.kafka.common.message.OffsetCommitResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.OffsetCommitRequestData;
+import io.kroxylicious.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic;
+import io.kroxylicious.kafka.common.message.OffsetCommitResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
@@ -52,7 +51,7 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
                                                            AuthorizationFilter authorizationFilter,
                                                            TopicNameMapping topicNameMapping) {
         if (topicNameMapping.anyFailures()) {
-            return context.requestFilterResultBuilder().errorResponse(header, request, Errors.UNKNOWN_TOPIC_ID.exception()).completed();
+            return context.requestFilterResultBuilder().errorResponse(header, request, Errors.UNKNOWN_TOPIC_ID).completed();
         }
 
         Action readGroup = new Action(GroupResource.READ, request.groupId());
@@ -60,7 +59,7 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
                     if (authorization.denied().contains(readGroup)) {
-                        return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                        return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
                     }
                     var decisions = authorization.partition(request.topics(),
                             TopicResource.READ,

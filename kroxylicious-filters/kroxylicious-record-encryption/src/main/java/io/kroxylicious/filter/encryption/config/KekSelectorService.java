@@ -16,6 +16,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <K> the type of key
  */
 public interface KekSelectorService<C, K> {
+    /**
+     * Builds a KEK selector which selects KEKs from the given KMS.
+     * @param kms the KMS from which the selected KEKs are obtained.
+     * @param options the configuration of the selector.
+     * @return a KEK selector.
+     */
     @NonNull
     TopicNameBasedKekSelector<K> buildSelector(@NonNull Kms<K, ?> kms, C options);
 

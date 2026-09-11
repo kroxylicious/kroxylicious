@@ -141,15 +141,15 @@ import java.util.function.Predicate;
 
 import javax.annotation.processing.Generated;
 
-import org.apache.kafka.common.message.${inputSpec.response.dataClassName};
-import org.apache.kafka.common.message.${inputSpec.request.dataClassName};
+import io.kroxylicious.kafka.common.message.${inputSpec.response.dataClassName};
+import io.kroxylicious.kafka.common.message.${inputSpec.request.dataClassName};
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 <#if inputSpec.request.hasAtLeastOneEntityField(filteredEntityTypes)>
-import org.apache.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
 </#if>
 <#if inputSpec.response.hasAtLeastOneEntityField(filteredEntityTypes)>
-import org.apache.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 </#if>
 
 import io.kroxylicious.proxy.filter.FilterContext;

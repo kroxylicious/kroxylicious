@@ -13,11 +13,21 @@
 SASL Passthrough is the default SASL authentication mode.
 No explicit configuration is required to enable it.
 
+ifdef::include-oauth-bearer-validation[]
 When no SASL-related filter (such as `SaslInspection` or `OauthBearerValidation`) is configured in the filter chain, the proxy forwards all `SaslHandshake` and `SaslAuthenticate` requests from the client to the broker and relays the broker's responses back to the client without inspecting or modifying them.
+endif::include-oauth-bearer-validation[]
+ifndef::include-oauth-bearer-validation[]
+When no SASL-related filter (such as `SaslInspection`) is configured in the filter chain, the proxy forwards all `SaslHandshake` and `SaslAuthenticate` requests from the client to the broker and relays the broker's responses back to the client without inspecting or modifying them.
+endif::include-oauth-bearer-validation[]
 
 If your Kafka clients and brokers are already configured with SASL authentication, the proxy forwards the SASL exchange transparently.
 The client authenticates with the broker exactly as it would without the proxy.
 
 In this mode, the authenticated subject remains anonymous.
 The proxy does not know the client's identity and cannot make per-client decisions or log identity information.
+ifdef::include-oauth-bearer-validation[]
 If you need the proxy to be aware of the client's identity, configure either xref:assembly-configuring-authentication-sasl-inspection-auth-sasl-inspection[SASL Passthrough Inspection] or xref:assembly-configuring-authentication-oauthbearer-auth-oauthbearer[OAuthBearer Validation].
+endif::include-oauth-bearer-validation[]
+ifndef::include-oauth-bearer-validation[]
+If you need the proxy to be aware of the client's identity, configure xref:assembly-configuring-authentication-sasl-inspection-auth-sasl-inspection[SASL Passthrough Inspection].
+endif::include-oauth-bearer-validation[]

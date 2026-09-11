@@ -13,8 +13,21 @@ import java.util.Objects;
 
 import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 
+/**
+ * A reference to a specific version of a Key Encryption Key (KEK) held in Azure Key Vault,
+ * used to wrap and unwrap Data Encryption Keys (DEKs).
+ *
+ * @param keyName the name of the key.
+ * @param keyVersion the version of the key.
+ * @param supportedKeyType the type of the key.
+ * @param vaultName the name of the vault holding the key.
+ */
 public record WrappingKey(String keyName, String keyVersion, SupportedKeyType supportedKeyType, String vaultName) {
 
+    /**
+     * Validates the record components.
+     * @throws NullPointerException if any component is null.
+     */
     public WrappingKey {
         Objects.requireNonNull(keyName, "keyName is null");
         Objects.requireNonNull(keyVersion, "keyVersion is null");
@@ -65,6 +78,12 @@ public record WrappingKey(String keyName, String keyVersion, SupportedKeyType su
         return pathSegments.getLast();
     }
 
+    /**
+     * Splits a URI path into its non-empty segments.
+     *
+     * @param pathString the path to split.
+     * @return the non-empty path segments, in order.
+     */
     public static List<String> splitPath(String pathString) {
         return Arrays.stream(pathString.split("/"))
                 .filter(s -> !s.isEmpty())

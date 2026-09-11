@@ -29,6 +29,11 @@ public record VirtualClusterGateway(@JsonProperty(required = true) String name,
                                     @Nullable @JsonProperty(required = false) SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNode,
                                     Optional<Tls> tls) {
 
+    /**
+     * Validates the gateway: exactly one of {@code portIdentifiesNode} or
+     * {@code sniHostIdentifiesNode} must be given, and TLS is mandatory when SNI-based
+     * node identification is used.
+     */
     public VirtualClusterGateway {
         Objects.requireNonNull(name);
         Objects.requireNonNull(tls);
@@ -42,6 +47,13 @@ public record VirtualClusterGateway(@JsonProperty(required = true) String name,
         }
     }
 
+    /**
+     * Builds the {@link NodeIdentificationStrategy} from whichever of the port-based or
+     * SNI-based configurations was specified.
+     *
+     * @param clusterName name of the virtual cluster owning this gateway
+     * @return the node identification strategy
+     */
     public NodeIdentificationStrategy buildNodeIdentificationStrategy(String clusterName) {
         if (portIdentifiesNode() != null) {
             return portIdentifiesNode().buildStrategy(clusterName);

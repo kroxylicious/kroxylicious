@@ -91,10 +91,22 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     private final List<ClusterRole> clusterRoles;
     private final List<ClusterRoleBinding> roleBindings;
 
+    /**
+     * Creates an RBAC handler loading cluster roles from the given directory.
+     *
+     * @param resourceDirectory directory containing the cluster role YAML files
+     * @param clusterRoleFileGlobs globs (relative to the resource directory) selecting the cluster role files; must not be empty
+     */
     public LocallyRunningOperatorRbacHandler(String resourceDirectory, String... clusterRoleFileGlobs) {
         this(Path.of(resourceDirectory), OperatorTestUtils::kubeClient, clusterRoleFileGlobs);
     }
 
+    /**
+     * Creates an RBAC handler loading cluster roles from the given directory.
+     *
+     * @param resourceDirectory directory containing the cluster role YAML files
+     * @param clusterRoleFileGlobs globs (relative to the resource directory) selecting the cluster role files; must not be empty
+     */
     public LocallyRunningOperatorRbacHandler(Path resourceDirectory, String... clusterRoleFileGlobs) {
         this(resourceDirectory, OperatorTestUtils::kubeClient, clusterRoleFileGlobs);
     }
@@ -201,6 +213,13 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     }
 
+    /**
+     * Creates and returns a new Kubernetes client that impersonates a user with the operator's RBAC rights.
+     * Pass this client to {@code LocallyRunOperatorExtension} so that the operator under test runs with
+     * production-like permissions. The caller is responsible for closing the returned client.
+     *
+     * @return a Kubernetes client restricted to the operator's RBAC rights
+     */
     @NonNull
     public KubernetesClient operatorClient() {
         return OperatorTestUtils.kubeClient(
@@ -213,12 +232,22 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     /**
      * Creates and returns a new Kubernetes client with the RBAC rights of a cluster user (via the admin client).
      * The caller is responsible for closing the returned client.
+     *
+     * @return a Kubernetes client with the RBAC rights of a cluster user
      */
     @NonNull
     public KubernetesClient userClient() {
         return adminClientFactory.get();
     }
 
+    /**
+     * Returns a {@link TestActor} that performs resource operations with the given client,
+     * scoped to the namespace of the given operator extension.
+     *
+     * @param client the Kubernetes client to use for the test's interactions
+     * @param operatorExtension the operator extension supplying the test namespace
+     * @return a test actor scoped to the extension's namespace
+     */
     @NonNull
     public TestActor testActor(@NonNull KubernetesClient client, @NonNull AbstractOperatorExtension operatorExtension) {
         return new TestActor() {
@@ -274,27 +303,91 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
         };
     }
 
+    /**
+     * Performs the test's interactions with Kubernetes, where more privileges are required than
+     * the operator's own RBAC rights allow. Operations are scoped to the test namespace unless
+     * stated otherwise.
+     */
     public interface TestActor {
+        /**
+         * Creates the given resource in the test namespace.
+         *
+         * @param <T> the resource type
+         * @param resource the resource to create
+         * @return the created resource, as returned by the API server
+         */
         @NonNull
         <T extends HasMetadata> T create(@NonNull T resource);
 
+        /**
+         * Gets the named resource from the test namespace.
+         *
+         * @param <T> the resource type
+         * @param type the resource class
+         * @param name the resource name
+         * @return the resource, or {@code null} if it does not exist
+         */
         @Nullable
         <T extends HasMetadata> T get(@NonNull Class<T> type, @NonNull String name);
 
+        /**
+         * Gets the named resource from the given namespace.
+         *
+         * @param <T> the resource type
+         * @param type the resource class
+         * @param name the resource name
+         * @param namespace the namespace to get the resource from
+         * @return the resource, or {@code null} if it does not exist
+         */
         @Nullable
         <T extends HasMetadata> T getInNamespace(@NonNull Class<T> type, @NonNull String name, @NonNull String namespace);
 
+        /**
+         * Replaces the given resource in the test namespace.
+         *
+         * @param <T> the resource type
+         * @param resource the resource to replace
+         * @return the updated resource, as returned by the API server
+         */
         @NonNull
         <T extends HasMetadata> T replace(@NonNull T resource);
 
+        /**
+         * Patches the status subresource of the given resource in the test namespace.
+         *
+         * @param <T> the resource type
+         * @param resource the resource whose status should be patched
+         * @return the patched resource, as returned by the API server
+         */
         @NonNull
         <T extends HasMetadata> T patchStatus(@NonNull T resource);
 
+        /**
+         * Deletes the given resource from the test namespace.
+         *
+         * @param <T> the resource type
+         * @param resource the resource to delete
+         * @return {@code true} if exactly one resource was deleted without causes, {@code false} otherwise
+         */
         <T extends HasMetadata> boolean delete(@NonNull T resource);
 
+        /**
+         * Returns the client operation for the given resource type, scoped to the test namespace.
+         *
+         * @param <T> the resource type
+         * @param type the resource class
+         * @return the namespaced operation for the given resource type
+         */
         @NonNull
         <T extends HasMetadata> NonNamespaceOperation<T, KubernetesResourceList<T>, Resource<T>> resources(@NonNull Class<T> type);
 
+        /**
+         * Determines whether the cluster supports the given resource type.
+         *
+         * @param <T> the resource type
+         * @param type the resource class
+         * @return {@code true} if the cluster supports the given resource type
+         */
         <T extends KubernetesResource> boolean supports(@NonNull Class<T> type);
     }
 }

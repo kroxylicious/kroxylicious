@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 import io.kroxylicious.filter.validation.validators.topic.TopicValidationResult;
 
 /**
- * The result of validating an entire {@link org.apache.kafka.common.message.ProduceRequestData}. Contains
+ * The result of validating an entire {@link io.kroxylicious.kafka.common.message.ProduceRequestData}. Contains
  * validation results for each topic in the request.
  * @param topicValidationResults results per topic, key is topicName
  */

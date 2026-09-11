@@ -20,11 +20,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Configuration for the Vault KMS service.
  * @param vaultTransitEngineUrl URL of the Vault Transit Engine e.g. {@code https://myhashicorpvault:8200/v1/transit}
  * @param vaultToken the password provider that will provide the Vault token.
+ * @param tls TLS configuration used when connecting to Vault, or {@code null} if platform defaults are to be used.
  */
 public record Config(
                      @JsonProperty(value = "vaultTransitEngineUrl", required = true) URI vaultTransitEngineUrl,
                      @JsonProperty(required = true) PasswordProvider vaultToken,
                      @Nullable Tls tls) {
+    /**
+     * Validates the record components.
+     */
     public Config {
         Objects.requireNonNull(vaultTransitEngineUrl);
         Objects.requireNonNull(vaultToken);

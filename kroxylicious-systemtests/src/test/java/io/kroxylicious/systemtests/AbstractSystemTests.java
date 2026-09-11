@@ -20,8 +20,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.skodjob.testframe.listeners.TestVisualSeparatorExtension;
-import io.skodjob.testframe.utils.LoggerUtils;
+import io.skodjob.kubetest4j.listeners.TestVisualSeparatorExtension;
+import io.skodjob.kubetest4j.utils.LoggerUtils;
 
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.strimzi.Strimzi;

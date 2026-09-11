@@ -11,11 +11,12 @@ import java.util.function.Predicate;
 
 import javax.security.sasl.SaslException;
 
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.security.oauthbearer.internals.OAuthBearerClientInitialResponse;
 import org.jose4j.jwt.GeneralJwtException;
 import org.jose4j.jwt.consumer.InvalidJwtException;
 import org.jose4j.jwt.consumer.JwtConsumerBuilder;
+
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

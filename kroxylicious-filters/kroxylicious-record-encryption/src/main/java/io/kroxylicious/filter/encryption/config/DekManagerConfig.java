@@ -14,6 +14,9 @@ import static java.util.Objects.requireNonNullElse;
  * @param maxEncryptionsPerDek maximum number of encryptions that will be performed by a DEK
  */
 public record DekManagerConfig(Long maxEncryptionsPerDek) {
+    /**
+     * Creates a DEK manager config, applying the default number of encryptions per DEK if null.
+     */
     public DekManagerConfig {
         maxEncryptionsPerDek = requireNonNullElse(maxEncryptionsPerDek, 5_000_000L);
     }

@@ -6,8 +6,8 @@
 
 package io.kroxylicious.kafka.transform;
 
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+import io.kroxylicious.kafka.common.record.internal.Record;
+import io.kroxylicious.kafka.common.record.internal.RecordBatch;
 
 /**
  * A function that maps a {@link Record}, together with the {@link RecordBatch} that contains it

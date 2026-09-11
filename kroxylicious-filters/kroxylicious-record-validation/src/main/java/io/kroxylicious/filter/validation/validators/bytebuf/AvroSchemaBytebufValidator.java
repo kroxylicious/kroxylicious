@@ -25,7 +25,6 @@ import io.apicurio.registry.resolver.strategy.ArtifactReference;
 import io.apicurio.schema.validation.avro.AvroSchemaParser;
 import io.apicurio.schema.validation.avro.AvroValidator;
 
-import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
 
 /**
@@ -41,8 +40,8 @@ class AvroSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final AvroValidator avroValidator;
     private final Schema avroSchema;
 
-    AvroSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
-        super(schemaId, wireFormatVersion);
+    AvroSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId) {
+        super(schemaId);
         this.avroValidator = new AvroValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromContentId(schemaId)));
         this.avroSchema = resolveAvroSchema(schemaResolverConfig, schemaId);
     }

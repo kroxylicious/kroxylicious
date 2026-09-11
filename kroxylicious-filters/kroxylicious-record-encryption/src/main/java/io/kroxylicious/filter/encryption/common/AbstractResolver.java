@@ -27,6 +27,10 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
     private final Map<Byte, T> idMapping;
     private final Map<T, Byte> reverseIdMapping;
 
+    /**
+     * Creates a resolver of the given implementations.
+     * @param impls the implementations to resolve between, must not be empty.
+     */
     protected AbstractResolver(Collection<T> impls) {
         if (Objects.requireNonNull(impls).isEmpty()) {
             throw new IllegalArgumentException("impls cannot be empty");
@@ -56,6 +60,11 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
         throw new EncryptionException(msg);
     }
 
+    /**
+     * Creates a new resolver which resolves only between the implementations named by the given elements.
+     * @param e the names of the implementations included in the subset.
+     * @return a new resolver for the named implementations.
+     */
     @SafeVarargs
     protected final S subset(E... e) {
         var m = new HashMap<>(nameMapping);

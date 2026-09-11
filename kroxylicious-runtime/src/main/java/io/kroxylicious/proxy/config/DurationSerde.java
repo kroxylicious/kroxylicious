@@ -23,6 +23,11 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdScalarSerializer;
 
+/**
+ * Jackson serialization support for {@link Duration} values in the proxy configuration,
+ * using a compact string representation such as {@code "1h30m"} with units d, h, m, s, ms,
+ * μs (or us) and ns.
+ */
 public class DurationSerde {
 
     /**
@@ -52,6 +57,10 @@ public class DurationSerde {
             new Unit(ChronoUnit.MICROS, "micros", "μs"),
             new Unit(ChronoUnit.NANOS, "nanos", "ns"));
 
+    /**
+     * Deserializes a {@link Duration} from its compact string representation, such as
+     * {@code "1h30m"} or {@code "120s"}.
+     */
     public static class Deserializer extends StdScalarDeserializer<Duration> {
 
         // note that micros is special, allowing μs or us
@@ -60,6 +69,9 @@ public class DurationSerde {
 
         private static final String USAGE = "Expected a string time duration such as \"1h30m\", or \"120s\"; supported units are d, h, m, s, ms, μs (or us) and ns.";
 
+        /**
+         * Creates the deserializer.
+         */
         public Deserializer() {
             super(Duration.class);
         }
@@ -129,8 +141,15 @@ public class DurationSerde {
         }
     }
 
+    /**
+     * Serializes a {@link Duration} to its compact string representation, such as
+     * {@code "1h30m"}, using the largest units possible.
+     */
     public static class Serializer extends StdScalarSerializer<Duration> {
 
+        /**
+         * Creates the serializer.
+         */
         public Serializer() {
             super(Duration.class);
         }

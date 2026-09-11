@@ -10,15 +10,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.ListOffsetsRequestData;
-import org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic;
-import org.apache.kafka.common.message.ListOffsetsResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.ListOffsetsResponse;
-
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.message.ListOffsetsRequestData;
+import io.kroxylicious.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic;
+import io.kroxylicious.kafka.common.message.ListOffsetsResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
@@ -80,8 +78,8 @@ class ListOffsetsEnforcement extends ApiEnforcement<ListOffsetsRequestData, List
                     .map(listOffsetsPartition -> new ListOffsetsResponseData.ListOffsetsPartitionResponse()
                             .setPartitionIndex(listOffsetsPartition.partitionIndex())
                             .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                            .setTimestamp(ListOffsetsResponse.UNKNOWN_TIMESTAMP)
-                            .setOffset(ListOffsetsResponse.UNKNOWN_OFFSET))
+                            .setTimestamp(-1L) // Unknown timestamp
+                            .setOffset(-1L)) // Unknown offset
                     .toList();
             ListOffsetsResponseData.ListOffsetsTopicResponse responseTopic = new ListOffsetsResponseData.ListOffsetsTopicResponse();
             responseTopic.setName(listOffsetsTopic.name());

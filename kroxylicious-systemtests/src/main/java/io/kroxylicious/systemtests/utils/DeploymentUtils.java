@@ -39,7 +39,7 @@ import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.client.dsl.ListVisitFromServerGetDeleteRecreateWaitApplicable;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
-import io.skodjob.testframe.utils.TestFrameUtils;
+import io.skodjob.kubetest4j.utils.KubeTestUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -61,6 +61,7 @@ public class DeploymentUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(DeploymentUtils.class);
     private static final Duration READINESS_TIMEOUT = Duration.ofMinutes(6);
     private static final Duration DELETION_TIMEOUT = Duration.ofMinutes(5);
+    private static final Duration PENDING_PHASE_TIMEOUT = Duration.ofMinutes(5);
     private static final String TEST_LOAD_BALANCER_NAME = "test-load-balancer";
 
     private DeploymentUtils() {
@@ -190,7 +191,7 @@ public class DeploymentUtils {
      */
     public static void waitForLeavingPendingPhase(String namespaceName, String podName) {
         await().alias("await pod to leave pending phase")
-                .atMost(Duration.ofMinutes(1))
+                .atMost(PENDING_PHASE_TIMEOUT)
                 .pollInterval(Duration.ofMillis(200))
                 .until(() -> Optional.ofNullable(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
                         s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent());
@@ -322,7 +323,7 @@ public class DeploymentUtils {
             final String resourceType = operatorFile.getName().split("\\.")[1];
 
             if (resourceType.equals(Constants.NAMESPACE)) {
-                Namespace namespace = TestFrameUtils.configFromYaml(operatorFile, Namespace.class);
+                Namespace namespace = KubeTestUtils.configFromYaml(operatorFile, Namespace.class);
                 if (!isNamespaceCreated(namespace.getMetadata().getName())) {
                     NamespaceUtils.createNamespaceAndPrepare(namespace.getMetadata().getName());
                 }

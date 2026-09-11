@@ -8,14 +8,19 @@ package io.kroxylicious.proxy.internal.filter;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+/**
+ * A {@link FilterInvoker} for filters that handle requests only, delegating to a
+ * {@link RequestFilter}.
+ *
+ * @param filter the request filter to delegate to
+ */
 public record RequestFilterInvoker(RequestFilter filter) implements FilterInvoker {
 
     @Override

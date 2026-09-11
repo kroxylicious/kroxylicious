@@ -150,8 +150,9 @@ class DescribeTopicPartitionsAuthzIT extends AuthzIT {
         ALL_TOPIC_NAMES_IN_TEST.forEach(topicName -> {
             specificTopics.topics().add(topicRequest(topicName));
         });
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.DESCRIBE_TOPIC_PARTITIONS),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.DESCRIBE_TOPIC_PARTITIONS))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_TOPIC_PARTITIONS),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_TOPIC_PARTITIONS))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " all topics request",
                                 new DescribeTopicPartitionsEquivalence((short) (int) apiVersion, allTopics)),
@@ -159,7 +160,7 @@ class DescribeTopicPartitionsAuthzIT extends AuthzIT {
                                 new DescribeTopicPartitionsEquivalence((short) (int) apiVersion, specificTopics))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.DESCRIBE_TOPIC_PARTITIONS.oldestVersion(), ApiKeys.DESCRIBE_TOPIC_PARTITIONS.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.DESCRIBE_TOPIC_PARTITIONS, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_TOPIC_PARTITIONS, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.DESCRIBE_TOPIC_PARTITIONS, (short) apiVersion)));

@@ -88,6 +88,30 @@ class CipherTrustKmsTest {
     }
 
     @Test
+    void appliesConnectTimeout() {
+        // When
+        var connectTimeout = kms.getHttpClient().connectTimeout();
+        // Then
+        assertThat(connectTimeout).hasValue(Duration.ofSeconds(20));
+    }
+
+    @Test
+    void appliesRequestTimeoutToGetRequest() {
+        // When
+        var request = kms.buildGetRequest(URI.create(server.baseUrl() + "/api/v1/vault/random"), MOCK_JWT_TOKEN);
+        // Then
+        assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
+    }
+
+    @Test
+    void appliesRequestTimeoutToPostJsonRequest() {
+        // When
+        var request = kms.buildPostJsonRequest(URI.create(server.baseUrl() + "/api/v1/crypto/encrypt"), MOCK_JWT_TOKEN, "{}");
+        // Then
+        assertThat(request.timeout()).hasValue(Duration.ofSeconds(20));
+    }
+
+    @Test
     void resolveAlias() {
         // Stub key lookup endpoint
         String keyId = "test-key-id-12345";

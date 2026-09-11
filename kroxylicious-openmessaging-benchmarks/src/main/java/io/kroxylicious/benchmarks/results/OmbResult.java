@@ -31,6 +31,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OmbResult {
 
+    /**
+     * Creates an empty result; fields are populated by Jackson during deserialization.
+     */
+    public OmbResult() {
+        // empty
+    }
+
     @JsonProperty("aggregatedPublishLatencyAvg")
     private double publishLatencyAvg;
 
@@ -112,94 +119,210 @@ public class OmbResult {
     @JsonProperty("endToEndLatency999pct")
     private double[] endToEndLatency999pctWindows;
 
+    /**
+     * Gets the average publish latency over the full run.
+     *
+     * @return average publish latency in milliseconds
+     */
     public double getPublishLatencyAvg() {
         return publishLatencyAvg;
     }
 
+    /**
+     * Gets the 50th percentile publish latency over the full run.
+     *
+     * @return p50 publish latency in milliseconds
+     */
     public double getPublishLatency50pct() {
         return publishLatency50pct;
     }
 
+    /**
+     * Gets the 95th percentile publish latency over the full run.
+     *
+     * @return p95 publish latency in milliseconds
+     */
     public double getPublishLatency95pct() {
         return publishLatency95pct;
     }
 
+    /**
+     * Gets the 99th percentile publish latency over the full run.
+     *
+     * @return p99 publish latency in milliseconds
+     */
     public double getPublishLatency99pct() {
         return publishLatency99pct;
     }
 
+    /**
+     * Gets the 99.9th percentile publish latency over the full run.
+     *
+     * @return p99.9 publish latency in milliseconds
+     */
     public double getPublishLatency999pct() {
         return publishLatency999pct;
     }
 
+    /**
+     * Gets the average end-to-end latency over the full run.
+     *
+     * @return average end-to-end latency in milliseconds
+     */
     public double getAggregatedEndToEndLatencyAvg() {
         return endToEndLatencyAvg;
     }
 
+    /**
+     * Gets the 50th percentile end-to-end latency over the full run.
+     *
+     * @return p50 end-to-end latency in milliseconds
+     */
     public double getAggregatedEndToEndLatency50pct() {
         return endToEndLatency50pct;
     }
 
+    /**
+     * Gets the 95th percentile end-to-end latency over the full run.
+     *
+     * @return p95 end-to-end latency in milliseconds
+     */
     public double getAggregatedEndToEndLatency95pct() {
         return endToEndLatency95pct;
     }
 
+    /**
+     * Gets the 99th percentile end-to-end latency over the full run.
+     *
+     * @return p99 end-to-end latency in milliseconds
+     */
     public double getAggregatedEndToEndLatency99pct() {
         return endToEndLatency99pct;
     }
 
+    /**
+     * Gets the 99.9th percentile end-to-end latency over the full run.
+     *
+     * @return p99.9 end-to-end latency in milliseconds
+     */
     public double getAggregatedEndToEndLatency999pct() {
         return endToEndLatency999pct;
     }
 
+    /**
+     * Gets the per-sample-window average publish latencies.
+     *
+     * @return average publish latency per window in milliseconds
+     */
     public double[] getPublishLatencyAvgWindows() {
         return publishLatencyAvgWindows;
     }
 
+    /**
+     * Gets the per-sample-window 50th percentile publish latencies.
+     *
+     * @return p50 publish latency per window in milliseconds
+     */
     public double[] getPublishLatency50pctWindows() {
         return publishLatency50pctWindows;
     }
 
+    /**
+     * Gets the per-sample-window 95th percentile publish latencies.
+     *
+     * @return p95 publish latency per window in milliseconds
+     */
     public double[] getPublishLatency95pctWindows() {
         return publishLatency95pctWindows;
     }
 
+    /**
+     * Gets the per-sample-window 99th percentile publish latencies.
+     *
+     * @return p99 publish latency per window in milliseconds
+     */
     public double[] getPublishLatency99pctWindows() {
         return publishLatency99pctWindows;
     }
 
+    /**
+     * Gets the per-sample-window 99.9th percentile publish latencies.
+     *
+     * @return p99.9 publish latency per window in milliseconds
+     */
     public double[] getPublishLatency999pctWindows() {
         return publishLatency999pctWindows;
     }
 
+    /**
+     * Gets the per-sample-window average end-to-end latencies.
+     *
+     * @return average end-to-end latency per window in milliseconds
+     */
     public double[] getEndToEndLatencyAvgWindows() {
         return endToEndLatencyAvgWindows;
     }
 
+    /**
+     * Gets the per-sample-window 50th percentile end-to-end latencies.
+     *
+     * @return p50 end-to-end latency per window in milliseconds
+     */
     public double[] getEndToEndLatency50pctWindows() {
         return endToEndLatency50pctWindows;
     }
 
+    /**
+     * Gets the per-sample-window 95th percentile end-to-end latencies.
+     *
+     * @return p95 end-to-end latency per window in milliseconds
+     */
     public double[] getEndToEndLatency95pctWindows() {
         return endToEndLatency95pctWindows;
     }
 
+    /**
+     * Gets the per-sample-window 99th percentile end-to-end latencies.
+     *
+     * @return p99 end-to-end latency per window in milliseconds
+     */
     public double[] getEndToEndLatency99pctWindows() {
         return endToEndLatency99pctWindows;
     }
 
+    /**
+     * Gets the per-sample-window 99.9th percentile end-to-end latencies.
+     *
+     * @return p99.9 end-to-end latency per window in milliseconds
+     */
     public double[] getEndToEndLatency999pctWindows() {
         return endToEndLatency999pctWindows;
     }
 
+    /**
+     * Gets the average time producers spent blocked waiting to enqueue a message.
+     * Values above ~1ms indicate producers are back-pressured by the broker.
+     *
+     * @return average publish delay in nanoseconds
+     */
     public double getPublishDelayLatencyAvgNs() {
         return publishDelayLatencyAvgNs;
     }
 
+    /**
+     * Gets the 99th percentile of the time producers spent blocked waiting to enqueue a message.
+     *
+     * @return p99 publish delay in nanoseconds
+     */
     public double getPublishDelayLatency99pctNs() {
         return publishDelayLatency99pctNs;
     }
 
+    /**
+     * Gets the mean publish rate over the full run, totalled across all producers and topics.
+     *
+     * @return total publish rate in msgs/sec, or {@code 0.0} if no rate data is present
+     */
     public double getPublishRate() {
         if (publishRate == null || publishRate.length == 0) {
             return 0.0;
@@ -207,6 +330,11 @@ public class OmbResult {
         return Arrays.stream(publishRate).average().orElse(0.0) * topics * producersPerTopic;
     }
 
+    /**
+     * Gets the per-sample-window publish rates, totalled across all producers and topics.
+     *
+     * @return total publish rate per window in msgs/sec, or an empty array if no rate data is present
+     */
     public double[] getPublishRateWindows() {
         if (publishRate == null) {
             return new double[0];
@@ -214,6 +342,11 @@ public class OmbResult {
         return Arrays.stream(publishRate).map(r -> r * topics * producersPerTopic).toArray();
     }
 
+    /**
+     * Gets the mean consume rate over the full run, totalled across all consumers and topics.
+     *
+     * @return total consume rate in msgs/sec, or {@code 0.0} if no rate data is present
+     */
     public double getConsumeRate() {
         if (consumeRate == null || consumeRate.length == 0) {
             return 0.0;
@@ -221,6 +354,11 @@ public class OmbResult {
         return Arrays.stream(consumeRate).average().orElse(0.0) * topics * consumersPerTopic;
     }
 
+    /**
+     * Gets the per-sample-window consume rates, totalled across all consumers and topics.
+     *
+     * @return total consume rate per window in msgs/sec, or an empty array if no rate data is present
+     */
     public double[] getConsumeRateWindows() {
         if (consumeRate == null) {
             return new double[0];

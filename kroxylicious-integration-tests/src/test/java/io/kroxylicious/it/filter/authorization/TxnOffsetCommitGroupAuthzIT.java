@@ -128,8 +128,10 @@ class TxnOffsetCommitGroupAuthzIT extends AuthzIT {
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.TXN_OFFSET_COMMIT),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.TXN_OFFSET_COMMIT)).boxed()
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.TXN_OFFSET_COMMIT),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.TXN_OFFSET_COMMIT))
+                .boxed()
                 .flatMap(apiVersion -> {
                     Arguments.ArgumentSet aliceGroup = Arguments.argumentSet("api version " + apiVersion + " groupPrefix " + ALICE_GROUP_PREFIX,
                             new TxnOffsetCommitEquivalence((short) (int) apiVersion, ALICE_GROUP_PREFIX));
@@ -140,7 +142,7 @@ class TxnOffsetCommitGroupAuthzIT extends AuthzIT {
                 });
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.OFFSET_FOR_LEADER_EPOCH.oldestVersion(), ApiKeys.OFFSET_FOR_LEADER_EPOCH.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.OFFSET_FOR_LEADER_EPOCH, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.OFFSET_FOR_LEADER_EPOCH, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.OFFSET_FOR_LEADER_EPOCH, (short) apiVersion)));

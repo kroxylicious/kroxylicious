@@ -31,7 +31,7 @@ jobs:
     if: ${{ vars.REGISTRY_SERVER != '' && vars.REGISTRY_USERNAME != '' }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
@@ -41,10 +41,10 @@ jobs:
           repository:  ${{ github.event.inputs.repository }}
           ref: ${{ github.event.inputs.ref }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
       - name: Login to container registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
         with:

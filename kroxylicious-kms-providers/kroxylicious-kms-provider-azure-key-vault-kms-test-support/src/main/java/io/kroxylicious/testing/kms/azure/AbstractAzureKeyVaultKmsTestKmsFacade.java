@@ -35,13 +35,28 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.testing.kms.TestKekManager;
 import io.kroxylicious.testing.kms.TestKmsFacade;
 
+/**
+ * Abstract base class for {@link TestKmsFacade} implementations backed by an
+ * Azure Key Vault KMS. Subclasses are responsible for starting and stopping
+ * the underlying KMS instance.
+ */
 public abstract class AbstractAzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaultConfig, WrappingKey, AzureKeyVaultEdek> {
 
+    /**
+     * Creates the facade.
+     */
     protected AbstractAzureKeyVaultKmsTestKmsFacade() {
+        // Intentionally empty
     }
 
+    /**
+     * Starts the underlying KMS instance.
+     */
     protected abstract void startKms();
 
+    /**
+     * Stops the underlying KMS instance.
+     */
     protected abstract void stopKms();
 
     @Override
@@ -59,9 +74,20 @@ public abstract class AbstractAzureKeyVaultKmsTestKmsFacade implements TestKmsFa
         stopKms();
     }
 
+    /**
+     * A {@link TestKekManager} that manages KEKs on an Azure Key Vault using the
+     * Azure Key Vault {@link KeyClient}.
+     */
     public static class AzureKmsTestKekManager implements TestKekManager {
         KeyClient keyClient;
 
+        /**
+         * Creates the KEK manager.
+         *
+         * @param endpointAuthority authority (host and port) of the vault endpoint used by the client
+         * @param defaultVaultAuthority authority (host and port) of the default vault
+         * @param vaultBaseUrl base URL of the vault
+         */
         public AzureKmsTestKekManager(String endpointAuthority, String defaultVaultAuthority, String vaultBaseUrl) {
             keyClient = new KeyClientBuilder().credential(new BasicAuthenticationCredential("abc", "def"))
                     .httpClient(createHttpClient(endpointAuthority, defaultVaultAuthority)).vaultUrl(vaultBaseUrl)

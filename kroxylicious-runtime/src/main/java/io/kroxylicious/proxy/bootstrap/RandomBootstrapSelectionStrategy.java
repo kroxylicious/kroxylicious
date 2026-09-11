@@ -26,6 +26,13 @@ public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrat
     @JsonIgnore
     private final Random random = new Random();
 
+    /**
+     * Creates a random bootstrap selection strategy.
+     */
+    public RandomBootstrapSelectionStrategy() {
+        // Intentionally empty
+    }
+
     @Override
     public HostPort apply(List<HostPort> hostPorts) {
         final int choice = random.nextInt(hostPorts.size());

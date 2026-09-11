@@ -38,7 +38,7 @@ import io.kroxylicious.authorizer.provider.acl.parser.AclRulesParser;
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.AuthorizerService;
 import io.kroxylicious.authorizer.service.ResourceType;
-import io.kroxylicious.proxy.authentication.Principal;
+import io.kroxylicious.identity.Principal;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 

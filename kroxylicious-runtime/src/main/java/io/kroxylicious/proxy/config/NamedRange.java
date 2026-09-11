@@ -18,6 +18,10 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  * Represents the inclusive set of integers between two integer endpoints. So the range
  * with start 1 and end 3 contains the integers 1, 2, and 3.
  * A Range must be non-empty, end must be greater than start
+ *
+ * @param name the range name
+ * @param start the inclusive lower value
+ * @param end the inclusive upper bound
  */
 public record NamedRange(@JsonProperty(required = true) String name,
                          @JsonProperty(required = true) @JsonInclude(JsonInclude.Include.ALWAYS) int start,
@@ -78,6 +82,11 @@ public record NamedRange(@JsonProperty(required = true) String name,
                 '}';
     }
 
+    /**
+     * Renders the range in interval notation, e.g. {@code [1,3]}.
+     *
+     * @return the range in interval notation
+     */
     public String toIntervalNotationString() {
         return "[" + start + "," + end + "]";
     }

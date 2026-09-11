@@ -11,23 +11,23 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ProduceResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
+import io.kroxylicious.kafka.common.message.ProduceResponseData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 
-import static org.apache.kafka.common.protocol.Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED;
-import static org.apache.kafka.common.protocol.Errors.UNKNOWN_TOPIC_ID;
+import static io.kroxylicious.kafka.common.protocol.Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED;
+import static io.kroxylicious.kafka.common.protocol.Errors.UNKNOWN_TOPIC_ID;
 
 class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceResponseData> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProduceEnforcement.class);
@@ -90,7 +90,7 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
                                                                                boolean requiresResponse,
                                                                                TopicNameMapping topicNameMapping) {
         if (requiresResponse) {
-            return context.requestFilterResultBuilder().errorResponse(header, request, UNKNOWN_TOPIC_ID.exception()).completed();
+            return context.requestFilterResultBuilder().errorResponse(header, request, UNKNOWN_TOPIC_ID).completed();
         }
         else {
             LOGGER.atWarn()
@@ -113,7 +113,7 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
         if (allowedTopicWrites.isEmpty()) {
             if (requiresResponse) {
                 return context.requestFilterResultBuilder()
-                        .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
+                        .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED)
                         .completed();
             }
             else {
@@ -155,7 +155,7 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
     private static CompletionStage<RequestFilterResult> transactionalIdErrorResponse(FilterContext context, RequestHeaderData header, ProduceRequestData produceRequest,
                                                                                      boolean requiresResponse) {
         if (requiresResponse) {
-            return context.requestFilterResultBuilder().errorResponse(header, produceRequest, TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception()).completed();
+            return context.requestFilterResultBuilder().errorResponse(header, produceRequest, TRANSACTIONAL_ID_AUTHORIZATION_FAILED).completed();
         }
         else {
             return context.requestFilterResultBuilder().drop().completed();

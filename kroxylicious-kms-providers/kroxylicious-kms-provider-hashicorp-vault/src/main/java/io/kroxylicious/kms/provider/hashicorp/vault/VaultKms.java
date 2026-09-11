@@ -49,8 +49,25 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * An implementation of the KMS interface backed by a remote instance of HashiCorp Vault (v1).
+ *
+ * <p>HashiCorp Vault Transit uses a <em>key ring</em> model: rotating a key appends a new version
+ * to the ring but keeps the name unchanged. This class is therefore typed as
+ * {@code Kms<WrappingKey, VaultEdek>} rather than {@code Kms<String, VaultEdek>}. The
+ * {@link WrappingKey} pairs the stable name with the {@code latest_version} returned by the
+ * read-key API, so that a rotation produces a value that is no longer {@code equals()} to the
+ * previously resolved one. Downstream caches (e.g. {@code EncryptionDekCache}) key on the full
+ * {@code WrappingKey}; a changed version causes a cache miss and a fresh DEK is generated under
+ * the new key version within the alias cache refresh period, rather than waiting for the longer
+ * DEK expiry.
+ *
+ * <p>The version is <em>not</em> forwarded to Vault on the encrypt path.
+ * {@link #generateDekPair(WrappingKey)} posts to {@code transit/datakey/plaintext/{name}} without a
+ * {@code key_version} field, so Vault always uses the latest version. There is a benign race: if a
+ * rotation lands between {@code resolveAlias} and {@code generateDekPair}, Vault may encrypt with a
+ * version newer than the one in the {@code WrappingKey}. The EDEK is self-describing and decryption
+ * always succeeds regardless.
  */
-public class VaultKms implements Kms<String, VaultEdek> {
+public class VaultKms implements Kms<WrappingKey, VaultEdek> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VaultKms.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -117,17 +134,17 @@ public class VaultKms implements Kms<String, VaultEdek> {
      * @see <a href="https://developer.hashicorp.com/vault/api-docs/secret/transit#generate-data-key">https://developer.hashicorp.com/vault/api-docs/secret/transit#generate-data-key</a>
      */
     @Override
-    public CompletionStage<DekPair<VaultEdek>> generateDekPair(String kekRef) {
+    public CompletionStage<DekPair<VaultEdek>> generateDekPair(WrappingKey kekRef) {
 
         var request = createVaultRequest()
-                .uri(vaultTransitEngineUrl.resolve("datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
+                .uri(vaultTransitEngineUrl.resolve("datakey/plaintext/%s".formatted(encode(kekRef.name(), UTF_8))))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 
-        return sendAsync(kekRef, request, DATA_KEY_DATA_TYPE_REF, UnknownKeyException::new)
+        return sendAsync(kekRef.name(), request, DATA_KEY_DATA_TYPE_REF, UnknownKeyException::new)
                 .thenApply(data -> {
                     var secretKey = DestroyableRawSecretKey.takeOwnershipOf(data.plaintext(), AES_KEY_ALGO);
-                    return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
+                    return new DekPair<>(new VaultEdek(kekRef.name(), data.ciphertext().getBytes(UTF_8)), secretKey);
                 });
 
     }
@@ -175,13 +192,13 @@ public class VaultKms implements Kms<String, VaultEdek> {
      * @see <a href="https://developer.hashicorp.com/vault/api-docs/secret/transit#read-key">https://developer.hashicorp.com/vault/api-docs/secret/transit#read-key</a>
      */
     @Override
-    public CompletableFuture<String> resolveAlias(String alias) {
+    public CompletionStage<WrappingKey> resolveAlias(String alias) {
 
         var request = createVaultRequest()
                 .uri(vaultTransitEngineUrl.resolve("keys/%s".formatted(encode(alias, UTF_8))))
                 .build();
         return sendAsync(alias, request, READ_KEY_DATA_TYPE_REF, UnknownAliasException::new)
-                .thenApply(ReadKeyData::name);
+                .thenApply(d -> new WrappingKey(d.name(), d.latestVersion()));
     }
 
     private <T> CompletableFuture<T> sendAsync(String key,

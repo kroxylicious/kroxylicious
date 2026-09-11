@@ -15,7 +15,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-docs-tests</artifactId>
@@ -26,6 +26,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <asciidoctorj.version>3.0.1</asciidoctorj.version>
         <snakeyaml.version>2.6</snakeyaml.version>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central.publishing.skip>true</central.publishing.skip>
     </properties>
 
     <dependencies>

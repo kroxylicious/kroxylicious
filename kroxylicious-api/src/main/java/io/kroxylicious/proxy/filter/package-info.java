@@ -61,8 +61,8 @@
  * <p>The {@link io.kroxylicious.proxy.filter.FilterContext} is the factory for the FilterResult objects.</p>
  * <p>There are two convenience methods that simply allow a filter to immediately forward a result:</p>
  * <ul>
- *     <li>{@link io.kroxylicious.proxy.filter.FilterContext#forwardRequest(org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage)}, and</li>
- *     <li>{@link io.kroxylicious.proxy.filter.FilterContext#forwardResponse(org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage)}.</li>
+ *     <li>{@link io.kroxylicious.proxy.filter.FilterContext#forwardRequest(io.kroxylicious.kafka.common.message.RequestHeaderData, io.kroxylicious.kafka.common.protocol.ApiMessage)}, and</li>
+ *     <li>{@link io.kroxylicious.proxy.filter.FilterContext#forwardResponse(io.kroxylicious.kafka.common.message.ResponseHeaderData, io.kroxylicious.kafka.common.protocol.ApiMessage)}.</li>
  * </ul>
  * <p>To access richer features, use the filter result builders:</p>
  * <ul>
@@ -79,7 +79,7 @@
  *   <li>Construction of the filter instance and dispatch of the filter methods {@code onXxxRequest} and
  *       {@code onXxxResponse} takes place on that same thread.</li>
  *   <li>Any computation stages chained to the {@link java.util.concurrent.CompletionStage} returned by
- *       {@link io.kroxylicious.proxy.filter.FilterContext#sendRequest(org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage)}
+ *       {@link io.kroxylicious.proxy.filter.FilterContext#sendRequest(io.kroxylicious.kafka.common.message.RequestHeaderData, io.kroxylicious.kafka.common.protocol.ApiMessage)}
  *       using the default execution methods (using methods without the suffix async) or default asynchronous execution
  *       (using methods with suffix async that employ the stage's default asynchronous execution facility)
  *       are guaranteed to be performed by that same thread.  Computation stages chained using custom asynchronous

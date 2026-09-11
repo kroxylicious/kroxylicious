@@ -15,10 +15,15 @@ import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.jwx.HeaderParameterNames;
 import org.jose4j.lang.JoseException;
 
+/**
+ * Utilities providing JSON Web Keys and JSON Web Signatures for use in tests.
+ */
 @SuppressWarnings("java:S2386") // Some constants are used in different packages
 public final class JwsTestUtils {
+    /** Name of the record header carrying a JWS. */
     public static final String JWS_HEADER_NAME = "kroxylicious.io/jws";
 
+    /** An ECDSA signing JWK, in JSON form. */
     public static final String ECDSA_SIGN_JWK_JSON = """
             {
                 "kty": "EC",
@@ -32,6 +37,7 @@ public final class JwsTestUtils {
             }
             """;
 
+    /** An ECDSA signing JWK, in JSON form, that is absent from the verification key sets. */
     public static final String MISSING_ECDSA_SIGN_JWK_JSON = """
             {
                 "kty": "EC",
@@ -45,6 +51,7 @@ public final class JwsTestUtils {
             }
             """;
 
+    /** An RSA signing JWK, in JSON form. */
     public static final String RSA_SIGN_JWK_JSON = """
             {
                 "kty": "RSA",
@@ -62,14 +69,20 @@ public final class JwsTestUtils {
             }
             """;
 
+    /** A JWKS containing the ECDSA signing key. */
     public static final JsonWebKeySet ECDSA_SIGN_JWKS;
+    /** A JWKS containing the ECDSA verification key. */
     public static final JsonWebKeySet ECDSA_VERIFY_JWKS;
 
+    /** A JWKS containing the ECDSA signing key that is absent from the verification key sets. */
     public static final JsonWebKeySet MISSING_ECDSA_SIGN_JWKS;
 
+    /** A JWKS containing the RSA signing key. */
     public static final JsonWebKeySet RSA_SIGN_JWKS;
+    /** A JWKS containing the RSA verification key. */
     public static final JsonWebKeySet RSA_VERIFY_JWKS;
 
+    /** A JWKS containing both the RSA and ECDSA verification keys. */
     public static final JsonWebKeySet RSA_AND_ECDSA_VERIFY_JWKS;
 
     static {
@@ -110,23 +123,28 @@ public final class JwsTestUtils {
         throw new IllegalStateException("Utility class");
     }
 
+    /** Payload of the JWS returned by {@link #validJwsUsingEcdsaJwk()}. */
     public static final String VALID_JWS_USING_ECDSA_JWK_PAYLOAD = "Message signed with JWK";
     private static final byte[] VALID_JWS_USING_ECDSA_JWK = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, false, false)
             .getBytes(StandardCharsets.UTF_8);
 
+    /** Payload of the JWS returned by {@link #validJwsUsingMissingEcdsaJwk()}. */
     public static final String VALID_JWS_USING_MISSING_ECDSA_JWK_PAYLOAD = "Message signed with missing JWK";
     private static final byte[] VALID_JWS_USING_MISSING_ECDSA_JWK = generateJws(MISSING_ECDSA_SIGN_JWKS, VALID_JWS_USING_MISSING_ECDSA_JWK_PAYLOAD, false, false)
             .getBytes(StandardCharsets.UTF_8);
 
+    /** Payload of the JWS returned by {@link #validJwsUsingRsaJwk()}. */
     public static final String VALID_JWS_USING_RSA_JWK_PAYLOAD = "Message signed with RSA JWK";
     private static final byte[] VALID_JWS_USING_RSA_JWK = generateJws(RSA_SIGN_JWKS, VALID_JWS_USING_RSA_JWK_PAYLOAD, false, false).getBytes(StandardCharsets.UTF_8);
 
+    /** Payload of the JWS returned by {@link #validJwsUsingEcdsaJwkAndContentDetached()}. */
     public static final String VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD = "Message signed with JWK that will be content detached";
     private static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD,
             true,
             false)
             .getBytes(StandardCharsets.UTF_8);
 
+    /** Payload of the JWS returned by {@link #validJwsUsingEcdsaJwkAndUnencodedContentDetached()}. */
     public static final String VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD = "Message signed with JWK that will be content detached and unencoded";
     private static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED = generateJws(ECDSA_SIGN_JWKS,
             VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD, true, true)
@@ -134,30 +152,69 @@ public final class JwsTestUtils {
 
     private static final byte[] INVALID_JWS = "This is a non JWS value".getBytes(StandardCharsets.UTF_8);
 
+    /**
+     * Returns a valid JWS signed with the ECDSA JWK.
+     *
+     * @return the JWS in compact serialization, as UTF-8 bytes
+     */
     public static byte[] validJwsUsingEcdsaJwk() {
         return VALID_JWS_USING_ECDSA_JWK.clone();
     }
 
+    /**
+     * Returns a valid JWS signed with the ECDSA JWK that is absent from the verification key sets.
+     *
+     * @return the JWS in compact serialization, as UTF-8 bytes
+     */
     public static byte[] validJwsUsingMissingEcdsaJwk() {
         return VALID_JWS_USING_MISSING_ECDSA_JWK.clone();
     }
 
+    /**
+     * Returns a valid JWS signed with the RSA JWK.
+     *
+     * @return the JWS in compact serialization, as UTF-8 bytes
+     */
     public static byte[] validJwsUsingRsaJwk() {
         return VALID_JWS_USING_RSA_JWK.clone();
     }
 
+    /**
+     * Returns a valid JWS signed with the ECDSA JWK, with detached content.
+     *
+     * @return the JWS in detached content compact serialization, as UTF-8 bytes
+     */
     public static byte[] validJwsUsingEcdsaJwkAndContentDetached() {
         return VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED.clone();
     }
 
+    /**
+     * Returns a valid JWS signed with the ECDSA JWK, with detached unencoded content.
+     *
+     * @return the JWS in detached content compact serialization, as UTF-8 bytes
+     */
     public static byte[] validJwsUsingEcdsaJwkAndUnencodedContentDetached() {
         return VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED.clone();
     }
 
+    /**
+     * Returns a value that is not a valid JWS.
+     *
+     * @return the invalid JWS bytes
+     */
     public static byte[] invalidJws() {
         return INVALID_JWS.clone();
     }
 
+    /**
+     * Generates a JWS signing the given payload with the first key of the given JWKS.
+     *
+     * @param jwks the JWKS whose first key signs the payload
+     * @param payload the payload to sign
+     * @param isContentDetached whether to use the detached content serialization
+     * @param useUnencodedPayload whether to leave the payload unencoded
+     * @return the JWS in compact serialization
+     */
     public static String generateJws(JsonWebKeySet jwks, String payload, boolean isContentDetached, boolean useUnencodedPayload) {
         try {
             PublicJsonWebKey jwk = (PublicJsonWebKey) jwks.getJsonWebKeys().get(0);

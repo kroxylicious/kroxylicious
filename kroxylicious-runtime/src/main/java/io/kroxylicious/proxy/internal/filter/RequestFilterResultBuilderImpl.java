@@ -6,12 +6,14 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.AbstractResponse;
+import java.util.Objects;
 
+import io.kroxylicious.kafka.common.errors.ApiException;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
@@ -19,6 +21,11 @@ import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Builder of {@link RequestFilterResult} instances. In addition to forwarding, supports
+ * short-circuit responses (answering the client without forwarding the request upstream),
+ * including error responses derived from an {@link ApiException}.
+ */
 public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<RequestHeaderData, RequestFilterResult>
         implements RequestFilterResultBuilder {
 
@@ -26,6 +33,13 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
     private @Nullable ResponseHeaderData shortCircuitHeader;
     private @Nullable ApiMessage shortCircuitResponse;
+
+    /**
+     * Creates an empty builder.
+     */
+    public RequestFilterResultBuilderImpl() {
+        // Intentionally empty
+    }
 
     @Override
     protected void validateForward(RequestHeaderData header, ApiMessage message) {
@@ -51,18 +65,34 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, ApiException apiException)
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error)
             throws IllegalArgumentException {
-        final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, requestMessage, apiException);
-        validateShortCircuitResponse(errorResponseMessage.data());
+        return errorResponse(header, requestMessage, error, null);
+    }
+
+    @Override
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage requestMessage, Errors error, @Nullable String message)
+            throws IllegalArgumentException {
+        Objects.requireNonNull(error, "error must not be null");
+        if (error == Errors.NONE) {
+            throw new IllegalArgumentException("error must denote an actual error, but was Errors.NONE");
+        }
+        return errorResponseForException(header, requestMessage, error, message);
+    }
+
+    private CloseOrTerminalStage<RequestFilterResult> errorResponseForException(RequestHeaderData header, ApiMessage requestMessage, Errors error,
+                                                                                @Nullable String message) {
+        ApiKeys apiKey = ApiKeys.forId(requestMessage.apiKey());
+        final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseData(apiKey, requestMessage, header.requestApiVersion(), error, message);
+        validateShortCircuitResponse(errorResponseMessage);
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();
         responseHeaders.setCorrelationId(header.correlationId());
         this.shortCircuitHeader = responseHeaders;
-        this.shortCircuitResponse = errorResponseMessage.data();
+        this.shortCircuitResponse = errorResponseMessage;
         return this;
     }
 
-    private void validateShortCircuitResponse(ApiMessage message) {
+    private void validateShortCircuitResponse(@Nullable ApiMessage message) {
         if (message == null) {
             throw new IllegalArgumentException("message may not be null");
         }

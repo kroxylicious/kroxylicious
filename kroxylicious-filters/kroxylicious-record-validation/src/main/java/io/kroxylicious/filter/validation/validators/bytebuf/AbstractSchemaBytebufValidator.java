@@ -7,24 +7,23 @@
 package io.kroxylicious.filter.validation.validators.bytebuf;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.header.internals.RecordHeaders;
-import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.header.internals.RecordHeader;
 
 import io.apicurio.registry.serde.BaseSerde;
 import io.apicurio.registry.serde.Default4ByteIdHandler;
 import io.apicurio.registry.serde.IdHandler;
-import io.apicurio.registry.serde.Legacy8ByteIdHandler;
 import io.apicurio.registry.serde.kafka.headers.DefaultHeadersHandler;
 import io.apicurio.registry.serde.kafka.headers.HeadersHandler;
 import io.apicurio.schema.validation.ValidationResult;
 
-import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
+import io.kroxylicious.kafka.common.record.internal.Record;
 
 /**
  * Base class for schema-based record validators that validate Kafka record keys or values
@@ -46,19 +45,17 @@ import io.kroxylicious.filter.validation.validators.Result;
  */
 abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
     private final Long schemaId;
-    private final WireFormatVersion wireFormatVersion;
     private final HeadersHandler keyHeaderHandler;
     private final HeadersHandler valueHeaderHandler;
     private final IdHandler keyIdHandler;
     private final IdHandler valueIdHandler;
 
-    protected AbstractSchemaBytebufValidator(Long schemaId, WireFormatVersion wireFormatVersion) {
+    protected AbstractSchemaBytebufValidator(Long schemaId) {
         this.schemaId = schemaId;
-        this.wireFormatVersion = wireFormatVersion;
         this.keyHeaderHandler = buildHeaderHandler(true);
-        this.keyIdHandler = buildIdHandler(true, wireFormatVersion);
+        this.keyIdHandler = buildIdHandler(true);
         this.valueHeaderHandler = buildHeaderHandler(false);
-        this.valueIdHandler = buildIdHandler(false, wireFormatVersion);
+        this.valueIdHandler = buildIdHandler(false);
     }
 
     @Override
@@ -112,7 +109,6 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
                 : CompletableFuture.completedFuture(new Result(false, validationResult.toString()));
     }
 
-    @SuppressWarnings("removal")
     private Optional<Long> extractSchemaIdFromRecord(ByteBuffer buffer, Record kafkaRecord, boolean isKey) {
         // Try headers first
         var headerId = extractSchemaIdFromHeaders(kafkaRecord, isKey);
@@ -126,26 +122,20 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
         if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == BaseSerde.MAGIC_BYTE) {
             buffer.get(); // ignore magic
             var ref = idHandler.readId(buffer);
-            Long id = switch (wireFormatVersion) {
-                case V2 -> ref.getGlobalId();
-                case V3 -> ref.getContentId();
-            };
-            return Optional.ofNullable(id);
+            return Optional.ofNullable(ref.getContentId());
         }
         return Optional.empty();
     }
 
-    @SuppressWarnings("removal")
     private Optional<Long> extractSchemaIdFromHeaders(Record kafkaRecord, boolean isKey) {
         if (kafkaRecord.headers().length > 0) {
-            var recordHeaders = new RecordHeaders(kafkaRecord.headers());
             var headerHandler = isKey ? keyHeaderHandler : valueHeaderHandler;
-            var ref = headerHandler.readHeaders(recordHeaders);
 
-            Long id = switch (wireFormatVersion) {
-                case V2 -> ref.getGlobalId();
-                case V3 -> ref.getContentId();
-            };
+            RecordHeader[] kafkaHeaders = Arrays.stream(kafkaRecord.headers()).map(header -> new RecordHeader(header.key(), header.value())).toArray(RecordHeader[]::new);
+            var kafkaRecordHeaders = new org.apache.kafka.common.header.internals.RecordHeaders(kafkaHeaders);
+            var ref = headerHandler.readHeaders(kafkaRecordHeaders);
+
+            Long id = ref.getContentId();
             if (id != null) {
                 return Optional.of(id);
             }
@@ -159,12 +149,8 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
         return handler;
     }
 
-    @SuppressWarnings("removal")
-    private static IdHandler buildIdHandler(boolean isKey, WireFormatVersion wireFormatVersion) {
-        IdHandler handler = switch (wireFormatVersion) {
-            case V2 -> new Legacy8ByteIdHandler();
-            case V3 -> new Default4ByteIdHandler();
-        };
+    private static IdHandler buildIdHandler(boolean isKey) {
+        IdHandler handler = new Default4ByteIdHandler();
         handler.configure(Map.of(), isKey);
         return handler;
     }

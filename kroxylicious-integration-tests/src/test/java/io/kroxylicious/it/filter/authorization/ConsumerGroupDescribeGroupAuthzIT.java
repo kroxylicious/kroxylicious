@@ -227,12 +227,13 @@ public class ConsumerGroupDescribeGroupAuthzIT extends AuthzIT {
     }
 
     List<Arguments> shouldEnforceAccessToGroups() {
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.CONSUMER_GROUP_DESCRIBE),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.CONSUMER_GROUP_DESCRIBE))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_DESCRIBE),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_DESCRIBE))
                 .boxed().flatMap(apiVersion -> Stream.concat(testCases(apiVersion, false), testCases(apiVersion, true)));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.CONSUMER_GROUP_DESCRIBE.oldestVersion(), ApiKeys.CONSUMER_GROUP_DESCRIBE.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.CONSUMER_GROUP_DESCRIBE, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_DESCRIBE, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.CONSUMER_GROUP_DESCRIBE, (short) apiVersion)));

@@ -23,10 +23,23 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
+/**
+ * Selects the Netty transport (epoll, kqueue or NIO) best suited to the platform and
+ * provides the corresponding channel classes and event loop groups.
+ *
+ * @param clientChannelClass the socket channel class to use for client connections
+ * @param serverChannelClass the server socket channel class to use for server sockets
+ */
 public record EventGroupConfig(
                                Class<? extends SocketChannel> clientChannelClass,
                                Class<? extends ServerSocketChannel> serverChannelClass) {
 
+    /**
+     * Creates an EventGroupConfig using the native transport (epoll or kqueue) if available,
+     * falling back to NIO otherwise.
+     *
+     * @return the event group configuration
+     */
     public static EventGroupConfig create() {
         final Class<? extends SocketChannel> clientChannelClass;
         final Class<? extends ServerSocketChannel> serverChannelClass;
@@ -60,10 +73,20 @@ public record EventGroupConfig(
         return new MultiThreadIoEventLoopGroup(1, ioHandlerFactory);
     }
 
+    /**
+     * Creates a new single-threaded worker event loop group for the selected transport.
+     *
+     * @return the worker event loop group
+     */
     public EventLoopGroup newWorkerGroup() {
         return newGroup();
     }
 
+    /**
+     * Creates a new single-threaded boss event loop group for the selected transport.
+     *
+     * @return the boss event loop group
+     */
     public EventLoopGroup newBossGroup() {
         return newGroup();
     }

@@ -43,6 +43,9 @@ spec:
           args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
+          env:
+          - name: "KROXYLICIOUS_DANGEROUSLY_CHANGE_PERMISSION_CHECK"
+            value: "0640"
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -88,6 +91,7 @@ spec:
               "memory": "102Mi"
       securityContext:
         runAsNonRoot: true
+        fsGroup: 185
         seccompProfile:
           type: "RuntimeDefault"
       volumes:

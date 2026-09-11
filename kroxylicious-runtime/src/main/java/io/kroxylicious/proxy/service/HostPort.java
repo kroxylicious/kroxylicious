@@ -124,6 +124,13 @@ public final class HostPort {
         }
     }
 
+    /**
+     * Renders the given host and port in the {@code host:port} form produced by {@link #toString()}.
+     *
+     * @param host the host
+     * @param port the port number
+     * @return the {@code host:port} string
+     */
     public static String asString(String host, int port) {
         return new HostPort(host, port).toString();
     }

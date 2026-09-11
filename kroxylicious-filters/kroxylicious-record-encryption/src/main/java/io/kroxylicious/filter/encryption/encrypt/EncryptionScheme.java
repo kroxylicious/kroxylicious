@@ -17,6 +17,7 @@ import io.kroxylicious.filter.encryption.crypto.AadNone;
  * Describes how a record should be encrypted
  * @param kekId The KEK identifier to be used. Not null.
  * @param recordFields The fields of the record that should be encrypted with the given KEK. Neither null nor empty.
+ * @param aadSpec The AAD to be included in the encryption. Not null.
  * @param <K> The type of KEK identifier.
  */
 public record EncryptionScheme<K>(
@@ -24,6 +25,11 @@ public record EncryptionScheme<K>(
                                   Set<RecordField> recordFields,
                                   Aad aadSpec) {
 
+    /**
+     * Creates an encryption scheme.
+     * @throws NullPointerException if any component is null.
+     * @throws IllegalArgumentException if {@code recordFields} is empty.
+     */
     public EncryptionScheme {
         Objects.requireNonNull(kekId);
         if (Objects.requireNonNull(recordFields).isEmpty()) {
@@ -32,6 +38,11 @@ public record EncryptionScheme<K>(
         Objects.requireNonNull(aadSpec);
     }
 
+    /**
+     * Creates an encryption scheme with the {@link AadNone} AAD.
+     * @param kekId The KEK identifier to be used. Not null.
+     * @param recordFields The fields of the record that should be encrypted with the given KEK. Neither null nor empty.
+     */
     public EncryptionScheme(
                             K kekId,
                             Set<RecordField> recordFields) {

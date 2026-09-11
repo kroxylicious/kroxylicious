@@ -149,8 +149,12 @@ class TopicTracingIT extends AbstractTracingIT {
                 setup.createTopic(topicA);
                 Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(setup.admin(), List.of(TOPIC_A)));
                 try (var admin = clientFactory.newAdmin(adminUser, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "admin"))) {
-                    admin.createPartitions(topicA, 2);
-                    Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(admin.admin(), List.of(TOPIC_A)));
+                    int expandedPartitions = 2;
+                    admin.createPartitions(topicA, expandedPartitions);
+                    // the added partitions must be visible, not just led, before describeTopic is traced: a describe
+                    // that still sees the pre-expansion partition set would produce a trace that doesn't match the reference
+                    Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                            .until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(admin.admin(), List.of(TOPIC_A), expandedPartitions));
                     admin.describeTopic(topicA);
                     admin.describeConfigs(ConfigResource.Type.TOPIC, topicA);
                     admin.alterConfigs(ConfigResource.Type.TOPIC, topicA, new ConfigEntry(TopicConfig.COMPRESSION_TYPE_CONFIG, "zstd"));

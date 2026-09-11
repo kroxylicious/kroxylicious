@@ -226,8 +226,9 @@ public class ConsumerGroupDescribeTopicAuthzIT extends AuthzIT {
         ConsumerGroupDescribeRequestData bobGroupRequest = new ConsumerGroupDescribeRequestData();
         bobGroupRequest.setGroupIds(List.of(BOB_GROUP));
         bobGroupRequest.setIncludeAuthorizedOperations(false);
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.CONSUMER_GROUP_DESCRIBE),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.CONSUMER_GROUP_DESCRIBE))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_DESCRIBE),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_DESCRIBE))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " " + ALICE_GROUP + " request",
                                 new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, aliceGroupRequest)),
@@ -235,7 +236,7 @@ public class ConsumerGroupDescribeTopicAuthzIT extends AuthzIT {
                                 new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, bobGroupRequest))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.CONSUMER_GROUP_DESCRIBE.oldestVersion(), ApiKeys.CONSUMER_GROUP_DESCRIBE.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.CONSUMER_GROUP_DESCRIBE, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_DESCRIBE, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.CONSUMER_GROUP_DESCRIBE, (short) apiVersion)));

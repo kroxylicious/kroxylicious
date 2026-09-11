@@ -3,10 +3,10 @@ package ${package};
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.record.MemoryRecords;
+import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.record.internal.MemoryRecords;
 
 import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;

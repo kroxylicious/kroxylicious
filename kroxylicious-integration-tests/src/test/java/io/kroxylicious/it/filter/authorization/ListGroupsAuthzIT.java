@@ -197,7 +197,7 @@ class ListGroupsAuthzIT extends AuthzIT {
         // Compute the n-fold Cartesian product of the tuples (except for pruning)
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : apiVersions) {
-            if (!AuthorizationFilter.isApiVersionSupported(ApiKeys.LIST_GROUPS, apiVersion)) {
+            if (!AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.LIST_GROUPS, apiVersion)) {
                 UnsupportedApiVersion<ApiMessage, ApiMessage> apiMessageApiMessageUnsupportedApiVersion = new UnsupportedApiVersion<>(ApiKeys.LIST_GROUPS,
                         apiVersion);
                 result.add(

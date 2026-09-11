@@ -9,8 +9,10 @@ package io.kroxylicious.proxy.internal.routing;
  * Identity node ID mapping for single-route configurations.
  * Virtual IDs equal target IDs. Negative node IDs (Kafka protocol sentinels)
  * are returned unchanged by all methods, satisfying the {@link NodeIdMapping} contract.
+ *
+ * @param routeName the name of the single route served by this mapping
  */
-public record IdentityNodeIdMapping(String routeName) implements NodeIdMapping {
+record IdentityNodeIdMapping(String routeName) implements NodeIdMapping {
 
     @Override
     public int toVirtual(String route, int targetNodeId) {

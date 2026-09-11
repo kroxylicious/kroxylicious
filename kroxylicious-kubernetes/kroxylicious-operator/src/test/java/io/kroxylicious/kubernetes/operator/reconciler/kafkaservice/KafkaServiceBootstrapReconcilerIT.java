@@ -36,6 +36,7 @@ import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
+import static io.kroxylicious.testing.operator.OperatorTestUtils.uniqueSuffix;
 import static io.kroxylicious.testing.operator.assertj.OperatorAssertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -70,7 +71,8 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldImmediatelyResolveWhenNoReferents() {
         // Given
-        KafkaService resource = kafkaService(SERVICE_A, null, null, null);
+        var suffix = uniqueSuffix();
+        KafkaService resource = kafkaService(SERVICE_A + suffix, null, null, null);
 
         // When
         clusterUser.create(resource);
@@ -82,12 +84,14 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldResolveUpdateToKafkaService() {
         // Given
+        var suffix = uniqueSuffix();
         var kafkaService = clusterUser.create(
-                new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().withNewSpec().withBootstrapServers(FOO_BOOTSTRAP_9090).endSpec().build());
+                new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A + suffix).endMetadata().withNewSpec().withBootstrapServers(FOO_BOOTSTRAP_9090)
+                        .endSpec().build());
         assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090, false);
 
         // When
-        clusterUser.resources(KafkaService.class).withName(SERVICE_A)
+        clusterUser.resources(KafkaService.class).withName(SERVICE_A + suffix)
                 .edit(current -> new KafkaServiceBuilder(current).editSpec().withBootstrapServers(BAR_BOOTSTRAP_9090).endSpec().build());
 
         // Then
@@ -97,7 +101,8 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldEventuallyResolveOnceCertSecretCreated() {
         // Given
-        KafkaService resource = kafkaService(SERVICE_A, SECRET_X, null, null);
+        var suffix = uniqueSuffix();
+        KafkaService resource = kafkaService(SERVICE_A + suffix, SECRET_X + suffix, null, null);
 
         // When
         final KafkaService kafkaService = clusterUser.create(resource);
@@ -106,7 +111,7 @@ class KafkaServiceBootstrapReconcilerIT {
         assertResolvedRefsFalse(kafkaService, Condition.REASON_REFS_NOT_FOUND, "spec.tls.certificateRef: referenced secret not found");
 
         // And When
-        clusterUser.create(tlsCertificateSecret(SECRET_X));
+        clusterUser.create(tlsCertificateSecret(SECRET_X + suffix));
 
         // Then
         assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090, true);
@@ -116,8 +121,9 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldUpdateStatusOnceTlsCertificateSecretDeleted() {
         // Given
-        var tlsCertSecret = clusterUser.create(tlsCertificateSecret(SECRET_X));
-        KafkaService resource = clusterUser.create(kafkaService(SERVICE_A, SECRET_X, null, null));
+        var suffix = uniqueSuffix();
+        var tlsCertSecret = clusterUser.create(tlsCertificateSecret(SECRET_X + suffix));
+        KafkaService resource = clusterUser.create(kafkaService(SERVICE_A + suffix, SECRET_X + suffix, null, null));
         assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090, true);
 
         // When
@@ -130,7 +136,8 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldEventuallyResolveOnceTrustAnchorConfigMapCreated() {
         // Given
-        KafkaService resource = kafkaService(SERVICE_A, null, CONFIG_MAP_T, null);
+        var suffix = uniqueSuffix();
+        KafkaService resource = kafkaService(SERVICE_A + suffix, null, CONFIG_MAP_T + suffix, null);
 
         // When
         final KafkaService kafkaService = clusterUser.create(resource);
@@ -139,7 +146,7 @@ class KafkaServiceBootstrapReconcilerIT {
         assertResolvedRefsFalse(kafkaService, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced configmap not found");
 
         // And When
-        clusterUser.create(trustAnchorConfigMap(CONFIG_MAP_T));
+        clusterUser.create(trustAnchorConfigMap(CONFIG_MAP_T + suffix));
 
         // Then
         assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090, true);
@@ -149,7 +156,8 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldEventuallyResolveOnceTrustAnchorSecretCreated() {
         // Given
-        KafkaService resource = kafkaService(SERVICE_A, null, SECRET_T, "Secret");
+        var suffix = uniqueSuffix();
+        KafkaService resource = kafkaService(SERVICE_A + suffix, null, SECRET_T + suffix, "Secret");
 
         // When
         final KafkaService kafkaService = clusterUser.create(resource);
@@ -158,7 +166,7 @@ class KafkaServiceBootstrapReconcilerIT {
         assertResolvedRefsFalse(kafkaService, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced secret not found");
 
         // And When
-        clusterUser.create(trustAnchorSecret(SECRET_T));
+        clusterUser.create(trustAnchorSecret(SECRET_T + suffix));
 
         // Then
         assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090, true);
@@ -168,13 +176,14 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldUpdateReferentAnnotationWhenTrustAnchorConfigMapModified() {
         // Given
-        clusterUser.create(trustAnchorConfigMap(CONFIG_MAP_T));
-        KafkaService resource = kafkaService(SERVICE_A, null, CONFIG_MAP_T, null);
+        var suffix = uniqueSuffix();
+        clusterUser.create(trustAnchorConfigMap(CONFIG_MAP_T + suffix));
+        KafkaService resource = kafkaService(SERVICE_A + suffix, null, CONFIG_MAP_T + suffix, null);
         final KafkaService kafkaService = clusterUser.create(resource);
         String checksum = awaitReferentsChecksumSpecified(resource);
 
         // When
-        clusterUser.replace(trustAnchorConfigMap(CONFIG_MAP_T).edit().addToData("arbitrary", "arbitrary").build());
+        clusterUser.replace(trustAnchorConfigMap(CONFIG_MAP_T + suffix).edit().addToData("arbitrary", "arbitrary").build());
 
         // Then
         assertReferentsChecksumNotEqual(kafkaService, checksum);
@@ -183,12 +192,13 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldUpdateReferentAnnotationWhenCertificateSecretModified() {
         // Given
-        clusterUser.create(tlsCertificateSecret(SECRET_X));
-        KafkaService resource = clusterUser.create(kafkaService(SERVICE_A, SECRET_X, null, null));
+        var suffix = uniqueSuffix();
+        clusterUser.create(tlsCertificateSecret(SECRET_X + suffix));
+        KafkaService resource = clusterUser.create(kafkaService(SERVICE_A + suffix, SECRET_X + suffix, null, null));
         String checksum = awaitReferentsChecksumSpecified(resource);
 
         // When
-        clusterUser.replace(tlsCertificateSecret(SECRET_X).edit().addToData("arbitrary", "whatever").build());
+        clusterUser.replace(tlsCertificateSecret(SECRET_X + suffix).edit().addToData("arbitrary", "whatever").build());
 
         // Then
         assertReferentsChecksumNotEqual(resource, checksum);
@@ -197,8 +207,9 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldUpdateStatusOnceTrustAnchorConfigMapDeleted() {
         // Given
-        var trustedCaCerts = clusterUser.create(trustAnchorConfigMap(CONFIG_MAP_T));
-        KafkaService resource = clusterUser.create(kafkaService(SERVICE_A, null, CONFIG_MAP_T, null));
+        var suffix = uniqueSuffix();
+        var trustedCaCerts = clusterUser.create(trustAnchorConfigMap(CONFIG_MAP_T + suffix));
+        KafkaService resource = clusterUser.create(kafkaService(SERVICE_A + suffix, null, CONFIG_MAP_T + suffix, null));
         assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090, true);
 
         // When

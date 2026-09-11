@@ -42,6 +42,12 @@ abstract class AbstractLocalRef extends LocalRef<HasMetadata> implements Kuberne
         return group;
     }
 
+    /**
+     * Sets the API group of the referenced resource.
+     * The empty string denotes the Kubernetes core API group.
+     *
+     * @param group the API group of the referenced resource.
+     */
     public void setGroup(String group) {
         this.group = group;
     }
@@ -52,6 +58,11 @@ abstract class AbstractLocalRef extends LocalRef<HasMetadata> implements Kuberne
         return kind;
     }
 
+    /**
+     * Sets the kind of the referenced resource.
+     *
+     * @param kind the kind of the referenced resource.
+     */
     public void setKind(String kind) {
         this.kind = kind;
     }
@@ -61,6 +72,11 @@ abstract class AbstractLocalRef extends LocalRef<HasMetadata> implements Kuberne
         return name;
     }
 
+    /**
+     * Sets the name of the referenced resource.
+     *
+     * @param name the name of the referenced resource.
+     */
     public void setName(String name) {
         this.name = name;
     }

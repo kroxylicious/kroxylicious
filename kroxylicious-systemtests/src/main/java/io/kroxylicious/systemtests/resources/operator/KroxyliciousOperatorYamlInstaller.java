@@ -40,12 +40,12 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
-import io.skodjob.testframe.enums.InstallType;
-import io.skodjob.testframe.installation.InstallationMethod;
-import io.skodjob.testframe.resources.KubeResourceManager;
-import io.skodjob.testframe.utils.ImageUtils;
-import io.skodjob.testframe.utils.PodUtils;
-import io.skodjob.testframe.utils.TestFrameUtils;
+import io.skodjob.kubetest4j.enums.InstallType;
+import io.skodjob.kubetest4j.installation.InstallationMethod;
+import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.skodjob.kubetest4j.utils.ImageUtils;
+import io.skodjob.kubetest4j.utils.KubeTestUtils;
+import io.skodjob.kubetest4j.utils.PodUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -154,7 +154,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     }
 
     private void applyDeploymentFile() {
-        Deployment operatorDeployment = TestFrameUtils.configFromYaml(installDeploymentFile(),
+        Deployment operatorDeployment = KubeTestUtils.configFromYaml(installDeploymentFile(),
                 Deployment.class);
 
         String deploymentImage = operatorDeployment
@@ -275,7 +275,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
      */
     private void applyCrds() {
         for (Path crdPath : installCrdFiles()) {
-            CustomResourceDefinition customResourceDefinition = TestFrameUtils.configFromYaml(crdPath.toFile(), CustomResourceDefinition.class);
+            CustomResourceDefinition customResourceDefinition = KubeTestUtils.configFromYaml(crdPath.toFile(), CustomResourceDefinition.class);
             KubeResourceManager.get().createOrUpdateResourceWithWait(customResourceDefinition);
         }
     }

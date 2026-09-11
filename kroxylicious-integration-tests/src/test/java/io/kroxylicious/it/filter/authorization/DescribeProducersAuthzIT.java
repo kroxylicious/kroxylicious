@@ -146,8 +146,9 @@ class DescribeProducersAuthzIT extends AuthzIT {
 
     List<Arguments> shouldEnforceAccessToTopics() {
         DescribeProducersRequestData allTopics = describeProducersRequest(ALL_TOPIC_NAMES_IN_TEST);
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.DESCRIBE_PRODUCERS),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.DESCRIBE_PRODUCERS))
+        Stream<Arguments> supportedVersions = IntStream
+                .rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_PRODUCERS),
+                        AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_PRODUCERS))
                 .boxed().flatMap(apiVersion -> {
                     Stream<Arguments.ArgumentSet> all = Stream.of(
                             Arguments.argumentSet("api version " + apiVersion + " all topics request",
@@ -159,7 +160,7 @@ class DescribeProducersAuthzIT extends AuthzIT {
                 });
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.DESCRIBE_PRODUCERS.oldestVersion(), ApiKeys.DESCRIBE_PRODUCERS.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.DESCRIBE_PRODUCERS, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.DESCRIBE_PRODUCERS, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.DESCRIBE_PRODUCERS, (short) apiVersion)));

@@ -176,8 +176,8 @@ public class HeartbeatAuthzIT extends AuthzIT {
 
     List<Arguments> shouldEnforceAccessToTopics() {
 
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.HEARTBEAT),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.HEARTBEAT))
+        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.HEARTBEAT),
+                AuthorizationFilter.maxSupportedApiVersion(io.kroxylicious.kafka.common.protocol.ApiKeys.HEARTBEAT))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " alice group request",
                                 new HeartbeatEquivalence((short) (int) apiVersion, ALICE_GROUP_PREFIX)),
@@ -185,7 +185,7 @@ public class HeartbeatAuthzIT extends AuthzIT {
                                 new HeartbeatEquivalence((short) (int) apiVersion, BOB_GROUP_PREFIX))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.HEARTBEAT.oldestVersion(), ApiKeys.HEARTBEAT.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.HEARTBEAT, (short) version))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(io.kroxylicious.kafka.common.protocol.ApiKeys.HEARTBEAT, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.HEARTBEAT, (short) apiVersion)));

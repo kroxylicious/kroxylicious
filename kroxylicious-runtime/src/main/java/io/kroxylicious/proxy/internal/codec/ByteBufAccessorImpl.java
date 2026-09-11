@@ -7,11 +7,10 @@ package io.kroxylicious.proxy.internal.codec;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.protocol.Readable;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 
+import io.kroxylicious.kafka.common.protocol.Readable;
 import io.kroxylicious.proxy.frame.ByteBufAccessor;
 
 /**
@@ -27,6 +26,10 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
 
     private final ByteBuf buf;
 
+    /**
+     * Creates an accessor backed by the given buffer.
+     * @param buf The underlying buffer.
+     */
     public ByteBufAccessorImpl(ByteBuf buf) {
         this.buf = buf;
     }
@@ -70,6 +73,15 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
         return (value >>> 1) ^ -(value & 1);
     }
 
+    /**
+     * Read an integer stored in variable-length format using unsigned decoding from
+     * <a href="http://code.google.com/apis/protocolbuffers/docs/encoding.html"> Google Protocol Buffers</a>.
+     *
+     * @param buffer The buffer to read from
+     * @return The integer value read
+     *
+     * @throws IllegalArgumentException if variable-length value does not terminate after 5 bytes have been read
+     */
     public static int readUnsignedVarint(ByteBuf buffer) {
         int value = 0;
         int i = 0;
@@ -85,11 +97,27 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
         return value;
     }
 
+    /**
+     * Read an integer stored in variable-length format using zig-zag decoding from
+     * <a href="http://code.google.com/apis/protocolbuffers/docs/encoding.html"> Google Protocol Buffers</a>.
+     *
+     * @param buffer The buffer to read from
+     * @return The integer value read
+     *
+     * @throws IllegalArgumentException if variable-length value does not terminate after 5 bytes have been read
+     */
     public static int readVarint(ByteBuf buffer) {
         int value = readUnsignedVarint(buffer);
         return (value >>> 1) ^ -(value & 1);
     }
 
+    /**
+     * Write the given long following the variable-length zig-zag encoding from
+     * <a href="http://code.google.com/apis/protocolbuffers/docs/encoding.html"> Google Protocol Buffers</a>.
+     *
+     * @param value The long value to write
+     * @param buffer The buffer to write to
+     */
     public static void writeVarlong(long value, ByteBuf buffer) {
         long v = (value << 1) ^ (value >> 63);
         while ((v & 0xffffffffffffff80L) != 0L) {
@@ -100,10 +128,24 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
         buffer.writeByte((byte) v);
     }
 
+    /**
+     * Write the given integer following the variable-length zig-zag encoding from
+     * <a href="http://code.google.com/apis/protocolbuffers/docs/encoding.html"> Google Protocol Buffers</a>.
+     *
+     * @param value The integer value to write
+     * @param buffer The buffer to write to
+     */
     public static void writeVarint(int value, ByteBuf buffer) {
         writeUnsignedVarint((value << 1) ^ (value >> 31), buffer);
     }
 
+    /**
+     * Write the given integer following the variable-length unsigned encoding from
+     * <a href="http://code.google.com/apis/protocolbuffers/docs/encoding.html"> Google Protocol Buffers</a>.
+     *
+     * @param value The integer value to write
+     * @param buffer The buffer to write to
+     */
     public static void writeUnsignedVarint(int value, ByteBuf buffer) {
         while ((value & 0xffffff80) != 0L) {
             byte b = (byte) ((value & 0x7f) | 0x80);

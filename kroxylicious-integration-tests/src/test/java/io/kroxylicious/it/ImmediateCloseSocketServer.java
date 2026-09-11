@@ -22,6 +22,8 @@ public class ImmediateCloseSocketServer implements AutoCloseable {
     private final ExecutorService serverExecutor;
     private static final Logger LOGGER = LoggerFactory.getLogger(ImmediateCloseSocketServer.class);
 
+    @SuppressWarnings("FutureReturnValueIgnored") // serverLoop handles its own failures: SocketException breaks the loop on close, all other exceptions are caught and logged. close() calls
+                                                  // shutdownNow() for cancellation.
     public ImmediateCloseSocketServer() {
         try {
             this.serverSocket = new ServerSocket(0, 50);

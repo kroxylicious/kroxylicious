@@ -1,4 +1,0 @@
-title: "fix(routing): route-filter onResponse and OOB sendRequest now work correctly with dynamic routing"
-type: fixed
-merge_requests:
-  - 4524

@@ -11,6 +11,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * Represents a node in a virtual cluster, identified by its cluster name and an optional node ID.
  * This is used to track nodes within a virtual cluster context.
+ *
+ * @param clusterName the name of the virtual cluster
+ * @param nodeId the node ID within the virtual cluster, or null when the node is not identified (e.g. bootstrap)
  */
 public record VirtualClusterNode(String clusterName, @Nullable Integer nodeId) {
 

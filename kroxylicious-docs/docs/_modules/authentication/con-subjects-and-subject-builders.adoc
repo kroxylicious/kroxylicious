@@ -39,7 +39,7 @@ SASL subject builder::
 Builds a subject from information obtained during a successful SASL authentication exchange, such as the SASL authorization ID.
 +
 The SASL subject builder is configured on the SASL filter (for example, the `SaslInspection` filter).
-See xref:con-configuring-sasl-subject-builder-auth-sasl-inspection[] for configuration details.
+See xref:con-configuring-sasl-subject-builder-{context}[] for configuration details.
 
 Both subject builders use a pluggable architecture.
 The default implementations extract principals from certificate fields or SASL authorization IDs using configurable mapping rules.

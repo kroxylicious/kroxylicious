@@ -49,6 +49,11 @@ public interface EndpointGateway {
      */
     boolean requiresServerNameIndication();
 
+    /**
+     * The virtual cluster to which this gateway belongs.
+     *
+     * @return the virtual cluster model
+     */
     VirtualClusterModel virtualCluster();
 
     /**
@@ -67,6 +72,11 @@ public interface EndpointGateway {
      */
     HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException;
 
+    /**
+     * SSL context used to accept downstream (client) TLS connections.
+     *
+     * @return the SSL context, or empty if this gateway does not use TLS
+     */
     Optional<SslContext> getDownstreamSslContext();
 
     /**
@@ -86,8 +96,18 @@ public interface EndpointGateway {
      */
     Optional<String> getBindAddress();
 
+    /**
+     * Ports that this gateway requires exclusive use of.
+     *
+     * @return set of exclusive port numbers
+     */
     Set<Integer> getExclusivePorts();
 
+    /**
+     * Ports that this gateway can share with other gateways.
+     *
+     * @return set of shared port numbers
+     */
     Set<Integer> getSharedPorts();
 
     /**

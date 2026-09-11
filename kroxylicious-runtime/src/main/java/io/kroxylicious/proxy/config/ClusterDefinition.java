@@ -27,6 +27,9 @@ public record ClusterDefinition(
                                 @JsonProperty(required = true) String bootstrapServers,
                                 @Nullable Tls tls) {
 
+    /**
+     * Validates the cluster definition, stripping whitespace from {@code bootstrapServers}.
+     */
     @JsonCreator
     public ClusterDefinition {
         Objects.requireNonNull(name, "'name' is required in a cluster definition");
@@ -36,6 +39,8 @@ public record ClusterDefinition(
 
     /**
      * Converts this definition to a {@link TargetCluster} for use in the runtime.
+     *
+     * @return a target cluster with the same bootstrap servers and TLS configuration
      */
     public TargetCluster toTargetCluster() {
         return new TargetCluster(bootstrapServers, Optional.ofNullable(tls));

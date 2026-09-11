@@ -17,5 +17,5 @@ The proxy supports two independent timeout settings that apply at different stag
 ====
 For the proxy to detect authentication completion, you must configure either TLS client certificate authentication or a SASL inspection or termination filter.
 Without one of these, all connections remain in the unauthenticated state for their entire lifetime, and `authenticatedIdleTimeout` has no effect.
-For more information, see the link:{SASLInspectionGuideUrl}[SASL inspection filter guide].
+For more information, see the link:{AuthenticationGuideUrl}[Client Authentication guide].
 ====

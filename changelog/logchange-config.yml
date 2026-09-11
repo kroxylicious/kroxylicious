@@ -18,3 +18,5 @@ changelog:
   templates:
     changelog_templates:
       - path: CHANGELOG.md
+entry:
+  banner: false

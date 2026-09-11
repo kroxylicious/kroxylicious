@@ -6,10 +6,15 @@
 
 package io.kroxylicious.kubernetes.api.common;
 
+/**
+ * The transport protocol used between Kafka clients and an ingress endpoint of the proxy.
+ */
 public enum Protocol {
 
+    /** Plain TCP; the connection between client and proxy is not encrypted. */
     @com.fasterxml.jackson.annotation.JsonProperty("TCP")
     TCP("TCP"),
+    /** TLS; the connection between client and proxy is encrypted. */
     @com.fasterxml.jackson.annotation.JsonProperty("TLS")
     TLS("TLS");
 
@@ -19,6 +24,11 @@ public enum Protocol {
         this.value = value;
     }
 
+    /**
+     * The value used to represent this protocol in the CRD schema.
+     *
+     * @return the CRD schema value for this protocol.
+     */
     @com.fasterxml.jackson.annotation.JsonValue()
     public java.lang.String getValue() {
         return value;

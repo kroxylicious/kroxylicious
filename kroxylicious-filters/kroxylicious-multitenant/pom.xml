@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-filter-parent</artifactId>
-        <version>0.24.0-SNAPSHOT</version>
+        <version>0.25.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -40,6 +40,11 @@
         </dependency>
 
         <!-- project dependencies - test -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kafka-message-json</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-filter-test-support</artifactId>

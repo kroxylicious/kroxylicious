@@ -26,6 +26,10 @@ public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionS
     @JsonIgnore
     private long counter;
 
+    /**
+     * Creates a round-robin bootstrap selection strategy whose first selection will be the
+     * first server in the list.
+     */
     public RoundRobinBootstrapSelectionStrategy() {
         this.counter = -1;
     }
