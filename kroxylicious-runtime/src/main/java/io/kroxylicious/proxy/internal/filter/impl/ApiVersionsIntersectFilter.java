@@ -1,0 +1,39 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.proxy.internal.filter.impl;
+
+import java.util.concurrent.CompletionStage;
+
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
+
+/**
+ * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each
+ * API key. This is an intrinsic part of correctly acting as a proxy.
+ */
+public class ApiVersionsIntersectFilter implements ApiVersionsResponseFilter {
+    private final ApiVersionsServiceImpl apiVersionsService;
+
+    /**
+     * Creates the filter.
+     *
+     * @param service the service used to intersect the broker's versions with the proxy's
+     */
+    public ApiVersionsIntersectFilter(ApiVersionsServiceImpl service) {
+        this.apiVersionsService = service;
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData data,
+                                                                       FilterContext context) {
+        apiVersionsService.updateVersions(context.sessionId(), data);
+        return context.forwardResponse(header, data);
+    }
+}

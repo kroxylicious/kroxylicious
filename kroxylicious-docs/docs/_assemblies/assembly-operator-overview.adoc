@@ -1,0 +1,25 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-operator-overview-{context}']
+= Kroxylicious Operator overview
+
+[role="_abstract"]
+Kroxylicious Proxy is an Apache Kafka protocol-aware ("Layer 7") proxy designed to enhance Kafka-based systems.
+
+The Kroxylicious Operator is an _operator_ for Kubernetes which simplifies deploying and operating the Kroxylicious Proxy.
+
+[role="_additional-resources"]
+.Additional resources
+
+* {KubernetesSite}
+* {OperatorPattern}

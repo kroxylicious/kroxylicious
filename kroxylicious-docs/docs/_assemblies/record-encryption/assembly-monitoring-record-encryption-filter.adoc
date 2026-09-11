@@ -1,0 +1,19 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// record-encryption-guide/index.adoc
+
+[id='assembly-monitoring-record-encryption-filter-{context}']
+= Monitoring the Record Encryption filter
+
+[role="_abstract"]
+This section describes how to monitor the Record Encryption filter.
+
+include::../../_modules/record-encryption/con-metrics.adoc[leveloffset=+1]

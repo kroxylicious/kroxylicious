@@ -1,0 +1,46 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-secure-proxy-broker-connection.adoc
+
+[id='con-configuring-kafkaservice-protocol-{context}']
+= TLS version configuration for proxy-to-cluster connections
+
+[role="_abstract"]
+include::../../_snippets/snip-tls-protocol-versions.adoc[]
+
+This example configures a `KafkaService` to allow only TLS v1.3 when connecting to `kafka.example.com`.
+
+.Example `KafkaService` with restricted TLS protocol versions.
+[source,yaml]
+----
+kind: KafkaService
+metadata:
+  # ...
+spec:
+  bootstrapServers: kafka.example.com:9092
+  tls:
+    # ...
+    protocols:
+      allowed:
+        - TLSv1.3
+----
+where:
+
+* `protocols`  configures the TLS protocol versions.
+** `allowed` lists the permitted TLS versions.
+
+The `protocols` property also supports `deny`, if you prefer to list the versions to exclude instead.
+The names of the TLS protocol versions supported depend on the JVM in the proxy container image.
+
+[role="_additional-resources"]
+.Additional resources
+
+* {tlsProtocolNames}

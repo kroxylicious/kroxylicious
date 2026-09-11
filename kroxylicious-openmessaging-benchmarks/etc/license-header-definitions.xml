@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<additionalHeaders>
+    <!-- Like SCRIPT_STYLE but also skips Helm template directives ({{- if ... }})
+         before the license header. Conditional templates must place the directive
+         before the # header to avoid emitting comment-only YAML documents when
+         the condition is false. -->
+    <HELM_STYLE>
+        <firstLine>#</firstLine>
+        <beforeEachLine># </beforeEachLine>
+        <endLine>#</endLine>
+        <skipLinePattern>^(#!|\{\{-).*$</skipLinePattern>
+        <firstLineDetectionPattern>#.*$</firstLineDetectionPattern>
+        <lastLineDetectionPattern>#.*$</lastLineDetectionPattern>
+        <allowBlankLines>false</allowBlankLines>
+        <multiLine>false</multiLine>
+        <padLines>false</padLines>
+    </HELM_STYLE>
+</additionalHeaders>

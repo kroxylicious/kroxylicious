@@ -1,0 +1,15 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[discrete]
+[id='con-about-developer-guide-{context}']
+= About this guide
+
+[role="_abstract"]
+This guide covers developing plugins for Kroxylicious using the Java programming language.
+Other guides should be consulted if you want to deploy, configure or secure a Kroxylicious Proxy.

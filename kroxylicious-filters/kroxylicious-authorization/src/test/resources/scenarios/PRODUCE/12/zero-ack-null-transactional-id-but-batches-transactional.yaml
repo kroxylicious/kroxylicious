@@ -1,0 +1,46 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "PRODUCE"
+  apiVersion: 12
+  scenario: |
+    given:
+      - a zero-ack produce request
+      - with transactionalId is null 
+      - and records containing transactional record batch
+    then:
+      - the request is not forwarded, it is dropped at the proxy
+given:
+  mockedUpstreamResponses: [ ]
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "WRITE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 0
+    requestApiVersion: 12
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: null
+    acks: 0
+    timeoutMs: 141
+    topicData:
+      - name: "my-topic"
+        partitionData:
+          - index: 134
+            records: !!binary "AAAAAAAAAAEAAABAAAAAAQJiprm8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEAAAABAAAAARwAAAAGS0VZClZBTFVFAA==" # records containing a transactional batch
+then:
+  hasResponse: false
+  expectRequestDropped: true
+  expectAuthorizationOutcomeLog: false # we did not attempt to authorize any transactionalId, this is a kind of malformed request

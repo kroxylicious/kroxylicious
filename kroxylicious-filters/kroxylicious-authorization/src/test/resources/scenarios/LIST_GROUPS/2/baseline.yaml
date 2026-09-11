@@ -1,0 +1,53 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "LIST_GROUPS"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_GROUPS"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 16
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest: {}
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 100
+        errorCode: 0
+        groups:
+          - groupId: "my-group"
+            protocolType: "consumer"
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 16
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request: {}
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 100
+    errorCode: 0
+    groups:
+      - groupId: "my-group"
+        protocolType: "consumer"

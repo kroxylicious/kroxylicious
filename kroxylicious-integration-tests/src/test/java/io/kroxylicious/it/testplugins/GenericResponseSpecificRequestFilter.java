@@ -1,0 +1,43 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.it.testplugins;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletionStage;
+
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.protocol.ApiKeys;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
+import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilter;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+
+public class GenericResponseSpecificRequestFilter implements ResponseFilter, ApiVersionsRequestFilter {
+    public static final int CLIENT_ID_TAG = 100;
+    Map<Integer, String> clientIdPerCorrelationId = new HashMap<>();
+
+    @Override
+    public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request, FilterContext context) {
+        String clientId = header.clientId();
+        clientIdPerCorrelationId.put(header.correlationId(), clientId);
+        return context.forwardRequest(header, request);
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        String requestClientId = clientIdPerCorrelationId.remove(header.correlationId());
+        response.unknownTaggedFields().add(new RawTaggedField(CLIENT_ID_TAG, requestClientId.getBytes(StandardCharsets.UTF_8)));
+        return context.forwardResponse(header, response);
+    }
+}

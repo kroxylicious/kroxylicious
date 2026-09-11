@@ -1,0 +1,38 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: LIST_GROUPS
+  description: Group mapping
+  version: 4
+  response:
+    payload:
+      throttleTimeMs: 0
+      errorCode: 0
+      groups:
+        - groupId: tenant1-mygroup
+          protocolType: consumer
+          groupState: stable
+    diff:
+      - op: replace
+        path: "/groups/0/groupId"
+        value: mygroup
+  disabled: false
+
+- apiMessageType: LIST_GROUPS
+  description: Group filtering
+  version: 4
+  response:
+    payload:
+      throttleTimeMs: 0
+      errorCode: 0
+      groups:
+        - groupId: tenant2-mygroup
+          protocolType: consumer
+          groupState: stable
+    diff:
+      - op: remove
+        path: "/groups/0"
+  disabled: false

@@ -1,0 +1,13 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Helm Overrides File for Strimzi used by the system tests.
+replicas: 1
+#featureGates: ""
+
+# Reduce full recon interval from 120s to 15s to reduce the risk of a delay in the cluster operator
+# reconciliation leading to a spurious system test suite failure.
+fullReconciliationIntervalMs: 15000

@@ -1,0 +1,59 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-deploy-a-proxy.adoc
+
+[id='con-kafkaproxy-idle-timeouts-{context}']
+= Configuring idle connection timeouts
+
+[role="_abstract"]
+The proxy can automatically disconnect idle client connections to reclaim resources.
+Idle timeout configuration is optional and disabled by default. Enable it only when required for your deployment.
+Idle timeouts are configured under `spec.network.proxy` in the `KafkaProxy` resource and apply only to the proxy listener — they are not available for the management HTTP server.
+When enabled, idle disconnects are observable via the `kroxylicious_client_to_proxy_disconnects_total` metric.
+
+== When to enable idle timeouts
+
+include::../../_snippets/snip-idle-timeout-when-to-enable.adoc[]
+
+== When not to enable idle timeouts
+
+include::../../_snippets/snip-idle-timeout-when-not-to-enable.adoc[]
+
+== How idle timeouts work
+
+include::../../_snippets/snip-idle-timeout-how-it-works.adoc[]
+
+include::../../_snippets/snip-idle-timeout-duration-format.adoc[]
+
+== Configuration examples
+
+.Example `KafkaProxy` configuration with unauthenticated and authenticated idle timeouts
+[source,yaml]
+----
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  network:
+    proxy:
+      unauthenticatedIdleTimeout: 30s
+      authenticatedIdleTimeout: 10m
+----
+where:
+
+* `unauthenticatedIdleTimeout` Disconnect unauthenticated connections after 30 seconds of inactivity. If omitted, or zero, no idle timeout is applied.
+* `authenticatedIdleTimeout` Disconnect authenticated connections after 10 minutes of inactivity. If omitted, or zero, no idle timeout is applied.
+
+== Monitoring idle disconnects
+
+include::../../_snippets/snip-idle-timeout-monitoring.adoc[]

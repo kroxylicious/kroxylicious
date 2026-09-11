@@ -1,0 +1,312 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.proxy;
+
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
+import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+@Timeout(30)
+class KafkaProxyShutdownOrderingTest {
+
+    private final ConfigParser configParser = new ConfigParser();
+
+    /**
+     * Verifies that ports are unbound <em>before</em> drain completes.
+     * <p>
+     * With the correct ordering — {@code endpointRegistry.shutdown()} before
+     * {@code clusterCoordinator.shutdownAllClusters()} — no new connections can arrive after
+     * the drain snapshot is taken, closing the race described in rodobario's review comment.
+     * With the old (inverted) ordering, the port stays bound throughout drain,
+     * allowing new connections to arrive after the snapshot.
+     */
+    @Test
+    void portIsUnboundBeforeDrainCompletes() throws Exception {
+        var drainStarted = new CountDownLatch(1);
+        var drainCanComplete = new CountDownLatch(1);
+
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    drainTimeout: 10s
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+        var vcc = blockingDrainCoordinator(models, drainStarted, drainCanComplete);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(), vcc)) {
+            var lifecycleFuture = proxy.startup();
+            assertThat(lifecycleFuture).isNotDone();
+            int proxyPort = proxy.getBootstrapAddress("demo", "default").port();
+
+            assertThat(canConnect(proxyPort))
+                    .as("port should be reachable before shutdown")
+                    .isTrue();
+
+            var capturedShutdown = new AtomicReference<CompletableFuture<Void>>();
+            var shutdownThread = new Thread(() -> capturedShutdown.set(proxy.shutdown()), "test-shutdown");
+            shutdownThread.start();
+
+            // Wait for drain to start — at this point endpointRegistry.shutdown() must
+            // have already completed (with the fix) or not yet (with the old ordering).
+            assertThat(drainStarted.await(10, TimeUnit.SECONDS))
+                    .as("drain should have started")
+                    .isTrue();
+
+            // Port must be unreachable: endpointRegistry.shutdown() ran before drain.
+            assertThat(canConnect(proxyPort))
+                    .as("proxy port should be unreachable while drain is in progress")
+                    .isFalse();
+
+            drainCanComplete.countDown();
+            shutdownThread.join(10_000);
+            assertThat(shutdownThread.isAlive()).as("shutdown should have completed").isFalse();
+            assertThat(capturedShutdown.get()).isCompletedWithValue(null);
+        }
+    }
+
+    /**
+     * Verifies that an exception during drain (e.g. a per-connection drain future completing
+     * exceptionally) is caught inside {@code shutdown()} and shutdown still completes
+     * cleanly. Without this catch, a runaway drain failure would propagate out of shutdown
+     * and the proxy would terminate abruptly without running the rest of its cleanup
+     * (Netty {@code shutdownGracefully}, meter registry cleanup, lifecycle transitions).
+     */
+    @Test
+    void drainFailureIsCaughtAndShutdownCompletes() {
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    drainTimeout: 10s
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+        var vcc = failingDrainCoordinator(models);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(), vcc)) {
+            var shutdownFuture = proxy.startup();
+            assertThat(shutdownFuture).isNotDone();
+
+            // Shutdown should complete without throwing — the catch in shutdown()
+            // swallows the drain failure and lets the rest of cleanup proceed.
+            assertThatCode(proxy::shutdown).doesNotThrowAnyException();
+        }
+    }
+
+    @Test
+    void shouldBindPortResolverToGatewaysAfterStartup() {
+        // Given
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
+                new VirtualClusterRegistry(models, (cfg, name) -> {
+                    throw new UnsupportedOperationException();
+                }, noOpCallback()))) {
+            // When
+            var shutdownFuture = proxy.startup();
+
+            // Then - every gateway has a port resolver wired after startup
+            assertThat(shutdownFuture).isNotDone();
+            var allGateways = models.stream()
+                    .flatMap(vc -> vc.gateways().values().stream())
+                    .filter(VirtualClusterGatewayModel.class::isInstance)
+                    .map(VirtualClusterGatewayModel.class::cast)
+                    .toList();
+            assertThat(allGateways).isNotEmpty();
+            assertThat(allGateways).allSatisfy(gw -> assertThat(gw.isPortResolverBound()).isTrue());
+
+            var shutdownResult = proxy.shutdown();
+            assertThat(shutdownResult).isCompletedWithValue(null);
+        }
+    }
+
+    @Test
+    void shouldReturnActualBoundPortFromGetBootstrapAddress() {
+        // Given - proxy configured with OS-assigned port
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
+                new VirtualClusterRegistry(models, (cfg, name) -> {
+                    throw new UnsupportedOperationException();
+                }, noOpCallback()))) {
+            var shutdownFuture = proxy.startup();
+            assertThat(shutdownFuture).isNotDone();
+
+            // When
+            var bootstrapAddress = proxy.getBootstrapAddress("demo", "default");
+
+            // Then - port is the actual OS-bound port, not the configured port (0)
+            assertThat(bootstrapAddress.port()).isPositive();
+        }
+    }
+
+    @Test
+    void shouldThrowForUnknownVirtualClusterInGetBootstrapAddress() {
+        // Given
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
+                new VirtualClusterRegistry(models, (cfg, name) -> {
+                    throw new UnsupportedOperationException();
+                }, noOpCallback()))) {
+            var shutdownFuture = proxy.startup();
+            assertThat(shutdownFuture).isNotDone();
+
+            // When / Then
+            assertThatThrownBy(() -> proxy.getBootstrapAddress("unknown", "default"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("unknown");
+        }
+    }
+
+    @Test
+    void shouldThrowForUnknownGatewayInGetBootstrapAddress() {
+        // Given
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
+                new VirtualClusterRegistry(models, (cfg, name) -> {
+                    throw new UnsupportedOperationException();
+                }, noOpCallback()))) {
+            var shutdownFuture = proxy.startup();
+            assertThat(shutdownFuture).isNotDone();
+
+            // When / Then
+            assertThatThrownBy(() -> proxy.getBootstrapAddress("demo", "unknown"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("unknown");
+        }
+    }
+
+    private static VirtualClusterRegistry blockingDrainCoordinator(java.util.List<VirtualClusterModel> models,
+                                                                   CountDownLatch drainStarted,
+                                                                   CountDownLatch drainCanComplete) {
+        return new VirtualClusterRegistry(models, (cfg, name) -> {
+            throw new UnsupportedOperationException("resolveModel not exercised by this test");
+        }, noOpCallback()) {
+            @Override
+            public List<Throwable> shutdownAllClusters() {
+                drainStarted.countDown();
+                try {
+                    drainCanComplete.await();
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return List.of();
+            }
+        };
+    }
+
+    private static VirtualClusterRegistry failingDrainCoordinator(java.util.List<VirtualClusterModel> models) {
+        return new VirtualClusterRegistry(models, (cfg, name) -> {
+            throw new UnsupportedOperationException("resolveModel not exercised by this test");
+        }, noOpCallback()) {
+            @Override
+            public List<Throwable> shutdownAllClusters() {
+                throw new RuntimeException("simulated drain failure");
+            }
+        };
+    }
+
+    private static BiConsumer<String, Optional<Throwable>> noOpCallback() {
+        return (name, cause) -> {
+        };
+    }
+
+    private static boolean canConnect(int port) {
+        try (var ignored = new Socket()) {
+            ignored.connect(new InetSocketAddress("localhost", port), 1000);
+            return true;
+        }
+        catch (Exception e) {
+            return false;
+        }
+    }
+}

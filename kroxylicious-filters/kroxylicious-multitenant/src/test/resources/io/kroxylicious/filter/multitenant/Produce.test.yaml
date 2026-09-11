@@ -1,0 +1,84 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: PRODUCE
+  version: 9
+  request:
+    payload:
+      transactionalId: null
+      acks: -1
+      timeoutMs: 0
+      topicData:
+        - name: foo
+          partitionData:
+            - index: 0
+              records: !!binary |
+                Zm9v
+    diff:
+      - op: replace
+        path: "/topicData/0/name"
+        value: tenant1-foo
+  response:
+    payload:
+      responses:
+        - name: tenant1-foo
+          partitionResponses:
+            - index: 0
+              errorCode: 0
+              baseOffset: 0
+              logAppendTimeMs: 0
+              logStartOffset: 0
+              recordErrors:
+                - batchIndex: 0
+                  batchIndexErrorMessage: null
+              errorMessage: null
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/responses/0/name"
+        value: foo
+  disabled: false
+- apiMessageType: PRODUCE
+  description: Produce with transaction
+  version: 9
+  request:
+    payload:
+      transactionalId: "12345"
+      acks: -1
+      timeoutMs: 0
+      topicData:
+        - name: foo
+          partitionData:
+            - index: 0
+              records: !!binary |
+                Zm9v
+    diff:
+      - op: replace
+        path: "/transactionalId"
+        value: tenant1-12345
+      - op: replace
+        path: "/topicData/0/name"
+        value: tenant1-foo
+  response:
+    payload:
+      responses:
+        - name: tenant1-foo
+          partitionResponses:
+            - index: 0
+              errorCode: 0
+              baseOffset: 0
+              logAppendTimeMs: 0
+              logStartOffset: 0
+              recordErrors:
+                - batchIndex: 0
+                  batchIndexErrorMessage: null
+              errorMessage: null
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/responses/0/name"
+        value: foo
+  disabled: false

@@ -1,0 +1,4 @@
+title: "feat(sasl-termination): add SCRAM-SHA-256 and SCRAM-SHA-512 mechanism support"
+type: added
+merge_requests:
+  - 4683

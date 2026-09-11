@@ -1,0 +1,63 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_GROUPS"
+  apiVersion: 1
+  scenario: "describe groups is allowed, forward on request"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_GROUPS"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 15
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        groups:
+          - "my-group"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 55
+        groups:
+          - errorCode: 0
+            groupId: "my-group"
+            groupState: "created"
+            protocolType: "consumer"
+            protocolData: "consumer"
+            members: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 15
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    groups:
+      - "my-group"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 55
+    groups:
+      - errorCode: 0
+        groupId: "my-group"
+        groupState: "created"
+        protocolType: "consumer"
+        protocolData: "consumer"
+        members: [ ]

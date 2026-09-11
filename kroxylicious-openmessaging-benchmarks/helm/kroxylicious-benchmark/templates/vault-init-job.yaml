@@ -1,0 +1,65 @@
+{{- if .Values.vault.provision }}
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Initialises the provisioned Vault instance:
+#   1. Enables the transit secrets engine
+#   2. Creates the KEK used by the encryption filter
+#
+# Runs after Vault is deployed and waits for it to be ready before proceeding.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init
+  labels:
+    app: vault
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: vault-init
+        image: {{ .Values.vault.image }}
+        imagePullPolicy: {{ .Values.vault.imagePullPolicy }}
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          value: {{ .Values.vault.token | quote }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+
+          echo "Waiting for Vault to be ready..."
+          until vault status 2>/dev/null; do
+            echo "  Vault not ready yet, retrying in 2s..."
+            sleep 2
+          done
+          echo "Vault is ready."
+
+          echo "Enabling transit secrets engine..."
+          if vault secrets list | grep -q '^transit/'; then
+            echo "  Transit engine already enabled."
+          else
+            vault secrets enable transit
+            echo "  Transit engine enabled."
+          fi
+
+          echo "Creating KEK '{{ .Values.encryption.kekName }}'..."
+          if vault read "transit/keys/{{ .Values.encryption.kekName }}" >/dev/null 2>&1; then
+            echo "  KEK already exists."
+          else
+            vault write -f "transit/keys/{{ .Values.encryption.kekName }}"
+            echo "  KEK created."
+          fi
+
+          echo "Vault initialisation complete."
+{{- end }}

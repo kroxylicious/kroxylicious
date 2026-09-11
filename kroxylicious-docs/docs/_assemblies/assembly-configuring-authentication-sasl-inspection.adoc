@@ -1,0 +1,65 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+
+[id='assembly-configuring-authentication-sasl-inspection-{context}']
+= Configuring SASL Passthrough Inspection
+
+[role="_abstract"]
+To enable SASL Passthrough Inspection, configure a `SaslInspection` filter in the proxy's filter chain.
+This filter observes the SASL authentication exchange between client and broker and extracts the client's authorization ID.
+The broker remains the authority for authentication decisions.
+
+NOTE: The SASL Inspection filter plays no part in deciding if the authentication is successful or not.
+That role remains the exclusive responsibility of the broker.
+
+.Prerequisites
+
+* An instance of Kroxylicious.
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
+* The Kafka cluster's listener must be configured to authenticate using SASL with a mechanism supported by this filter.
+
+[id='supported-mechanisms-{context}']
+.Supported SASL mechanisms for inspection
+|===
+|SASL mechanism |Enabled by default
+
+|https://tools.ietf.org/html/rfc4616[PLAIN]
+|No
+
+|https://datatracker.ietf.org/doc/html/rfc7677[SCRAM-SHA-256]
+|Yes
+
+|https://datatracker.ietf.org/doc/html/draft-melnikov-scram-sha-512-00[SCRAM-SHA-512]
+|Yes
+
+|https://datatracker.ietf.org/doc/html/rfc7628[OAUTHBEARER]
+|Yes
+|===
+
+.Procedure
+
+. Configure a `SaslInspection` type filter.
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-example-proxy-config-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment using a `KafkaProtocolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
+endif::[]
+
+ifdef::include-platform-bare-metal[]
+include::../_modules/sasl-inspection/con-example-proxy-config.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-platform-kubernetes[]
+include::../_modules/sasl-inspection/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
+endif::[]

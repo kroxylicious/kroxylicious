@@ -1,0 +1,219 @@
+# Running OpenMessaging Benchmarks - Quick Start
+
+Benchmark Kroxylicious proxy overhead in two steps: set up the cluster operators once,
+then run the benchmark suite.
+
+## Prerequisites
+
+- Kubernetes cluster (minikube, kind, or cloud provider)
+  - Smoke / local validation: 4 CPU cores, 8 GB RAM (single-node cluster is fine)
+  - Full benchmark run: 8 CPU cores, 16 GB RAM across the cluster (3 brokers + 3 OMB workers)
+- `kubectl` configured to access the cluster
+- `helm` 3.0+
+- `gh` (GitHub CLI) — used by `setup-cluster.sh` to download the Kroxylicious operator release
+- `jbang` — used by the benchmark and result analysis scripts ([install](https://www.jbang.dev/download/))
+- `mvn` — run once before using any benchmark scripts to generate JBang source filters:
+  ```bash
+  mvn process-sources -pl kroxylicious-openmessaging-benchmarks
+  ```
+
+### Start a local cluster (if needed)
+
+```bash
+# Minikube
+minikube start --cpus 8 --memory 16384
+
+# Or Kind
+kind create cluster
+```
+
+## Step 1: Set up cluster operators (once per cluster)
+
+```bash
+cd kroxylicious-openmessaging-benchmarks
+./scripts/setup-cluster.sh
+```
+
+This creates the `kafka` namespace and installs the Strimzi and Kroxylicious operators,
+waiting for each to be ready before proceeding.
+
+**Options:**
+
+```bash
+# Pin operator versions
+STRIMZI_VERSION=0.45.0 KROXYLICIOUS_VERSION=0.18.0 ./scripts/setup-cluster.sh
+
+# Baseline scenario only (no Kroxylicious operator needed)
+./scripts/setup-cluster.sh --skip-kroxylicious
+```
+
+## Step 2: Run the proxy overhead comparison
+
+```bash
+./scripts/run-all-scenarios.sh ./results/run-$(date +%Y%m%d-%H%M%S)/
+```
+
+This runs `baseline` and `proxy-no-filters` across all three workloads (1-topic, 10-topic, 100-topic).
+For each scenario/workload combination it:
+
+1. Deploys Kafka and OMB infrastructure via Helm
+2. Waits for Kafka and OMB pods to be ready
+3. Executes the benchmark
+4. Collects result JSON and run metadata
+5. Tears down (helm uninstall + PVC cleanup) ready for the next run
+
+After all runs complete it prints a side-by-side comparison for each workload.
+
+### Running a single scenario
+
+To run one scenario and workload manually:
+
+```bash
+./scripts/run-benchmark.sh baseline 1topic-1kb ./results/baseline/
+./scripts/run-benchmark.sh proxy-no-filters 1topic-1kb ./results/proxy/
+./scripts/run-benchmark.sh encryption 1topic-1kb ./results/encryption/
+
+# Compare afterwards (requires mvn process-sources to have been run once)
+./scripts/compare-results.sh ./results/baseline/result.json ./results/proxy/result.json
+```
+
+Available scenarios: `baseline`, `proxy-no-filters`, `encryption`
+
+Available workloads: `1topic-1kb`, `10topics-1kb`, `100topics-1kb`, `1topic-10kb`, `1topic-100kb`
+
+### Cluster-specific settings
+
+If your cluster requires non-default storage classes, image pull secrets, or resource limits,
+create a cluster overrides file and pass it with `--cluster-overrides`:
+
+```bash
+# cluster-overrides.yaml example
+kafka:
+  storage:
+    storageClass: my-storage-class
+
+# Override the Vault image when Docker Hub is restricted (e.g. some OpenShift clusters)
+vault:
+  image: quay.io/your-org/vault:1.21.4
+```
+
+```bash
+./scripts/run-benchmark.sh \
+  --cluster-overrides ./cluster-overrides.yaml \
+  baseline 1topic-1kb ./results/baseline/
+```
+
+The `--cluster-overrides` file is applied last, so it always wins over scenario and profile
+defaults. Pass it to both `run-benchmark.sh` and `rate-sweep.sh`.
+
+### Quick validation (smoke profile)
+
+The smoke profile uses 1 broker, 2 workers, and a 1-minute test — not suitable for
+performance measurement but useful to verify the cluster is working before a full run.
+It fits comfortably within a 16 GB single-node cluster (minikube/kind).
+
+```bash
+./scripts/run-benchmark.sh \
+  --profile ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
+  baseline 1topic-1kb ./results/smoke/
+```
+
+### Finding the saturation point (rate sweep)
+
+To find the throughput ceiling for a scenario, use `rate-sweep.sh`. It deploys infrastructure
+once, then probes at increasing rates until the achieved throughput drops below the target,
+indicating saturation.
+
+```bash
+./scripts/rate-sweep.sh \
+  --scenarios baseline,encryption \
+  --min-rate 10000 \
+  --max-rate 60000 \
+  --step-percent 10 \
+  --output-dir ./results/sweep-$(date +%Y%m%d-%H%M%S)/
+```
+
+This prints a summary table at the end showing achieved rate and p99 latency at each probe,
+with saturation flagged where applicable. Use `--dry-run` to preview the rate sequence
+without deploying anything:
+
+```bash
+./scripts/rate-sweep.sh \
+  --scenarios encryption \
+  --min-rate 30000 --max-rate 50000 --step-percent 5 \
+  --output-dir /tmp/preview/ \
+  --dry-run
+```
+
+## Interpreting Results
+
+`compare-results.sh` outputs a table with three sections:
+
+- **Publish Latency** — producer-side latency percentiles (avg, 50th, 75th, 95th, 99th, 99.9th)
+- **End-to-End Latency** — latency from produce to consume
+- **Throughput** — publish and consume rates in msg/s and MB/s
+
+Each row shows the baseline value, proxy value, absolute delta, and percentage change.
+Negative latency delta = proxy is faster; positive = proxy adds latency.
+
+## Troubleshooting
+
+**Kafka not starting**
+
+```bash
+kubectl describe kafka kafka -n kafka
+# Check Events section for errors
+kubectl logs -l strimzi.io/cluster=kafka -n kafka --tail=50
+```
+
+**OMB workers failing**
+
+```bash
+kubectl logs -l app=omb-worker -n kafka
+```
+
+**Benchmark can't connect to Kafka**
+
+```bash
+# Baseline — direct connection
+kubectl exec job/omb-benchmark -n kafka -- \
+  kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
+
+# Proxy scenario
+kubectl exec job/omb-benchmark -n kafka -- \
+  kafka-topics --bootstrap-server kafka-cluster-ip-bootstrap:9292 --list
+```
+
+**Cluster ID conflict after reinstall**
+
+If you see `Invalid cluster.id` errors, stale PVCs from a previous run are the cause:
+
+```bash
+kubectl delete pvc -l strimzi.io/cluster=kafka -n kafka
+```
+
+**Verify which bootstrap target is active**
+
+OMB does not log the bootstrap address it connects to. Check the driver ConfigMap:
+
+```bash
+kubectl get configmap omb-driver-baseline -n kafka \
+  -o jsonpath='{.data.driver-kafka\.yaml}' | grep bootstrap
+# baseline:       bootstrap.servers=kafka-kafka-bootstrap:9092
+# proxy scenario: bootstrap.servers=kafka-cluster-ip-bootstrap:9292
+```
+
+**Scripts fail with "run mvn process-sources first"**
+
+The benchmark scripts use JBang to run Java-based result analysis tools. These tools are
+generated from annotated source files during the Maven build. If you see an error like:
+
+```
+Error: run 'mvn process-sources -pl kroxylicious-openmessaging-benchmarks' first to generate filtered sources
+```
+
+Run the following once from the repository root before using the scripts:
+
+```bash
+mvn process-sources -pl kroxylicious-openmessaging-benchmarks
+```

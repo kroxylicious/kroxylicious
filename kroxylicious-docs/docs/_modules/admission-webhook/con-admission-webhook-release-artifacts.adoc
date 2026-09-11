@@ -1,0 +1,25 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// Module included in the following:
+//
+// _assemblies/assembly-admission-webhook-install.adoc
+
+[id='con-admission-webhook-release-artifacts-{context}']
+= Admission webhook release artifacts
+
+[role="_abstract"]
+To install the admission webhook using YAML manifest files, download the `{WebhookAssetZipFileName}` or `{WebhookAssetTgzFileName}` file from the {github-release-link}, and extract the files as appropriate (for example using `unzip` or `tar -xzf`).
+
+// TODO: Add a direct download link once the release artifact attributes are finalized.
+
+Each of these archives contains:
+
+Installation files:: In the `install` directory are the YAML manifests needed to install the admission webhook.
+
+Examples:: In the `examples` directory are example resources, including a cert-manager `Certificate` for automated TLS certificate provisioning.

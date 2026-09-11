@@ -1,0 +1,50 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// index.adoc
+
+[id='con-protocol-logger-security-{context}']
+= Security considerations
+
+[role="_abstract"]
+The bodies of credential-bearing API keys are never logged.
+The following API keys are hardcoded as excluded:
+
+* `SASL_AUTHENTICATE`
+* `CREATE_DELEGATION_TOKEN`
+* `RENEW_DELEGATION_TOKEN`
+* `EXPIRE_DELEGATION_TOKEN`
+* `ALTER_USER_SCRAM_CREDENTIALS`
+* `DESCRIBE_DELEGATION_TOKEN`
+
+This is deliberately not configurable.
+For these API keys, the message body is structurally withheld rather than redacted after the fact.
+The header is still emitted so the handshake remains visible; the payload is replaced with a null and a `payloadWithheld` field explains why:
+
+[source,json]
+----
+{
+  "header" : {
+    "type" : "REQUEST",
+    "apiKey" : "SASL_AUTHENTICATE",
+    "apiVersion" : 2,
+    "correlationId" : 2147483642,
+    "clientId" : "producer-1"
+  },
+  "payload" : null,
+  "payloadWithheld" : "credential-bearing API"
+}
+----
+
+Record payloads (the content of Produce and Fetch messages) are not logged in readable form.
+Kafka's generated JSON converters emit an empty byte array for records-typed fields regardless of content, so the binary record payload never appears in the output.
+
+Other protocol fields are logged verbatim.
+Metadata such as topic names, consumer group names, and client identifiers may themselves be sensitive in your environment, so treat the resulting log output with the same care as any other log data.

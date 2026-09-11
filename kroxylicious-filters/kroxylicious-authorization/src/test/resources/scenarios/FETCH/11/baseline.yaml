@@ -1,0 +1,115 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FETCH"
+  apiVersion: 11
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FETCH"
+      expectedRequestVersion: 11
+      expectedRequestHeader:
+        requestApiKey: 1
+        requestApiVersion: 11
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 877
+        maxWaitMs: 1007
+        minBytes: 846
+        maxBytes: 781
+        isolationLevel: 35
+        sessionId: 597
+        sessionEpoch: 666
+        topics:
+          - topic: "my-topic"
+            partitions:
+              - partition: 726
+                currentLeaderEpoch: 95
+                fetchOffset: 758
+                logStartOffset: 377
+                partitionMaxBytes: 448
+        forgottenTopicsData:
+          - topic: "my-topic"
+            partitions:
+              - 55
+        rackId: "random-string-755"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 471
+        errorCode: 1002
+        sessionId: 192
+        responses:
+          - topic: "my-topic"
+            partitions:
+              - partitionIndex: 173
+                errorCode: 536
+                highWatermark: 509
+                lastStableOffset: 869
+                logStartOffset: 443
+                abortedTransactions:
+                  - producerId: 629
+                    firstOffset: 410
+                preferredReadReplica: 408
+                records: !!binary ""
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 1
+    requestApiVersion: 11
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    replicaId: 877
+    maxWaitMs: 1007
+    minBytes: 846
+    maxBytes: 781
+    isolationLevel: 35
+    sessionId: 597
+    sessionEpoch: 666
+    topics:
+      - topic: "my-topic"
+        partitions:
+          - partition: 726
+            currentLeaderEpoch: 95
+            fetchOffset: 758
+            logStartOffset: 377
+            partitionMaxBytes: 448
+    forgottenTopicsData:
+      - topic: "my-topic"
+        partitions:
+          - 55
+    rackId: "random-string-755"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 471
+    errorCode: 1002
+    sessionId: 192
+    responses:
+      - topic: "my-topic"
+        partitions:
+          - partitionIndex: 173
+            errorCode: 536
+            highWatermark: 509
+            lastStableOffset: 869
+            logStartOffset: 443
+            abortedTransactions:
+              - producerId: 629
+                firstOffset: 410
+            preferredReadReplica: 408
+            records: !!binary ""

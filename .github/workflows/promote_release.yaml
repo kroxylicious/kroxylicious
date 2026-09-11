@@ -1,0 +1,373 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Promote Release
+
+# This workflow is dispatched by robot-command-dispatcher in response to a promote-release
+# (or drop-release command).
+#
+# It will release the staged maven artefacts, and merge the release PR.
+#
+# It requires the following:
+# inputs:
+# release-pr-issue-number - the issue number of release PR
+# command - promote-release or drop-release
+#
+# variables:
+# KROXYLICIOUS_SONATYPE_TOKEN_USERNAME - Sonatype Access User Token Username
+#
+# secrets:
+# KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD - Sonatype Access User Token Password
+# KROXYLICIOUS_RELEASE_TOKEN           - GitHub PAT, see RELEASING.md for required permissions
+#
+
+on:
+  workflow_call:
+    inputs:
+      release-pr-issue-number:
+        description: 'PR number that is performing the release'
+        type: number
+        required: true
+      command:
+        description: 'Dispatched command'
+        required: true
+        type: string
+    secrets:
+      KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD:
+        required: true
+      KROXYLICIOUS_RELEASE_TOKEN:
+        required: true
+      REGISTRY_TOKEN:
+        required: true
+
+jobs:
+  promote-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: 'Check out repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          fetch-tags: true
+          fetch-depth: 0
+
+      - name: 'Require promote-release to be run on base repository'
+        if: ${{ inputs.command == 'promote-release' && github.repository != 'kroxylicious/kroxylicious' }}
+        run: |
+          echo "The 'promote-release' command can only be run from the 'kroxylicious/kroxylicious' repository."
+          exit 1
+
+      - name: 'Check team membership'
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
+        uses: tspascoal/get-user-teams-membership@b2546c5affc730fd8e3d8483ae9ad3621938c2f9
+        id: team-membership
+        with:
+          username: ${{ github.actor }}
+          team: release-engineers
+          GITHUB_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: 'Stop workflow if user is not a release-engineer'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
+        run: |
+          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
+          exit -1
+
+      - name: 'Get run id of stage release workflow'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          RELCAND_ID=$(gh issue view ${{ github.event.issue.number }} --json labels | jq --raw-output --exit-status \
+            '[.labels.[] | select(.name | startswith("__relcand_id-"))] |
+             if . | length == 1 then first else "unexpected number of relcand_ids on PR" | halt_error end | 
+             .name | sub("__relcand_id-"; "")')
+          echo "RELCAND_ID=${RELCAND_ID}" >> $GITHUB_ENV
+
+      - name: Download release state artefact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          run-id: ${{ env.RELCAND_ID }}
+          name: RELEASE_STATE.json
+          github-token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: Download release notes
+        if: ${{ inputs.command == 'promote-release' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          run-id: ${{ env.RELCAND_ID }}
+          name: RELEASE_NOTES
+          path: .releaseNotes
+          github-token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: Download release assets
+        if: ${{ inputs.command == 'promote-release' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          run-id: ${{ env.RELCAND_ID }}
+          name: RELEASE_ASSETS
+          path: release-assets
+          github-token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: 'Extract release metadata from the release state'
+        run: |
+          DEPLOYMENT_ID=$(jq --exit-status --raw-output '.deploymentId' RELEASE_STATE.json)
+          echo "DEPLOYMENT_ID=${DEPLOYMENT_ID}" >> $GITHUB_ENV
+          RELEASE_VERSION=$(jq --exit-status --raw-output '.releaseVersion' RELEASE_STATE.json)
+          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
+          WORK_BRANCH=$(jq --exit-status --raw-output '.workBranch' RELEASE_STATE.json)
+          echo "WORK_BRANCH=${WORK_BRANCH}" >> $GITHUB_ENV
+          RELEASE_COMMIT_SHA=$(jq --exit-status --raw-output '.releaseCommitSha' RELEASE_STATE.json)
+          echo "RELEASE_COMMIT_SHA=${RELEASE_COMMIT_SHA}" >> $GITHUB_ENV
+          WEBSITE_REPOSITORY=$(jq --exit-status --raw-output '.websiteRepository' RELEASE_STATE.json)
+          echo "WEBSITE_REPOSITORY=${WEBSITE_REPOSITORY}" >> $GITHUB_ENV
+
+      - name: 'Stop workflow if PR is not approved'
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' && inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          PR_APPROVAL="$(gh pr view ${{ inputs.release-pr-issue-number}} --json reviewDecision | jq -r .reviewDecision)"
+          if [[ "$PR_APPROVAL" != "APPROVED" ]]; then
+            gh issue comment  ${{ github.event.issue.number }} --body "PR is not Approved! You must approve the release PR before promoting it"
+            exit -1
+          fi
+          echo "PR is Approved, Continuing promotion."
+
+      - name: 'Get the branch name associated with the PR'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          echo "PR_BRANCH=$(gh pr view ${{ inputs.release-pr-issue-number}} --json headRefName | jq -r .headRefName)" >> $GITHUB_ENV
+          echo "PR_BASE_BRANCH=$(gh pr view ${{ inputs.release-pr-issue-number}} --json baseRefName | jq -r .baseRefName)" >> $GITHUB_ENV
+
+      - name: 'Branch name matches naming conventions'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          if [[ ! "${PR_BRANCH}" =~ ^release-work- ]]; then
+            gh issue comment  ${{ github.event.issue.number }} --body "This PR's branch name (${PR_BRANCH}) is not in the expected form."
+            exit -1
+          fi
+
+      - name: 'Validate release version from the release state'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          if [[ ! "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            gh issue comment ${{ github.event.issue.number }} --body "The release version '${RELEASE_VERSION}' from RELEASE_STATE.json is not in the expected form."
+            exit -1
+          fi
+
+      - name: 'Get heads'
+        run: |
+          # Get PR's ref.
+          echo "PR_REF=$(git rev-list -n 1 origin/${PR_BRANCH})" >> $GITHUB_ENV
+
+          # Get main's current head
+          echo "PR_BASE_HEAD=$(git rev-list -n 1 origin/${PR_BASE_BRANCH} )" >> $GITHUB_ENV
+
+          # Get PR's view of where main ought to be.  This is two commits behind PR's head.
+          echo "PR_BASE_REF=$(git rev-list -n 1 origin/${PR_BRANCH}^^)" >> $GITHUB_ENV
+
+      - name: 'Check for PR/main divergence'
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          if [[ "${PR_BASE_HEAD}" != "${PR_BASE_REF}" ]];
+          then
+            gh pr comment --body "Release PR (expects ${PR_BASE_BRANCH} to be at ${PR_BASE_REF}) but has found (${PR_BASE_HEAD}). You must drop this release and restage the release. ${{ inputs.release-pr-issue-number }} as there have been commits to ${PR_BASE_BRANCH} since the release was staged."
+            exit 1
+          fi
+
+      - name: 'Check build workflow has completed successfully'
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          UNFINISHED_OR_ERRORED=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/${{ github.repository }}/commits/${PR_REF}/check-runs \
+              | jq --exit-status -r '[.check_runs[] | select( .status != "completed" or ( .conclusion != "success" and .conclusion != "skipped"))] | length')
+
+          if [[ ${UNFINISHED_OR_ERRORED} > 0 ]]; then
+            gh pr comment --body "${UNFINISHED_OR_ERRORED} build check(s) have not completed successfully. If they are still running, you can ask me to promote-release again once they are finished." ${{ inputs.release-pr-issue-number }}
+            exit 1
+          fi
+
+      - name: Login to container registry
+        if: ${{ vars.REGISTRY_SERVER != '' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: 'Verify staged container images exist'
+        # Fail fast, before anything is published, if a staged manifest referenced
+        # by RELEASE_STATE.json is missing from the registry (see issue #4851).
+        if: ${{ inputs.command == 'promote-release' && vars.REGISTRY_SERVER != '' }}
+        run: |
+          missing=0
+          while IFS= read -r ref; do
+            if skopeo inspect --raw "docker://${ref}" > /dev/null 2>&1; then
+              echo "OK: ${ref}"
+            else
+              echo "::error::staged manifest not found: ${ref}"
+              missing=1
+            fi
+          done < <(jq -r '.stagedArtifacts[].images.manifestImage.ref' RELEASE_STATE.json)
+          if [[ "${missing}" -ne 0 ]]; then
+            echo "One or more staged manifests are missing; aborting before the release is published."
+            exit 1
+          fi
+
+      - name: 'Transition Central Publishing Portal to desired state'
+        env:
+          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
+          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+        run: |
+          ./scripts/transition-staging-repository-state.sh -d "${{ env.DEPLOYMENT_ID}}" \
+                                                           -s "${{ inputs.command == 'promote-release' && 'release' || 'drop' }}"
+
+      - name: 'Unblock the merge'
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh api --method POST \
+                 -H "Accept: application/vnd.github+json" \
+                 -H "X-GitHub-Api-Version: 2022-11-28" \
+                 /repos/${{ github.repository }}/statuses/${PR_REF} \
+                 -f "state=success" \
+                 -f "description=Release to Maven Central is complete" \
+                 -f "context=maven-central"
+
+      - name: 'Merge PR'
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh pr merge --delete-branch --merge ${{ inputs.release-pr-issue-number }}
+          # --merge (not --rebase) so the commit SHA the published images are tagged with
+          # is reachable on main.
+          git tag "v${RELEASE_VERSION}" "${RELEASE_COMMIT_SHA}"
+          git push origin "v${RELEASE_VERSION}"
+
+      - name: 'Create GitHub release'
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh release create "v${RELEASE_VERSION}" \
+            --title "Kroxylicious ${RELEASE_VERSION}" \
+            --notes-file .releaseNotes/release-notes_01 \
+            release-assets/*
+
+      - name: 'Delete release branch'
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          git push origin --delete "${WORK_BRANCH}-rel" || echo "Branch ${WORK_BRANCH}-rel not found (already deleted?)"
+
+      - name: 'Tag release container images'
+        if: ${{ inputs.command == 'promote-release' && vars.REGISTRY_SERVER != '' }}
+        run: |
+          # Re-tag each staged manifest as the release version and latest.
+          # --all preserves the multi-arch manifest list.
+          # The staging tag is stripped from the manifest ref to derive the image name.
+          tag_release() {
+            local manifest="$1" image="$2"
+            skopeo copy --all "docker://${manifest}" "docker://${image}:${{ env.RELEASE_VERSION }}"
+            skopeo copy --all "docker://${manifest}" "docker://${image}:latest"
+          }
+
+          # .manifestImage.ref selects only the multi-arch manifest list for each entity.
+          # Per-arch intermediate images (proxy amd64/arm64) are staging artifacts only
+          # and are not published with a release tag.
+          MANIFEST_IMAGE_SELECTOR='.stagedArtifacts[].images.manifestImage.ref'
+          while IFS= read -r manifest; do
+            tag_release "${manifest}" "${manifest%:*}"
+          done < <(jq -r "${MANIFEST_IMAGE_SELECTOR}" RELEASE_STATE.json)
+
+      - name: 'Set up Java'
+        if: ${{ inputs.command == 'promote-release' }}
+        uses: $/.github/actions/common/setup-java
+        with:
+          javaVersion: '21'
+          javaDistro: 'temurin'
+
+      - name: 'Publish release docs'
+        # Placed after every other step that reads RELEASE_STATE.json / release-assets
+        # from disk: stage-docs.sh does `git stash --all` without a matching pop, which
+        # would otherwise sweep those untracked files out of the working tree.
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-docs.sh
+        run: |
+          ./scripts/stage-docs.sh -v "${RELEASE_VERSION}" \
+                                  -b "prepare-v${RELEASE_VERSION}-release-docs-${{ github.run_id }}" \
+                                  -u "https://user:${GH_TOKEN}@${WEBSITE_REPOSITORY}"
+
+      - name: 'Drop PR'
+        if: ${{ inputs.command == 'drop-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh pr close --comment "Release dropped" --delete-branch ${{ inputs.release-pr-issue-number }}
+          git push origin --delete "${WORK_BRANCH}-rel" || echo "Branch ${WORK_BRANCH}-rel not found (already deleted?)"
+
+      - name: 'Delete staging container images'
+        if: ${{ inputs.command == 'drop-release' && vars.REGISTRY_SERVER != '' }}
+        run: |
+          skopeo_delete_if_exists() {
+            local ref="$1"
+            skopeo inspect "docker://${ref}" > /dev/null 2>&1
+            local exit_code=$?
+            # skopeo inspect exits 2 when the image is not found (distinct from other errors);
+            # exit 1 indicates a real failure worth surfacing rather than silently swallowing.
+            if [[ $exit_code -eq 2 ]]; then
+              echo "Image not found, skipping: docker://${ref}"
+              return 0
+            elif [[ $exit_code -ne 0 ]]; then
+              echo "Error inspecting docker://${ref}" >&2
+              return 1
+            fi
+            skopeo delete "docker://${ref}"
+          }
+
+          # .[].ref iterates all image entries per entity (manifestImage + any per-arch
+          # intermediates), ensuring nothing is left behind on drop.
+          ALL_IMAGE_REFS_SELECTOR='.stagedArtifacts[].images[].ref'
+          while IFS= read -r ref; do
+            skopeo_delete_if_exists "${ref}"
+          done < <(jq -r "${ALL_IMAGE_REFS_SELECTOR}" RELEASE_STATE.json)
+
+      - name: 'Drop run label used to tag release PR'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh label delete "__relcand_id-${RELCAND_ID}" --yes || true
+

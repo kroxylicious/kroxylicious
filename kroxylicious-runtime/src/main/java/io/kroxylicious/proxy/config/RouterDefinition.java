@@ -1,0 +1,73 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.proxy.config;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.kroxylicious.proxy.plugin.PluginImplConfig;
+import io.kroxylicious.proxy.plugin.PluginImplName;
+import io.kroxylicious.proxy.router.RouterFactory;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+/**
+ * A named router definition referencing a {@link RouterFactory} plugin type.
+ *
+ * @param name unique name for this router
+ * @param type the {@link RouterFactory} plugin implementation name
+ * @param config optional plugin-specific configuration
+ * @param routes the routes available from this router
+ */
+public record RouterDefinition(
+                               @JsonProperty(required = true) String name,
+                               @PluginImplName(RouterFactory.class) @JsonProperty(required = true) String type,
+                               @Nullable @PluginImplConfig(implNameProperty = "type") Object config,
+                               @JsonProperty(required = true) List<RouteDefinition> routes) {
+
+    private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9A-Z](?:[a-z0-9A-Z_.-]{0,251}[a-z0-9A-Z])?");
+
+    /**
+     * Validates the router definition: {@code name} and {@code type} are required, and it
+     * must have at least one route with route names and ids unique within the router.
+     */
+    @JsonCreator
+    public RouterDefinition {
+        Objects.requireNonNull(name, "'name' is required in a router definition");
+        if (!NAME_PATTERN.matcher(name).matches()) {
+            throw new IllegalArgumentException("Invalid router name '" + name + "' (should match '" + NAME_PATTERN.pattern() + "')");
+        }
+        Objects.requireNonNull(type, "'type' is required in a router definition");
+        if (routes == null || routes.isEmpty()) {
+            throw new IllegalConfigurationException("Router '" + name + "' must have at least one route");
+        }
+        Set<String> seenNames = new HashSet<>();
+        Set<String> nameDuplicates = routes.stream()
+                .map(RouteDefinition::name)
+                .filter(n -> !seenNames.add(n))
+                .collect(Collectors.toSet());
+        if (!nameDuplicates.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "Router '" + name + "' has duplicate route names: " + nameDuplicates);
+        }
+        Set<Integer> seenIds = new HashSet<>();
+        Set<Integer> idDuplicates = routes.stream()
+                .map(RouteDefinition::id)
+                .filter(id -> !seenIds.add(id))
+                .collect(Collectors.toSet());
+        if (!idDuplicates.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "Router '" + name + "' has duplicate route ids: " + idDuplicates);
+        }
+    }
+}

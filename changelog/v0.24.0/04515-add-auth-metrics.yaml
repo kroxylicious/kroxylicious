@@ -1,0 +1,4 @@
+title: "feat(runtime): add per-mechanism authentication outcome metrics"
+type: added
+issues:
+  - 4515

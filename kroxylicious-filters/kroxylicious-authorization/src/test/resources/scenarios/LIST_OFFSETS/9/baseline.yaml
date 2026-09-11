@@ -1,0 +1,77 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "LIST_OFFSETS"
+  apiVersion: 9
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_OFFSETS"
+      expectedRequestVersion: 9
+      expectedRequestHeader:
+        requestApiKey: 2
+        requestApiVersion: 9
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 715
+        isolationLevel: 20
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 848
+                currentLeaderEpoch: 485
+                timestamp: 257
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 815
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 639
+                errorCode: 264
+                timestamp: 635
+                offset: 181
+                leaderEpoch: 687
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 2
+    requestApiVersion: 9
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    replicaId: 715
+    isolationLevel: 20
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 848
+            currentLeaderEpoch: 485
+            timestamp: 257
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 815
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 639
+            errorCode: 264
+            timestamp: 635
+            offset: 181
+            leaderEpoch: 687

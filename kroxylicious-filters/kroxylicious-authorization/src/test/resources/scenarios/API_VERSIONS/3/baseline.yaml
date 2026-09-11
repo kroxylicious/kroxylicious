@@ -1,0 +1,59 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "API_VERSIONS"
+  apiVersion: 3
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "API_VERSIONS"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 18
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        clientSoftwareName: "random-string-439"
+        clientSoftwareVersion: "random-string-267"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 35
+        apiKeys:
+          - apiKey: 3
+            minVersion: 0
+            maxVersion: 13
+        throttleTimeMs: 315
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 18
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    clientSoftwareName: "random-string-439"
+    clientSoftwareVersion: "random-string-267"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    errorCode: 35
+    apiKeys:
+      - apiKey: 3
+        minVersion: 0
+        maxVersion: 13
+    throttleTimeMs: 315

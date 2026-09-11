@@ -1,0 +1,23 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KafkaService
+  apiVersion: kroxylicious.io/v1alpha1
+  metadata:
+    name: fooref
+    namespace: proxy-ns
+  spec:
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+    strimziKafkaRef:
+      group: kafka.strimzi.io
+      kind: Kafka
+      name: my-cluster         # Name of the Kafka CR
+      namespace: kafka        # Namespace of the Kafka CR
+      listenerName: plain
+expectFailureMessageToContain: |
+  Invalid value: "": "spec" must validate one and only one schema

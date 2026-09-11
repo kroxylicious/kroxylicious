@@ -1,0 +1,37 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "END_TXN"
+  apiVersion: 5
+  scenario: "denied transactional id"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: []
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 26
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "my-transactional-id"
+    producerId: 1000
+    producerEpoch: 1
+    committed: true
+then:
+  expectAuthorizationOutcomeLog: true
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 53
+    producerId: -1
+    producerEpoch: -1

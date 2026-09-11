@@ -1,0 +1,20 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KroxyliciousSidecarConfig
+  apiVersion: sidecar.kroxylicious.io/v1alpha1
+  metadata:
+    name: multiple-virtualclusters
+    namespace: webhook-validation-test
+  spec:
+    virtualClusters:
+      - name: cluster1
+        targetBootstrapServers: kafka1.example.com:9092
+      - name: cluster2
+        targetBootstrapServers: kafka2.example.com:9092
+expectFailureMessageToContain: "spec.virtualClusters"

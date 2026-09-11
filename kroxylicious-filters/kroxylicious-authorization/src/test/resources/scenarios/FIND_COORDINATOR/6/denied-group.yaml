@@ -1,0 +1,39 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FIND_COORDINATOR"
+  apiVersion: 6
+  scenario: "group denied for user"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: []
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 10
+    requestApiVersion: 6
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    keyType: 0
+    coordinatorKeys:
+      - "my-group"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    coordinators:
+      - key: "my-group"
+        nodeId: -1
+        host: ""
+        port: -1
+        errorCode: 30
+        errorMessage: ""

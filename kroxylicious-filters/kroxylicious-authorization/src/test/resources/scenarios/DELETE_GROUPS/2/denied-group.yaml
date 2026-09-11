@@ -1,0 +1,32 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DELETE_GROUPS"
+  apiVersion: 2
+  scenario: |
+    given user not allowed to DELETE group
+    then request not forwarded and error response returned to client
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: [] # alice not permitted to delete group
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 42
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupsNames:
+      - "my-group"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedErrorResponse: GROUP_AUTHORIZATION_FAILED

@@ -1,0 +1,137 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.proxy.internal.config;
+
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import io.kroxylicious.proxy.config.Configuration;
+
+import static java.util.Arrays.stream;
+
+/**
+ * Represents the entire set of proxy features.
+ */
+public final class Features {
+
+    private static final Features DEFAULT_FEATURES = new Features(Map.of());
+    private final Map<Feature, Boolean> featureToEnabled;
+
+    private Features(Map<Feature, Boolean> featureToEnabled) {
+        this.featureToEnabled = featureToEnabled;
+    }
+
+    /**
+     * Check whether this configuration is supported by the proxy's features
+     * @param configuration configuration
+     * @return if not supported, returns a list of errors, else an empty list
+     */
+    public List<String> supports(Configuration configuration) {
+        return stream(Feature.values())
+                .flatMap(feature -> feature.supports(configuration, isEnabled(feature)))
+                .toList();
+    }
+
+    /**
+     * Tests whether the given feature is enabled.
+     *
+     * @param feature feature to test
+     * @return true if feature enabled, else false
+     */
+    public boolean isEnabled(Feature feature) {
+        return featureToEnabled.getOrDefault(feature, feature.enabledByDefault());
+    }
+
+    /**
+     * Returns the default feature set, with every feature at its default enablement.
+     *
+     * @return the default features
+     */
+    public static Features defaultFeatures() {
+        return DEFAULT_FEATURES;
+    }
+
+    /**
+     * If any sensitive or unsupported features are enabled, they may return a warning to be logged
+     * @return list of warnings, empty if no warnings
+     */
+    public List<String> warnings() {
+        return stream(Feature.values()).flatMap(feature -> feature.maybeWarning(isEnabled(feature)).stream()).toList();
+    }
+
+    /**
+     * Creates a new builder with no features explicitly enabled.
+     *
+     * @return a new builder
+     */
+    public static FeaturesBuilder builder() {
+        return new FeaturesBuilder();
+    }
+
+    /**
+     * Builder of {@link Features} instances.
+     */
+    public static class FeaturesBuilder {
+        private final Map<Feature, Boolean> features = new EnumMap<>(Feature.class);
+
+        /**
+         * Creates a builder with no features explicitly enabled.
+         */
+        public FeaturesBuilder() {
+            // Intentionally empty
+        }
+
+        /**
+         * Enables the given feature.
+         *
+         * @param feature feature to enable
+         * @return this builder
+         */
+        public FeaturesBuilder enable(Feature feature) {
+            features.put(feature, true);
+            return this;
+        }
+
+        /**
+         * Builds the features.
+         *
+         * @return the built {@link Features} instance
+         */
+        public Features build() {
+            if (features.isEmpty()) {
+                return Features.defaultFeatures();
+            }
+            return new Features(Collections.unmodifiableMap(features));
+        }
+
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Features other)) {
+            return false;
+        }
+        return Objects.equals(featureToEnabled, other.featureToEnabled);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(featureToEnabled);
+    }
+
+    @Override
+    public String toString() {
+        return stream(Feature.values()).map(f -> f.name() + ": " + (isEnabled(f) ? "enabled" : "disabled")).collect(Collectors.joining(",", "[", "]"));
+    }
+}

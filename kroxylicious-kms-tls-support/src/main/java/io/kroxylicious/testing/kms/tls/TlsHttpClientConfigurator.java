@@ -1,0 +1,358 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.testing.kms.tls;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.http.HttpClient;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.KeyStore;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509ExtendedTrustManager;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyProvider;
+import io.kroxylicious.proxy.config.tls.KeyProviderVisitor;
+import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.config.tls.TrustProviderVisitor;
+import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Responsible for applying TLS configuration to a {@link HttpClient.Builder}.
+ */
+public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Builder> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TlsHttpClientConfigurator.class);
+
+    private static final SSLContext PLATFORM_SSL_CONTEXT;
+
+    static {
+        try {
+            PLATFORM_SSL_CONTEXT = SSLContext.getDefault();
+        }
+        catch (NoSuchAlgorithmException nsae) {
+            var e = new ExceptionInInitializerError("Failed to access default SSL context for platform");
+            e.initCause(nsae);
+            throw e;
+        }
+    }
+
+    private static final X509ExtendedTrustManager INSECURE_TRUST_MANAGER = new InsecureTrustManager();
+
+    private static final TrustManager[] INSECURE_TRUST_MANAGERS = { INSECURE_TRUST_MANAGER };
+    @Nullable
+    private final Tls tls;
+
+    /**
+     * Creates a TLS configurator.
+     *
+     * @param tls tls parameters
+     */
+    public TlsHttpClientConfigurator(@Nullable Tls tls) {
+        this.tls = tls;
+    }
+
+    private SSLContext sslContext() {
+        try {
+            if (tls == null || (tls.trust() == null && tls.key() == null)) {
+                return PLATFORM_SSL_CONTEXT;
+            }
+            else {
+                TrustManager[] trustManagers = null;
+                KeyManager[] keyManagers = null;
+
+                if (tls.trust() != null) {
+                    trustManagers = getTrustManagers(tls.trust());
+                }
+                if (tls.key() != null) {
+                    keyManagers = getKeyManagers(tls.key());
+                }
+
+                SSLContext context = SSLContext.getInstance("TLS");
+                context.init(keyManagers, trustManagers, new SecureRandom());
+                return context;
+            }
+        }
+        catch (Exception e) {
+            throw new SslConfigurationException(e);
+        }
+    }
+
+    private SSLParameters sslParameters(SSLContext context) {
+        var copy = context.getDefaultSSLParameters();
+
+        // Disable hostname verification if using insecure TLS
+        if (isInsecureTls()) {
+            copy.setEndpointIdentificationAlgorithm(null);
+        }
+
+        if (tls == null || (tls.protocols() == null && tls.cipherSuites() == null)) {
+            return copy;
+        }
+
+        var supportedSSLParameters = context.getSupportedSSLParameters();
+
+        var protocols = applyRestriction("protocol", tls.protocols(), copy, supportedSSLParameters, SSLParameters::getProtocols);
+        var cipherSuites = applyRestriction("cipher suite", tls.cipherSuites(), copy, supportedSSLParameters, SSLParameters::getCipherSuites);
+
+        copy.setProtocols(protocols);
+        copy.setCipherSuites(cipherSuites);
+
+        return copy;
+    }
+
+    private boolean isInsecureTls() {
+        if (tls == null || tls.trust() == null) {
+            return false;
+        }
+        return tls.trust().accept(new TrustProviderVisitor<>() {
+            @Override
+            public Boolean visit(TrustStore trustStore) {
+                return false;
+            }
+
+            @Override
+            public Boolean visit(InsecureTls insecureTls) {
+                return insecureTls.insecure();
+            }
+
+            @Override
+            public Boolean visit(PlatformTrustProvider platformTrustProvider) {
+                return false;
+            }
+        });
+    }
+
+    @NonNull
+    private String[] applyRestriction(String subject, AllowDeny<String> allowDeny, SSLParameters defaultSslParameters, SSLParameters supportedSSLParameters,
+                                      Function<SSLParameters, String[]> sslParametersAccessor) {
+        var result = Arrays.stream(sslParametersAccessor.apply(defaultSslParameters)).toList();
+        if (allowDeny != null) {
+            var supported = Arrays.stream(sslParametersAccessor.apply(supportedSSLParameters)).collect(Collectors.toSet());
+            var allowed = allowDeny.allowed();
+
+            if (allowed != null && !allowed.isEmpty()) {
+                allowed.stream()
+                        .filter(Predicate.not(supported::contains))
+                        .forEach(unsupported -> LOGGER.atWarn()
+                                .addKeyValue("subject", subject)
+                                .addKeyValue("unsupported", unsupported)
+                                .addKeyValue("supported", supported)
+                                .log("Ignoring allowed item as it is not recognized by this platform"));
+                result = allowed.stream()
+                        .filter(supported::contains)
+                        .toList();
+            }
+
+            var denied = allowDeny.denied();
+            if (denied != null) {
+                denied.stream()
+                        .filter(Predicate.not(supported::contains))
+                        .forEach(unsupported -> LOGGER.atWarn()
+                                .addKeyValue("subject", subject)
+                                .addKeyValue("unsupported", unsupported)
+                                .addKeyValue("supported", supported)
+                                .log("Ignoring denied item as it is not recognized by this platform"));
+                result = result.stream()
+                        .filter(Predicate.not(denied::contains))
+                        .toList();
+            }
+
+            if (result.isEmpty()) {
+                throw new SslConfigurationException(
+                        "The configuration you have in place has resulted in no %ss being available. Allowed: %s, Denied: %s".formatted(subject, allowed, denied));
+            }
+        }
+        return result.toArray(new String[]{});
+    }
+
+    @VisibleForTesting
+    static KeyManager[] getKeyManagers(KeyProvider key) {
+        return key.accept(new KeyProviderVisitor<>() {
+            @SuppressFBWarnings({ "PATH_TRAVERSAL_IN", "HARD_CODE_PASSWORD" })
+            @Override
+            public KeyManager[] visit(KeyPair keyPair) {
+                try {
+                    // Read private key and certificate from PEM files
+                    byte[] keyBytes = Files.readAllBytes(Paths.get(keyPair.privateKeyFile()));
+                    byte[] certBytes = Files.readAllBytes(Paths.get(keyPair.certificateFile()));
+
+                    char[] keypassword = keyPair.keyPasswordProvider() != null
+                            ? keyPair.keyPasswordProvider().getProvidedPassword().toCharArray()
+                            : null;
+                    PrivateKey privateKey = PemUtils.parsePrivateKey(keyBytes, keypassword);
+                    X509Certificate[] certs = PemUtils.parseCertificateChain(certBytes);
+
+                    // Create in-memory KeyStore
+                    KeyStore ks = KeyStore.getInstance("JKS");
+                    ks.load(null, null);
+                    // Use empty password for both store and key entry for in-memory keystore
+                    char[] storePassword = "".toCharArray();
+                    ks.setKeyEntry("key", privateKey, storePassword, certs);
+
+                    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    kmf.init(ks, storePassword);
+                    return kmf.getKeyManagers();
+                }
+                catch (IOException e) {
+                    throw new SslConfigurationException("Failed to read PEM key material from " + keyPair.certificateFile() + " or " + keyPair.privateKeyFile(), e);
+                }
+                catch (Exception e) {
+                    throw new SslConfigurationException("Failed to load PEM key material", e);
+                }
+            }
+
+            @SuppressFBWarnings("PATH_TRAVERSAL_IN")
+            @Override
+            public KeyManager[] visit(io.kroxylicious.proxy.config.tls.KeyStore keyStore) {
+                try {
+                    if (keyStore.isPemType()) {
+                        throw new SslConfigurationException("PEM is not supported by this client");
+                    }
+                    KeyStore store = KeyStore.getInstance(keyStore.getType());
+                    char[] storePassword = passwordOrNull(keyStore.storePasswordProvider());
+                    try (FileInputStream fileInputStream = new FileInputStream(keyStore.storeFile())) {
+                        store.load(fileInputStream, storePassword);
+                    }
+                    KeyManagerFactory instance = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    char[] keyPassword = passwordOrNull(keyStore.keyPasswordProvider());
+                    keyPassword = keyPassword == null ? storePassword : keyPassword;
+                    instance.init(store, keyPassword);
+                    return instance.getKeyManagers();
+                }
+                catch (Exception e) {
+                    throw new SslConfigurationException(e);
+                }
+            }
+
+            @Nullable
+            @SuppressFBWarnings(value = "HARD_CODE_PASSWORD", justification = "Password comes from PasswordProvider, not hardcoded. False positive from String.toCharArray() call.")
+            private static char[] passwordOrNull(PasswordProvider value) {
+                return Optional.ofNullable(value).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
+            }
+        });
+    }
+
+    @VisibleForTesting
+    static TrustManager[] getTrustManagers(TrustProvider trust) {
+        return trust.accept(new TrustProviderVisitor<>() {
+            @SuppressFBWarnings("PATH_TRAVERSAL_IN")
+            @Override
+            public TrustManager[] visit(TrustStore trustStore) {
+                return trustStore.isPemType() ? loadPemTrustStore(trustStore) : loadJksTrustStore(trustStore);
+            }
+
+            @Override
+            public TrustManager[] visit(InsecureTls insecureTls) {
+                return insecureTls.insecure() ? INSECURE_TRUST_MANAGERS : getDefaultTrustManagers();
+            }
+
+            @Override
+            public TrustManager[] visit(PlatformTrustProvider platformTrustProviderTls) {
+                return getDefaultTrustManagers();
+            }
+        });
+    }
+
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
+    private static TrustManager[] loadPemTrustStore(TrustStore trustStore) {
+        try {
+            byte[] pemBytes = Files.readAllBytes(Paths.get(trustStore.storeFile()));
+            X509Certificate[] certs = PemUtils.parseCertificateChain(pemBytes);
+
+            // Create in-memory KeyStore from PEM certificates
+            KeyStore ks = KeyStore.getInstance("JKS");
+            ks.load(null, null);
+            for (int i = 0; i < certs.length; i++) {
+                ks.setCertificateEntry("cert-" + i, certs[i]);
+            }
+
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(ks);
+            return tmf.getTrustManagers();
+        }
+        catch (IOException e) {
+            throw new SslConfigurationException("Failed to read PEM trust store from " + trustStore.storeFile(), e);
+        }
+        catch (Exception e) {
+            throw new SslConfigurationException("Failed to load PEM trust store", e);
+        }
+    }
+
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
+    private static TrustManager[] loadJksTrustStore(TrustStore trustStore) {
+        try {
+            KeyStore instance = KeyStore.getInstance(trustStore.getType());
+            char[] charArray = trustStore.storePasswordProvider() != null ? trustStore.storePasswordProvider().getProvidedPassword().toCharArray() : null;
+            instance.load(new FileInputStream(trustStore.storeFile()), charArray);
+            TrustManagerFactory managerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            managerFactory.init(instance);
+            return managerFactory.getTrustManagers();
+        }
+        catch (Exception e) {
+            throw new SslConfigurationException(e);
+        }
+    }
+
+    private static TrustManager[] getDefaultTrustManagers() {
+        try {
+            TrustManagerFactory factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            factory.init((KeyStore) null);
+            return factory.getTrustManagers();
+        }
+        catch (Exception e) {
+            throw new SslConfigurationException(e);
+        }
+    }
+
+    /**
+     * Applies TLS configuration to the supplied {@link HttpClient.Builder}.  If there is no
+     * TLS configuration to apply, this operation is a no-op.
+     *
+     * @param builder HTTP client builder
+     * @return HTTP client builder
+     */
+    @Override
+    public HttpClient.Builder apply(@NonNull HttpClient.Builder builder) {
+        Objects.requireNonNull(builder);
+        SSLContext context = sslContext();
+        builder.sslContext(context)
+                .sslParameters(sslParameters(context));
+        return builder;
+    }
+}

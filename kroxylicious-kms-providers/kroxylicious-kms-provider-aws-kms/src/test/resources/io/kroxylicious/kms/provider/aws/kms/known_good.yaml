@@ -1,0 +1,130 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Known good test data for AWS v4 request signing
+
+testName: post with data
+url: http://localhost:4566
+method: POST
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+requestTime: 1715950890
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=d01abf110351d12d715fa037454491f580f6b92e70345f7c4d3af583bc6637e5
+  X-Amz-Date:
+    - 20240517T130130Z
+---
+testName: post with data with path
+method: POST
+url: http://localhost:4566/my/path
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+requestTime: 1715950890
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=f682826f50818283d003f4ae917eb91579aa4bbfb318c8d449e503b0c71fad90
+  X-Amz-Date:
+    - 20240517T130130Z
+---
+testName: post with data with additional signed header
+method: POST
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+headers:
+  X-Amz-Target:
+    - TrentService.DescribeKey
+requestTime: 1715950890
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=eeeb906dbb1f67993eaf41af80cf180676ab90cdc6b298cfe00cdb04bce93007
+  X-Amz-Date:
+    - 20240517T130130Z
+---
+testName: get
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+requestTime: 1715950890
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=2c48184e1714b5e6798cbd15548eb75d16e373b25c337570c24dd6275d2db27b
+  X-Amz-Date:
+    - 20240517T130130Z
+---
+testName: get with query args
+method: GET
+url: http://localhost:4566/get?foo=bar
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+requestTime: 1715950890
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=4a52818fc91db8e5a0de0c4a0d02d327f406c75bb9725dbc84557d54c53e4925
+  X-Amz-Date:
+    - 20240517T130130Z
+---
+testName: signature contains space normalized header value
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+headers:
+  MyHeader:
+    - '  leading  and  trailing white space stripped '
+requestTime: 1715950890
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;myheader;x-amz-date, Signature=c29127a534c9f583e9adbe23a52a8e081465dd0b893160810ca3ea6a55a628c9
+  X-Amz-Date:
+    - 20240517T130130Z
+---
+testName: signature omits header with no value
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+headers:
+  MyHeader: []
+requestTime: 1715950890
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=2c48184e1714b5e6798cbd15548eb75d16e373b25c337570c24dd6275d2db27b
+  X-Amz-Date:
+    - 20240517T130130Z

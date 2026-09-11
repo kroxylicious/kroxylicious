@@ -1,0 +1,151 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-choosing-authentication-approach-{context}']
+= Choosing an authentication approach
+
+[role="_abstract"]
+This section provides guidance to help you choose the right authentication approach based on your existing infrastructure, security requirements, and required proxy features.
+
+== Mutual TLS (mTLS)
+
+Use mTLS when:
+
+* Clients can use certificates signed by a trusted issuer. While straightforward if you operate your own PKI, this approach also works with externally issued certificates if you trust the issuing CAs.
+* You want strong transport-level identity without depending on SASL.
+* You are willing to manage the operational overhead of certificate distribution, renewal, and revocation.
+
+mTLS is independent of any SASL mechanism.
+The client's identity is derived from the TLS client certificate, so even clients that do not use SASL authentication can be identified.
+
+== SASL Passthrough
+
+Use SASL Passthrough (the default) when:
+
+* You do not need the proxy to know the client's identity.
+* Your filters do not require an authenticated subject (for example, you are using only record encryption or record validation).
+* You want the simplest possible configuration.
+
+Because the broker still authenticates the client and sees the same identity as if the client had connected without the proxy, broker-side features that depend on client identity — such as authorization (ACLs), audit logging, and quotas — continue to work without any changes to your existing broker configuration.
+
+Be aware that in this mode the proxy cannot log which client is making requests, and identity-aware filters cannot function.
+
+== SASL Passthrough Inspection
+
+Use SASL Passthrough Inspection when:
+
+* You need the proxy to know the client's identity (for example, to use the `Authorization` filter or `EntityIsolation` filter).
+* You want the broker to remain the authority for authentication decisions.
+
+Because the broker remains the authentication authority and sees the same client identity as if the client had connected without the proxy, broker-side features that depend on client identity — such as authorization (ACLs), audit logging, and quotas — continue to work without any changes to your existing broker configuration.
+
+Consider the following:
+
+* The broker still decides whether authentication succeeds.
+  An unauthenticated attacker that can reach the proxy still has proxied access to the broker — the proxy forwards their application requests without restriction.
+ifdef::include-oauth-bearer-validation[]
+  If your threat model requires that only authenticated clients' requests are forwarded to the broker, consider OAuthBearer Validation, SASL Termination, or mTLS instead.
+endif::include-oauth-bearer-validation[]
+ifndef::include-oauth-bearer-validation[]
+  If your threat model requires that only authenticated clients' requests are forwarded to the broker, consider SASL Termination or mTLS instead.
+endif::include-oauth-bearer-validation[]
+* The proxy observes the SASL exchange and holds the authorization ID in memory.
+  For mechanisms that transmit credentials in plain text (such as PLAIN), this means plain-text passwords briefly exist in the proxy's memory.
+  The PLAIN mechanism is disabled by default for this reason.
+
+ifdef::include-oauth-bearer-validation[]
+== OAuthBearer Validation
+
+Use OAuthBearer Validation when:
+
+* Your Kafka clients authenticate using OAuth 2.0 bearer tokens (the `OAUTHBEARER` SASL mechanism).
+* You want the proxy to reject clients with invalid or expired tokens before their application requests are forwarded to the broker.
+* You want to reduce load on the broker from repeated invalid authentication attempts.
+
+This mode requires a reachable JWKS endpoint that provides the public keys used to verify JWT signatures.
+endif::include-oauth-bearer-validation[]
+
+== SASL Termination
+
+Use SASL Termination when:
+
+* You want the proxy to be the sole authority for client authentication, fully decoupling it from the broker.
+* You need to ensure that only authenticated clients' application requests are forwarded to the broker.
+* Your Kafka clients authenticate using the `OAUTHBEARER`, `SCRAM-SHA-256`, or `SCRAM-SHA-512` SASL mechanism.
+
+Authenticating clients at the proxy means that every broker feature which depends on client identity needs to be reconsidered:
+
+* *Authorization:* The broker sees application requests as coming from the proxy, not from the original client.
+  You can move authorization responsibility to the proxy using the `Authorization` filter, or you can update your broker's authorization configuration so that the proxy's identity is authorized appropriately.
+* *Audit logging:* Broker-side audit logs record the proxy's identity, not the original client's identity.
+  If you need client-level audit trails, you need to rely on proxy-side logging.
+* *Quotas:* Broker-side quotas apply to the proxy's identity, not to individual clients.
+  If you need per-client quota enforcement, you need to implement it at the proxy level.
+
+Consider the following:
+
+* The proxy validates credentials directly and does not forward SASL exchanges to the broker.
+  The broker does not need to be configured for SASL authentication at all, or it can use a different authentication mechanism for other clients.
+* Delegation Token APIs (`CreateDelegationToken`, `RenewDelegationToken`, `ExpireDelegationToken`, `DescribeDelegationToken`) are not available to clients when SASL is terminated at the proxy, because these APIs depend on a broker-side SASL session.
+* SCRAM credential management APIs (`AlterUserScramCredentials`, `DescribeUserScramCredentials`) are not available to clients when SCRAM is terminated at the proxy.
+  SCRAM credentials must be managed using the SCRAM credential tool instead.
+* Unlike SASL Passthrough Inspection, SASL Termination enforces authentication at the proxy: clients that fail authentication are rejected before their application requests are forwarded to the broker.
+
+Infrastructure requirements depend on the mechanism: `OAUTHBEARER` requires a reachable JWKS endpoint that provides the public keys used to verify JWT signatures; `SCRAM-SHA-256` and `SCRAM-SHA-512` require a credential store containing SCRAM credentials for your users.
+
+== Combining approaches
+
+mTLS and SASL authentication are not mutually exclusive.
+You can configure both on the same virtual cluster:
+
+* The transport subject builder creates an initial authenticated subject from the TLS client certificate.
+ifdef::include-oauth-bearer-validation[]
+* If SASL Passthrough Inspection or OAuthBearer Validation is also configured, the SASL subject builder replaces the subject after successful SASL authentication.
+endif::include-oauth-bearer-validation[]
+ifndef::include-oauth-bearer-validation[]
+* If SASL Passthrough Inspection is also configured, the SASL subject builder replaces the subject after successful SASL authentication.
+endif::include-oauth-bearer-validation[]
+
+This can be useful when you want transport-level identity as a baseline and application-level identity for fine-grained access control.
+
+.Summary of authentication approaches
+|===
+|Approach |Proxy knows client identity |Proxy validates credentials |Requires filter configuration |Additional infrastructure
+
+|mTLS
+|Yes (from certificate)
+|Yes (certificate validation)
+|No (configured on virtual cluster)
+|PKI for client certificates
+
+|SASL Passthrough
+|No
+|No
+|No (default)
+|None
+
+|SASL Passthrough Inspection
+|Yes (from SASL exchange)
+|No (broker decides)
+|Yes (`SaslInspection` filter)
+|None
+
+ifdef::include-oauth-bearer-validation[]
+|OAuthBearer Validation
+|Yes (from JWT token)
+|Yes (token validation)
+|Yes (`OauthBearerValidation` filter)
+|JWKS endpoint
+endif::include-oauth-bearer-validation[]
+
+|SASL Termination
+|Yes (from SASL exchange)
+|Yes (proxy validates directly)
+|Yes (`SaslTermination` filter)
+|JWKS endpoint (OAUTHBEARER) or SCRAM credential store (SCRAM)
+|===

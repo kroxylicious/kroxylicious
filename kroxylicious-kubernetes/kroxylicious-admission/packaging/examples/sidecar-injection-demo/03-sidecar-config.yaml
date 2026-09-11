@@ -1,0 +1,31 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: sidecar.kroxylicious.io/v1alpha1
+kind: KroxyliciousSidecarConfig
+metadata:
+  name: demo-config
+  namespace: demo-app
+spec:
+  virtualClusters:
+    - name: my-cluster
+      targetBootstrapServers: my-cluster-kafka-bootstrap.kafka.svc:9092
+  filterDefinitions:
+    - name: produce-uppercase
+      type: ProduceRequestTransformation
+      config:
+        transformation: UpperCasing
+        transformationConfig:
+          charset: UTF-8
+    - name: fetch-replace
+      type: FetchResponseTransformation
+      config:
+        transformation: Replacing
+        transformationConfig:
+          charset: UTF-8
+          targetPattern: "O"
+          replacementValue: "❤️"

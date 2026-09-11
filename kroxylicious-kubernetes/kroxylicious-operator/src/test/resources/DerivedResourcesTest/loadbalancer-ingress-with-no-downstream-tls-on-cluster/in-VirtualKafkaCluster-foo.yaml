@@ -1,0 +1,33 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: VirtualKafkaCluster
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: foo
+  namespace: proxy-ns
+  generation: 7
+spec:
+  proxyRef:
+    name: twocluster
+  targetKafkaServiceRef:
+    name: fooref
+  ingresses:
+    - ingressRef:
+        name: load-balancer
+status:
+  conditions:
+    - lastTransitionTime: "2025-05-27T01:28:04.162595871Z"
+      message: 'spec.ingresses[].tls: Inconsistent TLS configuration. kafkaproxyingress.kroxylicious.io/loadbalancer
+      in namespace ''my-proxy'' requires the use of TLS but the cluster ingress
+      (loadbalancer) does not define a tls object.'
+      observedGeneration: 7
+      reason: InvalidReferencedResource
+      status: "False"
+      type: ResolvedRefs
+  ingresses: []
+  observedGeneration: 7

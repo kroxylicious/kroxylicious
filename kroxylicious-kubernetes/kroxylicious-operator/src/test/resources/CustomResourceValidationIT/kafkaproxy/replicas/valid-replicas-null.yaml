@@ -1,0 +1,14 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: 12345678901234567890123456789012345678901234567890
+  namespace: proxy-ns
+spec:
+  replicas: null

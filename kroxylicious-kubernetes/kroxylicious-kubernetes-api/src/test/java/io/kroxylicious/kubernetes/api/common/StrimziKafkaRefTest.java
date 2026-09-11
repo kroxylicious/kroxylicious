@@ -1,0 +1,174 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.kubernetes.api.common;
+
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class StrimziKafkaRefTest {
+
+    private static final String KUBERNETES_NAMESPACE_NAME_PATTERN = "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$";
+
+    @Test
+    void namespaceShouldUseKubernetesNamespaceNamePattern() throws NoSuchFieldException {
+        var namespacePattern = StrimziKafkaRef.class.getDeclaredField("namespace")
+                .getAnnotation(io.fabric8.generator.annotation.Pattern.class);
+
+        assertThat(namespacePattern).isNotNull();
+        assertThat(namespacePattern.value()).isEqualTo(KUBERNETES_NAMESPACE_NAME_PATTERN);
+
+        var pattern = java.util.regex.Pattern.compile(namespacePattern.value());
+        assertThat(pattern.matcher("kafka").matches()).isTrue();
+        assertThat(pattern.matcher("shared-kafka").matches()).isTrue();
+        assertThat(pattern.matcher("1").matches()).isTrue();
+        assertThat(pattern.matcher("Kafka").matches()).isFalse();
+        assertThat(pattern.matcher("foo_bar").matches()).isFalse();
+        assertThat(pattern.matcher("").matches()).isFalse();
+        assertThat(pattern.matcher(" ").matches()).isFalse();
+        assertThat(pattern.matcher("-kafka").matches()).isFalse();
+        assertThat(pattern.matcher("kafka-").matches()).isFalse();
+        assertThat(pattern.matcher("a".repeat(64)).matches()).isFalse();
+    }
+
+    @Test
+    // we knowingly use equals across types because we want the property that specific LocalRef types are equal to any other LocalRef
+    // with the same group, kind and name.
+    @SuppressWarnings("java:S5845")
+    void shouldRespectEqualsAndHashCode() {
+        var strimziKafkaRefFoo = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain").build();
+        var strimziKafkaRefFoo2 = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain").build();
+        var diffRefKind = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("ConfigMap").build())
+                .withListenerName("plain").build();
+        var diffRefName = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("bar").withKind("Kafka").build())
+                .withListenerName("plain").build();
+        var diffRefListener = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("tls")
+                .build();
+        var diffNamespace = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withNamespace("other")
+                .withListenerName("plain")
+                .build();
+
+        assertThat(strimziKafkaRefFoo)
+                .isNotEqualTo("salami")
+                .isNotEqualTo(diffRefName)
+                .isNotEqualTo(diffRefListener)
+                .isNotEqualTo(diffNamespace)
+                .isEqualTo(strimziKafkaRefFoo2)
+                .isEqualTo(strimziKafkaRefFoo)
+                .isNotEqualTo(diffRefKind)
+                .hasSameHashCodeAs(strimziKafkaRefFoo2);
+    }
+
+    @Test
+    void shouldRespectEqualsAndHashCodeForTrustStrimziCaCertificate() {
+        var withTrustFalse = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(false)
+                .build();
+        var withTrustFalse2 = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(false)
+                .build();
+        var withTrustTrue = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(true)
+                .build();
+        var withTrustTrue2 = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(true)
+                .build();
+
+        assertThat(withTrustFalse)
+                .isEqualTo(withTrustFalse2)
+                .isNotEqualTo(withTrustTrue)
+                .hasSameHashCodeAs(withTrustFalse2)
+                .doesNotHaveSameHashCodeAs(withTrustTrue);
+
+        assertThat(withTrustTrue)
+                .isEqualTo(withTrustTrue2)
+                .isNotEqualTo(withTrustFalse)
+                .hasSameHashCodeAs(withTrustTrue2);
+    }
+
+    @Test
+    @SuppressWarnings("java:S5838") // deliberate use compareTo as we want to be explict about the method under test.
+    void shouldCompareByTrustStrimziCaCertificate() {
+        var withTrustFalse = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(false)
+                .build();
+        var withTrustTrue = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(true)
+                .build();
+
+        // false comes before true in boolean comparison
+        assertThat(withTrustFalse.compareTo(withTrustTrue)).isLessThan(0);
+        assertThat(withTrustTrue.compareTo(withTrustFalse)).isGreaterThan(0);
+        assertThat(withTrustFalse.compareTo(withTrustFalse)).isZero();
+        assertThat(withTrustTrue.compareTo(withTrustTrue)).isZero();
+    }
+
+    @Test
+    void shouldComparePrimaryFieldsBeforeTrustStrimziCaCertificate() {
+        // Different ref name (primary field) should take precedence over trustStrimziCaCertificate
+        var aRefTrustTrue = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("aaa").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(true)
+                .build();
+        var bRefTrustFalse = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("bbb").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(false)
+                .build();
+
+        // "aaa" comes before "bbb" regardless of trust setting
+        assertThat(aRefTrustTrue.compareTo(bRefTrustFalse)).isLessThan(0);
+
+        // Different listener name (secondary field) should take precedence over trustStrimziCaCertificate
+        var plainTrustTrue = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(true)
+                .build();
+        var tlsTrustFalse = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("tls")
+                .withTrustStrimziCaCertificate(false)
+                .build();
+
+        // "plain" comes before "tls" regardless of trust setting
+        assertThat(plainTrustTrue.compareTo(tlsTrustFalse)).isLessThan(0);
+    }
+
+    @Test
+    void shouldReturnBuilder() {
+        // Given
+        StrimziKafkaRefBuilder originalBuilder = new StrimziKafkaRefBuilder();
+        var fooRef = originalBuilder.withRef(new AnyLocalRefBuilder().withName("foo").build()).build();
+
+        // When
+        StrimziKafkaRefBuilder actualBuilder = fooRef.edit();
+
+        // Then
+        assertThat(actualBuilder)
+                .isNotNull()
+                .isInstanceOf(StrimziKafkaRefBuilder.class)
+                .isNotSameAs(originalBuilder);
+    }
+}

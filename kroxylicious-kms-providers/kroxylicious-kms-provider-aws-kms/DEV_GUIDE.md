@@ -1,0 +1,172 @@
+Here's some information that might be helpful when developing this module.
+
+# Testing the ability to authenticate with EC2 metadata
+
+In order to test this feature, you need to deploy Kroxylicious to an EC2 instance. The 
+EC2 instance needs to be associated with a properly configured IAM role. The EC2 credentials
+provider will use that to authenticate.
+
+Here's some instructions that will help you test end to end.  For simplicity, these instructions
+co-locate a Kafka Broker on the same instance.  Of course, you can choose to run the Kafka
+Cluster in any network accessible location.  These instructions also assume you want to run
+your Kafka client off-EC2.
+
+1. Create an EC2 instance on AWS - `t2.micro` instance will suffice.
+2. Enable SSH with key pair. The remainder of the instructions assume you've download the key into `.ssh/MyEC2KeyPair.pem`.
+3. Enable inbound traffic to port 22 (for SSH) and 9192 - 9195 (for Kafka traffic).
+4. Follow the 'Authenticating using AWS EC2 metadata' instructions in https://kroxylicious.io/kroxylicious/#assembly-aws-kms-proxy
+   to create the policy, IAM role and assign the IAM role to the EC2 host.
+5. SSH into the EC2 instance `ssh  -i "~/.ssh/MyEC2KeyPair.pem" ec2-xxx-xxx-xxx-xxx.compute-1.amazonaws.com` and install packages ready to run docker containers and kroxylicious.
+   ```bash
+    sudo yum install -y java maven docker
+    sudo service docker start
+    sudo usermod -a -G docker ec2-user
+   ```
+6. Logout/login to EC2 again to pick up the new group.
+7. Run Kafka on the EC2 instance (inside a docker container)
+   ```bash
+   docker run -d -p 9092:9092 --name broker apache/kafka:latest
+   ```
+8. Scp a Kroxylicious dist to the EC2 instance.
+   ```bash
+   scp  -i "~/.ssh/MyEC2KeyPair.pem" /kroxylicious-app-*-SNAPSHOT-bin.zip ec2-user@ec2-xxx-xxx-xxx-xxx.compute-1.amazonaws.com:.
+   ```
+9. Back on the EC2 instance, unzip Kroxylicious
+   ```bash
+   unzip kroxylicious-app-*-SNAPSHOT-bin.zip
+   ```
+10. Create a config file for Kroxylicious updating the virtual clusters bootstrap address to the public address of the EC2 instance.
+    ```yaml
+     virtualClusters:
+       - name: demo
+         targetCluster:
+           bootstrapServers: localhost:9092
+         gateways:
+         - name: mygateway
+           portIdentifiesNode:
+             bootstrapAddress: ec2-xx-xx-xx-xx.compute-1.amazonaws.com:9192
+         logNetwork: false
+         logFrames: false
+         filters:
+           - record-encryption
+     filterDefinitions:
+     - name: record-encryption
+       type: RecordEncryption
+       config:
+         kms: AwsKmsService
+         kmsConfig:
+           region: us-east-1
+           endpointUrl: https://kms.us-east-1.amazonaws.com
+           credentials:
+             ec2Metadata:
+               iamRole: KroxyliciousInstance
+               # credentialLifetimeFactor: 0.001  you can use a low credentialLifetimeFactor to force Kroxylicious to renew the token frequently
+         selector: TemplateKekSelector
+         selectorConfig:
+           template: "KEK-$(topicName)"
+        ```
+11. Run kroxylicious with logs turned up to see the action of the EC2 provider.
+    ```bash
+    KROXYLICIOUS_APP_LOG_LEVEL=DEBUG ./kroxylicious-app-*-SNAPSHOT/bin/kroxylicious-start.sh -c config.yaml
+    ```
+12. Create a KEK in AWS KMS (see user docs) and send/receive some messages.
+    ```bash
+    kaf --brokers ec2-xx-xx-xx-xx.compute-1.amazonaws.com:9192 topic create foo
+    echo "Hello World" | kaf --brokers ec2-xx-xx-xx-xx.compute-1.amazonaws.com:9192 produce foo
+    kaf --brokers ec2-xx-xx-xx-xx.compute-1.amazonaws.com:9192 consume foo
+    ```
+13. Notice you'll see the credentials provider reporting that it is renewing the credential:
+    ```
+    2024-12-06 15:47:29 <Thread-45> DEBUG io.kroxylicious.kms.provider.aws.kms.credentials.Ec2MetadataCredentialsProvider:160 - Scheduling preemptive refresh of AWS credentials in 21139ms
+    2024-12-06 15:47:50 <Thread-47> DEBUG io.kroxylicious.kms.provider.aws.kms.credentials.Ec2MetadataCredentialsProvider:210 - Obtained AWS credentials from EC2 metadata using IAM role KroxyliciousInstance, expiry 2024-12-06T21:39:49Z
+    2
+    ```
+14. Don't forget to de-provision everything you've created in AWS once you are done.
+
+# Testing the ability to authenticate with IRSA (IAM Roles for Service Accounts) on EKS
+
+To test IRSA, you need an EKS cluster with an OIDC identity provider enabled.  The EKS
+pod-identity webhook will inject `AWS_ROLE_ARN` and `AWS_WEB_IDENTITY_TOKEN_FILE`
+environment variables into the Kroxylicious pod, and the provider reads them automatically.
+
+1. Create an EKS cluster (or use an existing one) and enable its OIDC provider:
+   ```bash
+   eksctl utils associate-iam-oidc-provider --cluster <cluster_name> --approve
+   ```
+2. Follow the 'Authenticating using IAM Roles for Service Accounts (IRSA)' instructions in
+   the user docs to create the trust policy, IAM role, and annotate the Kubernetes service
+   account.
+3. Build and publish a Kroxylicious container image to a registry accessible from the
+   cluster.
+4. Deploy Kroxylicious to EKS with the annotated service account. Minimal `kmsConfig`:
+   ```yaml
+   kms: AwsKmsService
+   kmsConfig:
+     region: us-east-1
+     endpointUrl: https://kms.us-east-1.amazonaws.com
+     credentials:
+       webIdentity: {}    # picks up env vars injected by the EKS webhook
+   ```
+5. Create a KEK in AWS KMS and send/receive some messages through the proxy.
+6. Check the Kroxylicious logs for `WebIdentityCredentialsProvider` entries confirming
+   the STS AssumeRoleWithWebIdentity call succeeded.
+
+# Testing the ability to authenticate with EKS Pod Identity
+
+Pod Identity is the AWS-recommended alternative to IRSA. It requires the Pod Identity
+Agent add-on installed on the EKS cluster. The agent injects
+`AWS_CONTAINER_CREDENTIALS_FULL_URI` and `AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE`
+environment variables.
+
+1. Create an EKS cluster (if not already available):
+   ```bash
+   eksctl create cluster --name my-test-cluster --region us-east-1 --node-type t3.small --nodes 1
+   ```
+2. Install the EKS Pod Identity Agent add-on on the cluster:
+   ```bash
+   aws eks create-addon --cluster-name <cluster_name>  --addon-name eks-pod-identity-agent --region <region>
+   ```
+3. Create the IAM role with a trust policy allowing `pods.eks.amazonaws.com` to assume it, and attach the alias-based KMS policy:
+   ```bash
+   AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+   cat > trust.json <<EOF
+   { "Version": "2012-10-17",
+     "Statement": [{
+       "Effect": "Allow",
+       "Principal": { "Service": "pods.eks.amazonaws.com" },
+       "Action": [ "sts:AssumeRole", "sts:TagSession" ]
+     }] }
+   EOF
+   aws iam create-role --role-name KroxyliciousPodIdentity --assume-role-policy-document file://trust.json
+   aws iam attach-role-policy --role-name KroxyliciousPodIdentity \
+       --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KroxyliciousRecordEncryption
+   ```
+4. Create the pod-identity association binding the role to a Kubernetes service account:
+   ```bash
+   aws eks create-pod-identity-association \
+       --cluster-name <cluster_name> \
+       --namespace <namespace> \
+       --service-account <service_account> \
+       --role-arn arn:aws:iam::${AWS_ACCOUNT_ID}:role/KroxyliciousPodIdentity
+   ```
+5. Deploy Kroxylicious to EKS with the associated service account. Minimal `kmsConfig`:
+   ```yaml
+   kms: AwsKmsService
+   kmsConfig:
+     region: us-east-1
+     endpointUrl: https://kms.us-east-1.amazonaws.com
+     credentials:
+       podIdentity: {}    # picks up env vars injected by the agent
+   ```
+6. Send/receive messages and check the logs for `PodIdentityCredentialsProvider` entries.
+
+> **Note on IPv6**: On some EKS cluster configurations the Pod Identity agent webhook
+> injects an IPv6 link-local endpoint (`http://[fd00:ec2::23]/v1/credentials`) into
+> the `AWS_CONTAINER_CREDENTIALS_FULL_URI` env var.  If your pods don't have IPv6
+> connectivity to that address, override the URI explicitly in YAML to the IPv4
+> endpoint:
+> ```yaml
+> credentials:
+>   podIdentity:
+>     credentialsFullUri: http://169.254.170.23/v1/credentials
+> ```

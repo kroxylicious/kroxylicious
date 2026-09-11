@@ -1,0 +1,72 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.proxy.internal.tls;
+
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Objects;
+
+import io.kroxylicious.proxy.tls.TlsCredentials;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+/**
+ * Runtime implementation of TlsCredentials containing the actual private key and certificate chain.
+ *
+ * @param privateKey the private key
+ * @param certificateChain the certificate chain, starting with the end-entity certificate
+ */
+public record TlsCredentialsImpl(@NonNull PrivateKey privateKey, @SuppressWarnings("ArrayRecordComponent") @NonNull X509Certificate[] certificateChain)
+        implements TlsCredentials { // array retained: cloned in constructor and accessor; deep equals/hashCode provided
+
+    /**
+     * Validates the credentials and takes a defensive copy of the certificate chain.
+     */
+    public TlsCredentialsImpl {
+        Objects.requireNonNull(privateKey, "privateKey must not be null");
+        Objects.requireNonNull(certificateChain, "certificateChain must not be null");
+        if (certificateChain.length == 0) {
+            throw new IllegalArgumentException("certificateChain must not be empty");
+        }
+        certificateChain = certificateChain.clone();
+    }
+
+    /**
+     * Returns a defensive copy of the certificate chain.
+     *
+     * @return the certificate chain, starting with the end-entity certificate.
+     */
+    @Override
+    public X509Certificate[] certificateChain() {
+        return certificateChain.clone();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof TlsCredentialsImpl that)) {
+            return false;
+        }
+        return privateKey.equals(that.privateKey) && Arrays.equals(certificateChain, that.certificateChain);
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * privateKey.hashCode() + Arrays.hashCode(certificateChain);
+    }
+
+    @Override
+    public String toString() {
+        return "TlsCredentialsImpl{" +
+                "certificateChain=" + certificateChain.length + " certificates" +
+                ", privateKey=" + privateKey.getAlgorithm() +
+                '}';
+    }
+}

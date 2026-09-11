@@ -1,0 +1,51 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-producer
+  namespace: demo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: message-producer
+  template:
+    metadata:
+      labels:
+        app: message-producer
+    spec:
+      containers:
+        - name: producer
+          image: quay.io/strimzi/kafka:1.0.0-kafka-4.2.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+
+              # Wait for Kafka to be ready (via the sidecar proxy on localhost)
+              echo "Waiting for Kafka to be ready..."
+              while ! echo "test" | /opt/kafka/bin/kafka-console-producer.sh \
+                --bootstrap-server ${KAFKA_BOOTSTRAP_SERVERS} \
+                --topic test 2>/dev/null; do
+                echo "Kafka not ready, retrying in 5s..."
+                sleep 5
+              done
+
+              echo "Kafka is ready. Starting message producer..."
+              echo "Sending lowercase messages to topic 'demo-topic' via ${KAFKA_BOOTSTRAP_SERVERS}"
+
+              # Produce lowercase messages in a loop
+              while true; do
+                echo "hello world from kubernetes at $(date)" | \
+                  /opt/kafka/bin/kafka-console-producer.sh \
+                    --bootstrap-server ${KAFKA_BOOTSTRAP_SERVERS} \
+                    --topic demo-topic
+                sleep 5
+              done

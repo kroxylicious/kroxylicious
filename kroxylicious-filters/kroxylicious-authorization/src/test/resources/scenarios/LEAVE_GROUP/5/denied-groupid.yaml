@@ -1,0 +1,36 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "LEAVE_GROUP"
+  apiVersion: 5
+  scenario: |
+    given user is not allowed to READ my-group
+    when request is for my-group
+    then filter responds with error
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: [] # alice is not allowed to read any groups
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 13
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "my-group"
+    members:
+      - memberId: "random-string-541"
+        groupInstanceId: "abc"
+        reason: "whimsy"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedErrorResponse: "GROUP_AUTHORIZATION_FAILED"

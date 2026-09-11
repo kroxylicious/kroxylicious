@@ -1,0 +1,62 @@
+# kaf.yaml - builds and pushes a Kaf container image.
+#
+# Requires repository variables:
+# - REGISTRY_SERVER - the server of the container registry service e.g. `quay.io` or `docker.io`
+# - REGISTRY_USERNAME - - your username on the service (or username of your robot account)
+# - REGISTRY_TOKEN - the access token that corresponds to `REGISTRY_USERNAME`
+#
+
+name: Kaf Container
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: 'Repository containing kaf'
+        default: 'birdayz/kaf'
+        required: true
+      registry-destination:
+        description: 'The release version, e.g. quay.io/<my org>/kaf'
+        default: 'quay.io/kroxylicious/kaf'
+        required: true
+      ref:
+        description: 'Ref (branch/tag) to build'
+        required: true
+        default: 'master'
+permissions:  # added using https://github.com/step-security/secure-repo
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: ${{ vars.REGISTRY_SERVER != '' && vars.REGISTRY_USERNAME != '' }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository:  ${{ github.event.inputs.repository }}
+          ref: ${{ github.event.inputs.ref }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
+      - name: Login to container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Build and push Kaf container image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
+          push: true
+          tags: ${{ github.event.inputs.registry-destination }}:${{ github.event.inputs.ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,compression=zstd

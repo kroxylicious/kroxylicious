@@ -1,0 +1,125 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "SHARE_FETCH"
+  apiVersion: 1
+  scenario: "group is nullable in the request"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "SHARE_FETCH"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 78
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: null
+        memberId: mymember
+        shareSessionEpoch: 0
+        maxWaitMs: 0
+        minBytes: 0
+        maxBytes: 0
+        maxRecords: 0
+        batchSize: 0
+        topics:
+          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions:
+              - partitionIndex: 0
+                acknowledgementBatches:
+                  - firstOffset: 0
+                    lastOffset: 0
+                    acknowledgeTypes: [0]
+        forgottenTopicsData:
+          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions: [0]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        errorMessage: ""
+        acquisitionLockTimeoutMs: 0
+        responses:
+          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions:
+              - partitionIndex: 0
+                errorCode: 0
+                errorMessage: ""
+                acknowledgeErrorCode: 0
+                acknowledgeErrorMessage:
+                currentLeader:
+                  leaderId: 0
+                  leaderEpoch: 0
+                records: !!binary ""
+                acquiredRecords:
+                  - firstOffset: 0
+                    lastOffset: 0
+                    deliveryCount: 0
+        nodeEndpoints:
+          - nodeId: 0
+            host: localhost
+            port: 0
+            rack: us-east1
+  entityTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 78
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: null
+    memberId: mymember
+    shareSessionEpoch: 0
+    maxWaitMs: 0
+    minBytes: 0
+    maxBytes: 0
+    maxRecords: 0
+    batchSize: 0
+    topics:
+      - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+        partitions:
+          - partitionIndex: 0
+            acknowledgementBatches:
+              - firstOffset: 0
+                lastOffset: 0
+                acknowledgeTypes: [0]
+    forgottenTopicsData:
+      - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+        partitions: [0]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    errorMessage: ""
+    acquisitionLockTimeoutMs: 0
+    responses:
+      - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+        partitions:
+          - partitionIndex: 0
+            errorCode: 0
+            errorMessage: ""
+            acknowledgeErrorCode: 0
+            acknowledgeErrorMessage:
+            currentLeader:
+              leaderId: 0
+              leaderEpoch: 0
+            records: !!binary ""
+            acquiredRecords:
+              - firstOffset: 0
+                lastOffset: 0
+                deliveryCount: 0
+    nodeEndpoints:
+      - nodeId: 0
+        host: localhost
+        port: 0
+        rack: us-east1

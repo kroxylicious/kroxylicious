@@ -1,0 +1,24 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KafkaProxyIngress
+  apiVersion: kroxylicious.io/v1alpha1
+  metadata:
+    name: test-ingress
+    namespace: proxy-ns
+  spec:
+    proxyRef:
+      name: "my-proxy"
+    infrastructure:
+      annotations:
+        # 254 character key (exceeds 253 limit)
+        "example.com/this-is-a-very-long-annotation-key-that-exceeds-the-kubernetes-maximum-length-of-253-characters-which-is-the-limit-for-qualified-names-in-kubernetes-apis-and-this-key-is-deliberately-made-longer-than-that-to-trigger-validation-error-x-even-longer-okay": "value"
+    clusterIP:
+      protocol: TLS
+expectFailureMessageToContain: "annotation keys must be 253 characters or less"
+

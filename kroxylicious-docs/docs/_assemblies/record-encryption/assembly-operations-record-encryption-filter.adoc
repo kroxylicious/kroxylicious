@@ -1,0 +1,20 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-operations-record-encryption-filter-{context}']
+= Operations
+
+[role="_abstract"]
+
+This section documents the operational aspects of using the record encryption filter.
+
+include::../../_modules/record-encryption/con-lost-kek.adoc[leveloffset=+1]

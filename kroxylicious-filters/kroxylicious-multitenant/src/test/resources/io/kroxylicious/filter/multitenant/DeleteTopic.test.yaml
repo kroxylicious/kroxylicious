@@ -1,0 +1,55 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: DELETE_TOPICS
+  version: 7
+  request:
+    payload:
+      topics:
+        - name: foo
+          topicId: AAAAAAAAAAAAAAAAAAAAAA
+      timeoutMs: 0
+      validateOnly: false
+    diff:
+      - op: replace
+        path: "/topics/0/name"
+        value: tenant1-foo
+  response:
+    payload:
+      responses:
+        - name: tenant1-foo
+          topicId: AAAAAAAAAAAAAAAAAAAAAA
+          errorCode: 0
+          errorMessage:
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/responses/0/name"
+        value: foo
+  disabled: false
+- apiMessageType: DELETE_TOPICS
+  version: 1
+  request:
+    payload:
+      topicNames: [foo]
+      topics: []
+      timeoutMs: 0
+      validateOnly: false
+    diff:
+      - op: replace
+        path: "/topicNames/0"
+        value: tenant1-foo
+  response:
+    payload:
+      responses:
+        - name: tenant1-foo
+          errorCode: 0
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/responses/0/name"
+        value: foo
+  disabled: false

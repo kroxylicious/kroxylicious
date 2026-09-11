@@ -1,0 +1,119 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+name: Build OMB Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      omb_ref:
+        description: 'Upstream OMB commit SHA, branch, or tag to build from'
+        required: true
+        type: string
+      kroxylicious_ref:
+        description: 'Kroxylicious ref (branch, tag, or SHA) for build config'
+        required: false
+        default: 'main'
+        type: string
+
+env:
+  IMAGE_NAME: kroxylicious-omb
+
+permissions:  # added using https://github.com/step-security/secure-repo
+  contents: read
+
+jobs:
+  build-and-push:
+    name: Build and Push OMB Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.kroxylicious_ref }}
+
+      - name: Resolve OMB commit SHA
+        id: omb
+        env:
+          OMB_REF: ${{ inputs.omb_ref }}
+        run: |
+          if echo "${OMB_REF}" | grep -qE '^[a-f0-9]{7,40}$'; then
+            # Looks like a commit SHA — use it directly
+            OMB_SHA="${OMB_REF}"
+          else
+            # Try to resolve as a ref name (branch or tag).
+            # git ls-remote output is tab-delimited: <sha>\t<ref>
+            OMB_SHA=$(git ls-remote https://github.com/openmessaging/benchmark.git "${OMB_REF}" | cut -f1)
+            if [ -z "${OMB_SHA}" ]; then
+              echo "::error::Invalid omb_ref '${OMB_REF}': not a known ref in the upstream OMB repository"
+              exit 1
+            fi
+          fi
+          echo "sha=${OMB_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "short=$(echo "${OMB_SHA}" | cut -c1-7)" >> "${GITHUB_OUTPUT}"
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          KROX_SHORT=$(git rev-parse --short=7 HEAD)
+          IMAGE_TAG="omb-${{ steps.omb.outputs.short }}-krox-${KROX_SHORT}-${{ github.run_number }}"
+          echo "image_tag=${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
+          echo "Image tag: ${IMAGE_TAG}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
+
+      - name: Determine build configuration
+        id: build_configuration
+        run: |
+          if [[ "${{ vars.REGISTRY_SERVER }}" != "" ]]; then
+            FULL_IMAGE=${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ env.IMAGE_NAME }}
+            echo "tags=${FULL_IMAGE}:${{ steps.tag.outputs.image_tag }}" >> "${GITHUB_OUTPUT}"
+            echo "push_images=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "tags=${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.image_tag }}" >> "${GITHUB_OUTPUT}"
+            echo "push_images=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Log in to registry
+        if: steps.build_configuration.outputs.push_images == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Build and maybe push image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          context: kroxylicious-openmessaging-benchmarks
+          platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
+          file: kroxylicious-openmessaging-benchmarks/Containerfile
+          push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
+          build-args: |
+            OMB_COMMIT=${{ steps.omb.outputs.sha }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.tag.outputs.image_created }}
+            org.opencontainers.image.revision=${{ steps.omb.outputs.sha }}
+            org.opencontainers.image.source=https://github.com/openmessaging/benchmark
+            org.opencontainers.image.version=${{ steps.tag.outputs.image_tag }}
+          tags: ${{ steps.build_configuration.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,compression=zstd
+
+      - name: Summary
+        run: |
+          if [[ "${{ steps.build_configuration.outputs.push_images }}" == "true" ]]; then
+            echo "Pushed ${{ steps.build_configuration.outputs.tags }}" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "Registry not configured — image built but not pushed." >> "${GITHUB_STEP_SUMMARY}"
+          fi

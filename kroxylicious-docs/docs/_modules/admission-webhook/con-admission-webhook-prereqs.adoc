@@ -1,0 +1,30 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// Module included in the following:
+//
+// _assemblies/assembly-admission-webhook-install.adoc
+
+[id='con-admission-webhook-prereqs-{context}']
+= Install prerequisites
+
+[role="_abstract"]
+To install the Kroxylicious Admission Webhook, you will need the following:
+
+* A Kubernetes {KubernetesVersionMinimum} or later cluster.
+  For development purposes, {Minikube}[Minikube] may be used.
+
+* The `kubectl` command-line tool installed and configured to connect to the running cluster.
+
+* An account with permission to create `CustomResourceDefinition`, `MutatingWebhookConfiguration`, and RBAC (`ClusterRole`) resources.
+
+* link:https://cert-manager.io/[cert-manager^] installed in the cluster, for automated TLS certificate provisioning.
++
+NOTE: It is possible to install the webhook without cert-manager by provisioning TLS certificates manually.
+
+For more information on the tools available for running Kubernetes, see {KubeTools} in the Kubernetes documentation.

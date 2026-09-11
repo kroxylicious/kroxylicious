@@ -1,0 +1,56 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "END_TXN"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "END_TXN"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 26
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "my-transactional-id"
+        producerId: 1000
+        producerEpoch: 1
+        committed: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "WRITE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 26
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "my-transactional-id"
+    producerId: 1000
+    producerEpoch: 1
+    committed: true
+then:
+  expectAuthorizationOutcomeLog: true
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0

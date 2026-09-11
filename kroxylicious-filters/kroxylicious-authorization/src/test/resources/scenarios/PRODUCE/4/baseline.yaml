@@ -1,0 +1,75 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "PRODUCE"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "PRODUCE"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 0
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "random-string-292"
+        acks: 1
+        timeoutMs: 1003
+        topicData:
+          - name: "my-topic"
+            partitionData:
+              - index: 923
+                records: !!binary ""
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        responses:
+          - name: "my-topic"
+            partitionResponses:
+              - index: 173
+                errorCode: 542
+                baseOffset: 94
+                logAppendTimeMs: 462
+        throttleTimeMs: 473
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "WRITE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 0
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-292"
+    acks: 1
+    timeoutMs: 1003
+    topicData:
+      - name: "my-topic"
+        partitionData:
+          - index: 923
+            records: !!binary ""
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    responses:
+      - name: "my-topic"
+        partitionResponses:
+          - index: 173
+            errorCode: 542
+            baseOffset: 94
+            logAppendTimeMs: 462
+    throttleTimeMs: 473

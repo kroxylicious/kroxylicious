@@ -1,0 +1,39 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "PRODUCE"
+  apiVersion: 13
+  scenario: "allowed topic is forwarded upstream"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "WRITE"
+  topicNames: null # no topic id name lookups succeed
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 0
+    requestApiVersion: 13
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-292"
+    acks: 0
+    timeoutMs: 141
+    topicData:
+      - topicId: "6wZQe3j9QSO02xct4Ph0gA" # maps to topic named 'my-topic'
+        partitionData:
+          - index: 134
+            records: !!binary ""
+then:
+  expectAuthorizationOutcomeLog: false # no authorization performed when topicName lookup fails
+  expectRequestDropped: true

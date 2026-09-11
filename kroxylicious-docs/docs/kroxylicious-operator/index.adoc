@@ -1,0 +1,51 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: operator
+:guide: operator
+
+[id="using-book-{context}"]
+= Kroxylicious Operator for Kubernetes
+
+[role="_abstract"]
+include::_modules/con-about-{guide}-guide.adoc[leveloffset=+2]
+
+include::_assemblies/assembly-operator-overview.adoc[leveloffset=+1]
+
+include::_assemblies/assembly-operator-api.adoc[leveloffset=+1]
+
+// installing
+include::_assemblies/assembly-operator-install.adoc[leveloffset=+1]
+
+// TODO upgrade the operator
+// include::_assemblies/assembly-operator-api.adoc[leveloffset=+1]
+
+// deploy a proxy
+include::_assemblies/assembly-operator-deploy-a-proxy.adoc[leveloffset=+1]
+
+// operating proxies
+include::_assemblies/assembly-operator-operate-proxy.adoc[leveloffset=+1]
+
+// securing proxies
+ifdef::context[:parent-context: {context}]
+:context: securing
+include::_assemblies/assembly-operator-secure-proxy.adoc[leveloffset=+1]
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]
+
+// advanced proxy tuning
+include::_assemblies/assembly-operator-advanced-proxy-tuning.adoc[leveloffset=+1]
+
+// // monitoring proxies
+include::_assemblies/assembly-operator-monitoring.adoc[leveloffset=+1]
+
+include::_modules/ref-glossary.adoc[leveloffset=+1]
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]

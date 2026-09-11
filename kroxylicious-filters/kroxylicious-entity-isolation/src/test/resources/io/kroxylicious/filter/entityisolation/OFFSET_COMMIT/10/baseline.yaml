@@ -1,0 +1,71 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "OFFSET_COMMIT"
+  apiVersion: 10
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_COMMIT"
+      expectedRequestVersion: 10
+      expectedRequestHeader:
+        requestApiKey: 8
+        requestApiVersion: 10
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: alice-mygroup
+        generationIdOrMemberEpoch: 0
+        memberId: mymemberid
+        groupInstanceId: mygroupinstanceid
+        topics:
+          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions:
+              - partitionIndex: 0
+                committedOffset: 0
+                committedLeaderEpoch: 0
+                committedMetadata: null
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        topics:
+          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions:
+              - partitionIndex: 0
+                errorCode: 0
+  entityTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 8
+    requestApiVersion: 10
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: mygroup
+    generationIdOrMemberEpoch: 0
+    memberId: mymemberid
+    groupInstanceId: mygroupinstanceid
+    topics:
+      - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+        partitions:
+          - partitionIndex: 0
+            committedOffset: 0
+            committedLeaderEpoch: 0
+            committedMetadata: null
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    topics:
+      - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+        partitions:
+          - partitionIndex: 0
+            errorCode: 0

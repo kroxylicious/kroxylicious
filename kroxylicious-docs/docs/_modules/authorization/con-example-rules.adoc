@@ -1,0 +1,32 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-authorization-filter.adoc
+
+[id='con-example-rules-{context}']
+= Example ACL Rules
+
+[role="_abstract"]
+If your instance of the Kroxylicious Proxy runs directly on an operating system, provide a file containing the rules
+and reference it from the proxy configuration.
+
+Save the file with a name of your choice and reference it in the filter configuration.
+The following example shows an ACL rules file referenced as `acl-rules.txt`:
+
+[source]
+----
+from io.kroxylicious.filter.authorization import TopicResource as Topic, GroupResource as Group, TransactionalIdResource as TransactionalId;
+deny User with name = "alice" to * Topic with name = "payments-received";
+allow User with name = "alice" to * Topic with name like "payments-*";
+allow User with name = "bob" to * Topic with name = "payments-received";
+allow User with name = "bob" to READ Group with name = "payment-consumer-group";
+allow User with name = "alice" to * TransactionalId with name like "alice-transaction-*";
+otherwise deny;
+----

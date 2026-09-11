@@ -1,0 +1,333 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Note the v1 in the filename refers to the version of the CustomResourceDefinition
+# not any of the versions of API being defined.
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  # name must match the spec fields below, and be in the form: <plural>.<group>
+  name: virtualkafkaclusters.kroxylicious.io
+spec:
+  # group name to use for REST API: /apis/<group>/<version>
+  group: kroxylicious.io
+  scope: Namespaced
+  names:
+    plural: virtualkafkaclusters
+    singular: virtualkafkacluster
+    kind: VirtualKafkaCluster
+    shortNames:
+      - vkc
+    categories:
+      - kroxylicious
+  # list of versions supported by this CustomResourceDefinition
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: { }
+      additionalPrinterColumns:
+        - name: Proxy
+          description: The name of the proxy that this virtual cluster is part of.
+          jsonPath: ".spec.proxyRef.name"
+          type: string
+          priority: 0
+        - name: KafkaService
+          description: The name of the kafka service that this virtual cluster exposes.
+          jsonPath: ".spec.targetKafkaServiceRef.name"
+          type: string
+          priority: 0
+        - name: ResolvedRefs
+          description: Whether the other resources referenced by this virtual cluster can be found.
+          jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
+          type: string
+          priority: 0
+        - name: Accepted
+          description: Whether the virtual cluster has been accepted by the proxy.
+          jsonPath: ".status.conditions[?(@.type==\"Accepted\")].status"
+          type: string
+          priority: 0
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-validations:
+            - rule: "self.spec.ingresses.all(ingress, (ingress.ingressRef.name.size() + self.metadata.name.size()) <= 51)"
+              message: "the total length of the virtual cluster name and the ingress name must not exceed 51 characters"
+          properties:
+            metadata:
+              type: object
+            spec:
+              type: object
+              required: [ "proxyRef", "targetKafkaServiceRef", "ingresses" ]
+              properties:
+                proxyRef:
+                  type: object
+                  required: [ "name" ]
+                  properties:
+                    name:
+                      maxLength: 253
+                      minLength: 1
+                      type: string
+                targetKafkaServiceRef:
+                  type: object
+                  required: [ "name" ]
+                  properties:
+                    group:
+                      type: string
+                      pattern: ^kroxylicious[.]io$
+                    kind:
+                      type: string
+                      pattern: ^KafkaService$
+                    name:
+                      maxLength: 253
+                      minLength: 1
+                      type: string
+                ingresses:
+                  type: array
+                  minItems: 1
+                  description: -|
+                    The ingresses of this virtual kafka cluster.
+                    It must contain at least one element.
+                  items:
+                    type: object
+                    required: [ "ingressRef" ]
+                    properties:
+                      ingressRef:
+                        description: A reference to a KafkaProxyIngresses.
+                        type: object
+                        required: [ "name" ]
+                        properties:
+                          name:
+                            description: -|
+                              The name of the KafkaProxyIngresses.
+                            maxLength: 253
+                            minLength: 1
+                            type: string
+                      tls:
+                        description: |
+                          TLS is the TLS configuration for the Ingress. This object is required if the spec.clusterIP.protocol
+                          property of the KafkaProxyIngresses is "TLS". It is invalid to set this field if the spec.clusterIP.protocol
+                          property of the KafkaProxyIngresses is "TCP".
+                        required: [ "certificateRef" ]
+                        type: object
+                        properties:
+                          certificateRef:
+                            description: |
+                              A reference to a resource holding the TLS server certificate. 
+
+                              When the resource is of `kind: Secret` it is expected to have `type: kubernetes.io/tls` with 
+                              keys `tls.key` and `tls.crt`. See https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets.
+                            type: object
+                            required: [ "name" ]
+                            properties:
+                              kind:
+                                description: The API kind of the resource containing the TLS server certificate.
+                                type: string
+                                default: Secret
+                              group:
+                                description: The API group of the resource containing the TLS server certificate.
+                                type: string
+                                default: ""
+                              name:
+                                description: The name of the resource containing the TLS server certificate.
+                                type: string
+                                minLength: 1
+                                maxLength: 253
+                          trustAnchorRef:
+                            description: |
+                              A reference to a resource holding the trusted CA certificates for validation of
+                              a Kafka client's TLS client certificate.
+                              If not specified the system will use the trust store inherited from the JVM that the
+                              proxy runs on.
+                            type: object
+                            required: [ "name", "key" ]
+                            properties:
+                              kind:
+                                description: The API kind of the resource containing the TLS trust anchor(s).
+                                type: string
+                                default: ConfigMap
+                              group:
+                                description: The API group of the resource containing the TLS trust anchor(s).
+                                type: string
+                                default: ""
+                              name:
+                                description: The name of the resource containing the TLS trust anchor(s).
+                                type: string
+                              storeType:
+                                description: The format of the key store containing the trusted CA certificates.
+                                type: string
+                                enum:
+                                  - PEM
+                                  - JKS
+                                  - PKCS12
+                              key:
+                                description: |
+                                  The name of the key identifying the certificate bundle within the resource. 
+                                  Supported formats for the bundle are: PEM, PKCS#12 and JKS.
+                                type: string
+                          protocols:
+                            description: |
+                              The TLS protocols to allow or deny.
+                              Either `allow` or `deny` can be given.
+                              The supported protocols are those supported by the proxy JVM.
+                            type: object
+                            properties:
+                              allow:
+                                description: |
+                                  The TLS protocols to allow, ordered by preference.
+                                  If not specified this defaults to the TLS protocols of the proxy JVM's default SSL context.
+                                type: array
+                                items:
+                                  type: string
+                              deny:
+                                description: |
+                                  The TLS protocols to deny.
+                                  If not specified this defaults to the empty list.
+                                type: array
+                                items:
+                                  type: string
+                                default: [ ]
+                          cipherSuites:
+                            description: |
+                              The TLS cipher suites to allow or deny.
+                              Either `allow` or `deny` can be given.
+                              The supported cipher suites are those supported by the proxy JVM.
+                            type: object
+                            properties:
+                              allow:
+                                description: |
+                                  The TLS cipher suites to allow.
+                                  If not specified a default list of ciphers, which depends on the runtime and enabled protocols, will be used.
+                                type: array
+                                items:
+                                  type: string
+                              deny:
+                                description: |
+                                  The TLS cipher suites to deny
+                                  If not specified this will default to the empty list.
+                                type: array
+                                items:
+                                  type: string
+                                default: [ ]
+                          tlsClientAuthentication:
+                            description: |
+                              Controls the TLS client authentication options applied by the server.
+                              If a trust anchor has been provided, the system defaults to 'REQUIRED'.
+                              Otherwise the system will default to 'NONE'.
+                            type: string
+                            enum: [ "REQUIRED", "REQUESTED", "NONE" ]
+                filterRefs:
+                  description: The filters to be used for this cluster. Each filter is a separate resource.
+                  type: array
+                  items:
+                    type: object
+                    required: [ "name" ]
+                    properties:
+                      name:
+                        maxLength: 253
+                        minLength: 1
+                        type: string
+            status:
+              type: object
+              properties:
+                observedGeneration:
+                  description: |
+                    The metadata.generation that was observed during the last reconciliation by the operator.
+                  type: integer
+                conditions:
+                  # Mapped to Java type io.kroxylicious.kubernetes.api.common.Condition
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      lastTransitionTime:
+                        description: |
+                          lastTransitionTime is the last time the condition transitioned from one status to another. 
+                          This should be when the underlying condition changed. 
+                          If that is not known, then using the time when the API field changed is acceptable.
+                        type: string
+                        format: date-time
+                      message:
+                        description: |
+                          message is a human readable message indicating details about the transition. 
+                          This may be an empty string.
+                        type: string
+                        default: ""
+                        nullable: false
+                      observedGeneration:
+                        description: |
+                          observedGeneration represents the .metadata.generation that the condition was set based upon. 
+                          For instance, if .metadata.generation is currently 12, but the 
+                          .status.conditions[x].observedGeneration is 9, the condition is out of date with 
+                          respect to the current state of the instance.
+                        type: integer
+                        nullable: false
+                      reason:
+                        description: |
+                          reason contains a programmatic identifier indicating the reason for the condition's last transition. 
+                          Producers of specific condition types may define expected values and meanings for this field, 
+                          and whether the values are considered a guaranteed API. 
+                          The value should be a CamelCase string. 
+                          This field may not be empty.
+                        type: string
+                        nullable: false
+                      status:
+                        description: status of the condition, one of True, False, Unknown.
+                        type: string
+                        enum: [ "True", "False", "Unknown" ]
+                      type:
+                        description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        type: string
+                    required:
+                      - lastTransitionTime
+                      - observedGeneration
+                      - reason
+                      - message
+                      - type
+                ingresses:
+                  description: -|
+                    Lists the ingresses that have been associated with the virtual cluster.
+                  type: array
+                  default: [ ]
+                  items:
+                    type: object
+                    required: [ "name" ]
+                    properties:
+                      name:
+                        description: The name of the ingress.
+                        type: string
+                      bootstrapServer:
+                        description: -|
+                          The address (host and port) that a Kafka client would use make its initial connection to the
+                          virtual cluster. This property will be absent if the address is not yet available.
+                        type: string
+                      loadBalancerIngressPoints:
+                        description: -|
+                          A list containing ingress points for the load-balancer Service associated with this ingress.
+                          Corresponds directly to the values from status.loadBalancer.ingress of the underlying Service.
+                        items:
+                          properties:
+                            hostname:
+                              description: -|
+                                Hostname is set for load-balancer ingress points that are DNS based
+                                (typically AWS load-balancers)
+                              type: string
+                            ip:
+                              description: -|
+                                IP is set for load-balancer ingress points that are IP based (typically GCE
+                                or OpenStack load-balancers)
+                              type: string
+                          type: object
+                        type: array
+                      protocol:
+                        description: "Protocol specifies the network protocol this ingress expects to receive."
+                        type: string
+                        enum: [ "TCP", "TLS" ]
+          required:
+            - spec
+

@@ -1,0 +1,19 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+# A Namespace for the operator
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kroxylicious-operator
+  labels:
+    app.kubernetes.io/name: kroxylicious
+    app.kubernetes.io/component: operator
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest

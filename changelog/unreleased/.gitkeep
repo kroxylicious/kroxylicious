@@ -1,0 +1,5 @@
+Place logchange entry YAML files in this directory for unreleased changes.
+See DEV_GUIDE.md#changelog-entries for the format and available types.
+
+This file keeps the directory tracked by git so contributors always have
+somewhere to add entries, even after a release empties it.

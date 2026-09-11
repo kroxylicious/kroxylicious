@@ -1,0 +1,16 @@
+{
+  "valid": [
+    {
+      "Name": "minikube",
+      "Config": {
+        "Driver": "podman",
+        "CPUs": 20,
+        "Memory": 30000,
+        "KubernetesConfig": {
+          "KubernetesVersion": "v1.34.0",
+          "ContainerRuntime": "containerd"
+        }
+      }
+    }
+  ]
+}

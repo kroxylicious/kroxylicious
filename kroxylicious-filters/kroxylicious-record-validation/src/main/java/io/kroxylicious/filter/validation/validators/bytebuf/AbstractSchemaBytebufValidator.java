@@ -1,0 +1,157 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.filter.validation.validators.bytebuf;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+
+import org.apache.kafka.common.header.internals.RecordHeader;
+
+import io.apicurio.registry.serde.BaseSerde;
+import io.apicurio.registry.serde.Default4ByteIdHandler;
+import io.apicurio.registry.serde.IdHandler;
+import io.apicurio.registry.serde.kafka.headers.DefaultHeadersHandler;
+import io.apicurio.registry.serde.kafka.headers.HeadersHandler;
+import io.apicurio.schema.validation.ValidationResult;
+
+import io.kroxylicious.filter.validation.validators.Result;
+import io.kroxylicious.kafka.common.record.internal.Record;
+
+/**
+ * Base class for schema-based record validators that validate Kafka record keys or values
+ * against a schema stored in Apicurio Registry.
+ * This checks both that the record key or value has the expected schemaId, and that the key or value bytes validate against that schema.
+ * <p>
+ * This class handles the Apicurio serde wire format, extracting the schema identifier from
+ * the record (either from Kafka headers or from a magic-byte prefix in the record body) and
+ * verifying it matches the expected schema. After stripping the serde envelope, it delegates
+ * actual schema validation to the subclass via {@link #doValidate(ByteBuffer)}.
+ * </p>
+ * <p>
+ * Subclasses must implement {@link #doValidate(ByteBuffer)} to perform schema-specific
+ * validation (e.g. JSON Schema, Avro, Protobuf). Subclasses may also override
+ * {@link #skipExtraSerdeBytes(ByteBuffer)} if the serde writes additional framing bytes
+ * between the schema identifier and the payload (e.g. the Protobuf serde writes a
+ * delimited Ref message).
+ * </p>
+ */
+abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
+    private final Long schemaId;
+    private final HeadersHandler keyHeaderHandler;
+    private final HeadersHandler valueHeaderHandler;
+    private final IdHandler keyIdHandler;
+    private final IdHandler valueIdHandler;
+
+    protected AbstractSchemaBytebufValidator(Long schemaId) {
+        this.schemaId = schemaId;
+        this.keyHeaderHandler = buildHeaderHandler(true);
+        this.keyIdHandler = buildIdHandler(true);
+        this.valueHeaderHandler = buildHeaderHandler(false);
+        this.valueIdHandler = buildIdHandler(false);
+    }
+
+    @Override
+    public CompletionStage<Result> validate(ByteBuffer buffer, Record record, boolean isKey) {
+        try {
+            Optional<Long> extractedSchemaId = extractSchemaIdFromRecord(buffer, record, isKey);
+            if (extractedSchemaId.filter(e -> !e.equals(schemaId)).isPresent()) {
+                return CompletableFuture
+                        .completedStage(new Result(false,
+                                "Unexpected schema id in record (%d), expecting %d".formatted(extractedSchemaId.get(), schemaId)));
+            }
+
+            if (extractedSchemaId.isPresent()) {
+                // Some serdes write extra framing bytes after the schema ID (in both header and body modes).
+                // For example, Apicurio ProtobufSerde always writes a delimited Ref message containing the
+                // message type name before the protobuf payload — verified against Apicurio source where
+                // writeRef defaults to true and is never set to false in the body-mode code path.
+                skipExtraSerdeBytes(buffer);
+            }
+
+            return doValidate(buffer);
+        }
+        catch (RuntimeException ex) {
+            return CompletableFuture.completedStage(new Result(false, ex.getMessage()));
+        }
+    }
+
+    protected abstract CompletionStage<Result> doValidate(ByteBuffer buffer);
+
+    /**
+     * Called when schema ID was found in the record (either in headers or body prefix).
+     * The body may contain serde-specific prefix bytes that need to be skipped before the
+     * actual schema data. For example, the Protobuf serde writes a Ref message before
+     * the protobuf payload in both header and body modes.
+     * Default implementation does nothing (JSON and Avro serdes have no extra prefix).
+     */
+    protected void skipExtraSerdeBytes(ByteBuffer buffer) {
+        // default: no extra bytes to skip
+    }
+
+    /**
+     * Converts an Apicurio ValidationResult to a CompletionStage&lt;Result&gt;.
+     * On success, returns the pre-allocated valid result stage for efficiency.
+     * On failure, wraps the validation error message in a failed Result.
+     *
+     * @param validationResult the Apicurio validation result
+     * @return a completion stage containing the validation outcome
+     */
+    protected CompletionStage<Result> toResult(ValidationResult validationResult) {
+        return validationResult.success() ? Result.VALID_RESULT_STAGE
+                : CompletableFuture.completedFuture(new Result(false, validationResult.toString()));
+    }
+
+    private Optional<Long> extractSchemaIdFromRecord(ByteBuffer buffer, Record kafkaRecord, boolean isKey) {
+        // Try headers first
+        var headerId = extractSchemaIdFromHeaders(kafkaRecord, isKey);
+        if (headerId.isPresent()) {
+            return headerId;
+        }
+
+        // Fall back to body prefix
+        var idHandler = isKey ? keyIdHandler : valueIdHandler;
+        var minBytes = 1 + idHandler.idSize();
+        if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == BaseSerde.MAGIC_BYTE) {
+            buffer.get(); // ignore magic
+            var ref = idHandler.readId(buffer);
+            return Optional.ofNullable(ref.getContentId());
+        }
+        return Optional.empty();
+    }
+
+    private Optional<Long> extractSchemaIdFromHeaders(Record kafkaRecord, boolean isKey) {
+        if (kafkaRecord.headers().length > 0) {
+            var headerHandler = isKey ? keyHeaderHandler : valueHeaderHandler;
+
+            RecordHeader[] kafkaHeaders = Arrays.stream(kafkaRecord.headers()).map(header -> new RecordHeader(header.key(), header.value())).toArray(RecordHeader[]::new);
+            var kafkaRecordHeaders = new org.apache.kafka.common.header.internals.RecordHeaders(kafkaHeaders);
+            var ref = headerHandler.readHeaders(kafkaRecordHeaders);
+
+            Long id = ref.getContentId();
+            if (id != null) {
+                return Optional.of(id);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static DefaultHeadersHandler buildHeaderHandler(boolean isKey) {
+        var handler = new DefaultHeadersHandler();
+        handler.configure(Map.of(), isKey);
+        return handler;
+    }
+
+    private static IdHandler buildIdHandler(boolean isKey) {
+        IdHandler handler = new Default4ByteIdHandler();
+        handler.configure(Map.of(), isKey);
+        return handler;
+    }
+}

@@ -1,0 +1,63 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DELETE_GROUPS"
+  apiVersion: 0
+  scenario: |
+    given user not allowed to DELETE denied-group
+    given user allowed to DELETE my-group
+    then my-group forwarded
+    and denied-group not forwarded
+    and denied-group error response augmented into response
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DELETE_GROUPS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 42
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupsNames:
+          - "my-group"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 673
+        results:
+          - groupId: "my-group"
+            errorCode: 648
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DELETE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 42
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupsNames:
+      - "my-group"
+      - "denied-group"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 673
+    results:
+      - groupId: "my-group"
+        errorCode: 648
+      - groupId: "denied-group"
+        errorCode: 30

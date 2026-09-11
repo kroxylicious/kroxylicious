@@ -1,0 +1,19 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: END_TXN
+  version: 3
+  request:
+    payload:
+      transactionalId: "12345"
+      producerId: 0
+      producerEpoch: 0
+      committed: true
+    diff:
+      - op: replace
+        path: "/transactionalId"
+        value: tenant1-12345
+  disabled: false

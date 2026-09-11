@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<!DOCTYPE suppressions PUBLIC
+        "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+        "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<suppressions>
+    <!-- Generated classes which we do not edit -->
+    <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]proxy[/\\].*(Builder|Editable|Fluent|Nested|Visitor|Visitable).*\.java"/>
+    <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]kubernetes[/\\]api[/\\].*\.java"/>
+    <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]sidecar[/\\].*\.java"/>
+    <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]kubernetes[/\\]filter[/\\]api[/\\].*\.java"/>
+    <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]microbenchmarks[/\\]jmh_generated[/\\].*"/>
+
+    <suppress checks=".*"
+              files="generated-sources/antlr4/.*"/>
+
+    <!-- Kafka *Data classes generated from the protocol JSON specs; forked-generator
+         output that does not follow Kroxylicious style conventions and is not edited. -->
+    <suppress checks=".*"
+              files="generated-sources/kafka-messages/.*"/>
+
+    <!-- Kafka protocol support classes vendored/forked verbatim into io.kroxylicious.kafka.*
+         (see tools/kafka-vendoring): io.kroxylicious.kafka.common.* support classes, plus their
+         forked Apache Kafka unit tests and test-support helper. Copied from Apache Kafka and
+         relocated by tooling, not hand-maintained, so they do not follow Kroxylicious style
+         conventions. -->
+    <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]kafka[/\\].*\.java"/>
+
+    <!-- Exclude structured logging checks from test code (src/test) -->
+    <suppress checks="RegexpSinglelineJava"
+              message="Use fluent API with addKeyValue"
+              files=".*[/\\]src[/\\]test[/\\].*"/>
+    <suppress checks="RegexpSinglelineJava"
+              message="Logger should be named LOGGER"
+              files=".*[/\\]src[/\\]test[/\\].*"/>
+
+    <!-- Exclude structured logging checks from test infrastructure modules (src/main) -->
+    <suppress checks="RegexpSinglelineJava"
+              message="Use fluent API with addKeyValue"
+              files=".*systemtests[/\\]src[/\\]main[/\\].*"/>
+    <suppress checks="RegexpSinglelineJava"
+              message="Use fluent API with addKeyValue"
+              files=".*test-support[/\\]src[/\\]main[/\\].*"/>
+    <suppress checks="RegexpSinglelineJava"
+              message="Logger should be named LOGGER"
+              files=".*systemtests[/\\]src[/\\]main[/\\].*"/>
+    <suppress checks="RegexpSinglelineJava"
+              message="Logger should be named LOGGER"
+              files=".*test-support[/\\]src[/\\]main[/\\].*"/>
+</suppressions>

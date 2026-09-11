@@ -1,0 +1,52 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+name: "Setup Minikube"
+description: "Installs minikube"
+
+inputs:
+  githubToken:
+    description: "Github Token to be used"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Cache minikube start artifacts
+      # manusa/actions-setup-minikube sets MINIKUBE_HOME to $RUNNER_TEMP, so
+      # `minikube start` caches the kicbase image, the kubernetes preload
+      # tarball, and the k8s component binaries under this path. Restoring it
+      # before the action runs lets `minikube start` skip those downloads.
+      # NOTE: this does NOT cache the minikube CLI binary itself (that download
+      # is unconditional in the action; see #4653).
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      with:
+        path: ${{ runner.temp }}/.minikube/cache
+        # Key off this action's definition so any minikube/kubernetes version
+        # change (incl. Renovate bumps to the lines below) invalidates the
+        # cache automatically - no separate Renovate rule needed, and no risk
+        # of serving stale-version artifacts.
+        key: ${{ runner.os }}-minikube-${{ hashFiles('.github/actions/common/setup-minikube/action.yml') }}
+
+    - name: Setup Minikube
+      uses: manusa/actions-setup-minikube@b65276017fdec6f1e6498129fb740e34e260dc55
+      with:
+        "minikube version": "v1.38.1"
+        # Upgrading kube version? Check https://github.com/kubernetes/minikube/blob/<version>/pkg/minikube/constants/constants.go to know the versions of kube supported by minikube.
+        "kubernetes version": "v1.35.1"
+        "github token": ${{ inputs.githubToken }}
+        driver: docker

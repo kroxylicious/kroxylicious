@@ -1,0 +1,78 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.proxy.micrometer;
+
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+
+import io.kroxylicious.proxy.plugin.Plugin;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+/**
+ * A {@link MicrometerConfigurationHookService} that applies a configured set of common tags
+ * to every meter registered with the meter registry.
+ */
+@Plugin(configType = CommonTagsHook.CommonTagsHookConfig.class)
+public class CommonTagsHook implements MicrometerConfigurationHookService<CommonTagsHook.CommonTagsHookConfig> {
+
+    private static final Logger log = LoggerFactory.getLogger(CommonTagsHook.class);
+
+    /**
+     * Creates a new service instance, invoked by the plugin framework.
+     */
+    public CommonTagsHook() {
+        // nothing to initialise: state is created in build(CommonTagsHookConfig)
+    }
+
+    @Override
+    public MicrometerConfigurationHook build(CommonTagsHookConfig config) {
+        return new Hook(config);
+    }
+
+    /**
+     * Configuration for the {@link CommonTagsHook}.
+     *
+     * @param commonTags tag name to tag value mappings to apply to all meters; never null.
+     */
+    public record CommonTagsHookConfig(Map<String, String> commonTags) {
+        /**
+         * Constructs a CommonTagsHookConfig.
+         *
+         * @param commonTags tag name to tag value mappings to apply to all meters; a null value is treated as an empty map.
+         */
+        public CommonTagsHookConfig(@Nullable Map<String, String> commonTags) {
+            this.commonTags = commonTags == null ? Map.of() : commonTags;
+        }
+    }
+
+    private static class Hook implements MicrometerConfigurationHook {
+        private final CommonTagsHookConfig config;
+
+        private Hook(CommonTagsHookConfig config) {
+            if (config == null) {
+                throw new IllegalArgumentException("config must be non null");
+            }
+            this.config = config;
+        }
+
+        @Override
+        public void configure(MeterRegistry targetRegistry) {
+            List<Tag> tags = config.commonTags().entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).toList();
+            targetRegistry.config().commonTags(tags);
+            log.atInfo()
+                    .addKeyValue("tags", tags)
+                    .log("configured micrometer registry");
+        }
+    }
+
+}

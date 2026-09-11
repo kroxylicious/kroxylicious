@@ -1,0 +1,16 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KroxyliciousSidecarConfig
+  apiVersion: sidecar.kroxylicious.io/v1alpha1
+  metadata:
+    name: "this-is-a-very-long-name-that-exceeds-the-sixty-three-character-maximum-length-allowed-by-the-crd"
+    namespace: webhook-validation-test
+  spec:
+    targetBootstrapServers: kafka.example.com:9092
+expectFailureMessageToContain: "metadata.name"

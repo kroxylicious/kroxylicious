@@ -1,0 +1,44 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_FETCH"
+  apiVersion: 1
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 9
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "my-group"
+    topics:
+      - name: "my-topic"
+        partitionIndexes:
+          - 180
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 180
+            committedOffset: -1
+            metadata: ""
+            errorCode: 30 # group authorization failed

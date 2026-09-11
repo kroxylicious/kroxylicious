@@ -1,0 +1,46 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: FIND_COORDINATOR
+  version: 4
+  request:
+    payload:
+      keyType: 0
+      coordinatorKeys:
+        - mygroup
+      timeoutMs: 0
+      validateOnly: false
+    diff:
+      - op: replace
+        path: /coordinatorKeys/0
+        value: tenant1-mygroup
+  response:
+    payload:
+      throttleTimeMs: 0
+      coordinators:
+        - key: tenant1-mygroup
+          nodeId: 0
+          host: localhost
+          port: 12345
+          errorCode: 0
+          errorMessage:
+    diff:
+      - op: replace
+        path: "/coordinators/0/key"
+        value: mygroup
+  disabled: false
+- apiMessageType: FIND_COORDINATOR
+  version: 1
+  request:
+    payload:
+      key: mygroup
+      keyType: 0
+      coordinatorKeys: []
+    diff:
+      - op: replace
+        path: /key
+        value: tenant1-mygroup
+  disabled: false

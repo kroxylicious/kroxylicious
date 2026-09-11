@@ -1,0 +1,49 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-configuring-idle-timeouts-{context}']
+= Configuring idle connection timeouts
+
+[role="_abstract"]
+The proxy can automatically disconnect idle client connections to reclaim resources.
+Idle timeout configuration is completely optional and disabled by default, allowing you to opt in only when needed for your deployment.
+
+== When to enable idle timeouts
+
+include::../../_snippets/snip-idle-timeout-when-to-enable.adoc[]
+
+== When not to enable idle timeouts
+
+include::../../_snippets/snip-idle-timeout-when-not-to-enable.adoc[]
+
+== How idle timeouts work
+
+include::../../_snippets/snip-idle-timeout-how-it-works.adoc[]
+
+include::../../_snippets/snip-idle-timeout-duration-format.adoc[]
+
+== Configuration examples
+
+.Example: Idle timeouts configured
+[source,yaml]
+----
+network:
+  proxy:
+    unauthenticatedIdleTimeout: 30s
+    authenticatedIdleTimeout: 10m
+virtualClusters:
+  # ...
+----
+where:
+
+* `unauthenticatedIdleTimeout` specifies how long unauthenticated connections can remain idle before they are disconnected. If omitted, or zero, no idle timeout is applied.
+* `authenticatedIdleTimeout` specifies how long authenticated connections can remain idle before they are disconnected. If omitted, or zero, no idle timeout is applied.
+
+== Monitoring idle disconnects
+
+include::../../_snippets/snip-idle-timeout-monitoring.adoc[]

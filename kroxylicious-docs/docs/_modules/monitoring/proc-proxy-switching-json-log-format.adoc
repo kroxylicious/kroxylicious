@@ -1,0 +1,65 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// assembly-proxy-monitoring.adoc
+
+[id='proc-proxy-switching-json-log-format-{context}']
+= Switching to JSON log format
+
+[role="_abstract"]
+
+Switch Kroxylicious logging from text output to structured JSON output for integration with log aggregation systems such as Elasticsearch or Splunk.
+
+.Procedure
+
+. Set the `KROXYLICIOUS_LOG_FORMAT` environment variable:
++
+[source,bash]
+----
+export KROXYLICIOUS_LOG_FORMAT=json
+----
+
+. Start the proxy:
++
+[source,bash]
+----
+bin/kroxylicious-start.sh
+----
+
+. Verify that the proxy emits JSON log output similar to the following example:
++
+[source,json]
+----
+{
+  "@version": "1",
+  "@timestamp": "2026-04-01T14:25:30.123Z",
+  "message": "Connection established",
+  "logger_name": "io.kroxylicious.proxy.internal.FilterHandler",
+  "thread_name": "kafka-request-handler-1",
+  "level": "INFO",
+  "level_value": 20000,
+  "sessionId": "abc-123",
+  "clientId": "producer-1",
+  "apiKey": "Produce"
+}
+----
++
+When an exception is logged, the output also includes a `stack_trace` field.
+
+. To switch back to text logging, remove the environment variable or set it to `text`:
++
+[source,bash]
+----
+unset KROXYLICIOUS_LOG_FORMAT
+
+# or
+
+export KROXYLICIOUS_LOG_FORMAT=text
+----

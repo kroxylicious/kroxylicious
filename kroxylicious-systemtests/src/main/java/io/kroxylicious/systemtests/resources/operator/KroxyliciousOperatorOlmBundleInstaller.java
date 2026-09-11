@@ -1,0 +1,222 @@
+
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.systemtests.resources.operator;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.extension.ExtensionContext;
+
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
+import io.fabric8.openshift.api.model.operatorhub.v1.OperatorGroupBuilder;
+import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
+import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionBuilder;
+import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionConfigBuilder;
+import io.skodjob.kubetest4j.KubeTestConstants;
+import io.skodjob.kubetest4j.installation.InstallationMethod;
+import io.skodjob.kubetest4j.olm.OperatorSdkRun;
+import io.skodjob.kubetest4j.olm.OperatorSdkRunBuilder;
+import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.skodjob.kubetest4j.utils.KubeTestUtils;
+import io.skodjob.kubetest4j.utils.PodUtils;
+import io.skodjob.kubetest4j.wait.Wait;
+
+import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.utils.NamespaceUtils;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+
+/**
+ * KroxyliciousOperatorOlmBundleInstaller encapsulates the whole OLM installation process of Kroxylicious Operator. Based on the {@code Environment}
+ * values, this class installs Kroxylicious Operator using bundle olm.
+ */
+public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMethod {
+
+    private static final Logger LOGGER = LogManager.getLogger(KroxyliciousOperatorOlmBundleInstaller.class);
+    private static final String SEPARATOR = String.join("", Collections.nCopies(76, "="));
+
+    private final ExtensionContext extensionContext;
+    private final String kroxyliciousOperatorName;
+    private final String bundleImageRef;
+    private final String operatorNamespace;
+    private final Map<String, String> additionalEnvVars;
+
+    public KroxyliciousOperatorOlmBundleInstaller(String operatorNamespace, Map<String, String> additionalEnvVars) {
+        this.operatorNamespace = operatorNamespace;
+        this.additionalEnvVars = additionalEnvVars;
+        this.extensionContext = KubeResourceManager.get().getTestContext();
+        this.kroxyliciousOperatorName = Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME;
+        this.bundleImageRef = Environment.KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE;
+    }
+
+    @Override
+    @SuppressWarnings("EqualsGetClass") // Installation identity: an OLM bundle installation is never the same installation as any other
+    // type, including a subclass of this one.
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null || getClass() != other.getClass()) {
+            return false;
+        }
+        KroxyliciousOperatorOlmBundleInstaller otherInstallation = (KroxyliciousOperatorOlmBundleInstaller) other;
+
+        return Objects.equals(kroxyliciousOperatorName, otherInstallation.kroxyliciousOperatorName) &&
+                Objects.equals(operatorNamespace, otherInstallation.operatorNamespace) &&
+                Objects.equals(bundleImageRef, otherInstallation.bundleImageRef) &&
+                Objects.equals(extensionContext, otherInstallation.extensionContext) &&
+                Objects.equals(additionalEnvVars, otherInstallation.additionalEnvVars);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(extensionContext, kroxyliciousOperatorName, operatorNamespace, bundleImageRef, additionalEnvVars);
+    }
+
+    @Override
+    public String toString() {
+        return "KroxyliciousOperatorOlmBundleInstaller{" +
+                ", extensionContext=" + extensionContext +
+                ", kroxyliciousOperatorName='" + kroxyliciousOperatorName + '\'' +
+                ", operatorNamespace='" + operatorNamespace + '\'' +
+                ", bundleImageRef='" + bundleImageRef + '\'' +
+                ", additionalEnvVars=" + additionalEnvVars +
+                '}';
+    }
+
+    @Override
+    public void install() {
+        LOGGER.info("Setup Kroxylicious Operator using OLM");
+        if (bundleImageRef != null && !bundleImageRef.isEmpty()) {
+            install(kroxyliciousOperatorName, operatorNamespace, bundleImageRef).join();
+        }
+        else {
+            install(kroxyliciousOperatorName, operatorNamespace, Environment.OLM_OPERATOR_CHANNEL, Environment.CATALOG_SOURCE_NAME, Environment.CATALOG_NAMESPACE).join();
+        }
+    }
+
+    /**
+     * Install strimzi operator from catalog presented on cluster using OLM
+     *
+     * @param operatorName      name of operator
+     * @param operatorNamespace where operator will be present
+     * @param channel           chanel
+     * @param source            source name of catalog
+     * @param catalogNs         source catalog namespace
+     * @return wait future
+     */
+    @SuppressFBWarnings("BC_UNCONFIRMED_CAST_OF_RETURN_VALUE")
+    public CompletableFuture<Void> install(String operatorName, String operatorNamespace,
+                                           String channel, String source, String catalogNs) {
+        // Create ns for the operator
+        NamespaceUtils.createNamespaceAndPrepare(operatorNamespace);
+        // Create operator group for the operator
+        if (KubeResourceManager.get().kubeClient().getOpenShiftClient().operatorHub().operatorGroups()
+                .inNamespace(operatorNamespace).list().getItems().isEmpty()) {
+            OperatorGroupBuilder operatorGroup = new OperatorGroupBuilder()
+                    .editOrNewMetadata()
+                    .withName(Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME + "-operator-group")
+                    .withNamespace(operatorNamespace)
+                    .endMetadata();
+            ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(operatorGroup);
+        }
+        else {
+            LOGGER.info("OperatorGroup already exists.");
+        }
+
+        List<EnvVar> envVars = additionalEnvVars.entrySet().stream()
+                .map(e -> new EnvVarBuilder().withName(e.getKey()).withValue(e.getValue()).build())
+                .toList();
+
+        // @formatter:off
+        Subscription subscription = new SubscriptionBuilder()
+                .editOrNewMetadata()
+                    .withName(Constants.KROXYLICIOUS_OPERATOR_SUBSCRIPTION_NAME)
+                    .withNamespace(operatorNamespace)
+                .endMetadata()
+                .editOrNewSpec()
+                    .withName(operatorName)
+                    .withChannel(channel)
+                    .withSource(source)
+                    .withSourceNamespace(catalogNs)
+                    .withInstallPlanApproval("Automatic")
+                    .withConfig(new SubscriptionConfigBuilder().withEnv(envVars).build())
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        KubeResourceManager.get().createOrUpdateResourceWithoutWait(subscription);
+        return Wait.untilAsync(operatorName + " is ready", KubeTestConstants.GLOBAL_POLL_INTERVAL_1_SEC,
+                KubeTestConstants.GLOBAL_TIMEOUT, () -> isOperatorReady(operatorNamespace));
+    }
+
+    private CompletableFuture<Void> install(String operatorName, String operatorNamespace, String bundleImageRef) {
+        if (!additionalEnvVars.isEmpty()) {
+            throw new UnsupportedOperationException("Additional env vars are not supported for bundle-image OLM installs");
+        }
+        OperatorSdkRun osr = new OperatorSdkRunBuilder()
+                .withBundleImage(bundleImageRef)
+                .withInstallMode("AllNamespaces")
+                .withNamespace(operatorNamespace)
+                .build();
+
+        return Wait.untilAsync(operatorName + " is ready", KubeTestConstants.GLOBAL_POLL_INTERVAL_1_SEC,
+                KubeTestConstants.GLOBAL_TIMEOUT, () -> {
+                    NamespaceUtils.createNamespaceAndPrepare(operatorNamespace);
+                    KubeTestUtils.runUntilPass(3, osr::run);
+                    return isOperatorReady(operatorNamespace);
+                });
+    }
+
+    @SuppressFBWarnings("REC_CATCH_EXCEPTION")
+    private boolean isOperatorReady(String ns) {
+        try {
+            String label = kubeClient().listPodsByPrefixInName(ns, Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME).get(0).getMetadata()
+                    .getLabels().get("app.kubernetes.io/instance");
+            PodUtils.waitForPodsReadyWithRestart(ns, new LabelSelectorBuilder()
+                    .withMatchLabels(Map.of("app.kubernetes.io/instance", label)).build(),
+                    1, true);
+            LOGGER.info("Kroxylicious operator in namespace {} is ready", ns);
+            return true;
+        }
+        catch (Exception ex) {
+            return false;
+        }
+    }
+
+    @Override
+    public synchronized void delete() {
+        LOGGER.info(SEPARATOR);
+        if (Environment.SKIP_TEARDOWN) {
+            LOGGER.info("Skip un-installation of the Kroxylicious Operator");
+        }
+        else {
+            LOGGER.info("Un-installing Kroxylicious Operator from Namespace: {}", operatorNamespace);
+
+            // clear all resources related to the extension context
+            try {
+                KubeResourceManager.get().deleteResources(true);
+            }
+            catch (Exception e) {
+                LOGGER.error("An error occurred when deleting the resources", e);
+            }
+        }
+        LOGGER.info(SEPARATOR);
+    }
+}

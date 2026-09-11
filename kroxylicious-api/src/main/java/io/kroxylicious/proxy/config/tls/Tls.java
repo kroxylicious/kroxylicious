@@ -1,0 +1,78 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.proxy.config.tls;
+
+import java.security.KeyStore;
+import java.util.Locale;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+/**
+ * Provides TLS configuration for this peer.  This class is designed to be used for both TLS server and client roles.
+ *
+ * @param key specifies a key provider that provides the certificate/key used to identify this peer.
+ * @param trust specifies a trust provider used by this peer to determine whether to trust the peer. If omitted platform trust is used instead.
+ * @param cipherSuites specifies a custom object which contains details of allowed and denied cipher suites
+ * @param protocols specifies a custom object which contains details of allowed and denied tls protocols
+ * @param credentialSupplier specifies a dynamic TLS credential supplier for per-client certificate selection (optional)
+ */
+public record Tls(@Nullable KeyProvider key,
+                  @Nullable TrustProvider trust,
+                  @Nullable AllowDeny<String> cipherSuites,
+                  @Nullable AllowDeny<String> protocols,
+                  @Nullable TlsCredentialSupplierConfig credentialSupplier) {
+
+    /**
+     * Compact constructor with validation.
+     */
+    public Tls {
+        if (key != null && credentialSupplier != null) {
+            throw new IllegalArgumentException(
+                    "Cannot configure both 'key' and 'credentialSupplier' - they are mutually exclusive. " +
+                            "Use 'key' for static TLS credentials or 'credentialSupplier' for dynamic credential selection.");
+        }
+    }
+
+    /**
+     * Creates a Tls configuration without a TLS credential supplier.
+     * This constructor is provided for backward compatibility with v0.18.0.
+     * <p>
+     * For configurations that require dynamic TLS credential selection, use the
+     * 5-parameter constructor that includes {@code credentialSupplier}.
+     *
+     * @param key specifies a key provider that provides the certificate/key used to identify this peer.
+     * @param trust specifies a trust provider used by this peer to determine whether to trust the peer.
+     * @param cipherSuites specifies allowed and denied cipher suites
+     * @param protocols specifies allowed and denied tls protocols
+     */
+    public Tls(@Nullable KeyProvider key,
+               @Nullable TrustProvider trust,
+               @Nullable AllowDeny<String> cipherSuites,
+               @Nullable AllowDeny<String> protocols) {
+        this(key, trust, cipherSuites, protocols, null);
+    }
+
+    public static final String PEM = "PEM";
+
+    /**
+     * Returns the store type, defaulting to the platform default if null.
+     * @param storeType the store type, or null for platform default
+     * @return the resolved store type in upper case
+     */
+    public static String getStoreTypeOrPlatformDefault(@Nullable String storeType) {
+        return storeType == null ? KeyStore.getDefaultType().toUpperCase(Locale.ROOT) : storeType.toUpperCase(Locale.ROOT);
+    }
+
+    /**
+     * Returns whether a key provider is configured.
+     * @return true if a key provider is set
+     */
+    public boolean definesKey() {
+        return key != null;
+    }
+
+}

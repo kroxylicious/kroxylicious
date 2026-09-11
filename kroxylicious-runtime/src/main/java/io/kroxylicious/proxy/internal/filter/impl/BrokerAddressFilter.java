@@ -1,0 +1,204 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.proxy.internal.filter.impl;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletionStage;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.ObjIntConsumer;
+import java.util.function.ToIntFunction;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.kafka.common.message.DescribeClusterResponseData;
+import io.kroxylicious.kafka.common.message.DescribeClusterResponseData.DescribeClusterBroker;
+import io.kroxylicious.kafka.common.message.FetchResponseData;
+import io.kroxylicious.kafka.common.message.FindCoordinatorResponseData;
+import io.kroxylicious.kafka.common.message.FindCoordinatorResponseData.Coordinator;
+import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
+import io.kroxylicious.kafka.common.message.ProduceResponseData;
+import io.kroxylicious.kafka.common.message.ResponseHeaderData;
+import io.kroxylicious.kafka.common.message.ShareAcknowledgeResponseData;
+import io.kroxylicious.kafka.common.message.ShareFetchResponseData;
+import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
+import io.kroxylicious.proxy.filter.FetchResponseFilter;
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
+import io.kroxylicious.proxy.filter.MetadataResponseFilter;
+import io.kroxylicious.proxy.filter.ProduceResponseFilter;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ShareAcknowledgeResponseFilter;
+import io.kroxylicious.proxy.filter.ShareFetchResponseFilter;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.service.HostPort;
+
+/**
+ * An internal filter that rewrites broker addresses in all relevant responses to the corresponding proxy address. It also
+ * is responsible for updating the virtual cluster's cache of upstream broker endpoints.
+ */
+public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordinatorResponseFilter, DescribeClusterResponseFilter,
+        ProduceResponseFilter, FetchResponseFilter, ShareFetchResponseFilter, ShareAcknowledgeResponseFilter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
+
+    private final EndpointGateway listenerModel;
+    private final EndpointReconciler reconciler;
+
+    /**
+     * Creates a broker address filter.
+     *
+     * @param listenerModel the gateway used to compute the proxy address advertised for each upstream broker
+     * @param reconciler used to reconcile the virtual cluster's endpoints with the discovered upstream brokers
+     */
+    public BrokerAddressFilter(EndpointGateway listenerModel, EndpointReconciler reconciler) {
+        this.listenerModel = listenerModel;
+        this.reconciler = reconciler;
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onMetadataResponse(short apiVersion, ResponseHeaderData header, MetadataResponseData data, FilterContext context) {
+        var nodeMap = new HashMap<Integer, HostPort>();
+        for (MetadataResponseBroker broker : data.brokers()) {
+            nodeMap.put(broker.nodeId(), new HostPort(broker.host(), broker.port()));
+        }
+        return doReconcileThenRewriteAndForward(header, data, context, nodeMap, () -> {
+            for (MetadataResponseBroker broker : data.brokers()) {
+                apply(context, broker, MetadataResponseBroker::nodeId, MetadataResponseBroker::host, MetadataResponseBroker::port, MetadataResponseBroker::setHost,
+                        MetadataResponseBroker::setPort);
+            }
+        });
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onDescribeClusterResponse(short apiVersion, ResponseHeaderData header, DescribeClusterResponseData data,
+                                                                           FilterContext context) {
+        var nodeMap = new HashMap<Integer, HostPort>();
+        for (DescribeClusterBroker broker : data.brokers()) {
+            nodeMap.put(broker.brokerId(), new HostPort(broker.host(), broker.port()));
+        }
+        return doReconcileThenRewriteAndForward(header, data, context, nodeMap, () -> {
+            for (DescribeClusterBroker broker : data.brokers()) {
+                apply(context, broker, DescribeClusterBroker::brokerId, DescribeClusterBroker::host, DescribeClusterBroker::port, DescribeClusterBroker::setHost,
+                        DescribeClusterBroker::setPort);
+            }
+        });
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onFindCoordinatorResponse(short apiVersion, ResponseHeaderData header, FindCoordinatorResponseData data,
+                                                                           FilterContext context) {
+        // Version 4+
+        for (Coordinator coordinator : data.coordinators()) {
+            // If the coordinator is not yet available, the server returns a nodeId of -1.
+            if (coordinator.nodeId() >= 0) {
+                apply(context, coordinator, Coordinator::nodeId, Coordinator::host, Coordinator::port, Coordinator::setHost, Coordinator::setPort);
+            }
+        }
+        // Version 3
+        if (data.nodeId() >= 0 && data.host() != null && !data.host().isEmpty() && data.port() > 0) {
+            apply(context, data, FindCoordinatorResponseData::nodeId, FindCoordinatorResponseData::host, FindCoordinatorResponseData::port,
+                    FindCoordinatorResponseData::setHost, FindCoordinatorResponseData::setPort);
+        }
+        return context.forwardResponse(header, data);
+    }
+
+    @Override
+    public boolean shouldHandleProduceResponse(short apiVersion) {
+        return apiVersion >= 10;
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response, FilterContext context) {
+        // KIP-951, Version 10
+        if (response.nodeEndpoints() != null) {
+            response.nodeEndpoints()
+                    .forEach(ne -> apply(context, ne, ProduceResponseData.NodeEndpoint::nodeId,
+                            ProduceResponseData.NodeEndpoint::host, ProduceResponseData.NodeEndpoint::port,
+                            ProduceResponseData.NodeEndpoint::setHost, ProduceResponseData.NodeEndpoint::setPort));
+        }
+        return context.forwardResponse(header, response);
+    }
+
+    @Override
+    public boolean shouldHandleFetchResponse(short apiVersion) {
+        return apiVersion >= 16;
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, FilterContext context) {
+        // KIP-951, Version 16
+        if (response.nodeEndpoints() != null) {
+            response.nodeEndpoints()
+                    .forEach(ne -> apply(context, ne, FetchResponseData.NodeEndpoint::nodeId,
+                            FetchResponseData.NodeEndpoint::host, FetchResponseData.NodeEndpoint::port,
+                            FetchResponseData.NodeEndpoint::setHost, FetchResponseData.NodeEndpoint::setPort));
+        }
+        return context.forwardResponse(header, response);
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onShareAcknowledgeResponse(short apiVersion, ResponseHeaderData header, ShareAcknowledgeResponseData response,
+                                                                            FilterContext context) {
+        // KIP-932
+        if (response.nodeEndpoints() != null) {
+            response.nodeEndpoints()
+                    .forEach(ne -> apply(context, ne, ShareAcknowledgeResponseData.NodeEndpoint::nodeId,
+                            ShareAcknowledgeResponseData.NodeEndpoint::host, ShareAcknowledgeResponseData.NodeEndpoint::port,
+                            ShareAcknowledgeResponseData.NodeEndpoint::setHost, ShareAcknowledgeResponseData.NodeEndpoint::setPort));
+        }
+        return context.forwardResponse(header, response);
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onShareFetchResponse(short apiVersion, ResponseHeaderData header, ShareFetchResponseData response,
+                                                                      FilterContext context) {
+        // KIP-932
+        if (response.nodeEndpoints() != null) {
+            response.nodeEndpoints()
+                    .forEach(ne -> apply(context, ne, ShareFetchResponseData.NodeEndpoint::nodeId,
+                            ShareFetchResponseData.NodeEndpoint::host, ShareFetchResponseData.NodeEndpoint::port,
+                            ShareFetchResponseData.NodeEndpoint::setHost, ShareFetchResponseData.NodeEndpoint::setPort));
+        }
+        return context.forwardResponse(header, response);
+    }
+
+    private <T> void apply(FilterContext context, T broker, ToIntFunction<T> nodeIdGetter, Function<T, String> hostGetter, ToIntFunction<T> portGetter,
+                           BiConsumer<T, String> hostSetter,
+                           ObjIntConsumer<T> portSetter) {
+        String incomingHost = hostGetter.apply(broker);
+        int incomingPort = portGetter.applyAsInt(broker);
+
+        int nodeId = nodeIdGetter.applyAsInt(broker);
+        var advertisedAddress = listenerModel.getAdvertisedBrokerAddress(nodeId);
+
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("incomingHost", incomingHost)
+                .addKeyValue("incomingPort", incomingPort)
+                .addKeyValue("advertisedAddress", advertisedAddress)
+                .log("Rewriting broker address in response");
+        hostSetter.accept(broker, advertisedAddress.host());
+        portSetter.accept(broker, advertisedAddress.port());
+    }
+
+    private CompletionStage<ResponseFilterResult> doReconcileThenRewriteAndForward(ResponseHeaderData header, ApiMessage data, FilterContext context,
+                                                                                   Map<Integer, HostPort> nodeMap, Runnable rewrite) {
+        return reconciler.reconcile(listenerModel, nodeMap).toCompletableFuture()
+                .thenCompose(u -> {
+                    LOGGER.atDebug()
+                            .addKeyValue("virtualCluster", listenerModel)
+                            .log("Endpoint reconciliation complete");
+                    rewrite.run();
+                    return context.responseFilterResultBuilder().forward(header, data).completed();
+                });
+    }
+}

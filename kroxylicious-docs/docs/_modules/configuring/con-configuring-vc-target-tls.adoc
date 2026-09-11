@@ -1,0 +1,236 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-configuring-vc-target-tls-{context}']
+= Securing connections to target clusters
+
+[role="_abstract"]
+To secure connections from the virtual cluster to the upstream cluster, configure the target cluster's TLS setting by
+doing the following:
+
+* If the upstream is using a private CA, use the `trust` properties to configure a truststore for the target cluster.
+
+* If you want to use mutual TLS, specify the certificate with the `key` property to identify the virtual cluster to the upstream.
+
+* If required, you can restrict the TLS protocols and cipher suites that are used to form the TLS connection.
+
+* For advanced use cases, configure a TLS credential supplier for dynamic per-connection certificate selection.
+
+NOTE: TLS is recommended on Kafka clients and virtual clusters for production configurations.
+
+Examples below illustrate how these steps may be done.
+
+== Enabling TLS
+
+Using an empty object (`{}`) enables TLS using the platform's defaults. This means that platform trust, and
+default protocols and cipher suites will be used. This option is suitable if the upstream cluster is using a TLS
+certificate signed by a public CA and the platform's defaults are suitable.
+
+.Example enabling TLS for a target cluster using platform defaults
+[source,yaml]
+----
+# ...
+virtualClusters:
+  - name: my-cluster-proxy
+    # ...
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls: {}
+# ...
+----
+
+== Configuring trust
+
+If it is using a TLS certificate signed by a private CA, you must add truststore configuration for the target cluster.
+The example illustrates using PKCS #12 format. PEM format is supported too.
+
+.Example specifying a truststore
+[source,yaml]
+----
+# ...
+virtualClusters:
+  - name: my-cluster-proxy
+    # ...
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        trust:
+          storeFile: <path>/trust.p12
+          storePassword:
+            passwordFile: <path>/store.password
+          storeType: PKCS12
+# ...
+----
+where:
+
+* `storeFile` refers to a PKCS #12 store for the public CA certificate of the Kafka cluster.
+** `storePassword` defines the password used decrypt the store file. Omit the `storePassword` field if the store is not password protected.
+*** `passwordFile` Password to protect the PKCS #12 store.
+* `storeType` identifies the keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
+
+== Configuring mutual TLS with static credentials
+
+For mutual TLS, add a keystore configuration for the virtual cluster.
+The following example uses a PEM format server certificate and key pair.
+PKCS #12 keystore format is supported too.
+
+.Example configuring mutual TLS
+[source,yaml]
+----
+# ...
+virtualClusters:
+  - name: my-cluster-proxy
+    # ...
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        key:
+          privateKeyFile: <path>/client.key
+          certificateFile: <path>/client.crt
+# ...
+----
+where:
+
+* `privateKeyFile` refers to a private key of the virtual cluster.
+* `certificateFile` refers to a public certificate of the virtual cluster.
+
+== Restricting TLS protocols and cipher suites
+
+The TLS protocols and cipher suites available to the TLS connection may also be configured.
+
+.Example restricting TLS protocols using an allow list
+[source,yaml]
+----
+# ...
+virtualClusters:
+  - name: my-cluster-proxy
+    # ...
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        # ...
+        protocols:
+          allowed:
+          - TLSv1.3
+          - TLSv1.2
+----
+where:
+
+* `protocols` configures the TLS protocols
+** `allowed` lists the allowed TLS protocols.
+
+.Example restricting TLS protocols using a deny list
+
+[source,yaml]
+----
+virtualClusters:
+  - name: my-cluster-proxy
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        # ...
+        protocols:
+          denied:
+          - TLSv1.1
+----
+where:
+
+* `protocols` configures the TLS protocols
+** `denied` lists the disallowed TLS protocols.
+
+.Example restricting cipher suites using an allow list
+
+[source,yaml]
+----
+virtualClusters:
+  - name: my-cluster-proxy
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        # ...
+        cipherSuites:
+          allowed:
+          - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
+          - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+----
+where:
+
+* `cipherSuites` configures the cipher suites.
+** `allowed` lists the permitted cipher suites in preference order.
+
+.Example restricting cipher suites using a deny list
+
+[source,yaml]
+----
+virtualClusters:
+  - name: my-cluster-proxy
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        # ...
+        cipherSuites:
+          denied:
+          - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
+----
+where:
+
+* `cipherSuites` configures the cipher suites.
+** `denied` lists the disallowed cipher suites.
+
+== Configuring dynamic TLS credential selection
+
+For advanced use cases requiring per-client certificate selection, you can configure a TLS credential supplier.
+A TLS credential supplier is a pluggable component that dynamically provides TLS credentials based on the
+connection context, allowing different certificates to be used for different clients or connections.
+
+.Example configuring a TLS credential supplier
+[source,yaml]
+----
+virtualClusters:
+  - name: my-cluster-proxy
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        credentialSupplier:
+          type: MyCredentialSupplier  # <1>
+          config:  # <2>
+            path: /etc/certs
+            refreshInterval: 60s
+# ...
+----
+<1> The type of TLS credential supplier (references a ServerTlsCredentialSupplierFactory implementation).
+<2> Optional supplier-specific configuration.
+
+NOTE: The `credentialSupplier` configuration is optional and follows the same pattern as filter configuration
+with a `type` field identifying the supplier implementation and an optional `config` object for supplier-specific settings.
+
+IMPORTANT: The `key` and `credentialSupplier` properties are mutually exclusive. Use `key` for static credentials,
+or `credentialSupplier` for dynamic per-connection credential selection, but not both.
+
+Supplier implementations must be thread-safe, as a single instance is shared across all connections to the virtual cluster.
+Implementations must not block the calling thread; the `tlsCredentials()` method returns a `CompletionStage` for
+asynchronous credential resolution.
+
+== Disabling TLS trust checks (testing only)
+
+For the purposes of testing (that is, outside a production environment), you can set the `insecure` property to `true`
+to disable TLS trust checks (hostname verification and certificate validation) so that the Kroxylicious can connect to
+any Kafka cluster.
+
+.Example configuration to disable TLS trust checks
+[source,yaml]
+----
+virtualClusters:
+  - name: my-cluster-proxy
+    targetCluster:
+      bootstrapServers: dev-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        trust:
+          insecure: true
+# ...
+----

@@ -1,0 +1,71 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-protocol-logger-filter.adoc
+
+[id='con-example-kafkaprotocolfilter-resource-{context}']
+= Example `KafkaProtocolFilter` resource
+
+[role="_abstract"]
+If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProtocolFilter` resource to contain the filter configuration.
+
+Here is a complete example of a `KafkaProtocolFilter` resource configured for the Protocol Logger:
+
+[source,yaml]
+----
+kind: KafkaProtocolFilter
+metadata:
+  name: my-protocol-logger-filter
+spec:
+  type: ProtocolLogger
+  configTemplate:
+    logLevel: DEBUG
+    apiKeyNames:
+      - METADATA
+      - PRODUCE
+      - FETCH
+    loggerName: protocol.downstream
+----
+where:
+
+* `logLevel` (optional) is the SLF4J level at which the filter emits log messages. Defaults to `DEBUG`. The logging backend must be enabled at this level for the filter's logger, otherwise no output appears.
+* `apiKeyNames` (optional) is the set of Kafka `ApiKeys` enum names to log. If absent or empty, all API keys are logged. Names are resolved case-insensitively and with non-alphanumeric characters stripped, so `FindCoordinator`, `find-coordinator`, and `FIND_COORDINATOR` all resolve to the same API key.
+* `loggerName` (optional) is the SLF4J logger name used by this filter instance. Defaults to the filter class name, `io.kroxylicious.filter.protocollogger.ProtocolLoggerFilter`.
+
+All configuration properties are optional, so the `configTemplate` block may be omitted entirely to log all API keys at `DEBUG` level.
+
+You can define more than one instance of the filter, placing one at each end of the filter chain to see the effect of the filters between them.
+Distinct logger names let each instance be enabled independently from the logging backend:
+
+[source,yaml]
+----
+kind: KafkaProtocolFilter
+metadata:
+  name: log-downstream
+spec:
+  type: ProtocolLogger
+  configTemplate:
+    loggerName: protocol.downstream
+----
+
+[source,yaml]
+----
+kind: KafkaProtocolFilter
+metadata:
+  name: log-upstream
+spec:
+  type: ProtocolLogger
+  configTemplate:
+    loggerName: protocol.upstream
+----
+
+Reference both resources from the virtual cluster's filter list, with the other filters between them.
+
+Refer to the {OperatorGuide} for more information about configuration on Kubernetes.

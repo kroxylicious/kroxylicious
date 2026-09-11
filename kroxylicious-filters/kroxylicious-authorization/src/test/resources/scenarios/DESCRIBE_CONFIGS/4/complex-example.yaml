@@ -1,0 +1,206 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_CONFIGS"
+  apiVersion: 4
+  scenario: |
+    allowed topic forwarded
+    denied topic not forwarded, error response added to response
+    allowed group forwarded
+    denied group not forwarded, error response added to response
+    other resource types forwarded
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_CONFIGS"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 32
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        resources:
+          - resourceType: 0
+            resourceName: "my-unknown"
+            configurationKeys:
+              - "random-string-264"
+          - resourceType: 2
+            resourceName: "my-topic"
+            configurationKeys:
+              - "random-string-264"
+          - resourceType: 4
+            resourceName: "my-broker"
+            configurationKeys:
+              - "random-string-264"
+          - resourceType: 8
+            resourceName: "my-broker-logger"
+            configurationKeys:
+              - "random-string-264"
+          - resourceType: 16
+            resourceName: "my-client-metrics"
+            configurationKeys:
+              - "random-string-264"
+          - resourceType: 32
+            resourceName: "my-group"
+            configurationKeys:
+              - "random-string-264"
+          - resourceType: 127
+            resourceName: "my-future-resource-type"
+            configurationKeys:
+              - "random-string-264"
+        includeSynonyms: false
+        includeDocumentation: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 828
+        results:
+          - errorCode: 613
+            errorMessage: "random-string-85"
+            resourceType: 0
+            resourceName: "my-unknown"
+            configs: []
+          - errorCode: 613
+            errorMessage: "random-string-85"
+            resourceType: 2
+            resourceName: "my-topic"
+            configs: []
+          - errorCode: 613
+            errorMessage: "random-string-85"
+            resourceType: 4
+            resourceName: "my-broker"
+            configs: []
+          - errorCode: 613
+            errorMessage: "random-string-85"
+            resourceType: 8
+            resourceName: "my-broker-logger"
+            configs: []
+          - errorCode: 613
+            errorMessage: "random-string-85"
+            resourceType: 16
+            resourceName: "my-client-metrics"
+            configs: []
+          - errorCode: 613
+            errorMessage: "random-string-85"
+            resourceType: 32
+            resourceName: "my-group"
+            configs: []
+          - errorCode: 613
+            errorMessage: "random-string-85"
+            resourceType: 127
+            resourceName: "my-future-resource-type"
+            configs: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE_CONFIGS"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE_CONFIGS"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 32
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    resources:
+      - resourceType: 0
+        resourceName: "my-unknown"
+        configurationKeys:
+          - "random-string-264"
+      - resourceType: 2
+        resourceName: "my-topic"
+        configurationKeys:
+          - "random-string-264"
+      - resourceType: 2
+        resourceName: "denied-topic"
+        configurationKeys:
+          - "random-string-264"
+      - resourceType: 4
+        resourceName: "my-broker"
+        configurationKeys:
+          - "random-string-264"
+      - resourceType: 8
+        resourceName: "my-broker-logger"
+        configurationKeys:
+          - "random-string-264"
+      - resourceType: 16
+        resourceName: "my-client-metrics"
+        configurationKeys:
+          - "random-string-264"
+      - resourceType: 32
+        resourceName: "my-group"
+        configurationKeys:
+          - "random-string-264"
+      - resourceType: 32
+        resourceName: "denied-group"
+        configurationKeys:
+          - "random-string-264"
+      - resourceType: 127
+        resourceName: "my-future-resource-type"
+        configurationKeys:
+          - "random-string-264"
+    includeSynonyms: false
+    includeDocumentation: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 828
+    results:
+      - errorCode: 613
+        errorMessage: "random-string-85"
+        resourceType: 0
+        resourceName: "my-unknown"
+        configs: [ ]
+      - errorCode: 613
+        errorMessage: "random-string-85"
+        resourceType: 2
+        resourceName: "my-topic"
+        configs: [ ]
+      - errorCode: 613
+        errorMessage: "random-string-85"
+        resourceType: 4
+        resourceName: "my-broker"
+        configs: [ ]
+      - errorCode: 613
+        errorMessage: "random-string-85"
+        resourceType: 8
+        resourceName: "my-broker-logger"
+        configs: [ ]
+      - errorCode: 613
+        errorMessage: "random-string-85"
+        resourceType: 16
+        resourceName: "my-client-metrics"
+        configs: [ ]
+      - errorCode: 613
+        errorMessage: "random-string-85"
+        resourceType: 32
+        resourceName: "my-group"
+        configs: [ ]
+      - errorCode: 613
+        errorMessage: "random-string-85"
+        resourceType: 127
+        resourceName: "my-future-resource-type"
+        configs: [ ]
+      - errorCode: 29
+        errorMessage: "Topic authorization failed."
+        resourceType: 2
+        resourceName: "denied-topic"
+        configs: [ ]
+      - errorCode: 30
+        errorMessage: "Group authorization failed."
+        resourceType: 32
+        resourceName: "denied-group"
+        configs: [ ]

@@ -1,0 +1,96 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.proxy.internal.net;
+
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+
+/**
+ * Request for a network endpoint to be bound.
+ *
+ */
+public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkBindRequest.class);
+    private final CompletableFuture<Channel> future;
+    private final Endpoint endpoint;
+
+    /**
+     * Creates a network bind request.
+     *
+     * @param future future that will be completed with the listening channel once the bind operation completes.
+     * @param endpoint endpoint describing the address, port and TLS mode to bind.
+     */
+    public NetworkBindRequest(CompletableFuture<Channel> future, Endpoint endpoint) {
+        super(endpoint.tls());
+        this.future = future;
+        this.endpoint = endpoint;
+    }
+
+    /**
+     * Address of the interface to bind. {@link Optional#empty()} indicates the 'any' address.
+     *
+     * @return binding address
+     */
+    public Optional<String> getBindingAddress() {
+        return endpoint.bindingAddress();
+    }
+
+    @Override
+    public int port() {
+        return endpoint.port();
+    }
+
+    @Override
+    public CompletableFuture<Channel> getFuture() {
+        return future;
+    }
+
+    @Override
+    public void performBindingOperation(ServerBootstrap serverBootstrap, ExecutorService executorService) {
+        try {
+            int port = port();
+            var bindingAddress = endpoint.bindingAddress();
+            ChannelFuture bind;
+            if (bindingAddress.isPresent()) {
+                LOGGER.atDebug()
+                        .addKeyValue("bindAddress", bindingAddress.get())
+                        .addKeyValue("port", port)
+                        .log("Binding");
+                bind = serverBootstrap.bind(bindingAddress.get(), port);
+            }
+            else {
+                LOGGER.atDebug()
+                        .addKeyValue("bindAddress", "<any>")
+                        .addKeyValue("port", port)
+                        .log("Binding");
+                bind = serverBootstrap.bind(port);
+            }
+            bind.addListener((ChannelFutureListener) channelFuture -> executorService.execute(() -> {
+                if (channelFuture.cause() != null) {
+                    future.completeExceptionally(new RuntimeException(
+                            "bind to %s:%d failed".formatted(bindingAddress.orElse("<any>"), port), channelFuture.cause()));
+                }
+                else {
+                    future.complete(channelFuture.channel());
+                }
+            }));
+        }
+        catch (Throwable t) {
+            future.completeExceptionally(t);
+        }
+    }
+
+}

@@ -1,0 +1,9 @@
+title: "feat(runtime): **Preview** — per-route filter chains"
+type: added
+issues:
+  - 4156
+important_notes:
+  - |
+    Routes in `routerDefinitions` can now declare their own `filters` list;
+    these filters apply only to traffic on that route, executing after virtual-cluster-level filters.
+    Route filter definition changes are detected during hot reload.

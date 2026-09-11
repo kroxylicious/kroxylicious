@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CheckStyle-IDEA" serialisationVersion="2">
+    <checkstyleVersion>10.7.0</checkstyleVersion>
+    <scanScope>JavaOnlyWithTests</scanScope>
+    <option name="thirdPartyClasspath" />
+    <option name="activeLocationIds">
+      <option value="4134d36d-9580-44e5-ac16-ba5135e0e096" />
+    </option>
+    <option name="locations">
+      <list>
+        <ConfigurationLocation id="bundled-sun-checks" type="BUNDLED" scope="All" description="Sun Checks">(bundled)</ConfigurationLocation>
+        <ConfigurationLocation id="bundled-google-checks" type="BUNDLED" scope="All" description="Google Checks">(bundled)</ConfigurationLocation>
+        <ConfigurationLocation id="4134d36d-9580-44e5-ac16-ba5135e0e096" type="PROJECT_RELATIVE" scope="All" description="Kroxylicious Custom Checks">
+          $PROJECT_DIR$/etc/checkstyle-custom_checks.xml
+          <option name="properties">
+            <map>
+              <entry key="checkstyle.suppressions.file" value="etc/checkstyle-suppressions.xml" />
+            </map>
+          </option>
+        </ConfigurationLocation>
+        <ConfigurationLocation id="f9af683e-7dc5-4488-b45c-acac2cf124a0" type="PROJECT_RELATIVE" scope="All" description="record encryption layering">
+          $PROJECT_DIR$/kroxylicious-filters/kroxylicious-record-encryption/etc/module-checkstyle.xml
+          <option name="properties">
+            <map>
+              <entry key="project.basedir" value="kroxylicious-filters/kroxylicious-record-encryption" />
+            </map>
+          </option>
+        </ConfigurationLocation>
+      </list>
+    </option>
+  </component>
+</project>

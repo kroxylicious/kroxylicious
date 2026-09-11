@@ -1,0 +1,36 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FIND_COORDINATOR"
+  apiVersion: 1
+  scenario: "find coordinator for a group that is denied"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: []
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 10
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    key: "my-group"
+    keyType: 0
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 30 # GROUP_AUTHORIZATION_FAILED
+    errorMessage: "Group authorization failed."
+    nodeId: -1
+    host: ""
+    port: -1

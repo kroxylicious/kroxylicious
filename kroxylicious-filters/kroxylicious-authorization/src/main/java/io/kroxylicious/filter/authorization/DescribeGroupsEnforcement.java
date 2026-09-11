@@ -1,0 +1,109 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.filter.authorization;
+
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
+
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.kafka.common.message.DescribeGroupsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeGroupsResponseData;
+import io.kroxylicious.kafka.common.message.DescribeGroupsResponseData.DescribedGroup;
+import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+
+/**
+ * Enforces authorization of the DescribeGroups API, requiring {@link GroupResource#DESCRIBE}
+ * on each consumer group named in the request.
+ */
+public class DescribeGroupsEnforcement extends ApiEnforcement<DescribeGroupsRequestData, DescribeGroupsResponseData> {
+
+    /**
+     * Creates the enforcement.
+     */
+    public DescribeGroupsEnforcement() {
+        // Intentionally empty
+    }
+
+    @Override
+    short minSupportedVersion() {
+        return 0;
+    }
+
+    @Override
+    short maxSupportedVersion() {
+        return 6;
+    }
+
+    @Override
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   DescribeGroupsRequestData request,
+                                                   FilterContext context,
+                                                   AuthorizationFilter authorizationFilter) {
+        boolean isIncludeAuthorizedOps = request.includeAuthorizedOperations();
+        List<Action> actions = actionsToAuthorize(request, isIncludeAuthorizedOps);
+        return authorizationFilter.authorization(context, actions).thenCompose(authorizeResult -> {
+            if (authorizeResult.allowed().isEmpty()) {
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED).completed();
+            }
+            // we can only short-circuit if we are not including the proxy authorized operations
+            else if (authorizeResult.denied().isEmpty() && !isIncludeAuthorizedOps) {
+                return context.forwardRequest(header, request);
+            }
+            else {
+                Map<Decision, List<String>> partitionedGroups = authorizeResult.partition(request.groups(), GroupResource.DESCRIBE, Function.identity());
+                List<String> deniedGroups = partitionedGroups.get(Decision.DENY);
+                request.groups().removeAll(deniedGroups);
+                authorizationFilter.pushInflightState(header, (DescribeGroupsResponseData responseData) -> {
+                    if (isIncludeAuthorizedOps) {
+                        responseData.groups().forEach(describedGroup -> describedGroup.setAuthorizedOperations(
+                                AuthorizedOps.groupAuthorizedOps(authorizeResult, describedGroup.authorizedOperations(), describedGroup.groupId())));
+                    }
+                    for (String deniedGroup : deniedGroups) {
+                        responseData.groups().add(groupAuthzFailureResult(deniedGroup));
+                    }
+                    return responseData;
+                });
+                return context.forwardRequest(header, request);
+            }
+        });
+    }
+
+    private static List<Action> actionsToAuthorize(DescribeGroupsRequestData request, boolean isIncludeAuthorizedOps) {
+        List<GroupResource> operationsToAuthorize = operationsToAuthorize(isIncludeAuthorizedOps);
+        return request.groups().stream()
+                .flatMap(group -> operationsToAuthorize.stream()
+                        .map(groupResource -> new Action(groupResource, group)))
+                .toList();
+    }
+
+    private static List<GroupResource> operationsToAuthorize(boolean isIncludeAuthorizedOps) {
+        if (isIncludeAuthorizedOps) {
+            // we need to know which operations are authorized to include them in the authorized ops
+            return List.of(GroupResource.values());
+        }
+        else {
+            // we only need to know if the actor can DESCRIBE
+            return List.of(GroupResource.DESCRIBE);
+        }
+    }
+
+    private static DescribedGroup groupAuthzFailureResult(String deniedGroup) {
+        return new DescribedGroup().setGroupId(deniedGroup)
+                .setGroupState("") // Unknown state
+                .setProtocolType("") // Unknown protocol type
+                .setProtocolData("") // Unknown protocol
+                .setMembers(List.of())
+                .setAuthorizedOperations(Integer.MIN_VALUE)
+                .setErrorCode(Errors.GROUP_AUTHORIZATION_FAILED.code());
+    }
+}

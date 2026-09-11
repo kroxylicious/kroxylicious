@@ -1,0 +1,296 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Note the v1 in the filename refers to the version of the CustomResourceDefinition
+# not any of the versions of API being defined.
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  # name must match the spec fields below, and be in the form: <plural>.<group>
+  name: kroxylicioussidecarconfigs.sidecar.kroxylicious.io
+spec:
+  # group name to use for REST API: /apis/<group>/<version>
+  group: sidecar.kroxylicious.io
+  scope: Namespaced
+  names:
+    plural: kroxylicioussidecarconfigs
+    singular: kroxylicioussidecarconfig
+    kind: KroxyliciousSidecarConfig
+    shortNames:
+      - ksc
+    categories:
+      - kroxylicious
+  # list of versions supported by this CustomResourceDefinition
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Target
+          description: The bootstrap servers of the first virtual cluster.
+          jsonPath: ".spec.virtualClusters[0].targetBootstrapServers"
+          type: string
+          priority: 0
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            metadata:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 63
+                  pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?"
+            spec:
+              type: object
+              required:
+                - virtualClusters
+              properties:
+                virtualClusters:
+                  description: |
+                    The virtual clusters that the sidecar proxy will serve. Each entry defines
+                    a target Kafka cluster and the localhost ports the proxy listens on for that
+                    cluster. Currently only a single virtual cluster is supported.
+                  type: array
+                  minItems: 1
+                  maxItems: 1
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - targetBootstrapServers
+                    properties:
+                      name:
+                        description: |
+                          A unique name for this virtual cluster, used internally by the proxy
+                          configuration. Must be a valid DNS label.
+                        type: string
+                        pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+                        maxLength: 63
+                      targetBootstrapServers:
+                        description: |
+                          The bootstrap servers of the target Kafka cluster that the sidecar
+                          proxy will forward traffic to.
+                        type: string
+                      bootstrapPort:
+                        description: |
+                          The port on localhost where the sidecar proxy listens for Kafka
+                          bootstrap connections. Broker ports are allocated sequentially
+                          starting from bootstrapPort + 1.
+                        type: integer
+                        default: 9092
+                        minimum: 1024
+                        maximum: 65535
+                      nodeIdRange:
+                        description: |
+                          The range of Kafka broker node IDs that the sidecar proxy will
+                          allocate ports for. The number of broker ports is
+                          endInclusive - startInclusive + 1.
+                        type: object
+                        properties:
+                          startInclusive:
+                            description: The first node ID in the range (inclusive).
+                            type: integer
+                            default: 0
+                            minimum: 0
+                          endInclusive:
+                            description: The last node ID in the range (inclusive).
+                            type: integer
+                            default: 2
+                            minimum: 0
+                      targetClusterTls:
+                        description: |
+                          TLS configuration for the connection from the sidecar proxy to the
+                          target Kafka cluster. If omitted, the proxy connects without TLS.
+                        type: object
+                        properties:
+                          trustAnchorSecretRef:
+                            description: |
+                              A reference to a Secret containing the trusted CA certificate(s)
+                              for validation of the target Kafka broker's TLS server certificate.
+                              The referenced key should contain a PEM-encoded certificate bundle.
+                            type: object
+                            required:
+                              - name
+                              - key
+                            properties:
+                              name:
+                                description: The name of the Secret in the pod's namespace.
+                                type: string
+                              key:
+                                description: The key within the Secret data identifying the CA certificate bundle.
+                                type: string
+                proxyImage:
+                  description: |
+                    The container image to use for the sidecar proxy. If omitted, the webhook
+                    uses the image configured via the KROXYLICIOUS_IMAGE environment variable.
+                  type: string
+                managementPort:
+                  description: |
+                    The port on which the sidecar proxy exposes its management endpoints
+                    (/livez, /metrics). Bound to all interfaces so that kubelet probes work.
+                  type: integer
+                  default: 9082
+                  minimum: 1024
+                  maximum: 65535
+                resources:
+                  description: |
+                    Resource requests and limits for the sidecar proxy container.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                setBootstrapEnvVar:
+                  description: |
+                    Whether to set the KAFKA_BOOTSTRAP_SERVERS environment variable on
+                    application containers, pointing them to the sidecar proxy.
+                  type: boolean
+                  default: true
+                filterDefinitions:
+                  description: |
+                    Filter definitions applied to traffic passing through the sidecar proxy.
+                    Each filter has a unique name, a type identifying the FilterFactory plugin,
+                    and optional plugin-specific configuration.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - type
+                    properties:
+                      name:
+                        description: A unique name for this filter instance.
+                        type: string
+                        pattern: "^[a-z0-9A-Z]([a-z0-9A-Z_.\\-]{0,251}[a-z0-9A-Z])?$"
+                      type:
+                        description: The fully qualified type name of the FilterFactory plugin.
+                        type: string
+                      config:
+                        description: Plugin-specific configuration for this filter.
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                secretMounts:
+                  description: |
+                    Secrets to mount in the sidecar container. Each entry mounts all keys
+                    from the named Secret as read-only files under
+                    /opt/kroxylicious/secrets/[name]/. Use this to provide credentials or
+                    other sensitive data to filters without exposing them in pod annotations.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - secretName
+                    properties:
+                      name:
+                        description: |
+                          A unique name for this mount, used as the subdirectory under
+                          /opt/kroxylicious/secrets/. Must be a valid DNS label.
+                        type: string
+                        pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+                        maxLength: 63
+                      secretName:
+                        description: The name of the Secret in the pod's namespace.
+                        type: string
+                plugins:
+                  description: |
+                    Third-party plugin images to mount in the sidecar container. Each plugin's
+                    JARs are mounted at /opt/kroxylicious/classpath-plugins/[name]/ and added to the
+                    proxy classpath automatically.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - image
+                    properties:
+                      name:
+                        description: |
+                          A unique name for this plugin, used as the mount subdirectory under
+                          /opt/kroxylicious/plugins/. Must be a valid DNS label.
+                        type: string
+                        pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+                        maxLength: 63
+                      image:
+                        description: |
+                          The OCI image containing the plugin JARs. JARs must be placed in
+                          the /plugins directory within the image. If OCI image volumes are
+                          not available the image must also include a shell (e.g. busybox).
+                        type: object
+                        required:
+                          - reference
+                        properties:
+                          reference:
+                            description: OCI image reference.
+                            type: string
+                          pullPolicy:
+                            description: Image pull policy for the plugin image.
+                            type: string
+                            enum:
+                              - Always
+                              - IfNotPresent
+                              - Never
+                            default: IfNotPresent
+            status:
+              type: object
+              properties:
+                observedGeneration:
+                  description: |
+                    The metadata.generation that was observed during the last reconciliation by the webhook.
+                  type: integer
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      lastTransitionTime:
+                        description: |
+                          lastTransitionTime is the last time the condition transitioned from one status to another.
+                          This should be when the underlying condition changed.
+                          If that is not known, then using the time when the API field changed is acceptable.
+                        type: string
+                        format: date-time
+                      message:
+                        description: |
+                          message is a human readable message indicating details about the transition.
+                          This may be an empty string.
+                        type: string
+                        default: ""
+                        nullable: false
+                      observedGeneration:
+                        description: |
+                          observedGeneration represents the .metadata.generation that the condition was set based upon.
+                          For instance, if .metadata.generation is currently 12, but the
+                          .status.conditions[x].observedGeneration is 9, the condition is out of date with
+                          respect to the current state of the instance.
+                        type: integer
+                        nullable: false
+                      reason:
+                        description: |
+                          reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                          Producers of specific condition types may define expected values and meanings for this field,
+                          and whether the values are considered a guaranteed API.
+                          The value should be a CamelCase string.
+                          This field may not be empty.
+                        type: string
+                        nullable: false
+                      status:
+                        description: status of the condition, one of True, False, Unknown.
+                        type: string
+                        enum: [ "True", "False", "Unknown" ]
+                      type:
+                        description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        type: string
+                    required:
+                      - lastTransitionTime
+                      - observedGeneration
+                      - reason
+                      - message
+                      - type
+          required:
+            - spec

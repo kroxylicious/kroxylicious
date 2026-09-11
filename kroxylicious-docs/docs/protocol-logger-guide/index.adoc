@@ -1,0 +1,40 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: protocol-logger
+:guide: protocol-logger
+
+[id="using-book-{context}"]
+= Protocol Logger Guide
+
+include::_modules/protocol-logger/con-about-{guide}-guide.adoc[leveloffset=+1]
+
+[role="_abstract"]
+This filter logs the Kafka protocol requests and responses that pass through the proxy.
+Every field of every message for the configured API keys is logged as version-aware JSON.
+This is a wire-level protocol trace, not a curated view of what a client is doing, and it is intended for debugging and demonstration purposes.
+
+The filter is silent by default.
+For output to appear, the logging backend must be enabled at the filter's configured log level for the logger used by the filter instance.
+This means the same filter configuration can be deployed everywhere and operators can turn output on and off from the logging backend, without a proxy restart or configuration change.
+
+//configuring the protocol logger filter
+include::_assemblies/assembly-configuring-protocol-logger-filter.adoc[leveloffset=+1]
+
+//enabling and tuning log output
+include::_modules/protocol-logger/con-enabling-protocol-logger-output.adoc[leveloffset=+1]
+
+//output format
+include::_modules/protocol-logger/con-protocol-logger-output-format.adoc[leveloffset=+1]
+
+//security considerations
+include::_modules/protocol-logger/con-protocol-logger-security.adoc[leveloffset=+1]
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]
