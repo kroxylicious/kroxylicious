@@ -22,6 +22,7 @@ import io.kroxylicious.identity.Identity;
  * @param allowed The allowed actions.
  * @param denied The denied actions.
  */
+@SuppressWarnings({ "java:S5738", "removal" })
 public record AuthorizeResult(
                               Identity subject,
                               List<Action> allowed,

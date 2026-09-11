@@ -21,6 +21,7 @@ import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.identity.Identity;
 import io.kroxylicious.identity.Principal;
 
+@SuppressWarnings({ "java:S5738", "removal" })
 class SimpleAuthorizer implements Authorizer {
 
     private final Set<AllowedOperation> allowedOperations;

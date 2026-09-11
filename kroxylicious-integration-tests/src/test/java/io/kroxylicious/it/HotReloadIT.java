@@ -78,6 +78,7 @@ class HotReloadIT extends BaseIT {
     private static final int PORT_REUSE_BOOTSTRAP = 9292;
     private static final int PORT_RELOCATE_TARGET_BOOTSTRAP = PORT_REUSE_BOOTSTRAP + 10;
     private static final int PORT_SAME_MODIFY_BOOTSTRAP = 9291;
+    private static final int PORT_MULTI_FACET_BOOTSTRAP = 9296;
 
     private static final String VC_BASELINE_NAME = "vc-baseline";
     private static final String VC_OUTGOING_NAME = "vc-outgoing";
@@ -127,6 +128,7 @@ class HotReloadIT extends BaseIT {
     }
 
     @Test
+    @ResourceLock("localhost:" + PORT_MULTI_FACET_BOOTSTRAP)
     void shouldApplyChangesAcrossDetectorsInSingleReload(@BrokerCluster KafkaCluster cluster) throws Exception {
         // Given
         UUID oldRouterId = UUID.randomUUID();
@@ -135,7 +137,11 @@ class HotReloadIT extends BaseIT {
         UUID newFilterId = UUID.randomUUID();
 
         var clusterDefinition = new ClusterDefinition(MULTI_FACET_CLUSTER_NAME, cluster.getBootstrapServers(), null);
-        var oldVirtualCluster = multiFacetVirtualCluster(0);
+        // Fixed bootstrap port on both sides of the reconfigure. Capturing the OS-assigned
+        // ephemeral port and re-binding it explicitly is racy: between ReplaceCluster's unbind
+        // and rebind the kernel can hand that port to any other socket (e.g. as the local port
+        // of an outgoing connection), failing the reload with EADDRINUSE (issue #4770).
+        var oldVirtualCluster = multiFacetVirtualCluster(PORT_MULTI_FACET_BOOTSTRAP);
         var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDefinition)
                 .addToFilterDefinitions(invocationCounterDefinition(oldFilterId))
@@ -146,8 +152,7 @@ class HotReloadIT extends BaseIT {
                 .setFeatures(ROUTING_ENABLED)
                 .createDefaultKroxyliciousTester()) {
             String topic = tester.createTopic(MULTI_FACET_VC_NAME);
-            int port = boundPort(tester, MULTI_FACET_VC_NAME);
-            var newVirtualCluster = new VirtualClusterBuilder(multiFacetVirtualCluster(port)).withLogNetwork(true).build();
+            var newVirtualCluster = new VirtualClusterBuilder(multiFacetVirtualCluster(PORT_MULTI_FACET_BOOTSTRAP)).withLogNetwork(true).build();
             var afterConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
                     .addToClusterDefinitions(clusterDefinition)
                     .addToFilterDefinitions(invocationCounterDefinition(newFilterId))
