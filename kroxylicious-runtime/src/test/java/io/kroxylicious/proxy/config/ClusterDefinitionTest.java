@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.tls.Tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,5 +71,39 @@ class ClusterDefinitionTest {
 
         assertThat(target.bootstrapServers()).isEqualTo("broker:9092");
         assertThat(target.tls()).contains(tls);
+    }
+
+    @Test
+    void toTargetClusterPassesSelectionStrategy() {
+        var strategy = new RandomBootstrapSelectionStrategy();
+        var def = new ClusterDefinition("c1", "broker:9092", null, strategy);
+
+        var target = def.toTargetCluster();
+
+        assertThat(target.selectionStrategy()).isSameAs(strategy);
+    }
+
+    @Test
+    void yamlDeserializesBootstrapServerSelection() {
+        var configuration = new ConfigParser().parseConfiguration("""
+                clusterDefinitions:
+                  - name: my-cluster
+                    bootstrapServers: broker:9092
+                    bootstrapServerSelection:
+                      strategy: random
+                virtualClusters:
+                  - name: demo
+                    target:
+                      cluster: my-cluster
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                """);
+
+        assertThat(configuration.clusterDefinitions())
+                .singleElement()
+                .extracting(ClusterDefinition::selectionStrategy)
+                .isInstanceOf(RandomBootstrapSelectionStrategy.class);
     }
 }
