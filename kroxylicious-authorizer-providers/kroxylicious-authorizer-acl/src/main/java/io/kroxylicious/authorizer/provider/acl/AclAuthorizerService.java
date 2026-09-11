@@ -474,9 +474,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                 }
                 else {
                     List<? extends Enum> list = Objects.requireNonNull(opNames).stream()
-                            .map(name -> Enum.valueOf(enumCls, name))
+                            .map(name -> (Enum) Enum.valueOf(enumCls, name))
                             .toList();
-                    this.resourceBuilder = this.operationsBuilder.operations(EnumSet.copyOf(list));
+                    this.resourceBuilder = this.operationsBuilder.operations((Set) EnumSet.copyOf(list));
                 }
             }
 
