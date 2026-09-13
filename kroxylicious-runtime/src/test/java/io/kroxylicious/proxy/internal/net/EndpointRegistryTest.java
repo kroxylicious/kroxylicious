@@ -974,7 +974,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    void upstreamAddressReturnsEmptyWhenNotYetReconciled() throws Exception {
+    void upstreamAddressReturnsEmptyWhenNotYetReconciled() {
         // Given
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
         var reg = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
@@ -986,7 +986,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    void upstreamAddressReturnsEmptyForUnknownNodeId() throws Exception {
+    void upstreamAddressReturnsEmptyForUnknownNodeId() {
         // Given
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
         var reg = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
@@ -1002,7 +1002,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    void upstreamAddressReturnsAddressForKnownNodeId() throws Exception {
+    void upstreamAddressReturnsAddressForKnownNodeId() {
         // Given
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
         var reg = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
