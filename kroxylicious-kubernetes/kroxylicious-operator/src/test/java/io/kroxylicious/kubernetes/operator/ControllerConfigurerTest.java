@@ -6,13 +6,23 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Duration;
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.ClearEnvironmentVariable;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
 
+import io.javaoperatorsdk.operator.api.config.ControllerConfigurationOverrider;
+
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+
 import static io.kroxylicious.kubernetes.operator.OperatorMain.KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME;
 import static io.kroxylicious.kubernetes.operator.OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 class ControllerConfigurerTest {
 
@@ -27,6 +37,7 @@ class ControllerConfigurerTest {
 
         // Then
         assertThat(configurer.getWatchedNamespaces()).isNull();
+        assertThat(configurer.getMaxReconciliationInterval()).isEmpty();
     }
 
     @Test
@@ -39,7 +50,7 @@ class ControllerConfigurerTest {
         ControllerConfigurer configurer = new ControllerConfigurer();
 
         // Then
-        assertThat(configurer.getWatchedNamespaces()).isNull();
+        assertThat(configurer.getMaxReconciliationInterval()).contains(Duration.ofSeconds(300));
     }
 
     @Test
@@ -52,7 +63,7 @@ class ControllerConfigurerTest {
         ControllerConfigurer configurer = new ControllerConfigurer();
 
         // Then
-        assertThat(configurer.getWatchedNamespaces()).isNull();
+        assertThat(configurer.getMaxReconciliationInterval()).isEmpty();
     }
 
     @Test
@@ -65,7 +76,7 @@ class ControllerConfigurerTest {
         ControllerConfigurer configurer = new ControllerConfigurer();
 
         // Then
-        assertThat(configurer.getWatchedNamespaces()).isNull();
+        assertThat(configurer.getMaxReconciliationInterval()).isEmpty();
     }
 
     @Test
@@ -78,7 +89,7 @@ class ControllerConfigurerTest {
         ControllerConfigurer configurer = new ControllerConfigurer();
 
         // Then
-        assertThat(configurer.getWatchedNamespaces()).isNull();
+        assertThat(configurer.getMaxReconciliationInterval()).isEmpty();
     }
 
     @Test
@@ -157,5 +168,51 @@ class ControllerConfigurerTest {
 
         // Then
         assertThat(configurer.getWatchedNamespaces()).containsExactly("abc");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldNotOverrideMaxReconciliationIntervalWhenNotConfigured() {
+        // Given
+        ControllerConfigurer configurer = new ControllerConfigurer(null, null);
+        ControllerConfigurationOverrider<KafkaProxy> overrider = mock(ControllerConfigurationOverrider.class);
+
+        // When
+        configurer.<KafkaProxy> configurationOverrider().accept(overrider);
+
+        // Then
+        verifyNoMoreInteractions(overrider);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldOverrideMaxReconciliationIntervalWhenConfigured() {
+        // Given
+        Duration interval = Duration.ofSeconds(30);
+        ControllerConfigurer configurer = new ControllerConfigurer(null, interval);
+        ControllerConfigurationOverrider<KafkaProxy> overrider = mock(ControllerConfigurationOverrider.class);
+
+        // When
+        configurer.<KafkaProxy> configurationOverrider().accept(overrider);
+
+        // Then
+        verify(overrider).withReconciliationMaxInterval(interval);
+        verifyNoMoreInteractions(overrider);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldOverrideNamespacesWhenConfigured() {
+        // Given
+        Set<String> namespaces = Set.of("abc");
+        ControllerConfigurer configurer = new ControllerConfigurer(namespaces, null);
+        ControllerConfigurationOverrider<KafkaProxy> overrider = mock(ControllerConfigurationOverrider.class);
+
+        // When
+        configurer.<KafkaProxy> configurationOverrider().accept(overrider);
+
+        // Then
+        verify(overrider).settingNamespaces(namespaces);
+        verifyNoMoreInteractions(overrider);
     }
 }
