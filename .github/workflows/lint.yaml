@@ -73,6 +73,15 @@ jobs:
           expected=$(( $(grep -h -r --include="pom.xml" "<module>" . | grep -v target | sort | uniq | wc -l) + 1 ))
           python3 scripts/validate_pom_metadata.py target/effective-pom.xml "$expected"
           python3 scripts/validate_pom_metadata.py kroxylicious-bom/target/effective-pom.xml
+      - name: 'Validate JAR manifest entries'
+        run: |
+          KROXYLICIOUS_VERSION="$(mvn --batch-mode --quiet help:evaluate -Dexpression=project.version -DforceStdout)"
+          KROXYLICIOUS_API_FINAL_NAME="$(mvn --batch-mode --quiet --projects kroxylicious-api help:evaluate -Dexpression=project.build.finalName -DforceStdout)"
+          python3 scripts/validate_jar_manifests.py \
+            "kroxylicious-api/target/${KROXYLICIOUS_API_FINAL_NAME}.jar" \
+            --expected-version="$KROXYLICIOUS_VERSION" \
+            --expected-title="Kroxylicious API" \
+            --expected-vendor="Kroxylicious"
       - name: 'Install xmllint'
         run: sudo apt-get install -y libxml2-utils
       - name: 'Validate module-profile structure'
