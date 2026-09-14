@@ -1,0 +1,4 @@
+title: "fix(operator): stop enabling 3 minute periodic reconciliation by default; set `KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS` to opt in"
+type: changed
+issues:
+  - 4388

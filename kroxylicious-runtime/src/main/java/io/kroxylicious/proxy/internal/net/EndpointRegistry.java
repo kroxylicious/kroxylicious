@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal.net;
 
 import java.net.InetSocketAddress;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -611,7 +612,10 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     }
 
     private Stream<ListeningChannelRecord> allChannelRecords() {
-        return listeningChannels.values().stream();
+        return listeningChannels.entrySet().stream()
+                // Sorting purely for symmetry of order between the bind and unbind paths
+                .sorted(Map.Entry.comparingByKey(Comparator.comparingInt(Endpoint::port)))
+                .map(Map.Entry::getValue);
     }
 
     /**

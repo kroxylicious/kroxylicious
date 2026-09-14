@@ -37,11 +37,13 @@ The operator watches CRs and reconciles them:
 
 **Periodic reconciliation:**
 
-The operator is configured with a maximum reconciliation interval (default: 3 minutes) as a failsafe mechanism. This ensures reconciliation runs periodically even when no Kubernetes events occur, which helps detect and correct drift caused by external modifications or transient reconciliation failures. Each custom resource is independently reconciled after the interval expires. Event-driven reconciliation (in response to CR changes) remains the primary mechanism and triggers immediately.
+The operator relies on event-driven reconciliation: each custom resource is reconciled in response to Kubernetes events. Out of the box, the operator does not override the JOSDK maximum reconciliation interval, so the JOSDK default (10 hours) applies.
+
+A shorter periodic reconciliation interval can be enabled as an escape hatch by setting the `KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS` environment variable in the operator deployment. When set, each custom resource is independently reconciled after the interval expires, even when no Kubernetes events occur, which helps detect and correct drift caused by external modifications or transient reconciliation failures. Event-driven reconciliation remains the primary mechanism and triggers immediately.
 
 Note: Periodic reconciliation reads from the informer cache, not directly from the API server. If watch connections fail, the cache may become stale until the watch reconnects and re-synchronizes.
 
-To customize the interval, set the `KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS` environment variable in the operator deployment. For example, to use a 5-minute interval:
+For example, to enable a 5-minute interval:
 
 ```yaml
 env:
