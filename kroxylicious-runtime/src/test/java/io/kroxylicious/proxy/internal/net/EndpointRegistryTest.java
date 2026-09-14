@@ -857,10 +857,10 @@ class EndpointRegistryTest {
 
     @Test
     void reconcileFailsDueToExternalPortConflict() {
-        doReconcileFailsDueToExternalPortConflict(DOWNSTREAM_BROKER_0, UPSTREAM_BROKER_0);
+        doReconcileFailsDueToExternalPortConflict();
     }
 
-    private EndpointGateway doReconcileFailsDueToExternalPortConflict(HostPort downstreamBroker0, HostPort upstreamBroker0) {
+    private EndpointGateway doReconcileFailsDueToExternalPortConflict() {
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
         var rgf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
@@ -869,11 +869,11 @@ class EndpointRegistryTest {
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
 
         // Add a new node (1) to the cluster
-        when(virtualClusterModel1.getBrokerAddress(0)).thenReturn(downstreamBroker0);
+        when(virtualClusterModel1.getBrokerAddress(0)).thenReturn(EndpointRegistryTest.DOWNSTREAM_BROKER_0);
 
-        var rcf = endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, upstreamBroker0)).toCompletableFuture();
+        var rcf = endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, EndpointRegistryTest.UPSTREAM_BROKER_0)).toCompletableFuture();
         verifyBindRequests(
-                createTestNetworkBindRequest(Optional.empty(), downstreamBroker0.port(), false, CompletableFuture.failedFuture(new IOException("mocked port in use"))));
+                createTestNetworkBindRequest(Optional.empty(), EndpointRegistryTest.DOWNSTREAM_BROKER_0.port(), false, CompletableFuture.failedFuture(new IOException("mocked port in use"))));
         assertThat(rcf.isDone()).isTrue();
         var executionException = assertThrows(ExecutionException.class, rcf::get);
         assertThat(executionException).hasRootCauseInstanceOf(IOException.class);
@@ -884,7 +884,7 @@ class EndpointRegistryTest {
 
     @Test
     void nextReconcileSucceedsAfterTransientPortConflict() throws Exception {
-        var virtualCluster = doReconcileFailsDueToExternalPortConflict(DOWNSTREAM_BROKER_0, UPSTREAM_BROKER_0);
+        var virtualCluster = doReconcileFailsDueToExternalPortConflict();
 
         var rcf = endpointRegistry.reconcile(virtualCluster, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
         verifyBindRequests(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
