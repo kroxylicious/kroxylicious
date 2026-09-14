@@ -24,6 +24,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.EventExecutor;
 
+import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.message.FetchRequestData;
 import io.kroxylicious.kafka.common.message.FetchResponseData;
 import io.kroxylicious.kafka.common.message.MetadataResponseData;
@@ -36,7 +37,9 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.PathElement;
+import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
+import io.kroxylicious.proxy.internal.topology.TopologyCache;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -487,6 +490,99 @@ class RouteDispatcherTest {
         assertThat(dispatcher.routerNodeAddresses())
                 .containsEntry(1, new HostPort("broker1", 9092))
                 .containsEntry(2, new HostPort("broker2", 9093));
+    }
+
+    // --- topology cache activation ---
+
+    @Test
+    void handleResponseShouldUpdateActiveTopologyCacheForOobMetadataResponse() {
+        // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
+        var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
+        var cache = new TopologyCache();
+        dispatcher.activateTopologyCache(cache);
+        dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        var topicId = Uuid.randomUuid();
+        var metadataResponse = new MetadataResponseData();
+        metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic()
+                .setTopicId(topicId).setName("my-topic"));
+        var responseFrame = new DecodedResponseFrame<>(
+                (short) 12, ROUTING_CORRELATION_ID,
+                new ResponseHeaderData(), metadataResponse);
+        responseFrame.setRouting(fired.routing());
+
+        // When
+        dispatcher.handleResponse(responseFrame, SESSION_ID);
+
+        // Then
+        assertThat(cache.topicName("r1", topicId)).contains("my-topic");
+    }
+
+    @Test
+    void handleResponseShouldUpdateActiveTopologyCacheForStaticMetadataResponse() {
+        // Given
+        var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0), "r2", clusterRoute("r2", 1)), ROUTER_NAME + "/");
+        var cache = new TopologyCache();
+        dispatcher.activateTopologyCache(cache);
+        dispatcher.addPendingStaticRoute(ROUTING_CORRELATION_ID, "r1");
+        var topicId = Uuid.randomUuid();
+        var metadataResponse = new MetadataResponseData();
+        metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic()
+                .setTopicId(topicId).setName("my-topic"));
+        var responseFrame = new DecodedResponseFrame<>(
+                (short) 12, ROUTING_CORRELATION_ID,
+                new ResponseHeaderData(), metadataResponse);
+
+        // When
+        dispatcher.handleResponse(responseFrame, SESSION_ID);
+
+        // Then
+        assertThat(cache.topicName("r1", topicId)).contains("my-topic");
+    }
+
+    @Test
+    void handleResponseShouldNotTouchTopologyCacheWhenNoneActivated() {
+        // Given
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
+        var dispatcher = createDispatcher(Map.of("r1", clusterRoute("r1", 0)), ROUTER_NAME + "/");
+        dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        var metadataResponse = new MetadataResponseData();
+        metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic()
+                .setTopicId(Uuid.randomUuid()).setName("my-topic"));
+        var responseFrame = new DecodedResponseFrame<>(
+                (short) 12, ROUTING_CORRELATION_ID,
+                new ResponseHeaderData(), metadataResponse);
+        responseFrame.setRouting(fired.routing());
+
+        // When / Then: no active cache to update - the response is still handled normally
+        assertThat(dispatcher.handleResponse(responseFrame, SESSION_ID)).isEqualTo(RouteDispatcher.ResponseOutcome.CONSUMED);
+    }
+
+    // --- forTopLevel ---
+
+    @Test
+    void forTopLevelShouldBuildAWorkingDispatcher() {
+        // Given
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        when(ccsm.clusterName()).thenReturn("test-cluster");
+        when(ccsm.internalCorrelationIdAllocator()).thenReturn(correlationIdAllocator);
+        when(correlationIdAllocator.allocateId()).thenReturn(ROUTING_CORRELATION_ID);
+        var capture = new ChannelInboundHandlerAdapter();
+        channel = new EmbeddedChannel(capture);
+        ChannelHandlerContext ctx = channel.pipeline().context(capture);
+
+        // When
+        var dispatcher = RouteDispatcher.forTopLevel(Map.of("r1", clusterRoute("r1", 0)), new IdentityNodeIdMapping("r1"), new HashMap<>(), ccsm);
+        dispatcher.setContext(ctx);
+        dispatcher.sendToAnyNode("r1", fetchHeader(), new FetchRequestData(), SESSION_ID, CLIENT_CORRELATION_ID);
+
+        // Then
+        DecodedRequestFrame<?> fired = channel.readInbound();
+        assertThat(fired).isNotNull();
+        assertThat(fired.routing()).isInstanceOfSatisfying(PathElement.RouterOriginator.class,
+                router -> assertThat(router.position()).isEqualTo(new PathElement.Route("r1", PathElement.ClientOrigin.INSTANCE)));
     }
 
     @Test

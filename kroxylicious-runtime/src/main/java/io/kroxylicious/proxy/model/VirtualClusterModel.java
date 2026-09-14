@@ -61,6 +61,7 @@ import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderServ
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.internal.tls.SslContextBuildException;
+import io.kroxylicious.proxy.internal.topology.RequestSender;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
@@ -240,14 +241,15 @@ public class VirtualClusterModel implements AutoCloseable {
     /**
      * Creates the {@link Router} instance for this virtual cluster.
      *
+     * @param sender the request-sending capability to bind to this connection's topology service
      * @return the router.
      * @throws IllegalStateException if this virtual cluster does not use dynamic routing.
      */
-    public Router createRouter() {
+    public Router createRouter(RequestSender sender) {
         if (!(routing instanceof DynamicRouting dr)) {
             throw new IllegalStateException("Virtual cluster '" + clusterName + "' does not use a router");
         }
-        return dr.createRouter(clusterName);
+        return dr.createRouter(clusterName, sender);
     }
 
     /**

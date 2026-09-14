@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.internal.topology.RequestSender;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -87,10 +88,11 @@ public record DynamicRouting(
      * Creates a router instance for the given virtual cluster.
      *
      * @param clusterName the name of the virtual cluster
+     * @param sender the request-sending capability to bind to this connection's topology service
      * @return the router
      */
-    public Router createRouter(String clusterName) {
-        return routerChainFactory.createRouter(routerName, clusterName);
+    public Router createRouter(String clusterName, RequestSender sender) {
+        return routerChainFactory.createRouter(routerName, clusterName, sender);
     }
 
     @Override

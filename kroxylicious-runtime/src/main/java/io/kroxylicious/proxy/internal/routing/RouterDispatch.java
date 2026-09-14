@@ -11,6 +11,8 @@ import java.util.concurrent.CompletionStage;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Abstraction over the dispatch capabilities that {@link RouterContextImpl} needs.
  * {@link RouteDispatcher} implements this, parameterised by route prefix for
@@ -39,15 +41,17 @@ interface RouterDispatch {
      * @param header the Kafka request header (must carry the client's correlation ID)
      * @param request the decoded request body
      * @param sessionId the proxy session ID, used for logging and diagnostics
-     * @param clientCorrelationId the correlation ID from the client's request header,
-     *        used to match the upstream response back to the pending future
+     * @param clientCorrelationId the correlation ID from the client's request header, used
+     *        only as a diagnostic log tag (response matching is structural, via the frame's
+     *        path - see {@link RouteDispatcher#handleResponse}), or {@code null} if this send
+     *        isn't on behalf of a specific client request (e.g. a {@code TopologyService} probe)
      * @return a stage that completes with the decoded response body
      */
     CompletionStage<ApiMessage> sendToAnyNode(String route,
                                               RequestHeaderData header,
                                               ApiMessage request,
                                               String sessionId,
-                                              int clientCorrelationId);
+                                              @Nullable Integer clientCorrelationId);
 
     /**
      * Sends a request to a specific virtual node ID on the target cluster for the given route.
@@ -58,8 +62,10 @@ interface RouterDispatch {
      * @param header the Kafka request header (must carry the client's correlation ID)
      * @param request the decoded request body
      * @param sessionId the proxy session ID, used for logging and diagnostics
-     * @param clientCorrelationId the correlation ID from the client's request header,
-     *        used to match the upstream response back to the pending future
+     * @param clientCorrelationId the correlation ID from the client's request header, used
+     *        only as a diagnostic log tag (response matching is structural, via the frame's
+     *        path - see {@link RouteDispatcher#handleResponse}), or {@code null} if this send
+     *        isn't on behalf of a specific client request
      * @return a stage that completes with the decoded response body
      */
     CompletionStage<ApiMessage> sendToSpecificNode(int targetNodeId,
@@ -67,5 +73,5 @@ interface RouterDispatch {
                                                    RequestHeaderData header,
                                                    ApiMessage request,
                                                    String sessionId,
-                                                   int clientCorrelationId);
+                                                   @Nullable Integer clientCorrelationId);
 }
