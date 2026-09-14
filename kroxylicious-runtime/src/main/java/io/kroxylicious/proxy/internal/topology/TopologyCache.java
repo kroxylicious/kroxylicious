@@ -36,6 +36,7 @@ public final class TopologyCache {
      * Creates an empty cache.
      */
     public TopologyCache() {
+        // Exists for Javadoc
     }
 
     /**

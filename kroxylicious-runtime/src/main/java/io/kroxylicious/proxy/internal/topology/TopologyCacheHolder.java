@@ -23,6 +23,7 @@ public final class TopologyCacheHolder {
      * Creates a holder with no cache created yet.
      */
     public TopologyCacheHolder() {
+        // Exists for Javadoc
     }
 
     /**
