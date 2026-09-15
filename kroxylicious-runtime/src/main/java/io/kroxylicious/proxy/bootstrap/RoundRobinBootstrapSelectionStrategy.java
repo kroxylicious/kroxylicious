@@ -45,6 +45,11 @@ public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionS
         return "round-robin";
     }
 
+    @Override
+    public BootstrapSelectionStrategy newInstance() {
+        return new RoundRobinBootstrapSelectionStrategy();
+    }
+
     private long getNext(long ceil) {
         this.counter++;
         if (counter >= ceil) {

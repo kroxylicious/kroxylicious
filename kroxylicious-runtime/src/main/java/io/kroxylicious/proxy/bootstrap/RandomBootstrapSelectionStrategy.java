@@ -43,4 +43,10 @@ public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrat
     public String getStrategy() {
         return "random";
     }
+
+    // a fresh Random too, so that virtual clusters don't contend on one instance's seed
+    @Override
+    public BootstrapSelectionStrategy newInstance() {
+        return new RandomBootstrapSelectionStrategy();
+    }
 }

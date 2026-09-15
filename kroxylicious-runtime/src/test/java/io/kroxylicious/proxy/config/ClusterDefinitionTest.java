@@ -11,7 +11,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy;
+import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -70,5 +73,34 @@ class ClusterDefinitionTest {
 
         assertThat(target.bootstrapServers()).isEqualTo("broker:9092");
         assertThat(target.tls()).contains(tls);
+    }
+
+    @Test
+    void toTargetClusterGivesTargetClusterItsOwnSelectionStrategy() {
+        // Given
+        var strategy = new RandomBootstrapSelectionStrategy();
+        var def = new ClusterDefinition("c1", "broker:9092", null, strategy);
+
+        // When
+        var target = def.toTargetCluster();
+
+        // Then
+        assertThat(target.selectionStrategy())
+                .isNotSameAs(strategy)
+                .isInstanceOf(RandomBootstrapSelectionStrategy.class);
+    }
+
+    @Test
+    void shouldGetIndependentBootstrapServerStrategies() {
+        // Given
+        var def = new ClusterDefinition("c1", "broker1:9092,broker2:9092", null, new RoundRobinBootstrapSelectionStrategy());
+        var firstSelection = def.toTargetCluster().bootstrapServer();
+
+        // When
+        var secondSelection = def.toTargetCluster().bootstrapServer();
+
+        // Then
+        assertThat(firstSelection).isEqualTo(new HostPort("broker1", 9092));
+        assertThat(secondSelection).isEqualTo(new HostPort("broker1", 9092));
     }
 }
