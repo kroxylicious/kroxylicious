@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.topology;
+package io.kroxylicious.proxy.internal.routing;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,12 +29,12 @@ import io.kroxylicious.proxy.topology.VirtualNode;
  * Per-connection implementation of {@link TopologyService}, backed by a {@link TopologyCache}
  * shared across all connections at the same router level.
  *
- * <p>Only {@link #topicNames} and {@link #invalidateRoute} are implemented so far (phase 1 of
- * <a href="https://github.com/kroxylicious/kroxylicious/issues/4155">#4155</a>); the remaining
- * discovery/lookup methods throw {@link UnsupportedOperationException} until later phases fill
- * them in.
+ * <p>Only {@link #topicNames}, {@link #invalidateRoute}, and {@link #brokerInfo} are implemented
+ * so far (phases 1-2 of <a href="https://github.com/kroxylicious/kroxylicious/issues/4155">#4155</a>);
+ * the remaining discovery/lookup methods throw {@link UnsupportedOperationException} until later
+ * phases fill them in.
  */
-public final class TopologyServiceImpl implements TopologyService {
+final class TopologyServiceImpl implements TopologyService {
 
     /** The first METADATA API version that supports requesting topics by topic id. */
     private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = 12;
@@ -49,7 +49,7 @@ public final class TopologyServiceImpl implements TopologyService {
      * @param cache the shared topology cache for this router level
      * @param sender the request-sending capability for this connection
      */
-    public TopologyServiceImpl(TopologyCache cache, RequestSender sender) {
+    TopologyServiceImpl(TopologyCache cache, RequestSender sender) {
         this.cache = Objects.requireNonNull(cache);
         this.sender = Objects.requireNonNull(sender);
     }
@@ -110,6 +110,10 @@ public final class TopologyServiceImpl implements TopologyService {
 
     @Override
     public Optional<BrokerInfo> brokerInfo(VirtualNode node) {
-        throw new UnsupportedOperationException("TopologyService.brokerInfo()" + NOT_YET_IMPLEMENTED);
+        Objects.requireNonNull(node);
+        if (node instanceof VirtualNodeImpl(String route, Integer virtualNodeId) && virtualNodeId != null) {
+            return cache.brokerInfo(route, virtualNodeId);
+        }
+        return Optional.empty();
     }
 }

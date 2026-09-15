@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.bootstrap;
+package io.kroxylicious.proxy.internal.routing;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -19,10 +19,6 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
-import io.kroxylicious.proxy.internal.topology.RequestSender;
-import io.kroxylicious.proxy.internal.topology.TopologyCache;
-import io.kroxylicious.proxy.internal.topology.TopologyCacheHolder;
-import io.kroxylicious.proxy.internal.topology.TopologyServiceImpl;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;

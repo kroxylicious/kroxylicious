@@ -5,7 +5,7 @@
  */
 
 /**
- * Bootstrapping of filter chains, router chains and TLS credential suppliers from the proxy configuration.
+ * Bootstrapping of filter chains and TLS credential suppliers from the proxy configuration.
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)

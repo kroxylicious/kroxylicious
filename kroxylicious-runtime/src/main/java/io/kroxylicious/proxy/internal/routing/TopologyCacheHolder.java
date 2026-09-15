@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.topology;
+package io.kroxylicious.proxy.internal.routing;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -15,14 +15,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * documentation. Thread-safe: {@link #getOrCreate()} may be invoked concurrently by different
  * connections' event-loop threads racing to create a router for the same router level.
  */
-public final class TopologyCacheHolder {
+final class TopologyCacheHolder {
 
     private final AtomicReference<TopologyCache> cache = new AtomicReference<>();
 
     /**
      * Creates a holder with no cache created yet.
      */
-    public TopologyCacheHolder() {
+    TopologyCacheHolder() {
         // Exists for Javadoc
     }
 
@@ -31,7 +31,7 @@ public final class TopologyCacheHolder {
      *
      * @return the shared cache
      */
-    public TopologyCache getOrCreate() {
+    TopologyCache getOrCreate() {
         return cache.updateAndGet(existing -> existing != null ? existing : new TopologyCache());
     }
 
@@ -42,7 +42,7 @@ public final class TopologyCacheHolder {
      * @return the shared cache, or {@code null} if not yet created
      */
     @Nullable
-    public TopologyCache getIfPresent() {
+    TopologyCache getIfPresent() {
         return cache.get();
     }
 }
