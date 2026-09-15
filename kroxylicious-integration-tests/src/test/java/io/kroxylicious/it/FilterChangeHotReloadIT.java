@@ -19,7 +19,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.it.testplugins.FailingInitFilterFactory;
@@ -48,8 +47,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * as a pair-wise {@code RemoveCluster + AddCluster} on the affected virtual cluster.
  */
 class FilterChangeHotReloadIT extends BaseIT {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(FilterChangeHotReloadIT.class);
 
     /**
      * Per-test port blocks. The base is randomised once per JVM so re-runs within the OS's
@@ -111,7 +108,6 @@ class FilterChangeHotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-filter-change", topic, "before-reconfigure");
 
             // When: proxy reconfigured with a new filter chain.
-            LOGGER.info("Reconfiguring vc-filter-change: old-counter -> new-counter");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -169,7 +165,6 @@ class FilterChangeHotReloadIT extends BaseIT {
             int vcBCloseBefore = InvocationCountingFilterFactory.closeCountFor(vcBFilterId);
 
             // When: proxy reconfigured to change only VC-A's filter chain; VC-B's config is identical.
-            LOGGER.info("Reconfiguring to change vc-a's filter chain only");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
@@ -227,7 +222,6 @@ class FilterChangeHotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-fail", topic, "before-reconfigure");
 
             // When: proxy reconfigured with a filter that fails on initialize.
-            LOGGER.info("Reconfiguring vc-fail with invalid filter chain");
             assertThat(tester.reconfigure(afterConfig))
                     .as("reconfigure future completes successfully but carries an error for the failing cluster")
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -276,7 +270,6 @@ class FilterChangeHotReloadIT extends BaseIT {
             int f1InitBefore = InvocationCountingFilterFactory.initializationCountFor(filter1Id);
 
             // When: proxy reconfigured to add F2 — chain [f1] -> [f1, f2].
-            LOGGER.info("Reconfiguring vc-add-filter: [f1] -> [f1, f2]");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
@@ -330,7 +323,6 @@ class FilterChangeHotReloadIT extends BaseIT {
             int f2InitBefore = InvocationCountingFilterFactory.initializationCountFor(filter2Id);
 
             // When: proxy reconfigured to remove F2 — chain [f1, f2] -> [f1].
-            LOGGER.info("Reconfiguring vc-remove-filter: [f1, f2] -> [f1]");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
@@ -386,7 +378,6 @@ class FilterChangeHotReloadIT extends BaseIT {
             int f2InitBefore = InvocationCountingFilterFactory.initializationCountFor(filter2Id);
 
             // When: proxy reconfigured to reorder the chain — [f1, f2] -> [f2, f1].
-            LOGGER.info("Reconfiguring vc-reorder: [f1, f2] -> [f2, f1]");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
@@ -440,7 +431,6 @@ class FilterChangeHotReloadIT extends BaseIT {
             // Given: proxy started with VC referencing filter 'f1' under config X.
 
             // When: proxy reconfigured to change the same filter name's config X -> Y.
-            LOGGER.info("Reconfiguring vc-cfg-change: filter 'f1' config X -> Y");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
@@ -500,7 +490,6 @@ class FilterChangeHotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-default-b", topicB, "before-reconfigure-vc-b");
 
             // When: proxy reconfigured to change defaultFilters globally — affects every VC that uses defaults.
-            LOGGER.info("Reconfiguring proxy: defaultFilters [default-old] -> [default-new]");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());

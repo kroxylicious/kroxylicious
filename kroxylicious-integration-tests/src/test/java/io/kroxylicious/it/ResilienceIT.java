@@ -26,8 +26,6 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.ResourceLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
@@ -54,7 +52,6 @@ import static org.awaitility.Awaitility.await;
  */
 @ExtendWith(KafkaClusterExtension.class)
 class ResilienceIT extends BaseIT {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ResilienceIT.class);
     private static final String FIXED_BOOTSTRAP = "localhost:9192";
 
     static @BrokerCluster(numBrokers = 3) KafkaCluster cluster;
@@ -149,7 +146,6 @@ class ResilienceIT extends BaseIT {
             assertThat(beforeStopTopic).succeedsWithin(Duration.ofSeconds(10));
 
             myCluster.stopNodes(u -> true, TerminationStyle.GRACEFUL);
-            LOGGER.debug("Stopped cluster");
 
             assertThat(admin.describeCluster(describeClusterOptions).clusterId())
                     .failsWithin(Duration.ofSeconds(5))
@@ -158,9 +154,7 @@ class ResilienceIT extends BaseIT {
                     .havingCause()
                     .withMessageStartingWith("Timed out waiting for a node assignment.");
 
-            LOGGER.debug("Restarting cluster");
             myCluster.startNodes(u -> true);
-            LOGGER.debug("Restarted cluster");
 
             var afterRestartTopic = admin.createTopics(List.of(new NewTopic("afterRestart", Optional.empty(), Optional.empty()))).all();
             assertThat(afterRestartTopic).succeedsWithin(Duration.ofSeconds(10));
@@ -194,7 +188,6 @@ class ResilienceIT extends BaseIT {
 
             producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
 
-            LOGGER.debug("Restarting proxy");
             producer.close();
             tester.restartProxy();
 
@@ -222,7 +215,6 @@ class ResilienceIT extends BaseIT {
             consumer.subscribe(Set.of(randomTopic.name()));
             producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
 
-            LOGGER.debug("Restarting proxy");
             tester.restartProxy();
             // re-use the existing producer and consumer (made through Kroxylicious's first incarnation). This provides us the assurance
             // that they were able to reconnect successfully.

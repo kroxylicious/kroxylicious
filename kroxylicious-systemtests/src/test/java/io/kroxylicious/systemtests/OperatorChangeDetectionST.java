@@ -20,8 +20,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -75,7 +73,6 @@ import static org.awaitility.Awaitility.await;
 @Tag(OPERATOR)
 class OperatorChangeDetectionST extends AbstractSystemTests {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
     private static final String PREFIX = "optr-cd";
     private static final Duration ASERTION_DURATION = Duration.ofSeconds(90);
     private static Kroxylicious kroxylicious;
@@ -115,7 +112,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         // When
         // So move back to TCP and check things get updated.
         updateIngresProtocol(Protocol.TCP, namespace);
-        LOGGER.info("Kafka proxy ingress edited");
 
         // Then
         assertDeploymentUpdated(namespace, originalChecksum);
@@ -150,7 +146,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
             vkc.getSpec().setFilterRefs(filterRefs);
 
         });
-        LOGGER.info("virtual cluster edited");
 
         // Then
         assertDeploymentUpdated(namespace, originalChecksum);
@@ -176,7 +171,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                     dnsNames.add("test-vkc-cluster-ip.my-proxy.svc.cluster.local");
                     certToPatch.getSpec().setDnsNames(dnsNames);
                 });
-        LOGGER.info("SAN added to downstream tls cert");
 
         // Then
         assertDeploymentUpdated(namespace, originalChecksum);
@@ -200,7 +194,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         // When
         resourceManager.replaceResourceWithRetries(trustAnchorConfig,
                 trustConfigMap -> trustConfigMap.getData().put(Constants.KROXYLICIOUS_TLS_CA_NAME, "server-certificate1"));
-        LOGGER.info("Downstream trust updated");
 
         // Then
         assertDeploymentUpdated(namespace, originalChecksum);
@@ -227,7 +220,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         resourceManager.replaceResourceWithRetries(arbitraryFilter, current -> {
             current.getSpec().setConfigTemplate(replacementConfig);
         });
-        LOGGER.info("Kafka proxy filter updated");
 
         // Then
         assertDeploymentUpdated(namespace, originalChecksum);
@@ -259,7 +251,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         resourceManager.replaceResourceWithRetries(kafkaProxy, current -> {
             current.getSpec().setInfrastructure(infra);
         });
-        LOGGER.info("Kafka proxy updated");
 
         // Then
         await().atMost(ASERTION_DURATION).untilAsserted(() -> {
@@ -296,7 +287,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         resourceManager.replaceResourceWithRetries(kafkaProxy, current -> {
             current.getSpec().setReplicas(2);
         });
-        LOGGER.info("Kafka proxy updated");
 
         // Then
         assertDeploymentUnchanged(namespace, originalChecksum, 2);
@@ -336,7 +326,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
 
         KubeClient kubeClient = kubeClient(namespace);
         deployPortIdentifiesNodeWithFilters(namespace, kafkaClusterName, List.of("arbitrary-filter"));
-        LOGGER.info("Kroxylicious deployed");
 
         String originalChecksum = getInitialChecksum(namespace);
 
@@ -345,7 +334,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
 
         // When
         resourceManager.createOrUpdateResourceFromBuilderWithWait(existingSecret.edit().withData(Map.of("tls.crt", "whatever", "tls.key", "unlocked")));
-        LOGGER.info("secret: kilted-kiwi updated");
 
         // Then
         assertDeploymentUpdated(namespace, originalChecksum);
@@ -363,7 +351,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                         assertThat(value).isNotEqualTo(originalChecksum);
                     });
         });
-        LOGGER.info("New checksum: {}", newChecksumFromAnnotation);
     }
 
     @SuppressWarnings("SameParameterValue")
@@ -433,7 +420,6 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                                             value -> assertThat(value).isEqualTo(checksumFromPod));
                             checksumFromAnnotation.set(checksumFromPod);
                         });
-        LOGGER.info("initial checksum: '{}'", checksumFromAnnotation);
         return checksumFromAnnotation.get();
     }
 

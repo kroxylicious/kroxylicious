@@ -118,32 +118,23 @@ class EntityIsolationST extends AbstractSystemTests {
         generatePasswordForNewUser(userAlice);
 
         // start Kroxylicious
-        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(usernamePasswords,
                 Set.of(EntityIsolation.EntityType.GROUP_ID));
         bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
 
         Map<String, String> bobKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessagesForAlice).addArgument(MESSAGE).addArgument(topicName)
-                .log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessagesForAlice, bobKafkaProps);
 
-        LOGGER.atInfo().setMessage("Then the messages are consumed by {}").addArgument(userAlice).log();
         Map<String, String> aliceKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
         List<ConsumerRecord> aliceResult = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessagesForAlice, Duration.ofMinutes(2),
                 aliceKafkaProps, Constants.CONSUMER_GROUP_NAME);
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(aliceResult).log();
 
         int numberOfMessages = numberOfMessagesForBob - numberOfMessagesForAlice;
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, bobKafkaProps);
-        LOGGER.atInfo().setMessage("Then the messages are consumed by {}").addArgument(userBob).log();
         List<ConsumerRecord> bobResult = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessagesForBob, Duration.ofMinutes(2), bobKafkaProps,
                 Constants.CONSUMER_GROUP_NAME);
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(bobResult).log();
 
         assertAll(() -> {
             assertThat(aliceResult).withFailMessage("expected messages have not been received by {}!", userAlice)
