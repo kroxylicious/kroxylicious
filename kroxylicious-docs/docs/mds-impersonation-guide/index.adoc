@@ -1,0 +1,18 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:experimental:
+include::_assets/attributes.adoc[]
+:context: mds-impersonation
+:guide: mds-impersonation
+
+[id="using-book-{context}"]
+= MDS Impersonation Guide
+
+include::_modules/mds-impersonation/con-overview.adoc[leveloffset=+1]
+include::_assemblies/assembly-configuring-mds-impersonation-filter.adoc[leveloffset=+1]
+include::_modules/mds-impersonation/ref-operations.adoc[leveloffset=+1]
+include::_assets/trademarks.adoc[leveloffset=+1]

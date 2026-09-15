@@ -19,4 +19,6 @@ This release of Kroxylicious is documented in the following guides:
 
 {RecordValidationGuide}:: Covers using the record validation filter.
 
+{MdsImpersonationGuide}:: Covers the experimental mTLS to Confluent MDS impersonation filter.
+
 {DeveloperGuide}:: Covers writing plugins for the proxy in the Java programming language

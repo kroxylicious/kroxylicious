@@ -1,0 +1,15 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+[id='assembly-configuring-mds-impersonation-filter-{context}']
+= Configuring the filter
+
+[role="_abstract"]
+Configure the MDS endpoint, proxy identity, user mapping and token-enabled broker listener before enabling the filter.
+
+include::../_modules/mds-impersonation/con-proxy-config.adoc[leveloffset=+1]
+include::../_modules/mds-impersonation/con-kubernetes-config.adoc[leveloffset=+1]

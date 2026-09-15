@@ -1,0 +1,62 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Disposable local test only: INTERNAL/CONTROLLER are confined to the Compose network.
+process.roles=broker,controller
+node.id=1
+controller.quorum.voters=1@broker:9094
+controller.listener.names=CONTROLLER
+listeners=INTERNAL://0.0.0.0:9091,CONTROLLER://0.0.0.0:9094,TOKEN://0.0.0.0:9096
+advertised.listeners=INTERNAL://broker:9091,TOKEN://localhost:19096
+listener.security.protocol.map=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,TOKEN:SASL_SSL
+inter.broker.listener.name=INTERNAL
+log.dirs=/tmp/kraft-data
+num.partitions=2
+offsets.topic.replication.factor=1
+transaction.state.log.replication.factor=1
+transaction.state.log.min.isr=1
+confluent.license.topic.replication.factor=1
+confluent.metadata.topic.replication.factor=1
+confluent.balancer.enable=false
+confluent.support.metrics.enable=false
+confluent.reporters.telemetry.auto.enable=false
+
+authorizer.class.name=io.confluent.kafka.security.authorizer.ConfluentServerAuthorizer
+confluent.authorizer.access.rule.providers=CONFLUENT,KRAFT_ACL
+super.users=User:ANONYMOUS;User:admin
+confluent.metadata.server.kraft.controller.enabled=true
+confluent.metadata.bootstrap.servers=broker:9091
+
+listener.name.token.ssl.keystore.location=/etc/kafka/mds-test/server.p12
+listener.name.token.ssl.keystore.type=PKCS12
+listener.name.token.ssl.keystore.password={{STORE_PASSWORD}}
+listener.name.token.ssl.key.password={{STORE_PASSWORD}}
+# The broker authenticates MDS tokens. It does not request the proxy's certificate.
+listener.name.token.ssl.client.auth=none
+listener.name.token.sasl.enabled.mechanisms=OAUTHBEARER
+listener.name.token.principal.builder.class=io.confluent.kafka.security.authenticator.OAuthKafkaPrincipalBuilder
+listener.name.token.oauthbearer.sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required publicKeyPath="/etc/kafka/mds-test/signing-public.pem";
+listener.name.token.oauthbearer.sasl.server.callback.handler.class=io.confluent.kafka.server.plugins.auth.token.TokenBearerValidatorCallbackHandler
+listener.name.token.oauthbearer.sasl.login.callback.handler.class=io.confluent.kafka.server.plugins.auth.token.TokenBearerServerLoginCallbackHandler
+
+confluent.metadata.server.listeners=https://0.0.0.0:8090
+confluent.metadata.server.advertised.listeners=https://localhost:18090
+confluent.metadata.server.authentication.method=BEARER
+confluent.metadata.server.user.store=NONE
+confluent.metadata.server.ssl.client.authentication=REQUIRED
+confluent.metadata.server.ssl.keystore.location=/etc/kafka/mds-test/server.p12
+confluent.metadata.server.ssl.keystore.type=PKCS12
+confluent.metadata.server.ssl.keystore.password={{STORE_PASSWORD}}
+confluent.metadata.server.ssl.key.password={{STORE_PASSWORD}}
+confluent.metadata.server.ssl.truststore.location=/etc/kafka/mds-test/proxy-ca.p12
+confluent.metadata.server.ssl.truststore.type=PKCS12
+confluent.metadata.server.ssl.truststore.password={{STORE_PASSWORD}}
+confluent.metadata.server.auth.ssl.principal.mapping.rules=RULE:^CN=([^,]+).*$/$1/,DEFAULT
+confluent.metadata.server.impersonation.super.users=User:proxy
+confluent.metadata.server.impersonation.protected.users=User:ANONYMOUS
+confluent.metadata.server.token.key.path=/etc/kafka/mds-test/signing-key.pem
+confluent.metadata.server.token.signature.algorithm=RS256
+confluent.metadata.server.token.max.lifetime.ms=30000

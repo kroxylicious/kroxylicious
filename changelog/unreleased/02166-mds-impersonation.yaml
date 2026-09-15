@@ -1,0 +1,9 @@
+title: "feat(filters): add experimental mTLS to Confluent MDS impersonation"
+type: added
+links:
+  - name: Authentication swapping discussion
+    url: https://github.com/kroxylicious/kroxylicious/issues/2166
+important_notes:
+  - The proxy authenticates to MDS with its own mTLS identity and uses per-client impersonation tokens for upstream OAUTHBEARER authentication.
+  - MDS controls impersonation through its super-user and protected-user settings; the proxy passes certificate-derived identities without a local user list.
+  - This draft supports direct routing and reconnects on token expiry, with an opt-in real Confluent MDS Compose test environment.
