@@ -61,6 +61,8 @@ import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderServ
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.internal.tls.SslContextBuildException;
+import io.kroxylicious.proxy.internal.tls.TlsFileWatchProvider;
+import io.kroxylicious.proxy.internal.util.FileWatcher;
 import io.kroxylicious.proxy.internal.topology.RequestSender;
 import io.kroxylicious.proxy.internal.tls.TlsFileWatchProvider;
 import io.kroxylicious.proxy.internal.util.FileWatcher;
