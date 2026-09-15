@@ -27,6 +27,7 @@ import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
+import io.kroxylicious.proxy.internal.topology.RequestSender;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
@@ -47,7 +48,7 @@ class RouterChainFactoryTest {
     @Test
     void shouldHandleNullDefinitions() {
         try (var factory = new RouterChainFactory(testPfr(), List.of(), null)) {
-            assertThatThrownBy(() -> factory.createRouter("nonexistent", VC_NAME))
+            assertThatThrownBy(() -> factory.createRouter("nonexistent", VC_NAME, RequestSender.unavailable()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
@@ -55,7 +56,7 @@ class RouterChainFactoryTest {
     @Test
     void shouldHandleEmptyDefinitions() {
         try (var factory = new RouterChainFactory(testPfr(), List.of(), List.of())) {
-            assertThatThrownBy(() -> factory.createRouter("nonexistent", VC_NAME))
+            assertThatThrownBy(() -> factory.createRouter("nonexistent", VC_NAME, RequestSender.unavailable()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
@@ -66,7 +67,7 @@ class RouterChainFactoryTest {
                 null, DUMMY_ROUTES);
         var vc = testVc(VC_NAME, "myRouter");
         try (var factory = new RouterChainFactory(testPfr(), List.of(vc), List.of(rd))) {
-            Router router = factory.createRouter("myRouter", VC_NAME);
+            Router router = factory.createRouter("myRouter", VC_NAME, RequestSender.unavailable());
             assertThat(router).isNotNull();
         }
     }
@@ -77,7 +78,7 @@ class RouterChainFactoryTest {
                 null, DUMMY_ROUTES);
         var vc = testVc(VC_NAME, "myRouter");
         try (var factory = new RouterChainFactory(testPfr(), List.of(vc), List.of(rd))) {
-            assertThatThrownBy(() -> factory.createRouter("unknown", VC_NAME))
+            assertThatThrownBy(() -> factory.createRouter("unknown", VC_NAME, RequestSender.unavailable()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("unknown");
         }
@@ -133,7 +134,7 @@ class RouterChainFactoryTest {
         var factory = new RouterChainFactory(testPfr(), List.of(vc), List.of(rd));
         factory.close();
 
-        assertThatThrownBy(() -> factory.createRouter("r1", VC_NAME))
+        assertThatThrownBy(() -> factory.createRouter("r1", VC_NAME, RequestSender.unavailable()))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -267,8 +268,8 @@ class RouterChainFactoryTest {
         var vc2 = testVc("vc2", "shared");
         try (var factory = new RouterChainFactory(pfr, List.of(vc1, vc2), List.of(rd))) {
             assertThat(initCount.get()).isEqualTo(2);
-            assertThat(factory.createRouter("shared", "vc1")).isNotNull();
-            assertThat(factory.createRouter("shared", "vc2")).isNotNull();
+            assertThat(factory.createRouter("shared", "vc1", RequestSender.unavailable())).isNotNull();
+            assertThat(factory.createRouter("shared", "vc2", RequestSender.unavailable())).isNotNull();
         }
     }
 
@@ -306,8 +307,8 @@ class RouterChainFactoryTest {
         var vc = testVc(VC_NAME, "parent");
         try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rdParent, rdChild))) {
             assertThat(initCount.get()).isEqualTo(2);
-            assertThat(factory.createRouter("parent", VC_NAME)).isNotNull();
-            assertThat(factory.createRouter("child", VC_NAME)).isNotNull();
+            assertThat(factory.createRouter("parent", VC_NAME, RequestSender.unavailable())).isNotNull();
+            assertThat(factory.createRouter("child", VC_NAME, RequestSender.unavailable())).isNotNull();
         }
     }
 
@@ -331,7 +332,7 @@ class RouterChainFactoryTest {
                 Map.of("used", rdUsed, "orphan", rdOrphan))) {
             // Then: only the referenced router was initialised
             assertThat(initCount.get()).isEqualTo(1);
-            assertThat(factory.createRouter("used", VC_NAME)).isNotNull();
+            assertThat(factory.createRouter("used", VC_NAME, RequestSender.unavailable())).isNotNull();
         }
     }
 
@@ -365,7 +366,7 @@ class RouterChainFactoryTest {
 
         // When: data is populated directly on the cache obtained via existingTopologyCache()
         try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd))) {
-            factory.createRouter("myRouter", VC_NAME);
+            factory.createRouter("myRouter", VC_NAME, RequestSender.unavailable());
             var cache = factory.existingTopologyCache("myRouter", VC_NAME).orElseThrow();
             var metadataResponse = new MetadataResponseData();
             metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic()
@@ -388,7 +389,7 @@ class RouterChainFactoryTest {
         // When
         try (var factory = RouterChainFactory.forVirtualCluster(testPfr(), vc, null)) {
             // Then: no routers initialised; createRouter throws as expected
-            assertThatThrownBy(() -> factory.createRouter("r1", VC_NAME))
+            assertThatThrownBy(() -> factory.createRouter("r1", VC_NAME, RequestSender.unavailable()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }

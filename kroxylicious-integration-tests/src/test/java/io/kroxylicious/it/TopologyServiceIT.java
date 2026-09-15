@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
-class TopologyServiceTopicNamesIT {
+class TopologyServiceIT {
 
     private static final Features ROUTING_ENABLED = Features.builder().enable(Feature.ROUTING).build();
     private static final String ROUTE_NAME = "backing-route";
@@ -94,12 +94,18 @@ class TopologyServiceTopicNamesIT {
                     .get(10, TimeUnit.SECONDS).get(topicName).topicId());
             TopologyCapturingRouterFactory.topicIdsToResolve.set(Set.of(topicId));
 
+            assertThat(TopologyCapturingRouterFactory.capturedTopicNames.get())
+                    .as("Expect id resolution to be driven by admin.describeCluster()")
+                    .doesNotContainEntry(topicId, topicName);
+
             // When: a DESCRIBE_CLUSTER request flows through the router's dynamic path, which
             // calls TopologyService.topicNames() before forwarding the request upstream
             admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS);
 
             // Then
-            assertThat(TopologyCapturingRouterFactory.capturedTopicNames.get()).containsEntry(topicId, topicName);
+            assertThat(TopologyCapturingRouterFactory.capturedTopicNames.get())
+                    .as("Expect admin.describeCluster() to have driven id resolution")
+                    .containsEntry(topicId, topicName);
         }
     }
 

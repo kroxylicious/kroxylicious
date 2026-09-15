@@ -240,21 +240,6 @@ public class RouterChainFactory implements AutoCloseable {
 
     /**
      * Creates a new router instance for the given router name and virtual cluster, whose
-     * {@link RouterFactoryContext#topologyService()} always throws if used for discovery.
-     * Prefer {@link #createRouter(String, String, RequestSender)} in production code; this
-     * overload exists for callers (and tests) that don't have a {@link RequestSender} to hand.
-     *
-     * @param routerName the name of the router definition
-     * @param virtualClusterName the name of the virtual cluster
-     * @return the created router instance
-     */
-    public Router createRouter(String routerName,
-                               String virtualClusterName) {
-        return createRouter(routerName, virtualClusterName, RequestSender.unavailable());
-    }
-
-    /**
-     * Creates a new router instance for the given router name and virtual cluster, whose
      * {@link RouterFactoryContext#topologyService()} (if called during
      * {@link RouterFactory#createRouter}) uses the given {@code sender} to send discovery
      * requests on this connection.
