@@ -266,6 +266,157 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
         }
     }
 
+    @Test
+    void shouldNotRestartVirtualClusterWhenBootstrapSelectionUnchanged(@BrokerCluster KafkaCluster cluster) throws Exception {
+        // Regression test for bug #4910: identical bootstrapServerSelection config should not trigger
+        // spurious virtual cluster restart during hot reload. Uses InvocationCountingFilterFactory
+        // to observe whether the filter chain was torn down and rebuilt (which would increment
+        // both initialize and close counts).
+
+        UUID filterId = UUID.randomUUID();
+        var filterDef = invocationCounterDef("bootstrap-counter", filterId);
+
+        var vcWithRoundRobin = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-bootstrap-selection")
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 300)).build())
+                .editTargetCluster()
+                .withNewRoundRobinBootstrapSelectionStrategy()
+                .endRoundRobinBootstrapSelectionStrategy()
+                .endTargetCluster()
+                .addToFilters("bootstrap-counter")
+                .build();
+
+        var startingConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToFilterDefinitions(filterDef)
+                .addToVirtualClusters(vcWithRoundRobin)
+                .build();
+
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(new io.kroxylicious.proxy.config.ConfigurationBuilder(startingConfig))
+                .createDefaultKroxyliciousTester()) {
+
+            // Given: filter is initialized once at startup
+            String topic = tester.createTopic("vc-bootstrap-selection");
+            assertThat(InvocationCountingFilterFactory.initializationCountFor(filterId))
+                    .as("filter should be initialized exactly once at startup")
+                    .isEqualTo(1);
+            assertProduceConsumeRoundTrip(tester, "vc-bootstrap-selection", topic, "before-reload");
+
+            // When: reload with identical config (simulating touch of config file or no-op reload)
+            // Parse the config again to simulate what happens during hot reload - fresh instances
+            var reloadedVc = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-bootstrap-selection")
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 300)).build())
+                    .editTargetCluster()
+                    .withNewRoundRobinBootstrapSelectionStrategy()
+                    .endRoundRobinBootstrapSelectionStrategy()
+                    .endTargetCluster()
+                    .addToFilters("bootstrap-counter")
+                    .build();
+
+            var reloadedConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                    .addToFilterDefinitions(filterDef)
+                    .addToVirtualClusters(reloadedVc)
+                    .build();
+
+            var reconfigureResult = tester.reconfigure(reloadedConfig);
+
+            // Then: no modification should be detected, filter should NOT be reinitialized
+            assertThat(reconfigureResult)
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> {
+                        assertThat(rr.hasErrors())
+                                .as("ReconfigureResult should have no errors for identical config reload")
+                                .isFalse();
+                    });
+
+            // The bug would manifest as a spurious ReplaceCluster, which tears down and rebuilds
+            // the filter chain. Verify the filter was NOT closed and reinitialized.
+            assertThat(InvocationCountingFilterFactory.closeCountFor(filterId))
+                    .as("filter should NOT be closed when config is unchanged (bug #4910)")
+                    .isEqualTo(0);
+            assertThat(InvocationCountingFilterFactory.initializationCountFor(filterId))
+                    .as("filter should still have only the initial initialization")
+                    .isEqualTo(1);
+
+            // Verify connection is still alive and working
+            assertProduceConsumeRoundTrip(tester, "vc-bootstrap-selection", topic, "after-reload");
+        }
+    }
+
+    @Test
+    void shouldRestartVirtualClusterWhenBootstrapSelectionChanges(@BrokerCluster KafkaCluster cluster) throws Exception {
+        // Verify that changing the bootstrapServerSelection strategy DOES trigger a reload.
+        // Uses InvocationCountingFilterFactory to observe the filter chain being torn down
+        // and rebuilt (close count = 1, new initialization count = 1).
+
+        UUID oldFilterId = UUID.randomUUID();
+        UUID newFilterId = UUID.randomUUID();
+        var oldFilterDef = invocationCounterDef("change-counter", oldFilterId);
+        var newFilterDef = invocationCounterDef("change-counter", newFilterId);
+
+        var vcWithRoundRobin = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-bootstrap-change")
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 400)).build())
+                .editTargetCluster()
+                .withNewRoundRobinBootstrapSelectionStrategy()
+                .endRoundRobinBootstrapSelectionStrategy()
+                .endTargetCluster()
+                .addToFilters("change-counter")
+                .build();
+
+        var startingConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToFilterDefinitions(oldFilterDef)
+                .addToVirtualClusters(vcWithRoundRobin)
+                .build();
+
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(new io.kroxylicious.proxy.config.ConfigurationBuilder(startingConfig))
+                .createDefaultKroxyliciousTester()) {
+
+            // Given: filter is initialized once at startup
+            String topic = tester.createTopic("vc-bootstrap-change");
+            assertThat(InvocationCountingFilterFactory.initializationCountFor(oldFilterId))
+                    .as("old filter should be initialized exactly once at startup")
+                    .isEqualTo(1);
+            assertProduceConsumeRoundTrip(tester, "vc-bootstrap-change", topic, "before-change");
+
+            // When: change strategy from round-robin to random
+            var vcWithRandom = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-bootstrap-change")
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 400)).build())
+                    .editTargetCluster()
+                    .withNewRoundRobinBootstrapSelectionStrategy()
+                    .endRoundRobinBootstrapSelectionStrategy()
+                    .endTargetCluster()
+                    .addToFilters("change-counter")
+                    .build();
+
+            var changedConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                    .addToFilterDefinitions(newFilterDef)
+                    .addToVirtualClusters(vcWithRandom)
+                    .build();
+
+            var reconfigureResult = tester.reconfigure(changedConfig);
+
+            // Then: modification should be detected and reload should succeed
+            assertThat(reconfigureResult)
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> {
+                        assertThat(rr.hasErrors())
+                                .as("ReconfigureResult should have no errors for valid strategy change")
+                                .isFalse();
+                    });
+
+            // The change detector should report this as a modification, triggering ReplaceCluster.
+            // Verify the old filter was closed and the new filter was initialized.
+            assertThat(InvocationCountingFilterFactory.closeCountFor(oldFilterId))
+                    .as("old filter should be closed exactly once by ReplaceCluster")
+                    .isEqualTo(1);
+            assertThat(InvocationCountingFilterFactory.initializationCountFor(newFilterId))
+                    .as("new filter should be initialized exactly once")
+                    .isEqualTo(1);
+
+            // Verify cluster is still functional after the reload
+            tester.closeClientsFor("vc-bootstrap-change");
+            assertProduceConsumeRoundTrip(tester, "vc-bootstrap-change", topic, "after-change");
+        }
+    }
+
     // ---- fixture helpers ----
 
     private static VirtualCluster namedClusterVc(String name, int port, String clusterDefName, String... filterNames) {
