@@ -12,7 +12,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy;
+import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -74,36 +76,31 @@ class ClusterDefinitionTest {
     }
 
     @Test
-    void toTargetClusterPassesSelectionStrategy() {
+    void toTargetClusterGivesTargetClusterItsOwnSelectionStrategy() {
+        // Given
         var strategy = new RandomBootstrapSelectionStrategy();
         var def = new ClusterDefinition("c1", "broker:9092", null, strategy);
 
+        // When
         var target = def.toTargetCluster();
 
-        assertThat(target.selectionStrategy()).isSameAs(strategy);
+        // Then
+        assertThat(target.selectionStrategy())
+                .isNotSameAs(strategy)
+                .isInstanceOf(RandomBootstrapSelectionStrategy.class);
     }
 
     @Test
-    void yamlDeserializesBootstrapServerSelection() {
-        var configuration = new ConfigParser().parseConfiguration("""
-                clusterDefinitions:
-                  - name: my-cluster
-                    bootstrapServers: broker:9092
-                    bootstrapServerSelection:
-                      strategy: random
-                virtualClusters:
-                  - name: demo
-                    target:
-                      cluster: my-cluster
-                    gateways:
-                    - name: default
-                      portIdentifiesNode:
-                        bootstrapAddress: localhost:9192
-                """);
+    void shouldGetIndependentBootstrapServerStrategies() {
+        // Given
+        var def = new ClusterDefinition("c1", "broker1:9092,broker2:9092", null, new RoundRobinBootstrapSelectionStrategy());
+        var firstSelection = def.toTargetCluster().bootstrapServer();
 
-        assertThat(configuration.clusterDefinitions())
-                .singleElement()
-                .extracting(ClusterDefinition::selectionStrategy)
-                .isInstanceOf(RandomBootstrapSelectionStrategy.class);
+        // When
+        var secondSelection = def.toTargetCluster().bootstrapServer();
+
+        // Then
+        assertThat(firstSelection).isEqualTo(new HostPort("broker1", 9092));
+        assertThat(secondSelection).isEqualTo(new HostPort("broker1", 9092));
     }
 }

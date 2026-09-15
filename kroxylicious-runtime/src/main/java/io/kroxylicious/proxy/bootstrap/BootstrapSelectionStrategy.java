@@ -51,4 +51,15 @@ public interface BootstrapSelectionStrategy extends Function<List<HostPort>, Hos
      */
     @JsonGetter("strategy")
     String getStrategy();
+
+    /**
+     * Returns a strategy with the same configuration as this one, but with selection state
+     * independent of it.
+     * <p>
+     * Implementations that are immutable and hold no selection state may return {@code this}.
+     *
+     * @return a strategy with independent selection state
+     */
+    @JsonIgnore
+    BootstrapSelectionStrategy newInstance();
 }
