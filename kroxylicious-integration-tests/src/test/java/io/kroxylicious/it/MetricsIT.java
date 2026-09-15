@@ -728,7 +728,7 @@ class MetricsIT {
 
             // Given
             var describeFuture = admin.describeTopics(List.of(topic.name())).allTopicNames();
-            assertThat(describeFuture).succeedsWithin(Duration.ofSeconds(5));
+            assertThat(describeFuture).succeedsWithin(Duration.ofSeconds(10)); // More time allowed as this is a two node kafka cluster
 
             var partitions = describeFuture.get().get(topic.name()).partitions();
             var partitionZeroNodeId = getNodeIdForPartition(partitions, 0);
