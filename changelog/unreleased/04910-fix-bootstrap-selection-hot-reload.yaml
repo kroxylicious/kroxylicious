@@ -1,0 +1,4 @@
+title: "fix(runtime): prevent spurious virtual cluster restarts during hot reload when bootstrapServerSelection is configured"
+type: fixed
+issues:
+  - 4910

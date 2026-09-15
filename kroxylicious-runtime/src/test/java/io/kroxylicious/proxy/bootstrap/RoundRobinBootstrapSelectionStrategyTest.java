@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.bootstrap;
 import java.util.List;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -44,6 +45,59 @@ class RoundRobinBootstrapSelectionStrategyTest {
     @MethodSource("provideArguments")
     void shouldReturnAServerFromTheListInRoundRobinFashion(List<HostPort> servers, HostPort expectedServer) {
         assertThat(strategy.apply(servers)).isEqualTo(expectedServer);
+    }
+
+    @Test
+    void shouldBeEqualToAnotherInstanceRegardlessOfCounterState() {
+        // Given
+        var strategy1 = new RoundRobinBootstrapSelectionStrategy();
+        var strategy2 = new RoundRobinBootstrapSelectionStrategy();
+        var servers = List.of(
+                new HostPort("host0", 9092),
+                new HostPort("host1", 9093),
+                new HostPort("host2", 9094));
+
+        // When
+        strategy1.apply(servers);
+        strategy1.apply(servers);
+
+        // Then
+        assertThat(strategy1).isEqualTo(strategy2);
+        assertThat(strategy1.hashCode()).isEqualTo(strategy2.hashCode());
+    }
+
+    @Test
+    void shouldHaveConsistentHashCode() {
+        // Given
+        var strategy = new RoundRobinBootstrapSelectionStrategy();
+        var servers = List.of(new HostPort("host1", 9092));
+        int hash1 = strategy.hashCode();
+
+        // When
+        strategy.apply(servers);
+
+        // Then
+        int hash2 = strategy.hashCode();
+        assertThat(hash1).isEqualTo(hash2);
+    }
+
+    @Test
+    void shouldNotBeEqualToNull() {
+        // Given
+        var strategy = new RoundRobinBootstrapSelectionStrategy();
+
+        // Then
+        assertThat(strategy).isNotEqualTo(null);
+    }
+
+    @Test
+    void shouldNotBeEqualToDifferentStrategyType() {
+        // Given
+        var roundRobin = new RoundRobinBootstrapSelectionStrategy();
+        var random = new RandomBootstrapSelectionStrategy();
+
+        // Then
+        assertThat(roundRobin).isNotEqualTo(random);
     }
 
 }
