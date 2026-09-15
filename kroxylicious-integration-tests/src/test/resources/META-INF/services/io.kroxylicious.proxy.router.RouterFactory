@@ -13,3 +13,4 @@ io.kroxylicious.it.testplugins.router.NodeTargetingProduceRouterFactory
 io.kroxylicious.it.testplugins.router.PassThroughRouterFactory
 io.kroxylicious.it.testplugins.router.RouterContractCapturingFactory
 io.kroxylicious.it.testplugins.router.SplitStaticRouterFactory
+io.kroxylicious.it.testplugins.router.TopologyCapturingRouterFactory
