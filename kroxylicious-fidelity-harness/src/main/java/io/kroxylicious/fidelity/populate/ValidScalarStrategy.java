@@ -23,6 +23,9 @@ import org.apache.kafka.common.record.internal.MemoryRecords;
 /**
  * Populates scalar fields with valid random values, reproducible given the same seed.
  * <p>
+ * Valid means within the bounds the Kafka message schema/IDL implies, plus a few heuristics to keep
+ * values logically sensible (e.g. avoiding the reserved metadata topic ID).
+ * <p>
  * Values are produced in Kafka's own type system, matching the schema vocabulary
  * {@link #resolve(BoundField)} already operates in - conversion to the Kroxylicious family, where a
  * setter needs it, is {@link SchemaDrivenMessagePopulator}'s concern, not this strategy's.
