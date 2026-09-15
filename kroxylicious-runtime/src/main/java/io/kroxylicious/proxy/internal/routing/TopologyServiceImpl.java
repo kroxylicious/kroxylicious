@@ -29,10 +29,10 @@ import io.kroxylicious.proxy.topology.VirtualNode;
  * Per-connection implementation of {@link TopologyService}, backed by a {@link TopologyCache}
  * shared across all connections at the same router level.
  *
- * <p>Only {@link #topicNames} and {@link #invalidateRoute} are implemented so far (phase 1 of
- * <a href="https://github.com/kroxylicious/kroxylicious/issues/4155">#4155</a>); the remaining
- * discovery/lookup methods throw {@link UnsupportedOperationException} until later phases fill
- * them in.
+ * <p>Only {@link #topicNames}, {@link #invalidateRoute}, and {@link #brokerInfo} are implemented
+ * so far (phases 1-2 of <a href="https://github.com/kroxylicious/kroxylicious/issues/4155">#4155</a>);
+ * the remaining discovery/lookup methods throw {@link UnsupportedOperationException} until later
+ * phases fill them in.
  */
 final class TopologyServiceImpl implements TopologyService {
 
@@ -110,6 +110,10 @@ final class TopologyServiceImpl implements TopologyService {
 
     @Override
     public Optional<BrokerInfo> brokerInfo(VirtualNode node) {
-        throw new UnsupportedOperationException("TopologyService.brokerInfo()" + NOT_YET_IMPLEMENTED);
+        Objects.requireNonNull(node);
+        if (node instanceof VirtualNodeImpl(String route, Integer virtualNodeId) && virtualNodeId != null) {
+            return cache.brokerInfo(route, virtualNodeId);
+        }
+        return Optional.empty();
     }
 }

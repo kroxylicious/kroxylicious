@@ -110,6 +110,33 @@ class TopologyServiceIT {
     }
 
     @Test
+    void shouldResolveBrokerInfoViaRealMetadataRoundTrip(KafkaCluster cluster) throws Exception {
+        // Given
+        var config = topologyConfig(cluster);
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var admin = tester.admin()) {
+            assertThat(TopologyCapturingRouterFactory.capturedBrokerInfo.get())
+                    .as("Expect id resolution to be driven by admin.describeCluster()")
+                    .isNull();
+
+            // When: a DESCRIBE_CLUSTER request flows through the router's dynamic path, which
+            // resolves a broker id (learned from the response) to BrokerInfo via TopologyService
+            admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS);
+
+            // Then
+            assertThat(TopologyCapturingRouterFactory.capturedBrokerInfo.get())
+                    .as("Expect admin.describeCluster() to have driven broker info resolution")
+                    .isPresent()
+                    .get()
+                    .satisfies(info -> {
+                        assertThat(info.host()).isNotBlank();
+                        assertThat(info.port()).isPositive();
+                    });
+        }
+    }
+
+    @Test
     void invalidateRouteShouldForceFreshMetadataLookup(KafkaCluster cluster) throws Exception {
         // Given
         var config = topologyConfig(cluster);

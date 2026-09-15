@@ -14,6 +14,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.proxy.topology.BrokerInfo;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -26,6 +27,7 @@ class TopologyCacheTest {
     private static final String OTHER_ROUTE = "route2";
     private static final Uuid TOPIC_ID = Uuid.randomUuid();
     private static final String TOPIC_NAME = "topicName";
+    private static final int NODE_ID = 42;
 
     private final TopologyCache cache = new TopologyCache();
 
@@ -35,6 +37,13 @@ class TopologyCacheTest {
         topic.setTopicId(topicId);
         topic.setName(topicName);
         response.topics().add(topic);
+        return response;
+    }
+
+    private static MetadataResponseData metadataWithBroker(int nodeId, String host, int port, @Nullable String rack) {
+        var response = new MetadataResponseData();
+        response.brokers().add(new MetadataResponseData.MetadataResponseBroker()
+                .setNodeId(nodeId).setHost(host).setPort(port).setRack(rack));
         return response;
     }
 
@@ -149,5 +158,94 @@ class TopologyCacheTest {
     void invalidateRouteShouldBeSafeForUncachedRoute() {
         // When / Then
         assertThatCode(() -> cache.invalidateRoute(ROUTE)).doesNotThrowAnyException();
+    }
+
+    // --- broker info ---
+
+    @Test
+    void updateFromMetadataShouldPopulateBrokerInfo() {
+        // Given
+        var response = metadataWithBroker(NODE_ID, "broker-a", 9092, "rack1");
+
+        // When
+        cache.updateFromMetadata(ROUTE, response);
+
+        // Then
+        assertThat(cache.brokerInfo(ROUTE, NODE_ID)).contains(new BrokerInfo("broker-a", 9092, "rack1"));
+    }
+
+    @Test
+    void updateFromMetadataShouldIgnoreResponseWithNullBrokers() {
+        // Given
+        var response = new MetadataResponseData();
+        response.setBrokers(null);
+
+        // When / Then
+        assertThatCode(() -> cache.updateFromMetadata(ROUTE, response)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void brokerInfoShouldBeScopedByRoute() {
+        // Given
+        cache.updateFromMetadata(ROUTE, metadataWithBroker(NODE_ID, "route1-host", 9092, null));
+        cache.updateFromMetadata(OTHER_ROUTE, metadataWithBroker(NODE_ID, "route2-host", 9093, null));
+
+        // When / Then
+        assertThat(cache.brokerInfo(ROUTE, NODE_ID)).contains(new BrokerInfo("route1-host", 9092, null));
+        assertThat(cache.brokerInfo(OTHER_ROUTE, NODE_ID)).contains(new BrokerInfo("route2-host", 9093, null));
+    }
+
+    @Test
+    void brokerInfoShouldBeEmptyForUncachedRoute() {
+        // When / Then
+        assertThat(cache.brokerInfo(ROUTE, NODE_ID)).isEmpty();
+    }
+
+    @Test
+    void brokerInfoShouldBeEmptyForUncachedNode() {
+        // Given
+        cache.updateFromMetadata(ROUTE, metadataWithBroker(NODE_ID, "broker-a", 9092, null));
+
+        // When / Then
+        assertThat(cache.brokerInfo(ROUTE, NODE_ID + 1)).isEmpty();
+    }
+
+    @Test
+    void updateFromMetadataShouldBeAdditiveForBrokers() {
+        // Given
+        cache.updateFromMetadata(ROUTE, metadataWithBroker(NODE_ID, "broker-a", 9092, null));
+
+        // When
+        cache.updateFromMetadata(ROUTE, metadataWithBroker(NODE_ID + 1, "broker-b", 9093, null));
+
+        // Then
+        assertThat(cache.brokerInfo(ROUTE, NODE_ID)).contains(new BrokerInfo("broker-a", 9092, null));
+        assertThat(cache.brokerInfo(ROUTE, NODE_ID + 1)).contains(new BrokerInfo("broker-b", 9093, null));
+    }
+
+    @Test
+    void updateFromMetadataShouldOverwriteExistingBrokerEntry() {
+        // Given
+        cache.updateFromMetadata(ROUTE, metadataWithBroker(NODE_ID, "old-host", 9092, null));
+
+        // When
+        cache.updateFromMetadata(ROUTE, metadataWithBroker(NODE_ID, "new-host", 9093, null));
+
+        // Then
+        assertThat(cache.brokerInfo(ROUTE, NODE_ID)).contains(new BrokerInfo("new-host", 9093, null));
+    }
+
+    @Test
+    void invalidateRouteShouldClearBrokerInfoToo() {
+        // Given
+        cache.updateFromMetadata(ROUTE, metadataWithBroker(NODE_ID, "broker-a", 9092, null));
+        cache.updateFromMetadata(OTHER_ROUTE, metadataWithBroker(NODE_ID, "broker-a", 9092, null));
+
+        // When
+        cache.invalidateRoute(ROUTE);
+
+        // Then
+        assertThat(cache.brokerInfo(ROUTE, NODE_ID)).isEmpty();
+        assertThat(cache.brokerInfo(OTHER_ROUTE, NODE_ID)).contains(new BrokerInfo("broker-a", 9092, null));
     }
 }
