@@ -6,14 +6,22 @@
 
 package io.kroxylicious.proxy.model;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
@@ -23,8 +31,11 @@ import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
+import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.FlakyConfig;
 import io.kroxylicious.proxy.internal.filter.FlakyFactory;
@@ -33,12 +44,16 @@ import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.NoUpstreamClusterForRouteException;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
+import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.JKS;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.STOREPASS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -380,6 +395,91 @@ class VirtualClusterModelTest {
         var tls = new Tls(null, null, null, new AllowDeny<>(null, Set.of("TLSv1.1")), null);
         var summary = VirtualClusterModel.generateTlsSummary(Optional.of(tls));
         assertThat(summary).contains("Denied Protocols").contains("TLSv1.1");
+    }
+
+    @TempDir
+    Path tempDir; // used to create a copy of existing TLS resources so that they can be repplaced
+
+    @Test
+    void rotatedCertificateUpdatesGatewaySSLContext() throws IOException {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var currentServerCertificate = tempDir.resolve("servercert.pem");
+        final var startingCertificate = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server.crt"));
+        final var newCertificate = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server_crt_encrypted_key.pem"));
+        Files.copy(startingCertificate, currentServerCertificate);
+
+        final var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), currentServerCertificate.toString(), null);
+        final var tls = new Tls(keyPair, null, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When
+        Files.write(currentServerCertificate, Files.readAllBytes(newCertificate), StandardOpenOption.TRUNCATE_EXISTING);
+
+        // Then
+        Awaitility.await("Gateway SSL context changes when certificates are rotated")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext().get()).isNotEqualTo(startingSSLContext));
+        model.close();
+    }
+
+    @Test
+    void rotatedJKSUpdatesGatewaySSLContext() throws IOException {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var jksCopy = tempDir.resolve("server.jks");
+        final var jksOriginal = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server.jks"));
+        Files.copy(jksOriginal, jksCopy);
+
+        final var keyStore = new KeyStore(jksCopy.toString(), STOREPASS, null, JKS);
+        final var tls = new Tls(keyStore, null, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When
+        Files.copy(jksOriginal, jksCopy, StandardCopyOption.REPLACE_EXISTING);
+
+        // Then
+        Awaitility.await("Gateway SSL context changes when certificates are rotated")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext().get()).isNotEqualTo(startingSSLContext));
+        model.close();
+    }
+
+    @Test
+    void rotatedTrustUpdatesGatewaySSLContext() throws IOException {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var currentTrustCertificate = tempDir.resolve("trustcert.pem");
+        final var startingTrust = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server.crt"));
+        final var newTrust = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server_crt_encrypted_key.pem"));
+        Files.copy(startingTrust, currentTrustCertificate);
+
+        final var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), TlsTestConstants.getResourceLocationOnFilesystem("server.crt"),
+                null);
+        final var trustOptions = new TrustStore(currentTrustCertificate.toString(), null, Tls.PEM, null);
+        final var tls = new Tls(keyPair, trustOptions, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When
+        Files.copy(newTrust, currentTrustCertificate, StandardCopyOption.REPLACE_EXISTING);
+
+        // Then
+        Awaitility.await("Gateway SSL context changes when certificates are rotated")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext().get()).isNotEqualTo(startingSSLContext));
+        model.close();
     }
 
     private static PluginFactoryRegistry pluginFactoryRegistry() {
