@@ -48,6 +48,7 @@ import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.RouteDispatcher;
 import io.kroxylicious.proxy.internal.routing.RoutingHandler;
 import io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler;
+import io.kroxylicious.proxy.internal.topology.RequestSender;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.router.Router;
@@ -283,19 +284,25 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast("frontendHandler", frontendHandler);
         switch (virtualCluster.routing()) {
             case DynamicRouting dr -> {
-                Router router = virtualCluster.createRouter();
+                var sharedAddresses = sharedNodeAddressCache.computeIfAbsent(dr, k -> new ConcurrentHashMap<>());
+                // Built before createRouter() so that a router's RouterFactoryContext.topologyService()
+                // call (made during createRouter()) can bind to this connection's dispatcher.
+                var dispatcher = RouteDispatcher.forTopLevel(dr.topLevelRouteDescriptors(), dr.nodeIdMapping(), sharedAddresses, clientConnectionStateMachine);
+                RequestSender sender = (route, header, request) -> dispatcher.sendToAnyNode(
+                        route, header, request, clientConnectionStateMachine.sessionId(), null);
+                Router router = virtualCluster.createRouter(sender);
+                dr.routerChainFactory().existingTopologyCache(dr.routerName(), clientConnectionStateMachine.clusterName())
+                        .ifPresent(dispatcher::activateTopologyCache);
+
                 Map<ApiKeys, String> staticRoutes = router.staticRoutes();
                 Set<ApiKeys> decodedKeys = computeDecodedKeysForRouter(staticRoutes, dr.topLevelRouteDescriptors());
                 dp.setRouterDecodingRequirements(decodedKeys);
 
-                var sharedAddresses = sharedNodeAddressCache.computeIfAbsent(dr, k -> new ConcurrentHashMap<>());
                 var routingHandler = RoutingHandler.topLevel(
+                        dispatcher,
                         router,
-                        dr.topLevelRouteDescriptors(),
                         staticRoutes,
-                        sharedAddresses,
                         clientConnectionStateMachine,
-                        dr.nodeIdMapping(),
                         binding.nodeId());
                 clientConnectionStateMachine.setRouterActive();
                 clientConnectionStateMachine.setUpstreamAddressResolver(

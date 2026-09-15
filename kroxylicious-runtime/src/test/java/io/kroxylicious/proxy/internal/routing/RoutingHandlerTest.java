@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -47,6 +48,8 @@ import io.kroxylicious.proxy.internal.CloseReason;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
+import io.kroxylicious.proxy.internal.topology.RequestSender;
+import io.kroxylicious.proxy.internal.topology.TopologyCache;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
 
@@ -56,6 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyShort;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -96,16 +100,16 @@ class RoutingHandlerTest {
     // ======================== Top-level helpers ========================
 
     private RoutingHandler topLevelHandler(Map<ApiKeys, String> staticRoutes) {
-        return RoutingHandler.topLevel(router, Map.of(), staticRoutes, new HashMap<>(), ccsm,
-                new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+        var dispatcher = RouteDispatcher.forTopLevel(Map.of(), new IdentityNodeIdMapping(DEFAULT_ROUTE), new HashMap<>(), ccsm);
+        return RoutingHandler.topLevel(dispatcher, router, staticRoutes, ccsm, null);
     }
 
     private RoutingHandler topLevelHandlerWithRoute(String routeName) {
         when(ccsm.sessionId()).thenReturn(SESSION_ID);
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
         var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", null), null, List.of());
-        return RoutingHandler.topLevel(router, Map.of(routeName, rd), Map.of(), new HashMap<>(), ccsm,
-                new IdentityNodeIdMapping(routeName), null);
+        var dispatcher = RouteDispatcher.forTopLevel(Map.of(routeName, rd), new IdentityNodeIdMapping(routeName), new HashMap<>(), ccsm);
+        return RoutingHandler.topLevel(dispatcher, router, Map.of(), ccsm, null);
     }
 
     private EmbeddedChannel channelWithTerminal(RoutingHandler handler) {
@@ -317,8 +321,8 @@ class RoutingHandlerTest {
         var mapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
         when(ccsm.sessionId()).thenReturn(SESSION_ID);
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
-        var handler = RoutingHandler.topLevel(
-                router, Map.of(), Map.of(ApiKeys.METADATA, "route-a"), new HashMap<>(), ccsm, mapping, null);
+        var dispatcher = RouteDispatcher.forTopLevel(Map.of(), mapping, new HashMap<>(), ccsm);
+        var handler = RoutingHandler.topLevel(dispatcher, router, Map.of(ApiKeys.METADATA, "route-a"), ccsm, null);
         channel = channelWithTerminal(handler);
 
         var requestFrame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true,
@@ -633,9 +637,8 @@ class RoutingHandlerTest {
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
         when(ccsm.internalCorrelationIdAllocator()).thenReturn(new CorrelationIdAllocator(Integer.MIN_VALUE, 0));
         var rd = new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of());
-        var handler = RoutingHandler.topLevel(
-                router, Map.of(DEFAULT_ROUTE, rd), Map.of(), new HashMap<>(), ccsm,
-                new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+        var dispatcher = RouteDispatcher.forTopLevel(Map.of(DEFAULT_ROUTE, rd), new IdentityNodeIdMapping(DEFAULT_ROUTE), new HashMap<>(), ccsm);
+        var handler = RoutingHandler.topLevel(dispatcher, router, Map.of(), ccsm, null);
         channel = channelWithTerminal(handler);
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
@@ -867,7 +870,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of(ApiKeys.FETCH, "inner-r"));
         var frame = opaqueFrame(ApiKeys.FETCH, CORRELATION_ID, ACTIVATION_ROUTE);
 
@@ -886,7 +889,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         var frame = opaqueFrame(ApiKeys.FETCH, CORRELATION_ID, ACTIVATION_ROUTE);
 
@@ -903,7 +906,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
@@ -922,7 +925,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
@@ -934,7 +937,48 @@ class RoutingHandlerTest {
         channel.runPendingTasks();
 
         // Then
-        verify(routerChainFactory, times(1)).createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER);
+        verify(routerChainFactory, times(1)).createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class));
+    }
+
+    @Test
+    void nested_shouldActivateTopologyCacheWhenOneExistsForRouter() {
+        // Given
+        var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
+        channel = new EmbeddedChannel(handler);
+        var cache = new TopologyCache();
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
+        when(routerChainFactory.existingTopologyCache(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(Optional.of(cache));
+        when(router.staticRoutes()).thenReturn(Map.of());
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithoutReply(false)));
+
+        // When
+        channel.writeInbound(fetchFrame(CORRELATION_ID, ACTIVATION_ROUTE));
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(handler.dispatcher().activeCache()).isSameAs(cache);
+    }
+
+    @Test
+    void nested_shouldLeaveTopologyCacheUnactivatedWhenNoneExistsForRouter() {
+        // Given
+        var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
+        channel = new EmbeddedChannel(handler);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
+        when(routerChainFactory.existingTopologyCache(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(Optional.empty());
+        when(router.staticRoutes()).thenReturn(Map.of());
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithoutReply(false)));
+
+        // When
+        channel.writeInbound(fetchFrame(CORRELATION_ID, ACTIVATION_ROUTE));
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(handler.dispatcher().activeCache()).isNull();
     }
 
     @Test
@@ -942,7 +986,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of(ApiKeys.FETCH, "inner-r"));
 
         // When
@@ -959,7 +1003,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         var responseBody = new ProduceResponseData();
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
@@ -982,7 +1026,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         var requestHeader = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)
@@ -1009,7 +1053,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
@@ -1028,7 +1072,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("boom")));
@@ -1048,7 +1092,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         var responseBody = new ProduceResponseData();
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
@@ -1120,7 +1164,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(
@@ -1153,7 +1197,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("r-a", clusterRoute("r-a", 0), "r-b", clusterRoute("r-b", 1)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         var ctxCaptor = org.mockito.ArgumentCaptor.forClass(io.kroxylicious.proxy.router.RouterContext.class);
         when(router.onRequest(any(), anyShort(), any(), any(), ctxCaptor.capture()))
@@ -1183,7 +1227,7 @@ class RoutingHandlerTest {
                 routerChainFactory, nestedRoutes, mapping, correlationIdAllocator,
                 new ConcurrentHashMap<>(), SESSION_ID, Subject.anonymous(), 42);
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         var ctxCaptor = org.mockito.ArgumentCaptor.forClass(io.kroxylicious.proxy.router.RouterContext.class);
         when(router.onRequest(any(), anyShort(), any(), any(), ctxCaptor.capture()))
@@ -1210,7 +1254,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         var promise = new CompletableFuture<ProduceResponseData>();
         var oob = nestedOobProduceFrame(CORRELATION_ID, promise, ACTIVATION_ROUTE);
@@ -1236,7 +1280,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         var promise = new CompletableFuture<ProduceResponseData>();
         var oob = nestedOobProduceFrame(CORRELATION_ID, promise, ACTIVATION_ROUTE);
@@ -1260,7 +1304,7 @@ class RoutingHandlerTest {
         // Given
         var handler = nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0)));
         channel = new EmbeddedChannel(handler);
-        when(routerChainFactory.createRouter(NESTED_ROUTER_NAME, VIRTUAL_CLUSTER)).thenReturn(router);
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         when(router.onRequest(any(), anyShort(), any(), any(), any()))
                 .thenThrow(new RuntimeException("boom"));
