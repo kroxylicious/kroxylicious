@@ -44,7 +44,7 @@ class RouterChainFactoryTest {
             new RouteDefinition("route1", 0, null, new RouteTarget("someCluster", null)));
 
     private static final String VC_NAME = "testVc";
-    public static final RequestSender UNAVAILABLE_SENDER = RequestSender.unavailable();
+    private static final RequestSender UNAVAILABLE_SENDER = RequestSender.unavailable();
 
     @Test
     void shouldHandleNullDefinitions() {

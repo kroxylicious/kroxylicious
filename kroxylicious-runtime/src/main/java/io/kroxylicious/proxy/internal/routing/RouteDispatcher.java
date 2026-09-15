@@ -46,6 +46,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * every router in the routing tree, and so each level's out-of-band ({@link RouterContextImpl#sendRequest})
  * requests carry a path distinct from every other level's.
  *
+ * <p>One instance is created for each router-level and connection.
+ * RouteDispatchers will have an associated {@link TopologyCache} when the cache
+ * is {@linkplain #activateTopologyCache(TopologyCache) activated}, (after construction,
+ * but before channel activation).</p>
+ *
  * <p>Not thread-safe; all callers must be on the same Netty event loop. Off-loop calls are
  * bridged via {@link #executeOnEventLoop}.
  */

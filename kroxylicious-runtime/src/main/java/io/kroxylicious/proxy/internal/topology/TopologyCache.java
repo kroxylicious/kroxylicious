@@ -52,12 +52,16 @@ public final class TopologyCache {
             return;
         }
         for (var topic : response.topics()) {
-            if (topic.name() != null && !topic.name().isEmpty()
-                    && topic.topicId() != null && !Uuid.ZERO_UUID.equals(topic.topicId())) {
+            if (isCacheable(topic)) {
                 topicNamesByRoute.computeIfAbsent(route, r -> new ConcurrentHashMap<>())
                         .put(topic.topicId(), topic.name());
             }
         }
+    }
+
+    private boolean isCacheable(MetadataResponseData.MetadataResponseTopic topic) {
+        return topic.name() != null && !topic.name().isEmpty()
+                && topic.topicId() != null && !Uuid.ZERO_UUID.equals(topic.topicId());
     }
 
     /**

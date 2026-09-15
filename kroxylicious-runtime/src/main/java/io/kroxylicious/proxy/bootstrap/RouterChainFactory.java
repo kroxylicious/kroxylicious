@@ -36,8 +36,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * required for instantiation at the point at which instances are created.
  *
  * <p>Each virtual cluster that references a router gets its own
- * initialisation of that router's factory, so shared state (e.g.
- * caches, metrics) is per-virtual-cluster.</p>
+ * initialisation of that router's factory.
+ * The topology cache is keyed by (vcName, routerName), so a router shared
+ * across VCs gets separate caches per VC.</p>
  */
 public class RouterChainFactory implements AutoCloseable {
 
