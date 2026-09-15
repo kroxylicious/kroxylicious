@@ -59,8 +59,8 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
 
     /**
      * Kafka's code generator declares every struct in a message, however deeply the JSON nests them, as a
-     * flat, static nested class directly on the top-level message class (confirmed against real generated
-     * code) rather than truly nesting them to match the JSON shape. So resolving a struct's class by name
+     * flat, static nested class directly on the top-level message class, rather than truly nesting them to
+     * match the JSON shape. So resolving a struct's class by name
      * or by identity must always search from the top-level message class, not from the struct currently
      * being populated - {@code root} carries that fixed search root through the recursion.
      */
