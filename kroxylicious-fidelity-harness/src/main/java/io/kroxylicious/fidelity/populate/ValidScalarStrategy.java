@@ -89,23 +89,23 @@ public final class ValidScalarStrategy implements FieldPopulationStrategy {
         if (leafType instanceof Schema) {
             return new FieldDecision.Defer();
         }
-        return arrayElementType.map(type -> new FieldDecision.Value(randomList(field.def.name, type)))
-                .orElseGet(() -> new FieldDecision.Value(randomScalar(field.def.name, field.def.type)));
+        return arrayElementType.map(type -> new FieldDecision.Value(randomList(type)))
+                .orElseGet(() -> new FieldDecision.Value(randomScalar(field.def.type)));
     }
 
-    private Object randomScalar(String fieldName, Type type) {
+    private Object randomScalar(Type type) {
         Supplier<Object> supplier = suppliersByType.get(type);
         if (supplier == null) {
-            throw new UnsupportedOperationException("No valid-value strategy for field '" + fieldName + "'");
+            throw new UnsupportedOperationException("No valid-value strategy for type '" + type + "'");
         }
         return supplier.get();
     }
 
-    private List<Object> randomList(String fieldName, Type elementType) {
+    private List<Object> randomList(Type elementType) {
         int length = 1 + random.nextInt(MAX_ARRAY_LENGTH);
         List<Object> values = new ArrayList<>(length);
         for (int i = 0; i < length; i++) {
-            values.add(randomScalar(fieldName, elementType));
+            values.add(randomScalar(elementType));
         }
         return values;
     }
