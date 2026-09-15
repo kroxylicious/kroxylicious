@@ -1,0 +1,82 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+name: Confluent MDS integration tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, 'release/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mds_integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MDS_MODULE: kroxylicious-filters/kroxylicious-mds-impersonation
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        with:
+          egress-policy: audit
+      - name: Check out the test revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
+      - name: Cache Maven packages
+        uses: ./.github/actions/common/cache-maven-packages
+      - name: Record the revision and tools
+        run: |
+          mkdir -p "$MDS_MODULE/target/mds-evidence"
+          git rev-parse HEAD 'HEAD^{tree}' > "$MDS_MODULE/target/mds-evidence/revision.txt"
+          mvn --version > "$MDS_MODULE/target/mds-evidence/environment.txt"
+          docker version --format '{{.Server.Version}}' >> "$MDS_MODULE/target/mds-evidence/environment.txt"
+      - name: Build test dependencies
+        run: |
+          mvn --batch-mode --no-transfer-progress --activate-profiles '!qa' \
+            --projects :kroxylicious-mds-impersonation --also-make \
+            -Dquick -Derrorprone.skip=true -Djapicmp.skip=true install
+      - name: Start and provision Confluent MDS
+        working-directory: ${{ env.MDS_MODULE }}/integration
+        run: |
+          python3 generate.py
+          docker compose -p kroxy-mds-ci config --quiet
+          docker compose -p kroxy-mds-ci up -d
+          docker image inspect confluentinc/cp-server:8.3.1 --format '{{json .RepoDigests}}' \
+            > ../target/mds-evidence/image-digests.json
+          python3 provision.py --project-name kroxy-mds-ci
+      - name: Run unit, wire-protocol and real MDS tests
+        run: |
+          rm -rf "$MDS_MODULE/target/surefire-reports"
+          mvn --batch-mode --no-transfer-progress --activate-profiles 'ci,!qa' \
+            --projects :kroxylicious-mds-impersonation \
+            '-Dtest=Mds*Test,MdsConfluent*IT' -Dmds.integration=true \
+            -Derrorprone.skip=true -Djapicmp.skip=true test
+      - name: Collect test evidence
+        if: ${{ always() }}
+        run: python3 "$MDS_MODULE/integration/collect-reports.py"
+      - name: Upload test evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: mds-test-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.MDS_MODULE }}/target/mds-evidence/
+          if-no-files-found: error
+      - name: Stop the test environment
+        if: ${{ always() }}
+        working-directory: ${{ env.MDS_MODULE }}/integration
+        run: docker compose -p kroxy-mds-ci down --volumes

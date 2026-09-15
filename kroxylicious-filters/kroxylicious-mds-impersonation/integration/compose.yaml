@@ -1,0 +1,26 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+services:
+  broker:
+    image: confluentinc/cp-server:8.3.1
+    hostname: broker
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    environment:
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx768m
+    command:
+      - bash
+      - -ec
+      - |
+        kafka-storage format --ignore-formatted -t YmJ5YS1tZHMtdGVzdC1jbA -c /etc/kafka/mds-test/server.properties
+        exec kafka-server-start /etc/kafka/mds-test/server.properties
+    ports:
+      - "127.0.0.1:19096:9096"
+      - "127.0.0.1:18090:8090"
+    volumes:
+      - ./generated/broker:/etc/kafka/mds-test:ro
+    tmpfs:
+      - /tmp/kraft-data:uid=${LOCAL_UID:-1000},gid=${LOCAL_GID:-1000}

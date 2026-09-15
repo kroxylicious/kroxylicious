@@ -1,0 +1,40 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+[id='con-kubernetes-config-{context}']
+= Configuring the filter on Kubernetes
+
+[role="_abstract"]
+Use a proxy image containing this experimental filter and configure a `KafkaProtocolFilter` resource.
+The example references an existing Secret containing the proxy identity and MDS CA.
+
+[source,yaml]
+----
+apiVersion: kroxylicious.io/v1alpha1
+kind: KafkaProtocolFilter
+metadata:
+  name: mds-impersonation
+spec:
+  type: MdsImpersonation
+  configTemplate:
+    mdsUrl: https://mds.example.test/security/1.0/impersonate
+    mdsTls:
+      key:
+        privateKeyFile: ${secret:mds-identity:tls.key}
+        certificateFile: ${secret:mds-identity:tls.crt}
+      trust:
+        storeFile: ${secret:mds-identity:ca.crt}
+        storeType: PEM
+    requestTimeout: 5s
+    expiryMargin: 5s
+----
+
+Reference this filter from the virtual cluster, configure its transport subject builder and require client mTLS at the ingress.
+The upstream `KafkaService` must select the MDS-token listener and configure broker server trust.
+The broker does not need the `mds-identity` client certificate for OAUTHBEARER authentication.
+For Secret interpolation and virtual cluster configuration, see the {OperatorGuide}.
+The complete Operator deployment and VRF networking are not validated by this draft.

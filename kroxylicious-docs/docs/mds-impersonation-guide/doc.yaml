@@ -1,0 +1,13 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: MDS Impersonation Guide
+description: Exchange Kafka client mTLS identities for Confluent MDS impersonation tokens.
+tags:
+  - security
+  - filter
+rank: "031"
