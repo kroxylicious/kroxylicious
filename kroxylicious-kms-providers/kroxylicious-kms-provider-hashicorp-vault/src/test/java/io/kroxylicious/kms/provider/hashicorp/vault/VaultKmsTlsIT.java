@@ -22,6 +22,8 @@ import org.testcontainers.DockerClientFactory;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.TokenCredentialsConfig;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.VaultCredentialsConfig;
 import io.kroxylicious.proxy.config.secret.FilePassword;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
@@ -160,7 +162,7 @@ class VaultKmsTlsIT {
     }
 
     private static Config vaultConfig(Tls tls, URI endpoint) {
-        return new Config(endpoint, new InlinePassword(VAULT_TOKEN), tls);
+        return new Config(endpoint, new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword(VAULT_TOKEN)), null), tls);
     }
 
     private static Tls tlsForTrustStoreInlinePassword(CertificateGenerator.TrustStore trustStore) {

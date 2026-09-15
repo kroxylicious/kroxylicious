@@ -6,8 +6,8 @@
 
 package io.kroxylicious.testing.kms.vault;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.testcontainers.DockerClientFactory;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultEdek;
@@ -17,17 +17,12 @@ import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.testing.kms.AbstractTestKmsFacadeTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
+@EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 class VaultTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, WrappingKey, VaultEdek> {
 
     VaultTestKmsFacadeTest() {
         super(new VaultTestKmsFacadeFactory());
-    }
-
-    @BeforeEach
-    void beforeEach() {
-        assumeThat(DockerClientFactory.instance().isDockerAvailable()).withFailMessage("docker unavailable").isTrue();
     }
 
     @Test
@@ -37,5 +32,9 @@ class VaultTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, WrappingK
             assertThat(facade.getKmsServiceClass()).isEqualTo(VaultKmsService.class);
             assertThat(facade.getKmsServiceConfig()).isInstanceOf(Config.class);
         }
+    }
+
+    static boolean isDockerAvailable() {
+        return DockerClientFactory.instance().isDockerAvailable();
     }
 }

@@ -28,6 +28,8 @@ import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse;
 import io.kroxylicious.kms.provider.hashicorp.vault.WrappingKey;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.TokenCredentialsConfig;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.VaultCredentialsConfig;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
@@ -189,8 +191,10 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
     protected abstract URI getVaultUrl();
 
     @Override
-    public final Config getKmsServiceConfig() {
-        return new Config(getVaultTransitEngineUrl(), new InlinePassword(kmsVaultToken), null);
+    public Config getKmsServiceConfig() {
+        return new Config(getVaultTransitEngineUrl(),
+                new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword(kmsVaultToken)), null),
+                null);
     }
 
     @Override
@@ -207,7 +211,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
      * Gets the URL of the Transit engine of the Vault instance.
      * @return the Transit engine URL.
      */
-    protected final URI getVaultTransitEngineUrl() {
+    protected URI getVaultTransitEngineUrl() {
         return getVaultUrl().resolve("v1/transit/");
     }
 
