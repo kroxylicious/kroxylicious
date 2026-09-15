@@ -59,8 +59,9 @@ public class OperatorMain {
     static final String KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME = "KROXYLICIOUS_WATCHED_NAMESPACES";
     /**
      * Name of an environment variable specifying the maximum reconciliation interval in seconds.
-     * This is the failsafe interval for periodic reconciliation to catch missed events.
-     * If not set, defaults to 180 seconds (3 minutes).
+     * When set, every controller is configured to periodically reconcile each resource after this interval,
+     * acting as a failsafe to catch missed events. If not set, the JOSDK default (10 hours) applies and the
+     * operator relies on event-driven reconciliation.
      */
     static final String KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME = "KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS";
     private static final int DEFAULT_MANAGEMENT_PORT = 8080;
