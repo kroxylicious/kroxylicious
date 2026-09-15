@@ -55,13 +55,13 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.ProxyNodeId;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
+import io.kroxylicious.proxy.internal.routing.RequestSender;
 import io.kroxylicious.proxy.internal.routing.RoutingModel;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.internal.tls.SslContextBuildException;
-import io.kroxylicious.proxy.internal.topology.RequestSender;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
@@ -83,7 +83,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *   <li>{@link TlsCredentialSupplierManager} — the TLS credential supplier for this VC.</li>
  * </ul>
  * For VCs that use dynamic routing, the {@link io.kroxylicious.proxy.internal.routing.DynamicRouting}
- * instance carries and owns the {@link io.kroxylicious.proxy.bootstrap.RouterChainFactory}; the VCM
+ * instance carries and owns the {@link io.kroxylicious.proxy.internal.routing.RouterChainFactory}; the VCM
  * closes it via the routing model.
  *
  * <h2>Lifecycle</h2>

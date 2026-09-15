@@ -25,7 +25,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.buffer.ByteBufAllocator;
 
-import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -40,6 +39,7 @@ import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.internal.net.ProxyNodeId;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RouterChainFactory;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.HostPort;

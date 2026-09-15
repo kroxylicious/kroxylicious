@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.Map;
 import java.util.Objects;
 
-import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
-import io.kroxylicious.proxy.internal.topology.RequestSender;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 

@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.topology;
+package io.kroxylicious.proxy.internal.routing;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,7 +34,7 @@ import io.kroxylicious.proxy.topology.VirtualNode;
  * discovery/lookup methods throw {@link UnsupportedOperationException} until later phases fill
  * them in.
  */
-public final class TopologyServiceImpl implements TopologyService {
+final class TopologyServiceImpl implements TopologyService {
 
     /** The first METADATA API version that supports requesting topics by topic id. */
     private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = 12;
@@ -49,7 +49,7 @@ public final class TopologyServiceImpl implements TopologyService {
      * @param cache the shared topology cache for this router level
      * @param sender the request-sending capability for this connection
      */
-    public TopologyServiceImpl(TopologyCache cache, RequestSender sender) {
+    TopologyServiceImpl(TopologyCache cache, RequestSender sender) {
         this.cache = Objects.requireNonNull(cache);
         this.sender = Objects.requireNonNull(sender);
     }

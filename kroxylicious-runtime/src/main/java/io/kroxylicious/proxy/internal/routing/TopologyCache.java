@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.topology;
+package io.kroxylicious.proxy.internal.routing;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -35,7 +35,7 @@ public final class TopologyCache {
     /**
      * Creates an empty cache.
      */
-    public TopologyCache() {
+    TopologyCache() {
         // Exists for Javadoc
     }
 
@@ -45,7 +45,7 @@ public final class TopologyCache {
      * @param route the route this response came from
      * @param response the METADATA response data
      */
-    public void updateFromMetadata(String route, MetadataResponseData response) {
+    void updateFromMetadata(String route, MetadataResponseData response) {
         Objects.requireNonNull(route);
         Objects.requireNonNull(response);
         if (response.topics() == null) {
@@ -71,7 +71,7 @@ public final class TopologyCache {
      * @param topicId the topic ID to resolve
      * @return the cached topic name, or empty if not cached
      */
-    public Optional<String> topicName(String route, Uuid topicId) {
+    Optional<String> topicName(String route, Uuid topicId) {
         var names = topicNamesByRoute.get(route);
         return names == null ? Optional.empty() : Optional.ofNullable(names.get(topicId));
     }
@@ -81,7 +81,7 @@ public final class TopologyCache {
      *
      * @param route the route to invalidate
      */
-    public void invalidateRoute(String route) {
+    void invalidateRoute(String route) {
         Objects.requireNonNull(route);
         topicNamesByRoute.remove(route);
     }
