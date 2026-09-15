@@ -26,4 +26,57 @@ class RandomBootstrapSelectionStrategyTest {
         assertThat(strategy.apply(bootstrapServers)).isIn(bootstrapServers);
     }
 
+    @Test
+    void shouldBeEqualToAnotherInstanceRegardlessOfRandomState() {
+        // Given
+        var strategy1 = new RandomBootstrapSelectionStrategy();
+        var strategy2 = new RandomBootstrapSelectionStrategy();
+        var servers = List.of(
+                new HostPort("host0", 9092),
+                new HostPort("host1", 9093),
+                new HostPort("host2", 9094));
+        strategy1.apply(servers);
+
+        // When
+        strategy1.apply(servers);
+
+        // Then
+        assertThat(strategy1).isEqualTo(strategy2);
+        assertThat(strategy1.hashCode()).isEqualTo(strategy2.hashCode());
+    }
+
+    @Test
+    void shouldHaveConsistentHashCode() {
+        // Given
+        var strategy = new RandomBootstrapSelectionStrategy();
+        var servers = List.of(new HostPort("host1", 9092));
+        int hash1 = strategy.hashCode();
+
+        // When
+        strategy.apply(servers);
+
+        // Then
+        int hash2 = strategy.hashCode();
+        assertThat(hash1).isEqualTo(hash2);
+    }
+
+    @Test
+    void shouldNotBeEqualToNull() {
+        // Given
+        var strategy = new RandomBootstrapSelectionStrategy();
+
+        // Then
+        assertThat(strategy).isNotEqualTo(null);
+    }
+
+    @Test
+    void shouldNotBeEqualToDifferentStrategyType() {
+        // Given
+        var random = new RandomBootstrapSelectionStrategy();
+        var roundRobin = new RoundRobinBootstrapSelectionStrategy();
+
+        // Then
+        assertThat(random).isNotEqualTo(roundRobin);
+    }
+
 }
