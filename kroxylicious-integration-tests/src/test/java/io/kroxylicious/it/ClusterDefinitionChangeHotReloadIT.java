@@ -344,13 +344,13 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
     @Test
     void shouldRestartVirtualClusterWhenBootstrapSelectionChanges(@BrokerCluster KafkaCluster cluster) throws Exception {
         // Verify that changing the bootstrapServerSelection strategy DOES trigger a reload.
+        // The filter definition is held constant across the reconfigure so that the observed
+        // restart can only be attributed to the strategy change, not an incidental filter change.
         // Uses InvocationCountingFilterFactory to observe the filter chain being torn down
-        // and rebuilt (close count = 1, new initialization count = 1).
+        // and rebuilt (close count = 1, re-initialization count = 2).
 
-        UUID oldFilterId = UUID.randomUUID();
-        UUID newFilterId = UUID.randomUUID();
-        var oldFilterDef = invocationCounterDef("change-counter", oldFilterId);
-        var newFilterDef = invocationCounterDef("change-counter", newFilterId);
+        UUID filterId = UUID.randomUUID();
+        var filterDef = invocationCounterDef("change-counter", filterId);
 
         var vcWithRoundRobin = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-bootstrap-change")
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 400)).build())
@@ -362,7 +362,7 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
                 .build();
 
         var startingConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToFilterDefinitions(oldFilterDef)
+                .addToFilterDefinitions(filterDef)
                 .addToVirtualClusters(vcWithRoundRobin)
                 .build();
 
@@ -371,23 +371,23 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
 
             // Given: filter is initialized once at startup
             String topic = tester.createTopic("vc-bootstrap-change");
-            assertThat(InvocationCountingFilterFactory.initializationCountFor(oldFilterId))
-                    .as("old filter should be initialized exactly once at startup")
+            assertThat(InvocationCountingFilterFactory.initializationCountFor(filterId))
+                    .as("filter should be initialized exactly once at startup")
                     .isEqualTo(1);
             assertProduceConsumeRoundTrip(tester, "vc-bootstrap-change", topic, "before-change");
 
-            // When: change strategy from round-robin to random
+            // When: change strategy from round-robin to random; filter definition is unchanged
             var vcWithRandom = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-bootstrap-change")
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 400)).build())
                     .editTargetCluster()
-                    .withNewRoundRobinBootstrapSelectionStrategy()
-                    .endRoundRobinBootstrapSelectionStrategy()
+                    .withNewRandomBootstrapSelectionStrategy()
+                    .endRandomBootstrapSelectionStrategy()
                     .endTargetCluster()
                     .addToFilters("change-counter")
                     .build();
 
             var changedConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                    .addToFilterDefinitions(newFilterDef)
+                    .addToFilterDefinitions(filterDef)
                     .addToVirtualClusters(vcWithRandom)
                     .build();
 
@@ -403,13 +403,14 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
                     });
 
             // The change detector should report this as a modification, triggering ReplaceCluster.
-            // Verify the old filter was closed and the new filter was initialized.
-            assertThat(InvocationCountingFilterFactory.closeCountFor(oldFilterId))
-                    .as("old filter should be closed exactly once by ReplaceCluster")
+            // Since the filter definition is unchanged, a restart can only be attributed to the
+            // strategy change itself.
+            assertThat(InvocationCountingFilterFactory.closeCountFor(filterId))
+                    .as("filter should be closed exactly once by ReplaceCluster")
                     .isEqualTo(1);
-            assertThat(InvocationCountingFilterFactory.initializationCountFor(newFilterId))
-                    .as("new filter should be initialized exactly once")
-                    .isEqualTo(1);
+            assertThat(InvocationCountingFilterFactory.initializationCountFor(filterId))
+                    .as("filter should be re-initialized exactly once after the strategy change")
+                    .isEqualTo(2);
 
             // Verify cluster is still functional after the reload
             tester.closeClientsFor("vc-bootstrap-change");
