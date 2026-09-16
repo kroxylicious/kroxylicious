@@ -17,6 +17,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RandomBootstrapSelectionStrategyTest {
 
     @Test
+    void shouldReturnStrategy() {
+        // Given
+        var strategy = new RandomBootstrapSelectionStrategy();
+
+        // When/Then
+        assertThat(strategy.getStrategy()).isEqualTo("random");
+    }
+
+    @Test
     void shouldReturnARandomServerChosenFromTheList() {
         final var bootstrapServers = List.of(
                 new HostPort("host0", 9092),
@@ -24,6 +33,21 @@ class RandomBootstrapSelectionStrategyTest {
                 new HostPort("host2", 9094));
         final var strategy = new RandomBootstrapSelectionStrategy();
         assertThat(strategy.apply(bootstrapServers)).isIn(bootstrapServers);
+    }
+
+    @Test
+    void shouldImplementEquals() {
+        // Given
+        var strategy = new RandomBootstrapSelectionStrategy();
+        var same = new RandomBootstrapSelectionStrategy();
+        var different = new RoundRobinBootstrapSelectionStrategy();
+
+        // When/Then
+        // noinspection EqualsWithItself
+        assertThat(strategy.equals(strategy)).isTrue();
+        assertThat(strategy.equals(same)).isTrue();
+        // noinspection EqualsBetweenInconvertibleTypes
+        assertThat(strategy.equals(different)).isFalse();
     }
 
     @Test

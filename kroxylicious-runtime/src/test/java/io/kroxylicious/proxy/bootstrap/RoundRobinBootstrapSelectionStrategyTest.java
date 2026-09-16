@@ -48,6 +48,30 @@ class RoundRobinBootstrapSelectionStrategyTest {
     }
 
     @Test
+    void shouldReturnStrategy() {
+        // Given
+        var strategy = new RoundRobinBootstrapSelectionStrategy();
+
+        // When/Then
+        assertThat(strategy.getStrategy()).isEqualTo("round-robin");
+    }
+
+    @Test
+    void shouldImplementEquals() {
+        // Given
+        var strategy = new RoundRobinBootstrapSelectionStrategy();
+        var same = new RoundRobinBootstrapSelectionStrategy();
+        var different = new RandomBootstrapSelectionStrategy();
+
+        // When/Then
+        // noinspection EqualsWithItself
+        assertThat(strategy.equals(strategy)).isTrue();
+        assertThat(strategy.equals(same)).isTrue();
+        // noinspection EqualsBetweenInconvertibleTypes
+        assertThat(strategy.equals(different)).isFalse();
+    }
+
+    @Test
     void shouldBeEqualToAnotherInstanceRegardlessOfCounterState() {
         // Given
         var strategy1 = new RoundRobinBootstrapSelectionStrategy();
