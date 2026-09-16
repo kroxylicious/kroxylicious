@@ -49,4 +49,20 @@ public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrat
     public BootstrapSelectionStrategy newInstance() {
         return new RandomBootstrapSelectionStrategy();
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        // All RandomBootstrapSelectionStrategy instances are equal
+        // (Random instance is runtime state, not configuration)
+        return o instanceof RandomBootstrapSelectionStrategy;
+    }
+
+    @Override
+    public int hashCode() {
+        // All instances have same hash (type-based)
+        return RandomBootstrapSelectionStrategy.class.hashCode();
+    }
 }

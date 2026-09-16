@@ -37,6 +37,7 @@ import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
+import io.kroxylicious.proxy.internal.topology.RequestSender;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.service.HostPort;
@@ -136,29 +137,25 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * Uses a {@link ResponseSequencer} for response ordering and interacts with
      * {@link ClientConnectionStateMachine} for connection lifecycle.
      *
+     * <p>Takes an already-built {@code dispatcher} (see {@link RouteDispatcher#forTopLevel})
+     * rather than building its own, because the caller must construct the dispatcher <em>before</em>
+     * creating the router - see {@link io.kroxylicious.proxy.internal.KafkaProxyInitializer} for why.
+     *
+     * @param dispatcher the dispatcher for this connection, built via {@link RouteDispatcher#forTopLevel}
      * @param router the router plugin instance for this connection
-     * @param routes all route descriptors for this virtual cluster (top-level and nested, qualified names)
      * @param staticRoutes map from API key to the single route that always handles that key,
      *        used to bypass the router for requests that don't need dynamic routing
-     * @param sharedNodeAddresses node addresses shared across routes (e.g. from a prior metadata response),
-     *        used to route node-specific requests without an additional metadata round-trip
      * @param ccsm the connection state machine; provides session ID, subject, and connection lifecycle hooks
-     * @param nodeIdMapping the virtual-to-target node ID mapping for the top-level routing level
      * @param nodeId the virtual node ID of the gateway port that accepted this connection,
      *        or {@code null} if the gateway does not identify a specific node
      * @return the top-level routing handler
      */
-    public static RoutingHandler topLevel(Router router,
-                                          Map<String, RouteDescriptor> routes,
+    public static RoutingHandler topLevel(RouteDispatcher dispatcher,
+                                          Router router,
                                           Map<ApiKeys, String> staticRoutes,
-                                          Map<Integer, HostPort> sharedNodeAddresses,
                                           ClientConnectionStateMachine ccsm,
-                                          NodeIdMapping nodeIdMapping,
                                           @Nullable Integer nodeId) {
-        String virtualClusterName = ccsm.clusterName();
-        var allocator = ccsm.internalCorrelationIdAllocator();
-        var dispatcher = new RouteDispatcher(routes, nodeIdMapping, "", PathElement.ClientOrigin.INSTANCE, allocator, sharedNodeAddresses, virtualClusterName);
-        return new RoutingHandler(dispatcher, virtualClusterName,
+        return new RoutingHandler(dispatcher, ccsm.clusterName(),
                 ccsm.sessionId(), ccsm.authenticatedSubject(), nodeId,
                 new VirtualClusterRequestSource(ccsm),
                 router, staticRoutes);
@@ -763,7 +760,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
         if (router == null) {
             // Only nested handlers reach this branch; top-level handlers always have a router from construction.
             var rs = (RouterRequestSource) requestSource;
-            router = rs.routerChainFactory().createRouter(rs.routerName(), virtualClusterName);
+            RequestSender sender = (route, header, request) -> dispatcher.sendToAnyNode(route, header, request, sessionId, null);
+            router = rs.routerChainFactory().createRouter(rs.routerName(), virtualClusterName, sender);
+            rs.routerChainFactory().existingTopologyCache(rs.routerName(), virtualClusterName)
+                    .ifPresent(dispatcher::activateTopologyCache);
         }
         if (resolvedStaticRoutes == null) {
             resolvedStaticRoutes = router.staticRoutes();
