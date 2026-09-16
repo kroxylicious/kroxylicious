@@ -318,4 +318,40 @@ class VirtualClusterChangeDetectorTest {
                 false, false, List.of(),
                 subjectBuilder, topicNameCache, drainTimeout);
     }
+
+    @Test
+    void shouldNotDetectModificationWhenBootstrapSelectionStrategyUnchanged() {
+        // Regression test for issue #4910: BootstrapSelectionStrategy implementations must override
+        // equals()/hashCode() so that parsing the same YAML twice doesn't spuriously detect a change.
+        var oldVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty(), new io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of());
+        var newVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty(), new io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of());
+        var result = detector.detect(new ConfigurationChangeContext(configWith(oldVc), configWith(newVc)));
+        assertThat(result.isEmpty())
+                .as("Two VirtualClusters with identical bootstrapServerSelection should not be detected as modified")
+                .isTrue();
+    }
+
+    @Test
+    void shouldNotDetectModificationWhenRandomBootstrapSelectionStrategyUnchanged() {
+        // Regression test for issue #4910: RandomBootstrapSelectionStrategy variant
+        var oldVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty(), new io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of());
+        var newVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty(), new io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of());
+        var result = detector.detect(new ConfigurationChangeContext(configWith(oldVc), configWith(newVc)));
+        assertThat(result.isEmpty())
+                .as("Two VirtualClusters with identical random bootstrapServerSelection should not be detected as modified")
+                .isTrue();
+    }
+
 }

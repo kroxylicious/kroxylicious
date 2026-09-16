@@ -52,4 +52,20 @@ public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionS
         }
         return this.counter;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        // All RoundRobinBootstrapSelectionStrategy instances are equal
+        // (counter is runtime state, not configuration)
+        return o instanceof RoundRobinBootstrapSelectionStrategy;
+    }
+
+    @Override
+    public int hashCode() {
+        // All instances have same hash (type-based)
+        return RoundRobinBootstrapSelectionStrategy.class.hashCode();
+    }
 }
