@@ -34,7 +34,7 @@ public final class AllMessages {
      * family ready to populate.
      *
      * @param messageName the message's base name, e.g. {@code "Heartbeat"}
-     * @param direction {@code "Request"}, {@code "Response"}, or {@code ""} for data-only broker APIs
+     * @param direction {@code "Request"} or {@code "Response"}
      * @param version the protocol version
      * @param kroxyliciousMessage a fresh Kroxylicious instance of this message/version
      * @param kafkaMessage a fresh Kafka instance of this message/version
@@ -54,33 +54,28 @@ public final class AllMessages {
     }
 
     /**
-     * Streams every (message, direction, version) combination across the client, broker, and controller
-     * APIs, each with a freshly instantiated pair of instances.
+     * Streams every (message, direction, version) combination across the client and controller APIs, each
+     * with a freshly instantiated pair of instances.
+     * <p>
+     * There is no separate broker-only API set to enumerate: {@link ApiKeys#clientApis()} is defined as
+     * exactly {@link ApiKeys#brokerApis()}, so every broker API is already covered by the client stream.
      *
      * @return the stream of versioned messages
      */
     public static Stream<VersionedMessage> stream() {
         Stream<VersionedMessage> clientApiStream = ApiKeys.clientApis().stream()
                 .flatMap(AllMessages::directionalApiStream);
-        Stream<VersionedMessage> brokerApiStream = ApiKeys.brokerApis().stream()
-                .filter(apiKeys -> !ApiKeys.clientApis().contains(apiKeys))
-                .flatMap(AllMessages::dataOnlyApiStream);
         Stream<VersionedMessage> controllerApiStream = ApiKeys.controllerApis().stream()
                 .filter(apiKeys -> !ApiKeys.clientApis().contains(apiKeys))
                 .flatMap(AllMessages::directionalApiStream);
 
-        return Stream.concat(clientApiStream, Stream.concat(brokerApiStream, controllerApiStream));
+        return Stream.concat(clientApiStream, controllerApiStream);
     }
 
     private static Stream<VersionedMessage> directionalApiStream(ApiKeys apiKey) {
         String messageName = apiKeyToMessageName(apiKey);
         return Stream.of("Request", "Response")
                 .flatMap(direction -> versionedMessageStream(messageName, direction));
-    }
-
-    private static Stream<VersionedMessage> dataOnlyApiStream(ApiKeys apiKey) {
-        String messageName = apiKeyToMessageName(apiKey);
-        return versionedMessageStream(messageName, "");
     }
 
     private static String apiKeyToMessageName(ApiKeys apiKey) {
