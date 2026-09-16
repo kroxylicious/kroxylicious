@@ -87,7 +87,7 @@ class NullableFieldFidelityTest {
      * pair of instances so populating one field's argument set can never leak state into another's.
      */
     private static Stream<Arguments> nullableFieldArguments(AllMessages.VersionedMessage versionedMessage) {
-        List<BoundField> nullableFields = NullableFieldEnumerator.topLevelNullableFields(versionedMessage.kafkaMessage(), versionedMessage.version());
+        List<BoundField> nullableFields = NullableFieldEnumerator.nullableFields(versionedMessage.kafkaMessage(), versionedMessage.version());
         return nullableFields.stream()
                 .map(field -> Arguments.argumentSet(versionedMessage.label() + " - null " + field.def.name,
                         versionedMessage.version(),
