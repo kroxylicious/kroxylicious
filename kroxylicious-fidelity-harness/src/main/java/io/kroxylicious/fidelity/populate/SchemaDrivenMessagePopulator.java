@@ -84,7 +84,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
      * setter, and a tag's presence on the wire is implicit in its value being non-default, so no separate
      * registration step is needed.
      */
-    private static Stream<BoundField> expandFields(Schema schema) {
+    static Stream<BoundField> expandFields(Schema schema) {
         return Arrays.stream(schema.fields()).flatMap(field -> {
             if (field.def.type instanceof TaggedFields taggedFields) {
                 return taggedFields.fields()
@@ -150,7 +150,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         return structInstances;
     }
 
-    private static Class<?> kafkaClassFor(Object instance) {
+    static Class<?> kafkaClassFor(Object instance) {
         String kafkaClassName = "org.apache.kafka.common.message." + instance.getClass().getSimpleName();
         try {
             return Class.forName(kafkaClassName);
@@ -160,7 +160,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         }
     }
 
-    private static Schema kafkaSchemaFor(Class<?> kafkaClass, short version) {
+    static Schema kafkaSchemaFor(Class<?> kafkaClass, short version) {
         try {
             Schema[] schemas = (Schema[]) kafkaClass.getField("SCHEMAS").get(null);
             return schemas[version];
