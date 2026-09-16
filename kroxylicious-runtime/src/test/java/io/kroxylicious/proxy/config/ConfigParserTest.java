@@ -408,15 +408,19 @@ class ConfigParserTest {
                     assertThat(ahc.endpoints().maybePrometheus()).isPresent();
                 });
 
+        assertThat(configuration.clusterDefinitions())
+                .singleElement()
+                .satisfies(clusterDef -> {
+                    assertThat(clusterDef.name()).isEqualTo("demo-cluster");
+                    assertThat(clusterDef.bootstrapServers()).isEqualTo("localhost:9092");
+                });
         assertThat(configuration.virtualClusters())
                 .singleElement()
                 .satisfies(cluster -> {
                     assertThat(cluster.name()).isEqualTo("demo");
                     assertThat(cluster.logFrames()).isTrue();
                     assertThat(cluster.logNetwork()).isTrue();
-                    assertThat(cluster.targetCluster()).isNotNull();
-                    assertThat(cluster.targetCluster().bootstrapServers()).isEqualTo("localhost:9092");
-
+                    assertThat(cluster.namedTargetCluster()).isEqualTo("demo-cluster");
                     assertThat(cluster.gateways())
                             .singleElement()
                             .satisfies(vcl -> {
