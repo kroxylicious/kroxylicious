@@ -182,14 +182,14 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         return description.toString();
     }
 
-    private static Optional<Schema> structTypeOf(Type type) {
+    static Optional<Schema> structTypeOf(Type type) {
         if (type instanceof Schema schema) {
             return Optional.of(schema);
         }
         return type.arrayElementType().filter(Schema.class::isInstance).map(Schema.class::cast);
     }
 
-    private static Optional<Class<?>> resolveStructClass(Class<?> containingClass, Schema target) {
+    static Optional<Class<?>> resolveStructClass(Class<?> containingClass, Schema target) {
         for (Class<?> nested : containingClass.getDeclaredClasses()) {
             if (hasMatchingSchemaField(nested, target)) {
                 return Optional.of(nested);

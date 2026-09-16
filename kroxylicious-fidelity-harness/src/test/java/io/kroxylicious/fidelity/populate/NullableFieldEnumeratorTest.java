@@ -7,6 +7,7 @@ package io.kroxylicious.fidelity.populate;
 
 import java.util.List;
 
+import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ class NullableFieldEnumeratorTest {
         JoinGroupRequestData instance = new JoinGroupRequestData();
 
         // When
-        List<BoundField> fields = NullableFieldEnumerator.topLevelNullableFields(instance, (short) 0);
+        List<BoundField> fields = NullableFieldEnumerator.nullableFields(instance, (short) 0);
 
         // Then
         assertThat(fields).isEmpty();
@@ -33,7 +34,7 @@ class NullableFieldEnumeratorTest {
         JoinGroupRequestData instance = new JoinGroupRequestData();
 
         // When
-        List<BoundField> fields = NullableFieldEnumerator.topLevelNullableFields(instance, (short) 5);
+        List<BoundField> fields = NullableFieldEnumerator.nullableFields(instance, (short) 5);
 
         // Then
         assertThat(fields).extracting(field -> field.def.name).containsExactly("group_instance_id");
@@ -45,9 +46,22 @@ class NullableFieldEnumeratorTest {
         JoinGroupRequestData instance = new JoinGroupRequestData();
 
         // When
-        List<BoundField> fields = NullableFieldEnumerator.topLevelNullableFields(instance, (short) 8);
+        List<BoundField> fields = NullableFieldEnumerator.nullableFields(instance, (short) 8);
 
         // Then
         assertThat(fields).extracting(field -> field.def.name).containsExactly("group_instance_id", "reason");
+    }
+
+    @Test
+    void returnsNullableFieldsNestedInsideArraysOfStructs() {
+        // Given
+        ConsumerGroupDescribeResponseData instance = new ConsumerGroupDescribeResponseData();
+
+        // When
+        List<BoundField> fields = NullableFieldEnumerator.nullableFields(instance, (short) 0);
+
+        // Then
+        assertThat(fields).extracting(field -> field.def.name)
+                .containsExactly("error_message", "instance_id", "rack_id", "subscribed_topic_regex");
     }
 }
