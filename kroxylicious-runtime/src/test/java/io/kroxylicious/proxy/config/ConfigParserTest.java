@@ -62,44 +62,56 @@ class ConfigParserTest {
     static Stream<Arguments> yamlDeserializeSerializeFidelity() {
         return Stream.of(argumentSet("With IoUring", """
                 useIoUring: true
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
                       bootstrapAddress: "localhost:9082"
                 """),
                 argumentSet("Virtual cluster (portIdentifiesNode - minimal)", """
+                        clusterDefinitions:
+                          - name: demo-cluster
+                            bootstrapServers: kafka.example:1234
                         virtualClusters:
                           - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
+                            target:
+                              cluster: demo-cluster
                             gateways:
                             - name: default
                               portIdentifiesNode:
                                   bootstrapAddress: cluster1:9192
                         """),
                 argumentSet("Virtual cluster - topic name cache config", """
+                        clusterDefinitions:
+                          - name: demo-cluster
+                            bootstrapServers: kafka.example:1234
                         virtualClusters:
                           - name: demo1
                             topicNameCache:
                               maxSize: 10000
                               expireAfterWrite: 10h
                               expireAfterAccess: 58m
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
+                            target:
+                              cluster: demo-cluster
                             gateways:
                             - name: default
                               portIdentifiesNode:
                                   bootstrapAddress: cluster1:9192
                         """),
                 argumentSet("Virtual cluster (portIdentifiesNode with start port)", """
+                        clusterDefinitions:
+                          - name: demo-cluster
+                            bootstrapServers: kafka.example:1234
                         virtualClusters:
                           - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
+                            target:
+                              cluster: demo-cluster
                             gateways:
                             - name: default
                               portIdentifiesNode:
@@ -108,10 +120,13 @@ class ConfigParserTest {
                                   nodeStartPort: 9193
                         """),
                 argumentSet("Virtual cluster (portIdentifiesNode with ranges)", """
+                        clusterDefinitions:
+                          - name: demo-cluster
+                            bootstrapServers: kafka.example:1234
                         virtualClusters:
                           - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
+                            target:
+                              cluster: demo-cluster
                             gateways:
                             - name: default
                               portIdentifiesNode:
@@ -125,10 +140,13 @@ class ConfigParserTest {
                                   end: 9
                         """),
                 argumentSet("Virtual cluster (portIdentifiesNode with range and start port)", """
+                        clusterDefinitions:
+                          - name: demo-cluster
+                            bootstrapServers: kafka.example:1234
                         virtualClusters:
                           - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
+                            target:
+                              cluster: demo-cluster
                             gateways:
                             - name: default
                               portIdentifiesNode:
@@ -141,10 +159,13 @@ class ConfigParserTest {
                                   end: 3
                         """),
                 argumentSet("Virtual cluster (sniHostIdentifiesNode)", """
+                        clusterDefinitions:
+                          - name: demo-cluster
+                            bootstrapServers: kafka.example:1234
                         virtualClusters:
                           - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
+                            target:
+                              cluster: demo-cluster
                             gateways:
                             - name: default
                               sniHostIdentifiesNode:
@@ -158,16 +179,19 @@ class ConfigParserTest {
 
                         """),
                 argumentSet("Downstream/Upstream TLS with inline passwords", """
+                        clusterDefinitions:
+                          - name: demo-cluster
+                            bootstrapServers: kafka.example:1234
+                            tls:
+                              trust:
+                               storeFile: /tmp/foo.jks
+                               storePassword:
+                                 password: password
+                               storeType: JKS
                         virtualClusters:
                           - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                              tls:
-                                trust:
-                                 storeFile: /tmp/foo.jks
-                                 storePassword:
-                                   password: password
-                                 storeType: JKS
+                            target:
+                              cluster: demo-cluster
                             gateways:
                             - name: default
                               sniHostIdentifiesNode:
@@ -181,16 +205,19 @@ class ConfigParserTest {
                                     storeType: JKS
                         """),
                 argumentSet("Downstream/Upstream TLS with password files", """
+                        clusterDefinitions:
+                          - name: demo-cluster
+                            bootstrapServers: kafka.example:1234
+                            tls:
+                              trust:
+                               storeFile: /tmp/foo.jks
+                               storePassword:
+                                  passwordFile: /tmp/password.txt
+                               storeType: JKS
                         virtualClusters:
                           - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                              tls:
-                                trust:
-                                 storeFile: /tmp/foo.jks
-                                 storePassword:
-                                    passwordFile: /tmp/password.txt
-                                 storeType: JKS
+                            target:
+                              cluster: demo-cluster
                             gateways:
                             - name: default
                               sniHostIdentifiesNode:
@@ -209,10 +236,13 @@ class ConfigParserTest {
                           type: TestFilterFactory
                         defaultFilters:
                         - myfilter
+                        clusterDefinitions:
+                        - name: demo-cluster
+                          bootstrapServers: magic-kafka.example:1234
                         virtualClusters:
                         - name: demo1
-                          targetCluster:
-                            bootstrapServers: magic-kafka.example:1234
+                          target:
+                            cluster: demo-cluster
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -220,10 +250,13 @@ class ConfigParserTest {
                         """),
                 argumentSet("Management minimal", """
                         management: {}
+                        clusterDefinitions:
+                        - name: demo-cluster
+                          bootstrapServers: magic-kafka.example:1234
                         virtualClusters:
                         - name: demo1
-                          targetCluster:
-                            bootstrapServers: magic-kafka.example:1234
+                          target:
+                            cluster: demo-cluster
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -234,10 +267,13 @@ class ConfigParserTest {
                           bindAddress: 164.0.0.0
                           port: 1000
                           endpoints: {}
+                        clusterDefinitions:
+                        - name: demo-cluster
+                          bootstrapServers: magic-kafka.example:1234
                         virtualClusters:
                         - name: demo1
-                          targetCluster:
-                            bootstrapServers: magic-kafka.example:1234
+                          target:
+                            cluster: demo-cluster
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -247,10 +283,13 @@ class ConfigParserTest {
                         management:
                           endpoints:
                             prometheus: {}
+                        clusterDefinitions:
+                        - name: demo-cluster
+                          bootstrapServers: magic-kafka.example:1234
                         virtualClusters:
                         - name: demo1
-                          targetCluster:
-                            bootstrapServers: magic-kafka.example:1234
+                          target:
+                            cluster: demo-cluster
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -263,10 +302,13 @@ class ConfigParserTest {
                             commonTags:
                               zone: "euc-1a"
                               owner: "becky"
+                        clusterDefinitions:
+                        - name: demo-cluster
+                          bootstrapServers: magic-kafka.example:1234
                         virtualClusters:
                         - name: demo1
-                          targetCluster:
-                            bootstrapServers: magic-kafka.example:1234
+                          target:
+                            cluster: demo-cluster
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -279,12 +321,15 @@ class ConfigParserTest {
                             commonTags:
                               zone: "euc-1a"
                               owner: "becky"
+                        clusterDefinitions:
+                        - name: demo-cluster
+                          bootstrapServers: magic-kafka.example:1234
+                          bootstrapServerSelection:
+                              strategy: round-robin
                         virtualClusters:
                         - name: demo1
-                          targetCluster:
-                            bootstrapServers: magic-kafka.example:1234
-                            bootstrapServerSelection:
-                                strategy: round-robin
+                          target:
+                            cluster: demo-cluster
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -297,12 +342,15 @@ class ConfigParserTest {
                             commonTags:
                               zone: "euc-1a"
                               owner: "becky"
+                        clusterDefinitions:
+                        - name: demo-cluster
+                          bootstrapServers: magic-kafka.example:1234
+                          bootstrapServerSelection:
+                              strategy: random
                         virtualClusters:
                         - name: demo1
-                          targetCluster:
-                            bootstrapServers: magic-kafka.example:1234
-                            bootstrapServerSelection:
-                                strategy: random
+                          target:
+                            cluster: demo-cluster
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -313,10 +361,13 @@ class ConfigParserTest {
                           proxy:
                             authenticatedIdleTimeout: 30s
                             unauthenticatedIdleTimeout: 10s
+                        clusterDefinitions:
+                        - name: demo-cluster
+                          bootstrapServers: magic-kafka.example:1234
                         virtualClusters:
                         - name: demo1
-                          targetCluster:
-                            bootstrapServers: magic-kafka.example:1234
+                          target:
+                            cluster: demo-cluster
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -439,10 +490,13 @@ class ConfigParserTest {
                   proxy:
                     authenticatedIdleTimeout: 30s
                     unauthenticatedIdleTimeout: 10m
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -464,10 +518,13 @@ class ConfigParserTest {
                 network:
                   proxy:
                     shutdownQuietPeriod: 2s
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -486,10 +543,13 @@ class ConfigParserTest {
                 network:
                   proxy:
                     shutdownTimeout: 30s
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -526,10 +586,13 @@ class ConfigParserTest {
     @Test
     void shouldConfigureClusterNameFromNodeName() {
         final Configuration configurationModel = configParser.parseConfiguration("""
+                clusterDefinitions:
+                  - name: my-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: myAwesomeCluster
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: my-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -546,17 +609,22 @@ class ConfigParserTest {
     void virtualClusterModelByNameReturnsTheRequestedCluster() {
         // Given: two virtual clusters in the configuration.
         Configuration config = configParser.parseConfiguration("""
+                clusterDefinitions:
+                  - name: cluster-a
+                    bootstrapServers: kafka.example:1234
+                  - name: cluster-b
+                    bootstrapServers: kafka.example:5678
                 virtualClusters:
                   - name: vc-a
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: cluster-a
                     gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: cluster1:9192
                   - name: vc-b
-                    targetCluster:
-                      bootstrapServers: kafka.example:5678
+                    target:
+                      cluster: cluster-b
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -574,10 +642,13 @@ class ConfigParserTest {
     void virtualClusterModelByNameThrowsForUnknownCluster() {
         // Given: a configuration with one virtual cluster.
         Configuration config = configParser.parseConfiguration("""
+                clusterDefinitions:
+                  - name: my-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: vc-a
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: my-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -596,17 +667,22 @@ class ConfigParserTest {
         // cause its VCM construction to throw. The list-form builder iterates every cluster
         // and would surface that failure; the per-name builder must not.
         Configuration config = configParser.parseConfiguration("""
+                clusterDefinitions:
+                  - name: cluster-a
+                    bootstrapServers: kafka.example:1234
+                  - name: cluster-bad
+                    bootstrapServers: kafka.example:5678
                 virtualClusters:
                   - name: vc-a
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: cluster-a
                     gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: cluster1:9192
                   - name: vc-bad
-                    targetCluster:
-                      bootstrapServers: kafka.example:5678
+                    target:
+                      cluster: cluster-bad
                     gateways:
                     - name: default
                       tls: {}
@@ -631,10 +707,13 @@ class ConfigParserTest {
     void shouldRequireKeyIfDownstreamTlsObjectPresent() {
         // given
         Configuration configuration = configParser.parseConfiguration("""
+                clusterDefinitions:
+                  - name: my-cluster
+                    bootstrapServers: kafka1.example:1234
                 virtualClusters:
                   - name: mycluster1
-                    targetCluster:
-                      bootstrapServers: kafka1.example:1234
+                    target:
+                      cluster: my-cluster
                     gateways:
                     - name: default
                       tls: {}
@@ -653,17 +732,20 @@ class ConfigParserTest {
         assertThatThrownBy(() ->
         // When
         configParser.parseConfiguration("""
+                clusterDefinitions:
+                  - name: my-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo1
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: my-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: cluster1:9192
                   - name: demo1
-                    targetCluster:
-                      bootstrapServers: magic-kafka.example:1234
+                    target:
+                      cluster: my-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -682,17 +764,20 @@ class ConfigParserTest {
         assertThatThrownBy(() ->
         // When
         configParser.parseConfiguration("""
+                clusterDefinitions:
+                  - name: my-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo1
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: my-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: cluster1:9192
                   - name: dEmO1
-                    targetCluster:
-                      bootstrapServers: magic-kafka.example:1234
+                    target:
+                      cluster: my-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -711,9 +796,12 @@ class ConfigParserTest {
         assertThatThrownBy(() ->
         // When
         configParser.parseConfiguration("""
+                clusterDefinitions:
+                  - name: my-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
-                  - targetCluster:
-                      bootstrapServers: kafka.example:1234
+                  - target:
+                      cluster: my-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -731,11 +819,14 @@ class ConfigParserTest {
         assertThatThrownBy(() ->
         // When
         configParser.parseConfiguration("""
+                clusterDefinitions:
+                  - name: my-cluster
+                    bootstrapServers: kafka.example:1234
+                    unknownProperty: unknownProperty
                 virtualClusters:
                   - name: demo1
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
-                      unknownProperty: unknownProperty
+                    target:
+                      cluster: my-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -764,26 +855,6 @@ class ConfigParserTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
                 .hasMessageContaining("must specify exactly one of 'targetCluster' or 'target'");
-    }
-
-    @Test
-    void shouldDetectMissingTargetClusterBootstrapServers() {
-        // Given
-        assertThatThrownBy(() ->
-        // When
-        configParser.parseConfiguration("""
-                virtualClusters:
-                  - name: demo
-                    targetCluster: {}
-                    gateways:
-                    - name: default
-                      portIdentifiesNode:
-                        bootstrapAddress: cluster1:9192
-                """))
-                // Then
-                .isInstanceOf(IllegalArgumentException.class)
-                .cause()
-                .hasMessageContaining("Missing required creator property 'bootstrapServers'");
     }
 
     @ParameterizedTest
@@ -818,10 +889,13 @@ class ConfigParserTest {
                     examplePlugin: ExamplePluginInstance
                 defaultFilters:
                 -  nested
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -893,10 +967,13 @@ class ConfigParserTest {
                             str: hello, world
                         defaultFilters:
                         -  ctor-injection
+                        clusterDefinitions:
+                        - name: demo-cluster
+                          bootstrapServers: magic-kafka.example:1234
                         virtualClusters:
                         - name: demo1
-                          targetCluster:
-                            bootstrapServers: magic-kafka.example:1234
+                          target:
+                            cluster: demo-cluster
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -912,10 +989,13 @@ class ConfigParserTest {
                                     str: hello, world
                                 defaultFilters:
                                 -  factory-method
+                                clusterDefinitions:
+                                - name: demo-cluster
+                                  bootstrapServers: magic-kafka.example:1234
                                 virtualClusters:
                                 - name: demo1
-                                  targetCluster:
-                                    bootstrapServers: magic-kafka.example:1234
+                                  target:
+                                    cluster: demo-cluster
                                   gateways:
                                   - name: mygateway
                                     portIdentifiesNode:
@@ -931,10 +1011,13 @@ class ConfigParserTest {
                                     str: hello, world
                                 defaultFilters:
                                 -  field-injection
+                                clusterDefinitions:
+                                - name: demo-cluster
+                                  bootstrapServers: magic-kafka.example:1234
                                 virtualClusters:
                                 - name: demo1
-                                  targetCluster:
-                                    bootstrapServers: magic-kafka.example:1234
+                                  target:
+                                    cluster: demo-cluster
                                   gateways:
                                   - name: mygateway
                                     portIdentifiesNode:
@@ -950,10 +1033,13 @@ class ConfigParserTest {
                                     str: hello, world
                                 defaultFilters:
                                 -  record
+                                clusterDefinitions:
+                                - name: demo-cluster
+                                  bootstrapServers: magic-kafka.example:1234
                                 virtualClusters:
                                 - name: demo1
-                                  targetCluster:
-                                    bootstrapServers: magic-kafka.example:1234
+                                  target:
+                                    cluster: demo-cluster
                                   gateways:
                                   - name: mygateway
                                     portIdentifiesNode:
@@ -969,10 +1055,13 @@ class ConfigParserTest {
                                     str: hello, world
                                 defaultFilters:
                                 -  setter-injection
+                                clusterDefinitions:
+                                - name: demo-cluster
+                                  bootstrapServers: magic-kafka.example:1234
                                 virtualClusters:
                                 - name: demo1
-                                  targetCluster:
-                                    bootstrapServers: magic-kafka.example:1234
+                                  target:
+                                    cluster: demo-cluster
                                   gateways:
                                   - name: mygateway
                                     portIdentifiesNode:
@@ -1024,10 +1113,13 @@ class ConfigParserTest {
         var bootstrapAddress = HostPort.parse("cluster1.example:9192");
         var keyStore = TlsTestConstants.getResourceLocationOnFilesystem("server.p12");
         var configurationModel = configParser.parseConfiguration("""
+                        clusterDefinitions:
+                          - name: demo-cluster
+                            bootstrapServers: magic-kafka.example:1234
                         virtualClusters:
                           - name: demo1
-                            targetCluster:
-                              bootstrapServers: magic-kafka.example:1234
+                            target:
+                              cluster: demo-cluster
                             gateways:
                             - name: mygateway
                               tls:
@@ -1055,10 +1147,13 @@ class ConfigParserTest {
 
         var bootstrapAddress = HostPort.parse("cluster1.example:9192");
         var configurationModel = configParser.parseConfiguration("""
+                        clusterDefinitions:
+                          - name: demo-cluster
+                            bootstrapServers: magic-kafka.example:1234
                         virtualClusters:
                           - name: demo1
-                            targetCluster:
-                              bootstrapServers: magic-kafka.example:1234
+                            target:
+                              cluster: demo-cluster
                             gateways:
                             - name: mygateway
                               portIdentifiesNode:
@@ -1076,13 +1171,16 @@ class ConfigParserTest {
     }
 
     @Test
-    void shouldSupportTargetClusterWithDefaultBootstrapServerSelectionStrategy() {
+    void shouldSupportClusterDefinitionWithDefaultBootstrapServerSelectionStrategy() {
         // When
         var configurationModel = configParser.parseConfiguration("""
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234,magic-kafka-1.example:1234
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234,magic-kafka-1.example:1234
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -1090,14 +1188,14 @@ class ConfigParserTest {
                 """);
         // Then
         assertThat(configurationModel)
-                .extracting(Configuration::virtualClusters, InstanceOfAssertFactories.collection(VirtualCluster.class))
+                .extracting(Configuration::clusterDefinitions, InstanceOfAssertFactories.collection(ClusterDefinition.class))
                 .singleElement()
-                .extracting(VirtualCluster::targetCluster)
-                .satisfies(targetCluster -> {
+                .satisfies(clusterDef -> {
                     // because we want to preserve fidelity between the config model and yaml version the field returns null
-                    assertThat(targetCluster.selectionStrategy()).isNull();
+                    assertThat(clusterDef.selectionStrategy()).isNull();
                     // indirectly asserting that the strategy defaults to round-robin:
                     // three calls cycle through both servers and return to the first
+                    var targetCluster = clusterDef.toTargetCluster();
                     var expectedServers = Set.of(
                             new HostPort("magic-kafka.example", 1234),
                             new HostPort("magic-kafka-1.example", 1234));
@@ -1115,15 +1213,18 @@ class ConfigParserTest {
             "random, io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy",
             "round-robin, io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy"
     })
-    void shouldSupportTargetClusterWithConfiguredBootstrapServerSelectionStrategy(final String strategy, final String expectedClass) {
+    void shouldSupportClusterDefinitionWithConfiguredBootstrapServerSelectionStrategy(final String strategy, final String expectedClass) {
         // When
         var configurationModel = configParser.parseConfiguration("""
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka-0.example:1234,magic-kafka-1.example:1234
+                  bootstrapServerSelection:
+                      strategy: %s
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka-0.example:1234,magic-kafka-1.example:1234
-                    bootstrapServerSelection:
-                        strategy: %s
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -1131,10 +1232,9 @@ class ConfigParserTest {
                 """.formatted(strategy));
         // Then
         assertThat(configurationModel)
-                .extracting(Configuration::virtualClusters)
-                .extracting(virtualClusters -> virtualClusters.get(0))
-                .extracting(VirtualCluster::targetCluster)
-                .satisfies(targetCluster -> assertThat(targetCluster.selectionStrategy()).isInstanceOf(Class.forName(expectedClass)));
+                .extracting(Configuration::clusterDefinitions)
+                .extracting(clusterDefs -> clusterDefs.get(0))
+                .satisfies(clusterDef -> assertThat(clusterDef.selectionStrategy()).isInstanceOf(Class.forName(expectedClass)));
     }
 
     static Stream<Arguments> shouldSupportClusterDefinitionWithConfiguredBootstrapServerSelectionStrategy() {
@@ -1188,19 +1288,22 @@ class ConfigParserTest {
     }
 
     @Test
-    void shouldSupportTargetClusterTlsConfigurationWithoutCredentialSupplier() {
+    void shouldSupportClusterDefinitionTlsConfigurationWithoutCredentialSupplier() {
         // When - test backward compatibility, existing configs without tlsCredentialSupplier should work
         var configurationModel = configParser.parseConfiguration("""
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
+                  tls:
+                    trust:
+                      storeFile: /tmp/foo.jks
+                      storePassword:
+                        password: changeit
+                      storeType: JKS
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
-                    tls:
-                      trust:
-                        storeFile: /tmp/foo.jks
-                        storePassword:
-                          password: changeit
-                        storeType: JKS
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -1208,26 +1311,28 @@ class ConfigParserTest {
                 """);
         // Then
         assertThat(configurationModel)
-                .extracting(Configuration::virtualClusters, InstanceOfAssertFactories.collection(VirtualCluster.class))
+                .extracting(Configuration::clusterDefinitions, InstanceOfAssertFactories.collection(ClusterDefinition.class))
                 .singleElement()
-                .extracting(VirtualCluster::targetCluster)
-                .satisfies(targetCluster -> {
-                    assertThat(targetCluster.tls()).isPresent();
-                    assertThat(targetCluster.tls().get().credentialSupplier()).isNull();
+                .satisfies(clusterDef -> {
+                    assertThat(clusterDef.tls()).isNotNull();
+                    assertThat(clusterDef.tls().credentialSupplier()).isNull();
                 });
     }
 
     @Test
-    void shouldValidateTargetClusterTlsCredentialSupplierInvalidPlugin() {
+    void shouldValidateClusterDefinitionTlsCredentialSupplierInvalidPlugin() {
         // Given/When/Then - verifies that configuration validation fails fast at startup for invalid plugin
         assertThatThrownBy(() -> configParser.parseConfiguration("""
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
+                  tls:
+                    credentialSupplier:
+                      type: UnknownSupplier
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
-                    tls:
-                      credentialSupplier:
-                        type: UnknownSupplier
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -1240,19 +1345,22 @@ class ConfigParserTest {
     }
 
     @Test
-    void shouldValidateTargetClusterTlsCredentialSupplierInvalidPluginWithConfig() {
+    void shouldValidateClusterDefinitionTlsCredentialSupplierInvalidPluginWithConfig() {
         // Given/When/Then - verifies that configuration validation fails fast at startup for invalid plugin with config
         assertThatThrownBy(() -> configParser.parseConfiguration("""
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
+                  tls:
+                    credentialSupplier:
+                      type: UnknownSupplier
+                      config:
+                        path: /etc/certs
+                        refreshInterval: 60s
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
-                    tls:
-                      credentialSupplier:
-                        type: UnknownSupplier
-                        config:
-                          path: /etc/certs
-                          refreshInterval: 60s
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -1265,17 +1373,20 @@ class ConfigParserTest {
     }
 
     @Test
-    void shouldRejectTargetClusterTlsCredentialSupplierWithoutType() {
+    void shouldRejectClusterDefinitionTlsCredentialSupplierWithoutType() {
         // Given/When/Then
         assertThatThrownBy(() -> configParser.parseConfiguration("""
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
+                  tls:
+                    credentialSupplier:
+                      config:
+                        path: /etc/certs
                 virtualClusters:
                 - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
-                    tls:
-                      credentialSupplier:
-                        config:
-                          path: /etc/certs
+                  target:
+                    cluster: demo-cluster
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
