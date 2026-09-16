@@ -1,0 +1,6 @@
+title: "feat(filters): renew MDS authentication on existing connections"
+type: added
+merge_requests: [4908]
+important_notes:
+  - "MDS tokens must match the certificate-derived user. Shared admission limits, outage backoff and authentication metrics protect and diagnose token acquisition."
+  - "When combining filters, place MdsImpersonation last, closest to the broker, so generated and delayed requests pass through its authentication gate."

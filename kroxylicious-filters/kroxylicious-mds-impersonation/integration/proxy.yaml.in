@@ -1,0 +1,58 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+clusterDefinitions:
+  - name: upstream
+    bootstrapServers: localhost:19096
+    tls:
+      trust:
+        storeFile: {{GENERATED}}/server-ca.crt
+        storeType: PEM
+filterDefinitions:
+  - name: mds
+    type: MdsImpersonation
+    config:
+      mdsUrl: https://localhost:18090/security/1.0/impersonate
+      mdsTls:
+        key:
+          privateKeyFile: {{GENERATED}}/proxy.key
+          certificateFile: {{GENERATED}}/proxy.crt
+        trust:
+          storeFile: {{GENERATED}}/server-ca.crt
+          storeType: PEM
+      expiryMargin: 5s
+virtualClusters:
+  - name: confluent
+    target:
+      cluster: upstream
+    filters: [mds]
+    subjectBuilder:
+      type: DefaultTransportSubjectBuilderService
+      config:
+        addPrincipals:
+          - from: clientTlsSubject
+            map:
+              - replaceMatch: '#^CN=([^,]+)(?:,.*)?$#$1#'
+              - else: anonymous
+            principalFactory: io.kroxylicious.proxy.authentication.UserFactory
+    gateways:
+      - name: clients
+        portIdentifiesNode:
+          bootstrapAddress: localhost:19092
+          nodeStartPort: 19093
+          nodeIdRanges:
+            - name: brokers
+              start: 1
+              end: 1
+        tls:
+          key:
+            privateKeyFile: {{GENERATED}}/server.key
+            certificateFile: {{GENERATED}}/server.crt
+          trust:
+            storeFile: {{GENERATED}}/client-ca.crt
+            storeType: PEM
+            trustOptions:
+              clientAuth: REQUIRED

@@ -1,0 +1,68 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: REFERENCE
+[id='ref-operations-{context}']
+= Operation and limitations
+
+[role="_abstract"]
+Each new broker connection obtains a token for its own mapped client identity.
+The filter holds the first Kafka request until MDS and upstream SASL authentication succeed.
+No token cache is shared between client connections or users.
+
+[cols="1,2"]
+|===
+|Setting |Meaning
+|`mdsUrl` |Full HTTPS impersonation endpoint. Redirects are rejected. Use an HA endpoint if required.
+|`mdsTls` |Proxy identity and MDS server trust. PEM and key stores use standard TLS configuration. Insecure trust and dynamic credential suppliers are rejected.
+|`requestTimeout` |MDS connect/request timeout; defaults to `5s`, maximum `1m`. Keep it below the proxy filter timeout. HTTP responses are limited to 64 KiB.
+|`expiryMargin` |Time reserved for renewal before JWT expiry or a shorter broker session lifetime; defaults to `5s`, range `1s` to `1m`.
+|===
+
+When the broker returns a positive `sessionLifetimeMs` in its SASL authentication response, the filter uses KIP-368 to renew authentication on the existing connection.
+The next request at or after the renewal deadline triggers a fresh MDS impersonation token and another `SaslHandshake` / `SaslAuthenticate` exchange for the same user.
+The deadline is the earlier of JWT expiry and the broker session expiry, minus `expiryMargin`.
+The filter holds new requests until authentication succeeds and uses the runtime's backpressure and request timeout.
+Already outstanding responses continue through the normal correlated response path; generated SASL responses remain internal to the filter.
+Kafka clients continue to use mTLS without token handling or SASL configuration.
+
+Renewal is driven by requests, so idle connections do not make background MDS calls.
+After an idle session expires, the proxy performs the SASL exchange before sending the next application request.
+Kafka permits this reauthentication handshake on an expired session that is still connected.
+Normal broker or network idle timeouts can still close the connection.
+
+A zero `sessionLifetimeMs` does not advertise reauthentication support.
+For those connections the filter retains the previous policy: close at the next request after JWT expiry minus `expiryMargin`, without forwarding that request.
+Check the upstream listener's OAUTHBEARER session lifetime and `connections.max.reauth.ms` configuration if renewal is not negotiated.
+No additional broker listener is needed.
+If MDS or broker authentication fails, the filter closes the connection and never falls back to the old authentication state.
+New sessions must leave at least one second between handshake starts after subtracting the margin, because Kafka limits reauthentication frequency.
+Set `expiryMargin` to cover the expected MDS and Kafka authentication latency, and keep token/session lifetimes sufficiently longer than that margin.
+Configure normal Kafka retries for authentication failures, broker failover, and network outages.
+Keep MDS, broker and proxy clocks synchronized.
+
+The proxy passes each certificate-derived user name to MDS, which enforces its impersonation super-user and protected-user settings.
+Missing certificates, anonymous mappings, blank names or names containing control characters, downstream SASL requests, MDS errors and upstream authentication errors close the connection.
+The filter verifies that every returned JWT has exactly one textual `sub` claim matching the requested user, including during renewal.
+Mismatched or ambiguous claims close the connection before the token reaches the broker.
+The broker remains responsible for verifying the token signature.
+Before initial SASL authentication, the filter discovers broker API versions and rejects brokers without v1 support for both `SaslHandshake` and `SaslAuthenticate`.
+The filter logs closure at INFO with the session ID, reason code, numeric HTTP/Kafka error code where available, and exception type.
+DEBUG enables sanitized stack traces without external messages, causes or suppressed exceptions.
+Tokens and remote response bodies are never logged.
+Use MDS audit logs to diagnose denied impersonation and broker logs to diagnose token validation and RBAC denials.
+Disable protocol/frame logging around authentication because such messages contain bearer tokens.
+For filter metrics and MDS outage protection, see xref:ref-observability-{context}[MDS overload protection and metrics].
+
+Certificate files are loaded when the filter initializes. Restart or reconfigure the proxy after rotating its MDS identity.
+Every Metadata and FindCoordinator connection must still resolve and route through the appropriate proxy endpoints.
+Endpoint rewriting is provided by the proxy runtime, and this filter authenticates each resulting connection independently.
+
+The module includes an opt-in Docker Compose environment using Confluent Platform 8.3.1 with real MDS and one KRaft broker/controller.
+Integration tests cover certificate-derived RBAC access and denial, MDS rejection of a protected user, two-consumer rebalance, and unchanged producer/consumer connection counters across multiple token lifetimes and an idle producer session.
+For reproduction, use the module's `integration/README.md` in the source repository.
+Multi-broker coordinator and leader changes, RBAC audit log identity, VRF routing, gateway failover, and a complete Operator deployment remain unvalidated.
+The filter API does not expose the upstream TLS or routing configuration; ensure that the virtual cluster uses verified broker TLS and direct routing.

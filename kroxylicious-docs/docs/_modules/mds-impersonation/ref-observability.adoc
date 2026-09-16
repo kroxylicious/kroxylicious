@@ -1,0 +1,51 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: REFERENCE
+[id='ref-observability-{context}']
+= MDS overload protection and metrics
+
+[role="_abstract"]
+All connections created from one filter factory configuration share MDS admission control.
+There is no waiting request queue or shared token cache.
+
+At most 16 token requests can be in flight at once.
+Excess requests fail immediately and close the requesting Kafka connection.
+Transport errors, timeouts, executor saturation, HTTP 429 and HTTP 5xx responses start a shared backoff.
+The delay increases from 500 ms to 5 seconds, including up to 250 ms of jitter.
+During backoff, reconnecting clients cannot send new requests to MDS.
+After the delay and outstanding requests finish, only one request can probe recovery.
+A successful response or a response specific to a principal, such as HTTP 403, reopens admission.
+Another service failure increases the delay; a stale response cannot clear a newer outage.
+Normal Kafka client reconnect backoff is still recommended.
+
+The HTTP executor has four threads and a queue bounded to 256 internal tasks.
+These are HTTP transport tasks, not queued token requests.
+It rejects excess work instead of running HTTP tasks on the filter dispatch thread.
+The factory closes both the HTTP client and its executor when released.
+Connect, request and completion timeouts overlap; they do not add three sequential `requestTimeout` periods.
+
+The following Micrometer meters use the existing Kroxylicious metrics registry.
+Exported names follow the selected registry's naming convention.
+All meters have a `virtual_cluster` tag.
+No user, token, endpoint or session identifiers are used as metric tags.
+
+[cols="2,1,2"]
+|===
+|Meter |Type |Additional tags and meaning
+|`kroxylicious.mds.token.duration` |Timer |`outcome=success\|failure`: actual token acquisition latency and count. Local admission rejections are excluded.
+|`kroxylicious.mds.requests.rejected` |Counter |`reason`: `mds_backoff`, `mds_capacity` or `mds_closed`.
+|`kroxylicious.mds.authentication` |Counter |`phase=initial\|renewal`, `outcome=success\|failure`: complete authentication attempts, including token acquisition.
+|`kroxylicious.mds.connections.closed` |Counter |`reason`: one increment per connection closed by this filter.
+|===
+
+Use timer counts by outcome to calculate MDS request failure rate.
+Compare `mds_backoff` and `mds_capacity` rejections with token latency and failure counts when diagnosing a reconnect storm.
+Use authentication counts with `phase=renewal` to distinguish renewal failures from initial authentication failures.
+Closure reason codes distinguish `token_subject`, `token_invalid`, `token_lifetime`, `mds_http`, `mds_timeout`, `mds_tls`, `mds_io`,
+`upstream_versions`, `upstream_handshake`, `upstream_authenticate`, `session_lifetime`, `identity`, `downstream_sasl` and `session_expired` failures.
+`response_size`, `request_encoding`, `mds_closed` and `unexpected` identify additional local failures.
+Numeric HTTP/Kafka error codes are recorded in logs, not metric tags.

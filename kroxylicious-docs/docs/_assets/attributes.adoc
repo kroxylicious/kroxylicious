@@ -180,6 +180,10 @@ ifndef::DocRoot[:DocRoot: ..]
 :RecordValidationGuideText: Record Validation guide
 :RecordValidationGuide: link:{RecordValidationGuideUrl}[{RecordValidationGuideText}]
 
+:MdsImpersonationGuideUrl: {DocRoot}/mds-impersonation-guide/
+:MdsImpersonationGuideText: MDS Impersonation guide
+:MdsImpersonationGuide: link:{MdsImpersonationGuideUrl}[{MdsImpersonationGuideText}]
+
 :AuthenticationGuideUrl: {DocRoot}/authentication-guide/
 :AuthenticationGuideText: Client Authentication guide
 :AuthenticationGuide: link:{AuthenticationGuideUrl}[{AuthenticationGuideText}]

@@ -1,0 +1,43 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+[id='con-overview-{context}']
+= Authenticating Kafka clients through MDS
+
+[role="_abstract"]
+The experimental `MdsImpersonation` filter enables unmodified mTLS Kafka clients to connect to a Confluent Platform cluster using their own MDS identities.
+The proxy obtains an impersonation token for the certificate-derived user and authenticates each upstream connection with SASL/OAUTHBEARER.
+The broker continues to enforce the user's RBAC permissions and ACLs.
+When the broker advertises a finite SASL session lifetime, the proxy renews the MDS token and reauthenticates that user on the same connection before forwarding further requests.
+
+The trust relationships are distinct:
+
+[cols="1,2"]
+|===
+|Connection |Trust and authentication
+|Client to proxy |The proxy verifies the client's certificate against the configured client CA and maps it to a `User`.
+|Proxy to MDS |MDS trusts the CA of the proxy's own client certificate and permits that proxy principal to impersonate users. The proxy verifies the MDS HTTPS server.
+|Proxy to broker |The broker verifies the token using the MDS signing public key. The proxy verifies the broker TLS server. The broker does not need to trust the proxy's certificate CA for this token authentication.
+|===
+
+The proxy identity certificate is provisioned by the operator; this filter does not issue certificates.
+It must be usable for TLS client authentication and accepted by MDS.
+A separate certificate can serve the client-facing Kafka listener.
+
+Configure MDS to accept mTLS and include the proxy principal in `confluent.metadata.server.impersonation.super.users`.
+Protect privileged accounts with `confluent.metadata.server.impersonation.protected.users`.
+The proxy forwards the certificate-derived user name to MDS without requiring a local user list.
+MDS decides whether the proxy may impersonate that user, and the broker applies the target user's RBAC permissions and ACLs.
+Use a controlled client CA and mapping rules that cannot assign privileged identities accidentally.
+
+The upstream Kafka listener must use `SASL_SSL` and `OAUTHBEARER`, with Confluent's `TokenBearerValidatorCallbackHandler`, MDS signing public key, and compatible principal builder configured.
+For the complete Confluent configuration, use https://docs.confluent.io/platform/current/security/authorization/rbac/configure-mtls-rbac.html[Confluent's mTLS and RBAC documentation].
+An independently configured requirement for broker-side TLS client authentication is an additional listener policy, not a requirement of MDS impersonation.
+
+This draft supports direct routing with one upstream connection per client connection.
+Dynamic routers that multiplex upstream connections are not supported.
+Deploy a separate proxy process in each VRF or network namespace when client address ranges overlap.

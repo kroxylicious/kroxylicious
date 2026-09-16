@@ -1,0 +1,78 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+[id='con-proxy-config-{context}']
+= Configuring a proxy on Linux
+
+[role="_abstract"]
+Place `MdsImpersonation` last in the virtual cluster's filter list, closest to the broker.
+This ensures that requests generated or delayed by other filters pass through its authentication gate before reaching the broker, including during reauthentication.
+Do not place filters that generate or defer requests upstream of it.
+Do not combine it with SASL termination or authentication-changing filters.
+
+The following example uses port 9092 for all client connections, distinguished by TLS SNI.
+Resolve the bootstrap and advertised broker names to the proxy and include those names in its server certificate.
+Replace the host names, paths and certificate mapping for your deployment.
+The backend port in this example must already provide Confluent MDS token authentication.
+
+[source,yaml]
+----
+clusterDefinitions:
+  - name: confluent
+    bootstrapServers: broker01.internal.example.test:9096,broker02.internal.example.test:9096
+    tls:
+      trust:
+        storeFile: /etc/kroxylicious/broker-ca.pem
+        storeType: PEM
+filterDefinitions:
+  - name: mds
+    type: MdsImpersonation
+    config:
+      mdsUrl: https://mds.example.test/security/1.0/impersonate
+      mdsTls:
+        key:
+          privateKeyFile: /etc/kroxylicious/proxy-identity.key
+          certificateFile: /etc/kroxylicious/proxy-identity.crt
+        trust:
+          storeFile: /etc/kroxylicious/mds-ca.pem
+          storeType: PEM
+      requestTimeout: 5s
+      expiryMargin: 5s
+virtualClusters:
+  - name: confluent
+    target:
+      cluster: confluent
+    filters: [mds]
+    subjectBuilder:
+      type: DefaultTransportSubjectBuilderService
+      config:
+        addPrincipals:
+          - from: clientTlsSubject
+            map:
+              - replaceMatch: '#^CN=([^,]+)(?:,.*)?$#$1#'
+              - else: anonymous
+            principalFactory: io.kroxylicious.proxy.authentication.UserFactory
+    gateways:
+      - name: clients
+        sniHostIdentifiesNode:
+          bootstrapAddress: bootstrap.gateway.example.test:9092
+          advertisedBrokerAddressPattern: broker-$(nodeId).gateway.example.test:9092
+        tls:
+          key:
+            privateKeyFile: /etc/kroxylicious/gateway-server.key
+            certificateFile: /etc/kroxylicious/gateway-server.crt
+          trust:
+            storeFile: /etc/kroxylicious/client-ca.pem
+            storeType: PEM
+            trustOptions:
+              clientAuth: REQUIRED
+----
+
+The broker TLS configuration intentionally contains only a trust store for verifying the broker server.
+The proxy client key belongs under `mdsTls`, where MDS authenticates the proxy.
+For encrypted keys or key stores, use the standard `keyPassword` and `storePassword` password providers, with `passwordFile` in production.
+No credentials or tokens should be embedded in `mdsUrl`.
