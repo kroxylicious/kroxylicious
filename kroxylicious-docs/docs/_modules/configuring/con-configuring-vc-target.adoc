@@ -13,11 +13,13 @@
 A cluster definition describes the physical upstream Kafka cluster. The `my-cluster-proxy` virtual cluster
 proxies that cluster by naming it in `target.cluster`.
 
-The cluster definition defines two properties:
+The cluster definition defines three properties:
 
 1. `bootstrapServers`: Comma-separated list of bootstrap addresses for the Kafka cluster being proxied.   If the cluster exposes a bootstrap endpoint (as is the case with some cloud-based Kafka services or clusters managed by Strimzi), use that address.  If the cluster does not have a specific bootstrap endpoint (as is the case with a standard Kafka deployment) list the address of several broker nodes. This helps spread the bootstrapping load and improves reliability.
 
-2. `tls`: TLS configuration for connecting to the target Kafka cluster.
+2. `bootstrapServerSelection`: Optional strategy for selecting a bootstrap server when multiple servers are configured. Defaults to `round-robin` if not specified.
+
+3. `tls`: TLS configuration for connecting to the target Kafka cluster.
 See xref:con-configuring-vc-target-tls-{context}[Securing connections to target clusters] for more details.
 
 When multiple bootstrap servers are configured, the bootstrap server is selected using the `round-robin` strategy.
@@ -38,7 +40,6 @@ virtualClusters:
 #...
 ----
 
-`bootstrapServerSelection.strategy` is still configured on the deprecated `targetCluster` form. It is not accepted on `clusterDefinitions`.
 The bootstrapping process selects one bootstrap server from the list of configured servers.
 The following strategies are supported:
 
@@ -49,14 +50,17 @@ The following strategies are supported:
 [source,yaml]
 ----
 #...
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap-0.kafka.svc.cluster.local:9093,my-cluster-kafka-bootstrap-1.kafka.svc.cluster.local:9093,my-cluster-kafka-bootstrap-2.kafka.svc.cluster.local:9093
+    bootstrapServerSelection:
+      strategy: "round-robin"
+    tls: {}
 virtualClusters:
   - name: my-cluster-proxy
     #...
-    targetCluster:
-      bootstrapServers: my-cluster-kafka-bootstrap-0.kafka.svc.cluster.local:9093,my-cluster-kafka-bootstrap-1.kafka.svc.cluster.local:9093,my-cluster-kafka-bootstrap-2.kafka.svc.cluster.local:9093
-      bootstrapServerSelection:
-        strategy: "round-robin"
-      tls: {}
+    target:
+      cluster: my-cluster
 #...
 ----
 where:
