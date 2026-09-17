@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class FileWatcherTest {
+class FileWatcherTest {
 
     @TempDir
     Path tempDir;
@@ -251,8 +251,36 @@ public class FileWatcherTest {
     @Test
     void parentlessFilesCannotBeRegistered() {
         try (var watcher = new FileWatcher()) {
-            assertThatThrownBy(() -> watcher.register(Path.of("justafilename.txt"), () -> {
+            final Path path = Path.of("justafilename.txt"); // create path here to ensure only the register call can throw an exception
+            assertThatThrownBy(() -> watcher.register(path, () -> {
             })).isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    void failingHandlersTolerated() throws IOException {
+        final var tempFile = tempDir.resolve("watch-test.txt");
+        Files.writeString(tempFile, "Some text", StandardOpenOption.CREATE);
+        final var notificationReceived = new AtomicBoolean(false);
+
+        try (var watcher = new FileWatcher()) {
+            // Given
+            watcher.register(tempFile, () -> {
+                throw new RuntimeException("Something went wrong");
+            });
+            watcher.register(tempFile, () -> {
+                notificationReceived.set(true);
+            });
+            watcher.start();
+
+            // When
+            Files.writeString(tempFile, "Updated value", StandardOpenOption.TRUNCATE_EXISTING);
+
+            // Then
+            Awaitility.await("file change should notify the registered listeners")
+                    .atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(notificationReceived.get()).isTrue());
+
         }
     }
 }

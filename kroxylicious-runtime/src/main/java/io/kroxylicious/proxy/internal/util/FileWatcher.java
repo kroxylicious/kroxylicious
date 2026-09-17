@@ -39,6 +39,11 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
  *  The failure to watch a file is not always a terminal condition and this utility class has been designed to eliminate the need
  *  to catch multiple exceptions. If a component needs to know if it is working as intended and notifications of file changes will be
  *  received then {@link #isRunning()} can be checked.
+ *
+ *  The underlying watch service can raise multiple change events but has no concept of when the operation changing the file has finished.
+ *  Registered notifiers <b>must</b> check the validity of the file being watched before processing it. For example, a file overwrite may
+ *  consist of an initial zero byte truncation followed by writing the new content. Change events can be created for the initial truncation and
+ *  periodically during the file writing as it is changing. This can be an issue where there is a slow file system.
  * </p>
  * <p>
  *  Known limitations :
@@ -151,12 +156,23 @@ public class FileWatcher implements AutoCloseable {
                             .filter(watchList::containsKey) // see if we are watching the path
                             .flatMap(relativePath -> watchList.get(relativePath).stream()) // extract all the listeners that need to be notified
                             .toList();
-                    handlers.forEach(NotificationHandler::onChange);
+                    handlers.forEach(handler -> {
+                        try {
+                            handler.onChange();
+                        }
+                        catch (final Exception e) { // multiple handlers can be regsiterd aginst the same watcher so make sure they all get notified
+                            LOGGER.atWarn().setCause(e).log("Handler threw an exception");
+                        }
+                    });
                     key.reset(); // all events processed, so reset the key which puts it back in the wait state
                 }
                 catch (final InterruptedException | ClosedWatchServiceException ignored) {
                     // These are expected when either the thread is being termintaed and/or the watcher service is being closed
                     running.set(false);
+                    if (ignored instanceof InterruptedException) {
+                        // the thread executor pool owns the thread so need to make sure it sees the interrupt status
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
         });
@@ -174,7 +190,8 @@ public class FileWatcher implements AutoCloseable {
                 service.get().close(); // this will cause any poll/take to throw an exception and the runnable task to exit
             }
             catch (final IOException ignored) {
-            } // service is not going to be used again
+                // ignore as the service is not going to be used again
+            }
         }
 
         executor.shutdown();

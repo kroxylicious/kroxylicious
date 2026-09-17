@@ -21,7 +21,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.event.Level;
+import org.slf4j.event.LoggingEvent;
+
+import io.github.sambarker.logsquelcher.CapturedLogs;
+import io.github.sambarker.logsquelcher.LogSquelcherExtension;
+import io.github.sambarker.logsquelcher.LoggingEventAssert;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
@@ -61,6 +68,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+@ExtendWith(LogSquelcherExtension.class)
 class VirtualClusterModelTest {
 
     public static final String DIRECT_ROUTE_NAME = "upstream";
@@ -398,7 +406,7 @@ class VirtualClusterModelTest {
     }
 
     @TempDir
-    Path tempDir; // used to create a copy of existing TLS resources so that they can be repplaced
+    Path tempDir; // used to create a copy of existing TLS resources so that they can be replaced
 
     @Test
     void rotatedCertificateUpdatesGatewaySSLContext() throws IOException {
@@ -418,6 +426,41 @@ class VirtualClusterModelTest {
         final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
 
         // When
+        Files.write(currentServerCertificate, Files.readAllBytes(newCertificate), StandardOpenOption.TRUNCATE_EXISTING);
+
+        // Then
+        Awaitility.await("Gateway SSL context changes when certificates are rotated")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext().get()).isNotEqualTo(startingSSLContext));
+        model.close();
+    }
+
+    @Test
+    void multiEventCertificateUpdatesGatewaySSLContext(final CapturedLogs logs) throws IOException {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var currentServerCertificate = tempDir.resolve("servercert.pem");
+        final var startingCertificate = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server.crt"));
+        final var newCertificate = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server_crt_encrypted_key.pem"));
+        Files.copy(startingCertificate, currentServerCertificate);
+
+        final var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), currentServerCertificate.toString(), null);
+        final var tls = new Tls(keyPair, null, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When
+        Files.write(currentServerCertificate, new byte[]{}, StandardOpenOption.TRUNCATE_EXISTING); // zero file to mimic a slow disk overwrite operation
+        Awaitility.await("Gateway TLS updates when a partial write occurs")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    final List<LoggingEvent> events = logs.logged(VirtualClusterModel.class); // extract cluster model logs
+                    LoggingEventAssert.assertThat(events)
+                            .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("Gateway failed to update"));
+                });
         Files.write(currentServerCertificate, Files.readAllBytes(newCertificate), StandardOpenOption.TRUNCATE_EXISTING);
 
         // Then

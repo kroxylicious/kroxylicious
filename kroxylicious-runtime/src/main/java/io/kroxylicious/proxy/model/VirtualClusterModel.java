@@ -62,8 +62,8 @@ import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.internal.tls.SslContextBuildException;
 import io.kroxylicious.proxy.internal.tls.TlsFileWatchProvider;
-import io.kroxylicious.proxy.internal.util.FileWatcher;
 import io.kroxylicious.proxy.internal.topology.RequestSender;
+import io.kroxylicious.proxy.internal.util.FileWatcher;
 import io.kroxylicious.proxy.internal.tls.TlsFileWatchProvider;
 import io.kroxylicious.proxy.internal.util.FileWatcher;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -333,7 +333,17 @@ public class VirtualClusterModel implements AutoCloseable {
         final var gateway = new VirtualClusterGatewayModel(this, nodeIdentificationStrategy, tls, name);
         tls.ifPresent(tlsConfig -> {
             final TlsFileWatchProvider watcher = new TlsFileWatchProvider(tlsConfig);
-            watcher.apply(certWatcher, () -> gateway.downstreamSslContext = gateway.buildDownstreamSslContext());
+            watcher.apply(certWatcher, () -> {
+                try {
+                    gateway.downstreamSslContext = gateway.buildDownstreamSslContext();
+                    LOGGER.atInfo().addKeyValue("name", name).log("Gateway TLS configuration was updated"); // log the change which will help show if it has recovered from a previous failure
+                }
+                catch (final Exception e) {
+                    // this could be a transient failure e.g. a change event on an incomplete write of the new config, so log a warning, but with the option to investigate further via debug level
+                    LOGGER.atWarn().addKeyValue("name", name).log("Gateway failed to update TLS configuration");
+                    LOGGER.atDebug().setCause(e).log();
+                }
+            });
         });
         gateways.put(name, gateway);
     }
@@ -607,6 +617,7 @@ public class VirtualClusterModel implements AutoCloseable {
         private final VirtualClusterModel virtualCluster;
         private final NodeIdentificationStrategy nodeIdentificationStrategy;
         private final Optional<Tls> tls;
+        @SuppressWarnings("java:S3077") // volatile reference: ensures visibility of changes when replaceing existing context, not used in comparisons
         private volatile Optional<SslContext> downstreamSslContext;
         private final String name;
 
