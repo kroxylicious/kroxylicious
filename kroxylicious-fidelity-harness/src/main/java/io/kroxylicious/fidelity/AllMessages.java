@@ -106,35 +106,28 @@ public final class AllMessages {
 
     private static Stream<VersionedMessage> versionedMessageStream(String messageName, String direction) {
 
-        org.apache.kafka.common.protocol.ApiMessage kafkaMessage = kafkaMessage(messageName, direction);
+        org.apache.kafka.common.protocol.ApiMessage kafkaMessage = newKafkaMessage(messageName, direction);
         short lowest = kafkaMessage.lowestSupportedVersion();
         short highest = kafkaMessage.highestSupportedVersion();
 
         // Ensure full isolation by creating message instances per version
         return IntStream.rangeClosed(lowest, highest)
                 .mapToObj(version -> new VersionedMessage(messageName, direction, (short) version,
-                        kroxyliciousMessage(messageName, direction), kafkaMessage(messageName, direction)));
+                        newKroxyliciousMessage(messageName, direction), newKafkaMessage(messageName, direction)));
     }
 
-    private static org.apache.kafka.common.protocol.ApiMessage kafkaMessage(String messageName, String direction) {
-        try {
-            Class<?> kafkaClass = loadClass(KAFKA_PACKAGE, messageName, direction);
-            return kafkaMessage(kafkaClass);
-        }
-        catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        }
+    private static org.apache.kafka.common.protocol.ApiMessage newKafkaMessage(String messageName, String direction) {
+        return newMessage(KAFKA_PACKAGE, messageName, direction, org.apache.kafka.common.protocol.ApiMessage.class);
     }
 
-    private static ApiMessage kroxyliciousMessage(String messageName, String direction) {
+    private static ApiMessage newKroxyliciousMessage(String messageName, String direction) {
+        return newMessage(KROXYLICIOUS_PACKAGE, messageName, direction, ApiMessage.class);
+    }
+
+    private static <T> T newMessage(String packageName, String messageName, String direction, Class<T> apiMessageType) {
         try {
-            Class<?> kroxyliciousClass = loadClass(KROXYLICIOUS_PACKAGE, messageName, direction);
-            try {
-                return (ApiMessage) kroxyliciousClass.getDeclaredConstructor().newInstance();
-            }
-            catch (ReflectiveOperationException e) {
-                throw new RuntimeException("Failed to instantiate " + kroxyliciousClass, e);
-            }
+            Class<?> messageClass = loadClass(packageName, messageName, direction);
+            return newInstance(messageClass, apiMessageType);
         }
         catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
@@ -146,12 +139,13 @@ public final class AllMessages {
         return Class.forName(className);
     }
 
-    private static org.apache.kafka.common.protocol.ApiMessage kafkaMessage(Class<?> kafkaClass) {
+    private static <T> T newInstance(Class<?> messageClass, Class<T> apiMessageType) {
         try {
-            return (org.apache.kafka.common.protocol.ApiMessage) kafkaClass.getDeclaredConstructor().newInstance();
+            return apiMessageType.cast(messageClass.getDeclaredConstructor().newInstance());
         }
         catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Failed to instantiate " + kafkaClass, e);
+            throw new RuntimeException("Failed to instantiate " + messageClass, e);
         }
     }
+
 }
