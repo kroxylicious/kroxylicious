@@ -22,6 +22,8 @@ import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.TaggedFields;
 import org.apache.kafka.common.protocol.types.Type;
 
+import io.kroxylicious.fidelity.AllMessages;
+
 /**
  * Walks Kafka's authoritative runtime protocol schema for a message and drives the configured
  * {@link FieldPopulationStrategy} over each field, invoking the corresponding generated setter on
@@ -262,12 +264,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     }
 
     private static Object instantiate(Class<?> clazz) {
-        try {
-            return clazz.getDeclaredConstructor().newInstance();
-        }
-        catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Could not instantiate " + clazz, e);
-        }
+        return AllMessages.newInstance(clazz, Object.class);
     }
 
     private static void invokeSetter(Object instance, BoundField field, Object value) {
@@ -379,16 +376,11 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
      * than a plain {@code List} still exposes a no-arg constructor and {@link Collection#add}, so the composed
      * list of populated struct instances can be adapted into it without knowing the concrete type up front.
      */
+    @SuppressWarnings("unchecked")
     private static Collection<Object> newCollection(Class<?> collectionType, List<?> elements) {
-        try {
-            @SuppressWarnings("unchecked")
-            Collection<Object> collection = (Collection<Object>) collectionType.getDeclaredConstructor().newInstance();
-            collection.addAll(elements);
-            return collection;
-        }
-        catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Could not instantiate collection " + collectionType, e);
-        }
+        Collection<Object> collection = (Collection<Object>) AllMessages.newInstance(collectionType, Collection.class);
+        collection.addAll(elements);
+        return collection;
     }
 
     private static String toSnakeCase(String pascalCaseName) {
