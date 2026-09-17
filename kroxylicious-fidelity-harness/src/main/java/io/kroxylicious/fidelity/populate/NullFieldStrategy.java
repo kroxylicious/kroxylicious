@@ -6,16 +6,17 @@
 package io.kroxylicious.fidelity.populate;
 
 import org.apache.kafka.common.protocol.types.BoundField;
+import org.apache.kafka.common.protocol.types.Field;
 
 /**
- * Nulls one specific field, identified by reference, and delegates every other field to a wrapped
- * strategy.
+ * Nulls one specific field, identified by its underlying {@link Field}, and delegates every other field
+ * to a wrapped strategy.
  * <p>
- * Matching by reference rather than by name sidesteps the fact that {@link BoundField} carries no
- * ancestry: {@link NullableFieldEnumerator} hands back the actual {@link BoundField} instances from
- * Kafka's static, per-version {@code Schema}, and the same instances are produced again when
- * {@link SchemaDrivenMessagePopulator} walks that schema to populate a message, so identity is a
- * reliable way to target the exact field that was enumerated.
+ * {@link BoundField} carries no {@code equals()}/{@code hashCode()}, and {@link SchemaDrivenMessagePopulator}
+ * allocates a fresh {@link BoundField} wrapper on every {@code expandFields()} call, so matching by
+ * {@link BoundField} identity does not reliably identify the field {@link NullableFieldEnumerator}
+ * enumerated. The wrapped {@link Field}, however, is the same static, per-version instance every time, so
+ * matching on {@code field.def} identity is the reliable way to target the exact field that was enumerated.
  */
 public final class NullFieldStrategy implements FieldPopulationStrategy {
 
@@ -34,8 +35,12 @@ public final class NullFieldStrategy implements FieldPopulationStrategy {
     }
 
     @Override
-    @SuppressWarnings("ReferenceEquality") // BoundField declares no equals()/hashCode(); identity is the only, and intended, notion of equality here.
     public FieldDecision resolve(BoundField field) {
-        return field == target ? new FieldDecision.Value(null) : delegate.resolve(field);
+        return isSameField(field, target) ? new FieldDecision.Value(null) : delegate.resolve(field);
+    }
+
+    @SuppressWarnings("ReferenceEquality") // Field declares no equals()/hashCode(); identity is the only, and intended, notion of equality here.
+    private static boolean isSameField(BoundField field, BoundField target) {
+        return field.def == target.def;
     }
 }
