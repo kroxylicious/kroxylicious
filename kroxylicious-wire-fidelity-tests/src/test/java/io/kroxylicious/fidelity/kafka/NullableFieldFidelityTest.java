@@ -91,18 +91,8 @@ class NullableFieldFidelityTest {
         return nullableFields.stream()
                 .map(field -> Arguments.argumentSet(versionedMessage.label() + " - null " + field.def.name,
                         versionedMessage.version(),
-                        freshInstance(versionedMessage.kroxyliciousMessage()),
-                        freshInstance(versionedMessage.kafkaMessage()),
+                        versionedMessage.freshKroxyliciousMessage(),
+                        versionedMessage.freshKafkaMessage(),
                         field));
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> T freshInstance(T template) {
-        try {
-            return (T) template.getClass().getDeclaredConstructor().newInstance();
-        }
-        catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Failed to instantiate " + template.getClass(), e);
-        }
     }
 }

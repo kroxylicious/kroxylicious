@@ -51,6 +51,28 @@ public final class AllMessages {
         public String label() {
             return messageName + direction + " - v" + version;
         }
+
+        /**
+         * A fresh Kroxylicious instance of this same message/direction, independent of
+         * {@link #kroxyliciousMessage()} - for tests that need their own instance to mutate without
+         * affecting other test cases derived from the same {@link VersionedMessage}.
+         *
+         * @return a fresh Kroxylicious instance
+         */
+        public ApiMessage freshKroxyliciousMessage() {
+            return newKroxyliciousMessage(messageName, direction);
+        }
+
+        /**
+         * A fresh Kafka instance of this same message/direction, independent of {@link #kafkaMessage()} -
+         * for tests that need their own instance to mutate without affecting other test cases derived from
+         * the same {@link VersionedMessage}.
+         *
+         * @return a fresh Kafka instance
+         */
+        public org.apache.kafka.common.protocol.ApiMessage freshKafkaMessage() {
+            return newKafkaMessage(messageName, direction);
+        }
     }
 
     /**
