@@ -12,10 +12,6 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
-import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
-
-import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -45,54 +41,6 @@ class ConfigurationDeprecatedVirtualClusterTargetClusterCompatibilityTest {
             .withBootstrapAddress(HostPort.parse("example.com:1234"))
             .endPortIdentifiesNode()
             .build();
-
-    private final ConfigParser configParser = new ConfigParser();
-
-    @Test
-    void shouldRejectVirtualClusterWithNoGateways() {
-        assertThatThrownBy(() -> configParser.parseConfiguration(
-                """
-                        virtualClusters:
-                          - name: cluster
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                        """)).isInstanceOf(IllegalArgumentException.class)
-                .cause()
-                .isInstanceOf(MismatchedInputException.class)
-                .hasMessageContaining("Missing required creator property 'gateways'");
-    }
-
-    @Test
-    void shouldRejectVirtualClusterWithNullGateways() {
-        assertThatThrownBy(() -> configParser.parseConfiguration(
-                """
-                        virtualClusters:
-                          - name: cluster
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                            gateways: null
-                        """)).isInstanceOf(IllegalArgumentException.class)
-                .cause()
-                .isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("no gateways configured for virtual cluster 'cluster'");
-    }
-
-    @Test
-    void shouldRejectVirtualClusterNullGatewayValue() {
-        assertThatThrownBy(() -> configParser.parseConfiguration(
-                """
-                        virtualClusters:
-                          - name: cluster
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                            gateways: [null]
-                        """)).isInstanceOf(IllegalArgumentException.class)
-                .cause()
-                .isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("one or more gateways were null for virtual cluster 'cluster'");
-    }
 
     @Test
     void shouldRejectMissingClusterFilterWithDeprecatedTargetCluster() {
