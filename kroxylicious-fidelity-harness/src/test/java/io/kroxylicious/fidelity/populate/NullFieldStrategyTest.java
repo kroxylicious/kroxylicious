@@ -15,11 +15,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class NullFieldStrategyTest {
 
-    private static final BoundField TARGET_FIELD = new Schema(new Field("client_id", Type.NULLABLE_STRING, "doc")).get("client_id");
+    private static final Field CLIENT_ID_FIELD = new Field("client_id", Type.NULLABLE_STRING, "doc");
+    private static final BoundField TARGET_FIELD = new Schema(CLIENT_ID_FIELD).get("client_id");
     private static final BoundField OTHER_FIELD = new Schema(new Field("mechanism", Type.STRING, "doc")).get("mechanism");
 
     @Test
-    void resolvesTargetFieldToNull() {
+    void shouldResolveTargetFieldToNull() {
         // Given
         NullFieldStrategy strategy = new NullFieldStrategy(TARGET_FIELD, field -> new FieldDecision.Value("should not be used"));
 
@@ -31,7 +32,20 @@ class NullFieldStrategyTest {
     }
 
     @Test
-    void delegatesNonTargetFieldToWrappedStrategy() {
+    void shouldResolveNullForSameField() {
+        // Given
+        BoundField sameFieldDifferentWrapper = new Schema(TARGET_FIELD.def).get("client_id");
+        NullFieldStrategy strategy = new NullFieldStrategy(TARGET_FIELD, field -> new FieldDecision.Value("should not be used"));
+
+        // When
+        FieldDecision decision = strategy.resolve(sameFieldDifferentWrapper);
+
+        // Then
+        assertThat(decision).isEqualTo(new FieldDecision.Value(null));
+    }
+
+    @Test
+    void shouldDelegateNonTargetFieldToWrappedStrategy() {
         // Given
         FieldDecision delegateDecision = new FieldDecision.Value("delegated value");
         NullFieldStrategy strategy = new NullFieldStrategy(TARGET_FIELD, field -> delegateDecision);
