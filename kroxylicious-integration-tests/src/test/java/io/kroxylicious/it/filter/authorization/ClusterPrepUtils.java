@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -27,6 +28,7 @@ import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AclBinding;
+import org.apache.kafka.common.errors.GroupNotEmptyException;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.awaitility.core.ConditionFactory;
@@ -197,13 +199,21 @@ final class ClusterPrepUtils {
     }
 
     public static void deleteAllConsumerGroups(Admin admin) {
-        try {
-            List<String> groupIds = admin.listGroups().all().get(10, TimeUnit.SECONDS).stream().map(GroupListing::groupId).toList();
-            admin.deleteConsumerGroups(groupIds).all().get(10, TimeUnit.SECONDS);
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // Static members can remain until their session expires after the clients close.
+        // Remove group history before another case reuses the IDs with a different protocol.
+        AWAIT.alias("await until consumer groups are deleted")
+                .ignoreExceptionsMatching(e -> e.getCause() instanceof ExecutionException failure
+                        && failure.getCause() instanceof GroupNotEmptyException)
+                .until(() -> {
+                    try {
+                        List<String> groupIds = admin.listGroups().all().get(10, TimeUnit.SECONDS).stream().map(GroupListing::groupId).toList();
+                        admin.deleteConsumerGroups(groupIds).all().get(10, TimeUnit.SECONDS);
+                        return true;
+                    }
+                    catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
     }
 
     /**
