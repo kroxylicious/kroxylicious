@@ -38,6 +38,11 @@ on:
         default: 'false'
         required: false
         type: string
+      skipSystemTestRun:
+        description: "Skip system tests run"
+        required: false
+        default: 'false'
+        type: string
   workflow_call:
     inputs: *workflow-inputs
     secrets:
@@ -48,6 +53,7 @@ on:
 
 jobs:
   discover_system_test_chunks:
+    if: ${{ inputs.skipSystemTestRun == 'false'}}
     runs-on: ubuntu-latest
     outputs:
       test_chunks: ${{ steps.discover.outputs.test_chunks }}
@@ -69,6 +75,7 @@ jobs:
 
   run_system_tests:
     needs: [discover_system_test_chunks]
+    if: ${{ inputs.skipSystemTestRun == 'false'}}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
