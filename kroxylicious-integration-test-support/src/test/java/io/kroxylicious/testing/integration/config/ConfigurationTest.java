@@ -20,6 +20,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.flipkart.zjsonpatch.JsonDiff;
@@ -74,6 +75,43 @@ class ConfigurationTest {
             .addToGateways(VIRTUAL_CLUSTER_GATEWAY)
             .build();
     private final ConfigParser configParser = new ConfigParser();
+
+    @Test
+    void shouldRejectVirtualClusterWithNoGateways() {
+        assertThatThrownBy(() -> MAPPER.readValue(
+                """
+                          name: cluster
+                          target:
+                            cluster: demo-cluster
+                        """, VirtualCluster.class)).isInstanceOf(MismatchedInputException.class)
+                .hasMessageContaining("Missing required creator property 'gateways'");
+    }
+
+    @Test
+    void shouldRejectVirtualClusterWithNullGateways() {
+        assertThatThrownBy(() -> MAPPER.readValue(
+                """
+                          name: cluster
+                          target:
+                            cluster: demo-cluster
+                          gateways: null
+                        """, VirtualCluster.class)).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("no gateways configured for virtual cluster 'cluster'");
+    }
+
+    @Test
+    void shouldRejectVirtualClusterNullGatewayValue() {
+        assertThatThrownBy(() -> MAPPER.readValue(
+                """
+                          name: cluster
+                          target:
+                            cluster: demo-cluster
+                          gateways: [null]
+                        """, VirtualCluster.class)).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("one or more gateways were null for virtual cluster 'cluster'");
+    }
 
     @Test
     void shouldRejectSniGatewayWithNoAdvertisedBrokerAddressPattern() {
@@ -752,8 +790,8 @@ class ConfigurationTest {
                 new NamedFilterDefinition("foo", "Foo", ""),
                 new NamedFilterDefinition("bar", "Bar", ""));
 
-        VirtualCluster direct = buildVirtualCluster("direct", "y:9092", List.of("foo")); // filters defined on cluster
-        VirtualCluster defaulted = buildVirtualCluster("defaulted", "x:9092", null); // filters not defined => should default to the top level
+        VirtualCluster direct = buildVirtualCluster("direct", List.of("foo")); // filters defined on cluster
+        VirtualCluster defaulted = buildVirtualCluster("defaulted", null); // filters not defined => should default to the top level
 
         Configuration configuration = new Configuration(
                 null,
@@ -787,7 +825,7 @@ class ConfigurationTest {
         Configuration configuration = new Configuration(null,
                 List.of(new ClusterDefinition("vc-cluster", "x:9092", null)),
                 null, null, null,
-                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                List.of(buildVirtualCluster("vc", null)),
                 null, false, Optional.empty(), null,
                 new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.REQUIRED);
@@ -798,7 +836,7 @@ class ConfigurationTest {
         Configuration configuration = new Configuration(null,
                 List.of(new ClusterDefinition("vc-cluster", "x:9092", null)),
                 null, null, null,
-                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                List.of(buildVirtualCluster("vc", null)),
                 null, false, Optional.empty(), null,
                 new ProxyProtocolConfig(ProxyProtocolMode.ALLOWED));
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.ALLOWED);
@@ -809,7 +847,7 @@ class ConfigurationTest {
         Configuration configuration = new Configuration(null,
                 List.of(new ClusterDefinition("vc-cluster", "x:9092", null)),
                 null, null, null,
-                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                List.of(buildVirtualCluster("vc", null)),
                 null, false, Optional.empty(), null,
                 new ProxyProtocolConfig(ProxyProtocolMode.DISABLED));
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
@@ -820,7 +858,7 @@ class ConfigurationTest {
         Configuration configuration = new Configuration(null,
                 List.of(new ClusterDefinition("vc-cluster", "x:9092", null)),
                 null, null, null,
-                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                List.of(buildVirtualCluster("vc", null)),
                 null, false, Optional.empty(), null,
                 null);
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
@@ -888,7 +926,7 @@ class ConfigurationTest {
     }
 
     @NonNull
-    private static VirtualCluster buildVirtualCluster(String virtualClusterName, String targetBootstrap, @Nullable List<String> filterNames) {
+    private static VirtualCluster buildVirtualCluster(String virtualClusterName, @Nullable List<String> filterNames) {
         // Use new API: target references a named cluster definition
         return new VirtualCluster(
                 virtualClusterName,

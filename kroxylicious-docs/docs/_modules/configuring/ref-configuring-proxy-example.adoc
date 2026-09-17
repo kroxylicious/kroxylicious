@@ -45,6 +45,8 @@ defaultFilters:
 clusterDefinitions:
   - name: my-cluster
     bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    bootstrapServerSelection:
+      strategy: "round-robin"
     tls:
       trust:
         storeFile: /opt/proxy/trust/ca.p12
@@ -75,6 +77,7 @@ where:
 * `clusterDefinitions` lists named upstream Kafka clusters.
 ** `name` identifies the cluster definition.
 ** `bootstrapServers` defines the bootstrap addresses of the Kafka Cluster being proxied.
+** `bootstrapServerSelection.strategy` defines the strategy used for selecting an address from `bootstrapServers` when the proxy receives a client connection. Options are `round-robin` (default) or `random`.
 ** `tls` provides TLS configuration for the connection to the target cluster.
 * `virtualClusters` specifies the virtual cluster defintions.
 ** `name` defines the name of the virtual cluster.
