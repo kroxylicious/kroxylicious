@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.topology;
+package io.kroxylicious.proxy.internal.routing;
 
 import java.util.Map;
 import java.util.Set;
@@ -22,6 +22,7 @@ import io.kroxylicious.kafka.common.message.MetadataResponseData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.proxy.topology.BrokerInfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,6 +51,13 @@ class TopologyServiceImplTest {
     private static MetadataResponseData metadataWithTopic(Uuid topicId, String topicName) {
         var response = new MetadataResponseData();
         response.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(topicId).setName(topicName));
+        return response;
+    }
+
+    private static MetadataResponseData metadataWithBroker(int nodeId, String host, int port, String rack) {
+        var response = new MetadataResponseData();
+        response.brokers().add(new MetadataResponseData.MetadataResponseBroker()
+                .setNodeId(nodeId).setHost(host).setPort(port).setRack(rack));
         return response;
     }
 
@@ -160,6 +168,47 @@ class TopologyServiceImplTest {
         assertThat(cache.topicName(ROUTE, topicId)).isEmpty();
     }
 
+    // --- brokerInfo ---
+
+    @Test
+    void brokerInfoShouldReturnCachedInfo() {
+        // Given
+        cache.updateFromMetadata(ROUTE, metadataWithBroker(42, "broker-a", 9092, "rack1"));
+
+        // When
+        var result = topologyService.brokerInfo(new VirtualNodeImpl(ROUTE, 42));
+
+        // Then
+        assertThat(result).contains(new BrokerInfo("broker-a", 9092, "rack1"));
+        verifyNoInteractions(sender);
+    }
+
+    @Test
+    void brokerInfoShouldReturnEmptyForUnknownNode() {
+        // When
+        var result = topologyService.brokerInfo(new VirtualNodeImpl(ROUTE, 42));
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void brokerInfoShouldReturnEmptyForAnyNode() {
+        // Given
+        cache.updateFromMetadata(ROUTE, metadataWithBroker(42, "broker-a", 9092, "rack1"));
+
+        // When
+        var result = topologyService.brokerInfo(new VirtualNodeImpl(ROUTE, null));
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void brokerInfoShouldRejectNullNode() {
+        assertThatThrownBy(() -> topologyService.brokerInfo(null)).isInstanceOf(NullPointerException.class);
+    }
+
     // --- not yet implemented ---
 
     @Test
@@ -175,10 +224,5 @@ class TopologyServiceImplTest {
     @Test
     void partitionInfoShouldThrowUnsupportedOperationException() {
         assertThatThrownBy(() -> topologyService.partitionInfo("topic", 0)).isInstanceOf(UnsupportedOperationException.class);
-    }
-
-    @Test
-    void brokerInfoShouldThrowUnsupportedOperationException() {
-        assertThatThrownBy(() -> topologyService.brokerInfo(null)).isInstanceOf(UnsupportedOperationException.class);
     }
 }

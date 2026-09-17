@@ -7,12 +7,14 @@ package io.kroxylicious.it.testplugins.router;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import io.kroxylicious.kafka.common.Uuid;
+import io.kroxylicious.kafka.common.message.DescribeClusterResponseData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
@@ -22,14 +24,17 @@ import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.topology.BrokerInfo;
 import io.kroxylicious.proxy.topology.TopologyService;
 
 /**
  * A test router factory that statically routes everything to a single named route except
  * DESCRIBE_CLUSTER, which it routes dynamically after first calling
  * {@link TopologyService#topicNames}. Used by integration tests to verify that
- * {@code TopologyService} resolves topic ids via a real METADATA round-trip and that
- * {@link TopologyService#invalidateRoute} forces a fresh one.
+ * {@code TopologyService} resolves topic ids via a real METADATA round-trip, that
+ * {@link TopologyService#invalidateRoute} forces a fresh one, and that
+ * {@link TopologyService#brokerInfo} resolves broker host/port/rack for a node learned from the
+ * DESCRIBE_CLUSTER response.
  */
 @Plugin(configType = TopologyCapturingRouterFactory.Config.class)
 public class TopologyCapturingRouterFactory
@@ -39,11 +44,13 @@ public class TopologyCapturingRouterFactory
 
     public static final AtomicReference<Set<Uuid>> topicIdsToResolve = new AtomicReference<>(Set.of());
     public static final AtomicReference<Map<Uuid, String>> capturedTopicNames = new AtomicReference<>();
+    public static final AtomicReference<Optional<BrokerInfo>> capturedBrokerInfo = new AtomicReference<>();
     public static final AtomicReference<TopologyService> capturedTopologyService = new AtomicReference<>();
 
     public static void reset() {
         topicIdsToResolve.set(Set.of());
         capturedTopicNames.set(null);
+        capturedBrokerInfo.set(null);
         capturedTopologyService.set(null);
     }
 
@@ -76,7 +83,14 @@ public class TopologyCapturingRouterFactory
                             capturedTopicNames.set(names);
                             var node = ctx.anyNode(route);
                             return ctx.sendRequest(node, header, request)
-                                    .thenCompose(body -> ctx.respondWith(body).completed());
+                                    .thenCompose(body -> {
+                                        if (body instanceof DescribeClusterResponseData describeClusterResponse) {
+                                            describeClusterResponse.brokers().stream().findFirst()
+                                                    .ifPresent(broker -> capturedBrokerInfo.set(
+                                                            topologyService.brokerInfo(ctx.nodeForId(broker.brokerId()))));
+                                        }
+                                        return ctx.respondWith(body).completed();
+                                    });
                         });
             }
 
