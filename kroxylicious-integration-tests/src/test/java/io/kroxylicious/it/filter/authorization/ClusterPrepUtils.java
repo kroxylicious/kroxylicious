@@ -197,13 +197,22 @@ final class ClusterPrepUtils {
     }
 
     public static void deleteAllConsumerGroups(Admin admin) {
-        try {
-            List<String> groupIds = admin.listGroups().all().get(10, TimeUnit.SECONDS).stream().map(GroupListing::groupId).toList();
-            admin.deleteConsumerGroups(groupIds).all().get(10, TimeUnit.SECONDS);
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // Static members can remain until their session expires after the clients close.
+        // Remove group history before another case reuses the IDs with a different protocol.
+        // Retry all failures: GroupNotEmptyException is expected while sessions drain, and
+        // GroupIdNotFoundException can occur if a group disappears between listing and deletion.
+        // Other failures may be transient; the 60-second AWAIT timeout bounds the retries.
+        AWAIT.alias("await until consumer groups are deleted")
+                .until(() -> {
+                    try {
+                        List<String> groupIds = admin.listGroups().all().get(10, TimeUnit.SECONDS).stream().map(GroupListing::groupId).toList();
+                        admin.deleteConsumerGroups(groupIds).all().get(10, TimeUnit.SECONDS);
+                        return true;
+                    }
+                    catch (Exception e) {
+                        return false;
+                    }
+                });
     }
 
     /**
