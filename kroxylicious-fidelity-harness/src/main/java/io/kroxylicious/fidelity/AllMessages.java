@@ -139,12 +139,23 @@ public final class AllMessages {
         return Class.forName(className);
     }
 
-    private static <T> T newInstance(Class<?> messageClass, Class<T> apiMessageType) {
+    /**
+     * Instantiates {@code clazz} via its no-arg constructor and casts the result to {@code targetType} -
+     * the "construct or die with a clear message" shape shared with
+     * {@link io.kroxylicious.fidelity.populate.SchemaDrivenMessagePopulator}, which reflectively
+     * constructs fresh struct and collection instances while populating a message.
+     *
+     * @param clazz the class to instantiate
+     * @param targetType the type to cast the new instance to
+     * @param <T> the target type
+     * @return a fresh instance of {@code clazz}, cast to {@code targetType}
+     */
+    public static <T> T newInstance(Class<?> clazz, Class<T> targetType) {
         try {
-            return apiMessageType.cast(messageClass.getDeclaredConstructor().newInstance());
+            return targetType.cast(clazz.getDeclaredConstructor().newInstance());
         }
         catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Failed to instantiate " + messageClass, e);
+            throw new IllegalStateException("Could not instantiate " + clazz, e);
         }
     }
 
