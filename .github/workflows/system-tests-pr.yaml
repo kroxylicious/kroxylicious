@@ -32,20 +32,19 @@ jobs:
   # JOB to run change detection
   changes:
     runs-on: ubuntu-latest
-    # Required permissions
     permissions:
       pull-requests: read
-    # Set job outputs to values from filter step
     outputs:
       systemtest: ${{ steps.filter.outputs.systemtest }}
     steps:
       # For pull requests it's not necessary to check out the code
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
         id: filter
         with:
           predicate-quantifier: 'some'
           filters: |
             systemtest:
+              - 'pom.xml'
               - 'kroxylicious-**/**'
               - '!kroxylicious-annotations/**'
               - '!kroxylicious-docs**/**'
@@ -56,6 +55,7 @@ jobs:
               - '.github/workflows/system-tests-pr.yaml'
               - '.github/workflows/run-system-tests.yaml'
               - '.github/workflows/build-kroxylicious-container-images.yaml'
+              - '.github/workflows/build-kroxylicious-artifacts.yaml'
 
   build_artifacts:
     needs: changes
