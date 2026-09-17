@@ -10,7 +10,7 @@
 = Securing connections to target clusters
 
 [role="_abstract"]
-To secure connections from the virtual cluster to the upstream cluster, configure the target cluster's TLS setting by
+To secure connections from the virtual cluster to the upstream cluster, configure the cluster definition's TLS setting by
 doing the following:
 
 * If the upstream is using a private CA, use the `trust` properties to configure a truststore for the target cluster.
@@ -35,12 +35,15 @@ certificate signed by a public CA and the platform's defaults are suitable.
 [source,yaml]
 ----
 # ...
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls: {}
 virtualClusters:
   - name: my-cluster-proxy
     # ...
-    targetCluster:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      tls: {}
+    target:
+      cluster: my-cluster
 # ...
 ----
 
@@ -53,17 +56,20 @@ The example illustrates using PKCS #12 format. PEM format is supported too.
 [source,yaml]
 ----
 # ...
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls:
+      trust:
+        storeFile: <path>/trust.p12
+        storePassword:
+          passwordFile: <path>/store.password
+        storeType: PKCS12
 virtualClusters:
   - name: my-cluster-proxy
     # ...
-    targetCluster:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      tls:
-        trust:
-          storeFile: <path>/trust.p12
-          storePassword:
-            passwordFile: <path>/store.password
-          storeType: PKCS12
+    target:
+      cluster: my-cluster
 # ...
 ----
 where:
@@ -83,15 +89,18 @@ PKCS #12 keystore format is supported too.
 [source,yaml]
 ----
 # ...
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls:
+      key:
+        privateKeyFile: <path>/client.key
+        certificateFile: <path>/client.crt
 virtualClusters:
   - name: my-cluster-proxy
     # ...
-    targetCluster:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      tls:
-        key:
-          privateKeyFile: <path>/client.key
-          certificateFile: <path>/client.crt
+    target:
+      cluster: my-cluster
 # ...
 ----
 where:
@@ -107,17 +116,20 @@ The TLS protocols and cipher suites available to the TLS connection may also be 
 [source,yaml]
 ----
 # ...
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls:
+      # ...
+      protocols:
+        allowed:
+        - TLSv1.3
+        - TLSv1.2
 virtualClusters:
   - name: my-cluster-proxy
     # ...
-    targetCluster:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      tls:
-        # ...
-        protocols:
-          allowed:
-          - TLSv1.3
-          - TLSv1.2
+    target:
+      cluster: my-cluster
 ----
 where:
 
@@ -128,15 +140,18 @@ where:
 
 [source,yaml]
 ----
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls:
+      # ...
+      protocols:
+        denied:
+        - TLSv1.1
 virtualClusters:
   - name: my-cluster-proxy
-    targetCluster:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      tls:
-        # ...
-        protocols:
-          denied:
-          - TLSv1.1
+    target:
+      cluster: my-cluster
 ----
 where:
 
@@ -147,16 +162,19 @@ where:
 
 [source,yaml]
 ----
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls:
+      # ...
+      cipherSuites:
+        allowed:
+        - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
+        - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
 virtualClusters:
   - name: my-cluster-proxy
-    targetCluster:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      tls:
-        # ...
-        cipherSuites:
-          allowed:
-          - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
-          - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+    target:
+      cluster: my-cluster
 ----
 where:
 
@@ -167,15 +185,18 @@ where:
 
 [source,yaml]
 ----
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls:
+      # ...
+      cipherSuites:
+        denied:
+        - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
 virtualClusters:
   - name: my-cluster-proxy
-    targetCluster:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      tls:
-        # ...
-        cipherSuites:
-          denied:
-          - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
+    target:
+      cluster: my-cluster
 ----
 where:
 
@@ -191,16 +212,19 @@ connection context, allowing different certificates to be used for different cli
 .Example configuring a TLS credential supplier
 [source,yaml]
 ----
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls:
+      credentialSupplier:
+        type: MyCredentialSupplier  # <1>
+        config:  # <2>
+          path: /etc/certs
+          refreshInterval: 60s
 virtualClusters:
   - name: my-cluster-proxy
-    targetCluster:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      tls:
-        credentialSupplier:
-          type: MyCredentialSupplier  # <1>
-          config:  # <2>
-            path: /etc/certs
-            refreshInterval: 60s
+    target:
+      cluster: my-cluster
 # ...
 ----
 <1> The type of TLS credential supplier (references a ServerTlsCredentialSupplierFactory implementation).
@@ -225,12 +249,15 @@ any Kafka cluster.
 .Example configuration to disable TLS trust checks
 [source,yaml]
 ----
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: dev-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls:
+      trust:
+        insecure: true
 virtualClusters:
   - name: my-cluster-proxy
-    targetCluster:
-      bootstrapServers: dev-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      tls:
-        trust:
-          insecure: true
+    target:
+      cluster: my-cluster
 # ...
 ----

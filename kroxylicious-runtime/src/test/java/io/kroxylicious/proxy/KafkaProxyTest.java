@@ -50,6 +50,10 @@ class KafkaProxyTest {
 
     static Stream<Arguments> missingTls() {
         return Stream.of(Arguments.argumentSet("tls mismatch", """
+                clusterDefinitions:
+                  - name: demo1-cluster
+                    bootstrapServers: kafka.example:1234
+
                 virtualClusters:
                   - name: demo1
                     gateways:
@@ -57,9 +61,8 @@ class KafkaProxyTest {
                       sniHostIdentifiesNode:
                         bootstrapAddress: localhost:8192
                         advertisedBrokerAddressPattern: broker-$(nodeId)
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
-                """,
+                    target:
+                      cluster: demo1-cluster""",
                 "When using 'sniHostIdentifiesNode', 'tls' must be provided (virtual cluster listener default)"));
     }
 
@@ -86,10 +89,13 @@ class KafkaProxyTest {
     @Test
     void invalidConfigurationForFeatures() {
         var config = """
+                   clusterDefinitions:
+                     - name: demo1-cluster
+                       bootstrapServers: kafka.example:1234
                    virtualClusters:
                      - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
+                       target:
+                         cluster: demo1-cluster
                        gateways:
                        - name: default
                          portIdentifiesNode:
@@ -120,10 +126,13 @@ class KafkaProxyTest {
                     shutdownQuietPeriod: 0s
                   management:
                     shutdownQuietPeriod: 0s
+                clusterDefinitions:
+                  - name: demo1-cluster
+                    bootstrapServers: kafka.example:1234
                 virtualClusters:
                   - name: demo1
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
+                    target:
+                      cluster: demo1-cluster
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -137,10 +146,13 @@ class KafkaProxyTest {
             // wrap-as-LifecycleException in KafkaProxy.defaultRegistry preserves the exception type
             // and cause that callers of the legacy startup() path had previously relied on.
             var config = """
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
@@ -162,17 +174,22 @@ class KafkaProxyTest {
 
         static Stream<Arguments> detectsConflictingPorts() {
             return Stream.of(Arguments.argumentSet("bootstrap port conflict", """
+                    clusterDefinitions:
+                      - name: demo1-cluster
+                        bootstrapServers: kafka.example:1234
+                      - name: demo2-cluster
+                        bootstrapServers: kafka.example:1234
                     virtualClusters:
                       - name: demo1
-                        targetCluster:
-                          bootstrapServers: kafka.example:1234
+                        target:
+                          cluster: demo1-cluster
                         gateways:
                         - name: default
                           portIdentifiesNode:
                             bootstrapAddress: localhost:9192
                       - name: demo2
-                        targetCluster:
-                          bootstrapServers: kafka.example:1234
+                        target:
+                          cluster: demo2-cluster
                         gateways:
                         - name: default
                           portIdentifiesNode:
@@ -180,18 +197,23 @@ class KafkaProxyTest {
                     """,
                     "exclusive TCP bind of <any>:9192 for gateway 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9192 for gateway 'default' of virtual cluster 'demo2': exclusive port collision"),
                     Arguments.argumentSet("broker port conflict", """
+                            clusterDefinitions:
+                              - name: demo1-cluster
+                                bootstrapServers: kafka.example:1234
+                              - name: demo2-cluster
+                                bootstrapServers: kafka.example:1234
                             virtualClusters:
                               - name: demo1
-                                targetCluster:
-                                  bootstrapServers: kafka.example:1234
+                                target:
+                                  cluster: demo1-cluster
                                 gateways:
                                 - name: default
                                   portIdentifiesNode:
                                     bootstrapAddress: localhost:9192
                                     nodeStartPort: 9193
                               - name: demo2
-                                targetCluster:
-                                  bootstrapServers: kafka.example:1234
+                                target:
+                                  cluster: demo2-cluster
                                 gateways:
                                 - name: default
                                   portIdentifiesNode:
@@ -221,10 +243,13 @@ class KafkaProxyTest {
                            shutdownQuietPeriod: 0s
                          management:
                            shutdownQuietPeriod: 0s
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
@@ -251,10 +276,13 @@ class KafkaProxyTest {
                            shutdownQuietPeriod: 0s
                          management:
                            shutdownQuietPeriod: 0s
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
@@ -282,10 +310,13 @@ class KafkaProxyTest {
                           shutdownQuietPeriod: 0s
                         management:
                           shutdownQuietPeriod: 0s
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
@@ -313,10 +344,13 @@ class KafkaProxyTest {
                         management:
                           workerThreadCount: 2
                           shutdownQuietPeriod: 0s
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
@@ -341,10 +375,13 @@ class KafkaProxyTest {
                            shutdownQuietPeriod: 0s
                          management:
                            shutdownQuietPeriod: 0s
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
@@ -372,10 +409,13 @@ class KafkaProxyTest {
                         management:
                           workerThreadCount: 2
                           shutdownQuietPeriod: 0s
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
@@ -403,10 +443,13 @@ class KafkaProxyTest {
                           shutdownQuietPeriod: 0s
                         management:
                           shutdownQuietPeriod: 0s
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
@@ -499,10 +542,13 @@ class KafkaProxyTest {
                            shutdownQuietPeriod: 0s
                          management:
                            shutdownQuietPeriod: 0s
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
@@ -528,10 +574,13 @@ class KafkaProxyTest {
                            shutdownQuietPeriod: 0s
                          management:
                            shutdownQuietPeriod: 0s
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
@@ -555,10 +604,13 @@ class KafkaProxyTest {
             // Given
             try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
                        useIoUring: true
+                       clusterDefinitions:
+                         - name: demo1-cluster
+                           bootstrapServers: kafka.example:1234
                        virtualClusters:
                          - name: demo1
-                           targetCluster:
-                             bootstrapServers: kafka.example:1234
+                           target:
+                             cluster: demo1-cluster
                            gateways:
                            - name: default
                              portIdentifiesNode:
