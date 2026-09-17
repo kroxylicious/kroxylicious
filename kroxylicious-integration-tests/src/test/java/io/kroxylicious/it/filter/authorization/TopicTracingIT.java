@@ -133,6 +133,8 @@ class TopicTracingIT extends AbstractTracingIT {
     void tidyClusters() {
         ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(TOPIC_A), aclBindings);
         ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(TOPIC_A), List.of());
+        ClusterPrepUtils.deleteAllConsumerGroups(kafkaClusterWithAuthzAdmin);
+        ClusterPrepUtils.deleteAllConsumerGroups(kafkaClusterNoAuthzAdmin);
     }
 
     record AdminProg() implements Prog {
