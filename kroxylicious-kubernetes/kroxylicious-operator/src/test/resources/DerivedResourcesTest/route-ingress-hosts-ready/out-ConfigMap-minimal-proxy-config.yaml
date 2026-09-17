@@ -25,12 +25,15 @@ data:
     management:
       endpoints:
         prometheus: {}
+    clusterDefinitions:
+    - name: "one-target"
+      bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+      bootstrapServerSelection:
+        strategy: "round-robin"
     virtualClusters:
     - name: "one"
-      targetCluster:
-        bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
-        bootstrapServerSelection:
-          strategy: "round-robin"
+      target:
+        cluster: "one-target"
       gateways:
       - name: "myopenshiftroute"
         sniHostIdentifiesNode:

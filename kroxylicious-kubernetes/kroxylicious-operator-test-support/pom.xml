@@ -47,7 +47,7 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- project dependencies -->
+        <!-- project dependencies - runtime and compie -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kubernetes-api</artifactId>
@@ -56,6 +56,13 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-runtime</artifactId>
+        </dependency>
+
+        <!-- project dependencies - test -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <!-- third party dependencies - compile -->

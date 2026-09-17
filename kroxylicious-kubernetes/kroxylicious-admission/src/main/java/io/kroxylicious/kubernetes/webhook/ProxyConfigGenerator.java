@@ -11,12 +11,13 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Optional;
 
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
@@ -105,16 +106,25 @@ class ProxyConfigGenerator {
                     null));
         }
 
-        var targetCluster = new TargetCluster(
+        String clusterDefName = vc.getName() + "-target";
+
+        var clusterDefinition = new ClusterDefinition(
+                clusterDefName,
                 vc.getTargetBootstrapServers(),
-                targetClusterTls);
+                targetClusterTls.orElse(null));
+
+        var target = new RouteTarget(clusterDefName, null);
 
         var virtualCluster = new VirtualCluster(
                 vc.getName(),
-                targetCluster,
+                null,
+                target,
                 List.of(gateway),
                 false,
                 false,
+                null,
+                null,
+                null,
                 null);
 
         var management = new ManagementConfiguration(
@@ -129,7 +139,7 @@ class ProxyConfigGenerator {
 
         var configuration = new Configuration(
                 management,
-                null,
+                List.of(clusterDefinition),
                 filterDefs,
                 defaultFilters,
                 null,
