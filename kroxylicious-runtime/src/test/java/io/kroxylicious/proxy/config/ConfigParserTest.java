@@ -30,6 +30,9 @@ import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
+import io.kroxylicious.proxy.bootstrap.BootstrapSelectionStrategy;
+import io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy;
+import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.ConstructorInjectionConfig;
 import io.kroxylicious.proxy.internal.filter.ExamplePluginFactory;
@@ -323,6 +326,21 @@ class ConfigParserTest {
                         clusterDefinitions:
                         - name: my-cluster
                           bootstrapServers: broker1:9092,broker2:9092
+                        virtualClusters:
+                        - name: demo1
+                          target:
+                            cluster: my-cluster
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
+                        """),
+                argumentSet("Cluster definitions with bootstrap server selection", """
+                        clusterDefinitions:
+                        - name: my-cluster
+                          bootstrapServers: broker1:9092,broker2:9092
+                          bootstrapServerSelection:
+                            strategy: random
                         virtualClusters:
                         - name: demo1
                           target:
@@ -1113,6 +1131,40 @@ class ConfigParserTest {
                 .extracting(virtualClusters -> virtualClusters.get(0))
                 .extracting(VirtualCluster::targetCluster)
                 .satisfies(targetCluster -> assertThat(targetCluster.selectionStrategy()).isInstanceOf(Class.forName(expectedClass)));
+    }
+
+    static Stream<Arguments> shouldSupportClusterDefinitionWithConfiguredBootstrapServerSelectionStrategy() {
+        return Stream.of(
+                argumentSet("random", "random", RandomBootstrapSelectionStrategy.class),
+                argumentSet("round-robin", "round-robin", RoundRobinBootstrapSelectionStrategy.class));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void shouldSupportClusterDefinitionWithConfiguredBootstrapServerSelectionStrategy(String strategy,
+                                                                                      Class<? extends BootstrapSelectionStrategy> expectedClass) {
+        // When
+        var configurationModel = configParser.parseConfiguration("""
+                clusterDefinitions:
+                - name: my-cluster
+                  bootstrapServers: broker1:9092,broker2:9092
+                  bootstrapServerSelection:
+                    strategy: %s
+                virtualClusters:
+                - name: demo1
+                  target:
+                    cluster: my-cluster
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """.formatted(strategy));
+        // Then
+        assertThat(configurationModel)
+                .extracting(Configuration::clusterDefinitions, InstanceOfAssertFactories.collection(ClusterDefinition.class))
+                .singleElement()
+                .extracting(ClusterDefinition::selectionStrategy)
+                .isInstanceOf(expectedClass);
     }
 
     private record UnannotatedDurationRecord(Duration timeout) {}

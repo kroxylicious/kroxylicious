@@ -1,0 +1,4 @@
+title: "feat(runtime): implement TopologyService.topicNames() and invalidateRoute() for Router plugins"
+type: added
+issues:
+  - 4155

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -18,6 +19,10 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.internal.topology.RequestSender;
+import io.kroxylicious.proxy.internal.topology.TopologyCache;
+import io.kroxylicious.proxy.internal.topology.TopologyCacheHolder;
+import io.kroxylicious.proxy.internal.topology.TopologyServiceImpl;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
@@ -31,8 +36,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * required for instantiation at the point at which instances are created.
  *
  * <p>Each virtual cluster that references a router gets its own
- * initialisation of that router's factory, so shared state (e.g.
- * caches, metrics) is per-virtual-cluster.</p>
+ * initialisation of that router's factory.
+ * The topology cache is keyed by (vcName, routerName), so a router shared
+ * across VCs gets separate caches per VC.</p>
  */
 public class RouterChainFactory implements AutoCloseable {
 
@@ -44,14 +50,17 @@ public class RouterChainFactory implements AutoCloseable {
         private final String routerName;
         private final RouterFactoryContext context;
         private final Object initResult;
+        private final TopologyCacheHolder cacheHolder;
         private final AtomicBoolean closed = new AtomicBoolean(false);
 
         private Wrapper(RouterFactoryContext context,
                         RouterDefinition routerDefinition,
-                        RouterFactory<? super Object, ? super Object> routerFactory) {
+                        RouterFactory<? super Object, ? super Object> routerFactory,
+                        TopologyCacheHolder cacheHolder) {
             this.routerFactory = routerFactory;
             this.routerName = routerDefinition.name();
             this.context = context;
+            this.cacheHolder = cacheHolder;
             Object config = routerDefinition.config();
             try {
                 initResult = routerFactory.initialize(context, config);
@@ -64,12 +73,56 @@ public class RouterChainFactory implements AutoCloseable {
             }
         }
 
-        private Router create() {
+        /**
+         * Creates a per-connection router instance. Builds a per-call {@link RouterFactoryContext}
+         * that delegates to the shared {@link #context} for everything except
+         * {@link RouterFactoryContext#topologyService()}, which it binds to the given
+         * {@code sender} - this avoids a shared mutable "current sender" field on {@code Wrapper},
+         * which would race since different connections' event-loop threads can call this method
+         * concurrently.
+         */
+        private Router create(RequestSender sender) {
             if (closed.get()) {
                 throw new IllegalStateException("Router factory " + routerName + " is closed");
             }
+            RouterFactoryContext perConnectionContext = new RouterFactoryContext() {
+                @Override
+                public String virtualClusterName() {
+                    return context.virtualClusterName();
+                }
+
+                @Override
+                public String routerName() {
+                    return context.routerName();
+                }
+
+                @Override
+                public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
+                    return context.pluginInstance(pluginClass, implementationName);
+                }
+
+                @Override
+                public Set<String> routeNames() {
+                    return context.routeNames();
+                }
+
+                @Override
+                public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
+                    return context.pluginImplementationNames(pluginClass);
+                }
+
+                @Override
+                public TopologyService topologyService() {
+                    return new TopologyServiceImpl(cacheHolder.getOrCreate(), sender);
+                }
+
+                @Override
+                public void allowSharedClusterTargets() {
+                    context.allowSharedClusterTargets();
+                }
+            };
             try {
-                return routerFactory.createRouter(context, initResult);
+                return routerFactory.createRouter(perConnectionContext, initResult);
             }
             catch (Exception e) {
                 throw new PluginConfigurationException(
@@ -77,6 +130,14 @@ public class RouterChainFactory implements AutoCloseable {
                                 + " using factory " + routerFactory,
                         e);
             }
+        }
+
+        /**
+         * Returns the shared {@link TopologyCache} for this router level, if one has been created
+         * (i.e. some connection's router has called {@link RouterFactoryContext#topologyService()}).
+         */
+        private Optional<TopologyCache> existingTopologyCache() {
+            return Optional.ofNullable(cacheHolder.getIfPresent());
         }
 
         private void close() {
@@ -166,8 +227,9 @@ public class RouterChainFactory implements AutoCloseable {
         var routeNames = rd.routes().stream()
                 .map(RouteDefinition::name)
                 .collect(Collectors.toUnmodifiableSet());
-        RouterFactoryContext context = createContext(vcName, routerName, routeNames);
-        Wrapper wrapper = new Wrapper(context, rd, factory);
+        var cacheHolder = new TopologyCacheHolder();
+        RouterFactoryContext context = createContext(vcName, routerName, routeNames, cacheHolder);
+        Wrapper wrapper = new Wrapper(context, rd, factory, cacheHolder);
         initialized.put(key, wrapper);
 
         for (RouteDefinition route : rd.routes()) {
@@ -178,14 +240,19 @@ public class RouterChainFactory implements AutoCloseable {
     }
 
     /**
-     * Creates a new router instance for the given router name and virtual cluster.
+     * Creates a new router instance for the given router name and virtual cluster, whose
+     * {@link RouterFactoryContext#topologyService()} (if called during
+     * {@link RouterFactory#createRouter}) uses the given {@code sender} to send discovery
+     * requests on this connection.
      *
      * @param routerName the name of the router definition
      * @param virtualClusterName the name of the virtual cluster
+     * @param sender the request-sending capability to bind to this connection's topology service
      * @return the created router instance
      */
     public Router createRouter(String routerName,
-                               String virtualClusterName) {
+                               String virtualClusterName,
+                               RequestSender sender) {
         var key = new VcRouter(virtualClusterName, routerName);
         Wrapper wrapper = initialized.get(key);
         if (wrapper == null) {
@@ -193,10 +260,27 @@ public class RouterChainFactory implements AutoCloseable {
                     "No router definition found for name: " + routerName
                             + " in virtual cluster: " + virtualClusterName);
         }
-        return wrapper.create();
+        return wrapper.create(sender);
     }
 
-    private RouterFactoryContext createContext(String vcName, String routerName, Set<String> routeNames) {
+    /**
+     * Returns the shared {@link TopologyCache} for the given router level, if one has been
+     * created (i.e. some connection's router has called
+     * {@link RouterFactoryContext#topologyService()}). Used by the routing runtime to activate
+     * cache population on a connection's dispatcher immediately after
+     * {@link #createRouter(String, String, RequestSender)} returns.
+     *
+     * @param routerName the name of the router definition
+     * @param virtualClusterName the name of the virtual cluster
+     * @return the shared topology cache, or empty if none has been created yet
+     */
+    public Optional<TopologyCache> existingTopologyCache(String routerName, String virtualClusterName) {
+        var key = new VcRouter(virtualClusterName, routerName);
+        Wrapper wrapper = initialized.get(key);
+        return wrapper == null ? Optional.empty() : wrapper.existingTopologyCache();
+    }
+
+    private RouterFactoryContext createContext(String vcName, String routerName, Set<String> routeNames, TopologyCacheHolder cacheHolder) {
         return new RouterFactoryContext() {
             @Override
             public String virtualClusterName() {
@@ -226,7 +310,11 @@ public class RouterChainFactory implements AutoCloseable {
 
             @Override
             public TopologyService topologyService() {
-                throw new UnsupportedOperationException("TopologyService not available in this context");
+                // This is the shared, RouterFactory#initialize-time context (createRouter builds
+                // its own per-call context in Wrapper.create) - per topologyService()'s contract,
+                // the instance returned here must not be stored or used for discovery, only to
+                // trigger cache creation as an opt-in side effect.
+                return new TopologyServiceImpl(cacheHolder.getOrCreate(), RequestSender.unavailable());
             }
 
             @Override

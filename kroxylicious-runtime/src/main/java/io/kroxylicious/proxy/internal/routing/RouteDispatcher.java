@@ -28,8 +28,10 @@ import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.PathElement;
+import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
+import io.kroxylicious.proxy.internal.topology.TopologyCache;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -43,6 +45,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <p>Parameterised by the path leading to this dispatcher's own router so the same logic serves
  * every router in the routing tree, and so each level's out-of-band ({@link RouterContextImpl#sendRequest})
  * requests carry a path distinct from every other level's.
+ *
+ * <p>One instance is created for each router-level and connection.
+ * RouteDispatchers will have an associated {@link TopologyCache} when the cache
+ * is {@linkplain #activateTopologyCache(TopologyCache) activated}, (after construction,
+ * but before channel activation).</p>
  *
  * <p>Not thread-safe; all callers must be on the same Netty event loop. Off-loop calls are
  * bridged via {@link #executeOnEventLoop}.
@@ -98,6 +105,9 @@ public class RouteDispatcher implements RouterDispatch {
     @Nullable
     private ChannelHandlerContext ctx;
 
+    @Nullable
+    private TopologyCache activeCache;
+
     enum ResponseOutcome {
         CONSUMED,
         STATIC_TRANSLATED,
@@ -123,6 +133,53 @@ public class RouteDispatcher implements RouterDispatch {
 
     void setContext(ChannelHandlerContext ctx) {
         this.ctx = ctx;
+    }
+
+    /**
+     * Builds the dispatcher for a top-level routing handler, deliberately kept separate from the
+     * {@link RoutingHandler#topLevel} construction of the handler itself so that
+     * {@link io.kroxylicious.proxy.internal.KafkaProxyInitializer} can build the dispatcher
+     * <em>before</em> creating the router - only then can a router's
+     * {@link io.kroxylicious.proxy.router.RouterFactoryContext#topologyService()} call (made
+     * during {@code createRouter()}) bind to this connection's dispatcher via
+     * {@link #activateTopologyCache}.
+     *
+     * @param routes all route descriptors for this virtual cluster (top-level and nested, qualified names)
+     * @param nodeIdMapping the virtual-to-target node ID mapping for the top-level routing level
+     * @param sharedNodeAddresses node addresses shared across routes (e.g. from a prior metadata response),
+     *        used to route node-specific requests without an additional metadata round-trip
+     * @param ccsm the connection state machine; provides the cluster name and correlation ID allocator
+     * @return the top-level dispatcher
+     */
+    public static RouteDispatcher forTopLevel(Map<String, RouteDescriptor> routes,
+                                              NodeIdMapping nodeIdMapping,
+                                              Map<Integer, HostPort> sharedNodeAddresses,
+                                              ClientConnectionStateMachine ccsm) {
+        var allocator = ccsm.internalCorrelationIdAllocator();
+        return new RouteDispatcher(routes, nodeIdMapping, "", PathElement.ClientOrigin.INSTANCE, allocator, sharedNodeAddresses, ccsm.clusterName());
+    }
+
+    /**
+     * Activates topology-cache population for this connection: subsequent METADATA responses
+     * flowing through {@link #handleResponse} update {@code cache} as a side effect. Called at
+     * most once per connection, right after {@code createRouter()} returns, if a
+     * {@link TopologyCache} now exists for this router level (see
+     * {@link io.kroxylicious.proxy.bootstrap.RouterChainFactory#existingTopologyCache}) - not
+     * re-checked per response, because whether the cache exists is fully decided by the time
+     * {@code createRouter()} returns (a router may only call
+     * {@link io.kroxylicious.proxy.router.RouterFactoryContext#topologyService()} during
+     * {@code RouterFactory#initialize}/{@code #createRouter}).
+     *
+     * @param cache the shared topology cache to populate
+     */
+    public void activateTopologyCache(TopologyCache cache) {
+        this.activeCache = Objects.requireNonNull(cache);
+    }
+
+    @VisibleForTesting
+    @Nullable
+    TopologyCache activeCache() {
+        return activeCache;
     }
 
     @Override
@@ -198,7 +255,7 @@ public class RouteDispatcher implements RouterDispatch {
                                                      RequestHeaderData header,
                                                      ApiMessage request,
                                                      String sessionId,
-                                                     int clientCorrelationId) {
+                                                     @Nullable Integer clientCorrelationId) {
         return executeOnEventLoop(() -> doSendToAnyNode(route, header, request, sessionId, clientCorrelationId));
     }
 
@@ -208,12 +265,12 @@ public class RouteDispatcher implements RouterDispatch {
                                                           RequestHeaderData header,
                                                           ApiMessage request,
                                                           String sessionId,
-                                                          int clientCorrelationId) {
+                                                          @Nullable Integer clientCorrelationId) {
         return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId));
     }
 
     private CompletableFuture<ApiMessage> doSendToAnyNode(String route, RequestHeaderData header, ApiMessage request, String sessionId,
-                                                          int clientCorrelationId) {
+                                                          @Nullable Integer clientCorrelationId) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null) {
             withSendContext(LOGGER.atWarn(), sessionId, route, clientCorrelationId)
@@ -304,8 +361,10 @@ public class RouteDispatcher implements RouterDispatch {
             }
             ApiMessage body = frame.body();
             try {
-                NodeIdResponseTranslator.translate(body, frame.apiVersion(), nodeIdMapping, localRouteName(issuedAt));
+                String route = localRouteName(issuedAt);
+                NodeIdResponseTranslator.translate(body, frame.apiVersion(), nodeIdMapping, route);
                 cacheNodeAddressesIfMetadata(body, sessionId);
+                updateTopologyCacheIfMetadata(body, route);
                 future.complete(body);
             }
             catch (Exception t) {
@@ -331,6 +390,7 @@ public class RouteDispatcher implements RouterDispatch {
             NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(),
                     nodeIdMapping, staticRoute);
             cacheNodeAddressesIfMetadata(frame.body(), sessionId);
+            updateTopologyCacheIfMetadata(frame.body(), staticRoute);
             return ResponseOutcome.STATIC_TRANSLATED;
         }
 
@@ -420,11 +480,21 @@ public class RouteDispatcher implements RouterDispatch {
         }
     }
 
-    private LoggingEventBuilder withSendContext(LoggingEventBuilder event, String sessionId, String route, int clientCorrelationId) {
-        return event.addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+    private void updateTopologyCacheIfMetadata(Object body, String route) {
+        TopologyCache cache = activeCache;
+        if (cache != null && body instanceof MetadataResponseData md) {
+            cache.updateFromMetadata(route, md);
+        }
+    }
+
+    private LoggingEventBuilder withSendContext(LoggingEventBuilder event, String sessionId, String route, @Nullable Integer clientCorrelationId) {
+        var withCommonContext = event.addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                .addKeyValue(LOG_KEY_ROUTE, route)
-                .addKeyValue("clientCorrelationId", clientCorrelationId);
+                .addKeyValue(LOG_KEY_ROUTE, route);
+        // Absent for sends not on behalf of a specific client request (e.g. a TopologyService
+        // probe) - omitted rather than faked, since a real client can legitimately use any int
+        // (including a value that would otherwise look like a sentinel) as its correlation ID.
+        return clientCorrelationId != null ? withCommonContext.addKeyValue("clientCorrelationId", clientCorrelationId) : withCommonContext;
     }
 
     private LoggingEventBuilder withNodeContext(LoggingEventBuilder event, String sessionId, String route, int targetNodeId) {
