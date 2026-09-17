@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -35,6 +36,7 @@ import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.config.TopicConfig;
+import org.apache.kafka.common.errors.GroupNotEmptyException;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
@@ -133,6 +135,20 @@ class TopicTracingIT extends AbstractTracingIT {
     void tidyClusters() {
         ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(TOPIC_A), aclBindings);
         ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(TOPIC_A), List.of());
+        deleteConsumerGroups(kafkaClusterWithAuthzAdmin);
+        deleteConsumerGroups(kafkaClusterNoAuthzAdmin);
+    }
+
+    private static void deleteConsumerGroups(Admin admin) {
+        // Static members can remain until their session expires after the clients close.
+        // Remove group history before another case reuses the IDs with a different protocol.
+        Awaitility.waitAtMost(60, TimeUnit.SECONDS)
+                .ignoreExceptionsMatching(e -> e.getCause() instanceof ExecutionException failure
+                        && failure.getCause() instanceof GroupNotEmptyException)
+                .until(() -> {
+                    ClusterPrepUtils.deleteAllConsumerGroups(admin);
+                    return true;
+                });
     }
 
     record AdminProg() implements Prog {
