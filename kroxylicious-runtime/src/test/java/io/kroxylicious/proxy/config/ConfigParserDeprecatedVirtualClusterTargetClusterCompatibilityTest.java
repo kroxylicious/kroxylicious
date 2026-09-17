@@ -213,8 +213,8 @@ class ConfigParserDeprecatedVirtualClusterTargetClusterCompatibilityTest {
     }
 
     @Test
-    void shouldSupportDeprecatedTargetClusterWithTlsCredentialSupplier() {
-        // Given/When - verify backward compatibility for TLS credential supplier on targetCluster
+    void shouldSupportDeprecatedTargetClusterTlsWithNullCredentialSupplier() {
+        // Given/When - verify backward compatibility for TLS on targetCluster (no credential supplier)
         var configuration = configParser.parseConfiguration("""
                 virtualClusters:
                 - name: demo1
