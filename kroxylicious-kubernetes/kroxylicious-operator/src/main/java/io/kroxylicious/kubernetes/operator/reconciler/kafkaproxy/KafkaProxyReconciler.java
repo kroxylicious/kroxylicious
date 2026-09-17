@@ -80,10 +80,12 @@ import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxyingress.IsOpensh
 import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
@@ -100,6 +102,7 @@ import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -214,29 +217,37 @@ public class KafkaProxyReconciler implements
                         cf -> cf.fragment().name(),
                         Function.identity()));
 
-        var virtualClusters = buildVirtualClusters(namedDefinitions.keySet(), model);
+        var virtualClustersWithClusterDefs = buildVirtualClusters(namedDefinitions.keySet(), model);
+
+        List<ClusterDefinition> clusterDefinitions = virtualClustersWithClusterDefs.stream()
+                .map(vcFragment -> vcFragment.fragment().clusterDefinition())
+                .toList();
+
+        List<VirtualCluster> virtualClusters = virtualClustersWithClusterDefs.stream()
+                .map(vcFragment -> vcFragment.fragment().virtualCluster())
+                .toList();
 
         List<NamedFilterDefinition> referencedFilters = virtualClusters.stream()
-                .flatMap(vcFragment -> Optional.ofNullable(vcFragment.fragment().filters()).stream().flatMap(Collection::stream))
+                .flatMap(vc -> Optional.ofNullable(vc.filters()).stream().flatMap(Collection::stream))
                 .distinct()
                 .map(filterName -> namedDefinitions.get(filterName).fragment()).toList();
 
-        var allVolumes = Stream.concat(allFilterDefinitions.stream(), virtualClusters.stream())
+        var allVolumes = Stream.concat(allFilterDefinitions.stream(), virtualClustersWithClusterDefs.stream())
                 .flatMap(fd -> fd.volumes().stream())
                 .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(Volume::getName).reversed())));
 
-        var allMounts = Stream.concat(allFilterDefinitions.stream(), virtualClusters.stream())
+        var allMounts = Stream.concat(allFilterDefinitions.stream(), virtualClustersWithClusterDefs.stream())
                 .flatMap(fd -> fd.mounts().stream())
                 .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(VolumeMount::getMountPath).reversed())));
 
         return new ConfigurationFragment<>(
                 new Configuration(
                         new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())),
-                        null, // no named target clusters
+                        clusterDefinitions,
                         referencedFilters,
                         null, // no defaultFilters <= each of the virtualClusters specifies its own
                         null, // no router definitions
-                        virtualClusters.stream().map(ConfigurationFragment::fragment).toList(),
+                        virtualClusters,
                         List.of(),
                         false,
                         // micrometer
@@ -247,7 +258,7 @@ public class KafkaProxyReconciler implements
                 allMounts);
     }
 
-    private static List<ConfigurationFragment<VirtualCluster>> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
+    private static List<ConfigurationFragment<VirtualClusterWithClusterDef>> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
         return model.clustersWithValidNetworking().stream()
                 .filter(cluster -> cluster.filterResolutionResults().stream().allMatch(
                         filterResult -> successfullyBuiltFilterNames.contains(filterDefinitionName(filterResult.reference()))))
@@ -301,8 +312,13 @@ public class KafkaProxyReconciler implements
         return secureConfigInterpolator.interpolate(configTemplate);
     }
 
-    private static ConfigurationFragment<VirtualCluster> buildVirtualCluster(ClusterResolutionResult cluster,
-                                                                             ProxyNetworkingModel ingressModel) {
+    /**
+     * Helper record to carry both ClusterDefinition and VirtualCluster together through the fragment pipeline.
+     */
+    private record VirtualClusterWithClusterDef(ClusterDefinition clusterDefinition, VirtualCluster virtualCluster) {}
+
+    private static ConfigurationFragment<VirtualClusterWithClusterDef> buildVirtualCluster(ClusterResolutionResult cluster,
+                                                                                           ProxyNetworkingModel ingressModel) {
 
         ProxyNetworkingModel.ClusterNetworkingModel clusterNetworkingModel = ingressModel.clusterIngressModel(cluster.cluster()).orElseThrow();
         var gatewayFragments = ConfigurationFragment.reduce(clusterNetworkingModel.clusterIngressNetworkingModelResults().stream()
@@ -311,16 +327,39 @@ public class KafkaProxyReconciler implements
 
         KafkaService kafkaServiceRef = cluster.serviceResolutionResult().referentResource();
         var virtualClusterConfigurationFragment = gatewayFragments
-                .flatMap(clusterCfs -> buildTargetCluster(kafkaServiceRef).map(targetCluster -> new VirtualCluster(
-                        name(cluster.cluster()),
-                        targetCluster,
-                        clusterCfs,
-                        false,
-                        false,
-                        filterNamesForCluster(cluster))));
+                .flatMap(clusterCfs -> buildTargetCluster(kafkaServiceRef).map(targetCluster -> buildVirtualClusterAndClusterDef(cluster, clusterCfs, targetCluster)));
         return ConfigurationFragment.combine(virtualClusterConfigurationFragment,
                 gatewayFragments,
-                (virtualCluster, gateways) -> virtualCluster);
+                (vcWithClusterDef, gateways) -> vcWithClusterDef);
+    }
+
+    @NonNull
+    private static VirtualClusterWithClusterDef buildVirtualClusterAndClusterDef(ClusterResolutionResult cluster, List<VirtualClusterGateway> clusterCfs,
+                                                                                 TargetCluster targetCluster) {
+        var vcName = name(cluster.cluster());
+        var clusterDefName = vcName + "-target";
+
+        var clusterDef = new ClusterDefinition(
+                clusterDefName,
+                targetCluster.bootstrapServers(),
+                targetCluster.tls().orElse(null),
+                targetCluster.selectionStrategy());
+
+        var target = new RouteTarget(clusterDefName, null);
+
+        var vc = new VirtualCluster(
+                vcName,
+                null,
+                target,
+                clusterCfs,
+                false,
+                false,
+                filterNamesForCluster(cluster),
+                null,
+                null,
+                null);
+
+        return new VirtualClusterWithClusterDef(clusterDef, vc);
     }
 
     /**

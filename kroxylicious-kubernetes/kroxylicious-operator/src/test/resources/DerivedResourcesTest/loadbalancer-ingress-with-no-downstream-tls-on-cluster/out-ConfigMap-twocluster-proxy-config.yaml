@@ -25,12 +25,15 @@ data:
     management:
       endpoints:
         prometheus: {}
+    clusterDefinitions:
+    - name: "bar-target"
+      bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
+      bootstrapServerSelection:
+        strategy: "round-robin"
     virtualClusters:
     - name: "bar"
-      targetCluster:
-        bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
-        bootstrapServerSelection:
-          strategy: "round-robin"
+      target:
+        cluster: "bar-target"
       gateways:
       - name: "load-balancer"
         sniHostIdentifiesNode:

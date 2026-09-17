@@ -36,11 +36,16 @@ class ProxyConfigGeneratorTest {
         assertThat(root.path("management").path("port").asInt()).isEqualTo(ProxyConfigGenerator.DEFAULT_MANAGEMENT_PORT);
         assertThat(root.path("management").path("bindAddress").asText()).isEqualTo("0.0.0.0");
 
+        // Cluster definition
+        JsonNode clusterDef = root.path("clusterDefinitions").get(0);
+        assertThat(clusterDef.path("name").asText()).isEqualTo("sidecar-target");
+        assertThat(clusterDef.path("bootstrapServers").asText())
+                .isEqualTo("kafka.example.com:9092");
+
         // Virtual cluster
         JsonNode vc = root.path("virtualClusters").get(0);
         assertThat(vc.path("name").asText()).isEqualTo("sidecar");
-        assertThat(vc.path("targetCluster").path("bootstrapServers").asText())
-                .isEqualTo("kafka.example.com:9092");
+        assertThat(vc.path("target").path("cluster").asText()).isEqualTo("sidecar-target");
 
         // Gateway
         JsonNode gw = vc.path("gateways").get(0);
@@ -200,8 +205,7 @@ class ProxyConfigGeneratorTest {
         String yaml = ProxyConfigGenerator.generateConfig(spec, trustStorePath);
         JsonNode root = YAML_MAPPER.readTree(yaml);
 
-        JsonNode tls = root.path("virtualClusters").get(0)
-                .path("targetCluster").path("tls");
+        JsonNode tls = root.path("clusterDefinitions").get(0).path("tls");
         assertThat(tls.isMissingNode()).isFalse();
         assertThat(tls.path("trust").path("storeFile").asText()).isEqualTo(trustStorePath);
         assertThat(tls.path("trust").path("storeType").asText()).isEqualTo("PEM");
@@ -214,8 +218,7 @@ class ProxyConfigGeneratorTest {
         String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
 
-        JsonNode tls = root.path("virtualClusters").get(0)
-                .path("targetCluster").path("tls");
+        JsonNode tls = root.path("clusterDefinitions").get(0).path("tls");
         assertThat(tls.isMissingNode() || tls.isNull())
                 .as("TLS should be absent when no trust store path")
                 .isTrue();
