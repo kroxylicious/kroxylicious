@@ -424,7 +424,7 @@ class KafkaProxyInitializerTest {
         // Given
         var routerChainFactory = mock(RouterChainFactory.class);
         var router = mock(Router.class);
-        when(routerChainFactory.createRouter(any(), any())).thenReturn(router);
+        when(routerChainFactory.createRouter(any(), any(), any())).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
 
         virtualClusterModel = buildDynamicRoutingVirtualCluster(routerChainFactory);

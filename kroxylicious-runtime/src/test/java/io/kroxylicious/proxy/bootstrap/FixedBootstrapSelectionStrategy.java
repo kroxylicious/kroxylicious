@@ -38,4 +38,10 @@ public record FixedBootstrapSelectionStrategy(int choice) implements BootstrapSe
     public String getStrategy() {
         return "fixed";
     }
+
+    // immutable and holds no selection state, so sharing is safe
+    @Override
+    public BootstrapSelectionStrategy newInstance() {
+        return this;
+    }
 }
