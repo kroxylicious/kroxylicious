@@ -1,0 +1,4 @@
+title: "feat(kms): add HashiCorp Vault Kubernetes authentication support"
+type: added
+issues:
+  - 3187
