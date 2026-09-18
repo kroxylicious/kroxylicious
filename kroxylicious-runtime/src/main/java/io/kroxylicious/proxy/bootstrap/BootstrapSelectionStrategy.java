@@ -6,30 +6,28 @@
 
 package io.kroxylicious.proxy.bootstrap;
 
-import java.util.List;
-import java.util.function.Function;
-
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-import io.kroxylicious.proxy.service.HostPort;
-
 /**
- * Strategy for selecting an upstream target from a given list of upstream targets for bootstrapping.
+ * Configuration of the strategy used to select an upstream bootstrap server from the configured list
+ * when a new upstream connection is made.
+ * <p>
+ * Implementations are immutable value objects describing <em>which</em> strategy is configured (and any
+ * parameters it takes); they hold no selection state, and implement {@link Object#equals(Object)} and
+ * {@link Object#hashCode()} in terms of that configuration alone so that re-parsing an unchanged
+ * configuration yields an equal strategy. The mutable, per-upstream-cluster selection state lives in the
+ * {@link BootstrapServerSelector} obtained from {@link #newSelector()}.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, defaultImpl = RoundRobinBootstrapSelectionStrategy.class, property = "strategy", include = JsonTypeInfo.As.EXISTING_PROPERTY)
 @JsonSubTypes({
         @JsonSubTypes.Type(value = RandomBootstrapSelectionStrategy.class, name = "random"),
         @JsonSubTypes.Type(value = RoundRobinBootstrapSelectionStrategy.class, name = "round-robin")
 })
-public interface BootstrapSelectionStrategy extends Function<List<HostPort>, HostPort> {
-
-    @Override
-    @JsonIgnore
-    HostPort apply(List<HostPort> hostPorts);
+public interface BootstrapSelectionStrategy {
 
     /**
      * No-op setter that allows the {@code strategy} discriminator property to be present in the
@@ -53,13 +51,14 @@ public interface BootstrapSelectionStrategy extends Function<List<HostPort>, Hos
     String getStrategy();
 
     /**
-     * Returns a strategy with the same configuration as this one, but with selection state
-     * independent of it.
+     * Creates a new, thread-safe selector implementing this strategy.
      * <p>
-     * Implementations that are immutable and hold no selection state may return {@code this}.
+     * Each call returns a selector whose selection state is independent of any other selector,
+     * so callers that must not share selection state (for example, distinct upstream cluster
+     * models) should each obtain their own.
      *
-     * @return a strategy with independent selection state
+     * @return a new selector for this strategy
      */
     @JsonIgnore
-    BootstrapSelectionStrategy newInstance();
+    BootstrapServerSelector newSelector();
 }
