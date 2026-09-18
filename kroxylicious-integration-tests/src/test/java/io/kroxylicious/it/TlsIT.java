@@ -41,7 +41,6 @@ import org.junit.platform.commons.util.ReflectionUtils;
 
 import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.FilePassword;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
@@ -55,7 +54,8 @@ import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.Tls;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -84,20 +84,22 @@ class TlsIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
                         .withNewTrustStoreTrust()
-                        .withStoreFile(brokerTruststore)
-                        .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
+                            .withStoreFile(brokerTruststore)
+                            .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
                         .endTrustStoreTrust()
-                        .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .build())
-                        .build());
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .build())
+                .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
@@ -116,21 +118,23 @@ class TlsIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers.replace("localhost", "127.0.0.1"))
-                        // 127.0.0.1 is not included as Subject Alternate Name (SAN) so hostname validation will fail.
-                        .withNewTls()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    // 127.0.0.1 is not included as Subject Alternate Name (SAN) so hostname validation will fail.
+                    .withBootstrapServers(bootstrapServers.replace("localhost", "127.0.0.1"))
+                    .withNewTls()
                         .withNewTrustStoreTrust()
-                        .withStoreFile(brokerTruststore)
-                        .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
+                            .withStoreFile(brokerTruststore)
+                            .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
                         .endTrustStoreTrust()
-                        .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .build())
-                        .build());
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .build())
+                .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
@@ -158,20 +162,22 @@ class TlsIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
                         .withNewTrustStoreTrust()
-                        .withStoreFile(file.getAbsolutePath())
-                        .withStoreType("PEM")
+                            .withStoreFile(file.getAbsolutePath())
+                            .withStoreType("PEM")
                         .endTrustStoreTrust()
-                        .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .build())
-                        .build());
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .build())
+                .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
@@ -186,16 +192,18 @@ class TlsIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
                         .withNewInsecureTlsTrust(true)
-                        .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
-                        .build());
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
+                .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
@@ -215,23 +223,25 @@ class TlsIT extends AbstractTlsIT {
         try (var cluster = createMTlsCluster(brokerCert, clientCert)) {
             // @formatter:off
             var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                    .addToVirtualClusters(new VirtualClusterBuilder()
-                            .withName("demo")
-                            .withNewTargetCluster()
-                            .withBootstrapServers(cluster.getBootstrapServers())
-                            .withNewTls()
+                    .addNewClusterDefinition()
+                        .withName(DEFAULT_CLUSTER_DEF_NAME)
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .withNewTls()
                             .withNewTrustStoreTrust()
-                            .withStoreFile((String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG))
-                            .withNewInlinePasswordStoreProvider((String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG))
+                                .withStoreFile((String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG))
+                                .withNewInlinePasswordStoreProvider((String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG))
                             .endTrustStoreTrust()
                             .withNewKeyStoreKey()
-                            .withStoreFile((String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG))
-                            .withNewInlinePasswordStoreProvider((String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG))
+                                .withStoreFile((String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG))
+                                .withNewInlinePasswordStoreProvider((String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG))
                             .endKeyStoreKey()
-                            .endTls()
-                            .endTargetCluster()
-                            .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
-                            .build());
+                        .endTls()
+                    .endClusterDefinition()
+                    .addNewVirtualCluster()
+                        .withName("demo")
+                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
+                    .endVirtualCluster();
             // @formatter:on
 
             try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
@@ -257,26 +267,28 @@ class TlsIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
                         .withNewTrustStoreTrust()
-                        .withStoreFile(brokerTruststore)
-                        .withStorePasswordProvider(brokerTrustPasswordProvider)
+                            .withStoreFile(brokerTruststore)
+                            .withStorePasswordProvider(brokerTrustPasswordProvider)
                         .endTrustStoreTrust()
-                        .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .withNewTls()
                                 .withNewKeyStoreKey()
-                                .withStoreFile(proxyKeystoreLocation)
-                                .withStorePasswordProvider(proxyKeystorePasswordProvider)
+                                    .withStoreFile(proxyKeystoreLocation)
+                                    .withStorePasswordProvider(proxyKeystorePasswordProvider)
                                 .endKeyStoreKey()
-                                .endTls()
-                                .build())
-                        .build());
+                            .endTls()
+                            .build())
+                .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder);
@@ -295,18 +307,7 @@ class TlsIT extends AbstractTlsIT {
         AllowDeny<String> protocols = new AllowDeny<>(List.of("TLSv1.2"), null);
 
         // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                                .endKeyStoreKey()
-                                .withProtocols(protocols)
-                                .endTls()
-                                .build())
-                        .build());
+        var builder = downstreamTlsBuilder(cluster, tls -> tls.withProtocols(protocols));
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder);
@@ -346,18 +347,22 @@ class TlsIT extends AbstractTlsIT {
     void downstream_UnrecognizedSniHostNameClosesConnection() {
         var duffBootstrap = "bootstrap." + IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("duff") + ":" + SNI_BOOTSTRAP_ADDRESS.port();
 
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
+                .addToClusterDefinitions(clusterDef)
+                .addNewVirtualCluster()
+                .withNewTarget(clusterDef.name(), null)
+                .withName("demo")
                         .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(SNI_BOOTSTRAP_ADDRESS, SNI_BROKER_ADDRESS_PATTERN)
                                 .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                                .endKeyStoreKey()
+                                    .withNewKeyStoreKey()
+                                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                    .endKeyStoreKey()
                                 .endTls()
                                 .build())
-                        .build());
+                        .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder);
@@ -376,19 +381,8 @@ class TlsIT extends AbstractTlsIT {
     @Test
     void downstream_UntrustedCertificateClosesConnection() {
 
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                                .endKeyStoreKey()
-                                .endTls()
-                                .build())
-                        .build());
-        // @formatter:on
+        var builder = downstreamTlsBuilder(cluster, tls -> {
+        });
 
         try (var tester = kroxyliciousTester(builder);
                 // admin won't trust the self signed cert of the broker.
@@ -407,20 +401,7 @@ class TlsIT extends AbstractTlsIT {
         // Protocol we want to use
         AllowDeny<String> protocols = new AllowDeny<>(List.of("TLSv1.2"), null);
 
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                                .endKeyStoreKey()
-                                .withProtocols(protocols)
-                                .endTls()
-                                .build())
-                        .build());
-        // @formatter:off
+        var builder = downstreamTlsBuilder(cluster, tls -> tls.withProtocols(protocols));
 
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo",
@@ -443,20 +424,7 @@ class TlsIT extends AbstractTlsIT {
         // Protocol we want to use
         AllowDeny<String> protocols = new AllowDeny<>(null, Set.of("TLSv1.2"));
 
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                                .endKeyStoreKey()
-                                .withProtocols(protocols)
-                                .endTls()
-                                .build())
-                        .build());
-        // @formatter:on
+        var builder = downstreamTlsBuilder(cluster, tls -> tls.withProtocols(protocols));
 
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo",
@@ -486,20 +454,22 @@ class TlsIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
                         .withNewTrustStoreTrust()
-                        .withStoreFile(brokerTruststore)
-                        .withStorePasswordProvider(brokerTrustPasswordProvider)
+                            .withStoreFile(brokerTruststore)
+                            .withStorePasswordProvider(brokerTrustPasswordProvider)
                         .endTrustStoreTrust()
                         .withProtocols(protocols)
-                        .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
-                        .build());
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
+                .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder);
@@ -524,20 +494,22 @@ class TlsIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
                         .withNewTrustStoreTrust()
-                        .withStoreFile(brokerTruststore)
-                        .withStorePasswordProvider(brokerTrustPasswordProvider)
+                            .withStoreFile(brokerTruststore)
+                            .withStorePasswordProvider(brokerTrustPasswordProvider)
                         .endTrustStoreTrust()
                         .withProtocols(protocols)
-                        .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
-                        .build());
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
+                .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder);
@@ -552,20 +524,7 @@ class TlsIT extends AbstractTlsIT {
         // Cipher we want to use
         AllowDeny<String> cipherSuites = new AllowDeny<>(List.of("TLS_CHACHA20_POLY1305_SHA256"), null);
 
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                                .endKeyStoreKey()
-                                .withCipherSuites(cipherSuites)
-                                .endTls()
-                                .build())
-                        .build());
-        // @formatter:on
+        var builder = downstreamTlsBuilder(cluster, tls -> tls.withCipherSuites(cipherSuites));
 
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo",
@@ -606,20 +565,7 @@ class TlsIT extends AbstractTlsIT {
         // Cipher we want to use
         AllowDeny<String> cipherSuites = new AllowDeny<>(List.of("TLS_AES_128_GCM_SHA256"), null);
 
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                                .endKeyStoreKey()
-                                .withCipherSuites(cipherSuites)
-                                .endTls()
-                                .build())
-                        .build());
-        // @formatter:on
+        var builder = downstreamTlsBuilder(cluster, tls -> tls.withCipherSuites(cipherSuites));
 
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo",
@@ -642,20 +588,7 @@ class TlsIT extends AbstractTlsIT {
         // Cipher we want to use
         AllowDeny<String> cipherSuites = new AllowDeny<>(List.of("TLS_CHACHA20_POLY1305_SHA256"), Set.of("TLS_AES_128_GCM_SHA256"));
 
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                                .endKeyStoreKey()
-                                .withCipherSuites(cipherSuites)
-                                .endTls()
-                                .build())
-                        .build());
-        // @formatter:on
+        var builder = downstreamTlsBuilder(cluster, tls -> tls.withCipherSuites(cipherSuites));
 
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo",
@@ -685,20 +618,22 @@ class TlsIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
                         .withNewTrustStoreTrust()
-                        .withStoreFile(brokerTruststore)
-                        .withStorePasswordProvider(brokerTrustPasswordProvider)
+                            .withStoreFile(brokerTruststore)
+                            .withStorePasswordProvider(brokerTrustPasswordProvider)
                         .endTrustStoreTrust()
                         .withCipherSuites(cipherSuites)
-                        .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
-                        .build());
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
+                .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder);
@@ -723,20 +658,22 @@ class TlsIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
                         .withNewTrustStoreTrust()
-                        .withStoreFile(brokerTruststore)
-                        .withStorePasswordProvider(brokerTrustPasswordProvider)
+                            .withStoreFile(brokerTruststore)
+                            .withStorePasswordProvider(brokerTrustPasswordProvider)
                         .endTrustStoreTrust()
                         .withCipherSuites(upstreamCipherSuites)
-                        .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
-                        .build());
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
+                .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder);
@@ -893,27 +830,56 @@ class TlsIT extends AbstractTlsIT {
     }
 
     private ConfigurationBuilder constructMutualTlsBuilder(KafkaCluster cluster, TlsClientAuth tlsClientAuth) {
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
         // @formatter:off
         return KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
+                .addToClusterDefinitions(clusterDef)
+                .addNewVirtualCluster()
+                .withNewTarget(clusterDef.name(), null)
+                .withName("demo")
                         .addToGateways(
                                 defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                         .withNewTls()
-                                        .withNewKeyStoreKey()
-                                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                                        .endKeyStoreKey()
-                                        .withNewTrustStoreTrust()
-                                        .withNewServerOptionsTrust()
-                                        .withClientAuth(tlsClientAuth)
-                                        .endServerOptionsTrust()
-                                        .withStoreFile(proxyTrustStore.toAbsolutePath().toString())
-                                        .withNewInlinePasswordStoreProvider(clientCertGenerator.getPassword())
-                                        .endTrustStoreTrust()
+                                            .withNewKeyStoreKey()
+                                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                            .endKeyStoreKey()
+                                            .withNewTrustStoreTrust()
+                                                .withNewServerOptionsTrust()
+                                                    .withClientAuth(tlsClientAuth)
+                                                .endServerOptionsTrust()
+                                                .withStoreFile(proxyTrustStore.toAbsolutePath().toString())
+                                                .withNewInlinePasswordStoreProvider(clientCertGenerator.getPassword())
+                                            .endTrustStoreTrust()
                                         .endTls()
                                         .build())
-                        .build());
+                        .endVirtualCluster();
         // @formatter:on
+    }
+
+    /**
+     * Helper to create a configuration with downstream TLS and customizable TLS settings.
+     */
+    private ConfigurationBuilder downstreamTlsBuilder(KafkaCluster cluster,
+                                                      java.util.function.Consumer<io.kroxylicious.proxy.config.tls.TlsBuilder> tlsCustomizer) {
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        var tlsBuilder = new io.kroxylicious.proxy.config.tls.TlsBuilder()
+                .withNewKeyStoreKey()
+                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                .endKeyStoreKey();
+
+        tlsCustomizer.accept(tlsBuilder);
+
+        return KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addNewVirtualCluster()
+                .withNewTarget(clusterDef.name(), null)
+                .withName("demo")
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                        .withTls(tlsBuilder.build())
+                        .build())
+                .endVirtualCluster();
     }
 
     /**

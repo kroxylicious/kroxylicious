@@ -39,7 +39,6 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
-import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
@@ -733,13 +732,10 @@ class ConfigurationTest {
     void shouldRejectMissingClusterFilter() {
         Optional<Map<String, Object>> development = Optional.empty();
         List<NamedFilterDefinition> filterDefinitions = List.of();
-        List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
-        TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
-        List<VirtualCluster> virtualClusters = List
-                .of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("missing")));
+        List<VirtualCluster> virtualClusters = List.of(virtualClusterWithFilters("vc1", List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
                 null,
-                null,
+                List.of(DEMO_CLUSTER_DEFINITION),
                 filterDefinitions,
                 null,
                 null,
@@ -764,11 +760,9 @@ class ConfigurationTest {
         );
 
         List<String> defaultFilters = List.of("used1");
-        List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
-        TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
-        List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("used2")));
+        List<VirtualCluster> virtualClusters = List.of(virtualClusterWithFilters("vc1", List.of("used2")));
         assertThatThrownBy(() -> new Configuration(null,
-                null,
+                List.of(DEMO_CLUSTER_DEFINITION),
                 filterDefinitions,
                 defaultFilters,
                 null,
@@ -926,6 +920,20 @@ class ConfigurationTest {
     }
 
     @NonNull
+    /**
+     * A virtual cluster targeting {@link #DEMO_CLUSTER_DEFINITION}, for tests concerned only with filter validation.
+     */
+    private static VirtualCluster virtualClusterWithFilters(String virtualClusterName, List<String> filterNames) {
+        // @formatter:off
+        return new VirtualClusterBuilder()
+                .withName(virtualClusterName)
+                .withNewTarget(DEMO_CLUSTER, null)
+                .addToGateways(VIRTUAL_CLUSTER_GATEWAY)
+                .withFilters(filterNames)
+                .build();
+        // @formatter:on
+    }
+
     private static VirtualCluster buildVirtualCluster(String virtualClusterName, @Nullable List<String> filterNames) {
         // Use new API: target references a named cluster definition
         return new VirtualCluster(

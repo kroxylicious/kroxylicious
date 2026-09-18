@@ -28,7 +28,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
@@ -49,6 +48,7 @@ import io.kroxylicious.testing.kafka.common.Tls;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -200,18 +200,20 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
+                        .withNewInsecureTlsTrust(true)
+                        // Configure TLS credential supplier using plugin name
+                        .withCredentialSupplier(new TlsCredentialSupplierConfig(
+                            TestCredentialSupplierFactory.class.getName(),
+                            new TestSupplierConfig("demo", "default")))
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
                         .withName("demo")
-                        .withNewTargetCluster()
-                            .withBootstrapServers(bootstrapServers)
-                            .withNewTls()
-                                .withNewInsecureTlsTrust(true)
-                                // Configure TLS credential supplier using plugin name
-                                .withCredentialSupplier(new TlsCredentialSupplierConfig(
-                                    TestCredentialSupplierFactory.class.getName(),
-                                    new TestSupplierConfig("demo", "default")))
-                            .endTls()
-                        .endTargetCluster()
+                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withNewTls()
                                     .withNewKeyStoreKey()
@@ -220,7 +222,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                                     .endKeyStoreKey()
                                 .endTls()
                                 .build())
-                        .build());
+                        .endVirtualCluster();
         // @formatter:on
 
         // Start proxy with plugin configuration
@@ -249,17 +251,19 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
+                        .withNewInsecureTlsTrust(true)
+                        .withCredentialSupplier(new TlsCredentialSupplierConfig(
+                            TestCredentialSupplierFactory.class.getName(),
+                            new TestSupplierConfig("demo", "default")))
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
                         .withName("demo")
-                        .withNewTargetCluster()
-                            .withBootstrapServers(bootstrapServers)
-                            .withNewTls()
-                                .withNewInsecureTlsTrust(true)
-                                .withCredentialSupplier(new TlsCredentialSupplierConfig(
-                                    TestCredentialSupplierFactory.class.getName(),
-                                    new TestSupplierConfig("demo", "default")))
-                            .endTls()
-                        .endTargetCluster()
+                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withNewTls()
                                     .withNewKeyStoreKey()
@@ -268,7 +272,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                                     .endKeyStoreKey()
                                 .endTls()
                                 .build())
-                        .build());
+                        .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder)) {
@@ -300,17 +304,19 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
+                        .withNewInsecureTlsTrust(true)
+                        .withCredentialSupplier(new TlsCredentialSupplierConfig(
+                            TestCredentialSupplierFactory.class.getName(),
+                            new TestSupplierConfig("demo", "tracking")))
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
                         .withName("demo")
-                        .withNewTargetCluster()
-                            .withBootstrapServers(bootstrapServers)
-                            .withNewTls()
-                                .withNewInsecureTlsTrust(true)
-                                .withCredentialSupplier(new TlsCredentialSupplierConfig(
-                                    TestCredentialSupplierFactory.class.getName(),
-                                    new TestSupplierConfig("demo", "tracking")))
-                            .endTls()
-                        .endTargetCluster()
+                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withNewTls()
                                     .withNewKeyStoreKey()
@@ -319,7 +325,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                                     .endKeyStoreKey()
                                 .endTls()
                                 .build())
-                        .build());
+                        .endVirtualCluster();
         // @formatter:on
 
         assertThatCode(() -> {
@@ -353,17 +359,19 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                    .withNewTls()
+                        .withNewInsecureTlsTrust(true)
+                        .withCredentialSupplier(new TlsCredentialSupplierConfig(
+                            TestCredentialSupplierFactory.class.getName(),
+                            new TestSupplierConfig("demo", "multi-client")))
+                    .endTls()
+                .endClusterDefinition()
+                .addNewVirtualCluster()
                         .withName("demo")
-                        .withNewTargetCluster()
-                            .withBootstrapServers(bootstrapServers)
-                            .withNewTls()
-                                .withNewInsecureTlsTrust(true)
-                                .withCredentialSupplier(new TlsCredentialSupplierConfig(
-                                    TestCredentialSupplierFactory.class.getName(),
-                                    new TestSupplierConfig("demo", "multi-client")))
-                            .endTls()
-                        .endTargetCluster()
+                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withNewTls()
                                     .withNewKeyStoreKey()
@@ -379,7 +387,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                                     .endTrustStoreTrust()
                                 .endTls()
                                 .build())
-                        .build());
+                        .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder)) {

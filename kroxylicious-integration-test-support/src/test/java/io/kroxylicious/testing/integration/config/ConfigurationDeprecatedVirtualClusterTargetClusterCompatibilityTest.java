@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * @deprecated These tests cover deprecated functionality. New tests should use clusterDefinitions.
  */
 @Deprecated(since = "0.22.0", forRemoval = true)
-@SuppressWarnings("removal")
+@SuppressWarnings("removed")
 class ConfigurationDeprecatedVirtualClusterTargetClusterCompatibilityTest {
 
     private static final VirtualClusterGateway VIRTUAL_CLUSTER_GATEWAY = KroxyliciousConfigUtils.defaultGatewayBuilder()

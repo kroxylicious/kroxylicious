@@ -40,14 +40,15 @@ import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.KafkaProxy;
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
@@ -730,23 +731,31 @@ class DefaultKroxyliciousTesterTest {
                 .createDefaultKroxyliciousTester();
     }
 
+    /**
+     * A configuration builder carrying the cluster definition, named {@value KroxyliciousConfigUtils#DEFAULT_CLUSTER_DEF_NAME},
+     * that the virtual clusters built by this class target.
+     */
+    @NonNull
+    private ConfigurationBuilder backingClusterDefinitionBuilder() {
+        return new ConfigurationBuilder().addToClusterDefinitions(new ClusterDefinition(DEFAULT_CLUSTER_DEF_NAME, backingCluster, null));
+    }
+
     @NonNull
     private KroxyliciousTester buildMultiGatewayTester() {
-        final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-        var vcb = new VirtualClusterBuilder()
-                .withName(DEFAULT_VIRTUAL_CLUSTER)
-                .withNewTargetCluster()
-                .withBootstrapServers(backingCluster)
-                .endTargetCluster()
-                .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
-                .addToGateways(new VirtualClusterGatewayBuilder()
-                        .withName(CUSTOM_GATEWAY_NAME)
-                        .withNewPortIdentifiesNode()
-                        .withBootstrapAddress(OS_ASSIGNED_BOOTSTRAP)
-                        .endPortIdentifiesNode()
-                        .build());
-        configurationBuilder
-                .addToVirtualClusters(vcb.build());
+        // @formatter:off
+        final ConfigurationBuilder configurationBuilder = backingClusterDefinitionBuilder()
+                .addNewVirtualCluster()
+                    .withName(DEFAULT_VIRTUAL_CLUSTER)
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
+                    .addToGateways(new VirtualClusterGatewayBuilder()
+                            .withName(CUSTOM_GATEWAY_NAME)
+                            .withNewPortIdentifiesNode()
+                            .withBootstrapAddress(OS_ASSIGNED_BOOTSTRAP)
+                            .endPortIdentifiesNode()
+                            .build())
+                .endVirtualCluster();
+        // @formatter:on
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
                 .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
                 .setClientFactory(clientFactory)
@@ -756,22 +765,21 @@ class DefaultKroxyliciousTesterTest {
     @NonNull
     private KroxyliciousTester buildSecureTester(KeytoolCertificateGenerator keytoolCertificateGenerator) {
         generateSecurityCert(keytoolCertificateGenerator);
-        final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-        var vcb = new VirtualClusterBuilder()
-                .withName(TLS_CLUSTER)
-                .withNewTargetCluster()
-                .withBootstrapServers(backingCluster)
-                .endTargetCluster()
-                .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP)
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(keytoolCertificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .endTls()
-                        .build());
-        configurationBuilder
-                .addToVirtualClusters(vcb.build());
+        // @formatter:off
+        final ConfigurationBuilder configurationBuilder = backingClusterDefinitionBuilder()
+                .addNewVirtualCluster()
+                    .withName(TLS_CLUSTER)
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP)
+                            .withNewTls()
+                                .withNewKeyStoreKey()
+                                    .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())
+                                    .withNewInlinePasswordStoreProvider(keytoolCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                            .endTls()
+                            .build())
+                .endVirtualCluster();
+        // @formatter:on
 
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
                 .setTrustStoreLocation(keytoolCertificateGenerator.getTrustStoreLocation())

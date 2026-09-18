@@ -32,7 +32,6 @@ import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
-import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsBuilder;
@@ -46,6 +45,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -175,18 +175,20 @@ class PluginTlsApiIT extends AbstractTlsIT {
         String demoCluster = "demo";
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addNewFilterDefinition("clientConnection", ClientAuthAwareLawyer.class.getName(), null)
-                .addToVirtualClusters(new VirtualClusterBuilder()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(bootstrapServers)
+                .endClusterDefinition()
+                .addNewVirtualCluster()
                         .withName(demoCluster)
                         .addToFilters("clientConnection")
-                            .withNewTargetCluster()
-                                .withBootstrapServers(bootstrapServers)
-                            .endTargetCluster()
+                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withTls(gatewayTls)
                                 .build())
                         .withSubjectBuilder(subjectBuilderServiceConfig != null ?
                                 new TransportSubjectBuilderConfig(MyTransportSubjectBuilderService.class.getName(), subjectBuilderServiceConfig) : null)
-                        .build());
+                        .endVirtualCluster();
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder)) {

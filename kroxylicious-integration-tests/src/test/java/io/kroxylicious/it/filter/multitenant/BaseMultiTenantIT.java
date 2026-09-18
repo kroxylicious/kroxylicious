@@ -41,7 +41,6 @@ import io.kroxylicious.filter.multitenant.MultiTenant;
 import io.kroxylicious.it.BaseIT;
 import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
@@ -51,6 +50,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -100,34 +100,34 @@ public abstract class BaseMultiTenantIT extends BaseIT {
 
     static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator, NamedFilterDefinitionBuilder filterBuilder) {
         return new ConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName(TENANT_1_CLUSTER)
-                        .withNewTargetCluster()
-                        .withBootstrapServers(cluster.getBootstrapServers())
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(TENANT_1_PROXY_ADDRESS)
-                                .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(certificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
-                                .endKeyStoreKey()
-                                .endTls()
-                                .build())
+                .addNewClusterDefinition()
+                .withName(DEFAULT_CLUSTER_DEF_NAME)
+                .withBootstrapServers(cluster.getBootstrapServers())
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                .withName(TENANT_1_CLUSTER)
+                .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(TENANT_1_PROXY_ADDRESS)
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(certificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .endTls()
                         .build())
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName(TENANT_2_CLUSTER)
-                        .withNewTargetCluster()
-                        .withBootstrapServers(cluster.getBootstrapServers())
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(TENANT_2_PROXY_ADDRESS)
-                                .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(certificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
-                                .endKeyStoreKey()
-                                .endTls()
-                                .build())
+                .endVirtualCluster()
+                .addNewVirtualCluster()
+                .withName(TENANT_2_CLUSTER)
+                .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(TENANT_2_PROXY_ADDRESS)
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(certificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .endTls()
                         .build())
+                .endVirtualCluster()
                 .addToFilterDefinitions(filterBuilder.build())
                 .addToDefaultFilters(filterBuilder.name());
     }

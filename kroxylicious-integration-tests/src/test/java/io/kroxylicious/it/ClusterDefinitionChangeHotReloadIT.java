@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.it.testplugins.router.PassThroughRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
+import io.kroxylicious.proxy.config.ClusterDefinitionBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
@@ -40,6 +41,7 @@ import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -276,21 +278,24 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
         UUID filterId = UUID.randomUUID();
         var filterDef = invocationCounterDef("bootstrap-counter", filterId);
 
-        var vcWithRoundRobin = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-bootstrap-selection")
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 300)).build())
-                .editTargetCluster()
+        var clusterDef = new ClusterDefinitionBuilder().withBootstrapServers(cluster.getBootstrapServers())
+                .withName(DEFAULT_CLUSTER_DEF_NAME)
                 .withNewRoundRobinBootstrapSelectionStrategy()
                 .endRoundRobinBootstrapSelectionStrategy()
-                .endTargetCluster()
+                .build();
+        var vcWithRoundRobin = new VirtualClusterBuilder()
+                .withNewTarget(clusterDef.name(), null)
+                .withName("vc-bootstrap-selection")
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 300)).build())
                 .addToFilters("bootstrap-counter")
                 .build();
 
-        var startingConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+        var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
                 .addToFilterDefinitions(filterDef)
-                .addToVirtualClusters(vcWithRoundRobin)
-                .build();
+                .addToVirtualClusters(vcWithRoundRobin);
 
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(new io.kroxylicious.proxy.config.ConfigurationBuilder(startingConfig))
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder)
                 .createDefaultKroxyliciousTester()) {
 
             // Given: filter is initialized once at startup
@@ -302,16 +307,17 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
 
             // When: reload with identical config (simulating touch of config file or no-op reload)
             // Parse the config again to simulate what happens during hot reload - fresh instances
-            var reloadedVc = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-bootstrap-selection")
+            var reloadedClusterDef = new ClusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster.getBootstrapServers(), null,
+                    new io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy());
+            var reloadedVc = new VirtualClusterBuilder()
+                    .withNewTarget(reloadedClusterDef.name(), null)
+                    .withName("vc-bootstrap-selection")
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 300)).build())
-                    .editTargetCluster()
-                    .withNewRoundRobinBootstrapSelectionStrategy()
-                    .endRoundRobinBootstrapSelectionStrategy()
-                    .endTargetCluster()
                     .addToFilters("bootstrap-counter")
                     .build();
 
             var reloadedConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                    .addToClusterDefinitions(reloadedClusterDef)
                     .addToFilterDefinitions(filterDef)
                     .addToVirtualClusters(reloadedVc)
                     .build();
@@ -352,21 +358,24 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
         UUID filterId = UUID.randomUUID();
         var filterDef = invocationCounterDef("change-counter", filterId);
 
-        var vcWithRoundRobin = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-bootstrap-change")
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 400)).build())
-                .editTargetCluster()
+        var clusterDefRoundRobin = new ClusterDefinitionBuilder().withBootstrapServers(cluster.getBootstrapServers())
+                .withName(DEFAULT_CLUSTER_DEF_NAME)
                 .withNewRoundRobinBootstrapSelectionStrategy()
                 .endRoundRobinBootstrapSelectionStrategy()
-                .endTargetCluster()
+                .build();
+        var vcWithRoundRobin = new VirtualClusterBuilder()
+                .withNewTarget(clusterDefRoundRobin.name(), null)
+                .withName("vc-bootstrap-change")
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 400)).build())
                 .addToFilters("change-counter")
                 .build();
 
-        var startingConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+        var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDefRoundRobin)
                 .addToFilterDefinitions(filterDef)
-                .addToVirtualClusters(vcWithRoundRobin)
-                .build();
+                .addToVirtualClusters(vcWithRoundRobin);
 
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(new io.kroxylicious.proxy.config.ConfigurationBuilder(startingConfig))
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder)
                 .createDefaultKroxyliciousTester()) {
 
             // Given: filter is initialized once at startup
@@ -377,16 +386,20 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-bootstrap-change", topic, "before-change");
 
             // When: change strategy from round-robin to random; filter definition is unchanged
-            var vcWithRandom = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-bootstrap-change")
-                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 400)).build())
-                    .editTargetCluster()
+            var clusterDefRandom = new ClusterDefinitionBuilder().withBootstrapServers(cluster.getBootstrapServers())
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
                     .withNewRandomBootstrapSelectionStrategy()
                     .endRandomBootstrapSelectionStrategy()
-                    .endTargetCluster()
+                    .build();
+            var vcWithRandom = new VirtualClusterBuilder()
+                    .withNewTarget(clusterDefRandom.name(), null)
+                    .withName("vc-bootstrap-change")
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 400)).build())
                     .addToFilters("change-counter")
                     .build();
 
             var changedConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                    .addToClusterDefinitions(clusterDefRandom)
                     .addToFilterDefinitions(filterDef)
                     .addToVirtualClusters(vcWithRandom)
                     .build();
