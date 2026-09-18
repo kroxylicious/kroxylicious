@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.openrewrite.yaml.Assertions.yaml;
 
 @SuppressWarnings("java:S2699") // rewriteRun contains assertions
@@ -538,5 +539,17 @@ class UseClusterDefinitionsTest implements RewriteTest {
                                         trust:
                                           storeFile: /x/trust.p12
                                 """));
+    }
+
+    @Test
+    void shouldDistinguishInstancesByFilePattern() {
+        // Given
+        var narrowed = new UseClusterDefinitions("**/kroxylicious-config.yaml");
+
+        // Then
+        assertThat(narrowed)
+                .isEqualTo(new UseClusterDefinitions("**/kroxylicious-config.yaml"))
+                .hasSameHashCodeAs(new UseClusterDefinitions("**/kroxylicious-config.yaml"))
+                .isNotEqualTo(new UseClusterDefinitions(null));
     }
 }

@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,6 +29,7 @@ import org.openrewrite.internal.ListUtils;
 import org.openrewrite.internal.StringUtils;
 import org.openrewrite.marker.Markers;
 import org.openrewrite.style.GeneralFormatStyle;
+import org.openrewrite.style.Style;
 import org.openrewrite.yaml.MergeYaml;
 import org.openrewrite.yaml.MergeYamlVisitor;
 import org.openrewrite.yaml.YamlIsoVisitor;
@@ -87,16 +89,6 @@ public class UseClusterDefinitions extends Recipe {
         this.filePattern = filePattern;
     }
 
-    /**
-     * The glob selecting the configuration file(s) to migrate.
-     *
-     * @return the glob, or {@code null} if all YAML files should be considered
-     */
-    @Nullable
-    public String getFilePattern() {
-        return filePattern;
-    }
-
     @Override
     public String getDisplayName() {
         return "Use `clusterDefinitions` instead of inline `targetCluster`";
@@ -118,6 +110,25 @@ public class UseClusterDefinitions extends Recipe {
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         return Preconditions.check(new FindSourceFiles(filePattern == null ? DEFAULT_FILE_PATTERN : filePattern),
                 new ClusterDefinitionsVisitor());
+    }
+
+    /**
+     * Two instances are equal when they were configured with the same file pattern.
+     * <p>
+     * {@link Recipe} compares by class and name alone, so without this every instance of this recipe would be equal
+     * whatever it was told to match. Upstream recipes carrying options include them in the same way.
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        return other instanceof UseClusterDefinitions that && Objects.equals(filePattern, that.filePattern);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(filePattern);
     }
 
     /**
@@ -460,7 +471,7 @@ public class UseClusterDefinitions extends Recipe {
             if (documents == null) {
                 return "\n";
             }
-            GeneralFormatStyle style = documents.getStyle(GeneralFormatStyle.class);
+            GeneralFormatStyle style = Style.from(GeneralFormatStyle.class, documents);
             if (style != null) {
                 return style.newLine();
             }
