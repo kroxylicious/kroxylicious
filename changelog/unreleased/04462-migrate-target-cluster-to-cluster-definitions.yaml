@@ -9,8 +9,12 @@ important_notes:
     `io.kroxylicious.migrations.rewrite.v0_25.UseClusterDefinitions` OpenRewrite recipe
     moves each inline definition into the top-level `clusterDefinitions` list and
     replaces it with a `target: {cluster: <name>}` reference. It runs as part of
-    `MigrateTo0_25` and `MigrateToLatest`, and takes an optional `filePattern` option
-    for configuration that lives outside a build.
+    `MigrateTo0_25` and `MigrateToLatest`.
+
+    For configuration which is not part of a Maven or Gradle project, the migrations
+    jar is now runnable and offers a `convert-config` command, for example:
+
+        jbang io.kroxylicious:kroxylicious-migrations:0.25.0 convert-config --dry-run my-config.yaml
+
     See kroxylicious-proxy-core/kroxylicious-migrations/README.md, which also documents
-    how to run it against a configuration file that is not part of a Maven or Gradle
-    project, and the cases it deliberately leaves for a human.
+    the cases the migration deliberately leaves for a human.

@@ -297,9 +297,8 @@ class UseClusterDefinitionsTest implements RewriteTest {
     }
 
     @Test
-    // a text block cannot express \r\n: the compiler normalises its line terminators to \n, so concatenation is the
-    // only way to write a CRLF source
-    @SuppressWarnings("StringConcatToTextBlock")
+    @SuppressWarnings({ "java:S6126", "StringConcatToTextBlock" }) // a text block cannot express \r\n: the compiler normalises its line terminators to \n, so concatenation is the only way to write a
+                                                                   // CRLF source
     void shouldPreserveWindowsLineEndings() {
         rewriteRun(
                 yaml(
