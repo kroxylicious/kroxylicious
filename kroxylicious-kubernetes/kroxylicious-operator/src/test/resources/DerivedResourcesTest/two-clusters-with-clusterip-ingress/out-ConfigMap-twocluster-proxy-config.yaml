@@ -26,14 +26,14 @@ data:
       endpoints:
         prometheus: {}
     clusterDefinitions:
-    - name: "bar-target"
+    - name: "barref"
       bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
       bootstrapServerSelection:
         strategy: "round-robin"
     virtualClusters:
     - name: "bar"
       target:
-        cluster: "bar-target"
+        cluster: "barref"
       gateways:
       - name: "cluster-ip-bar"
         portIdentifiesNode:

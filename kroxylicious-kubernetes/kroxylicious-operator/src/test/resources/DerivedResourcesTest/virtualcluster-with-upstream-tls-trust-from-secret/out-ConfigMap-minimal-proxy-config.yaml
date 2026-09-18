@@ -26,7 +26,7 @@ data:
       endpoints:
         prometheus: {}
     clusterDefinitions:
-    - name: "one-target"
+    - name: "kafka-with-tls"
       bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
       tls:
         key:
@@ -47,7 +47,7 @@ data:
     virtualClusters:
     - name: "one"
       target:
-        cluster: "one-target"
+        cluster: "kafka-with-tls"
       gateways:
       - name: "cluster-ip"
         portIdentifiesNode:

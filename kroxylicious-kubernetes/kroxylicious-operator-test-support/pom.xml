@@ -47,7 +47,7 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- project dependencies - runtime and compie -->
+        <!-- project dependencies - runtime and compile -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kubernetes-api</artifactId>
