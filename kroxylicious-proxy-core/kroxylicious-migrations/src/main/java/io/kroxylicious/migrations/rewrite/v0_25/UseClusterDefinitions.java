@@ -138,6 +138,9 @@ public class UseClusterDefinitions extends Recipe {
     private static class ClusterDefinitionsVisitor extends YamlIsoVisitor<ExecutionContext> {
 
         @Override
+        // S135: the loop below skips the several kinds of virtual cluster which cannot be migrated. Expressing those
+        // guards as a single continue would nest the body three deep, which reads worse than the guards themselves.
+        @SuppressWarnings("java:S135")
         public Yaml.Document visitDocument(Yaml.Document document, ExecutionContext ctx) {
             if (!(document.getBlock() instanceof Yaml.Mapping root) || !looksLikeProxyConfiguration(root)) {
                 return document;
