@@ -39,7 +39,6 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.ProxyProtocolConfig;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
-import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.testing.certificate.CertificateGenerator;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
@@ -50,6 +49,7 @@ import io.kroxylicious.testing.integration.codec.KafkaRequestEncoder;
 import io.kroxylicious.testing.integration.codec.KafkaResponseDecoder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
@@ -368,22 +368,24 @@ class ProxyProtocolIT {
     private static ConfigurationBuilder buildTlsProxyProtocolConfig(String mockBootstrap, CertificateGenerator.KeyStore keystore,
                                                                     ProxyProtocolMode mode) {
         return KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                        .withBootstrapServers(mockBootstrap)
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP)
-                                .withNewTls()
-                                .withNewKeyStoreKey()
-                                .withStoreFile(keystore.path().toString())
-                                .withStoreType(keystore.type())
-                                .withNewInlinePasswordStoreProvider(keystore.storePassword())
-                                .withNewInlinePasswordKeyProvider(keystore.keyPassword())
-                                .endKeyStoreKey()
-                                .endTls()
-                                .build())
+                .addNewClusterDefinition()
+                .withName(DEFAULT_CLUSTER_DEF_NAME)
+                .withBootstrapServers(mockBootstrap)
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                .withName("demo")
+                .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP)
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(keystore.path().toString())
+                        .withStoreType(keystore.type())
+                        .withNewInlinePasswordStoreProvider(keystore.storePassword())
+                        .withNewInlinePasswordKeyProvider(keystore.keyPassword())
+                        .endKeyStoreKey()
+                        .endTls()
                         .build())
+                .endVirtualCluster()
                 .withProxyProtocol(new ProxyProtocolConfig(mode));
     }
 

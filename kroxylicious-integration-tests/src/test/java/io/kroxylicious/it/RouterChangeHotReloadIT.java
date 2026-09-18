@@ -38,7 +38,6 @@ import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -93,7 +92,7 @@ class RouterChangeHotReloadIT extends BaseIT {
         UUID oldConfigId = UUID.randomUUID();
         UUID newConfigId = UUID.randomUUID();
 
-        var clusterDef = clusterDefinition(cluster);
+        var clusterDef = clusterDefinition(CLUSTER_DEF_NAME, cluster);
         var vc = routerVc("vc-router-change", PORT_ROUTER_CHANGE, "my-router");
 
         var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
@@ -151,7 +150,7 @@ class RouterChangeHotReloadIT extends BaseIT {
         UUID vcANewId = UUID.randomUUID();
         UUID vcBId = UUID.randomUUID();
 
-        var clusterDef = clusterDefinition(cluster);
+        var clusterDef = clusterDefinition(CLUSTER_DEF_NAME, cluster);
         var vcA = routerVc("vc-a", PORT_CROSS_VC_A, "router-a");
         var vcB = routerVc("vc-b", PORT_CROSS_VC_B, "router-b");
 
@@ -217,8 +216,10 @@ class RouterChangeHotReloadIT extends BaseIT {
         // The factory is never initialized.
         UUID routerId = UUID.randomUUID();
 
-        var clusterDef = clusterDefinition(cluster);
-        var vc = baseVirtualClusterBuilder(cluster, "vc-routing-disabled")
+        var clusterDef = clusterDefinition(CLUSTER_DEF_NAME, cluster);
+        var vc = new VirtualClusterBuilder()
+                .withNewTarget(clusterDef.name(), null)
+                .withName("vc-routing-disabled")
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_ROUTING_DISABLED)).build())
                 .build();
 
@@ -259,8 +260,8 @@ class RouterChangeHotReloadIT extends BaseIT {
 
     // ---- fixture helpers ----
 
-    private static ClusterDefinition clusterDefinition(KafkaCluster cluster) {
-        return new ClusterDefinition(CLUSTER_DEF_NAME, cluster.getBootstrapServers(), null);
+    private static ClusterDefinition clusterDefinition(String name, KafkaCluster cluster) {
+        return new ClusterDefinition(name, cluster.getBootstrapServers(), null);
     }
 
     private static RouterDefinition routerDef(String name, UUID configId) {

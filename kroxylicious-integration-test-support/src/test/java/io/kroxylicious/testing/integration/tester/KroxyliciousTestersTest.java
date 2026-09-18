@@ -44,7 +44,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.ResourceLock;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
@@ -60,9 +59,11 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -267,8 +268,7 @@ class KroxyliciousTestersTest {
     @Test
     void testRestartingProxyDoesNotCloseClients(@Name("underlyingCluster") Topic topic) throws Exception {
         // Given — use a fixed port so broker node ports are deterministic across restarts
-        var fixedPortConfig = addVirtualCluster(kafkaCluster.getBootstrapServers(),
-                baseConfigurationBuilder(), DEFAULT_VIRTUAL_CLUSTER, "localhost:9192");
+        var fixedPortConfig = addVirtualCluster(baseConfigurationBuilderTargeting(kafkaCluster), DEFAULT_VIRTUAL_CLUSTER, "localhost:9192");
         try (var tester = kroxyliciousTester(fixedPortConfig)) {
             var admin = tester.admin();
             var producer = tester.producer();
@@ -377,10 +377,8 @@ class KroxyliciousTestersTest {
 
     @Test
     void testIllegalToAskForDefaultClientsWhenVirtualClustersAmbiguous() {
-        String clusterBootstrapServers = kafkaCluster.getBootstrapServers();
-        ConfigurationBuilder builder = new ConfigurationBuilder();
-        ConfigurationBuilder proxy = addVirtualCluster(clusterBootstrapServers, addVirtualCluster(clusterBootstrapServers, builder, "foo",
-                "localhost:9192"), "bar", "localhost:9296");
+        ConfigurationBuilder builder = baseConfigurationBuilderTargeting(kafkaCluster);
+        ConfigurationBuilder proxy = addVirtualCluster(addVirtualCluster(builder, "foo", "localhost:9192"), "bar", "localhost:9296");
         try (var tester = kroxyliciousTester(proxy)) {
             assertThrows(AmbiguousVirtualClusterException.class, tester::simpleTestClient);
             assertThrows(AmbiguousVirtualClusterException.class, tester::consumer);
@@ -397,15 +395,23 @@ class KroxyliciousTestersTest {
         }
     }
 
-    private static ConfigurationBuilder addVirtualCluster(String clusterBootstrapServers, ConfigurationBuilder builder, String clusterName,
-                                                          String defaultProxyBootstrap) {
-        return builder.addToVirtualClusters(new VirtualClusterBuilder()
-                .withName(clusterName)
-                .withNewTargetCluster()
-                .withBootstrapServers(clusterBootstrapServers)
-                .endTargetCluster()
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(HostPort.parse(defaultProxyBootstrap)).build())
-                .build());
+    /**
+     * Adds a virtual cluster, listening on the given bootstrap, targeting the cluster definition
+     * added by {@link #baseConfigurationBuilderTargeting(KafkaCluster)}.
+     */
+    private static ConfigurationBuilder addVirtualCluster(ConfigurationBuilder builder, String clusterName, String defaultProxyBootstrap) {
+        // @formatter:off
+        return builder
+                .addNewVirtualCluster()
+                    .withName(clusterName)
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(HostPort.parse(defaultProxyBootstrap)).build())
+                .endVirtualCluster();
+        // @formatter:on
+    }
+
+    private static ConfigurationBuilder baseConfigurationBuilderTargeting(KafkaCluster cluster) {
+        return baseConfigurationBuilder().addToClusterDefinitions(clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster));
     }
 
     private static void assertCanSendRequestsAndReceiveMockResponses(MockServerKroxyliciousTester tester, Supplier<KafkaClient> kafkaClientSupplier) {

@@ -1,0 +1,4 @@
+title: "test: configure the proxy using top-level clusterDefinitions in the test suites"
+type: changed
+issues:
+  - 4924
