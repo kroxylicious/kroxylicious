@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLHandshakeException;
@@ -45,6 +46,7 @@ import io.kroxylicious.proxy.config.secret.FilePassword;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.TlsBuilder;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
@@ -860,10 +862,9 @@ class TlsIT extends AbstractTlsIT {
     /**
      * Helper to create a configuration with downstream TLS and customizable TLS settings.
      */
-    private ConfigurationBuilder downstreamTlsBuilder(KafkaCluster cluster,
-                                                      java.util.function.Consumer<io.kroxylicious.proxy.config.tls.TlsBuilder> tlsCustomizer) {
+    private ConfigurationBuilder downstreamTlsBuilder(KafkaCluster cluster, Consumer<TlsBuilder> tlsCustomizer) {
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
-        var tlsBuilder = new io.kroxylicious.proxy.config.tls.TlsBuilder()
+        var tlsBuilder = new TlsBuilder()
                 .withNewKeyStoreKey()
                 .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
                 .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())

@@ -307,8 +307,11 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
 
             // When: reload with identical config (simulating touch of config file or no-op reload)
             // Parse the config again to simulate what happens during hot reload - fresh instances
-            var reloadedClusterDef = new ClusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster.getBootstrapServers(), null,
-                    new io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy());
+            var reloadedClusterDef = new ClusterDefinitionBuilder().withBootstrapServers(cluster.getBootstrapServers())
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withNewRoundRobinBootstrapSelectionStrategy()
+                    .endRoundRobinBootstrapSelectionStrategy()
+                    .build();
             var reloadedVc = new VirtualClusterBuilder()
                     .withNewTarget(reloadedClusterDef.name(), null)
                     .withName("vc-bootstrap-selection")

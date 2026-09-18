@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.it.testplugins.router.InvocationCountingRouterFactory;
-import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
@@ -38,6 +37,7 @@ import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -259,10 +259,6 @@ class RouterChangeHotReloadIT extends BaseIT {
     }
 
     // ---- fixture helpers ----
-
-    private static ClusterDefinition clusterDefinition(String name, KafkaCluster cluster) {
-        return new ClusterDefinition(name, cluster.getBootstrapServers(), null);
-    }
 
     private static RouterDefinition routerDef(String name, UUID configId) {
         var route = new RouteDefinition(ROUTE_NAME, 0, List.of(), new RouteTarget(CLUSTER_DEF_NAME, null));
