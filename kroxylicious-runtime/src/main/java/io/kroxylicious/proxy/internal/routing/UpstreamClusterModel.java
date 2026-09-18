@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
@@ -15,6 +16,7 @@ import javax.net.ssl.SSLException;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.bootstrap.BootstrapServerSelector;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
@@ -30,19 +32,48 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Runtime representation of an upstream Kafka cluster, bundling its connection target with the
- * TLS resources needed to reach it. Owned by the {@link RoutingModel} implementation that holds it;
- * closed via {@link #close()} when the owning routing model is closed.
+ * TLS resources needed to reach it and the bootstrap server selection state. Owned by the
+ * {@link RoutingModel} implementation that holds it; closed via {@link #close()} when the owning
+ * routing model is closed.
+ * <p>
+ * The bootstrap server selector is the mutable runtime counterpart of the target cluster's immutable
+ * {@link TargetCluster#effectiveSelectionStrategy() selection strategy}. Each model owns its own selector,
+ * so distinct upstream cluster models (even ones derived from the same cluster definition) never share
+ * selection state. The selector is shared by all connections to this upstream cluster and is thread-safe.
  *
  * @param targetCluster the connection target for the upstream cluster
  * @param upstreamSslContext the SSL context used to connect to the upstream cluster, or empty when TLS is not configured
  * @param tlsManager the manager of dynamically-supplied TLS credentials; owned and closed by this record
+ * @param bootstrapServerSelector the selector used to choose a bootstrap server for each new upstream connection
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record UpstreamClusterModel(
                                    TargetCluster targetCluster,
                                    Optional<SslContext> upstreamSslContext,
-                                   TlsCredentialSupplierManager tlsManager)
+                                   TlsCredentialSupplierManager tlsManager,
+                                   BootstrapServerSelector bootstrapServerSelector)
         implements AutoCloseable {
+
+    /**
+     * Validates that the selector is present.
+     */
+    public UpstreamClusterModel {
+        Objects.requireNonNull(bootstrapServerSelector, "bootstrapServerSelector");
+    }
+
+    /**
+     * Creates a model with a fresh bootstrap server selector for the target cluster's
+     * {@link TargetCluster#effectiveSelectionStrategy() effective selection strategy}.
+     *
+     * @param targetCluster the connection target for the upstream cluster
+     * @param upstreamSslContext the SSL context used to connect to the upstream cluster, or empty when TLS is not configured
+     * @param tlsManager the manager of dynamically-supplied TLS credentials; owned and closed by this record
+     */
+    public UpstreamClusterModel(TargetCluster targetCluster,
+                                Optional<SslContext> upstreamSslContext,
+                                TlsCredentialSupplierManager tlsManager) {
+        this(targetCluster, upstreamSslContext, tlsManager, targetCluster.effectiveSelectionStrategy().newSelector());
+    }
 
     /**
      * The TLS configuration of the target cluster.
@@ -63,12 +94,13 @@ public record UpstreamClusterModel(
     }
 
     /**
-     * The first bootstrap server of the target cluster.
+     * Selects the bootstrap server to use for a new upstream connection, using this model's
+     * {@link #bootstrapServerSelector()}. Safe to call concurrently from any thread.
      *
-     * @return the bootstrap server address
+     * @return the selected bootstrap server address
      */
     public HostPort bootstrapServer() {
-        return targetCluster.bootstrapServer();
+        return bootstrapServerSelector.select(bootstrapServersList());
     }
 
     /**

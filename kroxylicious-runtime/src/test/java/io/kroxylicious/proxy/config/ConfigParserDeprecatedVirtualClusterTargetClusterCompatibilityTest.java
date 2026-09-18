@@ -134,13 +134,14 @@ class ConfigParserDeprecatedVirtualClusterTargetClusterCompatibilityTest {
                     // Field returns null to preserve YAML fidelity
                     assertThat(targetCluster.selectionStrategy()).isNull();
 
-                    // Verify default round-robin behavior by calling bootstrapServer() multiple times
+                    // Verify default round-robin behavior by selecting multiple times
+                    var selector = targetCluster.effectiveSelectionStrategy().newSelector();
                     var expectedServers = Set.of(
                             new HostPort("kafka-0.example", 1234),
                             new HostPort("kafka-1.example", 1234));
-                    var first = targetCluster.bootstrapServer();
-                    var second = targetCluster.bootstrapServer();
-                    var third = targetCluster.bootstrapServer();
+                    var first = selector.select(targetCluster.bootstrapServersList());
+                    var second = selector.select(targetCluster.bootstrapServersList());
+                    var third = selector.select(targetCluster.bootstrapServersList());
                     assertThat(first).isIn(expectedServers);
                     assertThat(second).isIn(expectedServers).isNotEqualTo(first);
                     assertThat(third).isEqualTo(first);
