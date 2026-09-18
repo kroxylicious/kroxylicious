@@ -109,9 +109,9 @@ class MdsConfluentReauthenticationIT {
         }
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
         while (!keys.isEmpty() && System.nanoTime() < deadline) {
-            for (var record : consumer.poll(Duration.ofMillis(200))) {
-                if (keys.contains(record.key()) && record.key().equals(record.value())) {
-                    keys.remove(record.key());
+            for (var consumedRecord : consumer.poll(Duration.ofMillis(200))) {
+                if (keys.contains(consumedRecord.key()) && consumedRecord.key().equals(consumedRecord.value())) {
+                    keys.remove(consumedRecord.key());
                 }
             }
         }

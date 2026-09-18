@@ -27,6 +27,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class MdsImpersonation implements FilterFactory<MdsImpersonationConfig, MdsImpersonation.Context> {
     /** Constructor for ServiceLoader. */
     public MdsImpersonation() {
+        // Shared resources are created in initialize after configuration is available.
     }
 
     /** Shared factory resources; contains no per-user token cache. */
@@ -61,12 +62,14 @@ public class MdsImpersonation implements FilterFactory<MdsImpersonationConfig, M
     }
 
     @Override
+    @SuppressWarnings("java:S2638") // initialize always returns a non-null Context, passed back by the runtime.
     public Filter createFilter(FilterFactoryContext context, @NonNull Context initializationData) {
         return new MdsImpersonationFilter(initializationData.client::impersonate,
                 initializationData.config.expiryMargin(), context.filterDispatchExecutor(), Clock.systemUTC());
     }
 
     @Override
+    @SuppressWarnings("java:S2638") // The runtime closes only successfully initialized, non-null contexts.
     public void close(@NonNull Context initializationData) {
         try {
             initializationData.client.close();

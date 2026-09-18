@@ -55,8 +55,8 @@ class MdsMetricsTest extends MdsReauthenticationTestSupport {
         assertThat(registry.get("kroxylicious.mds.authentication").tags("phase", "renewal", "outcome", "success").counter().count()).isEqualTo(1);
         assertThat(registry.get("kroxylicious.mds.authentication").tags("phase", "renewal", "outcome", "failure").counter().count()).isEqualTo(1);
         assertThat(registry.get("kroxylicious.mds.connections.closed").tag("reason", "mds_io").counter().count()).isEqualTo(1);
-        assertThat(registry.getMeters()).allSatisfy(meter -> assertThat(meter.getId().getTags())
-                .allSatisfy(tag -> assertThat(tag.getKey()).isIn("virtual_cluster", "outcome", "phase", "reason")));
+        assertThat(registry.getMeters()).isNotEmpty().allSatisfy(meter -> assertThat(meter.getId().getTags())
+                .isNotEmpty().allSatisfy(tag -> assertThat(tag.getKey()).isIn("virtual_cluster", "outcome", "phase", "reason")));
     }
 
     @Test

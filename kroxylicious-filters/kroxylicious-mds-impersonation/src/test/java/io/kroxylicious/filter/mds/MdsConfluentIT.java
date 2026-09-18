@@ -75,8 +75,8 @@ class MdsConfluentIT {
                 boolean received = false;
                 long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
                 while (!received && System.nanoTime() < deadline) {
-                    for (var record : consumer.poll(Duration.ofMillis(500))) {
-                        received |= value.equals(record.value());
+                    for (var consumedRecord : consumer.poll(Duration.ofMillis(500))) {
+                        received |= value.equals(consumedRecord.value());
                     }
                 }
 

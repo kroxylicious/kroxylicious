@@ -36,7 +36,7 @@ public record MdsImpersonationConfig(URI mdsUrl, Tls mdsTls,
         if (!mdsTls.definesKey() || mdsTls.credentialSupplier() != null) {
             throw new IllegalArgumentException("mdsTls.key must provide the proxy's own client certificate and private key");
         }
-        if (mdsTls.trust() instanceof InsecureTls insecure && insecure.insecure()) {
+        if (mdsTls.trust() instanceof InsecureTls(boolean insecure) && insecure) {
             throw new IllegalArgumentException("MDS TLS verification must not be disabled");
         }
         requestTimeout = requestTimeout == null ? Duration.ofSeconds(5) : requestTimeout;

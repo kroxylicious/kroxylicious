@@ -69,12 +69,7 @@ final class MdsImpersonationFilter implements RequestFilter {
                 if (session != null && !session.reauthenticationSupported()) {
                     return close(context, new MdsFailure(MdsFailure.Reason.SESSION_EXPIRED));
                 }
-                var certificate = context.clientTlsContext().flatMap(ClientTlsContext::clientCertificate);
-                var user = context.authenticatedSubject().uniquePrincipalOfType(User.class).map(User::name).orElse(null);
-                if (certificate.isEmpty() || user == null || user.isBlank() || user.chars().anyMatch(Character::isISOControl)
-                        || context.clientSaslContext().isPresent() || (authenticatedUser != null && !authenticatedUser.equals(user))) {
-                    return close(context, new MdsFailure(MdsFailure.Reason.IDENTITY));
-                }
+                var user = requireUser(context);
                 authenticatedUser = user;
                 ready = authenticate(context, user);
             }
@@ -90,6 +85,16 @@ final class MdsImpersonationFilter implements RequestFilter {
         catch (RuntimeException e) {
             return close(context, MdsFailure.safe(e));
         }
+    }
+
+    private String requireUser(FilterContext context) {
+        var certificate = context.clientTlsContext().flatMap(ClientTlsContext::clientCertificate);
+        var user = context.authenticatedSubject().uniquePrincipalOfType(User.class).map(User::name).orElse(null);
+        if (certificate.isEmpty() || user == null || user.isBlank() || user.chars().anyMatch(Character::isISOControl)
+                || context.clientSaslContext().isPresent() || (authenticatedUser != null && !authenticatedUser.equals(user))) {
+            throw new MdsFailure(MdsFailure.Reason.IDENTITY);
+        }
+        return user;
     }
 
     // Both the HTTP completion and Kafka response callbacks run on the filter dispatch thread.

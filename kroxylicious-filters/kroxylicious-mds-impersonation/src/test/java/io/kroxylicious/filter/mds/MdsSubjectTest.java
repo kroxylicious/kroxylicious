@@ -33,10 +33,11 @@ class MdsSubjectTest extends MdsReauthenticationTestSupport {
         String payload = Base64.getUrlEncoder().withoutPadding().encodeToString(
                 ("{\"exp\":2000000000" + field + "}").getBytes(StandardCharsets.UTF_8));
         byte[] body = ("{\"token_type\":\"Bearer\",\"auth_token\":\"a." + payload + ".b\"}").getBytes(StandardCharsets.UTF_8);
+        var mapper = new ObjectMapper();
 
         // When
         // Then
-        assertThatThrownBy(() -> MdsToken.parse(body, new ObjectMapper(), "alice"))
+        assertThatThrownBy(() -> MdsToken.parse(body, mapper, "alice"))
                 .isInstanceOf(MdsFailure.class).hasMessageContaining("TOKEN_SUBJECT").hasNoCause();
     }
 

@@ -98,9 +98,9 @@ class MdsConfluentRebalanceIT {
     }
 
     private static void collect(KafkaConsumer<String, String> consumer, String prefix, Set<String> received) {
-        for (var record : consumer.poll(Duration.ofMillis(200))) {
-            if (record.value().startsWith(prefix)) {
-                received.add(record.value());
+        for (var consumedRecord : consumer.poll(Duration.ofMillis(200))) {
+            if (consumedRecord.value().startsWith(prefix)) {
+                received.add(consumedRecord.value());
             }
         }
     }
