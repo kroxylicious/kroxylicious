@@ -2,21 +2,27 @@
 
 The `kroxylicious-migrations` module provides automated refactoring recipes—powered primarily by [OpenRewrite](https://docs.openrewrite.org/)—to help downstream filter developers seamlessly update their projects when Kroxylicious introduces breaking API changes, package relocations, or deprecations.
 
+Recipes are not limited to Java sources and POMs: they also cover **proxy configuration YAML**. See [Migrating proxy configuration](#migrating-proxy-configuration).
+
 ---
 
 ## Module Architecture
 
-Migration recipes live inside `src/main/resources/META-INF/rewrite/` as declarative YAML specifications. Each minor release requiring a migration receives its own versioned file, alongside an overarching aggregator file.
+Migration recipes live inside `src/main/resources/META-INF/rewrite/` as declarative YAML specifications. Each minor release requiring a migration receives its own versioned file, alongside an overarching aggregator file. A recipe whose transformation cannot be expressed declaratively is implemented as a `Recipe` subclass under `src/main/java/` and referenced from the versioned file by fully qualified class name.
 
 ```text
 kroxylicious-migrations/
 └── src/
     └── main/
+        ├── java/io/kroxylicious/migrations/rewrite/
+        │   ├── v0_24/       # imperative 0.24.0 recipes (e.g., UseErrorsInsteadOfExceptions)
+        │   └── v0_25/       # imperative 0.25.0 recipes (e.g., UseClusterDefinitions)
         └── resources/
             └── META-INF/
                 └── rewrite/
                     ├── MigrateToLatest.yml  # Aggregator: MigrateTo
                     ├── v0_24.yml         # 0.24.0 recipes (e.g., MigrateTo0_24)
+                    ├── v0_25.yml         # 0.25.0 recipes (e.g., MigrateTo0_25)
                     └── v1_0.yml          # 1.0.0 recipes
 
 ```
@@ -87,6 +93,70 @@ Then select the recipe to run on the command line, just as with the Maven exampl
 # Upgrade across multiple releases to latest
 ./gradlew rewriteRun -Drewrite.activeRecipe=io.kroxylicious.migrations.rewrite.MigrateToLatest
 ```
+
+---
+
+## Migrating proxy configuration
+
+Some releases change the proxy's configuration YAML as well as its Java API. 0.25.0 is the first such release: `io.kroxylicious.migrations.rewrite.v0_25.UseClusterDefinitions` rewrites the `virtualClusters[].targetCluster` form, deprecated in 0.22.0, into a top-level `clusterDefinitions` list plus a `target: {cluster: ...}` reference.
+
+Because a proxy configuration file can be named anything and live anywhere, the recipe considers **every** YAML file it is given and migrates only those documents that structurally look like a proxy configuration — a mapping with a root level `virtualClusters` sequence, and without the `apiVersion`/`kind` keys that would mark it as a Kubernetes manifest. Pass the `filePattern` option to narrow that down.
+
+### Configuration held inside a Maven or Gradle project
+
+No extra work: the `dryRun`/`run` invocations above already parse every YAML file under the project, so a configuration file committed alongside your sources is migrated as part of `MigrateTo0_25` (or `MigrateToLatest`).
+
+### Configuration held anywhere else
+
+OpenRewrite drives everything from a build, so give it a throwaway one. Drop a `pom.xml` beside the configuration:
+
+```xml
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>local</groupId>
+    <artifactId>kroxylicious-config-migration</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+</project>
+```
+
+`packaging` of `pom` means there is nothing to compile, so no `src/main/java` is needed. Then preview, and apply:
+
+```bash
+mvn -f /path/to/config-dir/pom.xml \
+  org.openrewrite.maven:rewrite-maven-plugin:dryRun \
+  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.25.0 \
+  -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_25.UseClusterDefinitions \
+  "-Drewrite.options=filePattern=**/kroxylicious-config.yaml"
+```
+
+```bash
+mvn -f /path/to/config-dir/pom.xml \
+  org.openrewrite.maven:rewrite-maven-plugin:run \
+  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.25.0 \
+  -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_25.UseClusterDefinitions \
+  "-Drewrite.options=filePattern=**/kroxylicious-config.yaml"
+```
+
+The quotes around `-Drewrite.options` matter: without them a shell that expands globs itself, such as zsh, fails the command before Maven sees it. Delete the throwaway `pom.xml` and the `target/` directory afterwards.
+
+### If the build succeeds but nothing changes
+
+OpenRewrite skips any file that is **both ignored by a `.gitignore` and untracked**, and says nothing when it does, so a configuration file in an ignored directory looks exactly like one the recipe declined to migrate. The enclosing repository need not be an obvious one: any ancestor directory may hold the `.git` and the rule that excludes your file.
+
+Check whether that is what is happening:
+
+```bash
+git check-ignore -v /path/to/config-dir/kroxylicious-config.yaml
+```
+
+If it prints a rule, either copy the configuration somewhere that is not ignored and run the recipe there, or make the file tracked with `git add -f`. There is no plugin option to disable the filter.
+
+### Limitations
+
+* **Anchors and aliases are left alone.** A virtual cluster whose `targetCluster` involves either is skipped, because moving it could change what an alias resolves to. Migrate those by hand.
+* **Cluster definitions are not coalesced.** Each migrated virtual cluster gets its own `clusterDefinitions` entry, named `<virtualClusterName>-target`, even where several point at the same Kafka cluster.
+* **A comment written after the last key of `targetCluster` stays behind.** In the OpenRewrite YAML model such a comment belongs to the element that follows it, which is the virtual cluster's next key rather than the block being moved.
 
 ---
 
