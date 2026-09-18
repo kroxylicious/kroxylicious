@@ -18,15 +18,20 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.event.Level;
 
 import com.google.common.base.Strings;
+
+import io.github.sambarker.logsquelcher.CapturedLogs;
+import io.github.sambarker.logsquelcher.LogSquelcherExtension;
+import io.github.sambarker.logsquelcher.LoggingEventAssert;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({ MockitoExtension.class, LogSquelcherExtension.class })
 class VirtualClusterTest {
 
     private static final List<String> NO_FILTERS = List.of();
@@ -281,5 +286,33 @@ class VirtualClusterTest {
         assertThatThrownBy(() -> new VirtualCluster("mycluster", null, null, gateways, false, false, NO_FILTERS, null, null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("must specify exactly one of 'targetCluster' or 'target'");
+    }
+
+    @Test
+    void shouldWarnWhenTargetClusterIsSet(CapturedLogs capturedLogs) {
+        // Given
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+
+        // When
+        new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS);
+
+        // Then
+        LoggingEventAssert.assertThat(capturedLogs.logged(VirtualCluster.class, Level.WARN))
+                .singleElement()
+                .hasFormattedMessage(
+                        "the targetCluster field is deprecated and will be removed in a future release. Declare the cluster in the clusterDefinitions array, and reference it by name using target.cluster.");
+    }
+
+    @Test
+    void shouldNotWarnWhenTargetIsUsedInsteadOfTargetCluster(CapturedLogs capturedLogs) {
+        // Given
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var target = new RouteTarget("my-cluster", null);
+
+        // When
+        new VirtualCluster("mycluster", null, target, gateways, false, false, NO_FILTERS, null, null, null);
+
+        // Then
+        LoggingEventAssert.assertThat(capturedLogs.logged(VirtualCluster.class, Level.WARN)).isEmpty();
     }
 }
