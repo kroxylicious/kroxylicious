@@ -26,14 +26,14 @@ data:
       endpoints:
         prometheus: {}
     clusterDefinitions:
-    - name: "one-target"
+    - name: "kafka"
       bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
       bootstrapServerSelection:
         strategy: "round-robin"
     virtualClusters:
     - name: "one"
       target:
-        cluster: "one-target"
+        cluster: "kafka"
       gateways:
       - name: "cluster-ip"
         sniHostIdentifiesNode:

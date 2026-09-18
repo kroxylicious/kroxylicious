@@ -26,7 +26,7 @@ data:
       endpoints:
         prometheus: {}
     clusterDefinitions:
-    - name: "foo-target"
+    - name: "fooref"
       bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
       bootstrapServerSelection:
         strategy: "round-robin"
@@ -52,7 +52,7 @@ data:
     virtualClusters:
     - name: "foo"
       target:
-        cluster: "foo-target"
+        cluster: "fooref"
       gateways:
       - name: "cluster-ip"
         portIdentifiesNode:
