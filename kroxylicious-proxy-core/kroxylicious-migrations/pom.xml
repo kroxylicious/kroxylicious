@@ -65,6 +65,20 @@
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
 
+        <!-- Provides the command line interface of the migrations jar -->
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+        </dependency>
+
+        <!-- Required by the jgit rewrite-core uses to render a diff. Only the API is declared: a binding is the
+             choice of whatever runs the recipes, and providing one here would compete with theirs. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.openrewrite.recipe</groupId>
             <artifactId>rewrite-java-dependencies</artifactId>
@@ -92,6 +106,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
             <!-- the migration tests depend on kafka-clients 4.2.0 to provide org.apache.kafka.common.record.MemoryRecords, tests fail if we upgrade to 4.3.0 as the class moved to org.apache.kafka.common.record.internal-->
@@ -102,6 +122,18 @@
 
     <build>
         <plugins>
+            <!-- Makes the jar runnable, so `jbang io.kroxylicious:kroxylicious-migrations:<version>` works -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>io.kroxylicious.migrations.cli.KroxyliciousMigrations</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
             <!--
               Override the additionalClasspathDependencies inherited from the parent POM to silence
               surefire's "Potential classpath conflict" warnings, which are specific to this module.

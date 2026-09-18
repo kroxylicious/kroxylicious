@@ -14,9 +14,11 @@ Migration recipes live inside `src/main/resources/META-INF/rewrite/` as declarat
 kroxylicious-migrations/
 └── src/
     └── main/
-        ├── java/io/kroxylicious/migrations/rewrite/
-        │   ├── v0_24/       # imperative 0.24.0 recipes (e.g., UseErrorsInsteadOfExceptions)
-        │   └── v0_25/       # imperative 0.25.0 recipes (e.g., UseClusterDefinitions)
+        ├── java/io/kroxylicious/migrations/
+        │   ├── cli/         # the runnable jar's command line (e.g., convert-config)
+        │   └── rewrite/
+        │       ├── v0_24/   # imperative 0.24.0 recipes (e.g., UseErrorsInsteadOfExceptions)
+        │       └── v0_25/   # imperative 0.25.0 recipes (e.g., UseClusterDefinitions)
         └── resources/
             └── META-INF/
                 └── rewrite/
@@ -102,55 +104,25 @@ Some releases change the proxy's configuration YAML as well as its Java API. 0.2
 
 Because a proxy configuration file can be named anything and live anywhere, the recipe considers **every** YAML file it is given and migrates only those documents that structurally look like a proxy configuration — a mapping with a root level `virtualClusters` sequence, and without the `apiVersion`/`kind` keys that would mark it as a Kubernetes manifest. Pass the `filePattern` option to narrow that down.
 
+### Configuration held anywhere
+
+The migrations jar is runnable, and its `convert-config` command converts the files you name. The files are parsed as YAML and handed straight to the recipes, so no build, no project and no `pom.xml` is involved. [jbang](https://www.jbang.dev/) resolves the dependencies:
+
+```bash
+# preview the changes
+jbang io.kroxylicious:kroxylicious-migrations:0.25.0 convert-config --dry-run /path/to/kroxylicious-config.yaml
+
+# apply them
+jbang io.kroxylicious:kroxylicious-migrations:0.25.0 convert-config /path/to/kroxylicious-config.yaml
+```
+
+Either form prints a unified diff of what it changed, or would change. More than one file may be given. Without jbang, run the same command with `java -cp <migrations jar and its dependencies> io.kroxylicious.migrations.cli.KroxyliciousMigrations`.
+
+`convert-config` applies every migration, so it upgrades a configuration from any earlier release in one step, and running it again when there is nothing left to do reports `No changes required.`
+
 ### Configuration held inside a Maven or Gradle project
 
-No extra work: the `dryRun`/`run` invocations above already parse every YAML file under the project, so a configuration file committed alongside your sources is migrated as part of `MigrateTo0_25` (or `MigrateToLatest`).
-
-### Configuration held anywhere else
-
-OpenRewrite drives everything from a build, so give it a throwaway one. Drop a `pom.xml` beside the configuration:
-
-```xml
-<project xmlns="http://maven.apache.org/POM/4.0.0">
-    <modelVersion>4.0.0</modelVersion>
-    <groupId>local</groupId>
-    <artifactId>kroxylicious-config-migration</artifactId>
-    <version>1.0-SNAPSHOT</version>
-    <packaging>pom</packaging>
-</project>
-```
-
-`packaging` of `pom` means there is nothing to compile, so no `src/main/java` is needed. Then preview, and apply:
-
-```bash
-mvn -f /path/to/config-dir/pom.xml \
-  org.openrewrite.maven:rewrite-maven-plugin:dryRun \
-  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.25.0 \
-  -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_25.UseClusterDefinitions \
-  "-Drewrite.options=filePattern=**/kroxylicious-config.yaml"
-```
-
-```bash
-mvn -f /path/to/config-dir/pom.xml \
-  org.openrewrite.maven:rewrite-maven-plugin:run \
-  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.25.0 \
-  -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_25.UseClusterDefinitions \
-  "-Drewrite.options=filePattern=**/kroxylicious-config.yaml"
-```
-
-The quotes around `-Drewrite.options` matter: without them a shell that expands globs itself, such as zsh, fails the command before Maven sees it. Delete the throwaway `pom.xml` and the `target/` directory afterwards.
-
-### If the build succeeds but nothing changes
-
-OpenRewrite skips any file that is **both ignored by a `.gitignore` and untracked**, and says nothing when it does, so a configuration file in an ignored directory looks exactly like one the recipe declined to migrate. The enclosing repository need not be an obvious one: any ancestor directory may hold the `.git` and the rule that excludes your file.
-
-Check whether that is what is happening:
-
-```bash
-git check-ignore -v /path/to/config-dir/kroxylicious-config.yaml
-```
-
-If it prints a rule, either copy the configuration somewhere that is not ignored and run the recipe there, or make the file tracked with `git add -f`. There is no plugin option to disable the filter.
+The `dryRun`/`run` invocations above already parse every YAML file under the project, so a configuration file committed alongside your sources is migrated along with the Java sources, as part of `MigrateTo0_25` or `MigrateToLatest`. Nothing extra is needed — but note that the build plugins skip any file which is **both ignored by a `.gitignore` and untracked**, and say nothing when they do, so an ignored configuration file looks exactly like one the recipe declined to migrate. `git check-ignore -v <file>` tells you whether that is what has happened; `convert-config` has no such filter.
 
 ### Limitations
 
