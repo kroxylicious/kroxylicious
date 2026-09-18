@@ -42,6 +42,7 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
@@ -250,7 +251,7 @@ class KroxyliciousIT {
         return baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName(DEFAULT_VIRTUAL_CLUSTER)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(SUBPROCESS_BOOTSTRAP).build())
                 .endVirtualCluster();

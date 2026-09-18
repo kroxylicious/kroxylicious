@@ -68,6 +68,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider.INT_KROXYLICIOUS_TEST_DOMAIN;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
@@ -112,7 +113,7 @@ class ExpositionIT extends BaseIT {
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
         virtualClusterBuilder
                 .withName("demo")
-                .withNewTarget(clusterDef.name(), null);
+                .withTarget(DEFAULT_CLUSTER_TARGET);
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addToVirtualClusters(virtualClusterBuilder.build());
@@ -143,7 +144,7 @@ class ExpositionIT extends BaseIT {
             var bootstrap = HostPort.parse(clusterProxyAddresses.get(i));
             // @formatter:off
             var virtualCluster = new VirtualClusterBuilder()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("cluster" + i)
                     .addToGateways(new VirtualClusterGatewayBuilder()
                             .withName(DEFAULT_GATEWAY_NAME)
@@ -173,7 +174,7 @@ class ExpositionIT extends BaseIT {
                 .addToClusterDefinitions(clusterDef);
 
         VirtualClusterBuilder virtualClusterBuilder = new VirtualClusterBuilder()
-                .withNewTarget(clusterDef.name(), null)
+                .withTarget(DEFAULT_CLUSTER_TARGET)
                 .withName("cluster");
         virtualClusterBuilder.addToGateways(portPerBrokerGateway("localhost:9192", "gateway1"),
                 portPerBrokerGateway("localhost:9294", "gateway2"));
@@ -243,7 +244,7 @@ class ExpositionIT extends BaseIT {
 
             // @formatter:off
             var virtualCluster = new VirtualClusterBuilder()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("cluster")
                     .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":9192",
                                     virtualClusterBrokerAddressPattern + ":" + proxy.getLocalPort())
@@ -296,7 +297,7 @@ class ExpositionIT extends BaseIT {
 
             // @formatter:off
             var virtualCluster = new VirtualClusterBuilder()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("cluster" + i)
                     .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterFQDN + ":9192", virtualClusterBrokerAddressPattern.formatted(i))
                             .withNewTls()
@@ -349,7 +350,7 @@ class ExpositionIT extends BaseIT {
             keystoreTrustStoreList.add(keystoreTrustStorePair);
             // @formatter:off
             var virtualCluster = new VirtualClusterBuilder()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName(clusterName)
                     .addToGateways(sniBuilder
                             .withNewTls()
@@ -398,7 +399,7 @@ class ExpositionIT extends BaseIT {
 
         int numberOfGateways = 2;
         VirtualClusterBuilder virtualClusterBuilder = new VirtualClusterBuilder()
-                .withNewTarget(clusterDef.name(), null)
+                .withTarget(DEFAULT_CLUSTER_TARGET)
                 .withName("cluster");
         for (int i = 0; i < numberOfGateways; i++) {
             var virtualClusterFQDN = virtualClusterBootstrapPattern.formatted(i);
@@ -447,7 +448,7 @@ class ExpositionIT extends BaseIT {
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("demo")
                     .addToGateways(defaultGatewayBuilder()
                             .withNewPortIdentifiesNode()
@@ -482,7 +483,7 @@ class ExpositionIT extends BaseIT {
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("demo")
                     .addToGateways(defaultGatewayBuilder()
                             .withNewPortIdentifiesNode()
@@ -516,7 +517,7 @@ class ExpositionIT extends BaseIT {
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("demo")
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(proxyAddress).build())
                 .endVirtualCluster();
@@ -639,7 +640,7 @@ class ExpositionIT extends BaseIT {
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
         virtualClusterBuilder
                 .withName("demo")
-                .withNewTarget(clusterDef.name(), null);
+                .withTarget(DEFAULT_CLUSTER_TARGET);
 
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
@@ -682,7 +683,7 @@ class ExpositionIT extends BaseIT {
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
         virtualClusterBuilder
                 .withName("demo")
-                .withNewTarget(clusterDef.name(), null);
+                .withTarget(DEFAULT_CLUSTER_TARGET);
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addToVirtualClusters(virtualClusterBuilder.build());
@@ -743,7 +744,7 @@ class ExpositionIT extends BaseIT {
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("demo")
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                             .build())
@@ -782,7 +783,7 @@ class ExpositionIT extends BaseIT {
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("demo")
                     .addToGateways(defaultGatewayBuilder()
                             .withNewPortIdentifiesNode()
@@ -806,7 +807,7 @@ class ExpositionIT extends BaseIT {
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("demo")
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                             .build())

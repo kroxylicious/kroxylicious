@@ -49,6 +49,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -213,7 +214,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                         .withName("demo")
-                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                        .withTarget(DEFAULT_CLUSTER_TARGET)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withNewTls()
                                     .withNewKeyStoreKey()
@@ -263,7 +264,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                         .withName("demo")
-                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                        .withTarget(DEFAULT_CLUSTER_TARGET)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withNewTls()
                                     .withNewKeyStoreKey()
@@ -316,7 +317,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                         .withName("demo")
-                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                        .withTarget(DEFAULT_CLUSTER_TARGET)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withNewTls()
                                     .withNewKeyStoreKey()
@@ -371,7 +372,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                         .withName("demo")
-                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                        .withTarget(DEFAULT_CLUSTER_TARGET)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withNewTls()
                                     .withNewKeyStoreKey()

@@ -49,6 +49,7 @@ import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
@@ -746,7 +747,7 @@ class DefaultKroxyliciousTesterTest {
         final ConfigurationBuilder configurationBuilder = backingClusterDefinitionBuilder()
                 .addNewVirtualCluster()
                     .withName(DEFAULT_VIRTUAL_CLUSTER)
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
                     .addToGateways(new VirtualClusterGatewayBuilder()
                             .withName(CUSTOM_GATEWAY_NAME)
@@ -769,7 +770,7 @@ class DefaultKroxyliciousTesterTest {
         final ConfigurationBuilder configurationBuilder = backingClusterDefinitionBuilder()
                 .addNewVirtualCluster()
                     .withName(TLS_CLUSTER)
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP)
                             .withNewTls()
                                 .withNewKeyStoreKey()

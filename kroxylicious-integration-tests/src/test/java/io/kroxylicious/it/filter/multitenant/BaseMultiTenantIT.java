@@ -51,6 +51,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -107,7 +108,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName(TENANT_1_CLUSTER)
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(TENANT_1_PROXY_ADDRESS)
                             .withNewTls()
                                 .withNewKeyStoreKey()
@@ -119,7 +120,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                 .endVirtualCluster()
                 .addNewVirtualCluster()
                     .withName(TENANT_2_CLUSTER)
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(TENANT_2_PROXY_ADDRESS)
                             .withNewTls()
                                 .withNewKeyStoreKey()
