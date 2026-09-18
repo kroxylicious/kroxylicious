@@ -12,6 +12,9 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -43,6 +46,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                              @Nullable CacheConfiguration topicNameCache,
                              @Nullable Duration drainTimeout) {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualCluster.class);
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
     private static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(10);
 
@@ -51,13 +55,17 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * {@code targetCluster} or {@code target} must be given, at least one uniquely-named
      * gateway must be configured, and any explicit {@code drainTimeout} must be positive.
      */
-    @SuppressWarnings("java:S2789") // S2789 - checking for null tls is the intent
+    @SuppressWarnings({ "java:S2789", "removal" }) // S2789 - checking for null tls is the intent; removal for the use of deprecated targetCluster
     public VirtualCluster {
         Objects.requireNonNull(name);
         if (!isDnsLabel(name)) {
             throw new IllegalConfigurationException(
                     "Virtual cluster name '" + name + "' is invalid. It must be less than 64 characters long and match pattern " + DNS_LABEL_PATTERN.pattern()
                             + " (case insensitive)");
+        }
+        if (targetCluster != null) {
+            LOGGER.warn("the targetCluster field is deprecated and will be removed in a future release. "
+                    + "Declare the cluster in the clusterDefinitions array, and reference it by name using target.cluster.");
         }
         validateTargetExclusivity(name, targetCluster, target);
         if (gateways == null || gateways.isEmpty()) {
@@ -87,7 +95,9 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * @param logNetwork if true, network will be logged
      * @param logFrames if true, kafka rpcs will be logged
      * @param filters filters applied to requests
+     * @deprecated targetCluster is deprecated, use canonical ctor
      */
+    @Deprecated
     public VirtualCluster(String name,
                           TargetCluster targetCluster,
                           List<VirtualClusterGateway> gateways,
@@ -200,6 +210,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * as an internal helper of {@link #sameAs(VirtualCluster)} to normalise the one
      * order-insensitive component before the record's auto-equals does the rest.
      */
+    @SuppressWarnings("removal")
     private VirtualCluster canonical() {
         List<VirtualClusterGateway> sortedGateways = gateways.stream()
                 .sorted(java.util.Comparator.comparing(VirtualClusterGateway::name))
