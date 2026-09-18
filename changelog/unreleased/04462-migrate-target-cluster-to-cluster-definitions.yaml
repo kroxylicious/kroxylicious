@@ -1,0 +1,16 @@
+title: "feat(migrations): OpenRewrite recipe migrating targetCluster to clusterDefinitions"
+type: added
+issues:
+  - 4462
+important_notes:
+  - |
+    Proxy configuration using the `virtualClusters[].targetCluster` field, deprecated
+    in 0.22.0, can now be migrated automatically. The
+    `io.kroxylicious.migrations.rewrite.v0_25.UseClusterDefinitions` OpenRewrite recipe
+    moves each inline definition into the top-level `clusterDefinitions` list and
+    replaces it with a `target: {cluster: <name>}` reference. It runs as part of
+    `MigrateTo0_25` and `MigrateToLatest`, and takes an optional `filePattern` option
+    for configuration that lives outside a build.
+    See kroxylicious-proxy-core/kroxylicious-migrations/README.md, which also documents
+    how to run it against a configuration file that is not part of a Maven or Gradle
+    project, and the cases it deliberately leaves for a human.
