@@ -57,6 +57,7 @@ import io.kroxylicious.testing.kafka.common.Tls;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
@@ -98,7 +99,7 @@ class TlsIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName("demo")
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                             .build())
                 .endVirtualCluster();
@@ -133,7 +134,7 @@ class TlsIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName("demo")
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                             .build())
                 .endVirtualCluster();
@@ -176,7 +177,7 @@ class TlsIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName("demo")
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                             .build())
                 .endVirtualCluster();
@@ -203,7 +204,7 @@ class TlsIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName("demo")
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
                 .endVirtualCluster();
         // @formatter:on
@@ -241,7 +242,7 @@ class TlsIT extends AbstractTlsIT {
                     .endClusterDefinition()
                     .addNewVirtualCluster()
                         .withName("demo")
-                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                        .withTarget(DEFAULT_CLUSTER_TARGET)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
                     .endVirtualCluster();
             // @formatter:on
@@ -281,7 +282,7 @@ class TlsIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName("demo")
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                             .withNewTls()
                                 .withNewKeyStoreKey()
@@ -354,7 +355,7 @@ class TlsIT extends AbstractTlsIT {
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                .withNewTarget(clusterDef.name(), null)
+                .withTarget(DEFAULT_CLUSTER_TARGET)
                 .withName("demo")
                         .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(SNI_BOOTSTRAP_ADDRESS, SNI_BROKER_ADDRESS_PATTERN)
                                 .withNewTls()
@@ -469,7 +470,7 @@ class TlsIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName("demo")
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
                 .endVirtualCluster();
         // @formatter:on
@@ -509,7 +510,7 @@ class TlsIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName("demo")
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
                 .endVirtualCluster();
         // @formatter:on
@@ -633,7 +634,7 @@ class TlsIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName("demo")
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
                 .endVirtualCluster();
         // @formatter:on
@@ -673,7 +674,7 @@ class TlsIT extends AbstractTlsIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName("demo")
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
                 .endVirtualCluster();
         // @formatter:on
@@ -837,7 +838,7 @@ class TlsIT extends AbstractTlsIT {
         return KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                .withNewTarget(clusterDef.name(), null)
+                .withTarget(DEFAULT_CLUSTER_TARGET)
                 .withName("demo")
                         .addToGateways(
                                 defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
@@ -878,7 +879,7 @@ class TlsIT extends AbstractTlsIT {
         return KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                    .withNewTarget(clusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("demo")
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                             .withTls(tlsBuilder.build())

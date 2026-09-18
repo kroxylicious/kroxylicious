@@ -63,6 +63,7 @@ class ConfigurationTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory()).registerModule(new Jdk8Module());
     private static final String DEMO_CLUSTER = "demo-cluster";
     private static final ClusterDefinition DEMO_CLUSTER_DEFINITION = new ClusterDefinition(DEMO_CLUSTER, "kafka.example:1234", null);
+    private static final RouteTarget DEMO_CLUSTER_TARGET = new RouteTarget(DEMO_CLUSTER, null);
     private static final VirtualClusterGateway VIRTUAL_CLUSTER_GATEWAY = defaultGatewayBuilder()
             .withNewPortIdentifiesNode()
             .withBootstrapAddress(HostPort.parse("example.com:1234"))
@@ -70,7 +71,7 @@ class ConfigurationTest {
             .build();
     private static final VirtualCluster VIRTUAL_CLUSTER = new VirtualClusterBuilder()
             .withName("demo")
-            .withNewTarget(DEMO_CLUSTER, null)
+            .withTarget(DEMO_CLUSTER_TARGET)
             .addToGateways(VIRTUAL_CLUSTER_GATEWAY)
             .build();
     private final ConfigParser configParser = new ConfigParser();
@@ -210,7 +211,7 @@ class ConfigurationTest {
                                 .addToClusterDefinitions(DEMO_CLUSTER_DEFINITION)
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(HostPort.parse("cluster1:9192")).build())
                                         .build())
                                 .build(),
@@ -232,7 +233,7 @@ class ConfigurationTest {
                                 .addToClusterDefinitions(DEMO_CLUSTER_DEFINITION)
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(new VirtualClusterGatewayBuilder()
                                                 .withName("gateway1")
                                                 .withNewPortIdentifiesNode()
@@ -268,7 +269,7 @@ class ConfigurationTest {
                                 .addToClusterDefinitions(DEMO_CLUSTER_DEFINITION)
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder("cluster1:9192", "broker-$(nodeId)")
                                                 .withNewTls()
                                                 .withNewKeyPairKey()
@@ -305,7 +306,7 @@ class ConfigurationTest {
                                 .addToClusterDefinitions(DEMO_CLUSTER_DEFINITION)
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder("cluster1:9192", "broker-$(nodeId)")
                                                 .withNewTls()
                                                 .withNewKeyPairKey()
@@ -356,7 +357,7 @@ class ConfigurationTest {
                                         .build())
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
@@ -389,7 +390,7 @@ class ConfigurationTest {
                                         .build())
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
@@ -427,7 +428,7 @@ class ConfigurationTest {
                                         .build())
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
@@ -461,7 +462,7 @@ class ConfigurationTest {
                                         .build())
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
@@ -493,7 +494,7 @@ class ConfigurationTest {
                                         .build())
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
@@ -927,7 +928,7 @@ class ConfigurationTest {
         // @formatter:off
         return new VirtualClusterBuilder()
                 .withName(virtualClusterName)
-                .withNewTarget(DEMO_CLUSTER, null)
+                .withTarget(DEMO_CLUSTER_TARGET)
                 .addToGateways(VIRTUAL_CLUSTER_GATEWAY)
                 .withFilters(filterNames)
                 .build();

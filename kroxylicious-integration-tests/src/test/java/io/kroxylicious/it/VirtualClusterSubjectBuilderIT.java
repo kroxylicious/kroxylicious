@@ -41,6 +41,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import static io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService.CLIENT_TLS_SAN_DNS_NAME;
 import static io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService.CLIENT_TLS_SUBJECT;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -139,7 +140,7 @@ class VirtualClusterSubjectBuilderIT extends AbstractTlsIT {
                 .addToDefaultFilters(clientAware.name())
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                .withNewTarget(clusterDef.name(), null)
+                .withTarget(DEFAULT_CLUSTER_TARGET)
                 .withName("demo")
                         .withSubjectBuilder(subjectBuilderConfig)
                         .addToGateways(

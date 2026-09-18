@@ -217,11 +217,15 @@ class RouterChangeHotReloadIT extends BaseIT {
         UUID routerId = UUID.randomUUID();
 
         var clusterDef = clusterDefinition(CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
         var vc = new VirtualClusterBuilder()
-                .withNewTarget(clusterDef.name(), null)
+                .withNewTarget()
+                    .withCluster(clusterDef.name())
+                .endTarget()
                 .withName("vc-routing-disabled")
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_ROUTING_DISABLED)).build())
                 .build();
+        // @formatter:on
 
         var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)

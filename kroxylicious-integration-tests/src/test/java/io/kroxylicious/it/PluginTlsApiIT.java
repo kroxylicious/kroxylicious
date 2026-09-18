@@ -46,6 +46,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -182,7 +183,7 @@ class PluginTlsApiIT extends AbstractTlsIT {
                 .addNewVirtualCluster()
                         .withName(demoCluster)
                         .addToFilters("clientConnection")
-                        .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                        .withTarget(DEFAULT_CLUSTER_TARGET)
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withTls(gatewayTls)
                                 .build())

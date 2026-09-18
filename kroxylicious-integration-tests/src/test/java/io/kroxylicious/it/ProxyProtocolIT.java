@@ -50,6 +50,7 @@ import io.kroxylicious.testing.integration.codec.KafkaResponseDecoder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
@@ -375,7 +376,7 @@ class ProxyProtocolIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName("demo")
-                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP)
                             .withNewTls()
                                 .withNewKeyStoreKey()

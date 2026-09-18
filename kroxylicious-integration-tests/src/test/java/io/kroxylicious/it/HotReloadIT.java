@@ -717,20 +717,28 @@ class HotReloadIT extends BaseIT {
     }
 
     private static VirtualCluster portVc(String clusterDefName, String name, int port) {
+        // @formatter:off
         return new VirtualClusterBuilder()
-                .withNewTarget(clusterDefName, null)
+                .withNewTarget()
+                    .withCluster(clusterDefName)
+                .endTarget()
                 .withName(name)
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", port)).build())
                 .build();
+        // @formatter:on
     }
 
     private static VirtualCluster portVcWithLogNetwork(String clusterDefName, String name, int port, boolean logNetwork) {
+        // @formatter:off
         return new VirtualClusterBuilder()
-                .withNewTarget(clusterDefName, null)
+                .withNewTarget()
+                    .withCluster(clusterDefName)
+                .endTarget()
                 .withName(name)
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", port)).build())
                 .withLogNetwork(logNetwork)
                 .build();
+        // @formatter:on
     }
 
     private static int boundPort(KroxyliciousTester tester, String vcName) {
@@ -820,7 +828,9 @@ class HotReloadIT extends BaseIT {
                                                          String brokerPattern) {
         // @formatter:off
         return new VirtualClusterBuilder()
-                .withNewTarget(clusterDefName, null)
+                .withNewTarget()
+                    .withCluster(clusterDefName)
+                .endTarget()
                 .withName(name)
                 .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(bootstrap, brokerPattern)
                         .withNewTls()

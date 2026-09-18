@@ -42,6 +42,7 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -285,7 +286,7 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
                 .endRoundRobinBootstrapSelectionStrategy()
                 .build();
         var vcWithRoundRobin = new VirtualClusterBuilder()
-                .withNewTarget(clusterDef.name(), null)
+                .withTarget(DEFAULT_CLUSTER_TARGET)
                 .withName("vc-bootstrap-selection")
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 300)).build())
                 .addToFilters("bootstrap-counter")
@@ -315,7 +316,7 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
                     .endRoundRobinBootstrapSelectionStrategy()
                     .build();
             var reloadedVc = new VirtualClusterBuilder()
-                    .withNewTarget(reloadedClusterDef.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("vc-bootstrap-selection")
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 300)).build())
                     .addToFilters("bootstrap-counter")
@@ -370,7 +371,7 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
                 .endRoundRobinBootstrapSelectionStrategy()
                 .build();
         var vcWithRoundRobin = new VirtualClusterBuilder()
-                .withNewTarget(clusterDefRoundRobin.name(), null)
+                .withTarget(DEFAULT_CLUSTER_TARGET)
                 .withName("vc-bootstrap-change")
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 400)).build())
                 .addToFilters("change-counter")
@@ -399,7 +400,7 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
                     .endRandomBootstrapSelectionStrategy()
                     .build();
             var vcWithRandom = new VirtualClusterBuilder()
-                    .withNewTarget(clusterDefRandom.name(), null)
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .withName("vc-bootstrap-change")
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_CLUSTER_DEF_CHANGE + 400)).build())
                     .addToFilters("change-counter")

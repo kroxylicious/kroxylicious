@@ -243,7 +243,7 @@ class ResilienceIT extends BaseIT {
                 .endClusterDefinition()
                 .addNewVirtualCluster()
                     .withName(KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER)
-                    .withNewTarget(KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME, null)
+                    .withTarget(KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET)
                     .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(
                             HostPort.parse(FIXED_BOOTSTRAP)).build())
                 .endVirtualCluster();

@@ -46,6 +46,13 @@ public class KroxyliciousConfigUtils {
     public static final String DEFAULT_CLUSTER_DEF_NAME = "target-cluster";
 
     /**
+     * A route target referencing the cluster definition named {@link #DEFAULT_CLUSTER_DEF_NAME}.
+     * Pass to {@code VirtualClusterBuilder#withTarget} rather than naming the cluster definition
+     * and a null router separately.
+     */
+    public static final RouteTarget DEFAULT_CLUSTER_TARGET = new RouteTarget(DEFAULT_CLUSTER_DEF_NAME, null);
+
+    /**
      * Create a ConfigurationBuilder with a single virtual cluster configured to
      * proxy an externally provided bootstrap server.
      *
@@ -77,7 +84,7 @@ public class KroxyliciousConfigUtils {
         for (String virtualClusterName : virtualClusterNames) {
             var vcb = new VirtualClusterBuilder()
                     .withName(virtualClusterName)
-                    .withTarget(new RouteTarget(clusterDef.name(), null))
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build());
             configurationBuilder
                     .addToVirtualClusters(vcb.build());
