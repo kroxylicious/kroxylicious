@@ -1194,14 +1194,15 @@ class ConfigParserTest {
                     // because we want to preserve fidelity between the config model and yaml version the field returns null
                     assertThat(clusterDef.selectionStrategy()).isNull();
                     // indirectly asserting that the strategy defaults to round-robin:
-                    // three calls cycle through both servers and return to the first
+                    // three selections cycle through both servers and return to the first
                     var targetCluster = clusterDef.toTargetCluster();
+                    var selector = targetCluster.effectiveSelectionStrategy().newSelector();
                     var expectedServers = Set.of(
                             new HostPort("magic-kafka.example", 1234),
                             new HostPort("magic-kafka-1.example", 1234));
-                    var first = targetCluster.bootstrapServer();
-                    var second = targetCluster.bootstrapServer();
-                    var third = targetCluster.bootstrapServer();
+                    var first = selector.select(targetCluster.bootstrapServersList());
+                    var second = selector.select(targetCluster.bootstrapServersList());
+                    var third = selector.select(targetCluster.bootstrapServersList());
                     assertThat(first).isIn(expectedServers);
                     assertThat(second).isIn(expectedServers).isNotEqualTo(first);
                     assertThat(third).isEqualTo(first);

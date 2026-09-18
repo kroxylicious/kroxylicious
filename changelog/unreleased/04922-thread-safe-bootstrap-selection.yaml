@@ -1,0 +1,5 @@
+title: "fix(runtime): make bootstrap server selection thread-safe by separating the selection strategy configuration from its runtime state"
+type: fixed
+issues:
+  - 4922
+  - 4921
