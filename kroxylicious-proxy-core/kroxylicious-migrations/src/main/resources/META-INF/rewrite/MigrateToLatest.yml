@@ -11,3 +11,4 @@ displayName: Upgrade Kroxylicious Filter API to Latest
 description: Applies all changes required to upgrade from any previous version to the latest version of the Kroxylicious API
 recipeList:
   - io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24
+  - io.kroxylicious.migrations.rewrite.v0_25.MigrateTo0_25
