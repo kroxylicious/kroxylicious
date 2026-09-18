@@ -158,8 +158,7 @@
         "(?<depName>quay.io/kroxylicious/python-kafka-test-client):(?<currentValue>\\d+\\.\\d+\\.\\d+-\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker",
-      "extractVersionTemplate": "^(?<version>.*)?(-(?<build>.*))?$",
-      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)?(-(?<build>.*))?$"
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<prerelease>\\d+\\.\\d+\\.\\d+)$"
     },
     {
       "customType": "regex",
