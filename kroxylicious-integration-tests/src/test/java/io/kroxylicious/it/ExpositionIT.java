@@ -141,16 +141,18 @@ class ExpositionIT extends BaseIT {
 
         for (int i = 0; i < clusterProxyAddresses.size(); i++) {
             var bootstrap = HostPort.parse(clusterProxyAddresses.get(i));
+            // @formatter:off
             var virtualCluster = new VirtualClusterBuilder()
                     .withNewTarget(clusterDef.name(), null)
                     .withName("cluster" + i)
                     .addToGateways(new VirtualClusterGatewayBuilder()
                             .withName(DEFAULT_GATEWAY_NAME)
                             .withNewPortIdentifiesNode()
-                            .withBootstrapAddress(bootstrap)
+                                .withBootstrapAddress(bootstrap)
                             .endPortIdentifiesNode()
                             .build())
                     .build();
+            // @formatter:on
             builder.addToVirtualClusters(virtualCluster);
         }
 
@@ -239,21 +241,23 @@ class ExpositionIT extends BaseIT {
 
             var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern);
 
+            // @formatter:off
             var virtualCluster = new VirtualClusterBuilder()
                     .withNewTarget(clusterDef.name(), null)
                     .withName("cluster")
                     .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":9192",
-                            virtualClusterBrokerAddressPattern + ":" + proxy.getLocalPort())
+                                    virtualClusterBrokerAddressPattern + ":" + proxy.getLocalPort())
                             .withNewTls()
-                            .withNewKeyStoreKey()
-                            .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
-                            .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
-                            .endKeyStoreKey()
+                                .withNewKeyStoreKey()
+                                    .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
+                                    .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
+                                .endKeyStoreKey()
                             .endTls()
                             .build())
                     .withLogNetwork(true)
                     .withLogFrames(true)
                     .build();
+            // @formatter:on
             builder.addToVirtualClusters(virtualCluster);
 
             try (var tester = kroxyliciousTester(builder)) {
@@ -290,20 +294,22 @@ class ExpositionIT extends BaseIT {
             var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern.formatted(i));
             keystoreTrustStoreList.add(keystoreTrustStorePair);
 
+            // @formatter:off
             var virtualCluster = new VirtualClusterBuilder()
                     .withNewTarget(clusterDef.name(), null)
                     .withName("cluster" + i)
                     .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterFQDN + ":9192", virtualClusterBrokerAddressPattern.formatted(i))
                             .withNewTls()
-                            .withNewKeyStoreKey()
-                            .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
-                            .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
-                            .endKeyStoreKey()
+                                .withNewKeyStoreKey()
+                                    .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
+                                    .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
+                                .endKeyStoreKey()
                             .endTls()
                             .build())
                     .withLogNetwork(true)
                     .withLogFrames(true)
                     .build();
+            // @formatter:on
             builder.addToVirtualClusters(virtualCluster);
         }
 
@@ -341,20 +347,22 @@ class ExpositionIT extends BaseIT {
             String domain = "*" + withClusterNameReplaced;
             var keystoreTrustStorePair = buildKeystoreTrustStorePair(domain);
             keystoreTrustStoreList.add(keystoreTrustStorePair);
+            // @formatter:off
             var virtualCluster = new VirtualClusterBuilder()
                     .withNewTarget(clusterDef.name(), null)
                     .withName(clusterName)
                     .addToGateways(sniBuilder
                             .withNewTls()
-                            .withNewKeyStoreKey()
-                            .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
-                            .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
-                            .endKeyStoreKey()
+                                .withNewKeyStoreKey()
+                                    .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
+                                    .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
+                                .endKeyStoreKey()
                             .endTls()
                             .build())
                     .withLogNetwork(true)
                     .withLogFrames(true)
                     .build();
+            // @formatter:on
             builder.addToVirtualClusters(virtualCluster);
         }
         try (var tester = kroxyliciousTester(builder)) {

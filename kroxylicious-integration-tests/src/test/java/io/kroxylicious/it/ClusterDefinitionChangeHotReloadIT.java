@@ -278,7 +278,8 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
         UUID filterId = UUID.randomUUID();
         var filterDef = invocationCounterDef("bootstrap-counter", filterId);
 
-        var clusterDef = new ClusterDefinitionBuilder().withBootstrapServers(cluster.getBootstrapServers())
+        var clusterDef = new ClusterDefinitionBuilder()
+                .withBootstrapServers(cluster.getBootstrapServers())
                 .withName(DEFAULT_CLUSTER_DEF_NAME)
                 .withNewRoundRobinBootstrapSelectionStrategy()
                 .endRoundRobinBootstrapSelectionStrategy()
@@ -307,7 +308,8 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
 
             // When: reload with identical config (simulating touch of config file or no-op reload)
             // Parse the config again to simulate what happens during hot reload - fresh instances
-            var reloadedClusterDef = new ClusterDefinitionBuilder().withBootstrapServers(cluster.getBootstrapServers())
+            var reloadedClusterDef = new ClusterDefinitionBuilder()
+                    .withBootstrapServers(cluster.getBootstrapServers())
                     .withName(DEFAULT_CLUSTER_DEF_NAME)
                     .withNewRoundRobinBootstrapSelectionStrategy()
                     .endRoundRobinBootstrapSelectionStrategy()
@@ -361,7 +363,8 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
         UUID filterId = UUID.randomUUID();
         var filterDef = invocationCounterDef("change-counter", filterId);
 
-        var clusterDefRoundRobin = new ClusterDefinitionBuilder().withBootstrapServers(cluster.getBootstrapServers())
+        var clusterDefRoundRobin = new ClusterDefinitionBuilder()
+                .withBootstrapServers(cluster.getBootstrapServers())
                 .withName(DEFAULT_CLUSTER_DEF_NAME)
                 .withNewRoundRobinBootstrapSelectionStrategy()
                 .endRoundRobinBootstrapSelectionStrategy()
@@ -389,7 +392,8 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-bootstrap-change", topic, "before-change");
 
             // When: change strategy from round-robin to random; filter definition is unchanged
-            var clusterDefRandom = new ClusterDefinitionBuilder().withBootstrapServers(cluster.getBootstrapServers())
+            var clusterDefRandom = new ClusterDefinitionBuilder()
+                    .withBootstrapServers(cluster.getBootstrapServers())
                     .withName(DEFAULT_CLUSTER_DEF_NAME)
                     .withNewRandomBootstrapSelectionStrategy()
                     .endRandomBootstrapSelectionStrategy()

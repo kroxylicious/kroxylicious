@@ -34,7 +34,6 @@ import org.junit.jupiter.api.parallel.ResourceLock;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.service.HostPort;
@@ -247,13 +246,15 @@ class KroxyliciousIT {
 
     private static ConfigurationBuilder subprocessProxy(KafkaCluster cluster) {
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
         return baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withNewTarget(clusterDef.name(), null)
-                        .withName(DEFAULT_VIRTUAL_CLUSTER)
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(SUBPROCESS_BOOTSTRAP).build())
-                        .build());
+                .addNewVirtualCluster()
+                    .withNewTarget(clusterDef.name(), null)
+                    .withName(DEFAULT_VIRTUAL_CLUSTER)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(SUBPROCESS_BOOTSTRAP).build())
+                .endVirtualCluster();
+        // @formatter:on
     }
 
     private static class SubprocessKroxyliciousFactory implements BiFunction<Configuration, Features, AutoCloseable> {

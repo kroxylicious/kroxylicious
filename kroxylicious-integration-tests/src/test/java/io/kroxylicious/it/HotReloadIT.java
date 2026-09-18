@@ -818,18 +818,20 @@ class HotReloadIT extends BaseIT {
                                                          String name,
                                                          String bootstrap,
                                                          String brokerPattern) {
+        // @formatter:off
         return new VirtualClusterBuilder()
                 .withNewTarget(clusterDefName, null)
                 .withName(name)
                 .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(bootstrap, brokerPattern)
                         .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(certs.brokerKeyStore())
-                        .withNewInlinePasswordStoreProvider(certs.password())
-                        .endKeyStoreKey()
+                            .withNewKeyStoreKey()
+                                .withStoreFile(certs.brokerKeyStore())
+                                .withNewInlinePasswordStoreProvider(certs.password())
+                            .endKeyStoreKey()
                         .endTls()
                         .build())
                 .build();
+        // @formatter:on
     }
 
     // Per-record produce: batch.size=1 + linger.ms=0 forces the producer to issue one

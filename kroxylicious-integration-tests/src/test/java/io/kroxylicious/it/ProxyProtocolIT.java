@@ -367,26 +367,28 @@ class ProxyProtocolIT {
 
     private static ConfigurationBuilder buildTlsProxyProtocolConfig(String mockBootstrap, CertificateGenerator.KeyStore keystore,
                                                                     ProxyProtocolMode mode) {
+        // @formatter:off
         return KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addNewClusterDefinition()
-                .withName(DEFAULT_CLUSTER_DEF_NAME)
-                .withBootstrapServers(mockBootstrap)
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(mockBootstrap)
                 .endClusterDefinition()
                 .addNewVirtualCluster()
-                .withName("demo")
-                .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP)
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(keystore.path().toString())
-                        .withStoreType(keystore.type())
-                        .withNewInlinePasswordStoreProvider(keystore.storePassword())
-                        .withNewInlinePasswordKeyProvider(keystore.keyPassword())
-                        .endKeyStoreKey()
-                        .endTls()
-                        .build())
+                    .withName("demo")
+                    .withNewTarget(DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP)
+                            .withNewTls()
+                                .withNewKeyStoreKey()
+                                    .withStoreFile(keystore.path().toString())
+                                    .withStoreType(keystore.type())
+                                    .withNewInlinePasswordStoreProvider(keystore.storePassword())
+                                    .withNewInlinePasswordKeyProvider(keystore.keyPassword())
+                                .endKeyStoreKey()
+                            .endTls()
+                            .build())
                 .endVirtualCluster()
                 .withProxyProtocol(new ProxyProtocolConfig(mode));
+        // @formatter:on
     }
 
     private static io.kroxylicious.testing.integration.codec.DecodedRequestFrame<?> toRequestFrame(Request request) {
