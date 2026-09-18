@@ -39,7 +39,6 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
-import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
@@ -64,6 +63,7 @@ class ConfigurationTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory()).registerModule(new Jdk8Module());
     private static final String DEMO_CLUSTER = "demo-cluster";
     private static final ClusterDefinition DEMO_CLUSTER_DEFINITION = new ClusterDefinition(DEMO_CLUSTER, "kafka.example:1234", null);
+    private static final RouteTarget DEMO_CLUSTER_TARGET = new RouteTarget(DEMO_CLUSTER, null);
     private static final VirtualClusterGateway VIRTUAL_CLUSTER_GATEWAY = defaultGatewayBuilder()
             .withNewPortIdentifiesNode()
             .withBootstrapAddress(HostPort.parse("example.com:1234"))
@@ -71,7 +71,7 @@ class ConfigurationTest {
             .build();
     private static final VirtualCluster VIRTUAL_CLUSTER = new VirtualClusterBuilder()
             .withName("demo")
-            .withNewTarget(DEMO_CLUSTER, null)
+            .withTarget(DEMO_CLUSTER_TARGET)
             .addToGateways(VIRTUAL_CLUSTER_GATEWAY)
             .build();
     private final ConfigParser configParser = new ConfigParser();
@@ -211,7 +211,7 @@ class ConfigurationTest {
                                 .addToClusterDefinitions(DEMO_CLUSTER_DEFINITION)
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(HostPort.parse("cluster1:9192")).build())
                                         .build())
                                 .build(),
@@ -233,7 +233,7 @@ class ConfigurationTest {
                                 .addToClusterDefinitions(DEMO_CLUSTER_DEFINITION)
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(new VirtualClusterGatewayBuilder()
                                                 .withName("gateway1")
                                                 .withNewPortIdentifiesNode()
@@ -269,7 +269,7 @@ class ConfigurationTest {
                                 .addToClusterDefinitions(DEMO_CLUSTER_DEFINITION)
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder("cluster1:9192", "broker-$(nodeId)")
                                                 .withNewTls()
                                                 .withNewKeyPairKey()
@@ -306,7 +306,7 @@ class ConfigurationTest {
                                 .addToClusterDefinitions(DEMO_CLUSTER_DEFINITION)
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder("cluster1:9192", "broker-$(nodeId)")
                                                 .withNewTls()
                                                 .withNewKeyPairKey()
@@ -357,7 +357,7 @@ class ConfigurationTest {
                                         .build())
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
@@ -390,7 +390,7 @@ class ConfigurationTest {
                                         .build())
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
@@ -428,7 +428,7 @@ class ConfigurationTest {
                                         .build())
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
@@ -462,7 +462,7 @@ class ConfigurationTest {
                                         .build())
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
@@ -494,7 +494,7 @@ class ConfigurationTest {
                                         .build())
                                 .addToVirtualClusters(new VirtualClusterBuilder()
                                         .withName("demo")
-                                        .withNewTarget(DEMO_CLUSTER, null)
+                                        .withTarget(DEMO_CLUSTER_TARGET)
                                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
@@ -733,13 +733,10 @@ class ConfigurationTest {
     void shouldRejectMissingClusterFilter() {
         Optional<Map<String, Object>> development = Optional.empty();
         List<NamedFilterDefinition> filterDefinitions = List.of();
-        List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
-        TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
-        List<VirtualCluster> virtualClusters = List
-                .of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("missing")));
+        List<VirtualCluster> virtualClusters = List.of(virtualClusterWithFilters("vc1", List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
                 null,
-                null,
+                List.of(DEMO_CLUSTER_DEFINITION),
                 filterDefinitions,
                 null,
                 null,
@@ -764,11 +761,9 @@ class ConfigurationTest {
         );
 
         List<String> defaultFilters = List.of("used1");
-        List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
-        TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
-        List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("used2")));
+        List<VirtualCluster> virtualClusters = List.of(virtualClusterWithFilters("vc1", List.of("used2")));
         assertThatThrownBy(() -> new Configuration(null,
-                null,
+                List.of(DEMO_CLUSTER_DEFINITION),
                 filterDefinitions,
                 defaultFilters,
                 null,
@@ -926,6 +921,20 @@ class ConfigurationTest {
     }
 
     @NonNull
+    /**
+     * A virtual cluster targeting {@link #DEMO_CLUSTER_DEFINITION}, for tests concerned only with filter validation.
+     */
+    private static VirtualCluster virtualClusterWithFilters(String virtualClusterName, List<String> filterNames) {
+        // @formatter:off
+        return new VirtualClusterBuilder()
+                .withName(virtualClusterName)
+                .withTarget(DEMO_CLUSTER_TARGET)
+                .addToGateways(VIRTUAL_CLUSTER_GATEWAY)
+                .withFilters(filterNames)
+                .build();
+        // @formatter:on
+    }
+
     private static VirtualCluster buildVirtualCluster(String virtualClusterName, @Nullable List<String> filterNames) {
         // Use new API: target references a named cluster definition
         return new VirtualCluster(

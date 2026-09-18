@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.it.testplugins.router.InvocationCountingRouterFactory;
-import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
@@ -38,7 +37,7 @@ import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -93,7 +92,7 @@ class RouterChangeHotReloadIT extends BaseIT {
         UUID oldConfigId = UUID.randomUUID();
         UUID newConfigId = UUID.randomUUID();
 
-        var clusterDef = clusterDefinition(cluster);
+        var clusterDef = clusterDefinition(CLUSTER_DEF_NAME, cluster);
         var vc = routerVc("vc-router-change", PORT_ROUTER_CHANGE, "my-router");
 
         var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
@@ -151,7 +150,7 @@ class RouterChangeHotReloadIT extends BaseIT {
         UUID vcANewId = UUID.randomUUID();
         UUID vcBId = UUID.randomUUID();
 
-        var clusterDef = clusterDefinition(cluster);
+        var clusterDef = clusterDefinition(CLUSTER_DEF_NAME, cluster);
         var vcA = routerVc("vc-a", PORT_CROSS_VC_A, "router-a");
         var vcB = routerVc("vc-b", PORT_CROSS_VC_B, "router-b");
 
@@ -217,10 +216,16 @@ class RouterChangeHotReloadIT extends BaseIT {
         // The factory is never initialized.
         UUID routerId = UUID.randomUUID();
 
-        var clusterDef = clusterDefinition(cluster);
-        var vc = baseVirtualClusterBuilder(cluster, "vc-routing-disabled")
+        var clusterDef = clusterDefinition(CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
+        var vc = new VirtualClusterBuilder()
+                .withNewTarget()
+                    .withCluster(clusterDef.name())
+                .endTarget()
+                .withName("vc-routing-disabled")
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_ROUTING_DISABLED)).build())
                 .build();
+        // @formatter:on
 
         var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
@@ -258,10 +263,6 @@ class RouterChangeHotReloadIT extends BaseIT {
     }
 
     // ---- fixture helpers ----
-
-    private static ClusterDefinition clusterDefinition(KafkaCluster cluster) {
-        return new ClusterDefinition(CLUSTER_DEF_NAME, cluster.getBootstrapServers(), null);
-    }
 
     private static RouterDefinition routerDef(String name, UUID configId) {
         var route = new RouteDefinition(ROUTE_NAME, 0, List.of(), new RouteTarget(CLUSTER_DEF_NAME, null));
