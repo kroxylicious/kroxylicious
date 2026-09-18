@@ -10,6 +10,10 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import io.netty.handler.ssl.SslContext;
+
+import io.kroxylicious.proxy.bootstrap.BootstrapServerSelector;
+import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactory;
@@ -24,6 +28,7 @@ import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
@@ -113,6 +118,65 @@ class UpstreamClusterModelTest {
     @Test
     void bootstrapServerReturnsSingleServer() {
         assertThat(plaintext().bootstrapServer()).isEqualTo(new io.kroxylicious.proxy.service.HostPort("broker", 9092));
+    }
+
+    @Test
+    void bootstrapServerSelectsUsingTheConfiguredStrategy() {
+        // Given
+        var cluster = new TargetCluster("a:9092,b:9093", Optional.empty(), new RoundRobinBootstrapSelectionStrategy());
+        var model = new UpstreamClusterModel(cluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+
+        // When
+        var first = model.bootstrapServer();
+        var second = model.bootstrapServer();
+        var third = model.bootstrapServer();
+
+        // Then
+        assertThat(first).isEqualTo(new HostPort("a", 9092));
+        assertThat(second).isEqualTo(new HostPort("b", 9093));
+        assertThat(third).isEqualTo(new HostPort("a", 9092));
+    }
+
+    @Test
+    void bootstrapServerDelegatesToTheGivenSelector() {
+        // Given
+        var expected = new HostPort("chosen", 1234);
+        BootstrapServerSelector selector = servers -> expected;
+        var model = new UpstreamClusterModel(new TargetCluster("a:9092,b:9093", Optional.empty()), Optional.empty(),
+                TlsCredentialSupplierManager.unconfigured(), selector);
+
+        // When
+        var selected = model.bootstrapServer();
+
+        // Then
+        assertThat(selected).isEqualTo(expected);
+    }
+
+    @Test
+    void modelsBuiltFromTheSameTargetClusterHaveIndependentSelectionState() {
+        // Given
+        var cluster = new TargetCluster("a:9092,b:9093", Optional.empty(), new RoundRobinBootstrapSelectionStrategy());
+        var first = UpstreamClusterModel.build(cluster, null);
+        var second = UpstreamClusterModel.build(cluster, null);
+        first.bootstrapServer();
+
+        // When
+        var selected = second.bootstrapServer();
+
+        // Then
+        assertThat(selected).isEqualTo(new HostPort("a", 9092));
+    }
+
+    @Test
+    void rejectsNullSelector() {
+        // Given
+        var tlsManager = TlsCredentialSupplierManager.unconfigured();
+        Optional<SslContext> sslContext = Optional.empty();
+
+        // When/Then
+        assertThatThrownBy(() -> new UpstreamClusterModel(PLAINTEXT_CLUSTER, sslContext, tlsManager, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("bootstrapServerSelector");
     }
 
     // usesDynamicTlsCredentials()

@@ -7,37 +7,25 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.concurrent.atomic.AtomicLong;
 
 import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.proxy.tag.NotThreadSafe;
+import io.kroxylicious.proxy.tag.ThreadSafe;
 
 /**
  * {@link BootstrapSelectionStrategy} that selects a server from the given list of servers as the bootstrap server in a round-robin fashion.
- * <br>
- * Each instance has a counter which starts from <code>0</code> and rounds over, which means each server selection for each
- * {@link io.kroxylicious.proxy.config.VirtualCluster} will start from <code>0</code>.
- *
+ * <p>
+ * This class is immutable configuration. The round-robin position is held by the selector returned from
+ * {@link #newSelector()}; each selector starts from the first server in the list and wraps around, so each
+ * upstream cluster model begins its own cycle at the first server.
  */
-@NotThreadSafe
 public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionStrategy {
 
-    @JsonIgnore
-    private long counter;
-
     /**
-     * Creates a round-robin bootstrap selection strategy whose first selection will be the
-     * first server in the list.
+     * Creates a round-robin bootstrap selection strategy.
      */
     public RoundRobinBootstrapSelectionStrategy() {
-        this.counter = -1;
-    }
-
-    @Override
-    public HostPort apply(List<HostPort> hostPorts) {
-        int choice = (int) getNext(hostPorts.size());
-        return hostPorts.get(choice);
+        // Intentionally empty
     }
 
     @Override
@@ -46,16 +34,8 @@ public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionS
     }
 
     @Override
-    public BootstrapSelectionStrategy newInstance() {
-        return new RoundRobinBootstrapSelectionStrategy();
-    }
-
-    private long getNext(long ceil) {
-        this.counter++;
-        if (counter >= ceil) {
-            this.counter = 0;
-        }
-        return this.counter;
+    public BootstrapServerSelector newSelector() {
+        return new Selector();
     }
 
     @Override
@@ -63,8 +43,7 @@ public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionS
         if (this == o) {
             return true;
         }
-        // All RoundRobinBootstrapSelectionStrategy instances are equal
-        // (counter is runtime state, not configuration)
+        // All RoundRobinBootstrapSelectionStrategy instances are equal: the strategy takes no parameters
         return o instanceof RoundRobinBootstrapSelectionStrategy;
     }
 
@@ -72,5 +51,21 @@ public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionS
     public int hashCode() {
         // All instances have same hash (type-based)
         return RoundRobinBootstrapSelectionStrategy.class.hashCode();
+    }
+
+    /**
+     * Selector holding the round-robin position. The position is an atomic counter so that the
+     * selector can be shared by concurrent connections without lost updates or an out-of-range index.
+     */
+    @ThreadSafe
+    private static final class Selector implements BootstrapServerSelector {
+
+        private final AtomicLong counter = new AtomicLong();
+
+        @Override
+        public HostPort select(List<HostPort> bootstrapServers) {
+            long next = counter.getAndIncrement();
+            return bootstrapServers.get(Math.floorMod(next, bootstrapServers.size()));
+        }
     }
 }

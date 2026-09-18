@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -76,7 +77,7 @@ class ClusterDefinitionTest {
     }
 
     @Test
-    void toTargetClusterGivesTargetClusterItsOwnSelectionStrategy() {
+    void toTargetClusterPassesSelectionStrategyThrough() {
         // Given
         var strategy = new RandomBootstrapSelectionStrategy();
         var def = new ClusterDefinition("c1", "broker:9092", null, strategy);
@@ -85,22 +86,34 @@ class ClusterDefinitionTest {
         var target = def.toTargetCluster();
 
         // Then
-        assertThat(target.selectionStrategy())
-                .isNotSameAs(strategy)
-                .isInstanceOf(RandomBootstrapSelectionStrategy.class);
+        assertThat(target.selectionStrategy()).isEqualTo(strategy);
     }
 
     @Test
-    void shouldGetIndependentBootstrapServerStrategies() {
+    void toTargetClusterWithoutSelectionStrategy() {
         // Given
-        var def = new ClusterDefinition("c1", "broker1:9092,broker2:9092", null, new RoundRobinBootstrapSelectionStrategy());
-        var firstSelection = def.toTargetCluster().bootstrapServer();
+        var def = new ClusterDefinition("c1", "broker:9092", null);
 
         // When
-        var secondSelection = def.toTargetCluster().bootstrapServer();
+        var target = def.toTargetCluster();
 
         // Then
-        assertThat(firstSelection).isEqualTo(new HostPort("broker1", 9092));
+        assertThat(target.selectionStrategy()).isNull();
+        assertThat(target.effectiveSelectionStrategy()).isInstanceOf(RoundRobinBootstrapSelectionStrategy.class);
+    }
+
+    @Test
+    void upstreamClusterModelsDerivedFromTheSameDefinitionShouldHaveIndependentBootstrapSelectionState() {
+        // Given
+        var def = new ClusterDefinition("c1", "broker1:9092,broker2:9092", null, new RoundRobinBootstrapSelectionStrategy());
+        var first = UpstreamClusterModel.build(def.toTargetCluster(), null);
+        var second = UpstreamClusterModel.build(def.toTargetCluster(), null);
+        first.bootstrapServer();
+
+        // When
+        var secondSelection = second.bootstrapServer();
+
+        // Then
         assertThat(secondSelection).isEqualTo(new HostPort("broker1", 9092));
     }
 }
