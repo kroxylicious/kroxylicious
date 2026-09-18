@@ -1007,8 +1007,10 @@ public class ClientConnectionStateMachine {
         for (var entry : allDescriptors.entrySet()) {
             RouteDescriptor rd = entry.getValue();
             if (rd.targetsCluster()) {
-                routeTargets.put(entry.getKey(), Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
-                        "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer"));
+                // Select via the route's UpstreamClusterModel: it owns the (thread-safe) bootstrap selection
+                // state, whereas the RouteDescriptor's TargetCluster is immutable configuration.
+                routeTargets.put(entry.getKey(), Objects.requireNonNull(virtualCluster().getUpstreamClusterForRoute(entry.getKey()).bootstrapServer(),
+                        "route '" + entry.getKey() + "' upstream cluster has a null bootstrapServer"));
             }
         }
         // For per-broker connections, the EndpointReconciler has already resolved the

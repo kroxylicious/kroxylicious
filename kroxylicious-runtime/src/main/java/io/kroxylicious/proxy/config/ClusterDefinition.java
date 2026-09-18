@@ -55,14 +55,14 @@ public record ClusterDefinition(
      * Converts this definition to a {@link TargetCluster} for use in the runtime.
      * <p>
      * A definition is referenced by many virtual clusters and routes, and this method is called
-     * once for each of them, so the returned target cluster gets its own selection strategy via
-     * {@link BootstrapSelectionStrategy#newInstance()} rather than sharing this definition's.
-     * Sharing would give unrelated virtual clusters common bootstrap selection state.
+     * once for each of them. The selection strategy is immutable configuration and so is safely
+     * shared by every target cluster derived from this definition; the mutable selection state is
+     * created separately, per upstream cluster model, via {@link BootstrapSelectionStrategy#newSelector()},
+     * so unrelated virtual clusters never share bootstrap selection state.
      *
-     * @return a target cluster with the same bootstrap servers and TLS, and its own selection strategy
+     * @return a target cluster with the same bootstrap servers, TLS and selection strategy
      */
     public TargetCluster toTargetCluster() {
-        return new TargetCluster(bootstrapServers, Optional.ofNullable(tls),
-                selectionStrategy == null ? null : selectionStrategy.newInstance());
+        return new TargetCluster(bootstrapServers, Optional.ofNullable(tls), selectionStrategy);
     }
 }
