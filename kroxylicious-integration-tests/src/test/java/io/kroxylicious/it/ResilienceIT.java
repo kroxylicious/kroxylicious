@@ -235,16 +235,18 @@ class ResilienceIT extends BaseIT {
     }
 
     private static ConfigurationBuilder fixedPortProxy(String clusterBootstrapServers) {
+        // @formatter:off
         return KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addNewClusterDefinition()
-                .withName(KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME)
-                .withBootstrapServers(clusterBootstrapServers)
+                    .withName(KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(clusterBootstrapServers)
                 .endClusterDefinition()
                 .addNewVirtualCluster()
-                .withName(KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER)
-                .withNewTarget(KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME, null)
-                .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(
-                        HostPort.parse(FIXED_BOOTSTRAP)).build())
+                    .withName(KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER)
+                    .withNewTarget(KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME, null)
+                    .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(
+                            HostPort.parse(FIXED_BOOTSTRAP)).build())
                 .endVirtualCluster();
+        // @formatter:on
     }
 }

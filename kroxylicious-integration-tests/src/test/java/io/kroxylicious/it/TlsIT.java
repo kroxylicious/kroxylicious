@@ -864,23 +864,27 @@ class TlsIT extends AbstractTlsIT {
      */
     private ConfigurationBuilder downstreamTlsBuilder(KafkaCluster cluster, Consumer<TlsBuilder> tlsCustomizer) {
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
         var tlsBuilder = new TlsBuilder()
                 .withNewKeyStoreKey()
-                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                    .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                    .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
                 .endKeyStoreKey();
+        // @formatter:on
 
         tlsCustomizer.accept(tlsBuilder);
 
+        // @formatter:off
         return KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                .withNewTarget(clusterDef.name(), null)
-                .withName("demo")
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                        .withTls(tlsBuilder.build())
-                        .build())
+                    .withNewTarget(clusterDef.name(), null)
+                    .withName("demo")
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .withTls(tlsBuilder.build())
+                            .build())
                 .endVirtualCluster();
+        // @formatter:on
     }
 
     /**

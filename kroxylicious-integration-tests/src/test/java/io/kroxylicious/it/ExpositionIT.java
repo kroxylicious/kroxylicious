@@ -443,18 +443,20 @@ class ExpositionIT extends BaseIT {
     @Test
     void exposesClusterOfTwoBrokersWithRangeAwarePortPerNode(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                .withNewTarget(clusterDef.name(), null)
-                .withName("demo")
-                .addToGateways(defaultGatewayBuilder()
-                        .withNewPortIdentifiesNode()
-                        .withBootstrapAddress(PROXY_ADDRESS)
-                        .withNodeIdRanges(new NamedRange("nodes", 0, 2))
-                        .endPortIdentifiesNode()
-                        .build())
+                    .withNewTarget(clusterDef.name(), null)
+                    .withName("demo")
+                    .addToGateways(defaultGatewayBuilder()
+                            .withNewPortIdentifiesNode()
+                                .withBootstrapAddress(PROXY_ADDRESS)
+                                .withNodeIdRanges(new NamedRange("nodes", 0, 2))
+                            .endPortIdentifiesNode()
+                            .build())
                 .endVirtualCluster();
+        // @formatter:on
 
         var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 1, "localhost:" + (PROXY_ADDRESS.port() + 2));
 
@@ -476,18 +478,20 @@ class ExpositionIT extends BaseIT {
         cluster.addBroker();
         cluster.removeBroker(1);
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                .withNewTarget(clusterDef.name(), null)
-                .withName("demo")
-                .addToGateways(defaultGatewayBuilder()
-                        .withNewPortIdentifiesNode()
-                        .withBootstrapAddress(PROXY_ADDRESS)
-                        .withNodeIdRanges(new NamedRange("node-0", 0, 0), new NamedRange("node-2", 2, 2))
-                        .endPortIdentifiesNode()
-                        .build())
+                    .withNewTarget(clusterDef.name(), null)
+                    .withName("demo")
+                    .addToGateways(defaultGatewayBuilder()
+                            .withNewPortIdentifiesNode()
+                                .withBootstrapAddress(PROXY_ADDRESS)
+                                .withNodeIdRanges(new NamedRange("node-0", 0, 0), new NamedRange("node-2", 2, 2))
+                            .endPortIdentifiesNode()
+                            .build())
                 .endVirtualCluster();
+        // @formatter:on
 
         var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 2, "localhost:" + (PROXY_ADDRESS.port() + 2));
 
@@ -508,13 +512,15 @@ class ExpositionIT extends BaseIT {
     void exposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
         HostPort proxyAddress = PROXY_ADDRESS;
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                .withNewTarget(clusterDef.name(), null)
-                .withName("demo")
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(proxyAddress).build())
+                    .withNewTarget(clusterDef.name(), null)
+                    .withName("demo")
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(proxyAddress).build())
                 .endVirtualCluster();
+        // @formatter:on
 
         var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 1, "localhost:" + (PROXY_ADDRESS.port() + 2));
 
@@ -733,14 +739,16 @@ class ExpositionIT extends BaseIT {
     @Test
     void targetClusterDynamicallyAddsBroker(@BrokerCluster KafkaCluster cluster) throws Exception {
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                .withNewTarget(clusterDef.name(), null)
-                .withName("demo")
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                        .build())
+                    .withNewTarget(clusterDef.name(), null)
+                    .withName("demo")
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .build())
                 .endVirtualCluster();
+        // @formatter:on
 
         try (var tester = kroxyliciousTester(builder)) {
 
@@ -770,18 +778,20 @@ class ExpositionIT extends BaseIT {
         await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
                 n -> n.stream().map(Node::id).collect(Collectors.toSet()).equals(Set.of(0, 2)));
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                .withNewTarget(clusterDef.name(), null)
-                .withName("demo")
-                .addToGateways(defaultGatewayBuilder()
-                        .withNewPortIdentifiesNode()
-                        .withBootstrapAddress(PROXY_ADDRESS)
-                        .withNodeIdRanges(new NamedRange("range1", 0, 0), new NamedRange("range2", 2, 2))
-                        .endPortIdentifiesNode()
-                        .build())
+                    .withNewTarget(clusterDef.name(), null)
+                    .withName("demo")
+                    .addToGateways(defaultGatewayBuilder()
+                            .withNewPortIdentifiesNode()
+                                .withBootstrapAddress(PROXY_ADDRESS)
+                                .withNodeIdRanges(new NamedRange("range1", 0, 0), new NamedRange("range2", 2, 2))
+                            .endPortIdentifiesNode()
+                            .build())
                 .endVirtualCluster();
+        // @formatter:on
 
         try (var tester = kroxyliciousTester(builder)) {
             assertThat(cluster.getNumOfBrokers()).isEqualTo(2);
@@ -792,14 +802,16 @@ class ExpositionIT extends BaseIT {
     @Test
     void targetClusterDynamicallyRemovesBroker(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
         var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToClusterDefinitions(clusterDef)
                 .addNewVirtualCluster()
-                .withNewTarget(clusterDef.name(), null)
-                .withName("demo")
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                        .build())
+                    .withNewTarget(clusterDef.name(), null)
+                    .withName("demo")
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .build())
                 .endVirtualCluster();
+        // @formatter:on
 
         try (var tester = kroxyliciousTester(builder)) {
 
