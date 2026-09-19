@@ -25,6 +25,11 @@ data:
     management:
       endpoints:
         prometheus: {}
+    clusterDefinitions:
+    - name: "myref"
+      bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+      bootstrapServerSelection:
+        strategy: "round-robin"
     filterDefinitions:
     - name: "filter-one.KafkaProtocolFilter.kroxylicious.io"
       type: "org.example.some.java.Class"
@@ -38,10 +43,8 @@ data:
         password: "/opt/kroxylicious/secure/secret/my-secret/filter-two"
     virtualClusters:
     - name: "foo"
-      targetCluster:
-        bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
-        bootstrapServerSelection:
-          strategy: "round-robin"
+      target:
+        cluster: "myref"
       gateways:
       - name: "cluster-ip"
         portIdentifiesNode:
