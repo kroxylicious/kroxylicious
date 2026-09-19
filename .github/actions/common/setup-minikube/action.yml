@@ -45,8 +45,8 @@ runs:
     - name: Setup Minikube
       uses: manusa/actions-setup-minikube@b65276017fdec6f1e6498129fb740e34e260dc55
       with:
-        "minikube version": "v1.38.1"
+        "minikube version": "v1.39.0"
         # Upgrading kube version? Check https://github.com/kubernetes/minikube/blob/<version>/pkg/minikube/constants/constants.go to know the versions of kube supported by minikube.
-        "kubernetes version": "v1.35.1"
+        "kubernetes version": "v1.37.0"
         "github token": ${{ inputs.githubToken }}
         driver: docker
