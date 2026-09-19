@@ -1,0 +1,74 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// con-operator-json-logging.adoc
+
+[id='proc-operator-switching-json-log-format-operator-olm-{context}']
+
+= Switching operator logging to JSON (operator installed by OLM)
+
+[role="_abstract"]
+This procedure describes how to switch the Kroxylicious Operator to JSON log output.
+It applies when the operator was installed by OLM.
+
+.Prerequisites
+
+* Kroxylicious Operator installed using OLM.
+
+.Procedure
+
+. Identify the name of the Subscription resource that has installed the operator and its namespace:
++
+[source,bash]
+----
+kubectl get subscriptions.operators.coreos.com --all-namespaces | grep kroxylicious
+----
+
+. Apply the `KROXYLICIOUS_LOG_FORMAT` environment variable to the Subscription:
++
+[source,bash]
+----
+kubectl patch subscription -n <namespace> <subscription_name> -p '{"spec":{"config":{"env":[{"name":"KROXYLICIOUS_LOG_FORMAT","value":"json"}]}}}' --type=merge
+----
++
+Kubernetes recreates the operator pod automatically.
+
+. Verify that the operator emits JSON log output:
++
+[source,bash]
+----
+kubectl logs -f -n <namespace> deployment/kroxylicious-operator
+----
+
+== Reverting operator logging to text
+
+This procedure describes how to revert the Kroxylicious Operator to text log output.
+
+.Prerequisites
+
+* Kroxylicious Operator installed using OLM.
+
+.Procedure
+
+. Remove the `KROXYLICIOUS_LOG_FORMAT` environment variable from the Subscription:
++
+[source,bash]
+----
+kubectl patch subscription <subscription_name> -p '{"spec":{"config":{"env":[]}}}' --type=merge
+----
++
+Kubernetes recreates the operator pod automatically.
+
+. Verify that the logging format has reverted to text:
++
+[source,bash]
+----
+kubectl logs -f -n <namespace> deployment/kroxylicious-operator
+----
