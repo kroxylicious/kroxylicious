@@ -20,9 +20,10 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ClustersBuilder;
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -91,20 +92,26 @@ class OperatorAssertionsTest {
     @Test
     void shouldReturnConfigurationAssert() {
         // Given
+        ClusterDefinition clusterDef = new ClusterDefinition("Bob-target", "", null, null);
+        RouteTarget target = new RouteTarget("Bob-target", null);
         var configurations = new Configuration(null,
-                null,
+                List.of(clusterDef),
                 List.of(),
                 List.of(),
                 null,
                 List.of(new VirtualCluster("Bob",
-                        new TargetCluster("", Optional.empty()),
+                        null,
+                        target,
                         List.of(new VirtualClusterGateway("gateway",
                                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9090), null, null, List.of()),
                                 null,
                                 Optional.empty())),
                         false,
                         false,
-                        List.of())),
+                        List.of(),
+                        null,
+                        null,
+                        null)),
                 List.of(),
                 false,
                 Optional.empty(),
