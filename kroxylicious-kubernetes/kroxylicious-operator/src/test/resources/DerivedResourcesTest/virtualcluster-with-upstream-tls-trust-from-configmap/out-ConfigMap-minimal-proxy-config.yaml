@@ -25,6 +25,24 @@ data:
     management:
       endpoints:
         prometheus: {}
+    clusterDefinitions:
+    - name: "kafka-with-tls"
+      bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+      tls:
+        key:
+          privateKeyFile: "/opt/kroxylicious/target-cluster/client-certs/upstream-tls-cert/tls.key"
+          certificateFile: "/opt/kroxylicious/target-cluster/client-certs/upstream-tls-cert/tls.crt"
+        trust:
+          storeFile: "/opt/kroxylicious/target-cluster/trusted-certs/upstream-ca/cas.pem"
+          storeType: "PEM"
+        cipherSuites:
+          allowed:
+          - "foobar"
+        protocols:
+          denied:
+          - "TLS1.2"
+      bootstrapServerSelection:
+        strategy: "round-robin"
     filterDefinitions:
     - name: "filter-one.KafkaProtocolFilter.kroxylicious.io"
       type: "org.example.some.java.Class"
@@ -34,23 +52,8 @@ data:
         key: "/opt/kroxylicious/secure/secret/upstream-tls-cert/tls.key"
     virtualClusters:
     - name: "one"
-      targetCluster:
-        bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
-        tls:
-          key:
-            privateKeyFile: "/opt/kroxylicious/target-cluster/client-certs/upstream-tls-cert/tls.key"
-            certificateFile: "/opt/kroxylicious/target-cluster/client-certs/upstream-tls-cert/tls.crt"
-          trust:
-            storeFile: "/opt/kroxylicious/target-cluster/trusted-certs/upstream-ca/cas.pem"
-            storeType: "PEM"
-          cipherSuites:
-            allowed:
-            - "foobar"
-          protocols:
-            denied:
-            - "TLS1.2"
-        bootstrapServerSelection:
-          strategy: "round-robin"
+      target:
+        cluster: "kafka-with-tls"
       gateways:
       - name: "cluster-ip"
         portIdentifiesNode:
