@@ -22,6 +22,8 @@ import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.protocol.types.TaggedFields;
 import org.apache.kafka.common.protocol.types.Type;
 
+import io.kroxylicious.fidelity.AllMessages;
+
 /**
  * Walks Kafka's authoritative runtime protocol schema for a message and drives the configured
  * {@link FieldPopulationStrategy} over each field, invoking the corresponding generated setter on
@@ -84,7 +86,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
      * setter, and a tag's presence on the wire is implicit in its value being non-default, so no separate
      * registration step is needed.
      */
-    private static Stream<BoundField> expandFields(Schema schema) {
+    static Stream<BoundField> expandFields(Schema schema) {
         return Arrays.stream(schema.fields()).flatMap(field -> {
             if (field.def.type instanceof TaggedFields taggedFields) {
                 return taggedFields.fields()
@@ -150,7 +152,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         return structInstances;
     }
 
-    private static Class<?> kafkaClassFor(Object instance) {
+    static Class<?> kafkaClassFor(Object instance) {
         String kafkaClassName = "org.apache.kafka.common.message." + instance.getClass().getSimpleName();
         try {
             return Class.forName(kafkaClassName);
@@ -160,7 +162,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         }
     }
 
-    private static Schema kafkaSchemaFor(Class<?> kafkaClass, short version) {
+    static Schema kafkaSchemaFor(Class<?> kafkaClass, short version) {
         try {
             Schema[] schemas = (Schema[]) kafkaClass.getField("SCHEMAS").get(null);
             return schemas[version];
@@ -182,14 +184,14 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
         return description.toString();
     }
 
-    private static Optional<Schema> structTypeOf(Type type) {
+    static Optional<Schema> structTypeOf(Type type) {
         if (type instanceof Schema schema) {
             return Optional.of(schema);
         }
         return type.arrayElementType().filter(Schema.class::isInstance).map(Schema.class::cast);
     }
 
-    private static Optional<Class<?>> resolveStructClass(Class<?> containingClass, Schema target) {
+    static Optional<Class<?>> resolveStructClass(Class<?> containingClass, Schema target) {
         for (Class<?> nested : containingClass.getDeclaredClasses()) {
             if (hasMatchingSchemaField(nested, target)) {
                 return Optional.of(nested);
@@ -262,12 +264,7 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     }
 
     private static Object instantiate(Class<?> clazz) {
-        try {
-            return clazz.getDeclaredConstructor().newInstance();
-        }
-        catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Could not instantiate " + clazz, e);
-        }
+        return AllMessages.newInstance(clazz, Object.class);
     }
 
     private static void invokeSetter(Object instance, BoundField field, Object value) {
@@ -379,16 +376,11 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
      * than a plain {@code List} still exposes a no-arg constructor and {@link Collection#add}, so the composed
      * list of populated struct instances can be adapted into it without knowing the concrete type up front.
      */
+    @SuppressWarnings("unchecked")
     private static Collection<Object> newCollection(Class<?> collectionType, List<?> elements) {
-        try {
-            @SuppressWarnings("unchecked")
-            Collection<Object> collection = (Collection<Object>) collectionType.getDeclaredConstructor().newInstance();
-            collection.addAll(elements);
-            return collection;
-        }
-        catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Could not instantiate collection " + collectionType, e);
-        }
+        Collection<Object> collection = (Collection<Object>) AllMessages.newInstance(collectionType, Collection.class);
+        collection.addAll(elements);
+        return collection;
     }
 
     private static String toSnakeCase(String pascalCaseName) {
