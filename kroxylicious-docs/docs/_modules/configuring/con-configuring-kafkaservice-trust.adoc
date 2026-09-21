@@ -63,3 +63,24 @@ where:
 * `name` is the name of the `Secret` providing the CA certificates. The resource must exist in the same namespace as the `KafkaService`
 * `kind` must be `Secret`.
 * `key` identifies the entry in the resource. The value must be a PEM-encoded set of CA certificates.
+
+.Example `KafkaService` configuration for trusting the cluster CA of a Kafka cluster managed by Strimzi
+[source,yaml]
+----
+kind: KafkaService
+metadata:
+  # ...
+spec:
+  strimziKafkaRef:
+    name: my-cluster
+    listenerName: tls
+    trustStrimziCaCertificate: true
+  # ...
+----
+where:
+
+* `strimziKafkaRef` references the Strimzi `Kafka` resource that declares the cluster to be proxied.
+* `trustStrimziCaCertificate` configures the proxy to trust the cluster CA certificate that Strimzi generates for the cluster, which is stored in the `Secret` named `my-cluster-cluster-ca-cert`.
+
+If `tls.trustAnchorRef` is also specified, it takes precedence over `trustStrimziCaCertificate`.
+For details on referencing a Strimzi `Kafka` resource, see xref:con-kafkaservice-by-strimzi-kafka-ref-operator[Configuration for Kafka clusters managed by Strimzi].
