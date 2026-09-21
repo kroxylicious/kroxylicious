@@ -88,6 +88,26 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
     }
 
     /**
+     * Convenience constructor for a virtual cluster with a root target and all
+     * optional components defaulted.
+     *
+     * @param name virtual cluster name
+     * @param target reference to a named cluster or router
+     * @param gateways virtual cluster gateways
+     * @param logNetwork if true, network will be logged
+     * @param logFrames if true, kafka rpcs will be logged
+     * @param filters filters applied to requests
+     */
+    public VirtualCluster(String name,
+                          RouteTarget target,
+                          List<VirtualClusterGateway> gateways,
+                          boolean logNetwork,
+                          boolean logFrames,
+                          @Nullable List<String> filters) {
+        this(name, null, target, gateways, logNetwork, logFrames, filters, null, null, null);
+    }
+
+    /**
      * Convenience constructor for a virtual cluster with an inline target cluster and all
      * optional components defaulted.
      *
@@ -97,7 +117,9 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * @param logNetwork if true, network will be logged
      * @param logFrames if true, kafka rpcs will be logged
      * @param filters filters applied to requests
+     * @deprecated targetCluster is deprecated, use constructor that accepts routeTarget instead
      */
+    @Deprecated(since = "0.22.0", forRemoval = true)
     public VirtualCluster(String name,
                           TargetCluster targetCluster,
                           List<VirtualClusterGateway> gateways,
