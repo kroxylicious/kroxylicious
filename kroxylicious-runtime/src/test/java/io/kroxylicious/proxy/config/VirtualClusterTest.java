@@ -64,7 +64,7 @@ class VirtualClusterTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     void shouldConstructSimpleVirtualClusterDeprecatedConstructor() {
         // Given
         var gateways = List.of(new VirtualClusterGateway("mygateway", portIdentifiesNode1, null, Optional.empty()));
@@ -322,7 +322,7 @@ class VirtualClusterTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     void shouldWarnWhenTargetClusterIsSet(CapturedLogs capturedLogs) {
         // Given
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));

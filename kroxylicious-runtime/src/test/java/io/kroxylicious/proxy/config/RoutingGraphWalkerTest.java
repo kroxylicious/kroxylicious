@@ -693,7 +693,7 @@ class RoutingGraphWalkerTest {
                 List.of(gateway()), false, false, null, null, null, null);
     }
 
-    @SuppressWarnings("removal")
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     private static VirtualCluster vcWithInlineTarget(String name) {
         return new VirtualCluster(name, new TargetCluster("kafka:9092", Optional.empty()),
                 List.of(gateway()), false, false, null);

@@ -129,7 +129,7 @@ class ConfigurationValidationTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     void shouldAcceptNullClusterDefinitions() {
         assertThatCode(() -> config(List.of(new VirtualCluster("demo",
                 new TargetCluster("kafka:9192", Optional.empty()),

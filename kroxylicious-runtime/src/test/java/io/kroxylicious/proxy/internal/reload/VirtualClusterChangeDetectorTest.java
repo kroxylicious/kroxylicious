@@ -286,7 +286,7 @@ class VirtualClusterChangeDetectorTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     void detectsTlsChangeOnTargetCluster() {
         // Adding TLS to the upstream connection is a semantic config change that needs a restart.
         var oldVc = new VirtualCluster("cluster",
@@ -361,7 +361,7 @@ class VirtualClusterChangeDetectorTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     void detectsModifiedClusterWhenTargetBootstrapChanges() {
         // Given
         var oldVc = new VirtualCluster("cluster-a",
@@ -389,7 +389,7 @@ class VirtualClusterChangeDetectorTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     void shouldNotDetectModificationWhenBootstrapSelectionStrategyUnchanged() {
         // Given
         var oldVc = new VirtualCluster("cluster",
@@ -415,7 +415,7 @@ class VirtualClusterChangeDetectorTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     void shouldNotDetectModificationWhenRandomBootstrapSelectionStrategyUnchanged() {
         // Given
         var oldVc = new VirtualCluster("cluster",
