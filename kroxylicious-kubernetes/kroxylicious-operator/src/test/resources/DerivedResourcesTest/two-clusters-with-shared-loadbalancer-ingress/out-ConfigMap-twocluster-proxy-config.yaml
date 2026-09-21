@@ -25,12 +25,19 @@ data:
     management:
       endpoints:
         prometheus: {}
+    clusterDefinitions:
+    - name: "barref"
+      bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
+      bootstrapServerSelection:
+        strategy: "round-robin"
+    - name: "fooref"
+      bootstrapServers: "second-kafka.kafka2.svc.cluster.local:9092"
+      bootstrapServerSelection:
+        strategy: "round-robin"
     virtualClusters:
     - name: "bar"
-      targetCluster:
-        bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
-        bootstrapServerSelection:
-          strategy: "round-robin"
+      target:
+        cluster: "barref"
       gateways:
       - name: "load-balancer"
         sniHostIdentifiesNode:
@@ -41,10 +48,8 @@ data:
             privateKeyFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.key"
             certificateFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.crt"
     - name: "foo"
-      targetCluster:
-        bootstrapServers: "second-kafka.kafka2.svc.cluster.local:9092"
-        bootstrapServerSelection:
-          strategy: "round-robin"
+      target:
+        cluster: "fooref"
       gateways:
       - name: "load-balancer"
         sniHostIdentifiesNode:
