@@ -41,9 +41,11 @@ import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -244,10 +246,16 @@ class KroxyliciousIT {
     }
 
     private static ConfigurationBuilder subprocessProxy(KafkaCluster cluster) {
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
         return baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, DEFAULT_VIRTUAL_CLUSTER)
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(SUBPROCESS_BOOTSTRAP).build())
-                        .build());
+                .addToClusterDefinitions(clusterDef)
+                .addNewVirtualCluster()
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
+                    .withName(DEFAULT_VIRTUAL_CLUSTER)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(SUBPROCESS_BOOTSTRAP).build())
+                .endVirtualCluster();
+        // @formatter:on
     }
 
     private static class SubprocessKroxyliciousFactory implements BiFunction<Configuration, Features, AutoCloseable> {

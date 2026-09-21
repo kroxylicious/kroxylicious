@@ -30,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -236,14 +235,18 @@ class ResilienceIT extends BaseIT {
     }
 
     private static ConfigurationBuilder fixedPortProxy(String clusterBootstrapServers) {
+        // @formatter:off
         return KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName(KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER)
-                        .withNewTargetCluster()
-                        .withBootstrapServers(clusterBootstrapServers)
-                        .endTargetCluster()
-                        .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(
-                                HostPort.parse(FIXED_BOOTSTRAP)).build())
-                        .build());
+                .addNewClusterDefinition()
+                    .withName(KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(clusterBootstrapServers)
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName(KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER)
+                    .withTarget(KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET)
+                    .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(
+                            HostPort.parse(FIXED_BOOTSTRAP)).build())
+                .endVirtualCluster();
+        // @formatter:on
     }
 }
