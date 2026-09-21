@@ -693,8 +693,9 @@ class ConfigurationTest {
                 new NamedFilterDefinition("foo", "", ""));
         Optional<Map<String, Object>> development = Optional.empty();
         var virtualCluster = List.of(VIRTUAL_CLUSTER);
+        var clusterDefinitions = List.of(DEMO_CLUSTER_DEFINITION);
         assertThatThrownBy(() -> new Configuration(null,
-                List.of(DEMO_CLUSTER_DEFINITION),
+                clusterDefinitions,
                 filterDefinitions,
                 null,
                 null,
@@ -714,8 +715,9 @@ class ConfigurationTest {
         List<NamedFilterDefinition> filterDefinitions = List.of();
         List<String> defaultFilters = List.of("missing");
         var virtualCluster = List.of(VIRTUAL_CLUSTER);
+        var clusterDefinitions = List.of(DEMO_CLUSTER_DEFINITION);
         assertThatThrownBy(() -> new Configuration(null,
-                List.of(DEMO_CLUSTER_DEFINITION),
+                clusterDefinitions,
                 filterDefinitions,
                 defaultFilters,
                 null,
@@ -734,9 +736,10 @@ class ConfigurationTest {
         Optional<Map<String, Object>> development = Optional.empty();
         List<NamedFilterDefinition> filterDefinitions = List.of();
         List<VirtualCluster> virtualClusters = List.of(virtualClusterWithFilters("vc1", List.of("missing")));
+        var clusterDefinitions = List.of(DEMO_CLUSTER_DEFINITION);
         assertThatThrownBy(() -> new Configuration(
                 null,
-                List.of(DEMO_CLUSTER_DEFINITION),
+                clusterDefinitions,
                 filterDefinitions,
                 null,
                 null,
@@ -920,10 +923,10 @@ class ConfigurationTest {
                 .hasMessageContaining("cycle");
     }
 
-    @NonNull
     /**
      * A virtual cluster targeting {@link #DEMO_CLUSTER_DEFINITION}, for tests concerned only with filter validation.
      */
+    @NonNull
     private static VirtualCluster virtualClusterWithFilters(String virtualClusterName, List<String> filterNames) {
         // @formatter:off
         return new VirtualClusterBuilder()
