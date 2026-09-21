@@ -30,8 +30,6 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.it.testplugins.router.InvocationCountingRouterFactory;
@@ -73,8 +71,6 @@ import static org.awaitility.Awaitility.await;
  * End-to-end integration tests for {@link KafkaProxy#reconfigure(Configuration)}
  */
 class HotReloadIT extends BaseIT {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(HotReloadIT.class);
 
     private static final int PORT_REUSE_BOOTSTRAP = 9292;
     private static final int PORT_RELOCATE_TARGET_BOOTSTRAP = PORT_REUSE_BOOTSTRAP + 10;
@@ -205,12 +201,10 @@ class HotReloadIT extends BaseIT {
             String topic = tester.createTopic(VC_BASELINE_NAME);
 
             // Given
-            LOGGER.info("producing + consuming through baseline + outgoing VCs");
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, topic, "phase1-baseline");
             assertProduceConsumeRoundTrip(tester, VC_OUTGOING_NAME, topic, "phase1-outgoing");
 
             // When
-            LOGGER.info("reconfiguring to remove '{}'", VC_OUTGOING_NAME);
             assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -218,14 +212,12 @@ class HotReloadIT extends BaseIT {
                             .isFalse());
 
             // Then
-            LOGGER.info("verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, topic, "phase3-baseline");
 
             // new connections with vc-outgoing's SNI hostname are rejected. TLS
             // handshake succeeds (cert is wildcard, covers both hostnames), but the Kafka
             // session is closed because the VC behind that SNI binding is now STOPPED —
             // the SERVING-state guard rejects registration.
-            LOGGER.info("verifying '{}' no longer accepts traffic on its SNI hostname", VC_OUTGOING_NAME);
             assertProducerFailure(tester, VC_OUTGOING_NAME, topic);
         }
     }
@@ -248,11 +240,9 @@ class HotReloadIT extends BaseIT {
             String baselineTopic = tester.createTopic(VC_BASELINE_NAME);
 
             // Given
-            LOGGER.info("producing + consuming through '{}' (only configured VC)", VC_BASELINE_NAME);
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase1-baseline");
 
             // When
-            LOGGER.info("reconfiguring to add '{}'", VC_INCOMING_NAME);
             assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -260,12 +250,10 @@ class HotReloadIT extends BaseIT {
                             .isFalse());
 
             // Then
-            LOGGER.info("verifying '{}' serves produce + consume after add", VC_INCOMING_NAME);
             String incomingTopic = tester.createTopic(VC_INCOMING_NAME);
             assertProduceConsumeRoundTrip(tester, VC_INCOMING_NAME, incomingTopic, "phase3-incoming");
 
             // vc-baseline remains undisturbed by the add.
-            LOGGER.info("verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase4-baseline");
         }
     }
@@ -285,12 +273,10 @@ class HotReloadIT extends BaseIT {
             String baselineTopic = tester.createTopic(VC_BASELINE_NAME);
 
             // Given
-            LOGGER.info("producing + consuming through baseline + outgoing VCs");
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase1-baseline");
             assertProduceConsumeRoundTrip(tester, VC_OUTGOING_NAME, baselineTopic, "phase1-outgoing");
 
             // When
-            LOGGER.info("reconfiguring to remove '{}' and add '{}' in one call", VC_OUTGOING_NAME, VC_INCOMING_NAME);
             assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -298,17 +284,14 @@ class HotReloadIT extends BaseIT {
                             .isFalse());
 
             // Then
-            LOGGER.info("verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase3-baseline");
 
             // vc-outgoing's SNI hostname no longer accepts traffic — the binding may
             // still be alive (shared acceptor channel) but the SERVING-state guard rejects
             // new connections because vc-outgoing is now STOPPED.
-            LOGGER.info("verifying '{}' no longer accepts traffic on its SNI hostname", VC_OUTGOING_NAME);
             assertProducerFailure(tester, VC_OUTGOING_NAME, baselineTopic);
 
             // vc-incoming is reachable end-to-end.
-            LOGGER.info("verifying '{}' serves produce + consume after the mixed reconfigure", VC_INCOMING_NAME);
             String incomingTopic = tester.createTopic(VC_INCOMING_NAME);
             assertProduceConsumeRoundTrip(tester, VC_INCOMING_NAME, incomingTopic, "phase5-incoming");
         }
@@ -338,7 +321,6 @@ class HotReloadIT extends BaseIT {
             int releasedPort = boundPort(tester, "vc-release");
 
             // When
-            LOGGER.info("Reconfiguring to remove port-addressed VC bound to port {}", releasedPort);
             assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -368,7 +350,6 @@ class HotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-initial", initialTopic, "given-initial");
 
             // When
-            LOGGER.info("Reconfiguring to add port-addressed VC");
             assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -397,7 +378,6 @@ class HotReloadIT extends BaseIT {
             try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder).createDefaultKroxyliciousTester()) {
 
                 // When
-                LOGGER.info("Reconfiguring to add vc-good and vc-blocked (port {}, held externally)", contestedPort);
                 assertThat(tester.reconfigure(afterBuilder.build()))
                         .succeedsWithin(RECONFIGURE_TIMEOUT)
                         .satisfies(rr -> {
@@ -471,7 +451,6 @@ class HotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-keep", keepTopic, "given-keep");
 
             // When
-            LOGGER.info("Reconfigure 1: adding vc-runtime-added");
             assertThat(tester.reconfigure(afterAdd.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -483,7 +462,6 @@ class HotReloadIT extends BaseIT {
             int runtimeAddedPort = boundPort(tester, "vc-runtime-added");
 
             // When
-            LOGGER.info("Reconfigure 2: removing the runtime-added vc-runtime-added");
             assertThat(tester.reconfigure(afterRemove.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -574,7 +552,6 @@ class HotReloadIT extends BaseIT {
                 int oldPort = boundPort(tester, "vc-fail-modify");
 
                 // When
-                LOGGER.info("Reconfiguring vc-fail-modify from port {} to port {} (held externally)", oldPort, contestedPort);
                 assertThat(tester.reconfigure(afterBuilder.build()))
                         .succeedsWithin(RECONFIGURE_TIMEOUT)
                         .satisfies(rr -> {
@@ -619,7 +596,6 @@ class HotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, VC_OUTGOING_NAME, topic, "phase1-modify");
 
             // When
-            LOGGER.info("Reconfiguring to modify '{}' (flip logNetwork)", VC_OUTGOING_NAME);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -866,7 +842,6 @@ class HotReloadIT extends BaseIT {
      */
     private static void assertProduceConsumeRoundTrip(KroxyliciousTester tester, String vc, String topic, String marker) throws Exception {
         int messageCount = ThreadLocalRandom.current().nextInt(50, 101);
-        LOGGER.info("Producing {} records via VC '{}' (marker='{}') with per-record requests", messageCount, vc, marker);
 
         var sendFutures = new ArrayList<Future<RecordMetadata>>(messageCount);
         try (var producer = tester.producer(vc, PER_RECORD_PRODUCER_CONFIG)) {
