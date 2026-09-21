@@ -1,0 +1,3 @@
+title: "feat(runtime): emit deprecation warning when VirtualCluster.targetCluster is used"
+type: changed
+issues: []
