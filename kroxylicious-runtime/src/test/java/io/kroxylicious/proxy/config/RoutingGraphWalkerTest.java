@@ -17,7 +17,6 @@ import io.kroxylicious.proxy.service.HostPort;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RoutingGraphWalkerTest {
-
     // -------------------------------------------------------------------------
     // walkClusterGraph — visitor is called for all node types
     // -------------------------------------------------------------------------
@@ -694,7 +693,7 @@ class RoutingGraphWalkerTest {
                 List.of(gateway()), false, false, null, null, null, null);
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     private static VirtualCluster vcWithInlineTarget(String name) {
         return new VirtualCluster(name, new TargetCluster("kafka:9092", Optional.empty()),
                 List.of(gateway()), false, false, null);
