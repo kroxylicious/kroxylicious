@@ -61,6 +61,7 @@ import io.kroxylicious.testing.kafka.common.KeystoreManager;
 import static io.kroxylicious.it.HotReloadIT.VcSlot.INCOMING;
 import static io.kroxylicious.it.HotReloadIT.VcSlot.OUTGOING;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -102,7 +103,7 @@ class HotReloadIT extends BaseIT {
     private static final Features ROUTING_ENABLED = Features.builder().enable(Feature.ROUTING).build();
 
     /**
-     * Identifies a non-baseline VC slot used by the tests. {@link #buildConfig} takes a
+     * Identifies a non-baseline VC slot used by the tests. {@link #sniConfigBuilder} takes a
      * varargs of these to declare which extras (beyond BASELINE) should appear in the
      * configuration being built.
      */
@@ -191,14 +192,12 @@ class HotReloadIT extends BaseIT {
     void shouldStopRemovedVcButContinueServingOthersEndToEnd(@BrokerCluster KafkaCluster cluster) throws Exception {
         // Wildcard cert covering both VCs' SNI hostnames (both end in SNI_BASE_DOMAIN).
         KeystoreTrustStorePair certs = buildKeystoreTrustStorePair("*" + SNI_BASE_DOMAIN);
-        var startingConfig = buildConfig(cluster, certs, OUTGOING); // baseline + outgoing
-        var afterConfig = buildConfig(cluster, certs); // baseline only
+        var startingBuilder = sniConfigBuilder(cluster, certs, OUTGOING); // baseline + outgoing
+        var afterBuilder = sniConfigBuilder(cluster, certs); // baseline only
 
         // Tester builder so we can register the truststore — required for the default client
         // configuration to do SSL handshakes against the SNI-addressed VCs.
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder)
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder)
                 .setTrustStoreLocation(certs.clientTrustStore())
                 .setTrustStorePassword(certs.password())
                 .createDefaultKroxyliciousTester()) {
@@ -212,7 +211,7 @@ class HotReloadIT extends BaseIT {
 
             // When
             LOGGER.info("reconfiguring to remove '{}'", VC_OUTGOING_NAME);
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean pure-remove")
@@ -236,14 +235,12 @@ class HotReloadIT extends BaseIT {
         // Wildcard cert covering both VCs' SNI hostnames; required so the cert is already
         // valid for the to-be-added VC's hostname when registration runs at reconfigure time.
         KeystoreTrustStorePair certs = buildKeystoreTrustStorePair("*" + SNI_BASE_DOMAIN);
-        var startingConfig = buildConfig(cluster, certs); // baseline only
-        var afterConfig = buildConfig(cluster, certs, INCOMING); // baseline + incoming
+        var startingBuilder = sniConfigBuilder(cluster, certs); // baseline only
+        var afterBuilder = sniConfigBuilder(cluster, certs, INCOMING); // baseline + incoming
 
         // Tester is built around the starting (one-VC) config. We pre-register the truststore
         // so client SSL handshakes against the SNI-addressed VCs succeed in every phase.
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder)
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder)
                 .setTrustStoreLocation(certs.clientTrustStore())
                 .setTrustStorePassword(certs.password())
                 .createDefaultKroxyliciousTester()) {
@@ -256,7 +253,7 @@ class HotReloadIT extends BaseIT {
 
             // When
             LOGGER.info("reconfiguring to add '{}'", VC_INCOMING_NAME);
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean pure-add")
@@ -277,12 +274,10 @@ class HotReloadIT extends BaseIT {
     void shouldHandleMixedAddAndRemoveInSingleReconfigure(@BrokerCluster KafkaCluster cluster) throws Exception {
         // Wildcard cert covering every VC hostname in this test (baseline, outgoing, incoming).
         KeystoreTrustStorePair certs = buildKeystoreTrustStorePair("*" + SNI_BASE_DOMAIN);
-        var startingConfig = buildConfig(cluster, certs, OUTGOING); // baseline + outgoing
-        var afterConfig = buildConfig(cluster, certs, INCOMING); // baseline + incoming
+        var startingBuilder = sniConfigBuilder(cluster, certs, OUTGOING); // baseline + outgoing
+        var afterBuilder = sniConfigBuilder(cluster, certs, INCOMING); // baseline + incoming
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder)
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder)
                 .setTrustStoreLocation(certs.clientTrustStore())
                 .setTrustStorePassword(certs.password())
                 .createDefaultKroxyliciousTester()) {
@@ -296,7 +291,7 @@ class HotReloadIT extends BaseIT {
 
             // When
             LOGGER.info("reconfiguring to remove '{}' and add '{}' in one call", VC_OUTGOING_NAME, VC_INCOMING_NAME);
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean mixed add+remove")
@@ -327,15 +322,13 @@ class HotReloadIT extends BaseIT {
      */
     @Test
     void shouldReleasePortWhenPortAddressedVcIsRemoved(@BrokerCluster KafkaCluster cluster) throws Exception {
-        var startingConfig = portConfig(
-                portVc(cluster, "vc-retain"),
-                portVc(cluster, "vc-release"));
-        var afterConfig = portConfig(
-                portVc(cluster, "vc-retain"));
+        var startingBuilder = portConfigBuilder(cluster,
+                portVc("port-test-cluster", "vc-retain"),
+                portVc("port-test-cluster", "vc-release"));
+        var afterBuilder = portConfigBuilder(cluster,
+                portVc("port-test-cluster", "vc-retain"));
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder).createDefaultKroxyliciousTester()) {
 
             // Given
             String retainTopic = tester.createTopic("vc-retain");
@@ -346,7 +339,7 @@ class HotReloadIT extends BaseIT {
 
             // When
             LOGGER.info("Reconfiguring to remove port-addressed VC bound to port {}", releasedPort);
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean port-addressed remove")
@@ -363,14 +356,12 @@ class HotReloadIT extends BaseIT {
 
     @Test
     void shouldStartServingAddedPortAddressedVcEndToEnd(@BrokerCluster KafkaCluster cluster) throws Exception {
-        var startingConfig = portConfig(portVc(cluster, "vc-initial"));
-        var afterConfig = portConfig(
-                portVc(cluster, "vc-initial"),
-                portVc(cluster, "vc-added"));
+        var startingBuilder = portConfigBuilder(cluster, portVc("port-test-cluster", "vc-initial"));
+        var afterBuilder = portConfigBuilder(cluster,
+                portVc("port-test-cluster", "vc-initial"),
+                portVc("port-test-cluster", "vc-added"));
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder).createDefaultKroxyliciousTester()) {
 
             // Given
             String initialTopic = tester.createTopic("vc-initial");
@@ -378,7 +369,7 @@ class HotReloadIT extends BaseIT {
 
             // When
             LOGGER.info("Reconfiguring to add port-addressed VC");
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean port-addressed add")
@@ -397,19 +388,17 @@ class HotReloadIT extends BaseIT {
         try (var externalHolder = openSocketOnPort(0)) {
             int contestedPort = externalHolder.getLocalPort();
 
-            var startingConfig = portConfig(portVc(cluster, "vc-initial"));
-            var afterConfig = portConfig(
-                    portVc(cluster, "vc-initial"),
-                    portVc(cluster, "vc-good"),
-                    portVc(cluster, "vc-blocked", contestedPort));
+            var startingBuilder = portConfigBuilder(cluster, portVc("port-test-cluster", "vc-initial"));
+            var afterBuilder = portConfigBuilder(cluster,
+                    portVc("port-test-cluster", "vc-initial"),
+                    portVc("port-test-cluster", "vc-good"),
+                    portVc("port-test-cluster", "vc-blocked", contestedPort));
 
-            var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                    .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-            try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+            try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder).createDefaultKroxyliciousTester()) {
 
                 // When
                 LOGGER.info("Reconfiguring to add vc-good and vc-blocked (port {}, held externally)", contestedPort);
-                assertThat(tester.reconfigure(afterConfig))
+                assertThat(tester.reconfigure(afterBuilder.build()))
                         .succeedsWithin(RECONFIGURE_TIMEOUT)
                         .satisfies(rr -> {
                             assertThat(rr.hasErrors())
@@ -430,20 +419,18 @@ class HotReloadIT extends BaseIT {
     @Test
     @ResourceLock("localhost:" + PORT_REUSE_BOOTSTRAP)
     void shouldSupportPortReuseAcrossReconfigures(@BrokerCluster KafkaCluster cluster) throws Exception {
-        var startingConfig = portConfig(
-                portVc(cluster, "vc-retain"),
-                portVc(cluster, "vc-original", PORT_REUSE_BOOTSTRAP));
+        var startingBuilder = portConfigBuilder(cluster,
+                portVc("port-test-cluster", "vc-retain"),
+                portVc("port-test-cluster", "vc-original", PORT_REUSE_BOOTSTRAP));
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder).createDefaultKroxyliciousTester()) {
 
             // Given
             assertProduceConsumeRoundTrip(tester, "vc-original", tester.createTopic("vc-original"), "given-original");
 
             // When
-            var afterRemove = portConfig(portVc(cluster, "vc-retain"));
-            assertThat(tester.reconfigure(afterRemove))
+            var afterRemove = portConfigBuilder(cluster, portVc("port-test-cluster", "vc-retain"));
+            assertThat(tester.reconfigure(afterRemove.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
@@ -451,10 +438,10 @@ class HotReloadIT extends BaseIT {
             assertPortIsBindable(PORT_REUSE_BOOTSTRAP);
 
             // When
-            var afterReadd = portConfig(
-                    portVc(cluster, "vc-retain"),
-                    portVc(cluster, "vc-new", PORT_REUSE_BOOTSTRAP));
-            assertThat(tester.reconfigure(afterReadd))
+            var afterReadd = portConfigBuilder(cluster,
+                    portVc("port-test-cluster", "vc-retain"),
+                    portVc("port-test-cluster", "vc-new", PORT_REUSE_BOOTSTRAP));
+            assertThat(tester.reconfigure(afterReadd.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("Second reconfigure should bind vc-new cleanly on the freed port")
@@ -471,15 +458,13 @@ class HotReloadIT extends BaseIT {
         // When a VC is added at runtime and then removed in a subsequent
         // reconfigure, RemoveCluster must be able to resolve the original gateway via
         // VirtualClusterRegistry#virtualClusterModels.
-        var startingConfig = portConfig(portVc(cluster, "vc-keep"));
-        var afterAdd = portConfig(
-                portVc(cluster, "vc-keep"),
-                portVc(cluster, "vc-runtime-added"));
-        var afterRemove = portConfig(portVc(cluster, "vc-keep"));
+        var startingBuilder = portConfigBuilder(cluster, portVc("port-test-cluster", "vc-keep"));
+        var afterAdd = portConfigBuilder(cluster,
+                portVc("port-test-cluster", "vc-keep"),
+                portVc("port-test-cluster", "vc-runtime-added"));
+        var afterRemove = portConfigBuilder(cluster, portVc("port-test-cluster", "vc-keep"));
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder).createDefaultKroxyliciousTester()) {
 
             // Given
             String keepTopic = tester.createTopic("vc-keep");
@@ -487,7 +472,7 @@ class HotReloadIT extends BaseIT {
 
             // When
             LOGGER.info("Reconfigure 1: adding vc-runtime-added");
-            assertThat(tester.reconfigure(afterAdd))
+            assertThat(tester.reconfigure(afterAdd.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("Reconfigure 1 (add) should have no errors")
@@ -499,7 +484,7 @@ class HotReloadIT extends BaseIT {
 
             // When
             LOGGER.info("Reconfigure 2: removing the runtime-added vc-runtime-added");
-            assertThat(tester.reconfigure(afterRemove))
+            assertThat(tester.reconfigure(afterRemove.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("Reconfigure 2 (remove of runtime-added VC) should have no errors — "
@@ -520,19 +505,17 @@ class HotReloadIT extends BaseIT {
         // immediately before its rebind of the SAME port. Triggered here by flipping logNetwork
         // (a runtime-observable field whose change `VirtualCluster.sameAs` reports as a modify
         // but which doesn't affect client behaviour, so the cluster keeps working).
-        var startingConfig = portConfig(portVc(cluster, "vc-modify", PORT_SAME_MODIFY_BOOTSTRAP));
+        var startingBuilder = portConfigBuilder(cluster, portVc("port-test-cluster", "vc-modify", PORT_SAME_MODIFY_BOOTSTRAP));
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder).createDefaultKroxyliciousTester()) {
 
             // Given
             String topic = tester.createTopic("vc-modify");
             assertProduceConsumeRoundTrip(tester, "vc-modify", topic, "given-pre-modify");
 
             // When
-            var afterConfig = portConfig(portVcWithLogNetwork(cluster, "vc-modify", PORT_SAME_MODIFY_BOOTSTRAP, true));
-            assertThat(tester.reconfigure(afterConfig))
+            var afterBuilder = portConfigBuilder(cluster, portVcWithLogNetwork("port-test-cluster", "vc-modify", PORT_SAME_MODIFY_BOOTSTRAP, true));
+            assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean same-port modify")
@@ -548,17 +531,19 @@ class HotReloadIT extends BaseIT {
     @ResourceLock("localhost:" + PORT_RELOCATE_TARGET_BOOTSTRAP)
     void shouldModifyPortAddressedVcWithDifferentPort(@BrokerCluster KafkaCluster cluster) throws Exception {
         int relocateFromPort = PORT_REUSE_BOOTSTRAP;
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(portVc(cluster, "vc-relocate", relocateFromPort));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        var clusterDef = clusterDefinition("port-test-cluster", cluster);
+        var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToVirtualClusters(portVc("port-test-cluster", "vc-relocate", relocateFromPort));
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder).createDefaultKroxyliciousTester()) {
 
             // Given
             String topicBefore = tester.createTopic("vc-relocate");
             assertProduceConsumeRoundTrip(tester, "vc-relocate", topicBefore, "given-old-port");
 
             // When
-            var afterConfig = portConfig(portVc(cluster, "vc-relocate", PORT_RELOCATE_TARGET_BOOTSTRAP));
-            assertThat(tester.reconfigure(afterConfig))
+            var afterBuilder = portConfigBuilder(cluster, portVc("port-test-cluster", "vc-relocate", PORT_RELOCATE_TARGET_BOOTSTRAP));
+            assertThat(tester.reconfigure(afterBuilder.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a port-relocation modify")
@@ -580,19 +565,17 @@ class HotReloadIT extends BaseIT {
         try (var externalHolder = openSocketOnPort(0)) {
             int contestedPort = externalHolder.getLocalPort();
 
-            var startingConfig = portConfig(portVc(cluster, "vc-fail-modify"));
-            var afterConfig = portConfig(portVc(cluster, "vc-fail-modify", contestedPort));
+            var startingBuilder = portConfigBuilder(cluster, portVc("port-test-cluster", "vc-fail-modify"));
+            var afterBuilder = portConfigBuilder(cluster, portVc("port-test-cluster", "vc-fail-modify", contestedPort));
 
-            var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                    .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-            try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+            try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder).createDefaultKroxyliciousTester()) {
 
                 // Given
                 int oldPort = boundPort(tester, "vc-fail-modify");
 
                 // When
                 LOGGER.info("Reconfiguring vc-fail-modify from port {} to port {} (held externally)", oldPort, contestedPort);
-                assertThat(tester.reconfigure(afterConfig))
+                assertThat(tester.reconfigure(afterBuilder.build()))
                         .succeedsWithin(RECONFIGURE_TIMEOUT)
                         .satisfies(rr -> {
                             assertThat(rr.hasErrors())
@@ -613,18 +596,19 @@ class HotReloadIT extends BaseIT {
         // SNI-addressed modify: both VCs share the proxy's SNI acceptor port. Flipping a
         // non-network field on one VC must not disturb the other.
         KeystoreTrustStorePair certs = buildKeystoreTrustStorePair("*" + SNI_BASE_DOMAIN);
-        var baselineVc = buildSniVirtualCluster(cluster, certs, VC_BASELINE_NAME, VC_BASELINE_BOOTSTRAP, VC_BASELINE_BROKER_PATTERN);
-        var modifyVcBefore = buildSniVirtualCluster(cluster, certs, VC_OUTGOING_NAME, VC_OUTGOING_BOOTSTRAP, VC_OUTGOING_BROKER_PATTERN);
+        var clusterDef = clusterDefinition("sni-test-cluster", cluster);
+        var baselineVc = buildSniVirtualCluster("sni-test-cluster", certs, VC_BASELINE_NAME, VC_BASELINE_BOOTSTRAP, VC_BASELINE_BROKER_PATTERN);
+        var modifyVcBefore = buildSniVirtualCluster("sni-test-cluster", certs, VC_OUTGOING_NAME, VC_OUTGOING_BOOTSTRAP, VC_OUTGOING_BROKER_PATTERN);
         var modifyVcAfter = new VirtualClusterBuilder(modifyVcBefore).withLogNetwork(true).build();
 
-        var startingConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baselineVc, modifyVcBefore).build();
+        var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToVirtualClusters(baselineVc, modifyVcBefore);
         var afterConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
                 .addToVirtualClusters(baselineVc, modifyVcAfter).build();
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder)
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder)
                 .setTrustStoreLocation(certs.clientTrustStore())
                 .setTrustStorePassword(certs.password())
                 .createDefaultKroxyliciousTester()) {
@@ -652,12 +636,13 @@ class HotReloadIT extends BaseIT {
 
     @Test
     void shouldExposeReconfigureAndLifecycleMetricsViaScrape(@BrokerCluster KafkaCluster cluster) {
-        var startingConfig = portConfigBuilderWithMetrics(portVc(cluster, "vc-metrics-initial")).build();
-        var afterConfig = new ConfigurationBuilder(startingConfig)
-                .addToVirtualClusters(portVc(cluster, "vc-metrics-added"))
+        var startingBuilder = portConfigBuilderWithMetrics(cluster, portVc("port-test-cluster", "vc-metrics-initial"));
+        var afterConfig = portConfigBuilderWithMetrics(cluster,
+                portVc("port-test-cluster", "vc-metrics-initial"),
+                portVc("port-test-cluster", "vc-metrics-added"))
                 .build();
 
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(new ConfigurationBuilder(startingConfig)).createDefaultKroxyliciousTester();
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder).createDefaultKroxyliciousTester();
                 var management = tester.getManagementClient()) {
 
             // When
@@ -690,8 +675,10 @@ class HotReloadIT extends BaseIT {
         }
     }
 
-    private static ConfigurationBuilder portConfigBuilderWithMetrics(VirtualCluster... vcs) {
+    private static ConfigurationBuilder portConfigBuilderWithMetrics(KafkaCluster cluster, VirtualCluster... vcs) {
+        var clusterDef = clusterDefinition("port-test-cluster", cluster);
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
                 .withNewManagement()
                 .withNewEndpoints()
                 .withNewPrometheus()
@@ -725,33 +712,47 @@ class HotReloadIT extends BaseIT {
                 .build();
     }
 
-    private static VirtualCluster portVc(KafkaCluster cluster, String name) {
-        return portVc(cluster, name, 0);
+    private static VirtualCluster portVc(String clusterDefName, String name) {
+        return portVc(clusterDefName, name, 0);
     }
 
-    private static VirtualCluster portVc(KafkaCluster cluster, String name, int port) {
-        return KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, name)
+    private static VirtualCluster portVc(String clusterDefName, String name, int port) {
+        // @formatter:off
+        return new VirtualClusterBuilder()
+                .withNewTarget()
+                    .withCluster(clusterDefName)
+                .endTarget()
+                .withName(name)
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", port)).build())
                 .build();
+        // @formatter:on
     }
 
-    private static VirtualCluster portVcWithLogNetwork(KafkaCluster cluster, String name, int port, boolean logNetwork) {
-        return KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, name)
+    private static VirtualCluster portVcWithLogNetwork(String clusterDefName, String name, int port, boolean logNetwork) {
+        // @formatter:off
+        return new VirtualClusterBuilder()
+                .withNewTarget()
+                    .withCluster(clusterDefName)
+                .endTarget()
+                .withName(name)
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", port)).build())
                 .withLogNetwork(logNetwork)
                 .build();
+        // @formatter:on
     }
 
     private static int boundPort(KroxyliciousTester tester, String vcName) {
         return HostPort.parse(tester.getBootstrapAddress(vcName, DEFAULT_GATEWAY_NAME)).port();
     }
 
-    private static Configuration portConfig(VirtualCluster... vcs) {
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder();
+    private static ConfigurationBuilder portConfigBuilder(KafkaCluster cluster, VirtualCluster... vcs) {
+        var clusterDef = clusterDefinition("port-test-cluster", cluster);
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef);
         for (var vc : vcs) {
             builder.addToVirtualClusters(vc);
         }
-        return builder.build();
+        return builder;
     }
 
     /**
@@ -800,39 +801,47 @@ class HotReloadIT extends BaseIT {
     }
 
     /**
-     * Build a {@link Configuration} containing {@code VC_BASELINE} plus the additional VCs
+     * Build a {@link ConfigurationBuilder} containing {@code VC_BASELINE} plus the additional VCs
      * named by {@code extras}. Call sites read like declarations of intent:
      * <pre>{@code
-     *   buildConfig(cluster, certs)                    // baseline only
-     *   buildConfig(cluster, certs, OUTGOING)          // baseline + outgoing
-     *   buildConfig(cluster, certs, INCOMING)          // baseline + incoming
-     *   buildConfig(cluster, certs, OUTGOING, INCOMING) // baseline + both
+     *   sniConfigBuilder(cluster, certs)                    // baseline only
+     *   sniConfigBuilder(cluster, certs, OUTGOING)          // baseline + outgoing
+     *   sniConfigBuilder(cluster, certs, INCOMING)          // baseline + incoming
+     *   sniConfigBuilder(cluster, certs, OUTGOING, INCOMING) // baseline + both
      * }</pre>
      */
-    private static Configuration buildConfig(KafkaCluster cluster, KeystoreTrustStorePair certs, VcSlot... extras) {
+    private static ConfigurationBuilder sniConfigBuilder(KafkaCluster cluster, KeystoreTrustStorePair certs, VcSlot... extras) {
+        var clusterDef = clusterDefinition("sni-test-cluster", cluster);
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(buildSniVirtualCluster(cluster, certs, VC_BASELINE_NAME, VC_BASELINE_BOOTSTRAP, VC_BASELINE_BROKER_PATTERN));
+                .addToClusterDefinitions(clusterDef)
+                .addToVirtualClusters(buildSniVirtualCluster(clusterDef.name(), certs, VC_BASELINE_NAME, VC_BASELINE_BOOTSTRAP, VC_BASELINE_BROKER_PATTERN));
         for (var slot : extras) {
-            builder.addToVirtualClusters(buildSniVirtualCluster(cluster, certs, slot.name, slot.bootstrap, slot.brokerPattern));
+            builder.addToVirtualClusters(buildSniVirtualCluster(clusterDef.name(), certs, slot.name, slot.bootstrap, slot.brokerPattern));
         }
-        return builder.build();
+        return builder;
     }
 
-    private static VirtualCluster buildSniVirtualCluster(KafkaCluster cluster,
+    private static VirtualCluster buildSniVirtualCluster(String clusterDefName,
                                                          KeystoreTrustStorePair certs,
                                                          String name,
                                                          String bootstrap,
                                                          String brokerPattern) {
-        return KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, name)
+        // @formatter:off
+        return new VirtualClusterBuilder()
+                .withNewTarget()
+                    .withCluster(clusterDefName)
+                .endTarget()
+                .withName(name)
                 .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(bootstrap, brokerPattern)
                         .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(certs.brokerKeyStore())
-                        .withNewInlinePasswordStoreProvider(certs.password())
-                        .endKeyStoreKey()
+                            .withNewKeyStoreKey()
+                                .withStoreFile(certs.brokerKeyStore())
+                                .withNewInlinePasswordStoreProvider(certs.password())
+                            .endKeyStoreKey()
                         .endTls()
                         .build())
                 .build();
+        // @formatter:on
     }
 
     // Per-record produce: batch.size=1 + linger.ms=0 forces the producer to issue one
