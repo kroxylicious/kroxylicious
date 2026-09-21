@@ -209,9 +209,10 @@ class VirtualClusterTest {
     void rejectsNegativeDrainTimeout() {
         // Given
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var drainTimeout = Duration.ofSeconds(-5);
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster("mycluster", null, routeTarget, gateways, false, false, NO_FILTERS, null, null, Duration.ofSeconds(-5)))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", null, routeTarget, gateways, false, false, NO_FILTERS, null, null, drainTimeout))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("drainTimeout for virtual cluster 'mycluster' must be positive");
     }

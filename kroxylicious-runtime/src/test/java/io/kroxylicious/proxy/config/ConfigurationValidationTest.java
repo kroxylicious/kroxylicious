@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.config;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -323,8 +324,13 @@ class ConfigurationValidationTest {
         var route = new RouteDefinition("r", 0, List.of("undefined-filter"), new RouteTarget("c1", null));
         var router = new RouterDefinition("myrouter", "Type", null, List.of(route));
 
-        assertThatThrownBy(() -> new Configuration(null, List.of(CLUSTER_DEFINITION, routerTarget), filterDefs, null, List.of(router),
-                List.of(SIMPLE_VC), null, false, Optional.empty(), null, null))
+        var clusterDefinitions = List.of(CLUSTER_DEFINITION, routerTarget);
+        var vcs = List.of(SIMPLE_VC);
+        var routers = List.of(router);
+        var empty = Optional.<Map<String, Object>> empty();
+
+        assertThatThrownBy(() -> new Configuration(null, clusterDefinitions, filterDefs, null, routers,
+                vcs, null, false, empty, null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("references filters not defined")
                 .hasMessageContaining("undefined-filter");
