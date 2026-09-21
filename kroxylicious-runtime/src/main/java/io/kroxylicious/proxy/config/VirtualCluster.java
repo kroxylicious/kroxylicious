@@ -63,11 +63,13 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                     "Virtual cluster name '" + name + "' is invalid. It must be less than 64 characters long and match pattern " + DNS_LABEL_PATTERN.pattern()
                             + " (case insensitive)");
         }
-        if (targetCluster != null) {
-            LOGGER.warn("the targetCluster field is deprecated and will be removed in a future release. "
-                    + "Declare the cluster in the clusterDefinitions array, and reference it by name using target.cluster.");
-        }
         validateTargetExclusivity(name, targetCluster, target);
+        if (targetCluster != null) {
+            LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", name)
+                    .log("the targetCluster field is deprecated and will be removed in a future release. "
+                            + "Declare the cluster in the clusterDefinitions array, and reference it by name using target.cluster.");
+        }
         if (gateways == null || gateways.isEmpty()) {
             throw new IllegalConfigurationException("no gateways configured for virtual cluster '" + name + "'");
         }
@@ -95,9 +97,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * @param logNetwork if true, network will be logged
      * @param logFrames if true, kafka rpcs will be logged
      * @param filters filters applied to requests
-     * @deprecated targetCluster is deprecated, use canonical ctor
      */
-    @Deprecated
     public VirtualCluster(String name,
                           TargetCluster targetCluster,
                           List<VirtualClusterGateway> gateways,
