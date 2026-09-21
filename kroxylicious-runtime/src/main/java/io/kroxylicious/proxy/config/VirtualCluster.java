@@ -88,7 +88,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
     }
 
     /**
-     * Convenience constructor for a virtual cluster with a root target and all
+     * Convenience constructor for a virtual cluster with a route target and all
      * optional components defaulted.
      *
      * @param name virtual cluster name
