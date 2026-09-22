@@ -15,9 +15,10 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
@@ -32,6 +33,8 @@ import static org.mockito.Mockito.when;
 
 class OperationsPlannerTest {
 
+    private static final ClusterDefinition CLUSTER_DEFINITION = new ClusterDefinition("upstream", "kafka:9092", null);
+    private static final RouteTarget CLUSTER_TARGET = new RouteTarget(CLUSTER_DEFINITION.name(), null);
     private final VirtualClusterRegistry vcr = mock(VirtualClusterRegistry.class);
     private final EndpointRegistry endpointRegistry = mock(EndpointRegistry.class);
 
@@ -236,7 +239,7 @@ class OperationsPlannerTest {
 
     private static Configuration configWith(String... clusterNames) {
         var clusters = Arrays.stream(clusterNames).map(OperationsPlannerTest::vc).toList();
-        return new Configuration(null, null, null, null, null, clusters, null, false,
+        return new Configuration(null, List.of(CLUSTER_DEFINITION), null, null, null, clusters, null, false,
                 Optional.empty(), null, null);
     }
 
@@ -246,7 +249,7 @@ class OperationsPlannerTest {
                 null,
                 Optional.empty());
         return new VirtualCluster(name,
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway),
                 false, false, List.of());
     }

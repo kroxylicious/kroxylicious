@@ -24,12 +24,13 @@ import org.mockito.ArgumentCaptor;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.ProxyProtocolConfig;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
-import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
@@ -57,6 +58,10 @@ import static org.mockito.Mockito.when;
 class ConfigurationReloadOrchestratorTest {
 
     private SimpleMeterRegistry meterRegistry;
+
+    private static final ClusterDefinition CLUSTER_DEFINITION = new ClusterDefinition("upstream", "kafka:9092", null);
+    private static final List<ClusterDefinition> CLUSTER_DEFINITION_LIST = List.of(CLUSTER_DEFINITION);
+    private static final RouteTarget CLUSTER_TARGET = new RouteTarget(CLUSTER_DEFINITION.name(), null);
 
     @BeforeEach
     void addMeterRegistry() {
@@ -819,7 +824,7 @@ class ConfigurationReloadOrchestratorTest {
     }
 
     private static Configuration configWith(VirtualCluster... clusters) {
-        return new Configuration(null, null, null, null, null, List.of(clusters), null, false, Optional.empty(), null, null);
+        return new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(clusters), null, false, Optional.empty(), null, null);
     }
 
     private static Configuration withDifferentUseIoUring(Configuration base) {
@@ -837,8 +842,10 @@ class ConfigurationReloadOrchestratorTest {
                 null,
                 Optional.empty());
         return new VirtualCluster(name,
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway),
-                false, false, List.of());
+                false,
+                false,
+                List.of());
     }
 }

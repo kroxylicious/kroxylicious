@@ -27,7 +27,6 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
-import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
@@ -44,6 +43,8 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class StaticSectionDifferTest {
 
+    private static final ClusterDefinition CLUSTER_DEFINITION = new ClusterDefinition("upstream", "kafka:9092", null);
+    private static final RouteTarget CLUSTER_TARGET = new RouteTarget(CLUSTER_DEFINITION.name(), null);
     private final StaticSectionDiffer differ = new StaticSectionDiffer();
 
     @Test
@@ -222,7 +223,7 @@ class StaticSectionDifferTest {
     // -------- fixture helpers --------
 
     private static Configuration baseConfig() {
-        return new Configuration(null, null, null, null, null, List.of(vc("base-cluster")), null, false, Optional.empty(), null, null);
+        return new Configuration(null, List.of(CLUSTER_DEFINITION), null, null, null, List.of(vc("base-cluster")), null, false, Optional.empty(), null, null);
     }
 
     private static Configuration withManagement(Configuration base, ManagementConfiguration management) {
@@ -255,7 +256,7 @@ class StaticSectionDifferTest {
                 null,
                 Optional.empty());
         return new VirtualCluster(name,
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway),
                 false, false, List.of());
     }
