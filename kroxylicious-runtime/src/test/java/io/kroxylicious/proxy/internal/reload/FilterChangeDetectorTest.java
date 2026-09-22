@@ -19,7 +19,6 @@ import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
-import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -29,6 +28,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FilterChangeDetectorTest {
+
+    private static final ClusterDefinition CLUSTER_DEFINITION = new ClusterDefinition("upstream", "kafka:9092", null);
+    private static final List<ClusterDefinition> CLUSTER_DEFINITION_LIST = List.of(CLUSTER_DEFINITION);
+    private static final RouteTarget CLUSTER_TARGET = new RouteTarget(CLUSTER_DEFINITION.name(), null);
 
     private final FilterChangeDetector detector = new FilterChangeDetector();
 
@@ -177,7 +180,7 @@ class FilterChangeDetectorTest {
     private static Configuration configWith(@Nullable List<NamedFilterDefinition> filterDefs,
                                             @Nullable List<String> defaultFilters,
                                             VirtualCluster... clusters) {
-        return configWith(filterDefs, defaultFilters, null, null, clusters);
+        return configWith(filterDefs, defaultFilters, CLUSTER_DEFINITION_LIST, null, clusters);
     }
 
     private static Configuration configWith(@Nullable List<NamedFilterDefinition> filterDefs,
@@ -213,7 +216,7 @@ class FilterChangeDetectorTest {
                 null,
                 Optional.empty());
         return new VirtualCluster(name,
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway),
                 false,
                 false,
