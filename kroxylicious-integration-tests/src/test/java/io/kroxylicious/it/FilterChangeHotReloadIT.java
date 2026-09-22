@@ -24,8 +24,10 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.it.testplugins.FailingInitFilterFactory;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
@@ -34,6 +36,9 @@ import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -94,17 +99,12 @@ class FilterChangeHotReloadIT extends BaseIT {
         var oldFilterDef = invocationCounterDef("old-counter", oldFilterId);
         var newFilterDef = invocationCounterDef("new-counter", newFilterId);
 
-        var startingConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-filter-change", PORT_FILTER_CHANGE, "old-counter")),
-                oldFilterDef);
-        var afterConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-filter-change", PORT_FILTER_CHANGE, "new-counter")),
-                newFilterDef);
+        List<VirtualCluster> vcs1 = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-filter-change", PORT_FILTER_CHANGE, "old-counter"));
+        var starting = configBuilderFor(cluster, vcs1, new NamedFilterDefinition[]{ oldFilterDef });
+        List<VirtualCluster> vcs = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-filter-change", PORT_FILTER_CHANGE, "new-counter"));
+        var after = configBuilderFor(cluster, vcs, new NamedFilterDefinition[]{ newFilterDef });
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToFilterDefinitions(oldFilterDef)
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(starting).createDefaultKroxyliciousTester()) {
 
             // Given: VC referencing the old-counter filter, serving traffic.
             String topic = tester.createTopic("vc-filter-change");
@@ -112,7 +112,7 @@ class FilterChangeHotReloadIT extends BaseIT {
 
             // When: proxy reconfigured with a new filter chain.
             LOGGER.info("Reconfiguring vc-filter-change: old-counter -> new-counter");
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(after.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean filter-chain swap")
@@ -142,21 +142,14 @@ class FilterChangeHotReloadIT extends BaseIT {
         var vcAFilter2Def = invocationCounterDef("vc-a-counter-new", vcAFilter2Id);
         var vcBFilterDef = invocationCounterDef("vc-b-counter", vcBFilterId);
 
-        var startingConfig = buildConfig(
-                List.of(
-                        portVcWithFilters(cluster, "vc-a", PORT_CROSS_VC_A, "vc-a-counter-old"),
-                        portVcWithFilters(cluster, "vc-b", PORT_CROSS_VC_B, "vc-b-counter")),
-                vcAFilter1Def, vcBFilterDef);
-        var afterConfig = buildConfig(
-                List.of(
-                        portVcWithFilters(cluster, "vc-a", PORT_CROSS_VC_A, "vc-a-counter-new"),
-                        portVcWithFilters(cluster, "vc-b", PORT_CROSS_VC_B, "vc-b-counter")),
-                vcAFilter2Def, vcBFilterDef);
+        List<VirtualCluster> vcs1 = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-a", PORT_CROSS_VC_A, "vc-a-counter-old"),
+                portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-b", PORT_CROSS_VC_B, "vc-b-counter"));
+        var starting = configBuilderFor(cluster, vcs1, new NamedFilterDefinition[]{ vcAFilter1Def, vcBFilterDef });
+        List<VirtualCluster> vcs = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-a", PORT_CROSS_VC_A, "vc-a-counter-new"),
+                portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-b", PORT_CROSS_VC_B, "vc-b-counter"));
+        var after = configBuilderFor(cluster, vcs, new NamedFilterDefinition[]{ vcAFilter2Def, vcBFilterDef });
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToFilterDefinitions(vcAFilter1Def, vcBFilterDef)
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(starting).createDefaultKroxyliciousTester()) {
 
             // Given: both VCs serving traffic on their respective chains. Capture VC-B's
             // pre-reconfigure init/close counts so the Then can assert "unchanged" via delta —
@@ -170,7 +163,7 @@ class FilterChangeHotReloadIT extends BaseIT {
 
             // When: proxy reconfigured to change only VC-A's filter chain; VC-B's config is identical.
             LOGGER.info("Reconfiguring to change vc-a's filter chain only");
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(after.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
@@ -210,17 +203,12 @@ class FilterChangeHotReloadIT extends BaseIT {
         var badFilterDef = new NamedFilterDefinitionBuilder("bad-filter", FailingInitFilterFactory.class.getName())
                 .build();
 
-        var startingConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-fail", PORT_FAILURE, "good-counter")),
-                goodFilterDef);
-        var afterConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-fail", PORT_FAILURE, "bad-filter")),
-                badFilterDef);
+        List<VirtualCluster> vcs1 = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-fail", PORT_FAILURE, "good-counter"));
+        var start = configBuilderFor(cluster, vcs1, new NamedFilterDefinition[]{ goodFilterDef });
+        List<VirtualCluster> vcs = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-fail", PORT_FAILURE, "bad-filter"));
+        var after = configBuilderFor(cluster, vcs, new NamedFilterDefinition[]{ badFilterDef });
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToFilterDefinitions(goodFilterDef)
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(start).createDefaultKroxyliciousTester()) {
 
             // Given: good filter active and traffic flowing.
             String topic = tester.createTopic("vc-fail");
@@ -228,7 +216,7 @@ class FilterChangeHotReloadIT extends BaseIT {
 
             // When: proxy reconfigured with a filter that fails on initialize.
             LOGGER.info("Reconfiguring vc-fail with invalid filter chain");
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(after.build()))
                     .as("reconfigure future completes successfully but carries an error for the failing cluster")
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> {
@@ -259,17 +247,12 @@ class FilterChangeHotReloadIT extends BaseIT {
         var filter1Def = invocationCounterDef("f1", filter1Id);
         var filter2Def = invocationCounterDef("f2", filter2Id);
 
-        var startingConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-add-filter", PORT_ADD_FILTER, "f1")),
-                filter1Def);
-        var afterConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-add-filter", PORT_ADD_FILTER, "f1", "f2")),
-                filter1Def, filter2Def);
+        List<VirtualCluster> vcs1 = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-add-filter", PORT_ADD_FILTER, "f1"));
+        var starting = configBuilderFor(cluster, vcs1, new NamedFilterDefinition[]{ filter1Def });
+        List<VirtualCluster> vcs = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-add-filter", PORT_ADD_FILTER, "f1", "f2"));
+        var after = configBuilderFor(cluster, vcs, new NamedFilterDefinition[]{ filter1Def, filter2Def });
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToFilterDefinitions(filter1Def)
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(starting).createDefaultKroxyliciousTester()) {
 
             // Given: capture F1's pre-reconfigure init count so we can assert the reconfigure's
             // delta rather than an absolute value that bakes in the startup contract.
@@ -277,7 +260,7 @@ class FilterChangeHotReloadIT extends BaseIT {
 
             // When: proxy reconfigured to add F2 — chain [f1] -> [f1, f2].
             LOGGER.info("Reconfiguring vc-add-filter: [f1] -> [f1, f2]");
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(after.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
@@ -313,17 +296,12 @@ class FilterChangeHotReloadIT extends BaseIT {
         var filter1Def = invocationCounterDef("f1", filter1Id);
         var filter2Def = invocationCounterDef("f2", filter2Id);
 
-        var startingConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-remove-filter", PORT_REMOVE_FILTER, "f1", "f2")),
-                filter1Def, filter2Def);
-        var afterConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-remove-filter", PORT_REMOVE_FILTER, "f1")),
-                filter1Def);
+        List<VirtualCluster> vcs1 = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-remove-filter", PORT_REMOVE_FILTER, "f1", "f2"));
+        var starting = configBuilderFor(cluster, vcs1, new NamedFilterDefinition[]{ filter1Def, filter2Def });
+        List<VirtualCluster> vcs = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-remove-filter", PORT_REMOVE_FILTER, "f1"));
+        var after = configBuilderFor(cluster, vcs, new NamedFilterDefinition[]{ filter1Def });
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToFilterDefinitions(filter1Def, filter2Def)
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(starting).createDefaultKroxyliciousTester()) {
 
             // Given: snapshot pre-reconfigure init counts for both filters.
             int f1InitBefore = InvocationCountingFilterFactory.initializationCountFor(filter1Id);
@@ -331,7 +309,7 @@ class FilterChangeHotReloadIT extends BaseIT {
 
             // When: proxy reconfigured to remove F2 — chain [f1, f2] -> [f1].
             LOGGER.info("Reconfiguring vc-remove-filter: [f1, f2] -> [f1]");
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(after.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
@@ -369,17 +347,12 @@ class FilterChangeHotReloadIT extends BaseIT {
         var filter1Def = invocationCounterDef("f1", filter1Id);
         var filter2Def = invocationCounterDef("f2", filter2Id);
 
-        var startingConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-reorder", PORT_REORDER, "f1", "f2")),
-                filter1Def, filter2Def);
-        var afterConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-reorder", PORT_REORDER, "f2", "f1")),
-                filter1Def, filter2Def);
+        List<VirtualCluster> vcs1 = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-reorder", PORT_REORDER, "f1", "f2"));
+        var starting = configBuilderFor(cluster, vcs1, new NamedFilterDefinition[]{ filter1Def, filter2Def });
+        List<VirtualCluster> vcs = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-reorder", PORT_REORDER, "f2", "f1"));
+        var after = configBuilderFor(cluster, vcs, new NamedFilterDefinition[]{ filter1Def, filter2Def });
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToFilterDefinitions(filter1Def, filter2Def)
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(starting).createDefaultKroxyliciousTester()) {
 
             // Given: snapshot pre-reconfigure init counts for both filters.
             int f1InitBefore = InvocationCountingFilterFactory.initializationCountFor(filter1Id);
@@ -387,7 +360,7 @@ class FilterChangeHotReloadIT extends BaseIT {
 
             // When: proxy reconfigured to reorder the chain — [f1, f2] -> [f2, f1].
             LOGGER.info("Reconfiguring vc-reorder: [f1, f2] -> [f2, f1]");
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(after.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
@@ -425,23 +398,18 @@ class FilterChangeHotReloadIT extends BaseIT {
         var filterDefX = invocationCounterDef("f1", configX);
         var filterDefY = invocationCounterDef("f1", configY);
 
-        var startingConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-cfg-change", PORT_CONFIG_CHANGE, "f1")),
-                filterDefX);
-        var afterConfig = buildConfig(
-                List.of(portVcWithFilters(cluster, "vc-cfg-change", PORT_CONFIG_CHANGE, "f1")),
-                filterDefY);
+        List<VirtualCluster> vcs1 = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-cfg-change", PORT_CONFIG_CHANGE, "f1"));
+        var starting = configBuilderFor(cluster, vcs1, new NamedFilterDefinition[]{ filterDefX });
+        List<VirtualCluster> vcs = List.of(portVcWithFilters(DEFAULT_CLUSTER_DEF_NAME, "vc-cfg-change", PORT_CONFIG_CHANGE, "f1"));
+        var after = configBuilderFor(cluster, vcs, new NamedFilterDefinition[]{ filterDefY });
 
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToFilterDefinitions(filterDefX)
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
-        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(starting).createDefaultKroxyliciousTester()) {
 
             // Given: proxy started with VC referencing filter 'f1' under config X.
 
             // When: proxy reconfigured to change the same filter name's config X -> Y.
             LOGGER.info("Reconfiguring vc-cfg-change: filter 'f1' config X -> Y");
-            assertThat(tester.reconfigure(afterConfig))
+            assertThat(tester.reconfigure(after.build()))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
@@ -473,19 +441,27 @@ class FilterChangeHotReloadIT extends BaseIT {
         var oldFilterDef = invocationCounterDef("default-old", oldFilterId);
         var newFilterDef = invocationCounterDef("default-new", newFilterId);
 
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+
         // Two VCs, BOTH without explicit filters — both rely on defaultFilters.
-        VirtualCluster vcA = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-default-a")
+        VirtualCluster vcA = new VirtualClusterBuilder()
+                .withTarget(DEFAULT_CLUSTER_TARGET)
+                .withName("vc-default-a")
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_DEFAULT_FILTERS_A)).build())
                 .build();
-        VirtualCluster vcB = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-default-b")
+        VirtualCluster vcB = new VirtualClusterBuilder()
+                .withTarget(DEFAULT_CLUSTER_TARGET)
+                .withName("vc-default-b")
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_DEFAULT_FILTERS_B)).build())
                 .build();
 
         var startingTesterBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
                 .addToFilterDefinitions(oldFilterDef)
                 .addToDefaultFilters("default-old")
                 .addToVirtualClusters(vcA, vcB);
         Configuration afterConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
                 .addToFilterDefinitions(newFilterDef)
                 .addToDefaultFilters("default-new")
                 .addToVirtualClusters(vcA, vcB)
@@ -526,11 +502,17 @@ class FilterChangeHotReloadIT extends BaseIT {
     // Helpers
     // -----------------------------------------------------------------------------------------
 
-    private static VirtualCluster portVcWithFilters(KafkaCluster cluster, String name, int port, String... filterNames) {
-        return KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, name)
+    private static VirtualCluster portVcWithFilters(String clusterDefName, String name, int port, String... filterNames) {
+        // @formatter:off
+        return new VirtualClusterBuilder()
+                .withNewTarget()
+                    .withCluster(clusterDefName)
+                .endTarget()
+                .withName(name)
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", port)).build())
                 .addToFilters(filterNames)
                 .build();
+        // @formatter:on
     }
 
     private static NamedFilterDefinition invocationCounterDef(String name, UUID uuid) {
@@ -539,15 +521,17 @@ class FilterChangeHotReloadIT extends BaseIT {
                 .build();
     }
 
-    private static Configuration buildConfig(List<VirtualCluster> vcs, NamedFilterDefinition... filters) {
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder();
+    private static ConfigurationBuilder configBuilderFor(KafkaCluster cluster, List<VirtualCluster> vcs, NamedFilterDefinition[] filters) {
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef);
         for (var f : filters) {
             builder.addToFilterDefinitions(f);
         }
         for (var vc : vcs) {
             builder.addToVirtualClusters(vc);
         }
-        return builder.build();
+        return builder;
     }
 
     /**

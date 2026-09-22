@@ -6,12 +6,9 @@
 
 package io.kroxylicious.proxy.bootstrap;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 import io.kroxylicious.proxy.internal.util.Assertions;
-import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * {@link BootstrapSelectionStrategy} that selects a fixed server from the given list of servers as the bootstrap server
@@ -27,21 +24,18 @@ public record FixedBootstrapSelectionStrategy(int choice) implements BootstrapSe
     }
 
     @Override
-    public HostPort apply(List<HostPort> hostPorts) {
-        if (choice > hostPorts.size()) {
-            throw new IllegalStateException("Configured to use a server entry which is not available.");
-        }
-        return hostPorts.get(choice);
-    }
-
-    @Override
     public String getStrategy() {
         return "fixed";
     }
 
-    // immutable and holds no selection state, so sharing is safe
+    // the selector is stateless, so it never needs to be independent of any other
     @Override
-    public BootstrapSelectionStrategy newInstance() {
-        return this;
+    public BootstrapServerSelector newSelector() {
+        return hostPorts -> {
+            if (choice >= hostPorts.size()) {
+                throw new IllegalStateException("Configured to use a server entry which is not available.");
+            }
+            return hostPorts.get(choice);
+        };
     }
 }

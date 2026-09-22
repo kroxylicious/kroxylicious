@@ -7,24 +7,20 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
-import java.util.Random;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.concurrent.ThreadLocalRandom;
 
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.ThreadSafe;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * {@link BootstrapSelectionStrategy} which selects a random server from the given list of servers as the bootstrap server.
+ * <p>
+ * This class is immutable configuration; the selector returned from {@link #newSelector()} draws from the
+ * calling thread's {@link ThreadLocalRandom}, so concurrent connections neither share nor contend on a seed.
  */
-@SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for port collision avoidance; not security relevant
 public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrategy {
-
-    @SuppressWarnings("java:S2245") // using insecure random is entirely appropriate here.
-
-    @JsonIgnore
-    private final Random random = new Random();
 
     /**
      * Creates a random bootstrap selection strategy.
@@ -34,20 +30,13 @@ public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrat
     }
 
     @Override
-    public HostPort apply(List<HostPort> hostPorts) {
-        final int choice = random.nextInt(hostPorts.size());
-        return hostPorts.get(choice);
-    }
-
-    @Override
     public String getStrategy() {
         return "random";
     }
 
-    // a fresh Random too, so that virtual clusters don't contend on one instance's seed
     @Override
-    public BootstrapSelectionStrategy newInstance() {
-        return new RandomBootstrapSelectionStrategy();
+    public BootstrapServerSelector newSelector() {
+        return new Selector();
     }
 
     @Override
@@ -55,8 +44,7 @@ public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrat
         if (this == o) {
             return true;
         }
-        // All RandomBootstrapSelectionStrategy instances are equal
-        // (Random instance is runtime state, not configuration)
+        // All RandomBootstrapSelectionStrategy instances are equal: the strategy takes no parameters
         return o instanceof RandomBootstrapSelectionStrategy;
     }
 
@@ -64,5 +52,20 @@ public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrat
     public int hashCode() {
         // All instances have same hash (type-based)
         return RandomBootstrapSelectionStrategy.class.hashCode();
+    }
+
+    /**
+     * Stateless selector; {@link ThreadLocalRandom} is used so that the selector is safe to share
+     * between connections without contention.
+     */
+    @ThreadSafe
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for spreading bootstrap connections; not security relevant
+    @SuppressWarnings("java:S2245") // using insecure random is entirely appropriate here.
+    private static final class Selector implements BootstrapServerSelector {
+
+        @Override
+        public HostPort select(List<HostPort> bootstrapServers) {
+            return bootstrapServers.get(ThreadLocalRandom.current().nextInt(bootstrapServers.size()));
+        }
     }
 }

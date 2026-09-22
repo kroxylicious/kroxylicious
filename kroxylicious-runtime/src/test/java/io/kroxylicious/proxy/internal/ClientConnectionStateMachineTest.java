@@ -971,14 +971,10 @@ class ClientConnectionStateMachineTest {
     void toForwardingWithRoutesShouldPopulateRouteTargetsAfterScsmCreation() {
         // Given: a router VC with one route and a healthy SCSM factory
         stateMachineInClientActive();
-        var target = new HostPort("broker", 9092);
-        var targetCluster = mock(TargetCluster.class, withSettings().lenient());
-        when(targetCluster.bootstrapServer()).thenReturn(target);
-        var routeDescriptor = mock(RouteDescriptor.class, withSettings().lenient());
-        when(routeDescriptor.targetsCluster()).thenReturn(true);
-        when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
+        var routeDescriptors = Map.of("my-route",
+                new RouteDescriptor("my-route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("my-route", routeDescriptor), mock(RouterChainFactory.class)));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors, mock(RouterChainFactory.class)));
         when(routerVc.getUpstreamClusterForRoute(any())).thenReturn(noTlsClusterModel());
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
@@ -1027,13 +1023,13 @@ class ClientConnectionStateMachineTest {
     void toForwardingWithRoutesShouldFailFastIfRouteBootstrapServerIsNull() {
         // Given
         stateMachineInClientActive();
-        var targetCluster = mock(TargetCluster.class, withSettings().lenient());
-        when(targetCluster.bootstrapServer()).thenReturn(null);
-        var routeDescriptor = mock(RouteDescriptor.class, withSettings().lenient());
-        when(routeDescriptor.targetsCluster()).thenReturn(true);
-        when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
+        var upstreamClusterModel = mock(UpstreamClusterModel.class, withSettings().lenient());
+        when(upstreamClusterModel.bootstrapServer()).thenReturn(null);
+        var routeDescriptors = Map.of("bad-route",
+                new RouteDescriptor("bad-route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("bad-route", routeDescriptor), mock(RouterChainFactory.class)));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors, mock(RouterChainFactory.class)));
+        when(routerVc.getUpstreamClusterForRoute(any())).thenReturn(upstreamClusterModel);
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When / Then

@@ -358,8 +358,7 @@ class RouteFilterHandlerTest {
     }
 
     private ClientConnectionStateMachine newClientConnectionStateMachine() {
-        final TargetCluster targetCluster = mock(TargetCluster.class);
-        when(targetCluster.bootstrapServersList()).thenReturn(List.of(HostPort.parse("targetCluster:9091")));
+        final TargetCluster targetCluster = new TargetCluster("targetCluster:9091", Optional.empty());
         var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", new DirectRouting("upstream", targetCluster), false,
                 false, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
         testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());

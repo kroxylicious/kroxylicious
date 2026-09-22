@@ -17,6 +17,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FixedBootstrapSelectionStrategyTest {
 
+    private static final List<HostPort> SERVERS = List.of(
+            new HostPort("host0", 9092),
+            new HostPort("host1", 9093),
+            new HostPort("host2", 9094));
+
     @Test
     void shouldRejectNegativeValuesForChoice() {
         assertThatThrownBy(() -> new FixedBootstrapSelectionStrategy(-1))
@@ -25,12 +30,24 @@ class FixedBootstrapSelectionStrategyTest {
 
     @Test
     void shouldSelectBootstrapServerBasedOnGivenChoice() {
-        final var bootstrapServers = List.of(
-                new HostPort("host0", 9092),
-                new HostPort("host1", 9093),
-                new HostPort("host2", 9094));
+        // Given
         final int choice = 1;
-        final var strategy = new FixedBootstrapSelectionStrategy(choice);
-        assertThat(strategy.apply(bootstrapServers)).isEqualTo(bootstrapServers.get(choice));
+        final var selector = new FixedBootstrapSelectionStrategy(choice).newSelector();
+
+        // When
+        var selected = selector.select(SERVERS);
+
+        // Then
+        assertThat(selected).isEqualTo(SERVERS.get(choice));
+    }
+
+    @Test
+    void shouldRejectChoiceBeyondEndOfList() {
+        // Given
+        final var selector = new FixedBootstrapSelectionStrategy(SERVERS.size()).newSelector();
+
+        // When/Then
+        assertThatThrownBy(() -> selector.select(SERVERS))
+                .isInstanceOf(IllegalStateException.class);
     }
 }
