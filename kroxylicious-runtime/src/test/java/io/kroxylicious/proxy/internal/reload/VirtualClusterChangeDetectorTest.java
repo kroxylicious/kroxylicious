@@ -79,7 +79,7 @@ class VirtualClusterChangeDetectorTest {
         var oldConfig = configWith(clusterDefinitionList, oldVc);
         var newConfig = configWith(clusterDefinitionList, newVc);
 
-        // WHen
+        // When
         var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
 
         // Then
@@ -171,7 +171,7 @@ class VirtualClusterChangeDetectorTest {
                 vc("modify-me", 9194, newKafkaB),
                 vc("add-me", 9195, kafkaC));
 
-        // WHen
+        // When
         var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
 
         // Then
