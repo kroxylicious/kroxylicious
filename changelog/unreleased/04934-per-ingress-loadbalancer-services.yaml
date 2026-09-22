@@ -1,0 +1,18 @@
+title: "feat(operator): create one LoadBalancer Service per KafkaProxyIngress"
+type: changed
+issues:
+  - 4934
+links:
+  - name: Proposal 134
+    url: https://github.com/kroxylicious/design/pull/134
+important_notes:
+  - |
+    **Behaviour change**: each `loadBalancer` `KafkaProxyIngress` now gets its own LoadBalancer
+    Service, named after the ingress, replacing the single shared `<proxy>-sni` Service per
+    `KafkaProxy`. On upgrade the `<proxy>-sni` Service is deleted and the per-ingress Services are
+    created with new external addresses, so DNS records pointing at the old load balancer must be
+    re-pointed. The interruption lasts until that re-pointing has propagated.
+  - |
+    Proxies with several `loadBalancer` ingresses will now provision one load balancer per ingress
+    rather than one per proxy, which may increase cloud cost. Clusters referencing the same ingress
+    continue to share its load balancer.

@@ -99,16 +99,6 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
             return clusterIngressNetworkingModelResults.stream()
                     .anyMatch(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().requiresSharedSniContainerPort());
         }
-
-        /**
-         * Collects all client-facing ports required on the shared SNI LoadBalancer Service across all ingresses.
-         * @return a stream of port numbers required for the shared SNI LoadBalancer
-         */
-        public Stream<Integer> requiredSniLoadbalancerPorts() {
-            return clusterIngressNetworkingModelResults.stream()
-                    .flatMap(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().sharedLoadBalancerServiceRequirements().stream())
-                    .flatMap(SharedLoadBalancerServiceRequirements::requiredClientFacingPorts);
-        }
     }
 
     /**
