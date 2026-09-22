@@ -28,9 +28,15 @@ or a bare run ID (owner/repo then default to `git remote get-url origin`).
    resolved owner/repo/run-id). Require JSON output only, one object per failed
    test: `{testClass, testMethod, stackTrace, jobUrl, candidateDuplicates: [{number, title, url}]}`.
 
-4. **File an issue** (only if no real duplicate) — read `.github/ISSUE_TEMPLATE/flaky_test.md`
-   fresh each time (don't hardcode its title pattern/labels, it can change) and fill it in.
-   Show the exact title/labels/body and get explicit confirmation before `gh issue create`.
+4. **Duplicate handling**
+   - No real duplicate → read `.github/ISSUE_TEMPLATE/flaky_test.md` fresh each time
+     (don't hardcode its title pattern/labels, it can change) and fill it in. Show the
+     exact title/labels/body and get explicit confirmation before `gh issue create`.
+   - Real duplicate that is **open** → draft a comment on it with the new run/job link
+     and stack trace. Show the exact text and get explicit confirmation before
+     `gh issue comment <number>`.
+   - Real duplicate in any other state (closed, etc.) → judgement call. Surface it and
+     ask rather than acting automatically.
 
 5. **Comment on the PR** — if the run belongs to a PR (`event == pull_request`, or look one
    up via `gh pr list -R <owner>/<repo> --head <headBranch>`), draft a short comment
@@ -42,6 +48,6 @@ or a bare run ID (owner/repo then default to `git remote get-url origin`).
 
 ### Rules
 
-- Never run `gh issue create`, `gh pr comment`, or `gh run rerun` without explicit
-  confirmation of the exact text/action first.
+- Never run `gh issue create`, `gh issue comment`, `gh pr comment`, or `gh run rerun`
+  without explicit confirmation of the exact text/action first.
 - Never assume issue labels — read them from the template each time.
