@@ -12,8 +12,9 @@ import io.kroxylicious.kubernetes.operator.Annotations;
 
 /**
  * Describes the shared LoadBalancer Service requirements of a single VirtualKafkaCluster.spec.ingresses element.
- * Many cluster-ingresses can share a single LoadBalancer Service for SNI, but may place their own requirements on it,
- * such as which ports need to be exposed to clients and which bootstrap servers should be included in the Service's
+ * The LoadBalancer Service is shared per {@code KafkaProxyIngress}: many VirtualKafkaClusters that reference the
+ * same {@code loadBalancer} ingress share its Service, but each may place its own requirements on it, such as
+ * which ports need to be exposed to clients and which bootstrap servers should be included in the Service's
  * annotations.
  */
 public interface SharedLoadBalancerServiceRequirements {
