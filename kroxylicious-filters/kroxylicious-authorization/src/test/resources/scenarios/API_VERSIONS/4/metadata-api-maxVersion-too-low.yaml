@@ -25,7 +25,7 @@ given:
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
-        errorCode: 45
+        errorCode: 0
         apiKeys:
           - apiKey: 3 # METADATA
             minVersion: 0

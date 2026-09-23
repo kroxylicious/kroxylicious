@@ -362,15 +362,16 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     private CompletionStage<ResponseFilterResult> checkCompat(ResponseHeaderData header,
                                                               ApiVersionsResponseData response,
                                                               FilterContext context) {
+        if (response.errorCode() != Errors.NONE.code()) {
+            // KIP-511 requires that the client sees a ApiVersions UNSUPPORTED_VERSION response,
+            // complete with the supported version of the ApiVersionsRequest. We dutifully return
+            // any api versions (adjusted) to allow the contract to be fulfilled.
+            adjustResponse(response);
+            return context.forwardResponse(header, response);
+        }
+
         ApiVersionsResponseData.ApiVersion metadata = response.apiKeys().find(ApiKeys.METADATA.id);
         if (metadata == null) {
-            if (response.errorCode() != Errors.NONE.code()) {
-                // KIP-511 requires that the client sees a ApiVersions UNSUPPORTED_VERSION response,
-                // complete with the supported version of the ApiVersionsRequest. We dutifully return
-                // any api versions (adjusted) to allow the contract to be fulfilled.
-                adjustResponse(response);
-                return context.forwardResponse(header, response);
-            }
             LOGGER.atError()
                     .addKeyValue("filterClass", AuthorizationFilter.class.getName())
                     .log("Filter requires broker to support at least METADATA API version 4. Connected broker does not advertise support for the Metadata API");
