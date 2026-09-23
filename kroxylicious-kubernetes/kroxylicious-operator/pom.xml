@@ -454,9 +454,9 @@
                         <groupId>dev.jbang</groupId>
                         <artifactId>jbang-maven-plugin</artifactId>
                         <executions>
-                            <!-- Add the crds to target/packaged/install, renaming the files to match the other YAMLs -->
+                            <!-- Package CRDs into target/packaged/install -->
                             <execution>
-                                <id>rename-crds</id>
+                                <id>package-crds</id>
                                 <phase>prepare-package</phase>
                                 <goals>
                                     <goal>run</goal>

@@ -15,6 +15,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -78,38 +80,20 @@ class InstallManifestKT {
                 .contains("quay.io/kroxylicious/webhook:");
     }
 
-    @Test
-    void deprecatedZipArchiveShouldContainInstallFiles() throws IOException {
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "install/",
+        "CustomResourceDefinition",
+        "examples/",
+        "docs/"
+    })
+    void deprecatedZipArchiveShouldContainExpectedContent(String contentPattern) throws IOException {
         Path zipArchive = getDeprecatedZipArchive();
         try (ZipFile zip = new ZipFile(zipArchive.toFile())) {
             assertThat(zip.stream()
                     .map(ZipEntry::getName)
-                    .anyMatch(name -> name.contains("install/") && name.endsWith(".yaml")))
-                    .as("Deprecated zip archive should contain install YAML files")
-                    .isTrue();
-        }
-    }
-
-    @Test
-    void deprecatedZipArchiveShouldContainCrds() throws IOException {
-        Path zipArchive = getDeprecatedZipArchive();
-        try (ZipFile zip = new ZipFile(zipArchive.toFile())) {
-            assertThat(zip.stream()
-                    .map(ZipEntry::getName)
-                    .anyMatch(name -> name.contains("CustomResourceDefinition") && name.endsWith(".yaml")))
-                    .as("Deprecated zip archive should contain CRD YAML files")
-                    .isTrue();
-        }
-    }
-
-    @Test
-    void deprecatedZipArchiveShouldContainExamples() throws IOException {
-        Path zipArchive = getDeprecatedZipArchive();
-        try (ZipFile zip = new ZipFile(zipArchive.toFile())) {
-            assertThat(zip.stream()
-                    .map(ZipEntry::getName)
-                    .anyMatch(name -> name.startsWith("examples/")))
-                    .as("Deprecated zip archive should contain examples directory")
+                    .anyMatch(name -> name.contains(contentPattern) || name.startsWith(contentPattern)))
+                    .as("Deprecated zip archive should contain " + contentPattern)
                     .isTrue();
         }
     }
