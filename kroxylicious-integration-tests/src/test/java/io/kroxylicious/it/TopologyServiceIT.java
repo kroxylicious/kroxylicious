@@ -5,11 +5,14 @@
  */
 package io.kroxylicious.it;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +37,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests verifying that {@code TopologyService.topicNames()} resolves topic ids via a
@@ -81,6 +85,21 @@ class TopologyServiceIT {
         return Uuid.fromString(uuid.toString());
     }
 
+    /**
+     * Creates a topic and resolves its id. createTopics returns once the controller has committed the
+     * creation, but the metadata may not yet have propagated to the broker serving describeTopics, which
+     * responds UnknownTopicOrPartition until it has. Retries the describe until the broker can resolve it.
+     */
+    private static Uuid createTopicAndResolveId(Admin admin, String topicName) throws Exception {
+        admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
+        var topicId = new AtomicReference<Uuid>();
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(
+                admin.describeTopics(List.of(topicName)).allTopicNames().toCompletionStage().toCompletableFuture())
+                .succeedsWithin(10, TimeUnit.SECONDS)
+                .satisfies(names -> topicId.set(toInternalUuid(names.get(topicName).topicId()))));
+        return topicId.get();
+    }
+
     @Test
     void shouldResolveTopicNameViaRealMetadataRoundTrip(KafkaCluster cluster) throws Exception {
         // Given
@@ -89,9 +108,7 @@ class TopologyServiceIT {
 
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
                 var admin = tester.admin()) {
-            admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
-            var topicId = toInternalUuid(admin.describeTopics(List.of(topicName)).allTopicNames()
-                    .get(10, TimeUnit.SECONDS).get(topicName).topicId());
+            var topicId = createTopicAndResolveId(admin, topicName);
             TopologyCapturingRouterFactory.topicIdsToResolve.set(Set.of(topicId));
 
             assertThat(TopologyCapturingRouterFactory.capturedTopicNames.get())
@@ -117,9 +134,7 @@ class TopologyServiceIT {
 
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
                 var admin = tester.admin()) {
-            admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
-            var topicId = toInternalUuid(admin.describeTopics(List.of(topicName)).allTopicNames()
-                    .get(10, TimeUnit.SECONDS).get(topicName).topicId());
+            var topicId = createTopicAndResolveId(admin, topicName);
             TopologyCapturingRouterFactory.topicIdsToResolve.set(Set.of(topicId));
 
             admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS);
