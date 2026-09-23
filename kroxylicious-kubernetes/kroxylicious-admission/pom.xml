@@ -50,6 +50,16 @@
 
     <dependencies>
 
+        <!-- project dependencies - build (docs needed for assembly) -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-docs</artifactId>
+            <version>${project.version}</version>
+            <type>zip</type>
+            <classifier>docs</classifier>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- project dependencies -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
@@ -313,6 +323,31 @@
                                 <configuration>
                                     <includeArtifactIds>kroxylicious-simple-transform,kroxylicious-api,kroxylicious-kafka-message-tools</includeArtifactIds>
                                     <outputDirectory>${project.build.directory}/test-plugin-jars</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <!-- Unzip docs to make them available to assembly -->
+                            <execution>
+                                <id>unpack-docs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-docs</artifactId>
+                                            <classifier>docs</classifier>
+                                            <type>zip</type>
+                                            <outputDirectory>${project.build.directory}/docs</outputDirectory>
+                                        </artifactItem>
+                                    </artifactItems>
                                 </configuration>
                             </execution>
                         </executions>
