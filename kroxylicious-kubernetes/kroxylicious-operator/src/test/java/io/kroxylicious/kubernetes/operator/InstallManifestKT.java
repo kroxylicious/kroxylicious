@@ -11,6 +11,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +45,7 @@ class InstallManifestKT {
     }
 
     @Test
-    void shouldCrdsOnlyContainOnlyCrds() throws IOException {
+    void shouldContainAllExpectedResources_CrdBundle() throws IOException {
         Path manifest = getCrdsOnlyManifest();
         List<HasMetadata> resources = loadAllResources(manifest);
 
@@ -75,6 +77,42 @@ class InstallManifestKT {
                 .contains("quay.io/kroxylicious/operator:");
     }
 
+    @Test
+    void deprecatedZipArchiveShouldContainInstallFiles() throws IOException {
+        Path zipArchive = getDeprecatedZipArchive();
+        try (ZipFile zip = new ZipFile(zipArchive.toFile())) {
+            assertThat(zip.stream())
+                    .as("Deprecated zip archive should contain install directory and files")
+                    .map(ZipEntry::getName)
+                    .anyMatch(name -> name.contains("install/") && name.endsWith(".yaml"))
+                    .describedAs("Should contain install YAML files");
+        }
+    }
+
+    @Test
+    void deprecatedZipArchiveShouldContainCrds() throws IOException {
+        Path zipArchive = getDeprecatedZipArchive();
+        try (ZipFile zip = new ZipFile(zipArchive.toFile())) {
+            assertThat(zip.stream())
+                    .as("Deprecated zip archive should contain CRD files")
+                    .map(ZipEntry::getName)
+                    .anyMatch(name -> name.contains("crd") && name.endsWith(".yaml"))
+                    .describedAs("Should contain CRD YAML files");
+        }
+    }
+
+    @Test
+    void deprecatedZipArchiveShouldContainExamples() throws IOException {
+        Path zipArchive = getDeprecatedZipArchive();
+        try (ZipFile zip = new ZipFile(zipArchive.toFile())) {
+            assertThat(zip.stream())
+                    .as("Deprecated zip archive should contain examples directory")
+                    .map(ZipEntry::getName)
+                    .anyMatch(name -> name.startsWith("examples/"))
+                    .describedAs("Should contain examples directory");
+        }
+    }
+
     private static Path getFullInstallManifest() {
         String version = OperatorInfo.fromResource().version();
         Path manifest = Path.of("target/kroxylicious-operator-" + version + "-install.yaml");
@@ -91,6 +129,15 @@ class InstallManifestKT {
                 .describedAs("CRDs-only manifest %s must exist", manifest)
                 .exists();
         return manifest;
+    }
+
+    private static Path getDeprecatedZipArchive() {
+        String version = OperatorInfo.fromResource().version();
+        Path archive = Path.of("../kroxylicious-operator-dist/target/kroxylicious-operator-" + version + ".zip");
+        assumeThat(archive)
+                .describedAs("Deprecated zip archive %s must exist", archive)
+                .exists();
+        return archive;
     }
 
     private List<HasMetadata> loadAllResources(Path manifestFile) throws IOException {
