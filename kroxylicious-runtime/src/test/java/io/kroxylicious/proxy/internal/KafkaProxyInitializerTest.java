@@ -50,7 +50,6 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
-import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
@@ -64,6 +63,7 @@ import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RouterChainFactory;
 import io.kroxylicious.proxy.internal.routing.RoutingHandler;
 import io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler;
 import io.kroxylicious.proxy.model.VirtualClusterModel;

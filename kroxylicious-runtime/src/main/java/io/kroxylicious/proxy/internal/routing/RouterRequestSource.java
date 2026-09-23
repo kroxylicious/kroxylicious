@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
-import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.frame.RequestFrame;
 

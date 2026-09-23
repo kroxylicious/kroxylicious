@@ -31,7 +31,6 @@ import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
-import io.kroxylicious.proxy.internal.topology.TopologyCache;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -164,7 +163,7 @@ public class RouteDispatcher implements RouterDispatch {
      * flowing through {@link #handleResponse} update {@code cache} as a side effect. Called at
      * most once per connection, right after {@code createRouter()} returns, if a
      * {@link TopologyCache} now exists for this router level (see
-     * {@link io.kroxylicious.proxy.bootstrap.RouterChainFactory#existingTopologyCache}) - not
+     * {@link RouterChainFactory#existingTopologyCache}) - not
      * re-checked per response, because whether the cache exists is fully decided by the time
      * {@code createRouter()} returns (a router may only call
      * {@link io.kroxylicious.proxy.router.RouterFactoryContext#topologyService()} during
