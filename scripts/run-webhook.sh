@@ -18,11 +18,11 @@ info "Starting minikube with 4GB memory"
 ${MINIKUBE} start --memory=4096
 
 info "Building distribution with Maven"
-mvn clean install --activate-profiles dist -Dquick --projects :kroxylicious-admission-dist --also-make
+mvn clean install --activate-profiles dist -Dquick --projects  --also-make
 
 info "Extracting distribution tarball"
 DIST_DIR=$(mktemp -d)
-tar -xzf kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-*.tar.gz -C "${DIST_DIR}"
+tar -xzf kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-*.tar.gz -C "${DIST_DIR}"
 
 info "Loading webhook image into minikube"
 gunzip --to-stdout kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-webhook.img.tar.gz \

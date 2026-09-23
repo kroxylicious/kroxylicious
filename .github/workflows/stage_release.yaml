@@ -251,8 +251,8 @@ jobs:
           }
 
           copy_dist "kroxylicious-app/target/kroxylicious-app-${VERSION}-bin"
-          copy_dist "kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-${VERSION}"
-          copy_dist "kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-${VERSION}"
+          copy_dist "kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-${VERSION}"
+          copy_dist "kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-${VERSION}"
           cp "kroxylicious-api/target/japicmp/japicmp.html" "release-assets/${VERSION}-compatability.html"
 
       - name: 'Archive release assets (used by the promote workflow)'

@@ -219,14 +219,14 @@ API_COMPATABILITY_REPORT=kroxylicious-api/target/japicmp/"${RELEASE_VERSION}"-co
 cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
 # csplit will create a file for every version as we use ## to denote versions. We also use # CHANGELOG as a header so the current release is actually in the 01 file (zero based)
 APP_BINARY_DISTRIBUTION_ASSET="./kroxylicious-app/target/kroxylicious-app-${RELEASE_VERSION}-bin"
-OPERATOR_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-${RELEASE_VERSION}"
-ADMISSION_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-${RELEASE_VERSION}"
-OPERATOR_INSTALL_MANIFEST="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-dist-${RELEASE_VERSION}-install.yaml"
-OPERATOR_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-dist-${RELEASE_VERSION}-crds.yaml"
-ADMISSION_INSTALL_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-dist-${RELEASE_VERSION}-install.yaml"
-ADMISSION_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-dist-${RELEASE_VERSION}-crds.yaml"
-OPERATOR_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-dist-${RELEASE_VERSION}-examples"
-ADMISSION_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-dist-${RELEASE_VERSION}-examples"
+OPERATOR_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-${RELEASE_VERSION}"
+ADMISSION_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-${RELEASE_VERSION}"
+OPERATOR_INSTALL_MANIFEST="./kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-${RELEASE_VERSION}-install.yaml"
+OPERATOR_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-${RELEASE_VERSION}-crds.yaml"
+ADMISSION_INSTALL_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-${RELEASE_VERSION}-install.yaml"
+ADMISSION_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-${RELEASE_VERSION}-crds.yaml"
+OPERATOR_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-${RELEASE_VERSION}-examples"
+ADMISSION_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-${RELEASE_VERSION}-examples"
 
 gh release create --title "${RELEASE_TAG}" \
   --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" \

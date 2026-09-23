@@ -196,7 +196,7 @@ jobs:
             --batch-mode \
             --activate-profiles 'dist,!qa' \
             --also-make \
-            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist,:kroxylicious-admission \
+            --projects :kroxylicious-app,:kroxylicious-operator,,:kroxylicious-admission \
             -Derrorprone.skip=true \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
@@ -217,7 +217,7 @@ jobs:
           mvn --quiet \
             --batch-mode \
             --activate-profiles 'dist,!qa' \
-            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist,:kroxylicious-admission \
+            --projects :kroxylicious-app,:kroxylicious-operator,,:kroxylicious-admission \
             -Derrorprone.skip=true \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
