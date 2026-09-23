@@ -44,19 +44,19 @@ jobs:
           predicate-quantifier: 'some-with-excludes'
           filters: |
             systemtest:
+              - '.github/workflows/system-tests-pr.yaml'
+              - '.github/workflows/run-system-tests.yaml'
+              - '.github/workflows/build-kroxylicious-container-images.yaml'
+              - '.github/workflows/build-kroxylicious-artifacts.yaml'
               - 'pom.xml'
-              - '!**/**.md'
               - 'kroxylicious-**/**'
+              - '!**/**.md'
               - '!kroxylicious-annotations/**'
               - '!kroxylicious-docs**/**'
               - '!kroxylicious-integration-test**/**'
               - '!kroxylicious-*benchmarks/**'
               - '!kroxylicious-test-images/**'
               - '!kroxylicious-wire-fidelity-tests/**'
-              - '.github/workflows/system-tests-pr.yaml'
-              - '.github/workflows/run-system-tests.yaml'
-              - '.github/workflows/build-kroxylicious-container-images.yaml'
-              - '.github/workflows/build-kroxylicious-artifacts.yaml'
 
   build_artifacts:
     needs: changes
