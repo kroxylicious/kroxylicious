@@ -95,7 +95,7 @@ class InstallManifestKT {
         try (ZipFile zip = new ZipFile(zipArchive.toFile())) {
             assertThat(zip.stream()
                     .map(ZipEntry::getName)
-                    .anyMatch(name -> name.contains("crd") && name.endsWith(".yaml")))
+                    .anyMatch(name -> name.contains("CustomResourceDefinition") && name.endsWith(".yaml")))
                     .as("Deprecated zip archive should contain CRD YAML files")
                     .isTrue();
         }
