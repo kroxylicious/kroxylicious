@@ -12,6 +12,9 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -43,6 +46,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                              @Nullable CacheConfiguration topicNameCache,
                              @Nullable Duration drainTimeout) {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualCluster.class);
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
     private static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(10);
 
@@ -51,7 +55,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * {@code targetCluster} or {@code target} must be given, at least one uniquely-named
      * gateway must be configured, and any explicit {@code drainTimeout} must be positive.
      */
-    @SuppressWarnings("java:S2789") // S2789 - checking for null tls is the intent
+    @SuppressWarnings({ "java:S2789", "removal" }) // S2789 - checking for null tls is the intent; removal for the use of deprecated targetCluster
     public VirtualCluster {
         Objects.requireNonNull(name);
         if (!isDnsLabel(name)) {
@@ -60,6 +64,12 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                             + " (case insensitive)");
         }
         validateTargetExclusivity(name, targetCluster, target);
+        if (targetCluster != null) {
+            LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", name)
+                    .log("the targetCluster field is deprecated and will be removed in a future release. "
+                            + "Declare the cluster in the clusterDefinitions array, and reference it by name using target.cluster.");
+        }
         if (gateways == null || gateways.isEmpty()) {
             throw new IllegalConfigurationException("no gateways configured for virtual cluster '" + name + "'");
         }
@@ -78,6 +88,26 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
     }
 
     /**
+     * Convenience constructor for a virtual cluster with a route target and all
+     * optional components defaulted.
+     *
+     * @param name virtual cluster name
+     * @param target reference to a named cluster or router
+     * @param gateways virtual cluster gateways
+     * @param logNetwork if true, network will be logged
+     * @param logFrames if true, kafka rpcs will be logged
+     * @param filters filters applied to requests
+     */
+    public VirtualCluster(String name,
+                          RouteTarget target,
+                          List<VirtualClusterGateway> gateways,
+                          boolean logNetwork,
+                          boolean logFrames,
+                          @Nullable List<String> filters) {
+        this(name, null, target, gateways, logNetwork, logFrames, filters, null, null, null);
+    }
+
+    /**
      * Convenience constructor for a virtual cluster with an inline target cluster and all
      * optional components defaulted.
      *
@@ -87,7 +117,9 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * @param logNetwork if true, network will be logged
      * @param logFrames if true, kafka rpcs will be logged
      * @param filters filters applied to requests
+     * @deprecated targetCluster is deprecated, use constructor that accepts routeTarget instead
      */
+    @Deprecated(since = "0.22.0", forRemoval = true)
     public VirtualCluster(String name,
                           TargetCluster targetCluster,
                           List<VirtualClusterGateway> gateways,
@@ -200,6 +232,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * as an internal helper of {@link #sameAs(VirtualCluster)} to normalise the one
      * order-insensitive component before the record's auto-equals does the rest.
      */
+    @SuppressWarnings("removal")
     private VirtualCluster canonical() {
         List<VirtualClusterGateway> sortedGateways = gateways.stream()
                 .sorted(java.util.Comparator.comparing(VirtualClusterGateway::name))

@@ -25,7 +25,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * @param bootstrapServers A list of host/port pairs to use for establishing the initial connection to the target (upstream) Kafka cluster.
  * @param tls tls configuration if a secure connection is to be used.
- * @param selectionStrategy The strategy used for selecting a bootstrap server when multiple servers are specified.
+ * @param selectionStrategy The strategy used for selecting a bootstrap server when multiple servers are specified,
+ *                          or null when the default (round-robin) strategy is to be used.
  */
 public record TargetCluster(@JsonProperty(value = "bootstrapServers", required = true) String bootstrapServers,
                             @JsonProperty(value = "tls") Optional<Tls> tls,
@@ -75,13 +76,17 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
     }
 
     /**
-     * Selects a single bootstrap server using the configured selection strategy
-     * (round-robin by default).
+     * The bootstrap server selection strategy in effect: the configured {@link #selectionStrategy()},
+     * or the default (round-robin) strategy when none is configured.
+     * <p>
+     * The strategy is immutable configuration; the selection state itself is obtained per upstream
+     * cluster model via {@link BootstrapSelectionStrategy#newSelector()}.
      *
-     * @return the selected bootstrap server address
+     * @return the effective selection strategy, never null
      */
-    public HostPort bootstrapServer() {
-        return resolveSelectionStrategy().apply(bootstrapServersList());
+    // the default is not applied to the field itself so that we can maintain fidelity between the fluent API and the yaml config.
+    public BootstrapSelectionStrategy effectiveSelectionStrategy() {
+        return Objects.requireNonNullElse(selectionStrategy, DEFAULT_SELECTION_STRATEGY);
     }
 
     @Override
@@ -89,13 +94,8 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
         final StringBuilder sb = new StringBuilder("TargetCluster[");
         sb.append("bootstrapServers='").append(bootstrapServers).append('\'');
         sb.append(", tls=").append(tls.map(Tls::toString).orElse(null));
-        sb.append(", bootstrapServerSelectionStrategy=").append(resolveSelectionStrategy().getClass().getSimpleName());
+        sb.append(", bootstrapServerSelectionStrategy=").append(effectiveSelectionStrategy().getClass().getSimpleName());
         sb.append(']');
         return sb.toString();
-    }
-
-    // we don't apply this to the field itself so that we can maintain fidelity between the fluent API and the yaml config.
-    private BootstrapSelectionStrategy resolveSelectionStrategy() {
-        return Objects.requireNonNullElse(selectionStrategy, DEFAULT_SELECTION_STRATEGY);
     }
 }

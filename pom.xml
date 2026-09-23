@@ -63,7 +63,7 @@
         <caffeine.version>3.2.4</caffeine.version>
         <argparse4j.version>0.7.0</argparse4j.version>
         <picocli.version>4.7.7</picocli.version>
-        <netty.version>4.2.17.Final</netty.version>
+        <netty.version>4.2.18.Final</netty.version>
         <netty.epoll.architecture>linux-x86_64</netty.epoll.architecture>
         <netty.io_uring.architecture>linux-x86_64</netty.io_uring.architecture>
         <netty.kqueue.architecture>osx-x86_64</netty.kqueue.architecture>
@@ -80,7 +80,7 @@
         <kiota.version>0.0.38</kiota.version>
         <avro.version>1.12.2</avro.version>
         <protobuf-java.version>4.36.1</protobuf-java.version>
-        <jose4j.version>0.9.6</jose4j.version>
+        <jose4j.version>0.9.7</jose4j.version>
 
         <!-- Test dependencies -->
         <strimzi.version>1.2.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
@@ -1020,7 +1020,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>build-helper-maven-plugin</artifactId>
-                    <version>3.6.1</version>
+                    <version>3.6.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.jacoco</groupId>
@@ -1045,7 +1045,7 @@
                 <plugin>
                     <groupId>com.github.spotbugs</groupId>
                     <artifactId>spotbugs-maven-plugin</artifactId>
-                    <version>4.10.3.0</version>
+                    <version>4.10.4.1</version>
                     <configuration>
                         <effort>Max</effort>
                         <threshold>Low</threshold>
@@ -1212,7 +1212,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>3.6.3</version>
+                <version>3.6.4</version>
             </plugin>
             <plugin>
                 <groupId>org.commonjava.maven.plugins</groupId>

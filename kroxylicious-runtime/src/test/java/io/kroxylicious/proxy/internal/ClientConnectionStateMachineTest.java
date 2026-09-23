@@ -149,7 +149,10 @@ class ClientConnectionStateMachineTest {
         clientConnectionStateMachine.onClientActive(frontendHandler);
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_connections").counter())
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_to_proxy_connections")
+                .tag("virtual_cluster", CLUSTER_NAME)
+                .tag("node_id", "bootstrap")
+                .counter())
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
@@ -166,7 +169,10 @@ class ClientConnectionStateMachineTest {
         clientConnectionStateMachine.onClientException(failure);
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_errors").counter())
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_to_proxy_errors")
+                .tag("virtual_cluster", CLUSTER_NAME)
+                .tag("node_id", "bootstrap")
+                .counter())
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
@@ -205,7 +211,10 @@ class ClientConnectionStateMachineTest {
 
         // Then: the counter passed is the Micrometer counter registered for proxyToServer connections
         assertThat(capturedCounter.get()).isNotNull();
-        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
+        assertThat(simpleMeterRegistry.get("kroxylicious_proxy_to_server_connections")
+                .tag("virtual_cluster", CLUSTER_NAME)
+                .tag("node_id", "bootstrap")
+                .counter())
                 .isNotNull();
     }
 
@@ -686,7 +695,10 @@ class ClientConnectionStateMachineTest {
         clientConnectionStateMachine.onServerWritable();
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_reads_paused").timer())
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_to_proxy_reads_paused")
+                .tag("virtual_cluster", CLUSTER_NAME)
+                .tag("node_id", "bootstrap")
+                .timer())
                 .isInstanceOf(Timer.class)
                 .satisfies(timer -> assertThat(timer.count()).isGreaterThanOrEqualTo(1)
                 // Count is incremented when the timer is stopped
@@ -971,14 +983,10 @@ class ClientConnectionStateMachineTest {
     void toForwardingWithRoutesShouldPopulateRouteTargetsAfterScsmCreation() {
         // Given: a router VC with one route and a healthy SCSM factory
         stateMachineInClientActive();
-        var target = new HostPort("broker", 9092);
-        var targetCluster = mock(TargetCluster.class, withSettings().lenient());
-        when(targetCluster.bootstrapServer()).thenReturn(target);
-        var routeDescriptor = mock(RouteDescriptor.class, withSettings().lenient());
-        when(routeDescriptor.targetsCluster()).thenReturn(true);
-        when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
+        var routeDescriptors = Map.of("my-route",
+                new RouteDescriptor("my-route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("my-route", routeDescriptor), mock(RouterChainFactory.class)));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors, mock(RouterChainFactory.class)));
         when(routerVc.getUpstreamClusterForRoute(any())).thenReturn(noTlsClusterModel());
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
@@ -1027,13 +1035,13 @@ class ClientConnectionStateMachineTest {
     void toForwardingWithRoutesShouldFailFastIfRouteBootstrapServerIsNull() {
         // Given
         stateMachineInClientActive();
-        var targetCluster = mock(TargetCluster.class, withSettings().lenient());
-        when(targetCluster.bootstrapServer()).thenReturn(null);
-        var routeDescriptor = mock(RouteDescriptor.class, withSettings().lenient());
-        when(routeDescriptor.targetsCluster()).thenReturn(true);
-        when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
+        var upstreamClusterModel = mock(UpstreamClusterModel.class, withSettings().lenient());
+        when(upstreamClusterModel.bootstrapServer()).thenReturn(null);
+        var routeDescriptors = Map.of("bad-route",
+                new RouteDescriptor("bad-route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("bad-route", routeDescriptor), mock(RouterChainFactory.class)));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors, mock(RouterChainFactory.class)));
+        when(routerVc.getUpstreamClusterForRoute(any())).thenReturn(upstreamClusterModel);
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When / Then
@@ -1294,7 +1302,7 @@ class ClientConnectionStateMachineTest {
             clientConnectionStateMachine.onClientIdle();
 
             // Then
-            assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
+            assertThat(simpleMeterRegistry.find("kroxylicious_client_to_proxy_disconnects")
                     .tag("virtual_cluster", CLUSTER_NAME)
                     .tag("node_id", "bootstrap")
                     .tag("cause", "idle_timeout")
@@ -1312,7 +1320,7 @@ class ClientConnectionStateMachineTest {
             clientConnectionStateMachine.onClientInactive();
 
             // Then
-            assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
+            assertThat(simpleMeterRegistry.find("kroxylicious_client_to_proxy_disconnects")
                     .tag("virtual_cluster", CLUSTER_NAME)
                     .tag("node_id", "bootstrap")
                     .tag("cause", "client_closed")
@@ -1330,7 +1338,7 @@ class ClientConnectionStateMachineTest {
             clientConnectionStateMachine.onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
 
             // Then
-            assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
+            assertThat(simpleMeterRegistry.find("kroxylicious_client_to_proxy_disconnects")
                     .tag("virtual_cluster", CLUSTER_NAME)
                     .tag("node_id", "bootstrap")
                     .tag("cause", "server_closed")
@@ -1539,7 +1547,9 @@ class ClientConnectionStateMachineTest {
             assertThat(closedFuture).isCompleted();
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             // The drain-completed metric was incremented (proves DisconnectCause routing)
-            assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
+            assertThat(simpleMeterRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                    .tag("virtual_cluster", CLUSTER_NAME)
+                    .tag("node_id", "bootstrap")
                     .tag("cause", "drain_completed").counter().count()).isEqualTo(1.0);
             // Timer was cancelled by the onDrained policy
             verify(scheduledFuture).cancel(false);
@@ -1737,7 +1747,9 @@ class ClientConnectionStateMachineTest {
             // Then — state forced to Closed with DRAIN_TIMEOUT cause
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             assertThat(closedFuture).isCompleted();
-            assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
+            assertThat(simpleMeterRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                    .tag("virtual_cluster", CLUSTER_NAME)
+                    .tag("node_id", "bootstrap")
                     .tag("cause", "drain_timeout").counter().count()).isEqualTo(1.0);
         }
 
@@ -1752,7 +1764,9 @@ class ClientConnectionStateMachineTest {
             clientConnectionStateMachine.onResponseFromServer(new Object());
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             assertThat(closedFuture).isCompleted();
-            double drainCompletedBefore = Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
+            double drainCompletedBefore = simpleMeterRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                    .tag("virtual_cluster", CLUSTER_NAME)
+                    .tag("node_id", "bootstrap")
                     .tag("cause", "drain_completed").counter().count();
 
             // When — the (now-stale) timer fires after natural completion
@@ -1760,7 +1774,9 @@ class ClientConnectionStateMachineTest {
 
             // Then — no-op: state stays Closed, DRAIN_COMPLETED metric unchanged
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
-            assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
+            assertThat(simpleMeterRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                    .tag("virtual_cluster", CLUSTER_NAME)
+                    .tag("node_id", "bootstrap")
                     .tag("cause", "drain_completed").counter().count()).isEqualTo(drainCompletedBefore);
         }
 

@@ -474,7 +474,7 @@ class RoutingGraphChangeDetectorTest {
     }
 
     @Test
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     void vcWithInlineTargetClusterReturnsFalse() {
         // Given
         var vc = new VirtualCluster("vc1", new TargetCluster("kafka:9092", Optional.empty()),
@@ -543,7 +543,7 @@ class RoutingGraphChangeDetectorTest {
         return vc(name, new RouteTarget(clusterDefName, null));
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     private static VirtualCluster vcWithInlineTarget(String name) {
         return new VirtualCluster(name, new TargetCluster("kafka:9092", Optional.empty()),
                 List.of(gateway()), false, false, null);

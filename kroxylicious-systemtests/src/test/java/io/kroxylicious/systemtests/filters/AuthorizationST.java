@@ -52,9 +52,7 @@ class AuthorizationST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationST.class);
     private static final String MESSAGE = "Hello-world";
     private final String clusterName = "authorization-st-cluster";
-    private String bootstrap;
     private KroxyliciousOperator kroxyliciousOperator;
-    private static Kroxylicious kroxylicious;
     private final Map<String, String> usernamePasswords = new HashMap<>();
     List<String> aclRules;
 
@@ -82,7 +80,6 @@ class AuthorizationST extends AbstractSystemTests {
 
     @BeforeEach
     void beforeEach() {
-        bootstrap = null;
         aclRules = new ArrayList<>();
         aclRules.add(generateAllowAclRule(Constants.KROXYLICIOUS_ADMIN_USER, "*"));
     }
@@ -94,24 +91,30 @@ class AuthorizationST extends AbstractSystemTests {
         }
     }
 
-    private void deployAuthorizationResources(Map<String, String> usernamePassword, List<String> aclRules) {
-        LOGGER.info("Deploy Kroxylicious with authorization filter in {} namespace", Constants.KROXYLICIOUS_NAMESPACE);
+    private void deployAuthorizationResources(String namespace, Map<String, String> usernamePassword, List<String> aclRules) {
+        LOGGER.info("Deploy Kroxylicious with authorization filter in {} namespace", namespace);
         KafkaUtils.createKafkaUsers(clusterName, usernamePassword);
 
         resourceManager.createOrUpdateResourceFromBuilderWithWait(
-                KroxyliciousConfigMapTemplates.getAclRulesConfigMap(Constants.KROXYLICIOUS_NAMESPACE, "acl-rules", aclRules));
+                KroxyliciousConfigMapTemplates.getAclRulesConfigMap(namespace, "acl-rules", aclRules));
     }
 
-    private void deployPortIdentifiesNodeWithAuthorizationFilter(Map<String, String> usernamePasswords, List<String> aclRules) {
-        deployAuthorizationResources(usernamePasswords, aclRules);
-        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(Constants.KROXYLICIOUS_NAMESPACE, clusterName, 1)
-                .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(Constants.KROXYLICIOUS_NAMESPACE).build())
+    /**
+     * Deploys the proxy into the test's own namespace. The ACL rules are read by the authorization filter once,
+     * when the proxy starts, so the rules must be in place before the proxy pod is created. Deploying per test
+     * (rather than sharing a class-scoped proxy) guarantees that, because the pod is always created afresh.
+     */
+    private Kroxylicious deployPortIdentifiesNodeWithAuthorizationFilter(String namespace, Map<String, String> usernamePasswords, List<String> aclRules) {
+        deployAuthorizationResources(namespace, usernamePasswords, aclRules);
+        var kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1)
+                .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(namespace).build())
                 .addKafkaProtocolFilter(
-                        KroxyliciousFilterTemplates.kroxyliciousAuthorizationFilter(Constants.KROXYLICIOUS_NAMESPACE, "${configmap:acl-rules:acl-rules}").build())
+                        KroxyliciousFilterTemplates.kroxyliciousAuthorizationFilter(namespace, "${configmap:acl-rules:acl-rules}").build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_AUTHORIZATION_FILTER_NAME)).build())
                 .build();
         kroxylicious.createOrUpdateResources();
+        return kroxylicious;
     }
 
     @Test
@@ -126,8 +129,8 @@ class AuthorizationST extends AbstractSystemTests {
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        deployPortIdentifiesNodeWithAuthorizationFilter(usernamePasswords, aclRules);
-        bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
+        var kroxylicious = deployPortIdentifiesNodeWithAuthorizationFilter(namespace, usernamePasswords, aclRules);
+        String bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
@@ -161,8 +164,8 @@ class AuthorizationST extends AbstractSystemTests {
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        deployPortIdentifiesNodeWithAuthorizationFilter(usernamePasswords, aclRules);
-        bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
+        var kroxylicious = deployPortIdentifiesNodeWithAuthorizationFilter(namespace, usernamePasswords, aclRules);
+        String bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
@@ -204,8 +207,8 @@ class AuthorizationST extends AbstractSystemTests {
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        deployPortIdentifiesNodeWithAuthorizationFilter(usernamePasswords, aclRules);
-        bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
+        var kroxylicious = deployPortIdentifiesNodeWithAuthorizationFilter(namespace, usernamePasswords, aclRules);
+        String bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);

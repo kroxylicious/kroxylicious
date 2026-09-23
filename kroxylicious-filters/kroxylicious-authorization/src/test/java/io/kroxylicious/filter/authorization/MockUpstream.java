@@ -69,13 +69,13 @@ public class MockUpstream {
         ScenarioDefinition.MockResponse mockDefinition = pop();
         ApiKeys key = mockDefinition.expectedRequestKey();
         assertThat(key).isEqualTo(ApiKeys.forId(requestHeader.requestApiKey()));
-        short version = mockDefinition.expectedRequestVersion();
-        assertThat(requestHeader.requestApiVersion()).isEqualTo(version);
-        JsonNode actualHeader = RequestHeaderDataJsonConverter.write(requestHeader, key.requestHeaderVersion(version));
+        var requestVersion = mockDefinition.expectedRequestVersion();
+        assertThat(requestHeader.requestApiVersion()).isEqualTo(requestVersion);
+        JsonNode actualHeader = RequestHeaderDataJsonConverter.write(requestHeader, key.requestHeaderVersion(requestVersion));
         assertThat(toYaml(actualHeader))
                 .as("Header of request forwarded to broker")
                 .isEqualTo(toYaml(mockDefinition.expectedRequestHeader()));
-        JsonNode actualBody = VendoredKafkaApiMessageConverter.requestConverterFor(key.messageType).writer().apply(request, version);
+        JsonNode actualBody = VendoredKafkaApiMessageConverter.requestConverterFor(key.messageType).writer().apply(request, requestVersion);
         assertThat(toYaml(actualBody))
                 .as("Body of request forwarded to broker")
                 .isEqualTo(toYaml(mockDefinition.expectedRequest()));
@@ -83,10 +83,11 @@ public class MockUpstream {
             return null;
         }
         JsonNode jsonNode = mockDefinition.upstreamResponse();
-        ResponseHeaderData header = ResponseHeaderDataJsonConverter.read(mockDefinition.upstreamResponseHeader(), key.requestHeaderVersion(version));
-        ApiMessage responseMessage = VendoredKafkaApiMessageConverter.responseConverterFor(key.messageType).reader().apply(jsonNode, version);
-        return new Response(header, responseMessage);
+        var responseVersion = mockDefinition.upstreamResponseVersion() != null ? mockDefinition.upstreamResponseVersion() : requestVersion;
+        ResponseHeaderData header = ResponseHeaderDataJsonConverter.read(mockDefinition.upstreamResponseHeader(), key.requestHeaderVersion(responseVersion));
+        ApiMessage responseMessage = VendoredKafkaApiMessageConverter.responseConverterFor(key.messageType).reader().apply(jsonNode, responseVersion);
+        return new Response(header, responseMessage, responseVersion);
     }
 
-    public record Response(ResponseHeaderData header, ApiMessage message) {}
+    public record Response(ResponseHeaderData header, ApiMessage message, short responseVersion) {}
 }

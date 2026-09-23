@@ -40,7 +40,9 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService.CLIENT_TLS_SAN_DNS_NAME;
 import static io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService.CLIENT_TLS_SUBJECT;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -131,11 +133,15 @@ class VirtualClusterSubjectBuilderIT extends AbstractTlsIT {
                 "clientAuthAwareLawyer",
                 ClientAuthAwareLawyer.class.getName())
                 .build();
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
         // @formatter:off
         return KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToFilterDefinitions(clientAware)
                 .addToDefaultFilters(clientAware.name())
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
+                .addToClusterDefinitions(clusterDef)
+                .addNewVirtualCluster()
+                .withTarget(DEFAULT_CLUSTER_TARGET)
+                .withName("demo")
                         .withSubjectBuilder(subjectBuilderConfig)
                         .addToGateways(
                                 defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
@@ -153,7 +159,7 @@ class VirtualClusterSubjectBuilderIT extends AbstractTlsIT {
                                             .endTrustStoreTrust()
                                         .endTls()
                         .build())
-                .build());
+                .endVirtualCluster();
         // @formatter:on
     }
 }

@@ -8,15 +8,17 @@ package io.kroxylicious.testing.integration.tester;
 
 import java.time.Duration;
 
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
 /**
- * Class for utilities related to manipulating KroxyliciousConfig and it's builder.
+ * Class for utilities related to manipulating KroxyliciousConfig and its builder.
  */
 public class KroxyliciousConfigUtils {
 
@@ -39,31 +41,50 @@ public class KroxyliciousConfigUtils {
     public static final HostPort OS_ASSIGNED_BOOTSTRAP = new HostPort("localhost", 0);
 
     /**
-     * Create a KroxyliciousConfigBuilder with a single virtual cluster configured to
+     * Default name for a single cluster definition.
+     */
+    public static final String DEFAULT_CLUSTER_DEF_NAME = "target-cluster";
+
+    /**
+     * A route target referencing the cluster definition named {@link #DEFAULT_CLUSTER_DEF_NAME}.
+     * Pass to {@code VirtualClusterBuilder#withTarget} rather than naming the cluster definition
+     * and a null router separately.
+     */
+    public static final RouteTarget DEFAULT_CLUSTER_TARGET = new RouteTarget(DEFAULT_CLUSTER_DEF_NAME, null);
+
+    /**
+     * Create a ConfigurationBuilder with a single virtual cluster configured to
      * proxy an externally provided bootstrap server.
+     *
+     * <p>This method creates a top-level ClusterDefinition and a virtual cluster
+     * that references it, aligning with the current configuration model.</p>
+     *
      * @param clusterBootstrapServers external bootstrap server
-     * @return builder
+     * @return builder with ClusterDefinition and virtual cluster
      */
     public static ConfigurationBuilder proxy(String clusterBootstrapServers) {
         return proxy(clusterBootstrapServers, DEFAULT_VIRTUAL_CLUSTER);
     }
 
     /**
-     * Create a KroxyliciousConfigBuilder with a virtual cluster for each supplied name configured to
+     * Create a ConfigurationBuilder with virtual clusters for each supplied name configured to
      * proxy an externally provided single bootstrap server. I.e. many virtual clusters on a single target cluster.
+     *
+     * <p>This method creates a top-level ClusterDefinition and virtual clusters that reference it,
+     * aligning with the current configuration model.</p>
      *
      * @param clusterBootstrapServers external bootstrap server
      * @param virtualClusterNames the name to use for the virtual cluster
-     * @return builder
+     * @return builder with ClusterDefinition and virtual clusters
      */
     public static ConfigurationBuilder proxy(String clusterBootstrapServers, String... virtualClusterNames) {
-        final ConfigurationBuilder configurationBuilder = baseConfigurationBuilder();
+        var clusterDef = new ClusterDefinition(DEFAULT_CLUSTER_DEF_NAME, clusterBootstrapServers, null);
+        final ConfigurationBuilder configurationBuilder = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef);
         for (String virtualClusterName : virtualClusterNames) {
             var vcb = new VirtualClusterBuilder()
                     .withName(virtualClusterName)
-                    .withNewTargetCluster()
-                    .withBootstrapServers(clusterBootstrapServers)
-                    .endTargetCluster()
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build());
             configurationBuilder
                     .addToVirtualClusters(vcb.build());
@@ -72,10 +93,14 @@ public class KroxyliciousConfigUtils {
     }
 
     /**
-     * Create a KroxyliciousConfigBuilder with a single virtual cluster configured to
+     * Create a ConfigurationBuilder with a single virtual cluster configured to
      * proxy a KafkaCluster.
+     *
+     * <p>This method creates a top-level ClusterDefinition and a virtual cluster
+     * that references it, aligning with the current configuration model.</p>
+     *
      * @param cluster kafka cluster to proxy
-     * @return builder
+     * @return builder with ClusterDefinition and virtual cluster
      */
     public static ConfigurationBuilder proxy(KafkaCluster cluster) {
         return proxy(cluster.getBootstrapServers());
@@ -162,17 +187,16 @@ public class KroxyliciousConfigUtils {
     }
 
     /**
-     * Create a virtual cluster builder with the given name, targeting the given Kafka cluster.
-     * @param cluster kafka cluster to proxy
-     * @param clusterName name of the virtual cluster
-     * @return virtual cluster builder
+     * Create a ClusterDefinition, with the given name, for the given KafkaCluster. Add the result to a
+     * {@link ConfigurationBuilder} with {@code addToClusterDefinitions} and reference it by name from
+     * a virtual cluster's {@code target}.
+     *
+     * @param clusterDefinitionName name for the cluster definition
+     * @param cluster kafka cluster
+     * @return cluster definition
      */
-    public static VirtualClusterBuilder baseVirtualClusterBuilder(KafkaCluster cluster, String clusterName) {
-        return new VirtualClusterBuilder()
-                .withNewTargetCluster()
-                .withBootstrapServers(cluster.getBootstrapServers())
-                .endTargetCluster()
-                .withName(clusterName);
+    public static ClusterDefinition clusterDefinition(String clusterDefinitionName, KafkaCluster cluster) {
+        return new ClusterDefinition(clusterDefinitionName, cluster.getBootstrapServers(), null);
     }
 
     /**

@@ -17,7 +17,6 @@ import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
-import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -36,6 +35,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ChangeDetectorPipelineTest {
 
+    private static final ClusterDefinition CLUSTER_DEFINITION = new ClusterDefinition("upstream", "kafka:9092", null);
+    private static final List<ClusterDefinition> CLUSTER_DEFINITION_LIST = List.of(CLUSTER_DEFINITION);
+    private static final RouteTarget CLUSTER_TARGET = new RouteTarget(CLUSTER_DEFINITION.name(), null);
+
     private final VirtualClusterChangeDetector vccDetector = new VirtualClusterChangeDetector();
     private final FilterChangeDetector filterDetector = new FilterChangeDetector();
     private final RoutingGraphChangeDetector routingDetector = new RoutingGraphChangeDetector();
@@ -49,16 +52,16 @@ class ChangeDetectorPipelineTest {
         var oldFilter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.FakeFilter", "config-v1");
         var newFilter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.FakeFilter", "config-v2");
         var oldVc = new VirtualCluster("cluster",
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway("default", 9192)),
                 false, false, List.of("filter-a"));
         var newVc = new VirtualCluster("cluster",
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway("default", 9999)), // port changed
                 false, false, List.of("filter-a"));
-        var oldConfig = new Configuration(null, null, List.of(oldFilter), null, null,
+        var oldConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(oldFilter), null, null,
                 List.of(oldVc), null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, null, List.of(newFilter), null, null,
+        var newConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(newFilter), null, null,
                 List.of(newVc), null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(oldConfig, newConfig);
 
@@ -87,9 +90,9 @@ class ChangeDetectorPipelineTest {
         var newFilter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.FakeFilter", "v2");
         var existing = vc("existing", List.of("filter-a"));
         var newlyAdded = vc("newly-added", List.of("filter-a"));
-        var oldConfig = new Configuration(null, null, List.of(oldFilter), null, null,
+        var oldConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(oldFilter), null, null,
                 List.of(existing), null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, null, List.of(newFilter), null, null,
+        var newConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(newFilter), null, null,
                 List.of(existing, newlyAdded), null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(oldConfig, newConfig);
 
@@ -117,9 +120,9 @@ class ChangeDetectorPipelineTest {
         var oldFilter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.FakeFilter", "v1");
         var goingAway = vc("going-away", List.of("filter-a"));
         var staying = vcWithoutFilters("staying");
-        var oldConfig = new Configuration(null, null, List.of(oldFilter), null, null,
+        var oldConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(oldFilter), null, null,
                 List.of(goingAway, staying), null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, null, null, null, null,
+        var newConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null,
                 List.of(staying), null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(oldConfig, newConfig);
 
@@ -147,20 +150,20 @@ class ChangeDetectorPipelineTest {
         var keepUnchanged = vcWithoutFilters("keep");
         var removedCluster = vcWithoutFilters("goes-away");
         var oldGatewayChanged = new VirtualCluster("gateway-changed",
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway("default", 9192)),
                 false, false, List.of());
         var newGatewayChanged = new VirtualCluster("gateway-changed",
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway("default", 9999)), // gateway port changed
                 false, false, List.of());
         var filterChangedCluster = vc("filter-changed", List.of("filter-x"));
         var addedCluster = vcWithoutFilters("added");
 
-        var oldConfig = new Configuration(null, null, List.of(oldFilter), null, null,
+        var oldConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(oldFilter), null, null,
                 List.of(keepUnchanged, removedCluster, oldGatewayChanged, filterChangedCluster),
                 null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, null, List.of(newFilter), null, null,
+        var newConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(newFilter), null, null,
                 List.of(keepUnchanged, newGatewayChanged, filterChangedCluster, addedCluster),
                 null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(oldConfig, newConfig);
@@ -179,7 +182,7 @@ class ChangeDetectorPipelineTest {
         // accidentally introduce non-empty defaults in a detector's output.
         var filter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.FakeFilter", "v1");
         var cluster = vc("cluster", List.of("filter-a"));
-        var config = new Configuration(null, null, List.of(filter), null, null,
+        var config = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(filter), null, null,
                 List.of(cluster), null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(config, config);
 
@@ -199,18 +202,18 @@ class ChangeDetectorPipelineTest {
         var newFilter = new NamedFilterDefinition("filter-x", "io.kroxylicious.test.FakeFilter", "v2");
 
         var oldGatewayChanged = new VirtualCluster("gateway-changed",
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway("default", 9192)),
                 false, false, List.of());
         var newGatewayChanged = new VirtualCluster("gateway-changed",
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway("default", 9999)),
                 false, false, List.of());
         var filterChangedCluster = vc("filter-changed", List.of("filter-x"));
 
-        var oldConfig = new Configuration(null, null, List.of(oldFilter), null, null,
+        var oldConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(oldFilter), null, null,
                 List.of(oldGatewayChanged, filterChangedCluster), null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, null, List.of(newFilter), null, null,
+        var newConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(newFilter), null, null,
                 List.of(newGatewayChanged, filterChangedCluster), null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(oldConfig, newConfig);
 
@@ -275,7 +278,7 @@ class ChangeDetectorPipelineTest {
      */
     private static VirtualCluster vc(String name, @Nullable List<String> filters) {
         return new VirtualCluster(name,
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway("default", 9192)),
                 false, false, filters);
     }
@@ -287,7 +290,7 @@ class ChangeDetectorPipelineTest {
      */
     private static VirtualCluster vcWithoutFilters(String name) {
         return new VirtualCluster(name,
-                new TargetCluster("kafka:9092", Optional.empty()),
+                CLUSTER_TARGET,
                 List.of(gateway("default", 9192)),
                 false, false, List.of());
     }

@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.config;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -31,9 +32,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(MockitoExtension.class)
 class ConfigurationValidationTest {
+    private static final ClusterDefinition CLUSTER_DEFINITION = new ClusterDefinition("upstream", "kafka:9092", null);
+    private static final List<ClusterDefinition> CLUSTER_DEFINITION_LIST = List.of(CLUSTER_DEFINITION);
+    private static final RouteTarget CLUSTER_TARGET = new RouteTarget(CLUSTER_DEFINITION.name(), null);
 
     private static final VirtualCluster SIMPLE_VC = new VirtualCluster("demo",
-            new TargetCluster("broker:9092", Optional.empty()),
+            CLUSTER_TARGET,
             List.of(simpleGateway("gw")),
             false, false, null);
 
@@ -45,7 +49,7 @@ class ConfigurationValidationTest {
     }
 
     private static Configuration config(List<VirtualCluster> vcs) {
-        return new Configuration(null, null, null, null, null, vcs, null, false, Optional.empty(), null, null);
+        return new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, vcs, null, false, Optional.empty(), null, null);
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -126,40 +130,47 @@ class ConfigurationValidationTest {
     }
 
     @Test
+    @SuppressWarnings("removal") // tests deprecated target cluster config feature
     void shouldAcceptNullClusterDefinitions() {
-        assertThatCode(() -> config(List.of(SIMPLE_VC)))
+        assertThatCode(() -> config(List.of(new VirtualCluster("demo",
+                new TargetCluster("kafka:9192", Optional.empty()),
+                List.of(simpleGateway("gw")),
+                false, false, null))))
                 .doesNotThrowAnyException();
     }
 
     @Test
     void shouldRejectDuplicateRouterDefinitionNames() {
-        var cluster = new ClusterDefinition("c1", "broker:9092", null);
+        var routerTarget = new ClusterDefinition("c1", "broker:9092", null);
         var route = new RouteDefinition("route1", 0, null, new RouteTarget("c1", null));
         var routers = List.of(
                 new RouterDefinition("dup", "Type", null, List.of(route)),
                 new RouterDefinition("dup", "Type", null, List.of(route)));
 
-        assertThatThrownBy(() -> new Configuration(null, List.of(cluster), null, null, routers,
-                List.of(SIMPLE_VC), null, false, Optional.empty(), null, null))
+        var clusterDefinitions = List.of(CLUSTER_DEFINITION, routerTarget);
+        var vcs = List.of(SIMPLE_VC);
+        assertThatThrownBy(() -> new Configuration(null, clusterDefinitions, null, null, routers,
+                vcs, null, false, Optional.empty(), null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("duplicate names")
                 .hasMessageContaining("dup");
     }
 
     @Test
-    void shouldRejectUnknownNamedTargetCluster() {
+    void shouldRejectUnknownNamedRouteTarget() {
         var vcWithNamedTarget = new VirtualCluster("demo", null,
                 new RouteTarget("nonexistent", null),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
+        var vcs = List.of(vcWithNamedTarget);
 
-        assertThatThrownBy(() -> config(List.of(vcWithNamedTarget)))
+        assertThatThrownBy(() -> config(vcs))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("unknown target cluster")
                 .hasMessageContaining("nonexistent");
     }
 
     @Test
-    void shouldAcceptKnownNamedTargetCluster() {
+    void shouldAcceptKnownNamedRouteTarget() {
         var cluster = new ClusterDefinition("known", "broker:9092", null);
         var vcWithNamedTarget = new VirtualCluster("demo", null,
                 new RouteTarget("known", null),
@@ -294,27 +305,32 @@ class ConfigurationValidationTest {
     @Test
     void getMicrometerReturnsConfiguredValue() {
         var micrometer = List.of(new MicrometerDefinition("JmxMeterRegistry", null));
-        var config = new Configuration(null, null, null, null, null, List.of(SIMPLE_VC), micrometer, false, Optional.empty(), null, null);
+        var config = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(SIMPLE_VC), micrometer, false, Optional.empty(), null, null);
 
         assertThat(config.getMicrometer()).isEqualTo(micrometer);
     }
 
     @Test
     void isUseIoUringReturnsConfiguredValue() {
-        var config = new Configuration(null, null, null, null, null, List.of(SIMPLE_VC), null, true, Optional.empty(), null, null);
+        var config = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(SIMPLE_VC), null, true, Optional.empty(), null, null);
 
         assertThat(config.isUseIoUring()).isTrue();
     }
 
     @Test
     void shouldRejectFilterInRouteNotDefinedInFilterDefinitions() {
-        var cluster = new ClusterDefinition("c1", "broker:9092", null);
+        var routerTarget = new ClusterDefinition("c1", "broker:9092", null);
         var filterDefs = List.of(new NamedFilterDefinition("f1", "Type1", null));
         var route = new RouteDefinition("r", 0, List.of("undefined-filter"), new RouteTarget("c1", null));
         var router = new RouterDefinition("myrouter", "Type", null, List.of(route));
 
-        assertThatThrownBy(() -> new Configuration(null, List.of(cluster), filterDefs, null, List.of(router),
-                List.of(SIMPLE_VC), null, false, Optional.empty(), null, null))
+        var clusterDefinitions = List.of(CLUSTER_DEFINITION, routerTarget);
+        var vcs = List.of(SIMPLE_VC);
+        var routers = List.of(router);
+        var empty = Optional.<Map<String, Object>> empty();
+
+        assertThatThrownBy(() -> new Configuration(null, clusterDefinitions, filterDefs, null, routers,
+                vcs, null, false, empty, null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("references filters not defined")
                 .hasMessageContaining("undefined-filter");
@@ -327,7 +343,7 @@ class ConfigurationValidationTest {
         var route = new RouteDefinition("r", 0, List.of("f1"), new RouteTarget("c1", null));
         var router = new RouterDefinition("myrouter", "Type", null, List.of(route));
 
-        assertThatCode(() -> new Configuration(null, List.of(cluster), filterDefs, null, List.of(router),
+        assertThatCode(() -> new Configuration(null, List.of(CLUSTER_DEFINITION, cluster), filterDefs, null, List.of(router),
                 List.of(SIMPLE_VC), null, false, Optional.empty(), null, null))
                 .doesNotThrowAnyException();
     }
@@ -413,9 +429,9 @@ class ConfigurationValidationTest {
 
     @Test
     void shouldRejectDuplicateVirtualClusterNamesCaseInsensitive() {
-        var vc1 = new VirtualCluster("demo", new TargetCluster("b1:9092", Optional.empty()),
+        var vc1 = new VirtualCluster("demo", CLUSTER_TARGET,
                 List.of(simpleGateway("gw1")), false, false, null);
-        var vc2 = new VirtualCluster("DEMO", new TargetCluster("b2:9092", Optional.empty()),
+        var vc2 = new VirtualCluster("DEMO", CLUSTER_TARGET,
                 List.of(simpleGateway("gw2")), false, false, null);
 
         assertThatThrownBy(() -> config(List.of(vc1, vc2)))

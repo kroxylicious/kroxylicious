@@ -17,6 +17,7 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.ClusterDefinition",
         "io.kroxylicious.proxy.config.RouterDefinition",
         "io.kroxylicious.proxy.config.RouteDefinition",
+        "io.kroxylicious.proxy.config.RouteTarget",
         "io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy",
         "io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy",
         "io.kroxylicious.proxy.config.VirtualCluster",
