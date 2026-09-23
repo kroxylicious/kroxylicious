@@ -9,6 +9,8 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.event.Level;
+
 import com.fasterxml.jackson.databind.JsonNode;
 
 import io.kroxylicious.kafka.common.Uuid;
@@ -23,7 +25,7 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
     }
 
     public record MockResponse(ApiKeys expectedRequestKey, short expectedRequestVersion, JsonNode expectedRequestHeader, JsonNode expectedRequest,
-                               @Nullable JsonNode upstreamResponseHeader, @Nullable JsonNode upstreamResponse) {
+                               @Nullable JsonNode upstreamResponseHeader, @Nullable JsonNode upstreamResponse, @Nullable Short upstreamResponseVersion) {
 
     }
 
@@ -66,19 +68,23 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
     /**
      * Expected outcomes of the test scenario.
      *
+     * @param expectedResponseVersion the expected response api version, or null if not asserted
      * @param expectedResponseHeader the expected response header as JSON, or null if not asserted
      * @param expectedResponse the expected response body as JSON, or null if not asserted
      * @param expectedErrorResponse in the case that we expect an error response (the message generation is a framework responsibility)
      * @param hasResponse true if we expect a response (zero-ack produce request is the only case known with no response). default true
      * @param expectRequestDropped true if we expect the request to be dropped. default false
      */
-    public record Then(@Nullable JsonNode expectedResponseHeader,
+    public record Then(@Nullable Short expectedResponseVersion,
+                       @Nullable JsonNode expectedResponseHeader,
                        @Nullable JsonNode expectedResponse,
                        @Nullable Errors expectedErrorResponse,
                        @Nullable Boolean hasResponse,
                        @Nullable Boolean expectRequestDropped,
+                       @Nullable Boolean expectCloseConnection,
                        @Nullable RequestError expectedRequestError,
-                       @Nullable Boolean expectAuthorizationOutcomeLog) {
+                       @Nullable Boolean expectAuthorizationOutcomeLog,
+                       @Nullable List<ExpectedLog> expectAdditionalLogs) {
 
         boolean getHasResponse() {
             return hasResponse == null || hasResponse;
@@ -88,8 +94,18 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
             return expectAuthorizationOutcomeLog == null || expectAuthorizationOutcomeLog;
         }
 
+        boolean isExpectAdditionalLogs() {
+            return !(expectAdditionalLogs == null || expectAdditionalLogs.isEmpty());
+        }
+
         boolean isExpectRequestDropped() {
             return expectRequestDropped != null && expectRequestDropped;
         }
+
+        boolean isExpectCloseConnection() {
+            return expectCloseConnection != null && expectCloseConnection;
+        }
+
+        record ExpectedLog(Level level, String message) {}
     }
 }
