@@ -83,7 +83,7 @@ jobs:
             --expected-title="Kroxylicious API" \
             --expected-vendor="Kroxylicious"
       - name: 'Install xmllint'
-        run: sudo apt-get install -y libxml2-utils
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
       - name: 'Validate module-profile structure'
         run: bash scripts/validate-module-structure.sh
       - name: Save PR number to file
