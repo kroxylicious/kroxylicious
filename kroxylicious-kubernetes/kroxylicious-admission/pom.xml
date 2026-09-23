@@ -420,7 +420,7 @@
                             <!-- Add the crds to target/packaged/install, renaming the files to match the other YAMLs -->
                             <execution>
                                 <id>rename-crds</id>
-                                <phase>package</phase>
+                                <phase>prepare-package</phase>
                                 <goals>
                                     <goal>run</goal>
                                 </goals>
@@ -455,7 +455,7 @@
                     <plugin>
                         <artifactId>maven-assembly-plugin</artifactId>
                         <executions>
-                            <!-- Create deprecated asset zip/tar.gz distribution -->
+                            <!-- Create deprecated asset zip/tar.gz distribution (runs after jbang generates manifests) -->
                             <execution>
                                 <id>asset</id>
                                 <phase>package</phase>

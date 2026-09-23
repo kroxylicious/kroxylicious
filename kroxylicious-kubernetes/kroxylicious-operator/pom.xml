@@ -390,35 +390,6 @@
                                     </descriptors>
                                 </configuration>
                             </execution>
-                            <!-- Create deprecated asset zip/tar.gz distribution -->
-                            <execution>
-                                <id>asset</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <configuration>
-                                    <appendAssemblyId>false</appendAssemblyId>
-                                    <finalName>kroxylicious-operator-${project.version}</finalName>
-                                    <descriptors>
-                                        <descriptor>src/assembly/asset.xml</descriptor>
-                                    </descriptors>
-                                </configuration>
-                            </execution>
-                            <!-- Create examples archive -->
-                            <execution>
-                                <id>examples</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <configuration>
-                                    <attach>false</attach>
-                                    <descriptors>
-                                        <descriptor>src/assembly/examples.xml</descriptor>
-                                    </descriptors>
-                                </configuration>
-                            </execution>
                         </executions>
                     </plugin>
                     <plugin>
@@ -486,7 +457,7 @@
                             <!-- Add the crds to target/packaged/install, renaming the files to match the other YAMLs -->
                             <execution>
                                 <id>rename-crds</id>
-                                <phase>package</phase>
+                                <phase>prepare-package</phase>
                                 <goals>
                                     <goal>run</goal>
                                 </goals>
@@ -502,7 +473,7 @@
                             <!-- Concatenate manifests into single install files -->
                             <execution>
                                 <id>create-install-manifests</id>
-                                <phase>package</phase>
+                                <phase>prepare-package</phase>
                                 <goals>
                                     <goal>run</goal>
                                 </goals>
@@ -514,6 +485,40 @@
                                         <arg>${project.build.directory}/kroxylicious-operator-${project.version}-crds.yaml</arg>
                                         <arg>${project.version}</arg>
                                     </args>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions>
+                            <!-- Create deprecated asset zip/tar.gz distribution (runs after jbang generates manifests) -->
+                            <execution>
+                                <id>asset</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <appendAssemblyId>false</appendAssemblyId>
+                                    <finalName>kroxylicious-operator-${project.version}</finalName>
+                                    <descriptors>
+                                        <descriptor>src/assembly/asset.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                            <!-- Create examples archive -->
+                            <execution>
+                                <id>examples</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <attach>false</attach>
+                                    <descriptors>
+                                        <descriptor>src/assembly/examples.xml</descriptor>
+                                    </descriptors>
                                 </configuration>
                             </execution>
                         </executions>
