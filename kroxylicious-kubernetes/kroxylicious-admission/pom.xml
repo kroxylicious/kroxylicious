@@ -453,6 +453,72 @@
                         </executions>
                     </plugin>
                     <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions>
+                            <!-- Create deprecated asset zip/tar.gz distribution -->
+                            <execution>
+                                <id>asset</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <appendAssemblyId>false</appendAssemblyId>
+                                    <finalName>kroxylicious-admission-${project.version}</finalName>
+                                    <descriptors>
+                                        <descriptor>src/assembly/asset.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                            <!-- Create examples archive -->
+                            <execution>
+                                <id>examples</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <attach>false</attach>
+                                    <descriptors>
+                                        <descriptor>src/assembly/examples.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-install-manifests</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>attach-artifact</goal>
+                                </goals>
+                                <configuration>
+                                    <artifacts>
+                                        <artifact>
+                                            <file>${project.build.directory}/kroxylicious-admission-${project.version}-install.yaml</file>
+                                            <type>yaml</type>
+                                            <classifier>install</classifier>
+                                        </artifact>
+                                        <artifact>
+                                            <file>${project.build.directory}/kroxylicious-admission-${project.version}-crds.yaml</file>
+                                            <type>yaml</type>
+                                            <classifier>crds</classifier>
+                                        </artifact>
+                                        <artifact>
+                                            <file>${project.build.directory}/${project.artifactId}-${project.version}-examples.zip</file>
+                                            <type>zip</type>
+                                            <classifier>examples</classifier>
+                                        </artifact>
+                                    </artifacts>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <executions>
                             <execution>

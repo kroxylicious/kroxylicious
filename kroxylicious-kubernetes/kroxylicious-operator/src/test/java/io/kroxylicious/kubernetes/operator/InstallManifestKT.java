@@ -133,7 +133,7 @@ class InstallManifestKT {
 
     private static Path getDeprecatedZipArchive() {
         String version = OperatorInfo.fromResource().version();
-        Path archive = Path.of("../kroxylicious-operator-dist/target/kroxylicious-operator-" + version + ".zip");
+        Path archive = Path.of("target/kroxylicious-operator-" + version + ".zip");
         assumeThat(archive)
                 .describedAs("Deprecated zip archive %s must exist", archive)
                 .exists();

@@ -134,7 +134,7 @@ class InstallManifestKT {
 
     private static Path getDeprecatedZipArchive() {
         String version = WebhookInfo.fromResource().version();
-        Path archive = Path.of("../kroxylicious-admission-dist/target/kroxylicious-admission-" + version + ".zip");
+        Path archive = Path.of("target/kroxylicious-admission-" + version + ".zip");
         assumeThat(archive)
                 .describedAs("Deprecated zip archive %s must exist", archive)
                 .exists();
