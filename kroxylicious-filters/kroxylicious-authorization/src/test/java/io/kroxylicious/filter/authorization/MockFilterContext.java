@@ -115,13 +115,13 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
     @NonNull
     @Override
     public CompletionStage<ResponseFilterResult> forwardResponse(@NonNull ResponseHeaderData header, @NonNull ApiMessage response) {
-        return CompletableFuture.completedFuture(new MockResponseFilterResult(header, response, false, false));
+        return CompletableFuture.completedFuture(new MockResponseFilterResult(false, header, response, false, false));
     }
 
     @NonNull
     @Override
     public ResponseFilterResultBuilder responseFilterResultBuilder() {
-        throw new UnsupportedOperationException();
+        return new MockResponseFilterResultBuilder(header, message);
     }
 
     @NonNull
@@ -165,7 +165,8 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
                                    boolean drop)
             implements RequestFilterResult {}
 
-    record MockResponseFilterResult(@Nullable ApiMessage header,
+    record MockResponseFilterResult(boolean shortCircuitResponse,
+                                    @Nullable ApiMessage header,
                                     @Nullable ApiMessage message,
                                     boolean closeConnection,
                                     boolean drop)
@@ -294,4 +295,168 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
             return false;
         }
     }
+
+    private record MockResponseFilterResultBuilder(ApiMessage header, ApiMessage message) implements ResponseFilterResultBuilder {
+
+        @Override
+        public CloseOrTerminalStage<ResponseFilterResult> forward(ResponseHeaderData header, ApiMessage message) throws IllegalArgumentException {
+            return new MockCloseTerminalResponseStage(header, message);
+        }
+
+        @Override
+        public TerminalStage<ResponseFilterResult> drop() {
+            return new MockTerminalResponseStage(false, header, message, false, true);
+        }
+
+        @Override
+        public TerminalStage<ResponseFilterResult> withCloseConnection() {
+            return new MockTerminalResponseStage(false, header, message, true, false);
+        }
+    }
+
+    private record MockTerminalRequestStage(boolean shortCircuitResponse,
+                                            @Nullable ApiMessage header,
+                                            @Nullable ApiMessage message,
+                                            boolean closeConnection,
+                                            boolean drop)
+            implements TerminalStage<RequestFilterResult> {
+
+        @Override
+        public RequestFilterResult build() {
+            return new MockRequestFilterResult(shortCircuitResponse, header, message, closeConnection, drop);
+        }
+
+        @Override
+        public CompletionStage<RequestFilterResult> completed() {
+            return CompletableFuture.completedFuture(build());
+        }
+    }
+
+    /**
+     * A RequestFilterResult capturing the inputs of an errorResponse invocation on the RequestFilterResultBuilder.
+     *
+     * @param header the request header passed to errorResponse
+     * @param message the request message passed to errorResponse
+     * @param error the error code passed to errorResponse
+     * @param errorMessage the error message passed to errorResponse, or {@code null} to use the error's default message
+     * @param closeConnection whether the connection should be closed
+     */
+    public record MockErrorRequestFilterResult(ApiMessage header,
+                                               ApiMessage message,
+                                               Errors error,
+                                               @Nullable String errorMessage,
+                                               boolean closeConnection)
+            implements RequestFilterResult {
+        @Override
+        public boolean shortCircuitResponse() {
+            return true;
+        }
+
+        @Override
+        public boolean drop() {
+            return false;
+        }
+    }
+
+    private record MockErrorTerminalRequestStage(RequestHeaderData header,
+                                                 ApiMessage requestMessage,
+                                                 Errors error,
+                                                 @Nullable String errorMessage,
+                                                 boolean closeConnection)
+            implements TerminalStage<RequestFilterResult> {
+
+        @Override
+        public RequestFilterResult build() {
+            return new MockErrorRequestFilterResult(header, requestMessage, error, errorMessage, closeConnection);
+        }
+
+        @Override
+        public CompletionStage<RequestFilterResult> completed() {
+            return CompletableFuture.completedFuture(build());
+        }
+    }
+
+    private record MockErrorCloseOrTerminalRequestStage(RequestHeaderData header,
+                                                        ApiMessage requestMessage,
+                                                        Errors error,
+                                                        @Nullable String errorMessage)
+            implements CloseOrTerminalStage<RequestFilterResult> {
+
+        @Override
+        public RequestFilterResult build() {
+            return new MockFilterContext.MockErrorRequestFilterResult(header, requestMessage, error, errorMessage, false);
+        }
+
+        @Override
+        public CompletionStage<RequestFilterResult> completed() {
+            return CompletableFuture.completedFuture(build());
+        }
+
+        @Override
+        public TerminalStage<RequestFilterResult> withCloseConnection() {
+            return new MockErrorTerminalRequestStage(header, requestMessage, error, errorMessage, true);
+        }
+    }
+
+    private record MockCloseOrTerminalRequestStage(boolean shortCircuitResponse,
+                                                   @Nullable ApiMessage header,
+                                                   @Nullable ApiMessage message,
+                                                   boolean closeConnection,
+                                                   boolean drop)
+            implements CloseOrTerminalStage<RequestFilterResult> {
+
+        @Override
+        public RequestFilterResult build() {
+            return new MockRequestFilterResult(shortCircuitResponse, header, message, closeConnection, drop);
+        }
+
+        @Override
+        public CompletionStage<RequestFilterResult> completed() {
+            return CompletableFuture.completedFuture(build());
+        }
+
+        @Override
+        public TerminalStage<RequestFilterResult> withCloseConnection() {
+            return new MockTerminalRequestStage(shortCircuitResponse, header, message, true, drop);
+        }
+    }
+
+    private record MockTerminalResponseStage(boolean shortCircuitResponse,
+                                             @Nullable ApiMessage header,
+                                             @Nullable ApiMessage message,
+                                             boolean closeConnection,
+                                             boolean drop)
+            implements TerminalStage<ResponseFilterResult> {
+
+        @Override
+        public ResponseFilterResult build() {
+            return new MockResponseFilterResult(shortCircuitResponse, header, message, closeConnection, drop);
+        }
+
+        @Override
+        public CompletionStage<ResponseFilterResult> completed() {
+            return CompletableFuture.completedFuture(build());
+        }
+    }
+
+    private record MockCloseTerminalResponseStage(@Nullable ApiMessage header,
+                                                  @Nullable ApiMessage message)
+            implements CloseOrTerminalStage<ResponseFilterResult> {
+
+        @Override
+        public ResponseFilterResult build() {
+            return new MockResponseFilterResult(false, header, message, false, false);
+        }
+
+        @Override
+        public CompletionStage<ResponseFilterResult> completed() {
+            return CompletableFuture.completedFuture(build());
+        }
+
+        @Override
+        public TerminalStage<ResponseFilterResult> withCloseConnection() {
+            return new MockTerminalResponseStage(false, header, message, true, false);
+        }
+    }
+
 }

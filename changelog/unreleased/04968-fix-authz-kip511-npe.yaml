@@ -1,0 +1,4 @@
+title: "fix(authzn-filter): prevent NPE when upstream sends a KIP-511 style apiversions response"
+type: fixed
+issues:
+  - 4944

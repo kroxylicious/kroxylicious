@@ -1,0 +1,64 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "API_VERSIONS"
+  apiVersion: 4
+  scenario: |
+    KIP-511: in the case where the broker doesn't recognise the ApiVersion version, it
+    will respond with v0 response containing the ApiVersion that it supports.
+    This test exists to ensure that filter will correctly propagate such a response back the client.
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "API_VERSIONS"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 18
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        clientSoftwareName: "random-string-313"
+        clientSoftwareVersion: "random-string-234"
+      upstreamResponseVersion: 0
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 35 # UNSUPPORTED_VERSION
+        apiKeys:
+          - apiKey: 18 # API_VERSIONS
+            minVersion: 0
+            maxVersion: 5
+        throttleTimeMs: 880
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 18
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    clientSoftwareName: "random-string-313"
+    clientSoftwareVersion: "random-string-234"
+then:
+  expectedResponseVersion: 0
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    errorCode: 35 # UNSUPPORTED_VERSION
+    apiKeys:
+      - apiKey: 18 # API_VERSIONS
+        minVersion: 0
+        maxVersion: 4
+    throttleTimeMs: 880

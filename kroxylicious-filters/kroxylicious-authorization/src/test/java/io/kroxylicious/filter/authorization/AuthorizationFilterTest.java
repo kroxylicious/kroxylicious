@@ -20,6 +20,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import org.assertj.core.api.Condition;
+import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -36,7 +38,6 @@ import com.google.common.reflect.ClassPath;
 
 import io.github.sambarker.logsquelcher.CapturedLogs;
 import io.github.sambarker.logsquelcher.LogSquelcherExtension;
-import io.github.sambarker.logsquelcher.LoggingEventAssert;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
@@ -55,8 +56,10 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
+import static org.assertj.core.api.Assertions.anyOf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
+import static org.assertj.core.condition.Not.not;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -177,7 +180,7 @@ class AuthorizationFilterTest {
             throw new IllegalStateException("test has finished, but mock responses are still queued");
         }
 
-        assertOutcomeLogged(capturedLogs, definition.then().isExpectAuthorizationOutcomeLog());
+        assertOutcomeLogged(capturedLogs, definition.then());
         // we expect that any inflight state pushed during a request is always popped on the corresponding response
         // if it is non-empty then we may have a memory leak
         assertThat(authorizationFilter.inflightState())
@@ -185,33 +188,44 @@ class AuthorizationFilterTest {
                 .isEmpty();
     }
 
-    private static void assertOutcomeLogged(CapturedLogs capturedLogs, Boolean expectOutcomeLogs) {
+    private static void assertOutcomeLogged(CapturedLogs capturedLogs, ScenarioDefinition.Then then) {
         List<LoggingEvent> actualLogs = capturedLogs.logged(AuthorizationFilter.class);
-        if (expectOutcomeLogs) {
-            LoggingEventAssert.assertThat(actualLogs)
-                    .isNotEmpty()
-                    .allSatisfy(event -> {
-                        if (Level.INFO == event.getLevel()) {
-                            assertThat(event.getMessage())
-                                    .contains("Authorization DENY decision");
-                            assertThat(event.getKeyValuePairs())
-                                    .anyMatch(entry -> entry.key.equals("deniedActions"));
-                        }
-                        else if (Level.DEBUG == event.getLevel()) {
-                            assertThat(event.getMessage())
-                                    .containsAnyOf("Authorization ALLOW decision", "Non-authorizable");
-                        }
-                        else {
-                            // false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
-                            // noinspection ResultOfMethodCallIgnored
-                            fail("unexpected event logged: %s",
-                                    MessageFormatter.arrayFormat(event.getMessage(), event.getArgumentArray(), event.getThrowable()).getMessage());
-                        }
-                    });
-        }
-        else {
+
+        if (!(then.isExpectAdditionalLogs() || then.isExpectAuthorizationOutcomeLog())) {
             assertThat(actualLogs).isEmpty();
         }
+
+        var logAssertions = Optional.ofNullable(then.expectAdditionalLogs())
+                .stream()
+                .flatMap(List::stream)
+                .map(eal -> (ThrowingConsumer<LoggingEvent>) event -> assertThat(event).satisfies(e -> assertThat(e.getMessage()).contains(eal.message()),
+                        e -> assertThat(e.getLevel()).isEqualTo(eal.level())))
+                .toList();
+
+        var denyCond = new Condition<LoggingEvent>(le -> le.getLevel() == Level.INFO && le.getMessage().contains("Authorization DENY decision"), "a deny decision");
+        var allowCond = new Condition<LoggingEvent>(le -> le.getLevel() == Level.DEBUG && le.getMessage().contains("Authorization ALLOW decision"), "an allow decision");
+        var nonAuthCond = new Condition<LoggingEvent>(le -> le.getLevel() == Level.DEBUG && le.getMessage().contains("Non-authorizable"), "an non-auth event");
+
+        var authConds = anyOf(denyCond, allowCond, nonAuthCond);
+        assertThat(actualLogs).filteredOn(authConds).allSatisfy(event -> {
+            if (denyCond.matches(event)) {
+                assertThat(event.getKeyValuePairs())
+                        .anyMatch(entry -> entry.key.equals("deniedActions"));
+            }
+            else if (allowCond.matches(event) || nonAuthCond.matches(event)) {
+                // intentionally empty
+            }
+            else {
+                // false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
+                // noinspection ResultOfMethodCallIgnored
+                fail("unexpected event logged: %s",
+                        MessageFormatter.arrayFormat(event.getMessage(), event.getArgumentArray(), event.getThrowable()).getMessage());
+            }
+        });
+
+        var logAssertionsArray = logAssertions.<ThrowingConsumer<LoggingEvent>> toArray(new ThrowingConsumer[]{});
+
+        assertThat(actualLogs).filteredOn(not(authConds)).satisfiesExactlyInAnyOrder(logAssertionsArray);
     }
 
     private static void handleRequestForward(ScenarioDefinition definition, CompletionStage<RequestFilterResult> stage, MockUpstream mockUpstream, Subject subject,
@@ -237,11 +251,15 @@ class AuthorizationFilterTest {
                             response.message(),
                             responseContext);
                     ResponseFilterResult responseResult = assertThat(filterResultCompletionStage).succeedsWithin(Duration.ZERO).actual();
-                    if (responseResult.drop()) {
+                    if (responseResult.drop() || responseResult.closeConnection()) {
                         assertThat(definition.then().expectedResponse()).isNull();
                         assertThat(definition.then().expectedResponseHeader()).isNull();
                     }
                     else {
+                        if (definition.then().expectedResponseVersion() != null) {
+                            assertThat(response.responseVersion()).isEqualTo(definition.then().expectedResponseVersion());
+                        }
+
                         String actualMessage = toYaml(
                                 VendoredKafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(responseResult.message(), version));
                         ApiMessage header = Objects.requireNonNull(responseResult.header());
