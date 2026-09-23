@@ -375,63 +375,12 @@
             <build>
                 <plugins>
                     <plugin>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <executions>
-                            <!-- Create the target/kroxylicious-operator-0.13.0-SNAPSHOT-app directory -->
-                            <execution>
-                                <id>app</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <configuration>
-                                    <descriptors>
-                                        <descriptor>src/assembly/app.xml</descriptor>
-                                    </descriptors>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>io.fabric8</groupId>
-                        <artifactId>docker-maven-plugin</artifactId>
-                        <executions>
-                            <!-- Create the container image, consuming the app from target/kroxylicious-operator-0.13.0-SNAPSHOT-bin directory -->
-                            <execution>
-                                <id>default</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>build</goal>
-                                    <goal>save</goal>
-                                </goals>
-                                <configuration>
-                                    <!--suppress MavenModelInspection -->
-                                    <skip>${skipContainerImageBuild}</skip>
-                                    <images>
-                                        <image>
-                                            <name>${io.kroxylicious.operator.image.name}</name>
-                                            <alias>optr</alias>
-                                            <build>
-                                                <dockerFile>src/main/docker/operator.dockerfile</dockerFile>
-                                                <contextDir>${project.basedir}</contextDir>
-                                                <args>
-                                                    <KROXYLICIOUS_VERSION>${project.version}</KROXYLICIOUS_VERSION>
-                                                </args>
-                                            </build>
-                                        </image>
-                                    </images>
-                                    <saveFile>${io.kroxylicious.operator.image.archive}</saveFile>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
                         <artifactId>maven-resources-plugin</artifactId>
                         <executions>
                             <!-- Copy from packaging into target/packaged, interpolating $[ ] (e.g. to use the right container image) -->
                             <execution>
                                 <id>copy-operator-install</id>
-                                <phase>package</phase>
+                                <phase>prepare-package</phase>
                                 <goals>
                                     <goal>copy-resources</goal>
                                 </goals>
@@ -492,6 +441,19 @@
                     <plugin>
                         <artifactId>maven-assembly-plugin</artifactId>
                         <executions>
+                            <!-- Create the target/kroxylicious-operator-0.13.0-SNAPSHOT-app directory -->
+                            <execution>
+                                <id>app</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <descriptors>
+                                        <descriptor>src/assembly/app.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
                             <!-- Create deprecated asset zip/tar.gz distribution (runs after jbang generates manifests) -->
                             <execution>
                                 <id>asset</id>
@@ -519,6 +481,39 @@
                                     <descriptors>
                                         <descriptor>src/assembly/examples.xml</descriptor>
                                     </descriptors>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <executions>
+                            <!-- Create the container image, consuming the app from target/kroxylicious-operator-0.13.0-SNAPSHOT-app directory -->
+                            <execution>
+                                <id>default</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>save</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress MavenModelInspection -->
+                                    <skip>${skipContainerImageBuild}</skip>
+                                    <images>
+                                        <image>
+                                            <name>${io.kroxylicious.operator.image.name}</name>
+                                            <alias>optr</alias>
+                                            <build>
+                                                <dockerFile>src/main/docker/operator.dockerfile</dockerFile>
+                                                <contextDir>${project.basedir}</contextDir>
+                                                <args>
+                                                    <KROXYLICIOUS_VERSION>${project.version}</KROXYLICIOUS_VERSION>
+                                                </args>
+                                            </build>
+                                        </image>
+                                    </images>
+                                    <saveFile>${io.kroxylicious.operator.image.archive}</saveFile>
                                 </configuration>
                             </execution>
                         </executions>

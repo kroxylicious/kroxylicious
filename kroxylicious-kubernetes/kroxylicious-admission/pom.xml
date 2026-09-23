@@ -318,8 +318,72 @@
                         </executions>
                     </plugin>
                     <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-webhook-install</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <delimiters>
+                                        <delimiter>$[*]</delimiter>
+                                    </delimiters>
+                                    <resources>
+                                        <resource>
+                                            <directory>packaging</directory>
+                                            <filtering>true</filtering>
+                                        </resource>
+                                    </resources>
+                                    <outputDirectory>target/packaged</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>dev.jbang</groupId>
+                        <artifactId>jbang-maven-plugin</artifactId>
+                        <executions>
+                            <!-- Package CRDs into target/packaged/install -->
+                            <execution>
+                                <id>package-crds</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
+                                    <script>${project.basedir}/package_crds.java</script>
+                                    <args>
+                                        <arg>${project.basedir}/../kroxylicious-admission-api/src/main/resources/META-INF/fabric8</arg>
+                                        <arg>${project.build.directory}/packaged/install</arg>
+                                    </args>
+                                </configuration>
+                            </execution>
+                            <!-- Concatenate manifests into single install files -->
+                            <execution>
+                                <id>create-install-manifests</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <script>${project.basedir}/concat_manifests.java</script>
+                                    <args>
+                                        <arg>${project.build.directory}/packaged/install</arg>
+                                        <arg>${project.build.directory}/kroxylicious-admission-${project.version}-install.yaml</arg>
+                                        <arg>${project.build.directory}/kroxylicious-admission-${project.version}-crds.yaml</arg>
+                                        <arg>${project.version}</arg>
+                                    </args>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
                         <artifactId>maven-assembly-plugin</artifactId>
                         <executions>
+                            <!-- Create the target/kroxylicious-admission-0.13.0-SNAPSHOT-app directory -->
                             <execution>
                                 <id>app</id>
                                 <phase>package</phase>
@@ -329,6 +393,35 @@
                                 <configuration>
                                     <descriptors>
                                         <descriptor>src/assembly/app.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                            <!-- Create deprecated asset zip/tar.gz distribution (runs after jbang generates manifests) -->
+                            <execution>
+                                <id>asset</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <appendAssemblyId>false</appendAssemblyId>
+                                    <finalName>kroxylicious-admission-${project.version}</finalName>
+                                    <descriptors>
+                                        <descriptor>src/assembly/asset.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                            <!-- Create examples archive -->
+                            <execution>
+                                <id>examples</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <attach>false</attach>
+                                    <descriptors>
+                                        <descriptor>src/assembly/examples.xml</descriptor>
                                     </descriptors>
                                 </configuration>
                             </execution>
@@ -385,103 +478,6 @@
                                         </image>
                                     </images>
                                     <saveFile>${io.kroxylicious.test.plugin.image.archive}</saveFile>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <artifactId>maven-resources-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>copy-webhook-install</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>copy-resources</goal>
-                                </goals>
-                                <configuration>
-                                    <delimiters>
-                                        <delimiter>$[*]</delimiter>
-                                    </delimiters>
-                                    <resources>
-                                        <resource>
-                                            <directory>packaging</directory>
-                                            <filtering>true</filtering>
-                                        </resource>
-                                    </resources>
-                                    <outputDirectory>target/packaged</outputDirectory>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>dev.jbang</groupId>
-                        <artifactId>jbang-maven-plugin</artifactId>
-                        <executions>
-                            <!-- Package CRDs into target/packaged/install -->
-                            <execution>
-                                <id>package-crds</id>
-                                <phase>prepare-package</phase>
-                                <goals>
-                                    <goal>run</goal>
-                                </goals>
-                                <configuration>
-                                    <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
-                                    <script>${project.basedir}/package_crds.java</script>
-                                    <args>
-                                        <arg>${project.basedir}/../kroxylicious-admission-api/src/main/resources/META-INF/fabric8</arg>
-                                        <arg>${project.build.directory}/packaged/install</arg>
-                                    </args>
-                                </configuration>
-                            </execution>
-                            <!-- Concatenate manifests into single install files -->
-                            <execution>
-                                <id>create-install-manifests</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>run</goal>
-                                </goals>
-                                <configuration>
-                                    <script>${project.basedir}/concat_manifests.java</script>
-                                    <args>
-                                        <arg>${project.build.directory}/packaged/install</arg>
-                                        <arg>${project.build.directory}/kroxylicious-admission-${project.version}-install.yaml</arg>
-                                        <arg>${project.build.directory}/kroxylicious-admission-${project.version}-crds.yaml</arg>
-                                        <arg>${project.version}</arg>
-                                    </args>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <executions>
-                            <!-- Create deprecated asset zip/tar.gz distribution (runs after jbang generates manifests) -->
-                            <execution>
-                                <id>asset</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <configuration>
-                                    <appendAssemblyId>false</appendAssemblyId>
-                                    <finalName>kroxylicious-admission-${project.version}</finalName>
-                                    <descriptors>
-                                        <descriptor>src/assembly/asset.xml</descriptor>
-                                    </descriptors>
-                                </configuration>
-                            </execution>
-                            <!-- Create examples archive -->
-                            <execution>
-                                <id>examples</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <configuration>
-                                    <attach>false</attach>
-                                    <descriptors>
-                                        <descriptor>src/assembly/examples.xml</descriptor>
-                                    </descriptors>
                                 </configuration>
                             </execution>
                         </executions>
