@@ -97,37 +97,10 @@
                                     <goal>single</goal>
                                 </goals>
                                 <configuration>
-                                    <attach>true</attach>
+                                    <attach>false</attach>
                                     <descriptors>
                                         <descriptor>src/assembly/examples.xml</descriptor>
                                     </descriptors>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>build-helper-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>attach-install-manifests</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>attach-artifact</goal>
-                                </goals>
-                                <configuration>
-                                    <artifacts>
-                                        <artifact>
-                                            <file>${project.build.directory}/kroxylicious-admission-${project.version}-install.yaml</file>
-                                            <type>yaml</type>
-                                            <classifier>install</classifier>
-                                        </artifact>
-                                        <artifact>
-                                            <file>${project.build.directory}/kroxylicious-admission-${project.version}-crds.yaml</file>
-                                            <type>yaml</type>
-                                            <classifier>crds</classifier>
-                                        </artifact>
-                                    </artifacts>
                                 </configuration>
                             </execution>
                         </executions>
