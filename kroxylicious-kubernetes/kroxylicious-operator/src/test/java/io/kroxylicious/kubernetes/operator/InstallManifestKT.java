@@ -81,11 +81,11 @@ class InstallManifestKT {
     void deprecatedZipArchiveShouldContainInstallFiles() throws IOException {
         Path zipArchive = getDeprecatedZipArchive();
         try (ZipFile zip = new ZipFile(zipArchive.toFile())) {
-            assertThat(zip.stream())
-                    .as("Deprecated zip archive should contain install directory and files")
+            assertThat(zip.stream()
                     .map(ZipEntry::getName)
-                    .anyMatch(name -> name.contains("install/") && name.endsWith(".yaml"))
-                    .describedAs("Should contain install YAML files");
+                    .anyMatch(name -> name.contains("install/") && name.endsWith(".yaml")))
+                    .as("Deprecated zip archive should contain install YAML files")
+                    .isTrue();
         }
     }
 
@@ -93,11 +93,11 @@ class InstallManifestKT {
     void deprecatedZipArchiveShouldContainCrds() throws IOException {
         Path zipArchive = getDeprecatedZipArchive();
         try (ZipFile zip = new ZipFile(zipArchive.toFile())) {
-            assertThat(zip.stream())
-                    .as("Deprecated zip archive should contain CRD files")
+            assertThat(zip.stream()
                     .map(ZipEntry::getName)
-                    .anyMatch(name -> name.contains("crd") && name.endsWith(".yaml"))
-                    .describedAs("Should contain CRD YAML files");
+                    .anyMatch(name -> name.contains("crd") && name.endsWith(".yaml")))
+                    .as("Deprecated zip archive should contain CRD YAML files")
+                    .isTrue();
         }
     }
 
@@ -105,11 +105,11 @@ class InstallManifestKT {
     void deprecatedZipArchiveShouldContainExamples() throws IOException {
         Path zipArchive = getDeprecatedZipArchive();
         try (ZipFile zip = new ZipFile(zipArchive.toFile())) {
-            assertThat(zip.stream())
-                    .as("Deprecated zip archive should contain examples directory")
+            assertThat(zip.stream()
                     .map(ZipEntry::getName)
-                    .anyMatch(name -> name.startsWith("examples/"))
-                    .describedAs("Should contain examples directory");
+                    .anyMatch(name -> name.startsWith("examples/")))
+                    .as("Deprecated zip archive should contain examples directory")
+                    .isTrue();
         }
     }
 
