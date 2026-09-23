@@ -26,10 +26,10 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: 'Compute week cache key'
-      id: week
+    - name: 'Compute month cache key'
+      id: month
       shell: bash
-      run: echo "week=$(date -u +%G-W%V)" >> $GITHUB_OUTPUT
+      run: echo "month=$(date -u +%Y-%m)" >> $GITHUB_OUTPUT
     - name: 'Restore Maven packages (read-only)'
       if: ${{ inputs.read-only == 'true' }}
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -37,7 +37,9 @@ runs:
         path: |
           ~/.m2
           !~/.m2/repository/io/kroxylicious
-        key: ${{ runner.os }}-m2-week-${{ steps.week.outputs.week }}
+        key: ${{ runner.os }}-m2-${{ steps.month.outputs.month }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2-${{ steps.month.outputs.month }}-
     - name: 'Cache Maven packages (read-write)'
       if: ${{ inputs.read-only == 'false' }}
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -45,4 +47,6 @@ runs:
         path: |
           ~/.m2
           !~/.m2/repository/io/kroxylicious
-        key: ${{ runner.os }}-m2-week-${{ steps.week.outputs.week }}
+        key: ${{ runner.os }}-m2-${{ steps.month.outputs.month }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2-${{ steps.month.outputs.month }}-
