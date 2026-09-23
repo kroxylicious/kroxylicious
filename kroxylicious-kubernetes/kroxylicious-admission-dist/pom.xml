@@ -127,6 +127,11 @@
                                             <type>yaml</type>
                                             <classifier>crds</classifier>
                                         </artifact>
+                                        <artifact>
+                                            <file>${project.build.directory}/${project.artifactId}-${project.version}-examples.zip</file>
+                                            <type>zip</type>
+                                            <classifier>examples</classifier>
+                                        </artifact>
                                     </artifacts>
                                 </configuration>
                             </execution>
