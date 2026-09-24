@@ -100,7 +100,7 @@ class InstallManifestKT {
 
     private static Path getFullInstallManifest() {
         String version = WebhookInfo.fromResource().version();
-        Path manifest = Path.of("target/kroxylicious-admission-install-" + version + ".yaml");
+        Path manifest = Path.of("target/kroxylicious-admission-" + version + "-install.yaml");
         assumeThat(manifest)
                 .describedAs("Full install manifest %s must exist", manifest)
                 .exists();
@@ -109,7 +109,7 @@ class InstallManifestKT {
 
     private static Path getCrdsOnlyManifest() {
         String version = WebhookInfo.fromResource().version();
-        Path manifest = Path.of("target/kroxylicious-admission-crds-" + version + ".yaml");
+        Path manifest = Path.of("target/kroxylicious-admission-" + version + "-crds.yaml");
         assumeThat(manifest)
                 .describedAs("CRDs-only manifest %s must exist", manifest)
                 .exists();
