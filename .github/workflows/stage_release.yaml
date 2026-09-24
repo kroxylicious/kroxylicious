@@ -250,9 +250,24 @@ jobs:
             cp "${prefix}.tar.gz" "${prefix}.tar.gz.asc" "${prefix}.zip" "${prefix}.zip.asc" release-assets/
           }
 
+          copy_yaml() {
+            local prefix="$1"
+            cp "${prefix}-install.yaml" "${prefix}-install.yaml.asc" \
+               "${prefix}-crds.yaml" "${prefix}-crds.yaml.asc" release-assets/
+          }
+
+          copy_examples() {
+            local prefix="$1"
+            cp "${prefix}-examples.zip" "${prefix}-examples.zip.asc" release-assets/
+          }
+
           copy_dist "kroxylicious-app/target/kroxylicious-app-${VERSION}-bin"
           copy_dist "kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-${VERSION}"
           copy_dist "kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-${VERSION}"
+          copy_yaml "kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-${VERSION}"
+          copy_yaml "kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-${VERSION}"
+          copy_examples "kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-${VERSION}"
+          copy_examples "kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-${VERSION}"
           cp "kroxylicious-api/target/japicmp/japicmp.html" "release-assets/${VERSION}-compatability.html"
 
       - name: 'Archive release assets (used by the promote workflow)'
