@@ -62,9 +62,11 @@ class QuickStartDT {
         Assertions.assertThat(Utils.OPERATOR_INSTALL_MANIFEST).exists();
         Assertions.assertThat(Utils.OPERATOR_EXAMPLES_ZIP).exists();
 
+        // OperatorInstallManifestLink is a file path for kubectl apply -f (kubectl doesn't understand file:// URLs)
+        // OperatorExamplesZipLink is a file:// URL for curl (which requires URLs, not file paths)
         var attributes = Attributes.builder()
                 .attribute("OperatorInstallManifestLink", Utils.OPERATOR_INSTALL_MANIFEST.toAbsolutePath().toString())
-                .attribute("OperatorExamplesZipLink", Utils.OPERATOR_EXAMPLES_ZIP.toAbsolutePath().toString())
+                .attribute("OperatorExamplesZipLink", pathToFileUrl(Utils.OPERATOR_EXAMPLES_ZIP))
                 .build();
 
         var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quick-start").resolve("index.adoc");
