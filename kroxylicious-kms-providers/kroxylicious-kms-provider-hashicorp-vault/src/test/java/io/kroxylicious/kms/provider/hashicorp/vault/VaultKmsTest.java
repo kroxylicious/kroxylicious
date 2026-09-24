@@ -29,6 +29,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.tomakehurst.wiremock.WireMockServer;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.TokenCredentialsConfig;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.VaultCredentialsConfig;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.KmsException;
@@ -64,8 +66,7 @@ class VaultKmsTest {
 
     @BeforeEach
     void beforeEach() {
-        var vaultAddress = URI.create(server.baseUrl()).resolve("/v1/transit");
-        var config = new Config(vaultAddress, new InlinePassword("token"), null);
+        var config = new Config(URI.create(server.baseUrl()), new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("token")), null), null);
         vaultKmsService = new VaultKmsService();
         vaultKmsService.initialize(config);
         kms = vaultKmsService.buildKms();
@@ -305,15 +306,15 @@ class VaultKmsTest {
     @Test
     void appliesConnectionTimeout() {
         var uri = URI.create("http://test:8080/v1/transit");
-        var vaultKms = new VaultKms(uri, "token", TIMEOUT, builder -> builder);
+        var vaultKms = new VaultKms(uri, new StaticTokenProvider("token"), TIMEOUT, builder -> builder);
         assertThat(vaultKms.getHttpClient().connectTimeout()).hasValue(TIMEOUT);
     }
 
     @Test
     void appliesRequestTimeoutConfiguredOnRequests() {
         var uri = URI.create("http://test:8080/v1/transit");
-        var vaultKms = new VaultKms(uri, "token", TIMEOUT, builder -> builder);
-        HttpRequest build = vaultKms.createVaultRequest().uri(uri).build();
+        var vaultKms = new VaultKms(uri, new StaticTokenProvider("token"), TIMEOUT, builder -> builder);
+        HttpRequest build = vaultKms.createVaultRequest("token").uri(uri).build();
         assertThat(build.timeout()).hasValue(TIMEOUT);
     }
 
@@ -330,7 +331,7 @@ class VaultKmsTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("acceptableVaultTransitEnginePaths")
     void acceptsVaultTransitEnginePaths(String name, URI uri, String expected) {
-        var vaultKms = new VaultKms(uri, "token", TIMEOUT, builder -> builder);
+        var vaultKms = new VaultKms(uri, new StaticTokenProvider("token"), TIMEOUT, builder -> builder);
         assertThat(vaultKms.getVaultTransitEngineUri())
                 .extracting(URI::getPath)
                 .isEqualTo(expected);
@@ -350,7 +351,7 @@ class VaultKmsTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("unacceptableVaultTransitEnginePaths")
     void detectsUnacceptableVaultTransitEnginePaths(String name, URI uri) {
-        assertThatThrownBy(() -> new VaultKms(uri, "token", Duration.ZERO, builder -> builder))
+        assertThatThrownBy(() -> new VaultKms(uri, new StaticTokenProvider("token"), Duration.ZERO, builder -> builder))
                 .isInstanceOf(IllegalArgumentException.class);
 
     }

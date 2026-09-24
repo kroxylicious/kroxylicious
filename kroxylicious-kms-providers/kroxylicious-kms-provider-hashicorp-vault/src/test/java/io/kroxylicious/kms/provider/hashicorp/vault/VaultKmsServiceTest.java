@@ -19,6 +19,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.TokenCredentialsConfig;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.VaultCredentialsConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -49,14 +51,25 @@ class VaultKmsServiceTest {
     void applesTlsConfiguration() {
         var validButUnusualCipherSuite = "TLS_EMPTY_RENEGOTIATION_INFO_SCSV"; // Valid suite, but not a true cipher
         vaultKmsService.initialize(
-                new Config(URI.create("https://unused/v1/transit"), new InlinePassword("vaultToken"), new Tls(null, null, new AllowDeny<>(
-                        List.of(validButUnusualCipherSuite), null), null, null)));
+                new Config(URI.create("https://unused"),
+                        new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("vaultToken")), null),
+                        new Tls(null, null, new AllowDeny<>(List.of(validButUnusualCipherSuite), null), null, null)));
         var kms = vaultKmsService.buildKms();
         var client = kms.getHttpClient();
         assertThat(client)
                 .extracting(HttpClient::sslParameters)
                 .extracting(SSLParameters::getCipherSuites, InstanceOfAssertFactories.array(String[].class))
                 .containsExactly(validButUnusualCipherSuite);
+    }
+
+    @Test
+    void buildsKmsWithDeprecatedConfig() {
+        vaultKmsService.initialize(
+                new Config(URI.create("http://vault:8200/v1/transit"),
+                        new InlinePassword("vaultToken"),
+                        null));
+        var kms = vaultKmsService.buildKms();
+        assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/transit/"));
     }
 
 }
