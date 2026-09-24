@@ -86,6 +86,10 @@
 // Minikube links
 :Minikube: https://minikube.sigs.k8s.io/
 
+// Strimzi links
+:StrimziSite: https://strimzi.io/[Strimzi^]
+:StrimziDocs: https://strimzi.io/documentation/[Strimzi documentation^]
+
 // Kafka links
 :ApacheKafkaSite: https://kafka.apache.org[Apache Kafka website^]
 :kafka-protocol: https://kafka.apache.org/protocol.html

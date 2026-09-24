@@ -32,6 +32,8 @@ include::../_modules/configuring/con-kafkaproxyingress-overview.adoc[leveloffset
 
 include::../_modules/configuring/con-kafkaservice-by-bootstrap.adoc[leveloffset=+2]
 
+include::../_modules/configuring/con-kafkaservice-by-strimzi-kafka-ref.adoc[leveloffset=+2]
+
 include::../_modules/configuring/con-virtualkafkacluster-overview.adoc[leveloffset=+2]
 
 // TODO
