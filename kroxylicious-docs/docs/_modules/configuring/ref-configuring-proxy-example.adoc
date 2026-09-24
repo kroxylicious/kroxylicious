@@ -26,9 +26,11 @@ filterDefinitions:
     config:
       kms: VaultKmsService
       kmsConfig:
-        vaultTransitEngineUrl: https://vault.vault.svc.cluster.local:8200/v1/transit
-        vaultToken:
-          passwordFile: /opt/proxy/server/token.txt
+        vaultUrl: https://vault.vault.svc.cluster.local:8200
+        credentials:
+          vaultToken:
+            token:
+              passwordFile: /opt/proxy/server/token.txt
         tls:
           key:
             storeFile: /opt/cert/server.p12
@@ -44,14 +46,14 @@ defaultFilters:
   - encryption
 clusterDefinitions:
   - name: my-cluster
-    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-    bootstrapServerSelection:
-      strategy: "round-robin"
-    tls:
-      trust:
-        storeFile: /opt/proxy/trust/ca.p12
-        storePassword:
-          passwordFile: /opt/proxy/trust/ca.password
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      bootstrapServerSelection:
+        strategy: "round-robin"
+      tls:
+        trust:
+          storeFile: /opt/proxy/trust/ca.p12
+          storePassword:
+            passwordFile: /opt/proxy/trust/ca.password
 virtualClusters:
   - name: my-cluster-proxy
     target:

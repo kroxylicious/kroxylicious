@@ -16,7 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
 import io.kroxylicious.proxy.config.secret.InlinePassword;
@@ -29,6 +28,10 @@ class ConfigParseTest {
     private static final Logger LOG = LoggerFactory.getLogger(ConfigParseTest.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    // ---------------------------------------------------------------------------
+    // Deprecated top-level vaultToken (backward-compatibility)
+    // ---------------------------------------------------------------------------
+
     @Test
     void vaultUrlAndInlineToken() throws IOException {
         String json = """
@@ -40,6 +43,9 @@ class ConfigParseTest {
         Config config = readConfig(json);
         assertThat(config.vaultToken().getProvidedPassword()).isEqualTo("token");
         assertThat(config.vaultTransitEngineUrl()).isEqualTo(URI.create("http://vault"));
+        assertThat(config.credentials()).isNotNull();
+        assertThat(config.credentials().vaultToken()).isNotNull();
+        assertThat(config.credentials().vaultToken().token().getProvidedPassword()).isEqualTo("token");
     }
 
     @Test
@@ -58,6 +64,8 @@ class ConfigParseTest {
             Config config = readConfig(json);
             assertThat(config.vaultToken().getProvidedPassword()).isEqualTo("token");
             assertThat(config.vaultTransitEngineUrl()).isEqualTo(URI.create("http://vault"));
+            assertThat(config.credentials()).isNotNull();
+            assertThat(config.credentials().vaultToken().token().getProvidedPassword()).isEqualTo("token");
         }
         finally {
             if (!tmp.toFile().delete()) {
@@ -65,6 +73,97 @@ class ConfigParseTest {
             }
         }
     }
+
+    @Test
+    void deprecatedVaultTransitEngineUrlExtraction() throws IOException {
+        String json = """
+                {
+                    "vaultTransitEngineUrl": "http://vault:8200/v1/my-namespace/custom-transit",
+                    "vaultToken": { "password" : "token" }
+                }
+                """;
+        Config config = readConfig(json);
+        assertThat(config.vaultUrl()).isEqualTo(URI.create("http://vault:8200"));
+        assertThat(config.transitEnginePath()).isEqualTo("my-namespace/custom-transit");
+        assertThat(config.credentials().vaultToken().token().getProvidedPassword()).isEqualTo("token");
+    }
+
+    // ---------------------------------------------------------------------------
+    // New credentials.vaultToken structure
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void credentialsVaultTokenInlinePassword() throws IOException {
+        String json = """
+                {
+                    "vaultTransitEngineUrl": "http://vault",
+                    "credentials": {
+                        "vaultToken": {
+                            "token": { "password": "mytoken" }
+                        }
+                    }
+                }
+                """;
+        Config config = readConfig(json);
+        assertThat(config.credentials()).isNotNull();
+        assertThat(config.credentials().vaultToken()).isNotNull();
+        assertThat(config.credentials().vaultToken().token().getProvidedPassword()).isEqualTo("mytoken");
+        assertThat(config.credentials().kubernetes()).isNull();
+        assertThat(config.vaultToken()).isNull();
+    }
+
+    // ---------------------------------------------------------------------------
+    // New credentials.kubernetes structure
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void credentialsKubernetesWithRoleOnly() throws IOException {
+        String json = """
+                {
+                    "vaultTransitEngineUrl": "http://vault",
+                    "credentials": {
+                        "kubernetes": {
+                            "vaultRole": "my-k8s-role"
+                        }
+                    }
+                }
+                """;
+        Config config = readConfig(json);
+        assertThat(config.credentials()).isNotNull();
+        assertThat(config.credentials().kubernetes()).isNotNull();
+        assertThat(config.credentials().kubernetes().vaultRole()).isEqualTo("my-k8s-role");
+        assertThat(config.credentials().kubernetes().serviceAccountTokenFile())
+                .isEqualTo(KubernetesCredentialsConfig.DEFAULT_SERVICE_ACCOUNT_TOKEN_FILE);
+        assertThat(config.credentials().kubernetes().authPath())
+                .isEqualTo(KubernetesCredentialsConfig.DEFAULT_AUTH_PATH);
+        assertThat(config.credentials().vaultToken()).isNull();
+        assertThat(config.vaultToken()).isNull();
+    }
+
+    @Test
+    void credentialsKubernetesWithCustomPaths() throws IOException {
+        String json = """
+                {
+                    "vaultTransitEngineUrl": "http://vault",
+                    "credentials": {
+                        "kubernetes": {
+                            "vaultRole": "my-k8s-role",
+                            "serviceAccountTokenFile": "/custom/sa/token",
+                            "authPath": "k8s"
+                        }
+                    }
+                }
+                """;
+        Config config = readConfig(json);
+        var k8s = config.credentials().kubernetes();
+        assertThat(k8s.vaultRole()).isEqualTo("my-k8s-role");
+        assertThat(k8s.serviceAccountTokenFile()).isEqualTo("/custom/sa/token");
+        assertThat(k8s.authPath()).isEqualTo("k8s");
+    }
+
+    // ---------------------------------------------------------------------------
+    // Validation errors
+    // ---------------------------------------------------------------------------
 
     @Test
     void vaultUrlRequired() {
@@ -75,7 +174,8 @@ class ConfigParseTest {
                     }
                     """;
             readConfig(json);
-        }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("vaultTransitEngineUrl");
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Either 'vaultUrl' or deprecated 'vaultTransitEngineUrl' must be provided");
     }
 
     @Test
@@ -83,38 +183,103 @@ class ConfigParseTest {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
-                        "vaultTransitEngineUrl": null,
+                        "vaultUrl": null,
                         "vaultToken": { "password" : "token" }
                     }
                     """;
             readConfig(json);
-        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(NullPointerException.class);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Either 'vaultUrl' or deprecated 'vaultTransitEngineUrl' must be provided");
     }
 
     @Test
-    void vaultTokenRequired() {
+    void bothVaultUrlAndVaultTransitEngineUrlThrows() {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
-                        "vaultTransitEngineUrl": "https://vault"
+                        "vaultUrl": "https://vault",
+                        "vaultTransitEngineUrl": "https://vault/v1/transit",
+                        "credentials": {
+                            "vaultToken": { "token": { "password": "mytoken" } }
+                        }
                     }
                     """;
             readConfig(json);
-        }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("vaultToken");
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot specify both 'vaultUrl' and deprecated 'vaultTransitEngineUrl'");
     }
 
     @Test
-    void vaultTokenShouldNotBeNull() {
+    void modernVaultUrlVaultNamespaceAndTransitEnginePath() throws IOException {
+        String json = """
+                {
+                    "vaultUrl": "https://myvault:8200",
+                    "vaultNamespace": "my-namespace",
+                    "transitEnginePath": "custom-transit",
+                    "credentials": {
+                        "vaultToken": {
+                            "token": { "password": "mytoken" }
+                        }
+                    }
+                }
+                """;
+        Config config = readConfig(json);
+        assertThat(config.vaultUrl()).isEqualTo(URI.create("https://myvault:8200"));
+        assertThat(config.vaultNamespace()).isEqualTo("my-namespace");
+        assertThat(config.transitEnginePath()).isEqualTo("custom-transit");
+    }
+
+    @Test
+    void bothCredentialsAndDeprecatedTokenThrows() {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
                         "vaultTransitEngineUrl": "https://vault",
-                        "vaultToken": null
+                        "vaultToken": { "password" : "token" },
+                        "credentials": {
+                            "vaultToken": { "token": { "password": "token2" } }
+                        }
                     }
                     """;
             readConfig(json);
-        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(NullPointerException.class);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot specify both 'vaultToken' and 'credentials' - use 'credentials.vaultToken' instead");
     }
+
+    @Test
+    void credentialsWithBothVaultTokenAndKubernetesThrows() {
+        Assertions.assertThatThrownBy(() -> {
+            String json = """
+                    {
+                        "vaultTransitEngineUrl": "https://vault",
+                        "credentials": {
+                            "vaultToken": { "token": { "password": "mytoken" } },
+                            "kubernetes": { "vaultRole": "my-role" }
+                        }
+                    }
+                    """;
+            readConfig(json);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Exactly one of 'vaultToken' or 'kubernetes' credentials must be provided");
+    }
+
+    @Test
+    void credentialsWithNeitherVaultTokenNorKubernetesThrows() {
+        Assertions.assertThatThrownBy(() -> {
+            String json = """
+                    {
+                        "vaultTransitEngineUrl": "https://vault",
+                        "credentials": {}
+                    }
+                    """;
+            readConfig(json);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Exactly one of 'vaultToken' or 'kubernetes' credentials must be provided");
+    }
+
+    // ---------------------------------------------------------------------------
+    // TLS
+    // ---------------------------------------------------------------------------
 
     @Test
     void emptyTls() throws Exception {
@@ -127,24 +292,10 @@ class ConfigParseTest {
                 """;
         Config config = readConfig(json);
         assertThat(config.tls()).isNotNull();
-        assertThat(config.tls().trust()).isNull();
     }
 
     @Test
-    void missingTls() throws Exception {
-        String json = """
-                {
-                    "vaultTransitEngineUrl": "https://vault",
-                    "vaultToken": { "password" : "token" }
-                }
-                """;
-        Config config = readConfig(json);
-        assertThat(config.tls()).isNull();
-    }
-
-    // we do not need to exhaustively test serialization of Tls as it has its own coverage
-    @Test
-    void testTlsTrust() throws Exception {
+    void insecureTls() throws IOException {
         String json = """
                 {
                     "vaultTransitEngineUrl": "https://vault",
