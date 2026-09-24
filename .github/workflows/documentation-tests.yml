@@ -59,7 +59,7 @@ jobs:
           # Produces target/*.img.tar.gz for the proxy and operator (the admission webhook image
           # is not needed here). QuickStartDT loads these into the throw-away Minikube profile it
           # creates per quick start run, so there is no `minikube image load` step in this workflow.
-          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator, -Dquick install
+          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator -Derrorprone.skip=true -Dquick package
       - name: 'Extract Strimzi version'
         id: strimzi
         run: |
@@ -87,7 +87,7 @@ jobs:
         env:
           STRIMZI_MANIFEST: /tmp/strimzi-manifest/kafka-single-node.yaml
         run: |
-          mvn -Djapicmp.skip=true -DskipUTs=true -DskipITs=true -DskipKTs=true -DskipDTs=false --batch-mode verify --activate-profiles dist --projects ':kroxylicious-docs-tests'
+          mvn -Djapicmp.skip=true -DskipUTs=true -DskipITs=true -DskipKTs=true -DskipDTs=false --batch-mode verify --activate-profiles dist --projects ':kroxylicious-docs-tests' --also-make
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
         uses: $/.github/actions/common/slack-notification
