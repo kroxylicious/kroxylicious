@@ -17,14 +17,14 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.skodjob.kubetest4j.utils.KubeTestUtils;
 
 /**
- * Provides manifests from an extracted archive directory.
- * Supports the traditional approach where manifests are extracted from ZIP/TAR archives.
+ * Provides manifests from a directory of individual YAML files.
+ * Supports the traditional approach where manifests are extracted from ZIP/TAR archives or provided as separate files.
  */
-public class ArchiveManifestProvider implements ManifestProvider {
+public class DirectoryManifestProvider implements ManifestProvider {
 
     private final Path installDir;
 
-    public ArchiveManifestProvider(Path installDir) {
+    public DirectoryManifestProvider(Path installDir) {
         this.installDir = installDir;
     }
 

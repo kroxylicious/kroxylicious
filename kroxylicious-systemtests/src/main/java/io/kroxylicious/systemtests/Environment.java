@@ -238,20 +238,20 @@ public class Environment {
     public static io.kroxylicious.systemtests.resources.operator.ManifestProvider createOperatorManifestProvider() {
         java.nio.file.Path source = java.nio.file.Path.of(KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE);
         if (KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE.endsWith(".yaml")) {
-            return new io.kroxylicious.systemtests.resources.operator.DirectManifestProvider(source);
+            return new io.kroxylicious.systemtests.resources.operator.AllInOneYamlProvider(source);
         }
         else {
-            return new io.kroxylicious.systemtests.resources.operator.ArchiveManifestProvider(source);
+            return new io.kroxylicious.systemtests.resources.operator.DirectoryManifestProvider(source);
         }
     }
 
     public static io.kroxylicious.systemtests.resources.operator.ManifestProvider createAdmissionManifestProvider() {
         java.nio.file.Path source = java.nio.file.Path.of(KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE);
         if (KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE.endsWith(".yaml")) {
-            return new io.kroxylicious.systemtests.resources.operator.DirectManifestProvider(source);
+            return new io.kroxylicious.systemtests.resources.operator.AllInOneYamlProvider(source);
         }
         else {
-            return new io.kroxylicious.systemtests.resources.operator.ArchiveManifestProvider(source);
+            return new io.kroxylicious.systemtests.resources.operator.DirectoryManifestProvider(source);
         }
     }
 }

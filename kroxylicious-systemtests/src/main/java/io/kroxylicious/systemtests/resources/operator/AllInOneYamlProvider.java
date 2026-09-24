@@ -21,11 +21,11 @@ import io.fabric8.kubernetes.client.KubernetesClientBuilder;
  * Provides manifests from a single all-in-one YAML file.
  * Supports the GitOps approach where a single manifest file contains all resources including CRDs.
  */
-public class DirectManifestProvider implements ManifestProvider {
+public class AllInOneYamlProvider implements ManifestProvider {
 
     private final Path yaml;
 
-    public DirectManifestProvider(Path yaml) {
+    public AllInOneYamlProvider(Path yaml) {
         this.yaml = yaml;
     }
 
