@@ -6,31 +6,39 @@
 
 package io.kroxylicious.systemtests.resources.operator;
 
-import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+
 /**
- * Provides manifests from single YAML files.
- * Supports the GitOps approach where CRDs and installation manifests are separate single files.
+ * Provides manifests from a single all-in-one YAML file.
+ * Supports the GitOps approach where a single manifest file contains all resources including CRDs.
  */
 public class DirectManifestProvider implements ManifestProvider {
 
-    private final File crdYaml;
-    private final File installYaml;
+    private final Path yaml;
 
-    public DirectManifestProvider(Path crdYaml, Path installYaml) {
-        this.crdYaml = crdYaml.toFile();
-        this.installYaml = installYaml.toFile();
+    public DirectManifestProvider(Path yaml) {
+        this.yaml = yaml;
     }
 
     @Override
-    public List<File> getCrdYamls() {
-        return List.of(crdYaml);
-    }
-
-    @Override
-    public List<File> getInstallYamls() {
-        return List.of(installYaml);
+    public List<HasMetadata> getResources() {
+        List<HasMetadata> resources = new ArrayList<>();
+        try (InputStream is = Files.newInputStream(yaml)) {
+            var loadedResources = new KubernetesClientBuilder().build().load(is).get();
+            resources.addAll(loadedResources);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Failed to load manifest from " + yaml, e);
+        }
+        return resources;
     }
 }

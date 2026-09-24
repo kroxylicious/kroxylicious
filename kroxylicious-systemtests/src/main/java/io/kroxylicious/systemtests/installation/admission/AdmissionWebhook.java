@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.certmanager.api.model.v1.CertificateBuilder;
 import io.fabric8.certmanager.api.model.v1.IssuerBuilder;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
@@ -91,35 +93,40 @@ public class AdmissionWebhook {
     }
 
     private void validateDistribution() {
-        for (var crdFile : manifestProvider.getCrdYamls()) {
-            if (!Files.exists(crdFile.toPath())) {
-                throw new IllegalStateException(
-                        "CRD manifest not found at " + crdFile.getAbsolutePath() +
-                                ". Please build the distribution first with: " +
-                                "mvn clean install -DskipTests -pl kroxylicious-kubernetes/kroxylicious-admission -am");
-            }
-        }
-        for (var installFile : manifestProvider.getInstallYamls()) {
-            if (!Files.exists(installFile.toPath())) {
-                throw new IllegalStateException(
-                        "Install manifest not found at " + installFile.getAbsolutePath() +
-                                ". Please build the distribution first with: " +
-                                "mvn clean install -DskipTests -pl kroxylicious-kubernetes/kroxylicious-admission -am");
-            }
+        List<HasMetadata> resources = manifestProvider.getResources();
+        if (resources.isEmpty()) {
+            throw new IllegalStateException(
+                    "No resources found in manifests. Please build the distribution first with: " +
+                            "mvn clean install -DskipTests -pl kroxylicious-kubernetes/kroxylicious-admission -am");
         }
     }
 
     private void applyCrd() {
-        LOGGER.info("Applying CRD");
-        for (var crdFile : manifestProvider.getCrdYamls()) {
-            applyManifest(crdFile.toPath());
-        }
+        LOGGER.info("Applying CRD resources");
+        List<HasMetadata> resources = manifestProvider.getResources();
+        resources.stream()
+                .filter(r -> "CustomResourceDefinition".equals(r.getKind()))
+                .forEach(this::applyResource);
     }
 
     private void applyInstallManifests() {
         LOGGER.info("Applying install manifests");
-        for (var installFile : manifestProvider.getInstallYamls()) {
-            applyManifest(installFile.toPath());
+        List<HasMetadata> resources = manifestProvider.getResources();
+        resources.stream()
+                .filter(r -> !"CustomResourceDefinition".equals(r.getKind()))
+                .forEach(this::applyResource);
+    }
+
+    private void applyResource(HasMetadata resource) {
+        try {
+            ResourceManager.getInstance().createOrUpdateResourceWithWait(resource);
+        }
+        catch (Exception e) {
+            LOGGER.atWarn()
+                    .addKeyValue("resourceKind", resource.getKind())
+                    .addKeyValue("resourceName", resource.getMetadata().getName())
+                    .addKeyValue("error", e.getMessage())
+                    .log("Failed to apply resource");
         }
     }
 
@@ -222,27 +229,30 @@ public class AdmissionWebhook {
 
     private void deleteInstallManifests() {
         LOGGER.info("Deleting install manifests");
-        for (var installFile : manifestProvider.getInstallYamls()) {
-            deleteManifest(installFile.toPath());
-        }
+        List<HasMetadata> resources = manifestProvider.getResources();
+        resources.stream()
+                .filter(r -> !"CustomResourceDefinition".equals(r.getKind()))
+                .forEach(this::deleteResource);
     }
 
     private void deleteCrd() {
         LOGGER.info("Deleting CRD");
-        for (var crdFile : manifestProvider.getCrdYamls()) {
-            deleteManifest(crdFile.toPath());
-        }
+        List<HasMetadata> resources = manifestProvider.getResources();
+        resources.stream()
+                .filter(r -> "CustomResourceDefinition".equals(r.getKind()))
+                .forEach(this::deleteResource);
     }
 
-    private void deleteManifest(Path manifestPath) {
-        try (InputStream is = Files.newInputStream(manifestPath)) {
-            kubeClient().getClient().load(is).delete();
+    private void deleteResource(HasMetadata resource) {
+        try {
+            kubeClient().getClient().resource(resource).delete();
         }
         catch (Exception e) {
             LOGGER.atWarn()
-                    .addKeyValue("manifest", manifestPath.getFileName())
+                    .addKeyValue("resourceKind", resource.getKind())
+                    .addKeyValue("resourceName", resource.getMetadata().getName())
                     .addKeyValue("error", e.getMessage())
-                    .log("Failed to delete manifest");
+                    .log("Failed to delete resource");
         }
     }
 }

@@ -63,9 +63,7 @@ public class Environment {
     private static final String ARCHITECTURE_ENV = "ARCHITECTURE";
     private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_ENV = "KROXYLICIOUS_OPERATOR_INSTALL_DIR";
     private static final String KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_ENV = "KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR";
-    private static final String KROXYLICIOUS_OPERATOR_CRD_YAML_ENV = "KROXYLICIOUS_OPERATOR_CRD_YAML";
     private static final String KROXYLICIOUS_OPERATOR_INSTALL_YAML_ENV = "KROXYLICIOUS_OPERATOR_INSTALL_YAML";
-    private static final String KROXYLICIOUS_ADMISSION_CRD_YAML_ENV = "KROXYLICIOUS_ADMISSION_CRD_YAML";
     private static final String KROXYLICIOUS_ADMISSION_INSTALL_YAML_ENV = "KROXYLICIOUS_ADMISSION_INSTALL_YAML";
     private static final String CURL_IMAGE_ENV = "CURL_IMAGE";
 
@@ -203,9 +201,7 @@ public class Environment {
             KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_DEFAULT);
     public static final String CURL_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(CURL_IMAGE_ENV, CURL_IMAGE_DEFAULT);
 
-    private static final String KROXYLICIOUS_OPERATOR_CRD_YAML = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_CRD_YAML_ENV, (String) null);
     private static final String KROXYLICIOUS_OPERATOR_INSTALL_YAML = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_INSTALL_YAML_ENV, (String) null);
-    private static final String KROXYLICIOUS_ADMISSION_CRD_YAML = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_ADMISSION_CRD_YAML_ENV, (String) null);
     private static final String KROXYLICIOUS_ADMISSION_INSTALL_YAML = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_ADMISSION_INSTALL_YAML_ENV, (String) null);
 
     private static String readMetadataProperty(String property) {
@@ -242,9 +238,8 @@ public class Environment {
     }
 
     public static io.kroxylicious.systemtests.resources.operator.ManifestProvider createOperatorManifestProvider() {
-        if (KROXYLICIOUS_OPERATOR_CRD_YAML != null && KROXYLICIOUS_OPERATOR_INSTALL_YAML != null) {
+        if (KROXYLICIOUS_OPERATOR_INSTALL_YAML != null) {
             return new io.kroxylicious.systemtests.resources.operator.DirectManifestProvider(
-                    java.nio.file.Path.of(KROXYLICIOUS_OPERATOR_CRD_YAML),
                     java.nio.file.Path.of(KROXYLICIOUS_OPERATOR_INSTALL_YAML));
         }
         else {
@@ -254,9 +249,8 @@ public class Environment {
     }
 
     public static io.kroxylicious.systemtests.resources.operator.ManifestProvider createAdmissionManifestProvider() {
-        if (KROXYLICIOUS_ADMISSION_CRD_YAML != null && KROXYLICIOUS_ADMISSION_INSTALL_YAML != null) {
+        if (KROXYLICIOUS_ADMISSION_INSTALL_YAML != null) {
             return new io.kroxylicious.systemtests.resources.operator.DirectManifestProvider(
-                    java.nio.file.Path.of(KROXYLICIOUS_ADMISSION_CRD_YAML),
                     java.nio.file.Path.of(KROXYLICIOUS_ADMISSION_INSTALL_YAML));
         }
         else {

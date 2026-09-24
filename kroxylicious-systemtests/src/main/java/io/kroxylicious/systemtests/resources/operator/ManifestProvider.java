@@ -6,24 +6,20 @@
 
 package io.kroxylicious.systemtests.resources.operator;
 
-import java.io.File;
 import java.util.List;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
+
 /**
- * Provides manifests for Kroxylicious operator installation.
+ * Provides Kubernetes resources for installation.
  * Supports different sources: archive-extracted manifests or direct single-file YAML manifests.
  */
 public interface ManifestProvider {
 
     /**
-     * Get YAML files containing CustomResourceDefinitions.
-     * @return list of CRD YAML files
+     * Get all Kubernetes resources to apply for installation.
+     * Includes CustomResourceDefinitions, namespace, RBAC, deployment, services, etc.
+     * @return list of Kubernetes resources in order
      */
-    List<File> getCrdYamls();
-
-    /**
-     * Get YAML files for installation (namespace, RBAC, deployment, services, etc).
-     * @return list of install YAML files
-     */
-    List<File> getInstallYamls();
+    List<HasMetadata> getResources();
 }
