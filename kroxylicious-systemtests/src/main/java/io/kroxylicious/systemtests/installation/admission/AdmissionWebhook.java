@@ -23,6 +23,7 @@ import io.fabric8.certmanager.api.model.v1.IssuerBuilder;
 
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.resources.operator.ManifestProvider;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.Constants.ADMISSION_DEPLOYMENT_NAME;
@@ -31,7 +32,6 @@ import static io.kroxylicious.systemtests.Constants.ADMISSION_REGISTRATION_NAME;
 import static io.kroxylicious.systemtests.Constants.ADMISSION_SERVICE_NAME;
 import static io.kroxylicious.systemtests.Constants.ADMISSION_TLS_CERT_NAME;
 import static io.kroxylicious.systemtests.Constants.ADMISSION_TLS_ISSUER_NAME;
-import static io.kroxylicious.systemtests.Environment.KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
@@ -41,6 +41,7 @@ public class AdmissionWebhook {
     private static final Logger LOGGER = LoggerFactory.getLogger(AdmissionWebhook.class);
 
     private boolean deleteWebhook = true;
+    private final ManifestProvider manifestProvider = io.kroxylicious.systemtests.Environment.createAdmissionManifestProvider();
 
     /**
      * Deploys the admission webhook from distribution manifests.
@@ -90,33 +91,35 @@ public class AdmissionWebhook {
     }
 
     private void validateDistribution() {
-        Path installPath = Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR);
-        if (!Files.exists(installPath) || !Files.isDirectory(installPath)) {
-            throw new IllegalStateException(
-                    "Distribution directory not found at " + installPath.toAbsolutePath() +
-                            ". Please build the distribution first with: " +
-                            "mvn clean install -DskipTests -pl kroxylicious-kubernetes/kroxylicious-admission-dist -am");
+        for (var crdFile : manifestProvider.getCrdYamls()) {
+            if (!Files.exists(crdFile.toPath())) {
+                throw new IllegalStateException(
+                        "CRD manifest not found at " + crdFile.getAbsolutePath() +
+                                ". Please build the distribution first with: " +
+                                "mvn clean install -DskipTests -pl kroxylicious-kubernetes/kroxylicious-admission -am");
+            }
+        }
+        for (var installFile : manifestProvider.getInstallYamls()) {
+            if (!Files.exists(installFile.toPath())) {
+                throw new IllegalStateException(
+                        "Install manifest not found at " + installFile.getAbsolutePath() +
+                                ". Please build the distribution first with: " +
+                                "mvn clean install -DskipTests -pl kroxylicious-kubernetes/kroxylicious-admission -am");
+            }
         }
     }
 
     private void applyCrd() {
         LOGGER.info("Applying CRD");
-        Path crdPath = Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR, "00.CustomResourceDefinition.kroxylicioussidecarconfig.yaml");
-        applyManifest(crdPath);
+        for (var crdFile : manifestProvider.getCrdYamls()) {
+            applyManifest(crdFile.toPath());
+        }
     }
 
     private void applyInstallManifests() {
-        LOGGER.info("Applying install manifests from {}", KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR);
-        try (var files = Files.list(Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR))) {
-            files.filter(p -> {
-                Path fileName = p.getFileName();
-                return fileName != null && !fileName.toString().startsWith("00.CustomResourceDefinition");
-            })
-                    .sorted()
-                    .forEach(this::applyManifest);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException("Failed to list install manifests", e);
+        LOGGER.info("Applying install manifests");
+        for (var installFile : manifestProvider.getInstallYamls()) {
+            applyManifest(installFile.toPath());
         }
     }
 
@@ -219,25 +222,16 @@ public class AdmissionWebhook {
 
     private void deleteInstallManifests() {
         LOGGER.info("Deleting install manifests");
-        try (var files = Files.list(Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR))) {
-            files.filter(p -> {
-                Path fileName = p.getFileName();
-                return fileName != null && !fileName.toString().startsWith("00.CustomResourceDefinition");
-            })
-                    .sorted()
-                    .forEach(this::deleteManifest);
-        }
-        catch (IOException e) {
-            LOGGER.atWarn()
-                    .addKeyValue("error", e.getMessage())
-                    .log("Failed to list install manifests during deletion");
+        for (var installFile : manifestProvider.getInstallYamls()) {
+            deleteManifest(installFile.toPath());
         }
     }
 
     private void deleteCrd() {
         LOGGER.info("Deleting CRD");
-        Path crdPath = Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR, "00.CustomResourceDefinition.kroxylicioussidecarconfig.yaml");
-        deleteManifest(crdPath);
+        for (var crdFile : manifestProvider.getCrdYamls()) {
+            deleteManifest(crdFile.toPath());
+        }
     }
 
     private void deleteManifest(Path manifestPath) {
