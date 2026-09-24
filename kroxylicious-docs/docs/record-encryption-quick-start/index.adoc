@@ -193,7 +193,7 @@ The proxy will be created the `my-proxy` namespace
 
 [source,terminal]
 ----
-$ kubectl apply -f examples/record-encryption/
+$ kubectl apply -f record-encryption/
 ----
 
 You need to update the example to find keys in your chosen KMS.
