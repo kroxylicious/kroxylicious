@@ -260,6 +260,9 @@
                                 @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
                                 <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
                                 </ignoredUnusedDeclaredDependency>
+                                <!-- JARs copied for test plugin OCI image, not a compile dependency -->
+                                <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-simple-transform
+                                </ignoredUnusedDeclaredDependency>
                                 <!-- Used in KT integration tests, only compiled with dist profile -->
                                 <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-integration-test-support
                                 </ignoredUnusedDeclaredDependency>

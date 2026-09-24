@@ -82,10 +82,10 @@ class InstallManifestKT {
 
     @ParameterizedTest
     @ValueSource(strings = {
-        "install/",
-        "CustomResourceDefinition",
-        "examples/",
-        "docs/"
+            "install/",
+            "CustomResourceDefinition",
+            "examples/",
+            "docs/"
     })
     void deprecatedZipArchiveShouldContainExpectedContent(String contentPattern) throws IOException {
         Path zipArchive = getDeprecatedZipArchive();
