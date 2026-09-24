@@ -26,9 +26,9 @@ public class Utils {
     static final Path SCRIPTS_DIR = MODULE_ROOT.getParent().resolve("scripts");
 
     // Install manifest and examples for the Operator. The Maven copy-kroxylicious-operator-artifacts copies these
-    // from the kroxylicious-operator-dist module to this module with stable names.
-    static final Path OPERATOR_INSTALL_MANIFEST = MODULE_ROOT.resolve("target").resolve("kroxylicious-operator-dist").resolve("kroxylicious-operator-dist-install.yaml");
-    static final Path OPERATOR_EXAMPLES_ZIP = MODULE_ROOT.resolve("target").resolve("kroxylicious-operator-dist").resolve("kroxylicious-operator-dist-examples.zip");
+    // from the kroxylicious-operator module to this module with stable names (version-independent).
+    static final Path OPERATOR_INSTALL_MANIFEST = MODULE_ROOT.resolve("target").resolve("operator-artifacts").resolve("install.yaml");
+    static final Path OPERATOR_EXAMPLES_ZIP = MODULE_ROOT.resolve("target").resolve("operator-artifacts").resolve("examples.zip");
 
     // Container-image tarballs produced by `mvn -Pdist package` on the proxy and operator modules.
     // QuickStartDT loads these into the throw-away Minikube profile it creates for each quick start run
