@@ -62,16 +62,6 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- project dependencies - build (docs needed for assembly) -->
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-docs</artifactId>
-            <version>${project.version}</version>
-            <type>zip</type>
-            <classifier>docs</classifier>
-            <scope>provided</scope>
-        </dependency>
-
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
@@ -382,12 +372,34 @@
     <profiles>
         <profile>
             <id>dist</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-docs</artifactId>
+                    <version>${project.version}</version>
+                    <type>zip</type>
+                    <classifier>docs</classifier>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-dependency-plugin</artifactId>
                         <executions>
+                            <!-- Override analyze-only to ignore kroxylicious-docs -->
+                            <execution>
+                                <id>analyze</id>
+                                <goals>
+                                    <goal>analyze-only</goal>
+                                </goals>
+                                <configuration>
+                                    <ignoredUnusedDeclaredDependencies>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-docs</ignoredUnusedDeclaredDependency>
+                                    </ignoredUnusedDeclaredDependencies>
+                                </configuration>
+                            </execution>
                             <!-- Unzip docs to make them available to assembly -->
                             <execution>
                                 <id>unpack-docs</id>

@@ -141,7 +141,7 @@
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>analyze</id>
+<!--                        <id>analyze</id>-->
                         <goals>
                             <goal>analyze-only</goal>
                         </goals>
