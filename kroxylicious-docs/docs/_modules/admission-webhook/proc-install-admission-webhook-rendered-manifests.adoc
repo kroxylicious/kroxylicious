@@ -28,8 +28,8 @@ This procedure shows how to install the Kroxylicious Admission Webhook directly 
 +
 [source,shell,subs="+quotes,attributes+"]
 ----
-kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-examples-{KroxyliciousVersion}.tar.gz
-tar -xzf kroxylicious-admission-examples-{KroxyliciousVersion}.tar.gz
+kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-{KroxyliciousVersion}-examples.tar.gz
+tar -xzf kroxylicious-admission-{KroxyliciousVersion}-examples.tar.gz
 kubectl apply -f cert-manager/
 ----
 +
@@ -39,7 +39,7 @@ Alternatively, configure TLS manually (see cert-manager examples for reference).
 +
 [source,shell,subs="+quotes,attributes+"]
 ----
-kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-install-{KroxyliciousVersion}.yaml
+kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-{KroxyliciousVersion}-install.yaml
 ----
 +
 This manifest includes all required resources: CustomResourceDefinitions, Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding, Deployment, Service, PodDisruptionBudget, and MutatingWebhookConfiguration.
@@ -65,4 +65,4 @@ The deployment is successful when the `AVAILABLE` output shows `2`.
 .Additional resources
 
 * For GitOps deployments, you can reference this URL in your Kustomization resources.
-* For two-stage installation (installing CRDs separately), use `kroxylicious-admission-crds-{KroxyliciousVersion}.yaml`.
+* For two-stage installation (installing CRDs separately), use `kroxylicious-admission-{KroxyliciousVersion}-crds.yaml`.

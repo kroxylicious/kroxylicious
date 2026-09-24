@@ -20,16 +20,16 @@ Kroxylicious provides multiple distribution formats to suit different installati
 
 For direct installation and GitOps workflows, use the single-file rendered manifests available from {github-release-link}:
 
-Full install manifest:: `kroxylicious-admission-install-{KroxyliciousVersion}.yaml` contains all required resources (CRDs, Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding, Deployment, Service, PodDisruptionBudget, MutatingWebhookConfiguration). This is the recommended approach for most installations.
+Full install manifest:: `kroxylicious-admission-{KroxyliciousVersion}-install.yaml` contains all required resources (CRDs, Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding, Deployment, Service, PodDisruptionBudget, MutatingWebhookConfiguration). This is the recommended approach for most installations.
 
-CRDs-only manifest:: `kroxylicious-admission-crds-{KroxyliciousVersion}.yaml` contains only CustomResourceDefinition resources. Use this for separate CRD lifecycle management.
+CRDs-only manifest:: `kroxylicious-admission-{KroxyliciousVersion}-crds.yaml` contains only CustomResourceDefinition resources. Use this for separate CRD lifecycle management.
 
-Examples archive:: `kroxylicious-admission-examples-{KroxyliciousVersion}.tar.gz` (or `.zip`) contains cert-manager configuration examples and other reference resources.
+Examples archive:: `kroxylicious-admission-{KroxyliciousVersion}-examples.tar.gz` (or `.zip`) contains cert-manager configuration examples and other reference resources.
 
 These manifests can be applied directly via URL without downloading:
 [source,shell,subs="+quotes,attributes+"]
 ----
-kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-install-{KroxyliciousVersion}.yaml
+kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-{KroxyliciousVersion}-install.yaml
 ----
 
 == Archive distributions (Deprecated)
