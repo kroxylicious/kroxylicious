@@ -63,8 +63,8 @@ class QuickStartDT {
         Assertions.assertThat(Utils.OPERATOR_EXAMPLES_ZIP).exists();
 
         var attributes = Attributes.builder()
-                .attribute("OperatorInstallManifestLink", pathToFileUrl(Utils.OPERATOR_INSTALL_MANIFEST))
-                .attribute("OperatorExamplesZipLink", pathToFileUrl(Utils.OPERATOR_EXAMPLES_ZIP))
+                .attribute("OperatorInstallManifestLink", Utils.OPERATOR_INSTALL_MANIFEST.toAbsolutePath().toString())
+                .attribute("OperatorExamplesZipLink", Utils.OPERATOR_EXAMPLES_ZIP.toAbsolutePath().toString())
                 .build();
 
         var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quick-start").resolve("index.adoc");
