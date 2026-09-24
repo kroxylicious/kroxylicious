@@ -95,6 +95,7 @@ class AllReconcilersIT {
     private static final String PROXY_A = "proxy-a";
     private static final String CLUSTER_FOO = "foo";
     private static final String CLUSTER_FOO_CLUSTER_IP_INGRESS = "foo-cluster-ip";
+    private static final String CLUSTER_FOO_LOADBALANCER_INGRESS = "foo-load-balancer";
     private static final String CLUSTER_FOO_SERVICE = "foo-service";
     private static final String CLUSTER_FOO_FILTER = "foo-filter";
     private static final String STRIMZI_TLS_LISTENER = "tls";
@@ -573,6 +574,70 @@ class AllReconcilersIT {
                             .asInstanceOf(InstanceOfAssertFactories.MAP)
                             .containsEntry("example.com/custom-annotation", "test-value")
                             .containsEntry("haproxy.router.openshift.io/timeout", "60s")
+                            .containsKey("kroxylicious.io/bootstrap-servers"); // operator annotation still present
+                });
+    }
+
+    @Test
+    void infrastructureAnnotationsAppliedToLoadBalancerService() {
+        // Given
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewInfrastructure()
+                        .addToAnnotations("example.com/custom-annotation", "test-value")
+                        .addToAnnotations("service.beta.kubernetes.io/aws-load-balancer-type", "nlb")
+                    .endInfrastructure()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("$(virtualClusterName).kafkaproxy")
+                        .withAdvertisedBrokerAddressPattern("$(virtualClusterName)-$(nodeId).kafkaproxy")
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var tlsCert = new SecretBuilder()
+                .withNewMetadata()
+                    .withName("downstream-tls-certificate" + suffix)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        var clusterIngress = new IngressesBuilder()
+                .withIngressRef(new IngressRefBuilder().withName(name(myIngress)).build())
+                .withNewTls()
+                    .withNewCertificateRef()
+                        .withName(name(tlsCert))
+                    .endCertificateRef()
+                .endTls()
+                .build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(), List.of())
+                .editOrNewSpec()
+                    .withIngresses(List.of(clusterIngress))
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        // When
+        createAll(myProxy, myIngress, myService, tlsCert, myCluster);
+
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+        assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
+
+        // Verify LoadBalancer Service has infrastructure annotations
+        AWAIT.alias("LoadBalancer Service for ingress %s has infrastructure annotations".formatted(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, CLUSTER_FOO_LOADBALANCER_INGRESS + suffix);
+                    assertThat(service)
+                            .isNotNull()
+                            .extracting(s -> s.getMetadata().getAnnotations())
+                            .asInstanceOf(InstanceOfAssertFactories.MAP)
+                            .containsEntry("example.com/custom-annotation", "test-value")
+                            .containsEntry("service.beta.kubernetes.io/aws-load-balancer-type", "nlb")
                             .containsKey("kroxylicious.io/bootstrap-servers"); // operator annotation still present
                 });
     }

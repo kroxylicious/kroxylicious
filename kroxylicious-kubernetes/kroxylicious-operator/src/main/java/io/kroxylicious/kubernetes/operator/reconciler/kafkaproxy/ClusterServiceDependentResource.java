@@ -95,14 +95,15 @@ public class ClusterServiceDependentResource
         return Stream.concat(serviceStream, sniServiceStream).collect(toByNameMap());
     }
 
-    private ObjectMeta sniLoadbalancerServiceMetadata(KafkaProxy primary, KafkaProxyIngress ingress, String name,
+    private ObjectMeta sniLoadbalancerServiceMetadata(KafkaProxy primary, ClusterIngressNetworkingModel ingressModel, String name,
                                                       Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
         ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(primary))
                 .addToLabels(standardLabels(primary))
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
-                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference();
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingressModel.ingress())).endOwnerReference();
+        ingressModel.applyInfrastructureAnnotations(builder);
         Annotations.annotateWithBootstrapServers(builder, bootstraps);
         return builder.build();
     }
@@ -120,14 +121,15 @@ public class ClusterServiceDependentResource
         if (loadBalancerPorts.isEmpty()) {
             return Stream.empty();
         }
-        KafkaProxyIngress ingress = ingressModels.get(0).ingress();
+        ClusterIngressNetworkingModel firstIngressModel = ingressModels.get(0);
+        KafkaProxyIngress ingress = firstIngressModel.ingress();
         Set<Annotations.ClusterIngressBootstrapServers> bootstraps = ingressModels.stream()
                 .map(ingressModel -> ingressModel.sharedLoadBalancerServiceRequirements().orElseThrow().bootstrapServersToAnnotate())
                 .collect(Collectors.toSet());
 
         String serviceName = ResourcesUtil.name(ingress);
         var serviceSpecBuilder = new ServiceBuilder()
-                .withMetadata(sniLoadbalancerServiceMetadata(primary, ingress, serviceName, bootstraps))
+                .withMetadata(sniLoadbalancerServiceMetadata(primary, firstIngressModel, serviceName, bootstraps))
                 .withNewSpec()
                 .withType("LoadBalancer")
                 .withSelector(standardLabels(primary));
