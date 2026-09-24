@@ -28,8 +28,7 @@ This procedure shows how to install the Kroxylicious Admission Webhook directly 
 +
 [source,shell,subs="+quotes,attributes+"]
 ----
-kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-{KroxyliciousVersion}-examples.tar.gz
-tar -xzf kroxylicious-admission-{KroxyliciousVersion}-examples.tar.gz
+unzip -q https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-{KroxyliciousVersion}-examples.zip
 kubectl apply -f cert-manager/
 ----
 +

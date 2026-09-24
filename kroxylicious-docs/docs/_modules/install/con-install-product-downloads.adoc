@@ -24,7 +24,7 @@ Full install manifest:: `kroxylicious-operator-{KroxyliciousVersion}-install.yam
 
 CRDs-only manifest:: `kroxylicious-operator-{KroxyliciousVersion}-crds.yaml` contains only CustomResourceDefinition resources. Use this for separate CRD lifecycle management or when cluster-admin privileges are required for CRD installation but not operator installation.
 
-Examples archive:: `kroxylicious-operator-{KroxyliciousVersion}-examples.tar.gz` (or `.zip`) contains example configurations and custom resources. Download only if you need examples for reference.
+Examples archive:: `kroxylicious-operator-{KroxyliciousVersion}-examples.zip` contains example configurations and custom resources. Download only if you need examples for reference.
 
 These manifests can be applied directly via URL without downloading:
 [source,shell,subs="+quotes,attributes+"]

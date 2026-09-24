@@ -24,7 +24,7 @@ Full install manifest:: `kroxylicious-admission-{KroxyliciousVersion}-install.ya
 
 CRDs-only manifest:: `kroxylicious-admission-{KroxyliciousVersion}-crds.yaml` contains only CustomResourceDefinition resources. Use this for separate CRD lifecycle management.
 
-Examples archive:: `kroxylicious-admission-{KroxyliciousVersion}-examples.tar.gz` (or `.zip`) contains cert-manager configuration examples and other reference resources.
+Examples archive:: `kroxylicious-admission-{KroxyliciousVersion}-examples.zip` contains cert-manager configuration examples and other reference resources.
 
 These manifests can be applied directly via URL without downloading:
 [source,shell,subs="+quotes,attributes+"]
