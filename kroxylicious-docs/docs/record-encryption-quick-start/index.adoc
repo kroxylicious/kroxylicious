@@ -312,7 +312,7 @@ To clean up, remove the proxy and the kafka cluster
 
 [source,terminal,subs="attributes"]
 ----
-$ kubectl delete -f examples/record-encryption/
+$ kubectl delete -f record-encryption/
 $ kubectl delete -n kafka -f ${STRIMZI_MANIFEST:-https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/{strimzi-version}/examples/kafka/kafka-single-node.yaml}
 ----
 
