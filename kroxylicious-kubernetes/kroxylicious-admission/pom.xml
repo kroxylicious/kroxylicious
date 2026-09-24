@@ -334,7 +334,7 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-dependency-plugin</artifactId>
                         <executions>
-                            <!-- Override analyze-only to ignore kroxylicious-docs -->
+                            <!-- Override analyze-only to ignore kroxylicious-docs and other dependencies -->
                             <execution>
                                 <id>analyze</id>
                                 <goals>
@@ -343,6 +343,9 @@
                                 <configuration>
                                     <ignoredUnusedDeclaredDependencies>
                                         <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-docs</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.fabric8:kubernetes-server-mock</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-simple-transform</ignoredUnusedDeclaredDependency>
                                     </ignoredUnusedDeclaredDependencies>
                                 </configuration>
                             </execution>
