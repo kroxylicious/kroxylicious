@@ -70,6 +70,34 @@ class VaultKmsServiceTest {
                         null));
         var kms = vaultKmsService.buildKms();
         assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/transit/"));
+        assertThat(kms.getVaultNamespace()).isNull();
+    }
+
+    @Test
+    void buildsKmsWithVaultNamespace() {
+        vaultKmsService.initialize(
+                new Config(URI.create("http://vault:8200"),
+                        "ns1/ns2",
+                        "custom-transit",
+                        null,
+                        null,
+                        new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("vaultToken")), null),
+                        null));
+        var kms = vaultKmsService.buildKms();
+        assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/custom-transit/"));
+        assertThat(kms.getVaultNamespace()).isEqualTo("ns1/ns2");
+    }
+
+    @Test
+    void throwsUnsupportedOperationExceptionForKubernetesCredentials() {
+        var kubernetesConfig = new io.kroxylicious.kms.provider.hashicorp.vault.config.KubernetesCredentialsConfig("my-role", null, null);
+        vaultKmsService.initialize(
+                new Config(URI.create("https://vault:8200"),
+                        new VaultCredentialsConfig(null, kubernetesConfig),
+                        null));
+        assertThatThrownBy(() -> vaultKmsService.buildKms())
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("Kubernetes authentication is not supported yet");
     }
 
 }

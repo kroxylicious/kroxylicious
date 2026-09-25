@@ -54,7 +54,7 @@ public class VaultKmsService implements KmsService<Config, WrappingKey, VaultEde
         String transitEnginePath = config.transitEnginePath();
         URI vaultUrl = config.vaultUrl();
 
-        URI transitEngineUri = buildVaultEndpointUri(vaultUrl, vaultNamespace, transitEnginePath);
+        URI transitEngineUri = buildVaultEndpointUri(vaultUrl, transitEnginePath);
         LOGGER.atInfo().addKeyValue("transitEngineUri", transitEngineUri).log("Resolved Vault Transit Engine URL");
 
         VaultTokenProvider tokenProvider;
@@ -69,15 +69,12 @@ public class VaultKmsService implements KmsService<Config, WrappingKey, VaultEde
                 tlsConfigurator);
     }
 
-    private static URI buildVaultEndpointUri(URI vaultUrl, @Nullable String vaultNamespace, String path) {
+    private static URI buildVaultEndpointUri(URI vaultUrl, String path) {
         String base = vaultUrl.toString();
         if (!base.endsWith("/")) {
             base += "/";
         }
         base += "v1/";
-        if (vaultNamespace != null && !vaultNamespace.isEmpty()) {
-            base += vaultNamespace.endsWith("/") ? vaultNamespace : vaultNamespace + "/";
-        }
         base += path.endsWith("/") ? path : path + "/";
         return URI.create(base);
     }

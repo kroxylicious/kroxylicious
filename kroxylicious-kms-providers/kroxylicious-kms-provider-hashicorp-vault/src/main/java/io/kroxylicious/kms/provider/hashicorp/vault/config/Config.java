@@ -46,18 +46,30 @@ public record Config(
      * Validates and normalizes the configuration components.
      */
     public Config {
-        if (vaultUrl != null && vaultTransitEngineUrl != null) {
+        boolean usesLegacyUrl = vaultTransitEngineUrl != null;
+        boolean usesModernUrl = vaultUrl != null;
+        boolean usesLegacyCredentials = vaultToken != null;
+        boolean usesModernCredentials = credentials != null;
+
+        if (usesLegacyUrl && usesModernCredentials) {
+            throw new IllegalArgumentException("Cannot mix deprecated 'vaultTransitEngineUrl' with modern 'credentials' - use 'vaultUrl' instead");
+        }
+        if (usesModernUrl && usesLegacyCredentials) {
+            throw new IllegalArgumentException("Cannot mix modern 'vaultUrl' with deprecated 'vaultToken' - use 'credentials.vaultToken' instead");
+        }
+        if (usesModernUrl && usesLegacyUrl) {
             throw new IllegalArgumentException("Cannot specify both 'vaultUrl' and deprecated 'vaultTransitEngineUrl'");
         }
-        if (vaultUrl == null && vaultTransitEngineUrl == null) {
+        if (!usesModernUrl && !usesLegacyUrl) {
             throw new IllegalArgumentException("Either 'vaultUrl' or deprecated 'vaultTransitEngineUrl' must be provided");
         }
-        if (vaultToken != null && credentials != null) {
-            throw new IllegalArgumentException("Cannot specify both 'vaultToken' and 'credentials' - use 'credentials.vaultToken' instead");
+        if (usesLegacyCredentials && usesModernCredentials) {
+            throw new IllegalArgumentException("Cannot specify both deprecated 'vaultToken' and 'credentials' - use 'credentials.vaultToken' instead");
         }
-        if (vaultToken == null && credentials == null) {
+        if (!usesLegacyCredentials && !usesModernCredentials) {
             throw new IllegalArgumentException("Either 'credentials' or deprecated 'vaultToken' must be provided");
         }
+
         if (credentials == null) {
             credentials = new VaultCredentialsConfig(new TokenCredentialsConfig(vaultToken), null);
         }
