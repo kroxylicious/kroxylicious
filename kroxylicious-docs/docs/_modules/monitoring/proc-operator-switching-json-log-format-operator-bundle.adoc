@@ -1,0 +1,86 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// con-operator-json-logging.adoc
+
+[id='proc-operator-switching-json-log-format-operator-bundle-{context}']
+
+= Switching operator logging to JSON (operator installed by bundle)
+
+[role="_abstract"]
+This procedure describes how to switch the Kroxylicious Operator to JSON log output.
+It applies when the operator was installed from the YAML bundle.
+
+.Prerequisites
+
+* Kroxylicious Operator installed from the YAML bundle.
+
+.Procedure
+
+. Apply the `KROXYLICIOUS_LOG_FORMAT` environment variable to the operator's Kubernetes Deployment:
++
+[source,bash]
+----
+kubectl set env -n kroxylicious-operator deployment kroxylicious-operator KROXYLICIOUS_LOG_FORMAT=json
+----
++
+Kubernetes recreates the operator pod automatically.
+
+. Verify that the operator emits JSON log output:
++
+[source,bash]
+----
+kubectl logs -f -n kroxylicious-operator deployment/kroxylicious-operator
+----
++
+Each log event is a JSON object similar to the following example:
++
+[source,json]
+----
+{
+  "@version": "1",
+  "@timestamp": "2026-04-01T14:25:30.123Z",
+  "message": "Operator started",
+  "logger_name": "io.kroxylicious.kubernetes.operator.OperatorMain",
+  "thread_name": "main",
+  "level": "INFO",
+  "level_value": 20000,
+  "version": "0.22.0",
+  "commitId": "abc123"
+}
+----
++
+When an exception is logged, the output also includes a `stack_trace` field.
+
+== Reverting operator logging to text
+
+This procedure describes how to revert the Kroxylicious Operator to text log output.
+
+.Prerequisites
+
+* Kroxylicious Operator installed from the YAML bundle.
+
+.Procedure
+
+. Remove the `KROXYLICIOUS_LOG_FORMAT` environment variable from the operator's Kubernetes Deployment:
++
+[source,bash]
+----
+kubectl set env -n kroxylicious-operator deployment kroxylicious-operator KROXYLICIOUS_LOG_FORMAT-
+----
++
+Kubernetes recreates the operator pod automatically.
+
+. Verify that the logging format has reverted to text:
++
+[source,bash]
+----
+kubectl logs -f -n kroxylicious-operator deployment/kroxylicious-operator
+----

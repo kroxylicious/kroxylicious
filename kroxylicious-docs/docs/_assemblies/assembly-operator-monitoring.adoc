@@ -24,3 +24,4 @@ include::../_modules/monitoring/con-prometheus-metrics-proxy.adoc[leveloffset=+1
 include::../_modules/monitoring/con-prometheus-metrics-operator.adoc[leveloffset=+1]
 include::../_modules/monitoring/con-{guide}-ingesting-metrics.adoc[leveloffset=+1]
 include::../_modules/monitoring/con-{guide}-setting-log-levels.adoc[leveloffset=+1]
+include::../_modules/monitoring/con-{guide}-json-logging.adoc[leveloffset=+1]
