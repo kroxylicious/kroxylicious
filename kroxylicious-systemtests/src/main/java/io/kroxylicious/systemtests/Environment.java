@@ -129,10 +129,8 @@ public class Environment {
     private static final String CATALOG_NAMESPACE_DEFAULT = "openshift-marketplace";
     private static final boolean SYNC_RESOURCES_DELETION_DEFAULT = false;
     private static final String ARCHITECTURE_DEFAULT = System.getProperty("os.arch");
-    private static final String KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE_DEFAULT = USER_DIR + "/kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-"
-            + KROXYLICIOUS_VERSION_DEFAULT + "-install.yaml";
-    private static final String KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_DEFAULT = USER_DIR
-            + "/kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-" + KROXYLICIOUS_VERSION_DEFAULT + "-install.yaml";
+    private static final String KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE_DEFAULT = USER_DIR + "/target/kroxylicious-operator-install.yaml";
+    private static final String KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_DEFAULT = USER_DIR + "/target/kroxylicious-admission-install.yaml";
     public static final String CURL_IMAGE_DEFAULT = Constants.DOCKER_REGISTRY_GCR_MIRROR
             + "/curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13";
 

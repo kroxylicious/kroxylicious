@@ -31,14 +31,11 @@ public class AllInOneYamlProvider implements ManifestProvider {
 
     @Override
     public List<HasMetadata> getResources() {
-        List<HasMetadata> resources = new ArrayList<>();
         try (InputStream is = Files.newInputStream(yaml)) {
-            var loadedResources = new KubernetesClientBuilder().build().load(is).get();
-            resources.addAll(loadedResources);
+            return new KubernetesClientBuilder().build().load(is).items();
         }
         catch (IOException e) {
             throw new UncheckedIOException("Failed to load manifest from " + yaml, e);
         }
-        return resources;
     }
 }

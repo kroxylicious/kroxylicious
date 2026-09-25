@@ -33,6 +33,10 @@ public class DirectoryManifestProvider implements ManifestProvider {
         List<HasMetadata> resources = new ArrayList<>();
         try (var fileStream = Files.list(installDir)) {
             fileStream.filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String filename = path.getFileName().toString();
+                        return filename.endsWith(".yaml") || filename.endsWith(".yml");
+                    })
                     .sorted()
                     .forEach(path -> {
                         var loadedResources = KubeTestUtils.configFromYaml(path.toFile(), HasMetadata.class);
