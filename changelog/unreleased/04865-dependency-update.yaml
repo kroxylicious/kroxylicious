@@ -1,4 +1,0 @@
-title: "build(deps): bump org.openrewrite.recipe:rewrite-recipe-bom from 3.37.0 to 3.38.0"
-type: build
-merge_requests:
-  - 4865
