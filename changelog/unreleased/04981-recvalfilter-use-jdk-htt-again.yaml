@@ -1,0 +1,4 @@
+title: "fix(record-validation): make apicurio registry use java-based HTTP stack"
+type: fixed
+issues:
+  - 4981
