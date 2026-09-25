@@ -58,6 +58,10 @@
         </dependency>
         <dependency>
             <groupId>io.apicurio</groupId>
+            <artifactId>apicurio-registry-schema-validation-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.apicurio</groupId>
             <artifactId>apicurio-registry-java-sdk-adapter-jdk</artifactId>
         </dependency>
         <dependency>
@@ -142,10 +146,6 @@
         <dependency>
             <groupId>io.apicurio</groupId>
             <artifactId>apicurio-registry-serde-kafka-common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.apicurio</groupId>
-            <artifactId>apicurio-registry-schema-resolver</artifactId>
         </dependency>
         <dependency>
             <groupId>io.apicurio</groupId>
