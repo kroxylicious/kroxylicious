@@ -254,6 +254,9 @@ Therefore, there is no need to use synchronization when accessing such fields.
 See the {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html#implementing.threadSafety[`io.kroxylicious.proxy.filter`^]
 package javadoc for more information on thread-safety.
 
+If state needs to outlive a single connection, or be shared by many filter instances (for example, a client or a cache),
+see <<Sharing state between filter instances>>.
+
 === Filter Patterns
 
 Kroxylicious Protocol Filters support several patterns:
@@ -462,6 +465,87 @@ filterDefinitions:
 ----
 Kroxylicious will deserialize the `config` object into a `SampleFilterConfig` and use it to construct a
 `SampleFetchResponseFilter` passing the `SampleFilterConfig` instance as a constructor argument.
+
+=== Sharing state between filter instances
+
+A filter instance only lives as long as the connection it belongs to (see <<The protocol filter lifecycle>>).
+Filters often need components that are expensive to create, or that must be shared by all connections, such as clients
+for external services, caches, or connection pools.
+Creating these in each filter instance would be wasteful, so the `FilterFactory` provides a lifecycle for shared state.
+
+The `FilterFactory<C, I>` interface declares two type parameters: `C` is the configuration type and `I` is the type of
+the _initialization data_.
+
+* `initialize(FilterFactoryContext, C)` is called once, before any filter instances are created.
+It validates the configuration and returns the initialization data.
+This is where shared components should be created.
+* `createFilter(FilterFactoryContext, I)` is called for each new filter instance and receives the initialization data.
+Pass the shared components to the filter, typically as constructor arguments.
+* `close(I)` is called when the factory is no longer needed and receives the same initialization data.
+This is where shared components should be released.
+
+For example, a filter that looks up information from an external service can share a single client and cache between
+all its instances:
+
+[source,java]
+----
+public class LookupFilterFactory implements FilterFactory<LookupConfig, LookupFilterFactory.SharedState> {
+
+    // Holds the components shared by all filter instances created by this factory.
+    record SharedState(LookupClient client, LookupCache cache) {}
+
+    @Override
+    public SharedState initialize(FilterFactoryContext context, LookupConfig config) throws PluginConfigurationException {
+        var validatedConfig = Plugins.requireConfig(this, config);
+        // Create the shared components once.
+        var client = new LookupClient(validatedConfig.endpoint());
+        var cache = new LookupCache(validatedConfig.maxCacheSize());
+        return new SharedState(client, cache);
+    }
+
+    @Override
+    public Filter createFilter(FilterFactoryContext context, SharedState sharedState) {
+        // Each filter instance receives the same shared components.
+        return new LookupFilter(sharedState.client(), sharedState.cache());
+    }
+
+    @Override
+    public void close(SharedState sharedState) {
+        // Release the shared components.
+        sharedState.client().close();
+    }
+}
+----
+
+Keep the following in mind when sharing state:
+
+* *Scope*: `FilterFactory` instances are scoped per virtual cluster.
+Each virtual cluster that uses a filter gets its own factory instance, with its own calls to `initialize` and `close`.
+State is not shared between virtual clusters.
+Within a virtual cluster, a filter definition that is referenced more than once in the filter chain is initialized
+only once, and its initialization data is shared across all positions in the chain.
+* *Pass state through the initialization data*: `createFilter` might be called on a different thread from
+`initialize` and `close`.
+Returning the shared state from `initialize` and using the `initializationData` argument avoids the need to
+synchronize fields of the factory.
+* *Thread-safety of shared components*: Unlike per-connection state, shared components are used concurrently by filter
+instances running on different threads.
+Shared components must therefore be thread-safe.
+The guarantee that chained computation stages run on the filter's thread applies only to stages returned by
+`FilterContext#sendRequest`, not to stages returned by a shared component.
+If a filter needs to mutate its own fields when a shared component completes some work, it should hop back onto its
+thread using the executor returned by `FilterFactoryContext#filterDispatchExecutor()`, which is available in
+`createFilter`.
+* *Blocking*: `initialize` and `close` are never called on a Netty event loop thread, so blocking work, such as
+connecting a client or closing it, is safe in these methods.
+Filter methods, however, run on the event loop and must not block, so shared components should offer a non-blocking
+API to filters.
+* *Releasing resources*: `close` is guaranteed to be called eventually for every successful call to `initialize`, and
+no filter instances are created after `close` has been called.
+
+See the {api-javadoc}/io/kroxylicious/proxy/filter/FilterFactory.html[FilterFactory^] javadoc for more details.
+For a complete example, see the {github-blob-root}/kroxylicious-filters/kroxylicious-record-encryption/src/main/java/io/kroxylicious/filter/encryption/RecordEncryption.java[RecordEncryption]
+filter factory, which shares a KMS client and key caches between all filter instances.
 
 == Packaging filters
 
