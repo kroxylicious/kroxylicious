@@ -299,4 +299,10 @@ public class VaultKms implements Kms<WrappingKey, VaultEdek> {
     URI getVaultTransitEngineUri() {
         return vaultTransitEngineUrl;
     }
+
+    @VisibleForTesting
+    @Nullable
+    String getVaultNamespace() {
+        return vaultNamespace;
+    }
 }

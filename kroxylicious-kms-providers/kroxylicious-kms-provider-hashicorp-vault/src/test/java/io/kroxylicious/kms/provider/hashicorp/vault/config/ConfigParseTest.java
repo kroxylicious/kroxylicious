@@ -96,7 +96,7 @@ class ConfigParseTest {
     void credentialsVaultTokenInlinePassword() throws IOException {
         String json = """
                 {
-                    "vaultTransitEngineUrl": "http://vault",
+                    "vaultUrl": "http://vault:8200",
                     "credentials": {
                         "vaultToken": {
                             "token": { "password": "mytoken" }
@@ -120,7 +120,7 @@ class ConfigParseTest {
     void credentialsKubernetesWithRoleOnly() throws IOException {
         String json = """
                 {
-                    "vaultTransitEngineUrl": "http://vault",
+                    "vaultUrl": "http://vault:8200",
                     "credentials": {
                         "kubernetes": {
                             "vaultRole": "my-k8s-role"
@@ -144,7 +144,7 @@ class ConfigParseTest {
     void credentialsKubernetesWithCustomPaths() throws IOException {
         String json = """
                 {
-                    "vaultTransitEngineUrl": "http://vault",
+                    "vaultUrl": "http://vault:8200",
                     "credentials": {
                         "kubernetes": {
                             "vaultRole": "my-k8s-role",
@@ -206,7 +206,7 @@ class ConfigParseTest {
                     """;
             readConfig(json);
         }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Cannot specify both 'vaultUrl' and deprecated 'vaultTransitEngineUrl'");
+                .hasMessageContaining("Cannot mix deprecated 'vaultTransitEngineUrl' with modern 'credentials'");
     }
 
     @Test
@@ -230,11 +230,41 @@ class ConfigParseTest {
     }
 
     @Test
+    void legacyUrlAndModernCredentialsThrows() {
+        Assertions.assertThatThrownBy(() -> {
+            String json = """
+                    {
+                        "vaultTransitEngineUrl": "https://vault/v1/transit",
+                        "credentials": {
+                            "vaultToken": { "token": { "password": "token" } }
+                        }
+                    }
+                    """;
+            readConfig(json);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot mix deprecated 'vaultTransitEngineUrl' with modern 'credentials'");
+    }
+
+    @Test
+    void modernUrlAndLegacyTokenThrows() {
+        Assertions.assertThatThrownBy(() -> {
+            String json = """
+                    {
+                        "vaultUrl": "https://vault:8200",
+                        "vaultToken": { "password" : "token" }
+                    }
+                    """;
+            readConfig(json);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot mix modern 'vaultUrl' with deprecated 'vaultToken'");
+    }
+
+    @Test
     void bothCredentialsAndDeprecatedTokenThrows() {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
-                        "vaultTransitEngineUrl": "https://vault",
+                        "vaultUrl": "https://vault:8200",
                         "vaultToken": { "password" : "token" },
                         "credentials": {
                             "vaultToken": { "token": { "password": "token2" } }
@@ -243,7 +273,7 @@ class ConfigParseTest {
                     """;
             readConfig(json);
         }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Cannot specify both 'vaultToken' and 'credentials' - use 'credentials.vaultToken' instead");
+                .hasMessageContaining("Cannot mix modern 'vaultUrl' with deprecated 'vaultToken'");
     }
 
     @Test
@@ -251,7 +281,7 @@ class ConfigParseTest {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
-                        "vaultTransitEngineUrl": "https://vault",
+                        "vaultUrl": "https://vault:8200",
                         "credentials": {
                             "vaultToken": { "token": { "password": "mytoken" } },
                             "kubernetes": { "vaultRole": "my-role" }
@@ -268,7 +298,7 @@ class ConfigParseTest {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
-                        "vaultTransitEngineUrl": "https://vault",
+                        "vaultUrl": "https://vault:8200",
                         "credentials": {}
                     }
                     """;
