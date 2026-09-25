@@ -46,14 +46,14 @@ defaultFilters:
   - encryption
 clusterDefinitions:
   - name: my-cluster
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      bootstrapServerSelection:
-        strategy: "round-robin"
-      tls:
-        trust:
-          storeFile: /opt/proxy/trust/ca.p12
-          storePassword:
-            passwordFile: /opt/proxy/trust/ca.password
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    bootstrapServerSelection:
+      strategy: "round-robin"
+    tls:
+      trust:
+        storeFile: /opt/proxy/trust/ca.p12
+        storePassword:
+          passwordFile: /opt/proxy/trust/ca.password
 virtualClusters:
   - name: my-cluster-proxy
     target:
