@@ -17,6 +17,7 @@ Ensure the certificate matches the names of the virtual cluster gateway's bootst
 This may require wildcard certificates and Subject Alternative Names (SANs).
 
 * Provide the TLS configuration using the `tls` properties in the virtual cluster gateway's configuration to enable it to present the certificate to clients.
+Files providing TLS configuration are monitored and re-read when changes occur, including certificate rotation.
 Depending on your certificate format, apply one of the following examples.
 
 * For mutual TLS, use the `trust` properties to configure the virtual cluster gateway to use TLS client authentication.
