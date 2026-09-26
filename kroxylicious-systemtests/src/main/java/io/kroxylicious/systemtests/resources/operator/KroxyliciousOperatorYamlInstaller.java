@@ -7,14 +7,7 @@
 
 package io.kroxylicious.systemtests.resources.operator;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +21,7 @@ import org.junit.platform.commons.PreconditionViolationException;
 
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
@@ -37,14 +31,12 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
-import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.skodjob.kubetest4j.enums.InstallType;
 import io.skodjob.kubetest4j.installation.InstallationMethod;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.skodjob.kubetest4j.utils.ImageUtils;
-import io.skodjob.kubetest4j.utils.KubeTestUtils;
 import io.skodjob.kubetest4j.utils.PodUtils;
 
 import io.kroxylicious.systemtests.Constants;
@@ -54,7 +46,6 @@ import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -77,6 +68,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     private Map<String, String> extraLabels;
     private final Map<String, String> additionalEnvVars;
     private final int replicas;
+    private final ManifestProvider manifestProvider;
 
     private String testClassName;
     // by default, we expect at least empty method name in order to collect logs correctly
@@ -96,50 +88,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         this.replicas = 1;
         this.extensionContext = KubeResourceManager.get().getTestContext();
         this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME;
-    }
-
-    @NonNull
-    private static List<Path> installFilesMatching(Predicate<Path> matcher) {
-        List<Path> crdFiles;
-        try (var fileStream = Files.list(Path.of(Environment.KROXYLICIOUS_OPERATOR_INSTALL_DIR))) {
-            crdFiles = fileStream.filter(Files::isRegularFile)
-                    .filter(matcher)
-                    .sorted()
-                    .toList();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        return crdFiles;
-    }
-
-    @NonNull
-    private static Predicate<Path> glob(String glob) {
-        PathMatcher pathMatcher = FileSystems.getDefault()
-                .getPathMatcher("glob:" + glob);
-        return path -> pathMatcher.matches(path.getFileName());
-    }
-
-    @NonNull
-    private static List<Path> installCrdFiles() {
-        return installFilesMatching(glob(Constants.OPERATOR_INSTALL_CRD_GLOB));
-    }
-
-    private static File installDeploymentFile() {
-        return getFilteredOperatorFiles(glob(Constants.OPERATOR_INSTALL_DEPLOYMENT_GLOB)).get(0);
-    }
-
-    private static List<File> installNonDeploymentOrCrdFiles() {
-        return getFilteredOperatorFiles(Predicate.not(glob(Constants.OPERATOR_INSTALL_DEPLOYMENT_GLOB)));
-    }
-
-    private static List<File> getFilteredOperatorFiles(Predicate<Path> predicate) {
-        return installFilesMatching(
-                predicate.and(Predicate.not(glob(Constants.OPERATOR_INSTALL_CRD_GLOB)))).stream().map(Path::toFile).toList();
-    }
-
-    private void applyClusterOperatorInstallFiles(String namespaceName) {
-        DeploymentUtils.deployYamlFiles(namespaceName, installNonDeploymentOrCrdFiles());
+        this.manifestProvider = Environment.createOperatorManifestProvider();
     }
 
     /**
@@ -148,14 +97,28 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
      * @param clientNamespace namespace which will be created and used as default by kube client
      */
     public void prepareEnvForOperator(String clientNamespace) {
-        applyCrds();
-        applyClusterOperatorInstallFiles(clientNamespace);
-        applyDeploymentFile();
+        List<HasMetadata> resources = manifestProvider.getResources();
+
+        Deployment operatorDeployment = resources.stream()
+                .filter(Deployment.class::isInstance)
+                .map(Deployment.class::cast)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No Deployment found in manifests"));
+
+        List<HasMetadata> otherResources = new ArrayList<>(resources);
+        otherResources.remove(operatorDeployment);
+
+        applyOtherResources(otherResources);
+        applyDeploymentFile(operatorDeployment);
     }
 
-    private void applyDeploymentFile() {
-        Deployment operatorDeployment = KubeTestUtils.configFromYaml(installDeploymentFile(),
-                Deployment.class);
+    private void applyOtherResources(List<HasMetadata> resources) {
+        for (HasMetadata resource : resources) {
+            KubeResourceManager.get().createOrUpdateResourceWithWait(resource);
+        }
+    }
+
+    private void applyDeploymentFile(Deployment operatorDeployment) {
 
         String deploymentImage = operatorDeployment
                 .getSpec()
@@ -270,16 +233,6 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
                 });
     }
 
-    /**
-     * Temporary method to fulfill the Crds installation until new JOSDK 5.0.0 release landed https://github.com/operator-framework/java-operator-sdk/releases
-     */
-    private void applyCrds() {
-        for (Path crdPath : installCrdFiles()) {
-            CustomResourceDefinition customResourceDefinition = KubeTestUtils.configFromYaml(crdPath.toFile(), CustomResourceDefinition.class);
-            KubeResourceManager.get().createOrUpdateResourceWithWait(customResourceDefinition);
-        }
-    }
-
     @Override
     @SuppressWarnings("EqualsGetClass") // Installation identity: a YAML installation is never the same installation as any other type,
     // including a subclass of this one.
@@ -339,7 +292,6 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         prepareEnvForOperator(namespaceInstallTo);
     }
 
-    @SuppressFBWarnings("PATH_TRAVERSAL_IN") // this is not production code
     @Override
     public synchronized void delete() {
         LOGGER.info(SEPARATOR);
@@ -348,18 +300,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         }
         else {
             LOGGER.info("Un-installing Kroxylicious Operator from Namespace: {}", namespaceInstallTo);
-
-            // clear all resources related to the extension context
-            try {
-                for (File operatorFile : installNonDeploymentOrCrdFiles()) {
-                    LOGGER.info("Deleting Kroxylicious Operator element: {}", operatorFile.getName());
-                    kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).inAnyNamespace().delete();
-                }
-                KubeResourceManager.get().deleteResources(true);
-            }
-            catch (Exception e) {
-                LOGGER.error("An error occurred when deleting the resources", e);
-            }
+            KubeResourceManager.get().deleteResources(true);
         }
         LOGGER.info(SEPARATOR);
     }

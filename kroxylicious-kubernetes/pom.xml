@@ -28,11 +28,9 @@
     <modules>
         <module>kroxylicious-kubernetes-api</module>
         <module>kroxylicious-operator</module>
-        <module>kroxylicious-operator-dist</module>
         <module>kroxylicious-operator-test-support</module>
         <module>kroxylicious-admission-api</module>
         <module>kroxylicious-admission</module>
-        <module>kroxylicious-admission-dist</module>
     </modules>
 
     <dependencyManagement>

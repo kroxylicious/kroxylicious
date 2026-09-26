@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -20,9 +21,11 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.certmanager.api.model.v1.CertificateBuilder;
 import io.fabric8.certmanager.api.model.v1.IssuerBuilder;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.resources.operator.ManifestProvider;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.Constants.ADMISSION_DEPLOYMENT_NAME;
@@ -31,7 +34,6 @@ import static io.kroxylicious.systemtests.Constants.ADMISSION_REGISTRATION_NAME;
 import static io.kroxylicious.systemtests.Constants.ADMISSION_SERVICE_NAME;
 import static io.kroxylicious.systemtests.Constants.ADMISSION_TLS_CERT_NAME;
 import static io.kroxylicious.systemtests.Constants.ADMISSION_TLS_ISSUER_NAME;
-import static io.kroxylicious.systemtests.Environment.KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
@@ -41,6 +43,7 @@ public class AdmissionWebhook {
     private static final Logger LOGGER = LoggerFactory.getLogger(AdmissionWebhook.class);
 
     private boolean deleteWebhook = true;
+    private final ManifestProvider manifestProvider = io.kroxylicious.systemtests.Environment.createAdmissionManifestProvider();
 
     /**
      * Deploys the admission webhook from distribution manifests.
@@ -90,33 +93,40 @@ public class AdmissionWebhook {
     }
 
     private void validateDistribution() {
-        Path installPath = Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR);
-        if (!Files.exists(installPath) || !Files.isDirectory(installPath)) {
+        List<HasMetadata> resources = manifestProvider.getResources();
+        if (resources.isEmpty()) {
             throw new IllegalStateException(
-                    "Distribution directory not found at " + installPath.toAbsolutePath() +
-                            ". Please build the distribution first with: " +
-                            "mvn clean install -DskipTests -pl kroxylicious-kubernetes/kroxylicious-admission-dist -am");
+                    "No resources found in manifests. Please build the distribution first with: " +
+                            "mvn clean install -DskipTests -pl kroxylicious-kubernetes/kroxylicious-admission -am");
         }
     }
 
     private void applyCrd() {
-        LOGGER.info("Applying CRD");
-        Path crdPath = Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR, "00.CustomResourceDefinition.kroxylicioussidecarconfig.yaml");
-        applyManifest(crdPath);
+        LOGGER.info("Applying CRD resources");
+        List<HasMetadata> resources = manifestProvider.getResources();
+        resources.stream()
+                .filter(r -> "CustomResourceDefinition".equals(r.getKind()))
+                .forEach(this::applyResource);
     }
 
     private void applyInstallManifests() {
-        LOGGER.info("Applying install manifests from {}", KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR);
-        try (var files = Files.list(Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR))) {
-            files.filter(p -> {
-                Path fileName = p.getFileName();
-                return fileName != null && !fileName.toString().startsWith("00.CustomResourceDefinition");
-            })
-                    .sorted()
-                    .forEach(this::applyManifest);
+        LOGGER.info("Applying install manifests");
+        List<HasMetadata> resources = manifestProvider.getResources();
+        resources.stream()
+                .filter(r -> !"CustomResourceDefinition".equals(r.getKind()))
+                .forEach(this::applyResource);
+    }
+
+    private void applyResource(HasMetadata resource) {
+        try {
+            ResourceManager.getInstance().createOrUpdateResourceWithWait(resource);
         }
-        catch (IOException e) {
-            throw new UncheckedIOException("Failed to list install manifests", e);
+        catch (Exception e) {
+            LOGGER.atWarn()
+                    .addKeyValue("resourceKind", resource.getKind())
+                    .addKeyValue("resourceName", resource.getMetadata().getName())
+                    .addKeyValue("error", e.getMessage())
+                    .log("Failed to apply resource");
         }
     }
 
@@ -219,36 +229,30 @@ public class AdmissionWebhook {
 
     private void deleteInstallManifests() {
         LOGGER.info("Deleting install manifests");
-        try (var files = Files.list(Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR))) {
-            files.filter(p -> {
-                Path fileName = p.getFileName();
-                return fileName != null && !fileName.toString().startsWith("00.CustomResourceDefinition");
-            })
-                    .sorted()
-                    .forEach(this::deleteManifest);
-        }
-        catch (IOException e) {
-            LOGGER.atWarn()
-                    .addKeyValue("error", e.getMessage())
-                    .log("Failed to list install manifests during deletion");
-        }
+        List<HasMetadata> resources = manifestProvider.getResources();
+        resources.stream()
+                .filter(r -> !"CustomResourceDefinition".equals(r.getKind()))
+                .forEach(this::deleteResource);
     }
 
     private void deleteCrd() {
         LOGGER.info("Deleting CRD");
-        Path crdPath = Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR, "00.CustomResourceDefinition.kroxylicioussidecarconfig.yaml");
-        deleteManifest(crdPath);
+        List<HasMetadata> resources = manifestProvider.getResources();
+        resources.stream()
+                .filter(r -> "CustomResourceDefinition".equals(r.getKind()))
+                .forEach(this::deleteResource);
     }
 
-    private void deleteManifest(Path manifestPath) {
-        try (InputStream is = Files.newInputStream(manifestPath)) {
-            kubeClient().getClient().load(is).delete();
+    private void deleteResource(HasMetadata resource) {
+        try {
+            kubeClient().getClient().resource(resource).delete();
         }
         catch (Exception e) {
             LOGGER.atWarn()
-                    .addKeyValue("manifest", manifestPath.getFileName())
+                    .addKeyValue("resourceKind", resource.getKind())
+                    .addKeyValue("resourceName", resource.getMetadata().getName())
                     .addKeyValue("error", e.getMessage())
-                    .log("Failed to delete manifest");
+                    .log("Failed to delete resource");
         }
     }
 }

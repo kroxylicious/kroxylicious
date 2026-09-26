@@ -38,7 +38,7 @@ abstract class AbstractInstallKT {
     }
 
     @Test
-    void shouldInstallFromYamlManifests() {
+    void shouldInstallFromDirectory() {
         try {
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", "target/packaged/install")).isTrue();
 
@@ -49,6 +49,60 @@ abstract class AbstractInstallKT {
         finally {
             ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", "target/packaged/install");
         }
+    }
+
+    @Test
+    void shouldInstallFromInstallManifest() {
+        Path manifest = getFullInstallManifest();
+        try {
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", manifest.toString())).isTrue();
+
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "-n", "kroxylicious-operator",
+                    "--for=jsonpath={.status.readyReplicas}=1", "--timeout=300s", "deployment", "kroxylicious-operator")).isTrue();
+            LOGGER.info("Operator deployment became ready from rendered install manifest");
+        }
+        finally {
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", manifest.toString());
+        }
+    }
+
+    @Test
+    void shouldInstallCrdsOnly() {
+        Path crdsManifest = getCrdsOnlyManifest();
+
+        try {
+            // Install CRDs
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
+
+            // Verify correct number of CRDs installed (5 for operator: names ending in .kroxylicious.io but not .sidecar.kroxylicious.io)
+            assertThat(ShellUtils.execValidate(
+                    lines -> lines.filter(name -> name.endsWith(".kroxylicious.io") && !name.endsWith(".sidecar.kroxylicious.io")).count() == 5,
+                    ALWAYS_VALID,
+                    "kubectl", "get", "crd", "-o", "go-template={{- range .items }}{{ .metadata.name }}{{ \"\\n\" }}{{- end }}")).isTrue();
+
+            LOGGER.info("CRDs installed and verified");
+        }
+        finally {
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", crdsManifest.toString());
+        }
+    }
+
+    private Path getFullInstallManifest() {
+        String version = OperatorInfo.fromResource().version();
+        Path manifest = Path.of("target/kroxylicious-operator-" + version + "-install.yaml");
+        assumeThat(manifest)
+                .describedAs("Full install manifest %s must exist", manifest)
+                .exists();
+        return manifest;
+    }
+
+    private Path getCrdsOnlyManifest() {
+        String version = OperatorInfo.fromResource().version();
+        Path manifest = Path.of("target/kroxylicious-operator-" + version + "-crds.yaml");
+        assumeThat(manifest)
+                .describedAs("CRDs-only manifest %s must exist", manifest)
+                .exists();
+        return manifest;
     }
 
     static boolean validateKubeContext(String expectedContext) {

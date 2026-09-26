@@ -260,6 +260,9 @@
                                 @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
                                 <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
                                 </ignoredUnusedDeclaredDependency>
+                                <!-- JARs copied for test plugin OCI image, not a compile dependency -->
+                                <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-simple-transform
+                                </ignoredUnusedDeclaredDependency>
                                 <!-- Used in KT integration tests, only compiled with dist profile -->
                                 <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-integration-test-support
                                 </ignoredUnusedDeclaredDependency>
@@ -298,6 +301,16 @@
     <profiles>
         <profile>
             <id>dist</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-docs</artifactId>
+                    <version>${project.version}</version>
+                    <type>zip</type>
+                    <classifier>docs</classifier>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <plugin>
@@ -318,8 +331,112 @@
                         </executions>
                     </plugin>
                     <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <!-- Override analyze-only to ignore kroxylicious-docs and other dependencies -->
+                            <execution>
+                                <id>analyze</id>
+                                <goals>
+                                    <goal>analyze-only</goal>
+                                </goals>
+                                <configuration>
+                                    <ignoredUnusedDeclaredDependencies>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-docs</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.fabric8:kubernetes-server-mock</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-simple-transform</ignoredUnusedDeclaredDependency>
+                                    </ignoredUnusedDeclaredDependencies>
+                                </configuration>
+                            </execution>
+                            <!-- Unzip docs to make them available to assembly -->
+                            <execution>
+                                <id>unpack-docs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-docs</artifactId>
+                                            <classifier>docs</classifier>
+                                            <type>zip</type>
+                                            <outputDirectory>${project.build.directory}/docs</outputDirectory>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-webhook-install</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <delimiters>
+                                        <delimiter>$[*]</delimiter>
+                                    </delimiters>
+                                    <resources>
+                                        <resource>
+                                            <directory>packaging</directory>
+                                            <filtering>true</filtering>
+                                        </resource>
+                                    </resources>
+                                    <outputDirectory>target/packaged</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>dev.jbang</groupId>
+                        <artifactId>jbang-maven-plugin</artifactId>
+                        <executions>
+                            <!-- Package CRDs into target/packaged/install -->
+                            <execution>
+                                <id>package-crds</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
+                                    <script>${project.basedir}/package_crds.java</script>
+                                    <args>
+                                        <arg>${project.basedir}/../kroxylicious-admission-api/src/main/resources/META-INF/fabric8</arg>
+                                        <arg>${project.build.directory}/packaged/install</arg>
+                                    </args>
+                                </configuration>
+                            </execution>
+                            <!-- Concatenate manifests into single install files -->
+                            <execution>
+                                <id>create-install-manifests</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <script>${project.basedir}/concat_manifests.java</script>
+                                    <args>
+                                        <arg>${project.build.directory}/packaged/install</arg>
+                                        <arg>${project.build.directory}/kroxylicious-admission-${project.version}-install.yaml</arg>
+                                        <arg>${project.build.directory}/kroxylicious-admission-${project.version}-crds.yaml</arg>
+                                        <arg>${project.version}</arg>
+                                    </args>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
                         <artifactId>maven-assembly-plugin</artifactId>
                         <executions>
+                            <!-- Create the target/kroxylicious-admission-0.13.0-SNAPSHOT-app directory -->
                             <execution>
                                 <id>app</id>
                                 <phase>package</phase>
@@ -329,6 +446,35 @@
                                 <configuration>
                                     <descriptors>
                                         <descriptor>src/assembly/app.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                            <!-- Create deprecated asset zip/tar.gz distribution (runs after jbang generates manifests) -->
+                            <execution>
+                                <id>asset</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <appendAssemblyId>false</appendAssemblyId>
+                                    <finalName>kroxylicious-admission-${project.version}</finalName>
+                                    <descriptors>
+                                        <descriptor>src/assembly/asset.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                            <!-- Create examples archive -->
+                            <execution>
+                                <id>examples</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <attach>false</attach>
+                                    <descriptors>
+                                        <descriptor>src/assembly/examples.xml</descriptor>
                                     </descriptors>
                                 </configuration>
                             </execution>
@@ -390,50 +536,33 @@
                         </executions>
                     </plugin>
                     <plugin>
-                        <artifactId>maven-resources-plugin</artifactId>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>copy-webhook-install</id>
+                                <id>attach-install-manifests</id>
                                 <phase>package</phase>
                                 <goals>
-                                    <goal>copy-resources</goal>
+                                    <goal>attach-artifact</goal>
                                 </goals>
                                 <configuration>
-                                    <delimiters>
-                                        <delimiter>$[*]</delimiter>
-                                    </delimiters>
-                                    <resources>
-                                        <resource>
-                                            <directory>packaging</directory>
-                                            <filtering>true</filtering>
-                                        </resource>
-                                    </resources>
-                                    <outputDirectory>target/packaged</outputDirectory>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>dev.jbang</groupId>
-                        <artifactId>jbang-maven-plugin</artifactId>
-                        <executions>
-                            <!-- Add the crds to target/packaged/install, renaming the files to match the other YAMLs -->
-                            <execution>
-                                <id>rename-crds</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>run</goal>
-                                </goals>
-                                <configuration>
-                                    <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
-                                    <!--suppress UnresolvedMavenProperty -->
-                                    <script>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/package_crds.java</script>
-                                    <args>
-                                        <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission-api/src/main/resources/META-INF/fabric8</arg>
-                                        <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/target/packaged/install</arg>
-                                    </args>
+                                    <artifacts>
+                                        <artifact>
+                                            <file>${project.build.directory}/kroxylicious-admission-${project.version}-install.yaml</file>
+                                            <type>yaml</type>
+                                            <classifier>install</classifier>
+                                        </artifact>
+                                        <artifact>
+                                            <file>${project.build.directory}/kroxylicious-admission-${project.version}-crds.yaml</file>
+                                            <type>yaml</type>
+                                            <classifier>crds</classifier>
+                                        </artifact>
+                                        <artifact>
+                                            <file>${project.build.directory}/${project.artifactId}-${project.version}-examples.zip</file>
+                                            <type>zip</type>
+                                            <classifier>examples</classifier>
+                                        </artifact>
+                                    </artifacts>
                                 </configuration>
                             </execution>
                         </executions>

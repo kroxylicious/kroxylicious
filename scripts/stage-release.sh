@@ -180,10 +180,6 @@ fi
 echo "Found Central Publishing Portal deployment id: ${DEPLOYMENT_ID}"
 echo "${DEPLOYMENT_ID}" > DEPLOYMENT.ID
 
-echo "Release deployed. Extracting release notes in: ${RELEASE_NOTES_DIR}"
-mkdir -p "${RELEASE_NOTES_DIR}"
-csplit --silent --prefix "${RELEASE_NOTES_DIR}/release-notes_" CHANGELOG.md "/^## /" '{*}'
-
 echo "Preparing for development of ${NEXT_VERSION}"
 PREPARE_DEVELOPMENT_BRANCH="${WORK_BRANCH_NAME}"
 git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
@@ -212,7 +208,8 @@ git commit --message "Start next development version" --signoff
 ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | (grep -v 'no default repository' || true))
 gh repo set-default "$(git remote get-url "${REPOSITORY}")"
 
-BODY="Release version ${RELEASE_VERSION}"
+# Note: Release assets (binary distributions, manifests, etc.) are collected and uploaded by the workflow.
+# The workflow will create the GitHub release with those assets.
 
 # Workaround https://github.com/cli/cli/issues/2691
 git push "${REPOSITORY}" HEAD

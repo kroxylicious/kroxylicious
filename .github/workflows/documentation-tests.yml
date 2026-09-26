@@ -59,7 +59,7 @@ jobs:
           # Produces target/*.img.tar.gz for the proxy and operator (the admission webhook image
           # is not needed here). QuickStartDT loads these into the throw-away Minikube profile it
           # creates per quick start run, so there is no `minikube image load` step in this workflow.
-          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
+          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator -Derrorprone.skip=true -Dquick package
       - name: 'Extract Strimzi version'
         id: strimzi
         run: |

@@ -61,8 +61,8 @@ public class Environment {
     private static final String SYNC_RESOURCES_DELETION_ENV = "SYNC_RESOURCES_DELETION";
     private static final String TEST_CLIENTS_PULL_SECRET_ENV = "TEST_CLIENTS_PULL_SECRET";
     private static final String ARCHITECTURE_ENV = "ARCHITECTURE";
-    private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_ENV = "KROXYLICIOUS_OPERATOR_INSTALL_DIR";
-    private static final String KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_ENV = "KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR";
+    private static final String KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE_ENV = "KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE";
+    private static final String KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_ENV = "KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE";
     private static final String CURL_IMAGE_ENV = "CURL_IMAGE";
 
     /**
@@ -129,8 +129,8 @@ public class Environment {
     private static final String CATALOG_NAMESPACE_DEFAULT = "openshift-marketplace";
     private static final boolean SYNC_RESOURCES_DELETION_DEFAULT = false;
     private static final String ARCHITECTURE_DEFAULT = System.getProperty("os.arch");
-    private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT = USER_DIR + "/target/kroxylicious-operator-dist/install/";
-    private static final String KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_DEFAULT = USER_DIR + "/target/kroxylicious-admission-dist/install/";
+    private static final String KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE_DEFAULT = USER_DIR + "/target/kroxylicious-operator-install.yaml";
+    private static final String KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_DEFAULT = USER_DIR + "/target/kroxylicious-admission-install.yaml";
     public static final String CURL_IMAGE_DEFAULT = Constants.DOCKER_REGISTRY_GCR_MIRROR
             + "/curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13";
 
@@ -147,6 +147,11 @@ public class Environment {
      */
     public static final boolean SKIP_TEARDOWN = ENVIRONMENT_VARIABLES.getOrDefault(SKIP_TEARDOWN_ENV, Boolean::parseBoolean, SKIP_TEARDOWN_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_IMAGE_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[2];
+
+    private static final String KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE_ENV,
+            KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE_DEFAULT);
+    private static final String KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_ENV,
+            KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_ORG_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[1];
     public static final String KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[0];
 
@@ -193,10 +198,6 @@ public class Environment {
     public static final boolean SYNC_RESOURCES_DELETION = ENVIRONMENT_VARIABLES.getOrDefault(SYNC_RESOURCES_DELETION_ENV, Boolean::parseBoolean,
             SYNC_RESOURCES_DELETION_DEFAULT);
     public static final String ARCHITECTURE = ENVIRONMENT_VARIABLES.getOrDefault(ARCHITECTURE_ENV, ARCHITECTURE_DEFAULT);
-    public static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_INSTALL_DIR_ENV,
-            KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT);
-    public static final String KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_ENV,
-            KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_DEFAULT);
     public static final String CURL_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(CURL_IMAGE_ENV, CURL_IMAGE_DEFAULT);
 
     private static String readMetadataProperty(String property) {
@@ -230,5 +231,25 @@ public class Environment {
 
     private static String determineStrimziVersion() {
         return readMetadataProperty("strimzi.version");
+    }
+
+    public static io.kroxylicious.systemtests.resources.operator.ManifestProvider createOperatorManifestProvider() {
+        java.nio.file.Path source = java.nio.file.Path.of(KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE);
+        if (KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE.endsWith(".yaml")) {
+            return new io.kroxylicious.systemtests.resources.operator.AllInOneYamlProvider(source);
+        }
+        else {
+            return new io.kroxylicious.systemtests.resources.operator.DirectoryManifestProvider(source);
+        }
+    }
+
+    public static io.kroxylicious.systemtests.resources.operator.ManifestProvider createAdmissionManifestProvider() {
+        java.nio.file.Path source = java.nio.file.Path.of(KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE);
+        if (KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE.endsWith(".yaml")) {
+            return new io.kroxylicious.systemtests.resources.operator.AllInOneYamlProvider(source);
+        }
+        else {
+            return new io.kroxylicious.systemtests.resources.operator.DirectoryManifestProvider(source);
+        }
     }
 }
