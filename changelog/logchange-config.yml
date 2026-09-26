@@ -20,3 +20,13 @@ changelog:
       - path: CHANGELOG.md
 entry:
   banner: false
+  entryTypes:
+    - type: added
+    - type: changed
+    - type: deprecated
+    - type: removed
+    - type: fixed
+    - type: security
+    - type: dependency_update
+    - type: build
+    - type: other
