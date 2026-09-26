@@ -14,29 +14,41 @@
 = HashiCorp Vault plugin configuration
 
 [role="_abstract"]
-For HashiCorp Vault, the KMS configuration used by the filter looks like this.
-Use the Vault Token and Vault Transit Engine URL values from the KMS setup.
+For HashiCorp Vault, the KMS configuration used by the filter supports Token-based authentication via the `credentials` configuration node.
+
+== Token Authentication
+
+When authenticating using a static Vault Token, the KMS configuration looks like this:
 
 [source, yaml]
 ----
 kms: VaultKmsService
 kmsConfig:
-  vaultTransitEngineUrl: <vault transit engine service url>
+  vaultUrl: https://myhashicorpvault:8200
+  vaultNamespace: a/b # optional, for Vault Enterprise namespaces
+  transitEnginePath: transit # optional, defaults to transit
   tls:
     # ...
-  vaultToken:
-    passwordFile: /opt/vault/token
-
+  credentials:
+    vaultToken:
+      token:
+        passwordFile: /opt/vault/token
 ----
-where:
+
+NOTE: Top-level `vaultTransitEngineUrl` and `vaultToken` fields are deprecated but still supported for backwards compatibility. Prefer using `vaultUrl` and the `credentials.vaultToken` structure shown above.
+
+== Configuration Properties
 
 * `kms` specifies the name of the KMS provider. Use `VaultKmsService`.
-* `kmsConfig` specifies configuration specific to the VaultKmsService.
-** `vaultTransitEngineUrl` provides the  xref:con-vault-setup-{context}[Vault Transit Engine URL] including the protocol part, such as `https:` or `http:`.
+* `kmsConfig` specifies configuration specific to `VaultKmsService`:
+** `vaultUrl` (required unless deprecated `vaultTransitEngineUrl` is used) specifies the base URL of the Vault server (e.g. `https://myhashicorpvault:8200`).
+** `vaultNamespace` (Optional) relative path for Vault Enterprise namespaces (e.g., `a/b`).
+** `transitEnginePath` (Optional) mount path of the Transit secrets engine (defaults to `transit`).
+** `credentials` (required) specifies the authentication method.
+*** `credentials.vaultToken` — Token-based authentication:
+**** `credentials.vaultToken.token` references a PasswordProvider containing the Vault Token.
 ** `tls` (Optional) TLS trust configuration.
-** `vaultToken` references a file containing the Vault Token.
 
 include::../../../_snippets/snip-tls-client-keystore.adoc[]
 
 include::../../../_snippets/snip-tls-client-truststore.adoc[]
-

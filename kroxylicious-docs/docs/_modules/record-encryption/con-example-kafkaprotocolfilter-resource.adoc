@@ -29,10 +29,12 @@ spec:
   configTemplate:
     kms: VaultKmsService
     kmsConfig:
-      vaultTransitEngineUrl: # ...
+      vaultUrl: https://myhashicorpvault:8200
       tls: # ...
-      vaultToken:
-        passwordFile: ${secret:encryption-filter:vault-token}
+      credentials:
+        vaultToken:
+          token:
+            passwordFile: ${secret:encryption-filter:vault-token}
     selector: TemplateKekSelector
     selectorConfig:
       template: "KEK-$(topicName)"
