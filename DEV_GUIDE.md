@@ -744,7 +744,7 @@ Each `links` entry is rendered after the title as a bracketed link, e.g. `([CVE-
 | `removed`          | Removals of features or APIs                                       |
 | `fixed`            | Bug fixes                                                          |
 | `security`         | Security fixes                                                     |
-| `dependency_update`| Runtime dependency upgrades visible to users                       |
+| `build`            | Build system changes (used by Dependabot and Renovate)             |
 | `other`            | Performance improvements or user-visible refactoring               |
 
 Simple example (no migration notes):
