@@ -1,0 +1,4 @@
+title: "build(deps): bump io.kiota:kiota-http-jdk from 0.0.38 to 0.0.39"
+type: build
+merge_requests:
+  - 4986
