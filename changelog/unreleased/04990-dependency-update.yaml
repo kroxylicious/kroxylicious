@@ -1,0 +1,4 @@
+title: "build(deps): bump com.fasterxml.jackson:jackson-bom from 2.22.2 to 2.22.3"
+type: build
+merge_requests:
+  - 4990
