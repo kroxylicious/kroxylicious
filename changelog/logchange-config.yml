@@ -27,6 +27,5 @@ entry:
     - type: removed
     - type: fixed
     - type: security
-    - type: dependency_update
     - type: build
     - type: other
