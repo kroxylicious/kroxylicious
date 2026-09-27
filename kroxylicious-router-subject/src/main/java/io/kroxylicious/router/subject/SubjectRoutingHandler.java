@@ -6,12 +6,18 @@
 
 package io.kroxylicious.router.subject;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData.ApiVersion;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
@@ -55,7 +61,10 @@ class SubjectRoutingHandler implements Router {
                                                      RouterContext ctx) {
         Subject subject = ctx.authenticatedSubject();
         if (subject.isAnonymous()) {
-            return reject(ctx, header, request, "anonymous connection");
+            if (apiKey == ApiKeys.API_VERSIONS) {
+                return fanOutApiVersions(header, request, ctx);
+            }
+            return reject(ctx, header, request, "anonymous non-ApiVersions request");
         }
         return selector.selectRoute(subject, selectorContext).thenCompose(routeOpt -> {
             if (routeOpt.isEmpty()) {
@@ -66,6 +75,67 @@ class SubjectRoutingHandler implements Router {
             return ctx.sendRequest(node, header, request)
                     .thenCompose(response -> ctx.respondWith(response).completed());
         }).exceptionallyCompose(err -> reject(ctx, header, request, "selector error"));
+    }
+
+    /**
+     * Fans an {@code API_VERSIONS} request out to every route so an unauthenticated (pre-SASL)
+     * client can negotiate a version range that every downstream cluster supports. Does not pin
+     * the connection to any route.
+     */
+    private CompletionStage<RouterResponse> fanOutApiVersions(RequestHeaderData header, ApiMessage request, RouterContext ctx) {
+        List<String> routes = List.copyOf(selectorContext.routeNames());
+        List<CompletableFuture<ApiVersionsResponseData>> perRoute = routes.stream()
+                .map(route -> ctx.sendRequest(ctx.anyNode(route), header.duplicate(), (ApiMessage) request.duplicate())
+                        .thenApply(m -> (ApiVersionsResponseData) m)
+                        .toCompletableFuture())
+                .toList();
+        return CompletableFuture.allOf(perRoute.toArray(CompletableFuture[]::new))
+                .thenCompose(v -> {
+                    List<ApiVersionsResponseData> responses = perRoute.stream().map(CompletableFuture::join).toList();
+                    boolean anyError = responses.stream().anyMatch(r -> r.errorCode() != Errors.NONE.code());
+                    if (anyError) {
+                        return reject(ctx, header, request, "route returned an error for API_VERSIONS fan-out");
+                    }
+                    return ctx.respondWith(intersect(responses)).completed();
+                });
+    }
+
+    /**
+     * Combines per-route {@code API_VERSIONS} responses into the intersection: an API key survives
+     * only if every route supports it, narrowed to the overlapping version range. Feature blocks
+     * are not intersected; the first route's feature block is copied as-is.
+     */
+    private static ApiVersionsResponseData intersect(List<ApiVersionsResponseData> responses) {
+        Map<Short, ApiVersion> merged = new LinkedHashMap<>();
+        for (ApiVersion v : responses.get(0).apiKeys()) {
+            merged.put(v.apiKey(), v.duplicate());
+        }
+        for (int i = 1; i < responses.size(); i++) {
+            Map<Short, ApiVersion> thisRoute = new HashMap<>();
+            for (ApiVersion v : responses.get(i).apiKeys()) {
+                thisRoute.put(v.apiKey(), v);
+            }
+            merged.keySet().retainAll(thisRoute.keySet());
+            merged.values().forEach(entry -> {
+                ApiVersion other = thisRoute.get(entry.apiKey());
+                entry.setMinVersion((short) Math.max(entry.minVersion(), other.minVersion()));
+                entry.setMaxVersion((short) Math.min(entry.maxVersion(), other.maxVersion()));
+            });
+        }
+        merged.values().removeIf(v -> v.minVersion() > v.maxVersion());
+
+        ApiVersionsResponseData.ApiVersionCollection collection = new ApiVersionsResponseData.ApiVersionCollection(merged.size());
+        collection.addAll(merged.values());
+
+        ApiVersionsResponseData first = responses.get(0);
+        return new ApiVersionsResponseData()
+                .setErrorCode(Errors.NONE.code())
+                .setThrottleTimeMs(0)
+                .setApiKeys(collection)
+                .setSupportedFeatures(first.supportedFeatures())
+                .setFinalizedFeaturesEpoch(first.finalizedFeaturesEpoch())
+                .setFinalizedFeatures(first.finalizedFeatures())
+                .setZkMigrationReady(first.zkMigrationReady());
     }
 
     private CompletionStage<RouterResponse> reject(RouterContext ctx, RequestHeaderData header,
