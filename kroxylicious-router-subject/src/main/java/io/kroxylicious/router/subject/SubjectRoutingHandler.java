@@ -28,6 +28,8 @@ import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.topology.VirtualNode;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Routes each request on a connection to the route selected for the connection's authenticated
  * subject. Per-connection state; not shared across connections.
@@ -40,6 +42,12 @@ class SubjectRoutingHandler implements Router {
     private final RouteSelectorContext selectorContext;
     private final String virtualClusterName;
     private final String routerName;
+
+    /**
+     * Set on the first authenticated forward. {@code onRequest} is invoked serially, on the same
+     * event loop thread, for a given connection, so no synchronisation is needed.
+     */
+    private @Nullable String pinnedRoute;
 
     SubjectRoutingHandler(RouteSelector<Object> selector, RouteSelectorContext selectorContext,
                           String virtualClusterName, String routerName) {
@@ -71,6 +79,13 @@ class SubjectRoutingHandler implements Router {
                 return reject(ctx, header, request, "no route for subject");
             }
             String route = routeOpt.get();
+            if (pinnedRoute == null) {
+                pinnedRoute = route;
+            }
+            else if (!pinnedRoute.equals(route)) {
+                return reject(ctx, header, request, "subject route changed mid-connection from "
+                        + pinnedRoute + " to " + route);
+            }
             VirtualNode node = ctx.anyNode(route);
             return ctx.sendRequest(node, header, request)
                     .thenCompose(response -> ctx.respondWith(response).completed());
