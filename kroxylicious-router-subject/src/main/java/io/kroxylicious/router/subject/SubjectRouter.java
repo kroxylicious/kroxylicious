@@ -28,6 +28,12 @@ import io.kroxylicious.proxy.router.RouterFactoryContext;
 public class SubjectRouter implements RouterFactory<SubjectRouter.Config, SubjectRouter.Initialized> {
 
     /**
+     * Creates a {@link SubjectRouter}.
+     */
+    public SubjectRouter() {
+    }
+
+    /**
      * Configuration for {@link SubjectRouter}.
      *
      * @param selector the name of the {@link RouteSelector} implementation used to select a route for a subject
