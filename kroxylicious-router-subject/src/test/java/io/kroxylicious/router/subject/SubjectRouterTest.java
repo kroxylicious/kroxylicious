@@ -37,13 +37,16 @@ class SubjectRouterTest {
 
     @Test
     void initializeReturnsValidInitializedDataWhenSelectorRoutesAreDeclared() {
+        // Given
         when(context.routeNames()).thenReturn(Set.of("team-a", "team-b"));
         when(context.pluginInstance(eq(RouteSelector.class), eq("UserNameMatch"))).thenReturn(selector);
         when(selector.referencedRoutes()).thenReturn(CompletableFuture.completedFuture(Optional.of(Set.of("team-a"))));
         SubjectRouter.Config config = new SubjectRouter.Config("UserNameMatch", null);
 
+        // When
         SubjectRouter.Initialized initialized = router.initialize(context, config);
 
+        // Then
         assertThat(initialized.selector()).isSameAs(selector);
         assertThat(initialized.routeNames()).containsExactlyInAnyOrder("team-a", "team-b");
         verify(context).allowSharedClusterTargets();
@@ -52,11 +55,13 @@ class SubjectRouterTest {
 
     @Test
     void initializeThrowsWhenSelectorReferencesUnknownRoute() {
+        // Given
         when(context.routeNames()).thenReturn(Set.of("team-a"));
         when(context.pluginInstance(eq(RouteSelector.class), eq("UserNameMatch"))).thenReturn(selector);
         when(selector.referencedRoutes()).thenReturn(CompletableFuture.completedFuture(Optional.of(Set.of("team-a", "team-x"))));
         SubjectRouter.Config config = new SubjectRouter.Config("UserNameMatch", null);
 
+        // When / Then
         assertThatThrownBy(() -> router.initialize(context, config))
                 .isInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("team-x");
