@@ -12,6 +12,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -19,6 +21,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
 import io.kroxylicious.kafka.common.message.MetadataRequestData;
@@ -56,6 +61,20 @@ class SubjectRoutingHandlerTest {
 
     @Mock
     private RouteSelector<Object> selector;
+
+    private SimpleMeterRegistry meterRegistry;
+
+    @BeforeEach
+    void registerMeterRegistry() {
+        meterRegistry = new SimpleMeterRegistry();
+        Metrics.globalRegistry.add(meterRegistry);
+    }
+
+    @AfterEach
+    void deregisterMeterRegistry() {
+        meterRegistry.getMeters().forEach(Metrics.globalRegistry::remove);
+        Metrics.globalRegistry.remove(meterRegistry);
+    }
 
     private static TerminalStage terminalStage(RouterResponse response) {
         return new TerminalStage() {
@@ -296,5 +315,20 @@ class SubjectRoutingHandlerTest {
 
         // Then
         assertThat(result).isSameAs(errorResponse);
+    }
+
+    @Test
+    void rejectionIncrementsRejectedCounterWithBoundedReasonTag() {
+        // Given
+        when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
+
+        // When
+        newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_subject_router_rejected_total")
+                .tags("virtual_cluster", "vc1", "router", "subj-router", "reason", "anonymous")
+                .counter().count()).isEqualTo(1);
     }
 }
