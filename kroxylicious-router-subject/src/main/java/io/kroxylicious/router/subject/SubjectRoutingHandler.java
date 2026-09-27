@@ -16,6 +16,9 @@ import java.util.concurrent.CompletionStage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter;
+
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData.ApiVersion;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
@@ -38,10 +41,33 @@ class SubjectRoutingHandler implements Router {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SubjectRoutingHandler.class);
 
+    /**
+     * Bounded set of rejection reasons. Used as the {@code reason} metric tag value, so it must
+     * never be derived from unbounded or sensitive input (e.g. principal names).
+     */
+    enum RejectReason {
+        ANONYMOUS("anonymous"),
+        NO_ROUTE("no-route"),
+        SELECTOR_ERROR("selector-error"),
+        ROUTE_CHANGED("route-changed"),
+        FAN_OUT_ERROR("fan-out-error");
+
+        private final String tagValue;
+
+        RejectReason(String tagValue) {
+            this.tagValue = tagValue;
+        }
+
+        String tagValue() {
+            return tagValue;
+        }
+    }
+
     private final RouteSelector<Object> selector;
     private final RouteSelectorContext selectorContext;
     private final String virtualClusterName;
     private final String routerName;
+    private final Meter.MeterProvider<Counter> rejectedCounter;
 
     /**
      * Set on the first authenticated forward. {@code onRequest} is invoked serially, on the same
@@ -55,6 +81,7 @@ class SubjectRoutingHandler implements Router {
         this.selectorContext = selectorContext;
         this.virtualClusterName = virtualClusterName;
         this.routerName = routerName;
+        this.rejectedCounter = SubjectRouterMetrics.rejectedCounter(virtualClusterName, routerName);
     }
 
     @Override
@@ -72,24 +99,24 @@ class SubjectRoutingHandler implements Router {
             if (apiKey == ApiKeys.API_VERSIONS) {
                 return fanOutApiVersions(header, request, ctx);
             }
-            return reject(ctx, header, request, "anonymous non-ApiVersions request");
+            return reject(ctx, header, request, RejectReason.ANONYMOUS, "anonymous non-ApiVersions request");
         }
         return selector.selectRoute(subject, selectorContext).thenCompose(routeOpt -> {
             if (routeOpt.isEmpty()) {
-                return reject(ctx, header, request, "no route for subject");
+                return reject(ctx, header, request, RejectReason.NO_ROUTE, "no route for subject");
             }
             String route = routeOpt.get();
             if (pinnedRoute == null) {
                 pinnedRoute = route;
             }
             else if (!pinnedRoute.equals(route)) {
-                return reject(ctx, header, request, "subject route changed mid-connection from "
+                return reject(ctx, header, request, RejectReason.ROUTE_CHANGED, "subject route changed mid-connection from "
                         + pinnedRoute + " to " + route);
             }
             VirtualNode node = ctx.anyNode(route);
             return ctx.sendRequest(node, header, request)
                     .thenCompose(response -> ctx.respondWith(response).completed());
-        }).exceptionallyCompose(err -> reject(ctx, header, request, "selector error"));
+        }).exceptionallyCompose(err -> reject(ctx, header, request, RejectReason.SELECTOR_ERROR, "selector error"));
     }
 
     /**
@@ -109,7 +136,7 @@ class SubjectRoutingHandler implements Router {
                     List<ApiVersionsResponseData> responses = perRoute.stream().map(CompletableFuture::join).toList();
                     boolean anyError = responses.stream().anyMatch(r -> r.errorCode() != Errors.NONE.code());
                     if (anyError) {
-                        return reject(ctx, header, request, "route returned an error for API_VERSIONS fan-out");
+                        return reject(ctx, header, request, RejectReason.FAN_OUT_ERROR, "route returned an error for API_VERSIONS fan-out");
                     }
                     return ctx.respondWith(intersect(responses)).completed();
                 });
@@ -154,12 +181,13 @@ class SubjectRoutingHandler implements Router {
     }
 
     private CompletionStage<RouterResponse> reject(RouterContext ctx, RequestHeaderData header,
-                                                   ApiMessage request, String reason) {
+                                                   ApiMessage request, RejectReason reason, String detail) {
+        rejectedCounter.withTags(SubjectRouterMetrics.REASON_LABEL, reason.tagValue()).increment();
         LOGGER.atDebug()
                 .addKeyValue("sessionId", ctx.sessionId())
                 .addKeyValue("virtualCluster", virtualClusterName)
                 .addKeyValue("router", routerName)
-                .addKeyValue("reason", reason)
+                .addKeyValue("reason", detail)
                 .log("rejecting request");
         return ctx.respondWithError(header, request, Errors.SASL_AUTHENTICATION_FAILED)
                 .withCloseConnection().completed();
