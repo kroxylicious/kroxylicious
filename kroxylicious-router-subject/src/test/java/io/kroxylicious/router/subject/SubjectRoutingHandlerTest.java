@@ -39,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -241,6 +242,56 @@ class SubjectRoutingHandlerTest {
 
         // When
         RouterResponse result = newHandler().onRequest(ApiKeys.API_VERSIONS, (short) 3, HEADER, REQUEST, ctx)
+                .toCompletableFuture().join();
+
+        // Then
+        assertThat(result).isSameAs(errorResponse);
+    }
+
+    @Test
+    void repeatedRequestsForSameRouteAllForward() {
+        // Given
+        Subject subject = new Subject(Set.of(new User("CN=alice")));
+        when(ctx.authenticatedSubject()).thenReturn(subject);
+        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.of("team-a")));
+        VirtualNode node = mock(VirtualNode.class);
+        when(ctx.anyNode("team-a")).thenReturn(node);
+        MetadataResponseData upstreamResponse = new MetadataResponseData();
+        when(ctx.sendRequest(node, HEADER, REQUEST)).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
+        RouterResponse routerResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
+        SubjectRoutingHandler handler = newHandler();
+        handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+
+        // When
+        RouterResponse result = handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+                .toCompletableFuture().join();
+
+        // Then
+        assertThat(result).isSameAs(routerResponse);
+        verify(ctx, times(2)).sendRequest(node, HEADER, REQUEST);
+    }
+
+    @Test
+    void routeChangeMidConnectionRejectedAndConnectionClosed() {
+        // Given
+        Subject subject = new Subject(Set.of(new User("CN=alice")));
+        when(ctx.authenticatedSubject()).thenReturn(subject);
+        VirtualNode nodeA = mock(VirtualNode.class);
+        when(ctx.anyNode("team-a")).thenReturn(nodeA);
+        MetadataResponseData upstreamResponse = new MetadataResponseData();
+        when(ctx.sendRequest(nodeA, HEADER, REQUEST)).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
+        RouterResponse forwardedResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(forwardedResponse));
+        RouterResponse errorResponse = mock(RouterResponse.class);
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(errorResponse));
+        SubjectRoutingHandler handler = newHandler();
+        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.of("team-a")));
+        handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.of("team-b")));
+
+        // When
+        RouterResponse result = handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
