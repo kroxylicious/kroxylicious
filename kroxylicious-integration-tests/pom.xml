@@ -81,6 +81,11 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-router-subject</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-scram-credential-store-provider-file</artifactId>
             <scope>test</scope>
         </dependency>
