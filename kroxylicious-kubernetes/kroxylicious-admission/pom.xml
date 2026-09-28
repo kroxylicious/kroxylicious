@@ -306,10 +306,8 @@
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-docs</artifactId>
                     <version>${project.version}</version>
-                    <type>zip</type>
-                    <classifier>docs</classifier>
-                    <!-- we optional rather than provided as we are able to turn of docs with skipDocs=true -->
-                    <scope>optional</scope>
+                    <type>pom</type>
+                    <scope>provided</scope>
                 </dependency>
             </dependencies>
             <build>
