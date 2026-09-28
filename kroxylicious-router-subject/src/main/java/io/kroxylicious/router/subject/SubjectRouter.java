@@ -7,6 +7,7 @@
 package io.kroxylicious.router.subject;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -19,6 +20,9 @@ import io.kroxylicious.proxy.plugin.Plugins;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A {@link RouterFactory} that routes each client connection to a downstream cluster based on the
@@ -72,8 +76,11 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
         return new Initialized(selector, routeNames);
     }
 
+    @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "init is marked @Nullable to match the @UnknownNullness contract of RouterFactory#createRouter,"
+            + " but the runtime only invokes this method with the value returned by initialize, which is never null.")
     @Override
-    public Router createRouter(RouterFactoryContext context, Initialized init) {
+    public Router createRouter(RouterFactoryContext context, @Nullable Initialized init) {
+        Objects.requireNonNull(init);
         return new SubjectRoutingHandler(init.selector(), new RouteSelectorContextImpl(init.routeNames()),
                 context.virtualClusterName(), context.routerName());
     }
