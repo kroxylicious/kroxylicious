@@ -21,7 +21,7 @@ This procedure shows how to configure sidecar injection for a namespace and veri
 // TODO: Document third-party plugin image configuration.
 .Prerequisites
 
-* The admission webhook is xref:proc-install-admission-webhook-{context}[installed and running].
+* The admission webhook is installed and running (see xref:assembly-admission-webhook-install-{context}[Installing the Admission Webhook]).
 * A Kafka cluster is available and you know its bootstrap server address.
 
 .Procedure
