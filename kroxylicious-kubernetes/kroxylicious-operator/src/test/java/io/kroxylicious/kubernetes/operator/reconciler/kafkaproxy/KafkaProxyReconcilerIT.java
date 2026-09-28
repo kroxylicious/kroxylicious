@@ -908,7 +908,6 @@ public class KafkaProxyReconcilerIT {
         VirtualKafkaCluster clusterToDelete = clusterUser.create(virtualKafkaCluster(CLUSTER_BAR + suffix, proxy, kafkaService,
                 List.of(createIngressForCluster(ingressToDelete, tlsServerCertDelete)), Optional.empty()));
 
-        // when
         List.of(clusterToKeep, clusterToDelete).forEach(this::updateStatusObservedGeneration);
 
         AWAIT.alias("both shared sni services manifested").untilAsserted(() -> {
@@ -916,6 +915,7 @@ public class KafkaProxyReconcilerIT {
             assertThat(clusterUser.get(Service.class, name(ingressToDelete))).isNotNull();
         });
 
+        // when
         clusterUser.delete(ingressToDelete);
 
         // then

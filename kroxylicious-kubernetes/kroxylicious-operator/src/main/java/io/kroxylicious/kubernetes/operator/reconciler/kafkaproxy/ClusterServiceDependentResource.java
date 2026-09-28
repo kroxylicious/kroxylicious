@@ -5,11 +5,11 @@
  */
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -77,26 +77,25 @@ public class ClusterServiceDependentResource
                 .flatMap(cluster -> model.networkingModel().clusterIngressModel(cluster).stream())
                 .toList();
 
-        var serviceStream = clusterNetworkingModels.stream()
+        var exclusiveServiceStream = clusterNetworkingModels.stream()
                 .flatMap(ProxyNetworkingModel.ClusterNetworkingModel::services);
 
-        // Group the per-(cluster, ingress) models that require a shared LoadBalancer Service by the
-        // ingress they belong to. A TreeMap keeps iteration order deterministic (golden-file tests
-        // depend on it) irrespective of the order clusters/ingresses were discovered in.
-        Map<String, List<ClusterIngressNetworkingModel>> loadBalancerModelsByIngressName = clusterNetworkingModels.stream()
+        // Group the per-(cluster, ingress) models by ingress name so that each ingress gets one Service.
+        Collection<List<ClusterIngressNetworkingModel>> loadBalancerModelGroups = clusterNetworkingModels.stream()
                 .flatMap(clusterNetworkingModel -> clusterNetworkingModel.clusterIngressNetworkingModelResults().stream())
                 .map(ProxyNetworkingModel.ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
                 .filter(ingressModel -> ingressModel.sharedLoadBalancerServiceRequirements().isPresent())
-                .collect(Collectors.groupingBy(ingressModel -> ResourcesUtil.name(ingressModel.ingress()), TreeMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(ingressModel -> ResourcesUtil.name(ingressModel.ingress())))
+                .values();
 
-        var sniServiceStream = loadBalancerModelsByIngressName.values().stream()
-                .flatMap(ingressModels -> sniLoadbalancerServices(primary, ingressModels));
+        var coalescedServiceStream = loadBalancerModelGroups.stream()
+                .flatMap(ingressModels -> buildCoalescedServices(primary, ingressModels));
 
-        return Stream.concat(serviceStream, sniServiceStream).collect(toByNameMap());
+        return Stream.concat(exclusiveServiceStream, coalescedServiceStream).collect(toByNameMap());
     }
 
-    private ObjectMeta sniLoadbalancerServiceMetadata(KafkaProxy primary, KafkaProxyIngress ingress, String name,
-                                                      Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
+    private ObjectMeta coalescedServiceMetadata(KafkaProxy primary, KafkaProxyIngress ingress, String name,
+                                                Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
         ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(primary))
@@ -108,10 +107,16 @@ public class ClusterServiceDependentResource
     }
 
     /**
-     * Builds the single shared LoadBalancer Service for one {@code loadBalancer} {@code KafkaProxyIngress},
-     * given all the per-cluster models that reference it.
+     * Builds the single {@code Service} shared by one {@code loadBalancer} {@code KafkaProxyIngress}, given
+     * all the per-cluster models that reference it.
+     *
+     * @param ingressModels the per-(cluster, ingress) models for a single ingress; every element must
+     *         reference the same {@link KafkaProxyIngress}, which the caller guarantees by grouping models
+     *         on ingress name before calling this method
+     * @throws IllegalArgumentException if the models do not all reference the same {@code KafkaProxyIngress}
      */
-    private Stream<Service> sniLoadbalancerServices(KafkaProxy primary, List<ClusterIngressNetworkingModel> ingressModels) {
+    private Stream<Service> buildCoalescedServices(KafkaProxy primary, List<ClusterIngressNetworkingModel> ingressModels) {
+        KafkaProxyIngress ingress = requireSameIngress(ingressModels);
         List<Integer> loadBalancerPorts = ingressModels.stream()
                 .flatMap(ingressModel -> ingressModel.sharedLoadBalancerServiceRequirements().orElseThrow().requiredClientFacingPorts())
                 .distinct()
@@ -120,14 +125,13 @@ public class ClusterServiceDependentResource
         if (loadBalancerPorts.isEmpty()) {
             return Stream.empty();
         }
-        KafkaProxyIngress ingress = ingressModels.get(0).ingress();
         Set<Annotations.ClusterIngressBootstrapServers> bootstraps = ingressModels.stream()
                 .map(ingressModel -> ingressModel.sharedLoadBalancerServiceRequirements().orElseThrow().bootstrapServersToAnnotate())
                 .collect(Collectors.toSet());
 
         String serviceName = ResourcesUtil.name(ingress);
         var serviceSpecBuilder = new ServiceBuilder()
-                .withMetadata(sniLoadbalancerServiceMetadata(primary, ingress, serviceName, bootstraps))
+                .withMetadata(coalescedServiceMetadata(primary, ingress, serviceName, bootstraps))
                 .withNewSpec()
                 .withType("LoadBalancer")
                 .withSelector(standardLabels(primary));
@@ -141,6 +145,16 @@ public class ClusterServiceDependentResource
                     .endPort();
         }
         return Stream.of(serviceSpecBuilder.endSpec().build());
+    }
+
+    private static KafkaProxyIngress requireSameIngress(List<ClusterIngressNetworkingModel> ingressModels) {
+        Set<String> ingressNames = ingressModels.stream()
+                .map(ingressModel -> ResourcesUtil.name(ingressModel.ingress()))
+                .collect(Collectors.toSet());
+        if (ingressNames.size() != 1) {
+            throw new IllegalArgumentException("Expected all models to reference the same KafkaProxyIngress, got names: " + ingressNames);
+        }
+        return ingressModels.get(0).ingress();
     }
 
     @Override
