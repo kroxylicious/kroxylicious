@@ -131,7 +131,7 @@ class RoutingHandlerTest {
                         nestedRoutes.size());
         return RoutingHandler.nested(ACTIVATION_ROUTE_PATH, NESTED_ROUTER_NAME, VIRTUAL_CLUSTER,
                 routerChainFactory, nestedRoutes, mapping, correlationIdAllocator,
-                new ConcurrentHashMap<>(), SESSION_ID, Subject.anonymous(), null);
+                new ConcurrentHashMap<>(), SESSION_ID, Subject::anonymous, null);
     }
 
     // ======================== Frame helpers ========================
@@ -320,7 +320,6 @@ class RoutingHandlerTest {
         // Given
         var mapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
         when(ccsm.sessionId()).thenReturn(SESSION_ID);
-        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
         var dispatcher = RouteDispatcher.forTopLevel(Map.of(), mapping, new HashMap<>(), ccsm);
         var handler = RoutingHandler.topLevel(dispatcher, router, Map.of(ApiKeys.METADATA, "route-a"), ccsm, null);
         channel = channelWithTerminal(handler);
@@ -634,7 +633,6 @@ class RoutingHandlerTest {
     void topLevel_pendingFuturesCompletedExceptionallyWhenConnectionCloses() {
         // Given
         when(ccsm.sessionId()).thenReturn(SESSION_ID);
-        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
         when(ccsm.internalCorrelationIdAllocator()).thenReturn(new CorrelationIdAllocator(Integer.MIN_VALUE, 0));
         var rd = new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of());
         var dispatcher = RouteDispatcher.forTopLevel(Map.of(DEFAULT_ROUTE, rd), new IdentityNodeIdMapping(DEFAULT_ROUTE), new HashMap<>(), ccsm);
@@ -1225,7 +1223,7 @@ class RoutingHandlerTest {
         NodeIdMapping mapping = new IdentityNodeIdMapping(nestedRoutes.keySet().iterator().next());
         var handler = RoutingHandler.nested(ACTIVATION_ROUTE_PATH, NESTED_ROUTER_NAME, VIRTUAL_CLUSTER,
                 routerChainFactory, nestedRoutes, mapping, correlationIdAllocator,
-                new ConcurrentHashMap<>(), SESSION_ID, Subject.anonymous(), 42);
+                new ConcurrentHashMap<>(), SESSION_ID, Subject::anonymous, 42);
         channel = new EmbeddedChannel(handler);
         when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());

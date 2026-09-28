@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,7 +95,15 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private final RouteDispatcher dispatcher;
     private final String virtualClusterName;
     private final String sessionId;
-    private final Subject subject;
+
+    /**
+     * Resolves the connection's current authenticated subject. A supplier, not a snapshot value,
+     * because the subject may not yet be known when this handler is constructed (e.g. mTLS or
+     * post-SASL identity resolves after the handler is installed) and can change over the life of
+     * the connection (reauthentication) — each request must observe the subject as of that request,
+     * not as of handler construction.
+     */
+    private final Supplier<Subject> subjectSupplier;
     @Nullable
     private final Integer nodeId;
 
@@ -117,7 +126,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private RoutingHandler(RouteDispatcher dispatcher,
                            String virtualClusterName,
                            String sessionId,
-                           Subject subject,
+                           Supplier<Subject> subjectSupplier,
                            @Nullable Integer nodeId,
                            RequestSource requestSource,
                            @Nullable Router router,
@@ -125,7 +134,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
         this.dispatcher = dispatcher;
         this.virtualClusterName = virtualClusterName;
         this.sessionId = sessionId;
-        this.subject = subject;
+        this.subjectSupplier = subjectSupplier;
         this.nodeId = nodeId;
         this.requestSource = requestSource;
         this.router = router;
@@ -156,7 +165,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                           ClientConnectionStateMachine ccsm,
                                           @Nullable Integer nodeId) {
         return new RoutingHandler(dispatcher, ccsm.clusterName(),
-                ccsm.sessionId(), ccsm.authenticatedSubject(), nodeId,
+                ccsm.sessionId(), ccsm::authenticatedSubject, nodeId,
                 new VirtualClusterRequestSource(ccsm),
                 router, staticRoutes);
     }
@@ -183,7 +192,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * @param routerNodeAddresses node addresses known at this nesting level, populated from
      *        metadata responses received through this handler
      * @param sessionId the proxy session ID, used for logging and diagnostics
-     * @param subject the authenticated subject for this connection
+     * @param subjectSupplier resolves the authenticated subject for this connection, called once
+     *        per dispatched request rather than once at construction, so a subject that resolves
+     *        or changes after this handler is installed (mTLS, post-SASL, reauthentication) is
+     *        still observed
      * @param nodeId the virtual node ID passed from the enclosing routing level,
      *        or {@code null} if not available at this nesting depth
      * @return the nested routing handler
@@ -199,12 +211,12 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                         CorrelationIdAllocator correlationIdAllocator,
                                         Map<Integer, HostPort> routerNodeAddresses,
                                         String sessionId,
-                                        Subject subject,
+                                        Supplier<Subject> subjectSupplier,
                                         @Nullable Integer nodeId) {
         var dispatcher = new RouteDispatcher(nestedRoutes, nestedNodeIdMapping, nestedRouterName + "/", activationPath,
                 correlationIdAllocator, routerNodeAddresses, virtualClusterName);
         return new RoutingHandler(dispatcher, virtualClusterName,
-                sessionId, subject, nodeId,
+                sessionId, subjectSupplier, nodeId,
                 new RouterRequestSource(activationPath, routerChainFactory, nestedRouterName),
                 null, null);
     }
@@ -363,7 +375,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
         if (requestSource instanceof RouterRequestSource && frame.targetVirtualNodeId() != Frame.NO_TARGET_VIRTUAL_NODE_ID) {
             effectiveNodeId = frame.targetVirtualNodeId();
         }
-        var routingContext = new RouterContextImpl(frame, dispatcher, sessionId, subject, effectiveNodeId);
+        var routingContext = new RouterContextImpl(frame, dispatcher, sessionId, subjectSupplier.get(), effectiveNodeId);
 
         if (frame instanceof InternalRequestFrame<?> oobFrame) {
             if (requestSource instanceof VirtualClusterRequestSource(ClientConnectionStateMachine ccsm)) {
