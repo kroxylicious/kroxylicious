@@ -233,14 +233,14 @@ jobs:
           # Extract operator dist ZIP if this is an operator test
           if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-operator" ]; then
             mkdir -p kroxylicious-kubernetes/kroxylicious-operator/target/packaged
-            unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-operator-dist/${KROXYLICIOUS_VERSION}/kroxylicious-operator-dist-${KROXYLICIOUS_VERSION}.zip" \
+            unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-operator/${KROXYLICIOUS_VERSION}/kroxylicious-operator-${KROXYLICIOUS_VERSION}.zip" \
               -d kroxylicious-kubernetes/kroxylicious-operator/target/packaged/
           fi
 
           # Extract admission dist ZIP if this is an admission test
           if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-admission" ]; then
             mkdir -p kroxylicious-kubernetes/kroxylicious-admission/target/packaged
-            unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-admission-dist/${KROXYLICIOUS_VERSION}/kroxylicious-admission-dist-${KROXYLICIOUS_VERSION}.zip" \
+            unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-admission/${KROXYLICIOUS_VERSION}/kroxylicious-admission-${KROXYLICIOUS_VERSION}.zip" \
               -d kroxylicious-kubernetes/kroxylicious-admission/target/packaged/
           fi
       - name: 'Run integration tests'

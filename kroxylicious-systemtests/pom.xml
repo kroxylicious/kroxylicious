@@ -418,7 +418,7 @@
                                             <version>${project.version}</version>
                                             <type>zip</type>
                                             <overWrite>false</overWrite>
-                                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist</outputDirectory>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-operator</outputDirectory>
                                             <destFileName>kroxylicious-operator.zip</destFileName>
                                         </artifactItem>
                                     </artifactItems>
@@ -437,7 +437,7 @@
                                             <artifactId>kroxylicious-operator</artifactId>
                                             <version>${project.version}</version>
                                             <type>zip</type>
-                                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist/</outputDirectory>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-operator/</outputDirectory>
                                         </artifactItem>
                                     </artifactItems>
                                 </configuration>
