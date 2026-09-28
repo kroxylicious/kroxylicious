@@ -35,9 +35,9 @@ class VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapper implements Pr
                 .flatMap(ingressRefName -> ResourcesUtil
                         .localRefAsResourceId(cluster, buildAnyRef(RouteClusterIngressNetworkingModel.bootstrapServiceName(cluster, ingressRefName))).stream());
 
-        Stream<ResourceID> loadbalancerService = ResourcesUtil.localRefAsResourceId(cluster,
-                buildAnyRef(cluster.getSpec().getProxyRef().getName() + "-sni")).stream();
-        return Stream.concat(Stream.concat(clusterIpServices, loadbalancerService), openShiftRouteServices).collect(Collectors.toSet());
+        Stream<ResourceID> loadbalancerServices = getIngressNameStream(cluster)
+                .flatMap(ingressRefName -> ResourcesUtil.localRefAsResourceId(cluster, buildAnyRef(ingressRefName)).stream());
+        return Stream.concat(Stream.concat(clusterIpServices, loadbalancerServices), openShiftRouteServices).collect(Collectors.toSet());
     }
 
     private static AnyLocalRef buildAnyRef(String name) {
