@@ -29,6 +29,10 @@ import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
 import io.kroxylicious.kafka.common.message.MetadataRequestData;
 import io.kroxylicious.kafka.common.message.MetadataResponseData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
+import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeRequestData;
+import io.kroxylicious.kafka.common.message.SaslHandshakeResponseData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.common.protocol.Errors;
@@ -181,6 +185,90 @@ class SubjectRoutingHandlerTest {
         assertThat(result).isSameAs(routerResponse);
         verify(ctx).sendRequest(connectedNode, HEADER, REQUEST);
         verify(ctx, never()).anyNode(any());
+    }
+
+    @Test
+    void anonymousSaslHandshakeForwardedUnderPassthroughInspection() {
+        // Given: SASL passthrough inspection (e.g. kroxylicious-sasl-inspection) does not terminate
+        // the exchange - the subject stays anonymous while SASL_HANDSHAKE/SASL_AUTHENTICATE are
+        // forwarded to the real broker, which performs the negotiation.
+        when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
+        SaslHandshakeRequestData handshakeRequest = new SaslHandshakeRequestData();
+        VirtualNode node = mock(VirtualNode.class);
+        when(ctx.anyNode("team-a")).thenReturn(node);
+        SaslHandshakeResponseData upstreamResponse = new SaslHandshakeResponseData();
+        when(ctx.sendRequest(node, HEADER, handshakeRequest)).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
+        RouterResponse routerResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
+
+        // When
+        RouterResponse result = newHandler().onRequest(ApiKeys.SASL_HANDSHAKE, (short) 1, HEADER, handshakeRequest, ctx)
+                .toCompletableFuture().join();
+
+        // Then: forwarded to the alphabetically-first declared route ("team-a" of "team-a"/"team-b")
+        assertThat(result).isSameAs(routerResponse);
+        verify(ctx).sendRequest(node, HEADER, handshakeRequest);
+    }
+
+    @Test
+    void anonymousSaslAuthenticateReusesTheRouteChosenForHandshake() {
+        // Given
+        when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
+        VirtualNode node = mock(VirtualNode.class);
+        when(ctx.anyNode("team-a")).thenReturn(node);
+        SaslHandshakeRequestData handshakeRequest = new SaslHandshakeRequestData();
+        when(ctx.sendRequest(node, HEADER, handshakeRequest))
+                .thenReturn(CompletableFuture.completedFuture(new SaslHandshakeResponseData()));
+        when(ctx.respondWith(any(SaslHandshakeResponseData.class))).thenReturn(closeableStage(mock(RouterResponse.class)));
+        SaslAuthenticateRequestData authenticateRequest = new SaslAuthenticateRequestData();
+        SaslAuthenticateResponseData authenticateResponse = new SaslAuthenticateResponseData();
+        when(ctx.sendRequest(node, HEADER, authenticateRequest)).thenReturn(CompletableFuture.completedFuture(authenticateResponse));
+        RouterResponse authenticateRouterResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) authenticateResponse)).thenReturn(closeableStage(authenticateRouterResponse));
+        SubjectRoutingHandler handler = newHandler();
+        handler.onRequest(ApiKeys.SASL_HANDSHAKE, (short) 1, HEADER, handshakeRequest, ctx).toCompletableFuture().join();
+
+        // When
+        RouterResponse result = handler.onRequest(ApiKeys.SASL_AUTHENTICATE, (short) 2, HEADER, authenticateRequest, ctx)
+                .toCompletableFuture().join();
+
+        // Then: both requests went to the same node, chosen once
+        assertThat(result).isSameAs(authenticateRouterResponse);
+        verify(ctx, times(2)).anyNode("team-a");
+        verify(ctx, never()).anyNode("team-b");
+    }
+
+    @Test
+    void postAuthRoutingIsIndependentOfThePreAuthSaslRoute() {
+        // Given: the pre-auth SASL exchange goes to the alphabetically-first route ("team-a"), but
+        // the subject that later authentication resolves maps to a different route ("team-b").
+        when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
+        VirtualNode preAuthNode = mock(VirtualNode.class);
+        when(ctx.anyNode("team-a")).thenReturn(preAuthNode);
+        SaslHandshakeRequestData handshakeRequest = new SaslHandshakeRequestData();
+        when(ctx.sendRequest(preAuthNode, HEADER, handshakeRequest))
+                .thenReturn(CompletableFuture.completedFuture(new SaslHandshakeResponseData()));
+        when(ctx.respondWith(any(SaslHandshakeResponseData.class))).thenReturn(closeableStage(mock(RouterResponse.class)));
+        SubjectRoutingHandler handler = newHandler();
+        handler.onRequest(ApiKeys.SASL_HANDSHAKE, (short) 1, HEADER, handshakeRequest, ctx).toCompletableFuture().join();
+
+        Subject subject = new Subject(Set.of(new User("CN=carol")));
+        when(ctx.authenticatedSubject()).thenReturn(subject);
+        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.of("team-b")));
+        VirtualNode postAuthNode = mock(VirtualNode.class);
+        when(ctx.anyNode("team-b")).thenReturn(postAuthNode);
+        MetadataResponseData metadataResponse = new MetadataResponseData();
+        when(ctx.sendRequest(postAuthNode, HEADER, REQUEST)).thenReturn(CompletableFuture.completedFuture(metadataResponse));
+        RouterResponse metadataRouterResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) metadataResponse)).thenReturn(closeableStage(metadataRouterResponse));
+
+        // When
+        RouterResponse result = handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+                .toCompletableFuture().join();
+
+        // Then: routes to team-b, not rejected as a mid-connection route change
+        assertThat(result).isSameAs(metadataRouterResponse);
+        verify(ctx).sendRequest(postAuthNode, HEADER, REQUEST);
     }
 
     @Test
