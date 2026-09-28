@@ -30,6 +30,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.client.CustomResource;
@@ -61,6 +63,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
+import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaprotocolfilter.KafkaProtocolFilterReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconcilerIT;
@@ -76,6 +79,7 @@ import io.kroxylicious.testing.operator.OperatorTestUtils;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 import static io.kroxylicious.testing.operator.OperatorTestUtils.uniqueSuffix;
 import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -95,6 +99,7 @@ class AllReconcilersIT {
     private static final String PROXY_A = "proxy-a";
     private static final String CLUSTER_FOO = "foo";
     private static final String CLUSTER_FOO_CLUSTER_IP_INGRESS = "foo-cluster-ip";
+    private static final String CLUSTER_FOO_LOADBALANCER_INGRESS = "foo-load-balancer";
     private static final String CLUSTER_FOO_SERVICE = "foo-service";
     private static final String CLUSTER_FOO_FILTER = "foo-filter";
     private static final String STRIMZI_TLS_LISTENER = "tls";
@@ -574,6 +579,67 @@ class AllReconcilersIT {
                             .containsEntry("example.com/custom-annotation", "test-value")
                             .containsEntry("haproxy.router.openshift.io/timeout", "60s")
                             .containsKey("kroxylicious.io/bootstrap-servers"); // operator annotation still present
+                });
+    }
+
+    @Test
+    void loadBalancerIngress() {
+        // Given
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        var downstreamCert = new SecretBuilder()
+                .withNewMetadata()
+                .withName("downstream-cert" + suffix)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("bootstrap.kafka")
+                        .withAdvertisedBrokerAddressPattern("broker-$(nodeId).kafka")
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(myIngress), List.of())
+                .editOrNewSpec()
+                    .editIngress(0)
+                        .withNewTls()
+                            .withNewCertificateRef()
+                                .withName(name(downstreamCert))
+                            .endCertificateRef()
+                        .endTls()
+                    .endIngress()
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        // When
+        createAll(myProxy, myIngress, downstreamCert, myService, myCluster);
+
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+        assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
+
+        AWAIT.alias("LoadBalancer Service for ingress %s manifested".formatted(name(myIngress)))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, name(myIngress));
+                    assertThat(service).isNotNull();
+                    assertThat(service.getSpec().getType()).isEqualTo("LoadBalancer");
+                    assertThat(service.getSpec().getPorts())
+                            .singleElement()
+                            .satisfies(port -> {
+                                assertThat(port.getPort()).isEqualTo(LoadBalancerClusterIngressNetworkingModel.DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
+                                assertThat(port.getTargetPort()).isEqualTo(new IntOrString(SHARED_SNI_PORT));
+                            });
+                    assertThat(service.getMetadata().getOwnerReferences())
+                            .extracting(OwnerReference::getName)
+                            .containsExactlyInAnyOrder(name(myProxy), name(myIngress));
                 });
     }
 
