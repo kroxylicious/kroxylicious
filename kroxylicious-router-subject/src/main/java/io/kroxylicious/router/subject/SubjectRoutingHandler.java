@@ -75,6 +75,16 @@ class SubjectRoutingHandler implements Router {
      */
     private @Nullable String pinnedRoute;
 
+    /**
+     * Set on the first pre-authentication SASL_HANDSHAKE/SASL_AUTHENTICATE request (e.g. under
+     * SASL passthrough inspection, where the proxy does not terminate the exchange). Independent
+     * of {@link #pinnedRoute}: the SASL exchange is stateful and must go to one route consistently,
+     * but that route is chosen before identity is known, so it may differ from the route the
+     * subject resolves to once authenticated. Deployments using SASL passthrough inspection with
+     * this router must therefore present the same credentials as valid on every route.
+     */
+    private @Nullable String preAuthRoute;
+
     SubjectRoutingHandler(RouteSelector<Object> selector, RouteSelectorContext selectorContext,
                           String virtualClusterName, String routerName) {
         this.selector = selector;
@@ -98,6 +108,9 @@ class SubjectRoutingHandler implements Router {
         if (subject.isAnonymous()) {
             if (apiKey == ApiKeys.API_VERSIONS) {
                 return fanOutApiVersions(header, request, ctx);
+            }
+            if (apiKey == ApiKeys.SASL_HANDSHAKE || apiKey == ApiKeys.SASL_AUTHENTICATE) {
+                return forwardPreAuthSaslRequest(header, request, ctx);
             }
             return reject(ctx, header, request, RejectReason.ANONYMOUS, "anonymous non-ApiVersions request");
         }
@@ -143,6 +156,23 @@ class SubjectRoutingHandler implements Router {
                     }
                     return ctx.respondWith(intersect(responses)).completed();
                 });
+    }
+
+    /**
+     * Forwards a pre-authentication {@code SASL_HANDSHAKE}/{@code SASL_AUTHENTICATE} request under
+     * SASL passthrough inspection (the proxy observes the exchange but does not terminate it, so
+     * the real negotiation happens against a downstream broker). The exchange is stateful, so
+     * every request in it must reach the same route; the first such request on the connection picks
+     * a route and every later pre-auth SASL request on the same connection reuses it.
+     */
+    private CompletionStage<RouterResponse> forwardPreAuthSaslRequest(RequestHeaderData header, ApiMessage request, RouterContext ctx) {
+        if (preAuthRoute == null) {
+            preAuthRoute = selectorContext.routeNames().stream().sorted().findFirst()
+                    .orElseThrow(() -> new IllegalStateException("router has no declared routes"));
+        }
+        VirtualNode node = ctx.virtualNode().orElseGet(() -> ctx.anyNode(preAuthRoute));
+        return ctx.sendRequest(node, header, request)
+                .thenCompose(response -> ctx.respondWith(response).completed());
     }
 
     /**
