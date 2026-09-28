@@ -32,4 +32,10 @@ public interface SharedLoadBalancerServiceRequirements {
      */
     Annotations.ClusterIngressBootstrapServers bootstrapServersToAnnotate();
 
+    /**
+     * Returns the shared SNI port on the proxy container that the shared LoadBalancer Service ports target.
+     * @return the target port on the proxy for the shared SNI LoadBalancer Service
+     */
+    int sharedSniTargetPort();
+
 }
