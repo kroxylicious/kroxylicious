@@ -44,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -157,6 +158,29 @@ class SubjectRoutingHandlerTest {
         // Then
         assertThat(result).isSameAs(routerResponse);
         verify(ctx).sendRequest(node, HEADER, REQUEST);
+    }
+
+    @Test
+    void brokerSpecificConnectionForwardsToConnectedNodeNotAnArbitraryOne() {
+        // Given
+        Subject subject = new Subject(Set.of(new User("CN=alice")));
+        when(ctx.authenticatedSubject()).thenReturn(subject);
+        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.of("team-a")));
+        VirtualNode connectedNode = mock(VirtualNode.class);
+        when(ctx.virtualNode()).thenReturn(Optional.of(connectedNode));
+        MetadataResponseData upstreamResponse = new MetadataResponseData();
+        when(ctx.sendRequest(connectedNode, HEADER, REQUEST)).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
+        RouterResponse routerResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
+
+        // When
+        RouterResponse result = newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+                .toCompletableFuture().join();
+
+        // Then
+        assertThat(result).isSameAs(routerResponse);
+        verify(ctx).sendRequest(connectedNode, HEADER, REQUEST);
+        verify(ctx, never()).anyNode(any());
     }
 
     @Test

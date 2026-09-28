@@ -113,7 +113,10 @@ class SubjectRoutingHandler implements Router {
                 return reject(ctx, header, request, RejectReason.ROUTE_CHANGED, "subject route changed mid-connection from "
                         + pinnedRoute + " to " + route);
             }
-            VirtualNode node = ctx.anyNode(route);
+            // Prefer the node the client is already connected to (a broker-specific gateway
+            // endpoint) over an arbitrary node of the route, so a client that dialed a specific
+            // broker keeps talking to that broker.
+            VirtualNode node = ctx.virtualNode().orElseGet(() -> ctx.anyNode(route));
             return ctx.sendRequest(node, header, request)
                     .thenCompose(response -> ctx.respondWith(response).completed());
         }).exceptionallyCompose(err -> reject(ctx, header, request, RejectReason.SELECTOR_ERROR, "selector error"));
