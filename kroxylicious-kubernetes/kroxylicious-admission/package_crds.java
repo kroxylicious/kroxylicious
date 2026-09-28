@@ -5,7 +5,7 @@
  */
 
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS org.yaml:snakeyaml:2.2
+//DEPS org.yaml:snakeyaml:2.7
 
 import java.io.*;
 import java.nio.file.*;

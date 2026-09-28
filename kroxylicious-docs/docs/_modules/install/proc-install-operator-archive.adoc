@@ -10,8 +10,8 @@
 //
 // _assemblies/assembly-operator-install.adoc
 
-[id='proc-install-operator-{context}']
-= Installing the operator using installation files
+[id='proc-install-operator-archive-{context}']
+= Installing the operator using archive distribution
 
 [role="_abstract"]
 This procedure shows how to install the Kroxylicious Operator in your Kubernetes cluster.
@@ -19,7 +19,7 @@ This procedure shows how to install the Kroxylicious Operator in your Kubernetes
 .Prerequisites
 
 * You need an account with permission to create and manage `CustomResourceDefinition` and RBAC (`ClusterRole`) resources.
-* You have downloaded the xref:con-install-product-downloads-{context}[release artifacts] and extracted the contents into the current directory.
+* You have downloaded the xref:con-operator-release-artifacts-{context}[release artifacts] and extracted the contents into the current directory.
 
 .Procedure
 
@@ -32,7 +32,9 @@ include::../../_snippets/snip-operator-namespace-sed.adoc[]
 . Deploy the Kroxylicious operator:
 +
 [source,shell,subs="+quotes,attributes+"]
+----
 kubectl create -f install
+----
 
 . Check the status of the deployment:
 +

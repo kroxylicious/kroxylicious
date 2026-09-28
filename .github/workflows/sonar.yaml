@@ -119,7 +119,7 @@ jobs:
           # Old release branches: profile-based build not available; exclude operator modules instead
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
-            --projects '!:kroxylicious-operator,!:kroxylicious-operator-dist,!:kroxylicious-kubernetes-api,!:kroxylicious-operator-test-support' \
+            --projects '!:kroxylicious-operator,!:kroxylicious-kubernetes-api,!:kroxylicious-operator-test-support' \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=true \
@@ -147,7 +147,7 @@ jobs:
             # Old release branches: operator was not under kroxylicious-kubernetes/
             mvn --batch-mode \
               --activate-profiles 'ci,!qa' \
-              --projects ':kroxylicious-operator,:kroxylicious-parent,:kroxylicious-operator-dist' \
+              --projects ':kroxylicious-operator,:kroxylicious-parent' \
               -Derrorprone.skip=true \
               -DskipITs=true \
               -Djapicmp.skip=true \
@@ -167,9 +167,9 @@ jobs:
         if: env.SONAR_TOKEN_SET == 'true' && hashFiles('scripts/ci-build-functions.sh') == ''
         run: |
           # Old release branches: profile-based build not available
-          PROJECTS=':kroxylicious-operator,:kroxylicious-parent,:kroxylicious-operator-dist'
+          PROJECTS=':kroxylicious-operator,:kroxylicious-parent'
           if [ -f "kroxylicious-kubernetes/pom.xml" ]; then
-            PROJECTS=":kroxylicious-operator,:kroxylicious-operator-test-support,:kroxylicious-kubernetes-parent,:kroxylicious-parent,:kroxylicious-operator-dist"
+            PROJECTS=":kroxylicious-operator,:kroxylicious-operator-test-support,:kroxylicious-kubernetes-parent,:kroxylicious-parent"
           fi
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \

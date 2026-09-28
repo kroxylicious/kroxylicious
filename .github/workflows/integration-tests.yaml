@@ -63,7 +63,7 @@ jobs:
           # Also include filter-archetype as it has special IT requirements
           # Also include kroxylicious-app to build operand container image for operator ITs
           # Also include dist modules for operator and admission webhook KT tests
-          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,:kroxylicious-operator-dist,:kroxylicious-admission-dist,${DISCOVERED_MODULES}"
+          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,${DISCOVERED_MODULES}"
 
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
           echo "modules=$MODULES" >> $GITHUB_OUTPUT
@@ -106,7 +106,6 @@ jobs:
             --also-make \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
-            -DskipDocs=true \
             -Derrorprone.skip=true \
             -Dio.kroxylicious.proxy.image.name="${KROXYLICIOUS_IMAGE}" \
             install

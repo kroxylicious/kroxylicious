@@ -57,12 +57,7 @@
             <artifactId>kubernetes-model-batch</artifactId>
             <scope>compile</scope>
         </dependency>
-        <dependency>
-            <groupId>io.fabric8</groupId>
-            <artifactId>kubernetes-model-apiextensions</artifactId>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
+            <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-admissionregistration</artifactId>
             <scope>compile</scope>
@@ -352,14 +347,30 @@
                 <!-- project dependencies - test -->
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
-                    <artifactId>kroxylicious-operator-dist</artifactId>
+                    <artifactId>kroxylicious-operator</artifactId>
+                    <version>${project.version}</version>
+                    <type>yaml</type>
+                    <classifier>install</classifier>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-operator</artifactId>
                     <version>${project.version}</version>
                     <type>zip</type>
                     <scope>runtime</scope>
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
-                    <artifactId>kroxylicious-admission-dist</artifactId>
+                    <artifactId>kroxylicious-admission</artifactId>
+                    <version>${project.version}</version>
+                    <type>yaml</type>
+                    <classifier>install</classifier>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-admission</artifactId>
                     <version>${project.version}</version>
                     <type>zip</type>
                     <scope>runtime</scope>
@@ -373,6 +384,27 @@
                         <artifactId>maven-dependency-plugin</artifactId>
                         <executions>
                             <execution>
+                                <id>copy-kroxylicious-operator-install</id>
+                                <phase>pre-integration-test</phase>
+                                <goals>
+                                    <goal>copy</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-operator</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>yaml</type>
+                                            <classifier>install</classifier>
+                                            <overWrite>false</overWrite>
+                                            <outputDirectory>${project.build.directory}</outputDirectory>
+                                            <destFileName>kroxylicious-operator-install.yaml</destFileName>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
+                            <execution>
                                 <id>copy-kroxylicious-operator-zip</id>
                                 <phase>pre-integration-test</phase>
                                 <goals>
@@ -382,13 +414,51 @@
                                     <artifactItems>
                                         <artifactItem>
                                             <groupId>io.kroxylicious</groupId>
-                                            <artifactId>kroxylicious-operator-dist</artifactId>
+                                            <artifactId>kroxylicious-operator</artifactId>
                                             <version>${project.version}</version>
                                             <type>zip</type>
                                             <overWrite>false</overWrite>
-                                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist
-                                            </outputDirectory>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist</outputDirectory>
                                             <destFileName>kroxylicious-operator.zip</destFileName>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-kroxylicious-operator</id>
+                                <phase>pre-integration-test</phase>
+                                <goals>
+                                    <goal>unpack</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-operator</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>zip</type>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist/</outputDirectory>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-kroxylicious-admission-install</id>
+                                <phase>pre-integration-test</phase>
+                                <goals>
+                                    <goal>copy</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-admission</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>yaml</type>
+                                            <classifier>install</classifier>
+                                            <overWrite>false</overWrite>
+                                            <outputDirectory>${project.build.directory}</outputDirectory>
+                                            <destFileName>kroxylicious-admission-install.yaml</destFileName>
                                         </artifactItem>
                                     </artifactItems>
                                 </configuration>
@@ -403,19 +473,18 @@
                                     <artifactItems>
                                         <artifactItem>
                                             <groupId>io.kroxylicious</groupId>
-                                            <artifactId>kroxylicious-admission-dist</artifactId>
+                                            <artifactId>kroxylicious-admission</artifactId>
                                             <version>${project.version}</version>
                                             <type>zip</type>
                                             <overWrite>false</overWrite>
-                                            <outputDirectory>${project.build.directory}/kroxylicious-admission-dist
-                                            </outputDirectory>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-admission-dist</outputDirectory>
                                             <destFileName>kroxylicious-admission.zip</destFileName>
                                         </artifactItem>
                                     </artifactItems>
                                 </configuration>
                             </execution>
                             <execution>
-                                <id>unpack</id>
+                                <id>unpack-kroxylicious-admission</id>
                                 <phase>pre-integration-test</phase>
                                 <goals>
                                     <goal>unpack</goal>
@@ -424,25 +493,7 @@
                                     <artifactItems>
                                         <artifactItem>
                                             <groupId>io.kroxylicious</groupId>
-                                            <artifactId>kroxylicious-operator-dist</artifactId>
-                                            <version>${project.version}</version>
-                                            <type>zip</type>
-                                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist/</outputDirectory>
-                                        </artifactItem>
-                                    </artifactItems>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>unpack-admission</id>
-                                <phase>pre-integration-test</phase>
-                                <goals>
-                                    <goal>unpack</goal>
-                                </goals>
-                                <configuration>
-                                    <artifactItems>
-                                        <artifactItem>
-                                            <groupId>io.kroxylicious</groupId>
-                                            <artifactId>kroxylicious-admission-dist</artifactId>
+                                            <artifactId>kroxylicious-admission</artifactId>
                                             <version>${project.version}</version>
                                             <type>zip</type>
                                             <outputDirectory>${project.build.directory}/kroxylicious-admission-dist/</outputDirectory>
