@@ -1,0 +1,5 @@
+title: "feat(router-subject): add Subject Router for identity-based cluster routing"
+type: added
+links:
+  - name: "design proposal #140"
+    url: https://github.com/kroxylicious/design/pull/140
