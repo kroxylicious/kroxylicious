@@ -1,0 +1,4 @@
+title: "fix(routing): resolve authenticated subject per-request, not at connection setup"
+type: fixed
+issues:
+  - 4995
