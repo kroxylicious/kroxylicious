@@ -36,8 +36,8 @@ class VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapperTest {
         // then
         ResourceID clusterIpBootstrapServiceId = new ResourceID("cluster-ingress-bootstrap", "namespace");
         ResourceID openShiftRouteServiceId = new ResourceID("cluster-ingress-service", "namespace");
-        ResourceID proxyLoadbalancerServiceId = new ResourceID("proxy-sni", "namespace");
-        assertThat(secondaryResourceIDs).containsExactlyInAnyOrder(clusterIpBootstrapServiceId, proxyLoadbalancerServiceId, openShiftRouteServiceId);
+        ResourceID loadbalancerServiceId = new ResourceID("ingress", "namespace");
+        assertThat(secondaryResourceIDs).containsExactlyInAnyOrder(clusterIpBootstrapServiceId, loadbalancerServiceId, openShiftRouteServiceId);
     }
 
     @Test
@@ -65,8 +65,9 @@ class VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapperTest {
         ResourceID clusterIpBootstrapServiceId2 = new ResourceID(clusterName + "-" + ingressName2 + "-bootstrap", namespace);
         ResourceID openShiftRouteServiceId = new ResourceID(clusterName + "-" + ingressName + "-service", namespace);
         ResourceID openShiftRouteServiceId2 = new ResourceID(clusterName + "-" + ingressName2 + "-service", namespace);
-        ResourceID proxyLoadbalancerServiceId = new ResourceID(proxyName + "-sni", namespace);
-        assertThat(secondaryResourceIDs).containsExactlyInAnyOrder(clusterIpBootstrapServiceId, clusterIpBootstrapServiceId2, proxyLoadbalancerServiceId,
-                openShiftRouteServiceId, openShiftRouteServiceId2);
+        ResourceID loadbalancerServiceId = new ResourceID(ingressName, namespace);
+        ResourceID loadbalancerServiceId2 = new ResourceID(ingressName2, namespace);
+        assertThat(secondaryResourceIDs).containsExactlyInAnyOrder(clusterIpBootstrapServiceId, clusterIpBootstrapServiceId2, loadbalancerServiceId,
+                loadbalancerServiceId2, openShiftRouteServiceId, openShiftRouteServiceId2);
     }
 }

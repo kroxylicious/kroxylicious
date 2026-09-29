@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -24,11 +25,12 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.model.networking.ClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
-import io.kroxylicious.kubernetes.operator.model.networking.SharedLoadBalancerServiceRequirements;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -40,6 +42,8 @@ import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDep
  * Generates the Kube {@code Service} for a single virtual cluster.
  * This is named like {@code ${cluster.name}}, which allows clusters to migrate between proxy
  * instances in the same namespace without impacts clients using the Service's DNS name.
+ * Also generates one {@code Service} per {@code loadBalancer} {@code KafkaProxyIngress} that is
+ * referenced by at least one valid {@code VirtualKafkaCluster}, named after that ingress.
  */
 @KubernetesDependent(useSSA = BooleanWithUndefined.TRUE)
 public class ClusterServiceDependentResource
@@ -73,68 +77,84 @@ public class ClusterServiceDependentResource
                 .flatMap(cluster -> model.networkingModel().clusterIngressModel(cluster).stream())
                 .toList();
 
-        var serviceStream = clusterNetworkingModels.stream()
+        var exclusiveServiceStream = clusterNetworkingModels.stream()
                 .flatMap(ProxyNetworkingModel.ClusterNetworkingModel::services);
 
-        var sharedSniLoadbalancerPorts = clusterNetworkingModels.stream()
-                .flatMap(ProxyNetworkingModel.ClusterNetworkingModel::requiredSniLoadbalancerPorts)
-                .distinct().sorted().toList();
-
-        Set<Annotations.ClusterIngressBootstrapServers> bootstraps = getLoadBalancerServiceBootstrapServers(clusterNetworkingModels);
-
-        var sniServiceStream = sniLoadbalancerServices(primary, sharedSniLoadbalancerPorts, bootstraps);
-
-        return Stream.concat(serviceStream, sniServiceStream).collect(toByNameMap());
-    }
-
-    /**
-     * Get the bootstrap servers hosted by the shared LoadBalancer Service
-     */
-    private static Set<Annotations.ClusterIngressBootstrapServers> getLoadBalancerServiceBootstrapServers(List<ProxyNetworkingModel.ClusterNetworkingModel> clusterNetworkingModels) {
-        return clusterNetworkingModels.stream()
-                .flatMap(ClusterServiceDependentResource::getBootstrapServers)
-                .collect(Collectors.toSet());
-    }
-
-    private static Stream<Annotations.ClusterIngressBootstrapServers> getBootstrapServers(ProxyNetworkingModel.ClusterNetworkingModel networking) {
-        return networking.clusterIngressNetworkingModelResults().stream()
+        // Group the per-(cluster, ingress) models by ingress name so that each ingress gets one Service.
+        Collection<List<ClusterIngressNetworkingModel>> loadBalancerModelGroups = clusterNetworkingModels.stream()
+                .flatMap(clusterNetworkingModel -> clusterNetworkingModel.clusterIngressNetworkingModelResults().stream())
                 .map(ProxyNetworkingModel.ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
-                .flatMap(networkingModel -> networkingModel.sharedLoadBalancerServiceRequirements().stream())
-                .map(SharedLoadBalancerServiceRequirements::bootstrapServersToAnnotate);
+                .filter(ingressModel -> ingressModel.sharedLoadBalancerServiceRequirements().isPresent())
+                .collect(Collectors.groupingBy(ingressModel -> ResourcesUtil.name(ingressModel.ingress())))
+                .values();
+
+        var coalescedServiceStream = loadBalancerModelGroups.stream()
+                .flatMap(ingressModels -> buildCoalescedServices(primary, ingressModels));
+
+        return Stream.concat(exclusiveServiceStream, coalescedServiceStream).collect(toByNameMap());
     }
 
-    private ObjectMeta sniLoadbalancerServiceMetadata(KafkaProxy primary, String name, Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
+    private ObjectMeta coalescedServiceMetadata(KafkaProxy primary, KafkaProxyIngress ingress, String name,
+                                                Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
         ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(primary))
                 .addToLabels(standardLabels(primary))
-                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference();
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference();
         Annotations.annotateWithBootstrapServers(builder, bootstraps);
         return builder.build();
     }
 
-    private Stream<Service> sniLoadbalancerServices(KafkaProxy primary, List<Integer> loadBalancerPorts, Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
+    /**
+     * Builds the single {@code Service} shared by one {@code loadBalancer} {@code KafkaProxyIngress}, given
+     * all the per-cluster models that reference it.
+     *
+     * @param ingressModels the per-(cluster, ingress) models for a single ingress; every element must
+     *         reference the same {@link KafkaProxyIngress}, which the caller guarantees by grouping models
+     *         on ingress name before calling this method
+     * @throws IllegalArgumentException if the models do not all reference the same {@code KafkaProxyIngress}
+     */
+    private Stream<Service> buildCoalescedServices(KafkaProxy primary, List<ClusterIngressNetworkingModel> ingressModels) {
+        KafkaProxyIngress ingress = requireSameIngress(ingressModels);
+        List<Integer> loadBalancerPorts = ingressModels.stream()
+                .flatMap(ingressModel -> ingressModel.sharedLoadBalancerServiceRequirements().orElseThrow().requiredClientFacingPorts())
+                .distinct()
+                .sorted()
+                .toList();
         if (loadBalancerPorts.isEmpty()) {
             return Stream.empty();
         }
-        else {
-            String serviceName = ResourcesUtil.name(primary) + "-sni";
-            var serviceSpecBuilder = new ServiceBuilder()
-                    .withMetadata(sniLoadbalancerServiceMetadata(primary, serviceName, bootstraps))
-                    .withNewSpec()
-                    .withType("LoadBalancer")
-                    .withSelector(standardLabels(primary));
-            for (Integer loadBalancerPort : loadBalancerPorts) {
-                serviceSpecBuilder = serviceSpecBuilder
-                        .addNewPort()
-                        .withName("sni-" + loadBalancerPort)
-                        .withPort(loadBalancerPort)
-                        .withTargetPort(new IntOrString(SHARED_SNI_PORT))
-                        .withProtocol("TCP")
-                        .endPort();
-            }
-            return Stream.of(serviceSpecBuilder.endSpec().build());
+        Set<Annotations.ClusterIngressBootstrapServers> bootstraps = ingressModels.stream()
+                .map(ingressModel -> ingressModel.sharedLoadBalancerServiceRequirements().orElseThrow().bootstrapServersToAnnotate())
+                .collect(Collectors.toSet());
+
+        String serviceName = ResourcesUtil.name(ingress);
+        var serviceSpecBuilder = new ServiceBuilder()
+                .withMetadata(coalescedServiceMetadata(primary, ingress, serviceName, bootstraps))
+                .withNewSpec()
+                .withType("LoadBalancer")
+                .withSelector(standardLabels(primary));
+        for (Integer loadBalancerPort : loadBalancerPorts) {
+            serviceSpecBuilder = serviceSpecBuilder
+                    .addNewPort()
+                    .withName("sni-" + loadBalancerPort)
+                    .withPort(loadBalancerPort)
+                    .withTargetPort(new IntOrString(SHARED_SNI_PORT))
+                    .withProtocol("TCP")
+                    .endPort();
         }
+        return Stream.of(serviceSpecBuilder.endSpec().build());
+    }
+
+    private static KafkaProxyIngress requireSameIngress(List<ClusterIngressNetworkingModel> ingressModels) {
+        Set<String> ingressNames = ingressModels.stream()
+                .map(ingressModel -> ResourcesUtil.name(ingressModel.ingress()))
+                .collect(Collectors.toSet());
+        if (ingressNames.size() != 1) {
+            throw new IllegalArgumentException("Expected all models to reference the same KafkaProxyIngress, got names: " + ingressNames);
+        }
+        return ingressModels.get(0).ingress();
     }
 
     @Override

@@ -292,9 +292,10 @@ class VirtualKafkaClusterReconcilerTest {
                 .withIp(SHARED_SNI_LOADBALANCER_IP)
                 .build();
         KUBERNETES_SHARED_SNI_SERVICE = metadataBuilder
-                .withName(PROXY_NAME + "-sni")
+                .withName(name(LOADBALANCER_INGRESS))
                 .withNamespace(NAMESPACE)
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(PROXY)).endOwnerReference()
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(LOADBALANCER_INGRESS)).endOwnerReference()
             .endMetadata()
             .withNewSpec()
                 .withType("LoadBalancer")
