@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -74,10 +73,10 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
      * @return a stream of all Services for the selected clusters
      */
     public Stream<Service> services(KafkaProxy primary, Predicate<VirtualKafkaCluster> clusterHasValidNetworking) {
-        Stream<Service> perClusterServices = clusterNetworkingModels.stream()
+        Stream<Service> exclusiveServiceStream = clusterNetworkingModels.stream()
                 .filter(clusterNetworkingModel -> clusterHasValidNetworking.test(clusterNetworkingModel.cluster()))
                 .flatMap(ClusterNetworkingModel::services);
-        return Stream.concat(perClusterServices, sharedLoadBalancerServices(primary, clusterHasValidNetworking));
+        return Stream.concat(exclusiveServiceStream, buildCoalescedServices(primary, clusterHasValidNetworking));
     }
 
     /**
@@ -91,22 +90,30 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
      * @param clusterHasValidNetworking predicate selecting the clusters whose models should contribute to the Services
      * @return a stream of shared LoadBalancer Services, one per referenced loadBalancer ingress
      */
-    private Stream<Service> sharedLoadBalancerServices(KafkaProxy primary, Predicate<VirtualKafkaCluster> clusterHasValidNetworking) {
-        // Group the per-(cluster, ingress) models that require a shared LoadBalancer Service by the ingress
-        // they belong to. A TreeMap keeps iteration order deterministic (golden-file tests depend on it)
-        // irrespective of the order clusters/ingresses were discovered in.
+    private Stream<Service> buildCoalescedServices(KafkaProxy primary, Predicate<VirtualKafkaCluster> clusterHasValidNetworking) {
+        // Group the per-(cluster, ingress) models by ingress name so that each ingress gets one Service.
         Map<String, List<ClusterIngressNetworkingModel>> modelsByIngressName = clusterNetworkingModels.stream()
                 .filter(clusterNetworkingModel -> clusterHasValidNetworking.test(clusterNetworkingModel.cluster()))
                 .flatMap(clusterNetworkingModel -> clusterNetworkingModel.clusterIngressNetworkingModelResults().stream())
                 .map(ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
                 .filter(ingressModel -> ingressModel.sharedLoadBalancerServiceRequirements().isPresent())
-                .collect(Collectors.groupingBy(ingressModel -> name(ingressModel.ingress()), TreeMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(ingressModel -> name(ingressModel.ingress())));
 
         return modelsByIngressName.values().stream()
-                .flatMap(ingressModels -> sharedLoadBalancerService(primary, ingressModels).stream());
+                .flatMap(ingressModels -> buildCoalescedServiceForIngress(primary, ingressModels).stream());
     }
 
-    private static Optional<Service> sharedLoadBalancerService(KafkaProxy primary, List<ClusterIngressNetworkingModel> ingressModels) {
+    /**
+     * Builds the single {@code Service} shared by one {@code loadBalancer} {@code KafkaProxyIngress}, given
+     * all the per-cluster models that reference it.
+     *
+     * @param ingressModels the per-(cluster, ingress) models for a single ingress; every element must
+     *         reference the same {@link KafkaProxyIngress} and agree on the shared SNI target port, which the
+     *         caller guarantees by grouping models on ingress name before calling this method
+     * @throws IllegalArgumentException if the models do not all reference the same {@code KafkaProxyIngress}
+     *         or do not all agree on the shared SNI target port
+     */
+    private static Optional<Service> buildCoalescedServiceForIngress(KafkaProxy primary, List<ClusterIngressNetworkingModel> ingressModels) {
         List<SharedLoadBalancerServiceRequirements> requirements = ingressModels.stream()
                 .map(ingressModel -> ingressModel.sharedLoadBalancerServiceRequirements().orElseThrow())
                 .toList();
@@ -120,8 +127,8 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
             return Optional.empty();
         }
 
-        KafkaProxyIngress ingress = ingressModels.get(0).ingress();
-        int targetPort = requirements.get(0).sharedSniTargetPort();
+        KafkaProxyIngress ingress = requireSameIngress(ingressModels);
+        int targetPort = requireSameTargetPort(requirements);
         Set<Annotations.ClusterIngressBootstrapServers> bootstraps = requirements.stream()
                 .map(SharedLoadBalancerServiceRequirements::bootstrapServersToAnnotate)
                 .collect(Collectors.toSet());
@@ -149,6 +156,26 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
                     .endPort();
         }
         return Optional.of(serviceSpecBuilder.endSpec().build());
+    }
+
+    private static KafkaProxyIngress requireSameIngress(List<ClusterIngressNetworkingModel> ingressModels) {
+        Set<String> ingressNames = ingressModels.stream()
+                .map(ingressModel -> name(ingressModel.ingress()))
+                .collect(Collectors.toSet());
+        if (ingressNames.size() != 1) {
+            throw new IllegalArgumentException("Expected all models to reference the same KafkaProxyIngress, got names: " + ingressNames);
+        }
+        return ingressModels.get(0).ingress();
+    }
+
+    private static int requireSameTargetPort(List<SharedLoadBalancerServiceRequirements> requirements) {
+        Set<Integer> targetPorts = requirements.stream()
+                .map(SharedLoadBalancerServiceRequirements::sharedSniTargetPort)
+                .collect(Collectors.toSet());
+        if (targetPorts.size() != 1) {
+            throw new IllegalArgumentException("Expected all models to agree on the shared SNI target port, got: " + targetPorts);
+        }
+        return requirements.get(0).sharedSniTargetPort();
     }
 
     /**
