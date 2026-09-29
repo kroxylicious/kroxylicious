@@ -1,0 +1,4 @@
+title: "build(deps): bump graalvm.version from 25.3.4.1 to 25.4.4.1.1"
+type: build
+merge_requests:
+  - 4989
