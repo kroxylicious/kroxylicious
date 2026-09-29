@@ -4,5 +4,5 @@ merge_requests:
 links:
   - name: CVE-2026-59295
     url: https://www.cve.org/CVERecord?id=CVE-2026-59295
-type: dependency_update
+type: build
 

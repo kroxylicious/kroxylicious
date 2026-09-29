@@ -18,14 +18,22 @@ changelog:
   templates:
     changelog_templates:
       - path: CHANGELOG.md
+  entryTypes:
+    - key: added
+      order: 1
+    - key: changed
+      order: 2
+    - key: deprecated
+      order: 3
+    - key: removed
+      order: 4
+    - key: fixed
+      order: 5
+    - key: security
+      order: 6
+    - key: build
+      order: 7
+    - key: other
+      order: 8
 entry:
   banner: false
-  entryTypes:
-    - type: added
-    - type: changed
-    - type: deprecated
-    - type: removed
-    - type: fixed
-    - type: security
-    - type: build
-    - type: other
