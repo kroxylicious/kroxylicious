@@ -31,12 +31,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.filter.sasl.inspection.SaslInspection;
+import io.kroxylicious.identity.Identity;
 import io.kroxylicious.it.testplugins.router.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.kafka.common.message.ProduceRequestData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
-import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
@@ -325,7 +325,7 @@ class RoutingContextContractIT {
                                                                        Topic topic) {
         // Given
         var clientId = "PLAIN-producer";
-        var capturedSubject = new CompletableFuture<Subject>();
+        var capturedSubject = new CompletableFuture<Identity>();
         ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
             if (apiKey == io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE && clientId.equals(header.clientId())) {
                 capturedSubject.complete(ctx.authenticatedSubject());
