@@ -140,19 +140,33 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
         ingressModel.applyInfrastructureAnnotations(metadataBuilder);
         Annotations.annotateWithBootstrapServers(metadataBuilder, bootstraps);
 
+        var serviceCr = ingress.getSpec().getLoadBalancer().getService();
         var serviceSpecBuilder = new ServiceBuilder()
                 .withMetadata(metadataBuilder.build())
                 .withNewSpec()
                 .withType("LoadBalancer")
                 .withSelector(standardLabels(primary));
+        if (serviceCr != null) {
+            if (serviceCr.getExternalTrafficPolicy() != null) {
+                serviceSpecBuilder = serviceSpecBuilder.withExternalTrafficPolicy(serviceCr.getExternalTrafficPolicy().getValue());
+            }
+            if (serviceCr.getAllocateLoadBalancerNodePorts() != null) {
+                serviceSpecBuilder = serviceSpecBuilder.withAllocateLoadBalancerNodePorts(serviceCr.getAllocateLoadBalancerNodePorts());
+            }
+        }
+        boolean nodePortsAllocated = serviceCr == null
+                || Optional.ofNullable(serviceCr.getAllocateLoadBalancerNodePorts()).orElse(true);
         for (Integer loadBalancerPort : loadBalancerPorts) {
-            serviceSpecBuilder = serviceSpecBuilder
+            var portBuilder = serviceSpecBuilder
                     .addNewPort()
                     .withName("sni-" + loadBalancerPort)
                     .withPort(loadBalancerPort)
                     .withTargetPort(new IntOrString(targetPort))
-                    .withProtocol("TCP")
-                    .endPort();
+                    .withProtocol("TCP");
+            if (!nodePortsAllocated) {
+                portBuilder = portBuilder.withNodePort(0);
+            }
+            serviceSpecBuilder = portBuilder.endPort();
         }
         return Optional.of(serviceSpecBuilder.endSpec().build());
     }
