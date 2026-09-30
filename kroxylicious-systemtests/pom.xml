@@ -405,26 +405,6 @@
                                 </configuration>
                             </execution>
                             <execution>
-                                <id>copy-kroxylicious-operator-zip</id>
-                                <phase>pre-integration-test</phase>
-                                <goals>
-                                    <goal>copy</goal>
-                                </goals>
-                                <configuration>
-                                    <artifactItems>
-                                        <artifactItem>
-                                            <groupId>io.kroxylicious</groupId>
-                                            <artifactId>kroxylicious-operator</artifactId>
-                                            <version>${project.version}</version>
-                                            <type>zip</type>
-                                            <overWrite>false</overWrite>
-                                            <outputDirectory>${project.build.directory}/kroxylicious-operator</outputDirectory>
-                                            <destFileName>kroxylicious-operator.zip</destFileName>
-                                        </artifactItem>
-                                    </artifactItems>
-                                </configuration>
-                            </execution>
-                            <execution>
                                 <id>unpack-kroxylicious-operator</id>
                                 <phase>pre-integration-test</phase>
                                 <goals>
@@ -459,26 +439,6 @@
                                             <overWrite>false</overWrite>
                                             <outputDirectory>${project.build.directory}</outputDirectory>
                                             <destFileName>kroxylicious-admission-install.yaml</destFileName>
-                                        </artifactItem>
-                                    </artifactItems>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>copy-kroxylicious-admission-zip</id>
-                                <phase>pre-integration-test</phase>
-                                <goals>
-                                    <goal>copy</goal>
-                                </goals>
-                                <configuration>
-                                    <artifactItems>
-                                        <artifactItem>
-                                            <groupId>io.kroxylicious</groupId>
-                                            <artifactId>kroxylicious-admission</artifactId>
-                                            <version>${project.version}</version>
-                                            <type>zip</type>
-                                            <overWrite>false</overWrite>
-                                            <outputDirectory>${project.build.directory}/kroxylicious-admission</outputDirectory>
-                                            <destFileName>kroxylicious-admission.zip</destFileName>
                                         </artifactItem>
                                     </artifactItems>
                                 </configuration>
