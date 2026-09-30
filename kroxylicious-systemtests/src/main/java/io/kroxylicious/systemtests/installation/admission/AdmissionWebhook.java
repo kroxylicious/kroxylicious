@@ -6,11 +6,6 @@
 
 package io.kroxylicious.systemtests.installation.admission;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -128,16 +123,6 @@ public class AdmissionWebhook {
                     .addKeyValue("resourceName", resource.getMetadata().getName())
                     .addKeyValue("error", e.getMessage())
                     .log("Failed to apply resource");
-        }
-    }
-
-    private void applyManifest(Path manifestPath) {
-        LOGGER.info("Applying manifest: {}", manifestPath.getFileName());
-        try (InputStream is = Files.newInputStream(manifestPath)) {
-            kubeClient().getClient().load(is).serverSideApply();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException("Failed to apply manifest: " + manifestPath, e);
         }
     }
 

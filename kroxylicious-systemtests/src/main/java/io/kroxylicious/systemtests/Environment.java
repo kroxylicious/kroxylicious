@@ -250,11 +250,12 @@ public class Environment {
 
     public static ManifestProvider createAdmissionManifestProvider() {
         Path source = Path.of(KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE);
-        if (KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE.endsWith(".yaml")) {
+        var file = source.toFile();
+        if (file.exists() && file.isFile() && file.getName().endsWith(".yaml")) {
             return new AllInOneYamlManifestProvider(source);
         }
         else {
-            return new io.kroxylicious.systemtests.resources.operator.DirectoryManifestProvider(source);
+            return new DirectoryManifestProvider(source);
         }
     }
 }
