@@ -477,7 +477,7 @@
                                             <version>${project.version}</version>
                                             <type>zip</type>
                                             <overWrite>false</overWrite>
-                                            <outputDirectory>${project.build.directory}/kroxylicious-admission-dist</outputDirectory>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-admission</outputDirectory>
                                             <destFileName>kroxylicious-admission.zip</destFileName>
                                         </artifactItem>
                                     </artifactItems>
@@ -496,7 +496,7 @@
                                             <artifactId>kroxylicious-admission</artifactId>
                                             <version>${project.version}</version>
                                             <type>zip</type>
-                                            <outputDirectory>${project.build.directory}/kroxylicious-admission-dist/</outputDirectory>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-admission/</outputDirectory>
                                         </artifactItem>
                                     </artifactItems>
                                 </configuration>
