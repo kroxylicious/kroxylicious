@@ -8,9 +8,12 @@ package io.kroxylicious.it;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
@@ -27,11 +30,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.filter.sasl.inspection.SaslInspection;
 import io.kroxylicious.it.testplugins.router.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.router.ContextCapturingRouterFactory;
 import io.kroxylicious.kafka.common.message.ProduceRequestData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
@@ -47,10 +53,12 @@ import io.kroxylicious.proxy.topology.VirtualNode;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.ResponsePayload;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.server.MockServer;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
@@ -311,6 +319,74 @@ class RoutingContextContractIT {
     }
 
     @Test
+    void authenticatedSubjectIsAvailableForSaslAuthenticatedConnection(
+                                                                       @SaslMechanism(value = "PLAIN", principals = {
+                                                                               @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+                                                                       Topic topic) {
+        // Given
+        var clientId = "PLAIN-producer";
+        var capturedSubject = new CompletableFuture<Subject>();
+        ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
+            if (apiKey == io.kroxylicious.kafka.common.protocol.ApiKeys.PRODUCE && clientId.equals(header.clientId())) {
+                capturedSubject.complete(ctx.authenticatedSubject());
+            }
+            return ctx.sendRequest(ctx.anyNode(ROUTE), header, request)
+                    .thenCompose(body -> ctx.respondWith(body).completed());
+        });
+
+        try (var tester = KroxyliciousTesters.newBuilder(configWithSaslInspection(cluster))
+                .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer(Map.of(
+                        CommonClientConfigs.CLIENT_ID_CONFIG, clientId,
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
+                        SaslConfigs.SASL_MECHANISM, "PLAIN",
+                        SaslConfigs.SASL_JAAS_CONFIG, """
+                                org.apache.kafka.common.security.plain.PlainLoginModule required
+                                    username="alice"
+                                    password="alice-secret";
+                                """))) {
+
+            // When
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "key", "value")))
+                    .succeedsWithin(Duration.ofSeconds(5));
+
+            // Then
+            assertThat(capturedSubject).succeedsWithin(Duration.ofSeconds(5))
+                    .extracting(subject -> subject.uniquePrincipalOfType(User.class))
+                    .satisfies(user -> assertThat(user).isPresent().get().extracting(User::name).isEqualTo("alice"));
+        }
+    }
+
+    private ConfigurationBuilder configWithSaslInspection(KafkaCluster cluster) {
+        var saslInspection = new NamedFilterDefinitionBuilder(SaslInspection.class.getName(), SaslInspection.class.getName())
+                .withConfig("enabledMechanisms", Set.of("PLAIN"))
+                .build();
+        var upstreamBootstrap = "localhost:" + cluster.getBootstrapServers().split(":")[1];
+        var clusterDef = new ClusterDefinition(CLUSTER, upstreamBootstrap, null);
+        var route = new RouteDefinition(ROUTE, 0, List.of(), new RouteTarget(CLUSTER, null));
+        var routerDef = new RouterDefinition(ROUTER,
+                ContextCapturingRouterFactory.class.getName(),
+                new ContextCapturingRouterFactory.Config(ROUTE),
+                List.of(route));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .addToFilters(saslInspection.name())
+                .withTarget(new RouteTarget(null, ROUTER))
+                .addToGateways(defaultGatewayBuilder()
+                        .withNewPortIdentifiesNode()
+                        .withBootstrapAddress(HostPort.parse(BOOTSTRAP))
+                        .withNodeIdRanges(new NamedRange("nodes", 0, 0))
+                        .endPortIdentifiesNode()
+                        .build())
+                .build();
+        return baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToFilterDefinitions(saslInspection)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+    }
+
+    @Test
     void respondWithBodyDeliversCustomResponseToClient(KafkaCluster cluster) {
         // Given: router synthesises an API_VERSIONS response with a known set of API keys
         var customResponse = new io.kroxylicious.kafka.common.message.ApiVersionsResponseData();
@@ -385,7 +461,8 @@ class RoutingContextContractIT {
     }
 
     @Test
-    @SuppressWarnings("FutureReturnValueIgnored") // acks=0 fire-and-forget: send() returns before broker acknowledgement; see producer config in the try block below
+    @SuppressWarnings("FutureReturnValueIgnored")
+    // acks=0 fire-and-forget: send() returns before broker acknowledgement; see producer config in the try block below
     void respondWithoutReplyCompletesFireAndForgetProduce(KafkaCluster cluster, Topic topic) {
         // Given: router calls respondWithoutReply() for acks=0 PRODUCE; all other keys pass through
         var produceHandled = new CompletableFuture<Void>();
