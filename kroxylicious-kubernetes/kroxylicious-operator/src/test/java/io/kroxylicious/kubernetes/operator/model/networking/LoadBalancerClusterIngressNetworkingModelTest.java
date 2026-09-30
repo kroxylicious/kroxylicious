@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.model.networking;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.ThrowableAssert;
@@ -15,6 +16,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -25,6 +27,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalance
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancerBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder;
+import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -165,6 +168,86 @@ class LoadBalancerClusterIngressNetworkingModelTest {
             assertThat(bootstrapServers.ingressName()).isEqualTo(INGRESS_NAME);
             assertThat(bootstrapServers.bootstrapServers()).isEqualTo("my-cluster.kafkaproxy:" + DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
         });
+    }
+
+    @Test
+    void applyInfrastructureAnnotationsAddsUserAnnotations() {
+        // given
+        // @formatter:off
+        KafkaProxyIngress ingressWithAnnotations = new KafkaProxyIngressBuilder(INGRESS)
+                .editSpec()
+                    .withNewInfrastructure()
+                        .addToAnnotations("example.com/custom-annotation", "test-value")
+                    .endInfrastructure()
+                .endSpec()
+                .build();
+        // @formatter:on
+        LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, ingressWithAnnotations, LOAD_BALANCER,
+                TLS, 9093);
+        ObjectMetaBuilder builder = new ObjectMetaBuilder();
+
+        // when
+        model.applyInfrastructureAnnotations(builder);
+
+        // then
+        assertThat(builder.build().getAnnotations()).containsEntry("example.com/custom-annotation", "test-value");
+    }
+
+    @Test
+    void applyInfrastructureAnnotationsDropsReservedPrefixKeys() {
+        // given
+        // @formatter:off
+        KafkaProxyIngress ingressWithReservedAnnotation = new KafkaProxyIngressBuilder(INGRESS)
+                .editSpec()
+                    .withNewInfrastructure()
+                        .addToAnnotations("kroxylicious.io/some-operator-key", "errant-user-supplied-value")
+                    .endInfrastructure()
+                .endSpec()
+                .build();
+        // @formatter:on
+        LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, ingressWithReservedAnnotation,
+                LOAD_BALANCER, TLS, 9093);
+        ObjectMetaBuilder builder = new ObjectMetaBuilder();
+
+        // when
+        model.applyInfrastructureAnnotations(builder);
+
+        // then
+        assertThat(builder.build().getAnnotations()).isNullOrEmpty();
+    }
+
+    @Test
+    void applyInfrastructureAnnotationsDropsReservedKeyMatchingBootstrapServersAnnotation() {
+        // given
+        // the reserved-prefix filter in applyInfrastructureAnnotations drops this key before it ever
+        // reaches the builder, so there is no collision for annotateWithBootstrapServers to resolve
+        // this test exists to pin that the real bootstrap-servers value is what ends up on the resource,
+        // not to exercise precedence between infrastructure and operator-managed annotations.
+        // @formatter:off
+        KafkaProxyIngress ingressWithReservedAnnotation = new KafkaProxyIngressBuilder(INGRESS)
+                .editSpec()
+                    .withNewInfrastructure()
+                        .addToAnnotations(Annotations.BOOTSTRAP_SERVERS_ANNOTATION_KEY, "errant-user-supplied-value")
+                    .endInfrastructure()
+                .endSpec()
+                .build();
+        // @formatter:on
+        LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, ingressWithReservedAnnotation,
+                LOAD_BALANCER, TLS, 9093);
+        ObjectMetaBuilder builder = new ObjectMetaBuilder();
+        Set<Annotations.ClusterIngressBootstrapServers> bootstraps = Set.of(model.bootstrapServersToAnnotate());
+
+        // when
+        model.applyInfrastructureAnnotations(builder);
+        Annotations.annotateWithBootstrapServers(builder, bootstraps);
+
+        // then
+        assertThat(builder.build().getAnnotations())
+                .containsKey(Annotations.BOOTSTRAP_SERVERS_ANNOTATION_KEY)
+                .extractingByKey(Annotations.BOOTSTRAP_SERVERS_ANNOTATION_KEY)
+                .asString()
+                .doesNotContain("errant-user-supplied-value")
+                .contains(CLUSTER_NAME);
     }
 
     public static Stream<Arguments> constructorArgsMustBeNonNull() {

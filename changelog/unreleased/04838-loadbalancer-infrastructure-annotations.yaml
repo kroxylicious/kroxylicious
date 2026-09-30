@@ -1,0 +1,4 @@
+title: "fix(operator): apply KafkaProxyIngress infrastructure annotations to LoadBalancer Services"
+type: fixed
+issues:
+  - 4838

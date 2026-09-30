@@ -644,6 +644,68 @@ class AllReconcilersIT {
     }
 
     @Test
+    void infrastructureAnnotationsAppliedToLoadBalancerService() {
+        // Given
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewInfrastructure()
+                        .addToAnnotations("example.com/custom-annotation", "test-value")
+                    .endInfrastructure()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("$(virtualClusterName).kafkaproxy")
+                        .withAdvertisedBrokerAddressPattern("$(virtualClusterName)-$(nodeId).kafkaproxy")
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var tlsCert = new SecretBuilder()
+                .withNewMetadata()
+                    .withName("downstream-tls-certificate" + suffix)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        var clusterIngress = new IngressesBuilder()
+                .withIngressRef(new IngressRefBuilder().withName(name(myIngress)).build())
+                .withNewTls()
+                    .withNewCertificateRef()
+                        .withName(name(tlsCert))
+                    .endCertificateRef()
+                .endTls()
+                .build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(), List.of())
+                .editOrNewSpec()
+                    .withIngresses(List.of(clusterIngress))
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        // When
+        createAll(myProxy, myIngress, myService, tlsCert, myCluster);
+
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+        assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
+
+        // Verify LoadBalancer Service has infrastructure annotations
+        AWAIT.alias("LoadBalancer Service for ingress %s has infrastructure annotations".formatted(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, CLUSTER_FOO_LOADBALANCER_INGRESS + suffix);
+                    assertThat(service)
+                            .isNotNull()
+                            .extracting(s -> s.getMetadata().getAnnotations())
+                            .asInstanceOf(InstanceOfAssertFactories.MAP)
+                            .containsEntry("example.com/custom-annotation", "test-value")
+                            .containsKey("kroxylicious.io/bootstrap-servers"); // operator annotation still present
+                });
+    }
+
+    @Test
     void upstreamTlsFromStrimziKafkaRef() {
         // Given
         var suffix = uniqueSuffix();
