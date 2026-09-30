@@ -96,13 +96,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private final String virtualClusterName;
     private final String sessionId;
 
-    /**
-     * Resolves the connection's current authenticated subject. A supplier, not a snapshot value,
-     * because the subject may not yet be known when this handler is constructed (e.g. mTLS or
-     * post-SASL identity resolves after the handler is installed) and can change over the life of
-     * the connection (reauthentication) — each request must observe the subject as of that request,
-     * not as of handler construction.
-     */
+    // supplier, not a snapshot, since identity can resolve or change after handler construction (mTLS, post-SASL, reauthentication)
     private final Supplier<Subject> subjectSupplier;
     @Nullable
     private final Integer nodeId;
@@ -192,10 +186,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * @param routerNodeAddresses node addresses known at this nesting level, populated from
      *        metadata responses received through this handler
      * @param sessionId the proxy session ID, used for logging and diagnostics
-     * @param subjectSupplier resolves the authenticated subject for this connection, called once
-     *        per dispatched request rather than once at construction, so a subject that resolves
-     *        or changes after this handler is installed (mTLS, post-SASL, reauthentication) is
-     *        still observed
+     * @param subjectSupplier resolves the authenticated subject, called once per dispatched request
      * @param nodeId the virtual node ID passed from the enclosing routing level,
      *        or {@code null} if not available at this nesting depth
      * @return the nested routing handler
