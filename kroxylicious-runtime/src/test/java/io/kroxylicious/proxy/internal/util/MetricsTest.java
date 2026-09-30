@@ -12,6 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -168,56 +169,97 @@ class MetricsTest {
     @Test
     void disconnectsCounterShouldSupportAllCauses() {
         // Given
+        var clusterName = "cluster";
         // When
-        var idleCounter = Metrics.clientToProxyDisconnectsCounter("cluster", null, "idle_timeout").withTags();
-        var clientClosedCounter = Metrics.clientToProxyDisconnectsCounter("cluster", null, "client_closed").withTags();
-        var serverClosedCounter = Metrics.clientToProxyDisconnectsCounter("cluster", null, "server_closed").withTags();
+        var idleCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, null, "idle_timeout").withTags();
+        var clientClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, null, "client_closed").withTags();
+        var serverClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, null, "server_closed").withTags();
 
         idleCounter.increment();
         clientClosedCounter.increment();
         serverClosedCounter.increment();
 
         // Then
-        assertThat(idleCounter.count()).isEqualTo(1.0);
-        assertThat(clientClosedCounter.count()).isEqualTo(1.0);
-        assertThat(serverClosedCounter.count()).isEqualTo(1.0);
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                .tag("virtual_cluster", clusterName)
+                .tag("node_id", "bootstrap")
+                .tag("cause", "idle_timeout")
+                .counter())
+                .extracting(Counter::count)
+                .isEqualTo(1.0);
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                .tag("virtual_cluster", clusterName)
+                .tag("node_id", "bootstrap")
+                .tag("cause", "client_closed")
+                .counter())
+                .extracting(Counter::count)
+                .isEqualTo(1.0);
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                .tag("virtual_cluster", clusterName)
+                .tag("node_id", "bootstrap")
+                .tag("cause", "server_closed")
+                .counter())
+                .extracting(Counter::count)
+                .isEqualTo(1.0);
     }
 
     @Test
     void clientAuthCounterShouldIncludeAllTags() {
         // Given
-        var counter = Metrics.clientAuthCounter("my-cluster", "SCRAM-SHA-512", "success");
+        var clusterName = "my-cluster";
+        var mechanism = "SCRAM-SHA-512";
+        var outcome = "success";
+        var counter = Metrics.clientAuthCounter(clusterName, mechanism, outcome);
 
         // When
         counter.increment();
 
         // Then
-        assertThat(counter.getId().getTag("virtual_cluster")).isEqualTo("my-cluster");
-        assertThat(counter.getId().getTag("mechanism")).isEqualTo("SCRAM-SHA-512");
-        assertThat(counter.getId().getTag("outcome")).isEqualTo("success");
-        assertThat(counter.count()).isEqualTo(1.0);
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_auth_total")
+                .tag("virtual_cluster", clusterName)
+                .tag("mechanism", mechanism)
+                .tag("outcome", outcome)
+                .counter())
+                .extracting(Counter::count)
+                .isEqualTo(1.0);
     }
 
     @Test
     void clientAuthCounterShouldDistinguishOutcomes() {
         // Given
-        var successCounter = Metrics.clientAuthCounter("cluster", "SCRAM-SHA-256", "success");
-        var failureCounter = Metrics.clientAuthCounter("cluster", "SCRAM-SHA-256", "failure");
+        var clusterName = "cluster";
+        var mechanism = "SCRAM-SHA-256";
+        var successCounter = Metrics.clientAuthCounter(clusterName, mechanism, "success");
+        var failureCounter = Metrics.clientAuthCounter(clusterName, mechanism, "failure");
 
         // When
         successCounter.increment();
         failureCounter.increment();
 
         // Then
-        assertThat(successCounter.count()).isEqualTo(1.0);
-        assertThat(failureCounter.count()).isEqualTo(1.0);
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_auth_total")
+                .tag("virtual_cluster", clusterName)
+                .tag("mechanism", mechanism)
+                .tag("outcome", "success")
+                .counter())
+                .extracting(Counter::count)
+                .isEqualTo(1.0);
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_auth_total")
+                .tag("virtual_cluster", clusterName)
+                .tag("mechanism", mechanism)
+                .tag("outcome", "failure")
+                .counter())
+                .extracting(Counter::count)
+                .isEqualTo(1.0);
     }
 
     @Test
     void clientAuthCounterShouldDistinguishMechanisms() {
         // Given
-        var scramCounter = Metrics.clientAuthCounter("cluster", "SCRAM-SHA-256", "success");
-        var oauthCounter = Metrics.clientAuthCounter("cluster", "OAUTHBEARER", "success");
+        var clusterName = "cluster";
+        var outcome = "success";
+        var scramCounter = Metrics.clientAuthCounter(clusterName, "SCRAM-SHA-256", outcome);
+        var oauthCounter = Metrics.clientAuthCounter(clusterName, "OAUTHBEARER", outcome);
 
         // When
         scramCounter.increment();
@@ -225,7 +267,19 @@ class MetricsTest {
         oauthCounter.increment();
 
         // Then
-        assertThat(scramCounter.count()).isEqualTo(1.0);
-        assertThat(oauthCounter.count()).isEqualTo(2.0);
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_auth_total")
+                .tag("virtual_cluster", clusterName)
+                .tag("mechanism", "SCRAM-SHA-256")
+                .tag("outcome", outcome)
+                .counter())
+                .extracting(Counter::count)
+                .isEqualTo(1.0);
+        assertThat(simpleMeterRegistry.get("kroxylicious_client_auth_total")
+                .tag("virtual_cluster", clusterName)
+                .tag("mechanism", "OAUTHBEARER")
+                .tag("outcome", outcome)
+                .counter())
+                .extracting(Counter::count)
+                .isEqualTo(2.0);
     }
 }
