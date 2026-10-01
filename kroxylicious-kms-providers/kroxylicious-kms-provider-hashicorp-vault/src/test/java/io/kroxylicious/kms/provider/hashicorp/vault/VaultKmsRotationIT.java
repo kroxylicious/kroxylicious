@@ -13,6 +13,8 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import org.testcontainers.DockerClientFactory;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.TokenCredentialsConfig;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.VaultCredentialsConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,7 +34,7 @@ class VaultKmsRotationIT {
     @BeforeAll
     static void beforeAll() {
         vault = TestVault.start();
-        var config = new Config(vault.getEndpoint(), new InlinePassword(VAULT_TOKEN), null);
+        var config = new Config(vault.getEndpoint(), new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword(VAULT_TOKEN)), null), null);
         var service = new VaultKmsService();
         service.initialize(config);
         kms = service.buildKms();

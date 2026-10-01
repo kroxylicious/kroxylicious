@@ -49,4 +49,14 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     protected URI getVaultUrl() {
         return vault.getVaultUrl();
     }
+
+    @NonNull
+    protected URI getInClusterVaultUrl() {
+        return vault.getInClusterVaultUrl();
+    }
+
+    @Override
+    protected URI getVaultTransitEngineUrl() {
+        return getInClusterVaultUrl().resolve("v1/transit/");
+    }
 }

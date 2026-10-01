@@ -14,8 +14,11 @@
 = HashiCorp Vault plugin configuration
 
 [role="_abstract"]
-For HashiCorp Vault, the KMS configuration used by the filter looks like this.
-Use the Vault Token and Vault Transit Engine URL values from the KMS setup.
+For HashiCorp Vault, the KMS configuration used by the filter supports both Token-based authentication and Kubernetes-based authentication via the `credentials` configuration node.
+
+== Token Authentication
+
+When authenticating using a static Vault Token, the KMS configuration looks like this:
 
 [source, yaml]
 ----
@@ -24,19 +27,46 @@ kmsConfig:
   vaultTransitEngineUrl: <vault transit engine service url>
   tls:
     # ...
-  vaultToken:
-    passwordFile: /opt/vault/token
-
+  credentials:
+    token:
+      token:
+        passwordFile: /opt/vault/token
 ----
-where:
+
+NOTE: The top-level `vaultToken` field is deprecated but still supported for backwards compatibility. Prefer using the `credentials.token` structure shown above.
+
+== Kubernetes Authentication
+
+When running Kroxylicious in Kubernetes and authenticating via the Vault Kubernetes Auth engine, the KMS configuration looks like this:
+
+[source, yaml]
+----
+kms: VaultKmsService
+kmsConfig:
+  vaultTransitEngineUrl: <vault transit engine service url>
+  credentials:
+    kubernetes:
+      role: kroxylicious-role
+      serviceAccountTokenPath: /var/run/secrets/kubernetes.io/serviceaccount/token  # optional, this is the default
+      authPath: kubernetes  # optional, this is the default
+  tls:
+    # ...
+----
+
+== Configuration Properties
 
 * `kms` specifies the name of the KMS provider. Use `VaultKmsService`.
-* `kmsConfig` specifies configuration specific to the VaultKmsService.
-** `vaultTransitEngineUrl` provides the  xref:con-vault-setup-{context}[Vault Transit Engine URL] including the protocol part, such as `https:` or `http:`.
+* `kmsConfig` specifies configuration specific to `VaultKmsService`:
+** `vaultTransitEngineUrl` provides the xref:con-vault-setup-{context}[Vault Transit Engine URL] including the protocol scheme, such as `https:` or `http:`.
+** `credentials` (required) specifies the authentication method. Exactly one of the following sub-nodes must be provided:
+*** `credentials.token` — Token-based authentication:
+**** `credentials.token.token` references a PasswordProvider containing the Vault Token.
+*** `credentials.kubernetes` — Kubernetes ServiceAccount authentication:
+**** `credentials.kubernetes.role` (required) specifies the Vault role bound to the Kubernetes ServiceAccount.
+**** `credentials.kubernetes.serviceAccountTokenPath` (Optional) path to the Kubernetes ServiceAccount token file (defaults to `/var/run/secrets/kubernetes.io/serviceaccount/token`).
+**** `credentials.kubernetes.authPath` (Optional) mount path of the Kubernetes authentication method in Vault (defaults to `kubernetes`).
 ** `tls` (Optional) TLS trust configuration.
-** `vaultToken` references a file containing the Vault Token.
 
 include::../../../_snippets/snip-tls-client-keystore.adoc[]
 
 include::../../../_snippets/snip-tls-client-truststore.adoc[]
-

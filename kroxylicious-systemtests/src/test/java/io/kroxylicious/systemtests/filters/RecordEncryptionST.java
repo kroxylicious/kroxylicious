@@ -67,8 +67,10 @@ class RecordEncryptionST extends AbstractSystemTests {
     static Stream<? extends TestKmsFacade<?, ?, ?>> facadesSource() {
         // We rely on the fact that streams are lazy so the facade isn't built
         // or started until the first test needs it.
+        var filter = System.getProperty("testKmsFacade");
         return TestKmsFacadeFactory.getTestKmsFacadeFactories()
                 .filter(f -> f.getClass().getName().contains("systemtests"))
+                .filter(f -> filter == null || f.getClass().getSimpleName().toLowerCase(java.util.Locale.ROOT).contains(filter.toLowerCase(java.util.Locale.ROOT)))
                 .map(TestKmsFacadeFactory::build)
                 .filter(TestKmsFacade::isAvailable)
                 .peek(TestKmsFacade::start);
