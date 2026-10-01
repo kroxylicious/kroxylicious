@@ -62,9 +62,8 @@ import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.internal.tls.SslContextBuildException;
 import io.kroxylicious.proxy.internal.tls.TlsFileWatchProvider;
+import io.kroxylicious.proxy.internal.tls.TlsUtil;
 import io.kroxylicious.proxy.internal.topology.RequestSender;
-import io.kroxylicious.proxy.internal.util.FileWatcher;
-import io.kroxylicious.proxy.internal.tls.TlsFileWatchProvider;
 import io.kroxylicious.proxy.internal.util.FileWatcher;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -128,7 +127,8 @@ public class VirtualClusterModel implements AutoCloseable {
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
 
-    private final FileWatcher certWatcher = new FileWatcher().start();
+    @Nullable
+    private FileWatcher certWatcher = null;
 
     /**
      * The filter chain factory for <em>this</em> virtual cluster. Owned by the VCM — its
@@ -304,20 +304,20 @@ public class VirtualClusterModel implements AutoCloseable {
 
     static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
         var tls = tlsToSummarize.map(t -> Optional.ofNullable(t.trust())
-                        .map(TrustProvider::trustOptions)
-                        .map(TrustOptions::toString).orElse("-"))
+                .map(TrustProvider::trustOptions)
+                .map(TrustOptions::toString).orElse("-"))
                 .map(options -> " (TLS: " + options + ") ").orElse("");
         var cipherSuitesAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                        .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
                 .map(allowedCiphers -> " (Allowed Ciphers: " + allowedCiphers + ")").orElse("");
         var cipherSuitesDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                        .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
                 .map(deniedCiphers -> " (Denied Ciphers: " + deniedCiphers + ")").orElse("");
         var protocolsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                        .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
                 .map(protocols -> " (Allowed Protocols: " + protocols + ")").orElse("");
         var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                        .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
                 .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
         return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
@@ -333,19 +333,40 @@ public class VirtualClusterModel implements AutoCloseable {
         final var gateway = new VirtualClusterGatewayModel(this, nodeIdentificationStrategy, tls, name);
         tls.ifPresent(tlsConfig -> {
             final TlsFileWatchProvider watcher = new TlsFileWatchProvider(tlsConfig);
-            watcher.apply(certWatcher, () -> {
+            watcher.apply(getCertWatcher(), () -> {
                 try {
+                    // Cross-thread update: virtual thread → Netty I/O threads.
+                    // Safe due to volatile field + local snapshot pattern at read sites.
+                    // See field declaration javadoc for full thread-safety contract.
                     gateway.downstreamSslContext = gateway.buildDownstreamSslContext();
                     LOGGER.atInfo().addKeyValue("name", name).log("Gateway TLS configuration was updated"); // log the change which will help show if it has recovered from a previous failure
                 }
                 catch (final Exception e) {
                     // this could be a transient failure e.g. a change event on an incomplete write of the new config, so log a warning, but with the option to investigate further via debug level
-                    LOGGER.atWarn().addKeyValue("name", name).log("Gateway failed to update TLS configuration");
-                    LOGGER.atDebug().setCause(e).log();
+                    LOGGER.atWarn()
+                            .addKeyValue("name", name)
+                            .addKeyValue("error", e.getMessage())
+                            .setCause(LOGGER.isDebugEnabled() ? e : null)
+                            .log(LOGGER.isDebugEnabled()
+                                    ? "Gateway failed to update TLS configuration"
+                                    : "Gateway failed to update TLS configuration, increase log level to DEBUG for stacktrace");
                 }
             });
         });
         gateways.put(name, gateway);
+    }
+
+    /**
+     * Lazily creates and starts the certificate watcher on first TLS gateway registration.
+     * Plain-text clusters never allocate a WatchService or spawn a watcher thread.
+     *
+     * @return the started FileWatcher instance.
+     */
+    private synchronized FileWatcher getCertWatcher() {
+        if (Objects.isNull(certWatcher)) {
+            certWatcher = new FileWatcher().start();
+        }
+        return certWatcher;
     }
 
     /**
@@ -421,7 +442,9 @@ public class VirtualClusterModel implements AutoCloseable {
         // first failure at the end so callers see something rather than nothing.
         RuntimeException firstFailure = null;
         firstFailure = handleException(routing, firstFailure);
-        firstFailure = handleException(certWatcher, firstFailure);
+        if (Objects.nonNull(certWatcher)) {
+            firstFailure = handleException(certWatcher, firstFailure);
+        }
         firstFailure = handleException(filterChainFactory, firstFailure);
         for (var fcf : routeFilterChainFactories.values()) {
             firstFailure = handleException(fcf, firstFailure);
@@ -617,7 +640,31 @@ public class VirtualClusterModel implements AutoCloseable {
         private final VirtualClusterModel virtualCluster;
         private final NodeIdentificationStrategy nodeIdentificationStrategy;
         private final Optional<Tls> tls;
-        @SuppressWarnings("java:S3077") // volatile reference: ensures visibility of changes when replaceing existing context, not used in comparisons
+
+        /**
+         * Downstream SSL context for this gateway. Updated by file-watcher callbacks running
+         * on a virtual thread when TLS certificates rotate; read by Netty I/O threads during
+         * SNI handler resolution.
+         *
+         * <p><b>Thread-safety contract:</b>
+         * <ul>
+         *   <li><b>Write path:</b> FileWatcher virtual thread atomically replaces the entire
+         *       Optional via assignment (line 337 in addGateway callback).</li>
+         *   <li><b>Read path:</b> Netty I/O threads MUST take a local snapshot via
+         *       {@link #getDownstreamSslContext()} and use that snapshot for the entire
+         *       operation. Reading the field multiple times risks observing different
+         *       SslContext instances mid-rotation.</li>
+         *   <li><b>Visibility:</b> volatile ensures writes are visible to all threads.</li>
+         *   <li><b>Immutability:</b> SslContext is immutable once built, so concurrent
+         *       newEngine() calls on a snapshot are safe even if the field has been
+         *       replaced with a newer context.</li>
+         * </ul>
+         *
+         * <p><b>Safety relies on:</b> (1) volatile visibility, (2) local snapshot at read
+         * sites, (3) SslContext immutability. Breaking any of these (e.g., reading the field
+         * twice without snapshotting) silently breaks thread-safety.
+         */
+        @SuppressWarnings("java:S3077") // volatile reference: safe per contract above
         private volatile Optional<SslContext> downstreamSslContext;
         private final String name;
 
@@ -801,6 +848,23 @@ public class VirtualClusterModel implements AutoCloseable {
                                             StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)));
                 }
                 try {
+                    // Validate cert/key match BEFORE building the SslContext
+                    final Optional<Boolean> validationResult = TlsUtil.validateCertificateKeyPair(tlsConfiguration.key());
+                    if (validationResult.isPresent()) {
+                        if (!validationResult.get()) {
+                            throw new SSLException("Certificate and private key do not match for virtual cluster '" +
+                                    virtualCluster.getClusterName() + "', gateway '" + name() + "'");
+                        }
+                        // else: validation passed, continue
+                    }
+                    else {
+                        // Validation could not be performed - log warning but continue
+                        LOGGER.atWarn()
+                                .addKeyValue("virtualCluster", virtualCluster.getClusterName())
+                                .addKeyValue("gateway", name())
+                                .log("Could not validate certificate-key pair match - proceeding without validation");
+                    }
+
                     var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
                             .orElseThrow();
 
