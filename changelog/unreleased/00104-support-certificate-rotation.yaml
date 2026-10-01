@@ -1,0 +1,4 @@
+title: "feat(cert-rotation): virtual cluster gateway certificate monitoring"
+type: added
+issues:
+  - 104
