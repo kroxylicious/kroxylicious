@@ -62,7 +62,11 @@ import io.kroxylicious.proxy.internal.tls.KafkaProxyDelegatingSslContext;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.internal.tls.SslContextBuildException;
+import io.kroxylicious.proxy.internal.tls.TlsFileWatchProvider;
 import io.kroxylicious.proxy.internal.topology.RequestSender;
+import io.kroxylicious.proxy.internal.util.FileWatcher;
+import io.kroxylicious.proxy.internal.tls.TlsFileWatchProvider;
+import io.kroxylicious.proxy.internal.util.FileWatcher;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
@@ -71,6 +75,7 @@ import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Runtime representation of a virtual cluster: its name, target Kafka cluster, gateways,
@@ -123,6 +128,8 @@ public class VirtualClusterModel implements AutoCloseable {
     // lazily initialize to delay statistics registration until after the meter registry has been configured
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
+
+    private final FileWatcher certWatcher = new FileWatcher().start();
 
     /**
      * The filter chain factory for <em>this</em> virtual cluster. Owned by the VCM — its
@@ -298,20 +305,20 @@ public class VirtualClusterModel implements AutoCloseable {
 
     static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
         var tls = tlsToSummarize.map(t -> Optional.ofNullable(t.trust())
-                .map(TrustProvider::trustOptions)
-                .map(TrustOptions::toString).orElse("-"))
+                        .map(TrustProvider::trustOptions)
+                        .map(TrustOptions::toString).orElse("-"))
                 .map(options -> " (TLS: " + options + ") ").orElse("");
         var cipherSuitesAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                        .map(AllowDeny::allowed).orElse(Collections.emptyList()))
                 .map(allowedCiphers -> " (Allowed Ciphers: " + allowedCiphers + ")").orElse("");
         var cipherSuitesDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                        .map(AllowDeny::denied).orElse(Collections.emptySet()))
                 .map(deniedCiphers -> " (Denied Ciphers: " + deniedCiphers + ")").orElse("");
         var protocolsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                        .map(AllowDeny::allowed).orElse(Collections.emptyList()))
                 .map(protocols -> " (Allowed Protocols: " + protocols + ")").orElse("");
         var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                        .map(AllowDeny::denied).orElse(Collections.emptySet()))
                 .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
         var namedGroupsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.namedGroups())
                 .map(AllowDeny::allowed).orElse(Collections.emptyList()))
@@ -330,7 +337,22 @@ public class VirtualClusterModel implements AutoCloseable {
      * @param tls downstream TLS configuration for the gateway, or empty for plain connections.
      */
     public void addGateway(String name, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls) {
-        gateways.put(name, new VirtualClusterGatewayModel(this, nodeIdentificationStrategy, tls, name));
+        final var gateway = new VirtualClusterGatewayModel(this, nodeIdentificationStrategy, tls, name);
+        tls.ifPresent(tlsConfig -> {
+            final TlsFileWatchProvider watcher = new TlsFileWatchProvider(tlsConfig);
+            watcher.apply(certWatcher, () -> {
+                try {
+                    gateway.downstreamSslContext = gateway.buildDownstreamSslContext();
+                    LOGGER.atInfo().addKeyValue("name", name).log("Gateway TLS configuration was updated"); // log the change which will help show if it has recovered from a previous failure
+                }
+                catch (final Exception e) {
+                    // this could be a transient failure e.g. a change event on an incomplete write of the new config, so log a warning, but with the option to investigate further via debug level
+                    LOGGER.atWarn().addKeyValue("name", name).log("Gateway failed to update TLS configuration");
+                    LOGGER.atDebug().setCause(e).log();
+                }
+            });
+        });
+        gateways.put(name, gateway);
     }
 
     /**
@@ -400,16 +422,13 @@ public class VirtualClusterModel implements AutoCloseable {
      * {@code AtomicBoolean}, and {@code TlsCredentialSupplierManager.close} tolerates re-entry.
      */
     @Override
+    @SuppressFBWarnings("NP_LOAD_OF_KNOWN_NULL_VALUE")
     public void close() {
         // Suppress exceptions so each component still gets a chance to close; surface the
         // first failure at the end so callers see something rather than nothing.
         RuntimeException firstFailure = null;
-        try {
-            routing.close();
-        }
-        catch (RuntimeException e) {
-            firstFailure = e;
-        }
+        firstFailure = handleException(routing, firstFailure);
+        firstFailure = handleException(certWatcher, firstFailure);
         firstFailure = handleException(filterChainFactory, firstFailure);
         for (var fcf : routeFilterChainFactories.values()) {
             firstFailure = handleException(fcf, firstFailure);
@@ -419,14 +438,14 @@ public class VirtualClusterModel implements AutoCloseable {
         }
     }
 
-    private @Nullable RuntimeException handleException(FilterChainFactory filterChainFactory,
+    private @Nullable RuntimeException handleException(AutoCloseable closeable,
                                                        @Nullable RuntimeException firstFailure) {
         try {
-            filterChainFactory.close();
+            closeable.close();
         }
-        catch (RuntimeException e) {
+        catch (final Exception e) {
             if (firstFailure == null) {
-                firstFailure = e;
+                firstFailure = new RuntimeException(e.getMessage(), e);
             }
             else {
                 firstFailure.addSuppressed(e);
@@ -605,7 +624,8 @@ public class VirtualClusterModel implements AutoCloseable {
         private final VirtualClusterModel virtualCluster;
         private final NodeIdentificationStrategy nodeIdentificationStrategy;
         private final Optional<Tls> tls;
-        private final Optional<SslContext> downstreamSslContext;
+        @SuppressWarnings("java:S3077") // volatile reference: ensures visibility of changes when replaceing existing context, not used in comparisons
+        private volatile Optional<SslContext> downstreamSslContext;
         private final String name;
 
         /**
