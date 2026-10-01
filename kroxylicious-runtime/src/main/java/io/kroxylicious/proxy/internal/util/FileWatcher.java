@@ -9,18 +9,22 @@ package io.kroxylicious.proxy.internal.util;
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.WatchService;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -50,8 +54,8 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
  *  </p>
  *
  *  <ul>
- *  <li>The underlying watch service only returns relative paths, which means that handlers for the same file name in different directories will all be called even if the file a give handler is interested in has not changed. </li>
  *  <li>The file contents are not tracked, so notifications will be received even if the file is updated with the same content</li>
+ *  <li>Deleting a file will not trigger a change notification</li>
  *  </ul>
  *
  */
@@ -93,13 +97,13 @@ public class FileWatcher implements AutoCloseable {
     }
 
     /**
-     * Register to receive notifications when the contents of a file is changed or it is replaced.
+     * Register to receive notifications when the contents of a file is changed, or it is replaced.
      *
      * @param path path to the file. The path must include the parent directory but does not have to be an absolute path.
      * @param listener the handler to notify of a change
      * @return this watcher
      */
-    @SuppressFBWarnings("NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE") // spotbugs does not recognise that path.getParent() is already checked for null before it is used
+    @SuppressFBWarnings("NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE") // FindBugs does not recognise that path.getParent() is already checked for null before it is used
     public FileWatcher register(final Path path, final NotificationHandler listener) {
         if (path.toFile().isDirectory()) {
             throw new IllegalArgumentException("Watcher requires a file, a directory was specified " + path);
@@ -109,8 +113,10 @@ public class FileWatcher implements AutoCloseable {
             throw new IllegalArgumentException("Watched files require a parent directory, only a filename was supplied " + path);
         }
 
-        final Path key = path.subpath(path.getNameCount() - 1, path.getNameCount());
-        final List<NotificationHandler> watcher = watchList.computeIfAbsent(key, k -> new ArrayList<>());
+        final Path key = path.isAbsolute() ? path : path.getParent().resolve(path).toAbsolutePath();
+        // CopyOnWriteArrayList: register() runs on the caller's thread whilst the watcher thread iterates the same
+        // list to notify handlers, so the handler list must tolerate concurrent mutation and traversal
+        final List<NotificationHandler> watcher = watchList.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>());
         watcher.add(listener);
 
         // register the directory to watch only if it's not already being watched
@@ -136,7 +142,7 @@ public class FileWatcher implements AutoCloseable {
     }
 
     /**
-     * Start watching for file changes. Files can be added to the watcher with {@link #start()} after start has been called.
+     * Start watching for file changes. Files can be added to the watcher with {@link #register(Path, NotificationHandler)} after start has been called.
      * Calling start multiple times has no effect.
      *
      * @return this watcher
@@ -146,38 +152,99 @@ public class FileWatcher implements AutoCloseable {
             return this; // service failed to be created or is already started, so do nothing
         }
 
+        if (!running.compareAndSet(false, true)) {
+            return this; // watcher is already running, so no-op additional start invocations
+        }
+
         executor.execute(() -> {
-            running.set(true);
-            while (running.get()) {
-                try {
-                    final var key = service.get().take(); // blocks if there are no notifications to process
-                    final var handlers = key.pollEvents().stream()
-                            .flatMap(event -> event.context() instanceof Path p ? Stream.of(p) : Stream.empty()) // check the context is not null and refers to a path
-                            .filter(watchList::containsKey) // see if we are watching the path
-                            .flatMap(relativePath -> watchList.get(relativePath).stream()) // extract all the listeners that need to be notified
-                            .toList();
-                    handlers.forEach(handler -> {
-                        try {
-                            handler.onChange();
+            try {
+                while (running.get()) {
+                    try {
+                        final var key = service.get().take(); // blocks if there are no notifications to process
+                        final var watchedDirectory = (Path) key.watchable();
+                        final var partitioned = key.pollEvents().stream()
+                                .flatMap(event -> event.context() instanceof Path p ? Stream.of(p) : Stream.empty()) // check the context is not null and refers to a path
+                                .map(watchedDirectory::resolve) // the path is relative, so need to resolve it against the directory for these watch events
+                                .map(Path::toAbsolutePath)
+                                .collect(Collectors.partitioningBy(Files::isSymbolicLink, Collectors.toCollection(ArrayList::new)));
+
+                        final var paths = partitioned.get(false);
+                        paths.addAll(resolveSymlinks(watchedDirectory, partitioned.get(true)));
+
+                        final var handlers = paths.stream().filter(watchList::containsKey) // see if we are watching the path
+                                .flatMap(absPath -> watchList.get(absPath).stream()) // extract all the listeners that need to be notified
+                                .toList();
+
+                        handlers.forEach(handler -> {
+                            try {
+                                handler.onChange();
+                            }
+                            catch (final Exception e) { // multiple handlers can be registered against the same watcher so make sure they all get notified
+                                LOGGER.atWarn().setCause(e).log("Handler threw an exception");
+                            }
+                        });
+                        key.reset(); // all events processed, so reset the key which puts it back in the wait state
+                    }
+                    catch (final InterruptedException | ClosedWatchServiceException ignored) {
+                        // These are expected when either the thread is being terminated and/or the watcher service is being closed
+                        if (ignored instanceof InterruptedException) {
+                            // the thread executor pool owns the thread so need to make sure it sees the interrupt status
+                            Thread.currentThread().interrupt();
                         }
-                        catch (final Exception e) { // multiple handlers can be regsiterd aginst the same watcher so make sure they all get notified
-                            LOGGER.atWarn().setCause(e).log("Handler threw an exception");
-                        }
-                    });
-                    key.reset(); // all events processed, so reset the key which puts it back in the wait state
-                }
-                catch (final InterruptedException | ClosedWatchServiceException ignored) {
-                    // These are expected when either the thread is being termintaed and/or the watcher service is being closed
-                    running.set(false);
-                    if (ignored instanceof InterruptedException) {
-                        // the thread executor pool owns the thread so need to make sure it sees the interrupt status
-                        Thread.currentThread().interrupt();
+                        // break so the loop exits, otherwise take() would keep throwing the same exception and spin the thread.
+                        break;
                     }
                 }
+            }
+            finally {
+                running.set(false); // indicate that the watcher is no longer running
             }
         });
 
         return this;
+    }
+
+    /**
+     * Follows symlinks to determine the file that has changed.
+     * Where the change is a directory, then all files in that directory
+     * are regarded as being changed and surfaced as individual paths relative to the watched directory.
+     *
+     * @param watchedDirectory the directory for the watch events
+     * @param symlinks the symlinks to follow
+     * @return paths
+     */
+    @SuppressFBWarnings("NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE") // symlinks are resolved against watchedDirectory (absolute) which always has a parent
+    private static Set<Path> resolveSymlinks(final Path watchedDirectory, final List<Path> symlinks) {
+        final Set<Path> resolvedPaths = new HashSet<>();
+        final Set<Path> visitedLinks = new HashSet<>();
+        for (Path symlink : symlinks) {
+            visitedLinks.clear();
+            try {
+                Path resolvedPath = symlink.getParent().resolve(Files.readSymbolicLink(symlink));
+                while (Files.isSymbolicLink(resolvedPath) && visitedLinks.add(resolvedPath)) {
+                    resolvedPath = resolvedPath.getParent().resolve(Files.readSymbolicLink(resolvedPath));
+                }
+                if (Files.isSymbolicLink(resolvedPath)) {
+                    LOGGER.atDebug().addKeyValue("path", symlink).log("Circular symbolic link detected, unable to resolve");
+                    continue;
+                }
+                if (Files.isDirectory(resolvedPath)) {
+                    // if a directory is the context for the change event then flag all files in the directory as changed (we don't know which one has)
+                    Files.walk(resolvedPath).filter(Files::isRegularFile).forEach(resolved -> {
+                        // represent the symlink change as a change in the originally watched directory
+                        resolvedPaths.add(watchedDirectory.resolve(resolved.getFileName()).toAbsolutePath());
+                    });
+                }
+                else {
+                    resolvedPaths.add(watchedDirectory.resolve(resolvedPath.getFileName()).toAbsolutePath()); // symlink resolved to a file, so add the resolved file to the list to process
+                }
+            }
+            catch (final IOException e) {
+                // ignore failures to resolve symbolic links as they could have been moved or deleted, the next set of events will contain the new links to follow
+                LOGGER.atDebug().setCause(e).addKeyValue("path", symlink).log("Failed to resolve symbolic link");
+            }
+        }
+        return resolvedPaths;
     }
 
     /**
