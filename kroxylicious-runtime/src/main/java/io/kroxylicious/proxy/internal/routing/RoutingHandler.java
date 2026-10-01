@@ -97,6 +97,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private final String sessionId;
 
     // supplier, not a snapshot, since identity can resolve or change after handler construction (mTLS, post-SASL, reauthentication)
+    // Subject is deprecated for removal, but we depend on it until its replacement lands
+    @SuppressWarnings("removal")
     private final Supplier<Subject> subjectSupplier;
     @Nullable
     private final Integer nodeId;
@@ -116,7 +118,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
     private ResponseSequencer responseSequencer;
 
     // all parameters are genuinely needed: dispatch, identity, request source, router state
-    @SuppressWarnings("java:S107")
+    // Subject is deprecated for removal, but we depend on it until its replacement lands
+    @SuppressWarnings({ "java:S107", "removal" })
     private RoutingHandler(RouteDispatcher dispatcher,
                            String virtualClusterName,
                            String sessionId,
@@ -192,7 +195,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * @return the nested routing handler
      */
     // all parameters are genuinely needed: identity, routing config, protocol infrastructure, session, auth, network
-    @SuppressWarnings("java:S107")
+    // Subject is deprecated for removal, but we depend on it until its replacement lands
+    @SuppressWarnings({ "java:S107", "removal" })
     public static RoutingHandler nested(PathElement.Route activationPath,
                                         String nestedRouterName,
                                         String virtualClusterName,
