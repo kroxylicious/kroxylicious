@@ -7,9 +7,12 @@
 package io.kroxylicious.proxy.internal.util;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.Comparator;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -84,7 +87,7 @@ class FileWatcherTest {
     }
 
     @Test
-    void registeredListenerseNotifiedOnEachChange() throws IOException {
+    void registeredListenersNotifiedOnEachChange() throws IOException {
         // Given
         final var tempFile = tempDir.resolve("watch-test.txt");
         Files.writeString(tempFile, "Some text", StandardOpenOption.CREATE);
@@ -174,7 +177,7 @@ class FileWatcherTest {
 
     @EnabledOnOs({ OS.LINUX, OS.MAC }) // test uses symlinks which may not be available
     @Test
-    void simulateK8sSymlinkSwap() throws IOException {
+    void replaceSymlink() throws IOException {
 
         // Given
         final var target = differentTempDir.resolve("watch-test.txt");
@@ -202,6 +205,60 @@ class FileWatcherTest {
             Awaitility.await("file change should notify the registered listener")
                     .atMost(5, TimeUnit.SECONDS)
                     .untilAsserted(() -> assertThat(notificationReceived.get()).isTrue());
+        }
+    }
+
+    @EnabledOnOs({ OS.LINUX, OS.MAC }) // test uses symlinks which may not be available
+    @Test
+    void simulateRealK8sAtomicSymlinkSwap() throws IOException {
+
+        // Given
+        // Reproduces the actual layout kubelet creates for a mounted Secret/ConfigMap:
+        // a versioned data directory, a "..data" symlink pointing at the current version,
+        // and a top level leaf symlink (e.g. tls.crt) that points *through* "..data" and
+        // is never itself recreated during a rotation.
+        final var dataDirV1 = Files.createDirectory(tempDir.resolve("..2024_01_01_00_00_00.000000000"));
+        Files.writeString(dataDirV1.resolve("tls.crt"), "Some text", StandardOpenOption.CREATE);
+
+        final var dataSymlink = tempDir.resolve("..data");
+        Files.createSymbolicLink(dataSymlink, dataDirV1.getFileName());
+
+        final var leafLink = tempDir.resolve("tls.crt");
+        Files.createSymbolicLink(leafLink, Path.of("..data").resolve("tls.crt"));
+
+        final var notificationReceived = new AtomicBoolean(false);
+
+        try (var watcher = new FileWatcher()) {
+            watcher.register(leafLink, () -> {
+                notificationReceived.set(true);
+            });
+            watcher.start();
+
+            Awaitility.await("watcher should enter the running state")
+                    .atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(watcher.isRunning()).isTrue());
+
+            // When
+            final var dataDirV2 = Files.createDirectory(tempDir.resolve("..2024_01_01_00_00_01.000000000"));
+            Files.writeString(dataDirV2.resolve("tls.crt"), "Updated text", StandardOpenOption.CREATE);
+            final var dataSymlinkTmp = tempDir.resolve("..data_tmp");
+            Files.createSymbolicLink(dataSymlinkTmp, dataDirV2.getFileName());
+            Files.move(dataSymlinkTmp, dataSymlink, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            Files.walk(dataDirV1).sorted(Comparator.reverseOrder()).forEach(FileWatcherTest::deleteQuietly);
+
+            // Then
+            Awaitility.await("file change should notify the registered listener")
+                    .atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(notificationReceived.get()).isTrue());
+        }
+    }
+
+    private static void deleteQuietly(Path path) {
+        try {
+            Files.delete(path);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
