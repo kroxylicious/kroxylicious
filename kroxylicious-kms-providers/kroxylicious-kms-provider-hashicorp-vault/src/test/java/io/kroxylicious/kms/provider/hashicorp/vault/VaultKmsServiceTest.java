@@ -52,7 +52,7 @@ class VaultKmsServiceTest {
         var validButUnusualCipherSuite = "TLS_EMPTY_RENEGOTIATION_INFO_SCSV"; // Valid suite, but not a true cipher
         vaultKmsService.initialize(
                 new Config(URI.create("https://unused"),
-                        new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("vaultToken")), null),
+                        new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("vaultToken"))),
                         new Tls(null, null, new AllowDeny<>(List.of(validButUnusualCipherSuite), null), null, null)));
         var kms = vaultKmsService.buildKms();
         var client = kms.getHttpClient();
@@ -81,23 +81,11 @@ class VaultKmsServiceTest {
                         "custom-transit",
                         null,
                         null,
-                        new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("vaultToken")), null),
+                        new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("vaultToken"))),
                         null));
         var kms = vaultKmsService.buildKms();
         assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/custom-transit/"));
         assertThat(kms.getVaultNamespace()).isEqualTo("ns1/ns2");
-    }
-
-    @Test
-    void throwsUnsupportedOperationExceptionForKubernetesCredentials() {
-        var kubernetesConfig = new io.kroxylicious.kms.provider.hashicorp.vault.config.KubernetesCredentialsConfig("my-role", null, null);
-        vaultKmsService.initialize(
-                new Config(URI.create("https://vault:8200"),
-                        new VaultCredentialsConfig(null, kubernetesConfig),
-                        null));
-        assertThatThrownBy(() -> vaultKmsService.buildKms())
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessage("Kubernetes authentication is not supported yet");
     }
 
 }

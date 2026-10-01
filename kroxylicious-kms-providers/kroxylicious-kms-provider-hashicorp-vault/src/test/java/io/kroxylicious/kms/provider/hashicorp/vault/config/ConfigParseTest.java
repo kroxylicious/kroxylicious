@@ -108,57 +108,7 @@ class ConfigParseTest {
         assertThat(config.credentials()).isNotNull();
         assertThat(config.credentials().vaultToken()).isNotNull();
         assertThat(config.credentials().vaultToken().token().getProvidedPassword()).isEqualTo("mytoken");
-        assertThat(config.credentials().kubernetes()).isNull();
         assertThat(config.vaultToken()).isNull();
-    }
-
-    // ---------------------------------------------------------------------------
-    // New credentials.kubernetes structure
-    // ---------------------------------------------------------------------------
-
-    @Test
-    void credentialsKubernetesWithRoleOnly() throws IOException {
-        String json = """
-                {
-                    "vaultUrl": "http://vault:8200",
-                    "credentials": {
-                        "kubernetes": {
-                            "vaultRole": "my-k8s-role"
-                        }
-                    }
-                }
-                """;
-        Config config = readConfig(json);
-        assertThat(config.credentials()).isNotNull();
-        assertThat(config.credentials().kubernetes()).isNotNull();
-        assertThat(config.credentials().kubernetes().vaultRole()).isEqualTo("my-k8s-role");
-        assertThat(config.credentials().kubernetes().serviceAccountTokenFile())
-                .isEqualTo(KubernetesCredentialsConfig.DEFAULT_SERVICE_ACCOUNT_TOKEN_FILE);
-        assertThat(config.credentials().kubernetes().authPath())
-                .isEqualTo(KubernetesCredentialsConfig.DEFAULT_AUTH_PATH);
-        assertThat(config.credentials().vaultToken()).isNull();
-        assertThat(config.vaultToken()).isNull();
-    }
-
-    @Test
-    void credentialsKubernetesWithCustomPaths() throws IOException {
-        String json = """
-                {
-                    "vaultUrl": "http://vault:8200",
-                    "credentials": {
-                        "kubernetes": {
-                            "vaultRole": "my-k8s-role",
-                            "serviceAccountTokenFile": "/custom/sa/token",
-                            "authPath": "k8s"
-                        }
-                    }
-                }
-                """;
-        Config config = readConfig(json);
-        var k8s = config.credentials().kubernetes();
-        assertThat(k8s.vaultRole()).isEqualTo("my-k8s-role");
-        assertThat(k8s.serviceAccountTokenFile()).isEqualTo("/custom/sa/token");
-        assertThat(k8s.authPath()).isEqualTo("k8s");
     }
 
     // ---------------------------------------------------------------------------
@@ -274,37 +224,6 @@ class ConfigParseTest {
             readConfig(json);
         }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Cannot mix modern 'vaultUrl' with deprecated 'vaultToken'");
-    }
-
-    @Test
-    void credentialsWithBothVaultTokenAndKubernetesThrows() {
-        Assertions.assertThatThrownBy(() -> {
-            String json = """
-                    {
-                        "vaultUrl": "https://vault:8200",
-                        "credentials": {
-                            "vaultToken": { "token": { "password": "mytoken" } },
-                            "kubernetes": { "vaultRole": "my-role" }
-                        }
-                    }
-                    """;
-            readConfig(json);
-        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Exactly one of 'vaultToken' or 'kubernetes' credentials must be provided");
-    }
-
-    @Test
-    void credentialsWithNeitherVaultTokenNorKubernetesThrows() {
-        Assertions.assertThatThrownBy(() -> {
-            String json = """
-                    {
-                        "vaultUrl": "https://vault:8200",
-                        "credentials": {}
-                    }
-                    """;
-            readConfig(json);
-        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Exactly one of 'vaultToken' or 'kubernetes' credentials must be provided");
     }
 
     // ---------------------------------------------------------------------------

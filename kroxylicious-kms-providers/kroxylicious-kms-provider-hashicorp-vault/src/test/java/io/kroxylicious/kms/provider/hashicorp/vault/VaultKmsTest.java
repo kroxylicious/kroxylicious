@@ -66,7 +66,7 @@ class VaultKmsTest {
 
     @BeforeEach
     void beforeEach() {
-        var config = new Config(URI.create(server.baseUrl()), new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("token")), null), null);
+        var config = new Config(URI.create(server.baseUrl()), new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("token"))), null);
         vaultKmsService = new VaultKmsService();
         vaultKmsService.initialize(config);
         kms = vaultKmsService.buildKms();

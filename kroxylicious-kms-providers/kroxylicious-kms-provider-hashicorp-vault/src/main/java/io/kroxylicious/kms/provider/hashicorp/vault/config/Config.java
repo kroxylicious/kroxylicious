@@ -22,7 +22,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <p>Use the {@code credentials} node to specify the authentication method:
  * <ul>
  *   <li>{@code credentials.vaultToken} — static Vault token (replaces the deprecated top-level {@code vaultToken}).</li>
- *   <li>{@code credentials.kubernetes} — Kubernetes ServiceAccount JWT token auth.</li>
  * </ul>
  *
  * @param vaultUrl              URL of the Vault server e.g. {@code https://myhashicorpvault:8200}
@@ -41,6 +40,8 @@ public record Config(
                      @Deprecated(since = "0.25.0", forRemoval = true) @JsonProperty(value = "vaultToken", required = false, access = Access.WRITE_ONLY) @Nullable PasswordProvider vaultToken,
                      @JsonProperty(value = "credentials", required = false) @Nullable VaultCredentialsConfig credentials,
                      @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
+
+    public static final String DEFAULT_TRANSIT_ENGINE_PATH = "transit";
 
     /**
      * Validates and normalizes the configuration components.
@@ -71,7 +72,7 @@ public record Config(
         }
 
         if (credentials == null) {
-            credentials = new VaultCredentialsConfig(new TokenCredentialsConfig(vaultToken), null);
+            credentials = new VaultCredentialsConfig(new TokenCredentialsConfig(vaultToken));
         }
         if (vaultTransitEngineUrl != null) {
             vaultUrl = extractVaultUrl(vaultTransitEngineUrl);
@@ -80,7 +81,7 @@ public record Config(
             }
         }
         else if (transitEnginePath == null) {
-            transitEnginePath = "transit";
+            transitEnginePath = DEFAULT_TRANSIT_ENGINE_PATH;
         }
     }
 
@@ -96,7 +97,7 @@ public record Config(
     private static String extractTransitPath(URI vaultTransitEngineUrl) {
         String path = vaultTransitEngineUrl.getPath();
         if (path == null) {
-            return "transit";
+            return DEFAULT_TRANSIT_ENGINE_PATH;
         }
         if (path.startsWith("/v1/")) {
             path = path.substring(4);
@@ -107,7 +108,7 @@ public record Config(
         if (path.endsWith("/")) {
             path = path.substring(0, path.length() - 1);
         }
-        return path.isEmpty() ? "transit" : path;
+        return path.isEmpty() ? DEFAULT_TRANSIT_ENGINE_PATH : path;
     }
 
     /**

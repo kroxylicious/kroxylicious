@@ -6,13 +6,12 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault.config;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 /**
- * Groups all HashiCorp Vault credential provider configurations under a single {@code credentials} node.
- * Exactly one field must be non-{@code null}.
+ * Groups HashiCorp Vault credential provider configuration under a single {@code credentials} node.
  *
  * <p>Example YAML (static token):
  * <pre>{@code
@@ -22,29 +21,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *       password: s.myVaultToken
  * }</pre>
  *
- * <p>Example YAML (Kubernetes auth):
- * <pre>{@code
- * credentials:
- *   kubernetes:
- *     vaultRole: kroxylicious-vault-role
- * }</pre>
- *
- * @param vaultToken static Vault token credentials; mutually exclusive with {@code kubernetes}.
- * @param kubernetes Kubernetes auth credentials; mutually exclusive with {@code vaultToken}.
+ * @param vaultToken static Vault token credentials.
  */
 public record VaultCredentialsConfig(
-                                     @JsonProperty("vaultToken") @Nullable TokenCredentialsConfig vaultToken,
-                                     @JsonProperty("kubernetes") @Nullable KubernetesCredentialsConfig kubernetes) {
+                                     @JsonProperty("vaultToken") TokenCredentialsConfig vaultToken) {
 
     /**
-     * Validates that exactly one credential provider is configured.
+     * Validates that vaultToken is provided.
      */
     public VaultCredentialsConfig {
-        if (vaultToken == null && kubernetes == null) {
-            throw new IllegalArgumentException("Exactly one of 'vaultToken' or 'kubernetes' credentials must be provided");
-        }
-        if (vaultToken != null && kubernetes != null) {
-            throw new IllegalArgumentException("Exactly one of 'vaultToken' or 'kubernetes' credentials must be provided");
-        }
+        Objects.requireNonNull(vaultToken, "vaultToken credentials must be provided");
     }
 }

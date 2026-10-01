@@ -57,13 +57,7 @@ public class VaultKmsService implements KmsService<Config, WrappingKey, VaultEde
         URI transitEngineUri = buildVaultEndpointUri(vaultUrl, transitEnginePath);
         LOGGER.atInfo().addKeyValue("transitEngineUri", transitEngineUri).log("Resolved Vault Transit Engine URL");
 
-        VaultTokenProvider tokenProvider;
-        if (credentials.kubernetes() != null) {
-            throw new UnsupportedOperationException("Kubernetes authentication is not supported yet");
-        }
-        else {
-            tokenProvider = new StaticTokenProvider(credentials.vaultToken().token().getProvidedPassword());
-        }
+        VaultTokenProvider tokenProvider = new StaticTokenProvider(credentials.vaultToken().token().getProvidedPassword());
 
         return new VaultKms(transitEngineUri, vaultNamespace, tokenProvider, Duration.ofSeconds(20),
                 tlsConfigurator);
