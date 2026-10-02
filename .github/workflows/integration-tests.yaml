@@ -290,7 +290,7 @@ jobs:
             ${EXTRA_PROPS} \
             verify
   integration_test_filter_archetype:
-    needs: build_artifacts
+    needs: get_kroxylicious_image
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
