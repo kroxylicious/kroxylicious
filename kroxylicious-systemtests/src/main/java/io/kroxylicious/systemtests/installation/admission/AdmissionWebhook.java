@@ -102,7 +102,7 @@ public class AdmissionWebhook {
         List<HasMetadata> resources = manifestProvider.getResources();
         resources.stream()
                 .filter(r -> "CustomResourceDefinition".equals(r.getKind()))
-                .forEach(this::applyResource);
+                .forEach(resource -> ResourceManager.getInstance().createOrUpdateResourceWithWait(resource));
     }
 
     private void applyInstallManifests() {
@@ -110,11 +110,7 @@ public class AdmissionWebhook {
         List<HasMetadata> resources = manifestProvider.getResources();
         resources.stream()
                 .filter(r -> !"CustomResourceDefinition".equals(r.getKind()))
-                .forEach(this::applyResource);
-    }
-
-    private void applyResource(HasMetadata resource) {
-        ResourceManager.getInstance().createOrUpdateResourceWithWait(resource);
+                .forEach(resource -> ResourceManager.getInstance().createResourceWithoutWait(resource));
     }
 
     private void createCertificateResources(CertManager certManager) {
