@@ -26,10 +26,12 @@ filterDefinitions:
     config:
       kms: VaultKmsService
       kmsConfig:
-        vaultTransitEngineUrl: # ...
+        vaultUrl: https://myhashicorpvault:8200
         tls: # ...
-        vaultToken:
-          passwordFile: /opt/vault/token
+        credentials:
+          vaultToken:
+            token:
+              passwordFile: /opt/vault/token
       selector: TemplateKekSelector
       selectorConfig:
         template: "KEK-$(topicName)"

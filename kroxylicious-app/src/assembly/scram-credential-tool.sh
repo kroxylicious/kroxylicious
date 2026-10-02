@@ -20,7 +20,6 @@ if [ "${CREDENTIAL_TOOL_LOGGING_OPTIONS+set}" != set ]; then
 fi
 
 export JAVA_OPTIONS="${CREDENTIAL_TOOL_LOGGING_OPTIONS:-} ${JAVA_OPTIONS:-}"
-export DEBUG_OUTPUT=/dev/null
 export HIDE_CMD_LINE=1
 JAVA_CLASSPATH="$(script_dir)/../libs/*"
 export JAVA_CLASSPATH

@@ -104,6 +104,11 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
     }
 
     @Override
+    public int sharedSniTargetPort() {
+        return sharedSniPort;
+    }
+
+    @Override
     public Optional<SharedLoadBalancerServiceRequirements> sharedLoadBalancerServiceRequirements() {
         return Optional.of(this);
     }

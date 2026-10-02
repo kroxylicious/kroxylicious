@@ -378,7 +378,7 @@ public class KafkaProxyFrontendHandler
                         topLevel.correlationIdAllocator(),
                         topLevel.routerNodeAddresses(),
                         clientConnectionStateMachine.sessionId(),
-                        clientConnectionStateMachine.authenticatedSubject(),
+                        clientConnectionStateMachine::authenticatedSubject,
                         clientConnectionStateMachine.endpointBinding() instanceof BrokerEndpointBinding beb ? beb.nodeId() : null));
         return nestedRoutes;
     }

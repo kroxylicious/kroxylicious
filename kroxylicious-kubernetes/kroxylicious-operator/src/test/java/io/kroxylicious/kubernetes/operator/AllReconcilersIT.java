@@ -30,6 +30,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.client.CustomResource;
@@ -56,11 +58,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.Service.ExternalTrafficPolicy;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
+import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaprotocolfilter.KafkaProtocolFilterReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconcilerIT;
@@ -76,6 +80,7 @@ import io.kroxylicious.testing.operator.OperatorTestUtils;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 import static io.kroxylicious.testing.operator.OperatorTestUtils.uniqueSuffix;
 import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -95,6 +100,7 @@ class AllReconcilersIT {
     private static final String PROXY_A = "proxy-a";
     private static final String CLUSTER_FOO = "foo";
     private static final String CLUSTER_FOO_CLUSTER_IP_INGRESS = "foo-cluster-ip";
+    private static final String CLUSTER_FOO_LOADBALANCER_INGRESS = "foo-load-balancer";
     private static final String CLUSTER_FOO_SERVICE = "foo-service";
     private static final String CLUSTER_FOO_FILTER = "foo-filter";
     private static final String STRIMZI_TLS_LISTENER = "tls";
@@ -578,6 +584,129 @@ class AllReconcilersIT {
     }
 
     @Test
+    void loadBalancerIngress() {
+        // Given
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        var downstreamCert = new SecretBuilder()
+                .withNewMetadata()
+                .withName("downstream-cert" + suffix)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("bootstrap.kafka")
+                        .withAdvertisedBrokerAddressPattern("broker-$(nodeId).kafka")
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(myIngress), List.of())
+                .editOrNewSpec()
+                    .editIngress(0)
+                        .withNewTls()
+                            .withNewCertificateRef()
+                                .withName(name(downstreamCert))
+                            .endCertificateRef()
+                        .endTls()
+                    .endIngress()
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        // When
+        createAll(myProxy, myIngress, downstreamCert, myService, myCluster);
+
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+        assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
+
+        AWAIT.alias("LoadBalancer Service for ingress %s manifested".formatted(name(myIngress)))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, name(myIngress));
+                    assertThat(service).isNotNull();
+                    assertThat(service.getSpec().getType()).isEqualTo("LoadBalancer");
+                    assertThat(service.getSpec().getPorts())
+                            .singleElement()
+                            .satisfies(port -> {
+                                assertThat(port.getPort()).isEqualTo(LoadBalancerClusterIngressNetworkingModel.DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
+                                assertThat(port.getTargetPort()).isEqualTo(new IntOrString(SHARED_SNI_PORT));
+                            });
+                    assertThat(service.getMetadata().getOwnerReferences())
+                            .extracting(OwnerReference::getName)
+                            .containsExactlyInAnyOrder(name(myProxy), name(myIngress));
+                });
+    }
+
+    @Test
+    void infrastructureAnnotationsAppliedToLoadBalancerService() {
+        // Given
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewInfrastructure()
+                        .addToAnnotations("example.com/custom-annotation", "test-value")
+                    .endInfrastructure()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("$(virtualClusterName).kafkaproxy")
+                        .withAdvertisedBrokerAddressPattern("$(virtualClusterName)-$(nodeId).kafkaproxy")
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var tlsCert = new SecretBuilder()
+                .withNewMetadata()
+                    .withName("downstream-tls-certificate" + suffix)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        var clusterIngress = new IngressesBuilder()
+                .withIngressRef(new IngressRefBuilder().withName(name(myIngress)).build())
+                .withNewTls()
+                    .withNewCertificateRef()
+                        .withName(name(tlsCert))
+                    .endCertificateRef()
+                .endTls()
+                .build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(), List.of())
+                .editOrNewSpec()
+                    .withIngresses(List.of(clusterIngress))
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        // When
+        createAll(myProxy, myIngress, myService, tlsCert, myCluster);
+
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+        assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
+
+        // Verify LoadBalancer Service has infrastructure annotations
+        AWAIT.alias("LoadBalancer Service for ingress %s has infrastructure annotations".formatted(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, CLUSTER_FOO_LOADBALANCER_INGRESS + suffix);
+                    assertThat(service)
+                            .isNotNull()
+                            .extracting(s -> s.getMetadata().getAnnotations())
+                            .asInstanceOf(InstanceOfAssertFactories.MAP)
+                            .containsEntry("example.com/custom-annotation", "test-value")
+                            .containsKey("kroxylicious.io/bootstrap-servers"); // operator annotation still present
+                });
+    }
+
+    @Test
     void upstreamTlsFromStrimziKafkaRef() {
         // Given
         var suffix = uniqueSuffix();
@@ -641,6 +770,351 @@ class AllReconcilersIT {
         // Then
         assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
         assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+    }
+
+    @Test
+    void loadBalancerServiceExternalTrafficPolicyAndAllocateNodePorts() {
+        // Given
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        var tlsCert = new SecretBuilder()
+                .withNewMetadata()
+                .withName("downstream-tls-cert" + suffix)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("$(virtualClusterName).kafkaproxy")
+                        .withAdvertisedBrokerAddressPattern("$(virtualClusterName)-$(nodeId).kafkaproxy")
+                        .withNewService()
+                            .withExternalTrafficPolicy(ExternalTrafficPolicy.LOCAL)
+                            .withAllocateLoadBalancerNodePorts(false)
+                        .endService()
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var clusterIngress = new IngressesBuilder()
+                .withIngressRef(new IngressRefBuilder().withName(name(myIngress)).build())
+                .withNewTls()
+                    .withNewCertificateRef()
+                        .withName(name(tlsCert))
+                    .endCertificateRef()
+                .endTls()
+                .build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(), List.of())
+                .editOrNewSpec()
+                    .withIngresses(List.of(clusterIngress))
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        // When
+        createAll(myProxy, myIngress, myService, tlsCert, myCluster);
+
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+
+        AWAIT.alias("LoadBalancer Service for %s reflects service config".formatted(name(myIngress)))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, name(myIngress));
+                    assertThat(service).isNotNull();
+                    assertThat(service.getSpec().getExternalTrafficPolicy()).isEqualTo("Local");
+                    assertThat(service.getSpec().getAllocateLoadBalancerNodePorts()).isFalse();
+                });
+    }
+
+    @Test
+    void loadBalancerServiceEditPatchesInPlaceNotRecreated() {
+        // Given
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        var tlsCert = new SecretBuilder()
+                .withNewMetadata()
+                .withName("downstream-tls-cert" + suffix)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("$(virtualClusterName).kafkaproxy")
+                        .withAdvertisedBrokerAddressPattern("$(virtualClusterName)-$(nodeId).kafkaproxy")
+                        .withNewService()
+                            .withExternalTrafficPolicy(ExternalTrafficPolicy.CLUSTER)
+                        .endService()
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var clusterIngress = new IngressesBuilder()
+                .withIngressRef(new IngressRefBuilder().withName(name(myIngress)).build())
+                .withNewTls()
+                    .withNewCertificateRef()
+                        .withName(name(tlsCert))
+                    .endCertificateRef()
+                .endTls()
+                .build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(), List.of())
+                .editOrNewSpec()
+                    .withIngresses(List.of(clusterIngress))
+                .endSpec()
+                .build();
+        // @formatter:on
+        createAll(myProxy, myIngress, myService, tlsCert, myCluster);
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+
+        var originalUid = new AtomicReference<String>();
+        AWAIT.alias("LoadBalancer Service for %s created with Cluster policy".formatted(name(myIngress)))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, name(myIngress));
+                    assertThat(service).isNotNull();
+                    assertThat(service.getSpec().getExternalTrafficPolicy()).isEqualTo("Cluster");
+                    originalUid.set(service.getMetadata().getUid());
+                });
+
+        // When
+        var fresh = clusterUser.get(KafkaProxyIngress.class, name(myIngress));
+        clusterUser.replace(new KafkaProxyIngressBuilder(fresh)
+                .editSpec()
+                .editLoadBalancer()
+                .withNewService()
+                .withExternalTrafficPolicy(ExternalTrafficPolicy.LOCAL)
+                .endService()
+                .endLoadBalancer()
+                .endSpec()
+                .build());
+
+        // Then
+        AWAIT.alias("LoadBalancer Service for %s updated to Local policy without recreation".formatted(name(myIngress)))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, name(myIngress));
+                    assertThat(service).isNotNull();
+                    assertThat(service.getSpec().getExternalTrafficPolicy()).isEqualTo("Local");
+                    assertThat(service.getMetadata().getUid())
+                            .describedAs("Service uid must be unchanged — a new uid means delete-and-recreate, not patch")
+                            .isEqualTo(originalUid.get());
+                });
+    }
+
+    @Test
+    void loadBalancerServiceExternalTrafficPolicyOnOnlyOneOfTwoIngresses() {
+        // Given
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        var tlsCert = new SecretBuilder()
+                .withNewMetadata()
+                .withName("downstream-tls-cert" + suffix)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        // @formatter:off
+        var ingressLocal = editableIngress("ingress-local" + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("local.kafkaproxy")
+                        .withAdvertisedBrokerAddressPattern("local-$(nodeId).kafkaproxy")
+                        .withNewService()
+                            .withExternalTrafficPolicy(ExternalTrafficPolicy.LOCAL)
+                        .endService()
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var ingressCluster = editableIngress("ingress-cluster" + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("cluster.kafkaproxy")
+                        .withAdvertisedBrokerAddressPattern("cluster-$(nodeId).kafkaproxy")
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(), List.of())
+                .editOrNewSpec()
+                    .addNewIngress()
+                        .withIngressRef(new IngressRefBuilder().withName(name(ingressLocal)).build())
+                        .withNewTls()
+                            .withNewCertificateRef().withName(name(tlsCert)).endCertificateRef()
+                        .endTls()
+                    .endIngress()
+                    .addNewIngress()
+                        .withIngressRef(new IngressRefBuilder().withName(name(ingressCluster)).build())
+                        .withNewTls()
+                            .withNewCertificateRef().withName(name(tlsCert)).endCertificateRef()
+                        .endTls()
+                    .endIngress()
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        // When
+        createAll(myProxy, ingressLocal, ingressCluster, myService, tlsCert, myCluster);
+
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, ingressLocal, ingressCluster, myService);
+
+        AWAIT.alias("LoadBalancer Service for %s has externalTrafficPolicy Local".formatted(name(ingressLocal)))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, name(ingressLocal));
+                    assertThat(service).isNotNull();
+                    assertThat(service.getSpec().getExternalTrafficPolicy()).isEqualTo("Local");
+                });
+
+        AWAIT.alias("LoadBalancer Service for %s has default externalTrafficPolicy".formatted(name(ingressCluster)))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, name(ingressCluster));
+                    assertThat(service).isNotNull();
+                    // Kubernetes defaults externalTrafficPolicy to "Cluster" when not set by the operator
+                    assertThat(service.getSpec().getExternalTrafficPolicy()).isNotEqualTo("Local");
+                });
+    }
+
+    @Test
+    void loadBalancerServiceNodePortReleasedWhenAllocateNodePortsSetToFalse() {
+        // Given
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        var tlsCert = new SecretBuilder()
+                .withNewMetadata()
+                .withName("downstream-tls-cert" + suffix)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("$(virtualClusterName).kafkaproxy")
+                        .withAdvertisedBrokerAddressPattern("$(virtualClusterName)-$(nodeId).kafkaproxy")
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var clusterIngress = new IngressesBuilder()
+                .withIngressRef(new IngressRefBuilder().withName(name(myIngress)).build())
+                .withNewTls()
+                    .withNewCertificateRef()
+                        .withName(name(tlsCert))
+                    .endCertificateRef()
+                .endTls()
+                .build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(), List.of())
+                .editOrNewSpec()
+                    .withIngresses(List.of(clusterIngress))
+                .endSpec()
+                .build();
+        // @formatter:on
+        createAll(myProxy, myIngress, myService, tlsCert, myCluster);
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+
+        // Verify a nodePort was allocated before the transition
+        AWAIT.alias("nodePort allocated for %s".formatted(name(myIngress)))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, name(myIngress));
+                    assertThat(service).isNotNull();
+                    assertThat(service.getSpec().getPorts())
+                            .singleElement()
+                            .extracting(p -> p.getNodePort())
+                            .asInstanceOf(InstanceOfAssertFactories.INTEGER)
+                            .isGreaterThan(0);
+                });
+
+        // When
+        var fresh = clusterUser.get(KafkaProxyIngress.class, name(myIngress));
+        clusterUser.replace(new KafkaProxyIngressBuilder(fresh)
+                .editSpec()
+                .editLoadBalancer()
+                .withNewService()
+                .withAllocateLoadBalancerNodePorts(false)
+                .endService()
+                .endLoadBalancer()
+                .endSpec()
+                .build());
+
+        // Then
+        AWAIT.alias("nodePort released for %s after allocateLoadBalancerNodePorts set to false".formatted(name(myIngress)))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, name(myIngress));
+                    assertThat(service).isNotNull();
+                    assertThat(service.getSpec().getAllocateLoadBalancerNodePorts()).isFalse();
+                    assertThat(service.getSpec().getPorts())
+                            .singleElement()
+                            .extracting(p -> p.getNodePort())
+                            .satisfies(nodePort -> assertThat(nodePort == null || nodePort == 0).isTrue());
+                });
+    }
+
+    @Test
+    void loadBalancerServiceCreatedWithNoNodePortWhenAllocateNodePortsFalseFromStart() {
+        // Given
+        var suffix = uniqueSuffix();
+        var myProxy = editableProxy(PROXY_A + suffix).build();
+        var tlsCert = new SecretBuilder()
+                .withNewMetadata()
+                .withName("downstream-tls-cert" + suffix)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_LOADBALANCER_INGRESS + suffix, myProxy)
+                .editOrNewSpec()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress("$(virtualClusterName).kafkaproxy")
+                        .withAdvertisedBrokerAddressPattern("$(virtualClusterName)-$(nodeId).kafkaproxy")
+                        .withNewService()
+                            .withAllocateLoadBalancerNodePorts(false)
+                        .endService()
+                    .endLoadBalancer()
+                .endSpec()
+                .build();
+        var clusterIngress = new IngressesBuilder()
+                .withIngressRef(new IngressRefBuilder().withName(name(myIngress)).build())
+                .withNewTls()
+                    .withNewCertificateRef()
+                        .withName(name(tlsCert))
+                    .endCertificateRef()
+                .endTls()
+                .build();
+        var myService = editableService(CLUSTER_FOO_SERVICE + suffix).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO + suffix, myProxy, myService, List.of(), List.of())
+                .editOrNewSpec()
+                    .withIngresses(List.of(clusterIngress))
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        // When
+        createAll(myProxy, myIngress, myService, tlsCert, myCluster);
+
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+
+        AWAIT.alias("LoadBalancer Service for %s created with no nodePort".formatted(name(myIngress)))
+                .untilAsserted(() -> {
+                    var service = clusterUser.get(Service.class, name(myIngress));
+                    assertThat(service).isNotNull();
+                    assertThat(service.getSpec().getAllocateLoadBalancerNodePorts()).isFalse();
+                    assertThat(service.getSpec().getPorts())
+                            .singleElement()
+                            .extracting(p -> p.getNodePort())
+                            .satisfies(nodePort -> assertThat(nodePort == null || nodePort == 0).isTrue());
+                });
     }
 
     private static KafkaServiceBuilder editableStrimziService(String name, String kafkaName, String listenerName) {

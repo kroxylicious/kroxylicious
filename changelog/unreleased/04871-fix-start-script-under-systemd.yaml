@@ -1,0 +1,4 @@
+title: "fix(app): proxy start script no longer fails under systemd with `/dev/stdout: No such device or address`"
+type: fixed
+issues:
+  - 4871

@@ -1,0 +1,4 @@
+title: "docs(operator): document Strimzi integration via `KafkaService.spec.strimziKafkaRef`"
+type: changed
+issues:
+  - 3969

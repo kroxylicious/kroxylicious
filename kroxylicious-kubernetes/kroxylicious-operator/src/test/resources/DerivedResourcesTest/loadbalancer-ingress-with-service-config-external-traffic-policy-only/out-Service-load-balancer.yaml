@@ -9,22 +9,25 @@ apiVersion: "v1"
 kind: "Service"
 metadata:
   annotations:
-    kroxylicious.io/bootstrap-servers: "{\"version\":\"0.13.0\",\"bootstrapServers\":[{\"clusterName\":\"bar\",\"ingressName\"\
-      :\"load-balancer\",\"bootstrapServers\":\"bar.kafkaproxy:9083\"},{\"clusterName\"\
-      :\"foo\",\"ingressName\":\"load-balancer\",\"bootstrapServers\":\"foo.kafkaproxy:9083\"\
-      }]}"
+    example.com/team: "platform-team"
+    kroxylicious.io/bootstrap-servers: "{\"version\":\"0.13.0\",\"bootstrapServers\":[{\"clusterName\":\"one\",\"ingressName\"\
+      :\"load-balancer\",\"bootstrapServers\":\"one.kafkaproxy:9083\"}]}"
   labels:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious"
-    app.kubernetes.io/instance: "sharedservice"
     app.kubernetes.io/component: "proxy"
-  name: "sharedservice-sni"
+    app.kubernetes.io/instance: "minimal"
+  name: "load-balancer"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "sharedservice"
+      name: "minimal"
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxyIngress"
+      name: "load-balancer"
 spec:
+  externalTrafficPolicy: "Local"
   ports:
     - name: "sni-9083"
       port: 9083
@@ -33,6 +36,6 @@ spec:
   selector:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious"
-    app.kubernetes.io/instance: "sharedservice"
     app.kubernetes.io/component: "proxy"
+    app.kubernetes.io/instance: "minimal"
   type: "LoadBalancer"
