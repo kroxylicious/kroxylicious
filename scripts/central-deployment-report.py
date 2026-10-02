@@ -53,6 +53,7 @@ import argparse
 import json
 import os
 import re
+import ssl
 import sys
 import urllib.error
 import urllib.request
@@ -61,6 +62,17 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import parse_qs, urlparse
 
 DEFAULT_HOST = "https://central.sonatype.com"
+
+
+def make_ssl_context(cafile=None):
+    """Return an SSL context using cafile, certifi (if installed), or the default."""
+    if cafile:
+        return ssl.create_default_context(cafile=cafile)
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
 
 # Candidate primary artifact suffixes (appended to "<artifactId>-<version>").
 PRIMARY_SUFFIXES = (".pom", ".jar", "-sources.jar", "-javadoc.jar", ".module")
@@ -99,29 +111,25 @@ def bearer_header(token):
     return token
 
 
-def http_get(url, auth, *, want_body):
-    """GET a URL. Returns (status, size_in_bytes). Never raises for 4xx."""
+def http_probe(url, auth, ssl_context):
+    """GET a URL. Returns (status, size_in_bytes). Never raises for network errors."""
     req = urllib.request.Request(url, headers={"Authorization": auth})
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            if not want_body:
-                return resp.status, 0
-            size = 0
-            while True:
-                chunk = resp.read(65536)
-                if not chunk:
-                    break
-                size += len(chunk)
+        with urllib.request.urlopen(req, timeout=120, context=ssl_context) as resp:
+            size = sum(len(chunk) for chunk in iter(lambda: resp.read(65536), b""))
             return resp.status, size
     except urllib.error.HTTPError as exc:
         return exc.code, 0
+    except (urllib.error.URLError, OSError) as exc:
+        print(f"warning: network error probing {url}: {exc}", file=sys.stderr)
+        return -1, 0
 
 
-def fetch_purls(host, deployment_id, auth):
+def fetch_purls(host, deployment_id, auth, ssl_context):
     url = f"{host}/api/v1/publisher/status?id={deployment_id}"
     req = urllib.request.Request(url, method="POST", headers={"Authorization": auth})
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=120, context=ssl_context) as resp:
             data = json.load(resp)
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", "replace")[:500]
@@ -152,7 +160,7 @@ def gav_path_prefix(group, artifact, version):
     return f"{group.replace('.', '/')}/{artifact}/{version}/{artifact}-{version}"
 
 
-def enumerate_files(host, deployment_id, auth, gavs, concurrency):
+def enumerate_files(host, deployment_id, auth, gavs, concurrency, ssl_context):
     """Probe every candidate file for every GAV; return {gav: {relpath: size}}."""
     download_base = f"{host}/api/v1/publisher/deployment/{deployment_id}/download"
 
@@ -166,7 +174,7 @@ def enumerate_files(host, deployment_id, auth, gavs, concurrency):
 
     def probe(item):
         gav, relpath = item
-        status, size = http_get(f"{download_base}/{relpath}", auth, want_body=True)
+        status, size = http_probe(f"{download_base}/{relpath}", auth, ssl_context)
         return gav, relpath, status, size
 
     present = defaultdict(dict)
@@ -278,9 +286,11 @@ def print_table(report, stream=sys.stdout):
         f"Releases allowed by:  release-count={a['releaseCount']}  "
         f"files={a['fileCount']}  size={a['size']}"
     )
+    max_releases = rpm["maxReleases"]
+    verdict = "PASS" if max_releases > 0 else "FAIL"
     p(
         f"=> Binding constraint = {rpm['bindingConstraint']}  "
-        f"=> max {rpm['maxReleases']} releases/month"
+        f"=> max {max_releases} releases/month  [{verdict}]"
     )
 
 
@@ -318,6 +328,13 @@ def main(argv=None):
     parser.add_argument("--limit-releases", type=int, default=DEFAULT_LIMIT_RELEASES)
     parser.add_argument("--limit-mb", type=int, default=DEFAULT_LIMIT_MB)
     parser.add_argument("--limit-files", type=int, default=DEFAULT_LIMIT_FILES)
+    parser.add_argument(
+        "--cafile",
+        default=None,
+        metavar="PATH",
+        help="CA bundle for TLS verification. Defaults to certifi's bundle if installed, "
+             "otherwise the Python default.",
+    )
     args = parser.parse_args(argv)
 
     token = os.environ.get(args.token_env)
@@ -327,11 +344,12 @@ def main(argv=None):
             f"Set it, e.g.: export {args.token_env}=\"$(printf 'user:pass' | base64)\""
         )
     auth = bearer_header(token)
+    ssl_context = make_ssl_context(args.cafile)
 
     deployment_id = extract_deployment_id(args.deployment)
     host = args.host.rstrip("/")
 
-    status_data = fetch_purls(host, deployment_id, auth)
+    status_data = fetch_purls(host, deployment_id, auth, ssl_context)
     purls = status_data.get("purls", [])
     if not purls:
         raise SystemExit(
@@ -340,7 +358,7 @@ def main(argv=None):
         )
 
     gavs = unique_gavs(purls)
-    present = enumerate_files(host, deployment_id, auth, gavs, args.concurrency)
+    present = enumerate_files(host, deployment_id, auth, gavs, args.concurrency, ssl_context)
 
     limits = {
         "releases": args.limit_releases,
@@ -354,6 +372,10 @@ def main(argv=None):
     else:
         json.dump(report, sys.stdout, indent=2)
         sys.stdout.write("\n")
+
+    if report["releasesPerMonth"]["maxReleases"] == 0:
+        print("FAIL: deployment exceeds monthly quota for at least one constraint.", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
