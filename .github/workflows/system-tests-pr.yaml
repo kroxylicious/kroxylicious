@@ -37,6 +37,7 @@ jobs:
             systemtest:
               - '.github/workflows/system-tests-pr.yaml'
               - '.github/workflows/run-system-tests.yaml'
+              - '.github/workflows/pr-tests.yaml'
               - '.github/workflows/build-kroxylicious-container-images.yaml'
               - '.github/workflows/build-kroxylicious-artifacts.yaml'
               - 'pom.xml'

@@ -17,21 +17,6 @@
 name: System Tests for Main branch
 
 on:
-#  push:
-#    paths-ignore:
-#      - '**/**.md'
-#      - '**/**.txt'
-#      - '.github/**'
-#      - '!.github/workflows/system-tests-merge.yaml'
-#      - '!.github/workflows/run-system-tests.yaml'
-#      - '!.github/workflows/build-kroxylicious-container-images.yaml'
-#      - '!.github/actions/**'
-#      - 'kroxylicious-docs**/**'
-#      - 'kroxylicious-integration-test**/**'
-#      - 'kroxylicious-*benchmarks/**'
-#    branches:
-#      - "main"
-#  workflow_dispatch:
   workflow_call:
 
 jobs:
