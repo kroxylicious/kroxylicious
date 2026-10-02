@@ -38,6 +38,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallback, BeforeEachCallback, AfterEachCallback, AfterAllCallback {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousExtension.class);
     private static final String K8S_NAMESPACE_KEY = "namespace";
+    private static final String TEST_EXECUTION_STARTED_KEY = "testExecutionStarted";
     private static final String EXTENSION_STORE_NAME = "io.kroxylicious.systemtests";
     private static final int MAX_NAMESPACE_PREFIX_LENGTH = 12;
     private final ExtensionContext.Namespace junitNamespace;
@@ -78,6 +79,19 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
 
     @Override
     public void afterAll(ExtensionContext extensionContext) {
+        String testClassName = extensionContext.getRequiredTestClass().getName();
+        try {
+            // Collect logs if a BeforeAll failure occurred (no test methods ran, so afterEach didn't run)
+            if (!haveTestExecutionStarted(extensionContext)) {
+                extensionContext.getExecutionException()
+                        .filter(Predicate.not(TestAbortedException.class::isInstance))
+                        .ifPresent(ee -> logCollector.collectLogs(testClassName, "BeforeAll"));
+            }
+        }
+        catch (Exception e) {
+            LOGGER.warn("Failed to collect logs after BeforeAll failure", e);
+        }
+
         if (!Environment.SKIP_TEARDOWN) {
             ResourceManager.setTestContext(extensionContext);
             NamespaceUtils.deleteAllNamespacesFromSet(!Environment.SYNC_RESOURCES_DELETION);
@@ -108,6 +122,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
 
     @Override
     public void beforeEach(ExtensionContext extensionContext) {
+        markTestsStarted(extensionContext);
         ResourceManager.setTestContext(extensionContext);
         final String k8sNamespace = generateNamespaceName(extensionContext);
         extensionContext.getStore(junitNamespace).put(K8S_NAMESPACE_KEY, k8sNamespace);
@@ -129,5 +144,13 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
 
     private String extractK8sNamespace(ExtensionContext extensionContext) {
         return extensionContext.getStore(junitNamespace).get(K8S_NAMESPACE_KEY, String.class);
+    }
+
+    private void markTestsStarted(ExtensionContext extensionContext) {
+        extensionContext.getStore(junitNamespace).put(TEST_EXECUTION_STARTED_KEY, true);
+    }
+
+    private boolean haveTestExecutionStarted(ExtensionContext extensionContext) {
+        return extensionContext.getStore(junitNamespace).getOrDefault(TEST_EXECUTION_STARTED_KEY, Boolean.class, false);
     }
 }
