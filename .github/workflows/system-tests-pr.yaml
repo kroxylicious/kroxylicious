@@ -17,17 +17,7 @@
 name: System Tests for Pull-Requests
 
 on:
-#  pull_request:
-#    types: [ opened, synchronize, reopened, labeled ]
-#    branches:
-#      - "main"
-#      - 'release/**'
   workflow_call:
-  workflow_dispatch:
-
-#concurrency:
-#  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-#  cancel-in-progress: true
 
 jobs:
   # JOB to run change detection
@@ -59,12 +49,7 @@ jobs:
               - '!kroxylicious-test-images/**'
               - '!kroxylicious-wire-fidelity-tests/**'
 
-#  build_artifacts:
-#    needs: changes
-#    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
-
   set_variables:
-#    needs: changes
     runs-on: ubuntu-latest
     outputs:
       kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}

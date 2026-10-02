@@ -19,10 +19,6 @@ name: "Run Kroxylicious Proxy Integration Tests"
 on:
   workflow_call:
 
-#concurrency:
-#  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-#  cancel-in-progress: true
-
 jobs:
   discover_integration_test_chunks:
     runs-on: ubuntu-latest
@@ -86,66 +82,7 @@ jobs:
           KROXYLICIOUS_IMAGE="quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}"
 
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_OUTPUT"
-#  build_artifacts:
-#    needs: discover_integration_test_chunks
-#    runs-on: ubuntu-latest
-#    outputs:
-#      kroxylicious_image: ${{ steps.build_image.outputs.KROXYLICIOUS_IMAGE }}
-#    steps:
-#      - name: Harden the runner (Audit all outbound calls)
-#        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
-#        with:
-#          egress-policy: audit
-#
-#      - name: 'Check out repository'
-#        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-#        with:
-#          fetch-depth: 0
-#      - name: Setup Java
-#        uses: $/.github/actions/common/setup-java
-#      - name: 'Cache Maven packages'
-#        uses: $/.github/actions/common/cache-maven-packages
-#      - name: 'Build Kroxylicious modules with integration tests and operand image'
-#        id: build_image
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        run: |
-#          GIT_HASH="$(git rev-parse HEAD)"
-#          KROXYLICIOUS_VERSION="$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)"
-#          KROXYLICIOUS_IMAGE="quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}"
-#
-#          echo "Building modules: ${{ needs.discover_integration_test_chunks.outputs.modules }}"
-#          echo "Building operand image: ${KROXYLICIOUS_IMAGE}"
-#
-#          mvn --batch-mode \
-#            --activate-profiles 'dist,!qa' \
-#            --projects ${{ needs.discover_integration_test_chunks.outputs.modules }} \
-#            --also-make \
-#            -DskipTests \
-#            -Dmaven.javadoc.skip=true \
-#            -DskipDocs=true \
-#            -Derrorprone.skip=true \
-#            -Dio.kroxylicious.proxy.image.name="${KROXYLICIOUS_IMAGE}" \
-#            install
-#
-#          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_OUTPUT"
-#      - name: 'Upload Operand Image Artifact'
-#        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-#        with:
-#          name: kroxylicious-operand-image
-#          path: kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
-#          retention-days: 1
-#      - name: 'Package Kroxylicious Maven artifacts'
-#        run: |
-#          mkdir -p /tmp/kroxylicious-artifacts
-#          cd "$HOME/.m2/repository"
-#          tar czf /tmp/kroxylicious-artifacts/maven-repo.tar.gz io/kroxylicious
-#      - name: 'Upload Kroxylicious Maven artifacts'
-#        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-#        with:
-#          name: kroxylicious-maven-artifacts
-#          path: /tmp/kroxylicious-artifacts/maven-repo.tar.gz
-#          retention-days: 1
+
   run_integration_tests:
     needs: [get_kroxylicious_image, discover_integration_test_chunks]
     runs-on: ubuntu-latest
@@ -265,7 +202,7 @@ jobs:
       - name: 'Run integration tests'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # These variables/secrets support the Fortanix/KMS integration tests.   If the secrets are absent, the
+          # These variables/secrets support the Fortanix/KMS integration tests. If the secrets are absent, the
           # tests will be skipped.
           KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ vars.KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT }}
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
