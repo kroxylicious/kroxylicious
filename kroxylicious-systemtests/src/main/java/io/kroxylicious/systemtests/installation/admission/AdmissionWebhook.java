@@ -114,16 +114,7 @@ public class AdmissionWebhook {
     }
 
     private void applyResource(HasMetadata resource) {
-        try {
-            ResourceManager.getInstance().createOrUpdateResourceWithWait(resource);
-        }
-        catch (Exception e) {
-            LOGGER.atWarn()
-                    .addKeyValue("resourceKind", resource.getKind())
-                    .addKeyValue("resourceName", resource.getMetadata().getName())
-                    .addKeyValue("error", e.getMessage())
-                    .log("Failed to apply resource");
-        }
+        ResourceManager.getInstance().createOrUpdateResourceWithWait(resource);
     }
 
     private void createCertificateResources(CertManager certManager) {

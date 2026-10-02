@@ -34,11 +34,11 @@ ifdef::IncludeSingleYamlFileManifest[]
 
 == Single YAML file manifest
 
-A single YAML file manifest is available from {github-release-link}:
+The single YAML file manifest and supplemental files are available from {github-release-link}:
 
-Full install manifest:: link:{WebhookInstallManifestLink}[{WebhookInstallManifestFileName}] contains all required resources (CRDs, Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding, Deployment, Service, PodDisruptionBudget, MutatingWebhookConfiguration).
+Full install manifest:: link:{WebhookInstallManifestLink}[{WebhookInstallManifestFileName}] contains all required resources (CRD definitions and installation files).
 
-CRDs-only manifest:: link:{WebhookCrdsManifestLink}[{WebhookCrdsManifestFileName}] contains only CustomResourceDefinition resources.
+CRDs-only manifest:: link:{WebhookCrdsManifestLink}[{WebhookCrdsManifestFileName}] contains only CRD definitions.
 
 Examples archive:: link:{WebhookExamplesZipLink}[{WebhookExamplesZipFileName}] contains cert-manager configuration examples and other reference resources.
 endif::IncludeSingleYamlFileManifest[]

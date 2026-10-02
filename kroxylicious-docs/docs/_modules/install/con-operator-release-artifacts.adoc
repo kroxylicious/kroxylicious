@@ -34,11 +34,11 @@ ifdef::IncludeSingleYamlFileManifest[]
 
 == Single YAML file manifest
 
-A single YAML file manifest is available from {github-release-link}:
+The single YAML file manifest and supplemental files are available from {github-release-link}:
 
-Full install manifest:: link:{OperatorInstallManifestLink}[{OperatorInstallManifestFileName}] contains all required resources (CRDs, Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding, Deployment).
+Full install manifest:: link:{OperatorInstallManifestLink}[{OperatorInstallManifestFileName}] contains all required resources (CRD definitions and installation files).
 
-CRDs-only manifest:: link:{OperatorCrdsManifestLink}[{OperatorCrdsManifestFileName}] contains only CustomResourceDefinition resources.
+CRDs-only manifest:: link:{OperatorCrdsManifestLink}[{OperatorCrdsManifestFileName}] contains only CRD definitions.
 
-Examples archive:: link:{OperatorExamplesZipLink}[{OperatorExamplesZipFileName}] contains example configurations and custom resources.
+Examples archive:: link:{OperatorExamplesZipLink}[{OperatorExamplesZipFileName}] contains example configurations.
 endif::IncludeSingleYamlFileManifest[]
