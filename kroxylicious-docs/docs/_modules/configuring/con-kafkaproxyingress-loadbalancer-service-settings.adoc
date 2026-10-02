@@ -1,0 +1,68 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-operate-proxy.adoc
+
+[id='con-kafkaproxyingress-loadbalancer-service-settings-{context}']
+= Configuring LoadBalancer Service settings
+
+[role="_abstract"]
+When the operator creates a `LoadBalancer` Kubernetes Service for a `KafkaProxyIngress`, you can control two optional Service-level settings: the external traffic policy and whether NodePorts are allocated.
+These settings are configured in the `spec.loadBalancer.service` field and apply only to `loadBalancer`-type ingresses.
+
+== External traffic policy
+
+The `externalTrafficPolicy` field controls how traffic is routed from the load balancer to the proxy pods.
+
+`Cluster` (default when unset):: Routes traffic to any healthy proxy pod across all nodes.
+Client source IP addresses are not preserved because kube-proxy may apply SNAT.
+
+`Local`:: Routes traffic only to proxy pods on the same node as the load balancer.
+Preserves the original client source IP address, which is useful when the proxy or downstream filters need to make decisions based on the client address.
++
+IMPORTANT: When `externalTrafficPolicy` is set to `Local`, Kubernetes opens a `healthCheckNodePort` on every node so that the load balancer can probe which nodes have a running proxy pod.
+This port remains open even if `allocateLoadBalancerNodePorts` is set to `false`.
+For more information, see xref:con-kafkaproxyingress-loadbalancer-service-settings-{context}[Disabling NodePort allocation].
+
+== Disabling NodePort allocation
+
+By default, Kubernetes allocates a NodePort for each port on a LoadBalancer Service, which opens that port on every node in the cluster.
+If NodePort access is not required, set `allocateLoadBalancerNodePorts` to `false` to prevent these ports from being allocated, reducing the network attack surface.
+
+When this field transitions from unset or `true` to `false` on an existing ingress, the operator explicitly releases any already-allocated NodePorts by setting them to zero.
+Once released, they are not reallocated unless the field is set back to `true`.
+
+NOTE: If `externalTrafficPolicy` is also set to `Local`, Kubernetes still allocates a `healthCheckNodePort` regardless of `allocateLoadBalancerNodePorts`.
+Setting `allocateLoadBalancerNodePorts: false` prevents regular data-path NodePorts from being allocated but does not suppress the health-check port.
+
+.Example `KafkaProxyIngress` with `Local` traffic policy and no NodePorts
+[source,yaml]
+----
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: load-balancer
+spec:
+  proxyRef:
+    name: simple
+  loadBalancer:
+    bootstrapAddress: "$(virtualClusterName).kafkaproxy.example.com"
+    advertisedBrokerAddressPattern: "broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com"
+    service:
+      externalTrafficPolicy: Local
+      allocateLoadBalancerNodePorts: false
+----
+
+[role="_additional-resources"]
+.Additional resources
+
+* https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip[Kubernetes documentation: Preserving the client source IP^]
+* https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-nodeport-allocation[Kubernetes documentation: LoadBalancer NodePort allocation^]
