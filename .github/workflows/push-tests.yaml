@@ -62,5 +62,5 @@ jobs:
 
   system_tests:
     needs: [build_artifacts,changes_for_system_tests]
-    if: ${{ needs.changes_for_system_tests.systemtest == 'true' }}
+    if: ${{ needs.changes_for_system_tests.outputs.systemtest == 'true' }}
     uses: $/.github/workflows/system-tests-merge.yaml
