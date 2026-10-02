@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Properties;
 
-record OperatorInfo(String imageName, String imageArchive) {
+record OperatorInfo(String imageName, String imageArchive, String version) {
 
     static OperatorInfo fromResource() {
         try (var is = OperatorInfo.class.getResourceAsStream("/operator-info.properties")) {
@@ -18,7 +18,8 @@ record OperatorInfo(String imageName, String imageArchive) {
             properties.load(is);
             String imageName = properties.getProperty("operator.image.name");
             String imageArchive = properties.getProperty("operator.image.archive");
-            return new OperatorInfo(imageName, imageArchive);
+            String version = properties.getProperty("operator.version");
+            return new OperatorInfo(imageName, imageArchive, version);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);

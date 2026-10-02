@@ -10,8 +10,8 @@
 //
 // _assemblies/assembly-admission-webhook-install.adoc
 
-[id='proc-install-admission-webhook-{context}']
-= Installing the admission webhook using installation files
+[id='proc-install-admission-webhook-archive-{context}']
+= Installing the admission webhook using archive distribution
 
 [role="_abstract"]
 This procedure shows how to install the Kroxylicious Admission Webhook in your Kubernetes cluster using cert-manager for TLS certificate provisioning.
