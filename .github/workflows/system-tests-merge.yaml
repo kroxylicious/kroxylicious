@@ -35,42 +35,8 @@ on:
   workflow_call:
 
 jobs:
-  # JOB to run change detection
-  changes:
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    outputs:
-      systemtest: ${{ steps.filter.outputs.systemtest }}
-    steps:
-      # For pull requests it's not necessary to check out the code
-      - name: 'Check out repository'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
-        id: filter
-        with:
-          predicate-quantifier: 'some-with-excludes'
-          filters: |
-            systemtest:
-              - '.github/workflows/system-tests-merge.yaml'
-              - '.github/workflows/run-system-tests.yaml'
-              - '.github/workflows/build-kroxylicious-container-images.yaml'
-              - '.github/workflows/build-kroxylicious-artifacts.yaml'
-              - 'pom.xml'
-              - 'kroxylicious-**/**'
-              - '!**/**.md'
-              - '!kroxylicious-annotations/**'
-              - '!kroxylicious-docs**/**'
-              - '!kroxylicious-integration-test**/**'
-              - '!kroxylicious-*benchmarks/**'
-              - '!kroxylicious-test-images/**'
-              - '!kroxylicious-wire-fidelity-tests/**'
-
   # First we run the tests that are independent of the KAFKA_CLIENT selected
   run_external_kafka_client_and_operator_system_tests:
-    needs: changes
     uses: $/.github/workflows/run-system-tests.yaml
     with:
       groups: 'externalKafkaClients,operator'
@@ -100,7 +66,7 @@ jobs:
 
   # Then we run the tests that with the KAFKA_CLIENT selected
   run_system_tests:
-    needs: [changes, discover_system_test_clients]
+    needs: [discover_system_test_clients]
     uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
@@ -109,7 +75,6 @@ jobs:
       kafkaClient: ${{ matrix.tests }}
       excludedGroups: 'externalKafkaClients,operator'
       testFortanixKMS: 'true'
-      skipSystemTestRun: ${{ needs.changes.outputs.systemtest == 'false' }}
     strategy:
       fail-fast: false
       matrix:
