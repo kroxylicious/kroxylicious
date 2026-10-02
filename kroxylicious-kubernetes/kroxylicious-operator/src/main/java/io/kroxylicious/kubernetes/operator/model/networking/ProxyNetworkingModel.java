@@ -7,23 +7,33 @@
 package io.kroxylicious.kubernetes.operator.model.networking;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
+import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
  * The ProxyNetworkingModel models the logical arrangement of client-facing resources, and backend plumbing
@@ -47,6 +57,138 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
         return clusterNetworkingModels.stream()
                 .filter(c -> name(c.cluster).equals(name(cluster)))
                 .findFirst();
+    }
+
+    /**
+     * Builds every Kubernetes {@code Service} required by the clusters the caller considers valid: the per-cluster
+     * ClusterIP and Route bootstrap Services, plus one shared {@code LoadBalancer} Service per referenced
+     * {@code loadBalancer} {@code KafkaProxyIngress}.
+     * <p>
+     * The model deliberately retains broken clusters (so their ports stay stable if they are healed), so the
+     * caller supplies {@code clusterHasValidNetworking} to exclude them; broken clusters must not contribute a
+     * Service or any ports or bootstrap entries to one.
+     *
+     * @param primary the owning KafkaProxy
+     * @param clusterHasValidNetworking predicate selecting the clusters whose models should contribute Services
+     * @return a stream of all Services for the selected clusters
+     */
+    public Stream<Service> services(KafkaProxy primary, Predicate<VirtualKafkaCluster> clusterHasValidNetworking) {
+        Stream<Service> exclusiveServiceStream = clusterNetworkingModels.stream()
+                .filter(clusterNetworkingModel -> clusterHasValidNetworking.test(clusterNetworkingModel.cluster()))
+                .flatMap(ClusterNetworkingModel::services);
+        return Stream.concat(exclusiveServiceStream, buildCoalescedServices(primary, clusterHasValidNetworking));
+    }
+
+    /**
+     * Builds the shared {@code LoadBalancer} Services, one per {@code loadBalancer} {@code KafkaProxyIngress}
+     * referenced by a cluster the caller considers valid. Because a single ingress is shared by many clusters,
+     * its Service can only be assembled once the per-{@code (cluster, ingress)} models are grouped by ingress,
+     * so the complete set of client-facing ports and bootstrap annotations is known. This is why the Service
+     * is built here rather than by {@link ClusterIngressNetworkingModel#services()}.
+     *
+     * @param primary the owning KafkaProxy
+     * @param clusterHasValidNetworking predicate selecting the clusters whose models should contribute to the Services
+     * @return a stream of shared LoadBalancer Services, one per referenced loadBalancer ingress
+     */
+    private Stream<Service> buildCoalescedServices(KafkaProxy primary, Predicate<VirtualKafkaCluster> clusterHasValidNetworking) {
+        // Group the per-(cluster, ingress) models by ingress name so that each ingress gets one Service.
+        Map<String, List<LoadBalancerClusterIngressNetworkingModel>> modelsByIngressName = clusterNetworkingModels.stream()
+                .filter(clusterNetworkingModel -> clusterHasValidNetworking.test(clusterNetworkingModel.cluster()))
+                .flatMap(clusterNetworkingModel -> clusterNetworkingModel.clusterIngressNetworkingModelResults().stream())
+                .map(ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
+                .filter(ingressModel -> ingressModel.sharedLoadBalancerServiceRequirements().isPresent())
+                .map(LoadBalancerClusterIngressNetworkingModel.class::cast)
+                .collect(Collectors.groupingBy(ingressModel -> name(ingressModel.ingress())));
+
+        return modelsByIngressName.values().stream()
+                .flatMap(ingressModels -> buildCoalescedServiceForIngress(primary, ingressModels).stream());
+    }
+
+    /**
+     * Builds the single {@code Service} shared by one {@code loadBalancer} {@code KafkaProxyIngress}, given
+     * all the per-cluster models that reference it.
+     *
+     * @param ingressModels the per-(cluster, ingress) models for a single ingress; every element must
+     *         reference the same {@link KafkaProxyIngress} and agree on the shared SNI target port, which the
+     *         caller guarantees by grouping models on ingress name before calling this method
+     * @throws IllegalArgumentException if the models do not all reference the same {@code KafkaProxyIngress}
+     *         or do not all agree on the shared SNI target port
+     */
+    private static Optional<Service> buildCoalescedServiceForIngress(KafkaProxy primary, List<LoadBalancerClusterIngressNetworkingModel> ingressModels) {
+        List<Integer> loadBalancerPorts = ingressModels.stream()
+                .flatMap(LoadBalancerClusterIngressNetworkingModel::requiredClientFacingPorts)
+                .distinct()
+                .sorted()
+                .toList();
+        if (loadBalancerPorts.isEmpty()) {
+            return Optional.empty();
+        }
+
+        LoadBalancerClusterIngressNetworkingModel ingressModel = requireSameIngressModel(ingressModels);
+        KafkaProxyIngress ingress = ingressModel.ingress();
+        int targetPort = requireSameTargetPort(ingressModels);
+        Set<Annotations.ClusterIngressBootstrapServers> bootstraps = ingressModels.stream()
+                .map(LoadBalancerClusterIngressNetworkingModel::bootstrapServersToAnnotate)
+                .collect(Collectors.toSet());
+
+        ObjectMetaBuilder metadataBuilder = new ObjectMetaBuilder()
+                .withName(name(ingress))
+                .withNamespace(namespace(primary))
+                .addToLabels(standardLabels(primary))
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference();
+        ingressModel.applyInfrastructureAnnotations(metadataBuilder);
+        Annotations.annotateWithBootstrapServers(metadataBuilder, bootstraps);
+
+        var serviceCr = ingress.getSpec().getLoadBalancer().getService();
+        var serviceSpecBuilder = new ServiceBuilder()
+                .withMetadata(metadataBuilder.build())
+                .withNewSpec()
+                .withType("LoadBalancer")
+                .withSelector(standardLabels(primary));
+        if (serviceCr != null) {
+            if (serviceCr.getExternalTrafficPolicy() != null) {
+                serviceSpecBuilder = serviceSpecBuilder.withExternalTrafficPolicy(serviceCr.getExternalTrafficPolicy().getValue());
+            }
+            if (serviceCr.getAllocateLoadBalancerNodePorts() != null) {
+                serviceSpecBuilder = serviceSpecBuilder.withAllocateLoadBalancerNodePorts(serviceCr.getAllocateLoadBalancerNodePorts());
+            }
+        }
+        boolean nodePortsAllocated = serviceCr == null
+                || Optional.ofNullable(serviceCr.getAllocateLoadBalancerNodePorts()).orElse(true);
+        for (Integer loadBalancerPort : loadBalancerPorts) {
+            var portBuilder = serviceSpecBuilder
+                    .addNewPort()
+                    .withName("sni-" + loadBalancerPort)
+                    .withPort(loadBalancerPort)
+                    .withTargetPort(new IntOrString(targetPort))
+                    .withProtocol("TCP");
+            if (!nodePortsAllocated) {
+                portBuilder = portBuilder.withNodePort(0);
+            }
+            serviceSpecBuilder = portBuilder.endPort();
+        }
+        return Optional.of(serviceSpecBuilder.endSpec().build());
+    }
+
+    private static LoadBalancerClusterIngressNetworkingModel requireSameIngressModel(List<LoadBalancerClusterIngressNetworkingModel> ingressModels) {
+        Set<String> ingressNames = ingressModels.stream()
+                .map(ingressModel -> name(ingressModel.ingress()))
+                .collect(Collectors.toSet());
+        if (ingressNames.size() != 1) {
+            throw new IllegalArgumentException("Expected all models to reference the same KafkaProxyIngress, got names: " + ingressNames);
+        }
+        return ingressModels.get(0);
+    }
+
+    private static int requireSameTargetPort(List<LoadBalancerClusterIngressNetworkingModel> ingressModels) {
+        Set<Integer> targetPorts = ingressModels.stream()
+                .map(LoadBalancerClusterIngressNetworkingModel::sharedSniTargetPort)
+                .collect(Collectors.toSet());
+        if (targetPorts.size() != 1) {
+            throw new IllegalArgumentException("Expected all models to agree on the shared SNI target port, got: " + targetPorts);
+        }
+        return ingressModels.get(0).sharedSniTargetPort();
     }
 
     /**
@@ -98,16 +240,6 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
         public boolean anyIngressRequiresSharedSniPort() {
             return clusterIngressNetworkingModelResults.stream()
                     .anyMatch(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().requiresSharedSniContainerPort());
-        }
-
-        /**
-         * Collects all client-facing ports required on the shared SNI LoadBalancer Service across all ingresses.
-         * @return a stream of port numbers required for the shared SNI LoadBalancer
-         */
-        public Stream<Integer> requiredSniLoadbalancerPorts() {
-            return clusterIngressNetworkingModelResults.stream()
-                    .flatMap(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().sharedLoadBalancerServiceRequirements().stream())
-                    .flatMap(SharedLoadBalancerServiceRequirements::requiredClientFacingPorts);
         }
     }
 

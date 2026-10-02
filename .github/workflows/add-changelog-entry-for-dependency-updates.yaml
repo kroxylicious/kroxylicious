@@ -22,7 +22,10 @@ on:
 
 jobs:
   add-changelog-entry:
-    if: github.actor == 'dependabot[bot]'
+    # Gate on the PR author rather than github.actor: for the 'labeled' event the
+    # actor is the maintainer who applied the label, and the changelog/skip and
+    # changelog/create overrides must still work for Dependabot PRs.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -32,11 +35,31 @@ jobs:
         with:
           egress-policy: audit
 
+      # A PAT (rather than GITHUB_TOKEN) is required because commits pushed with
+      # GITHUB_TOKEN do not trigger the PR's CI workflows, which would leave the
+      # PR without status checks on its new head commit.
+      #
+      # GitHub serves secrets from a different store depending on who triggered
+      # the run: runs triggered by dependabot[bot] (opened/synchronize) only see
+      # *Dependabot* secrets, while runs triggered by a maintainer (labeled) only
+      # see *Actions* secrets. The PAT therefore has to be configured in both.
+      # See .github/AUTOMATION_README.md.
       - name: 'Check for changelog token'
         env:
           KROXYLICIOUS_CHANGELOG_TOKEN: ${{ secrets.KROXYLICIOUS_CHANGELOG_TOKEN }}
+          TRIGGERING_ACTOR: ${{ github.actor }}
         run: |
-          echo "CHANGELOG_TOKEN_SET=$(test ${KROXYLICIOUS_CHANGELOG_TOKEN} && echo true)" >> $GITHUB_ENV
+          if [[ -n "${KROXYLICIOUS_CHANGELOG_TOKEN}" ]]; then
+            echo "CHANGELOG_TOKEN_SET=true" >> $GITHUB_ENV
+            exit 0
+          fi
+          echo "CHANGELOG_TOKEN_SET=false" >> $GITHUB_ENV
+          if [[ "${TRIGGERING_ACTOR}" == "dependabot[bot]" ]]; then
+            SECRET_STORE="Dependabot secrets (Settings > Secrets and variables > Dependabot)"
+          else
+            SECRET_STORE="Actions secrets (Settings > Secrets and variables > Actions)"
+          fi
+          echo "::warning title=Changelog entry not created::Secret KROXYLICIOUS_CHANGELOG_TOKEN is not available to runs triggered by ${TRIGGERING_ACTOR}. Configure the kroxylicious-robot PAT as a repository or organisation secret under ${SECRET_STORE}. See .github/AUTOMATION_README.md#shared-github-personal-access-tokens."
 
       - name: 'Check out repository'
         if: env.CHANGELOG_TOKEN_SET == 'true'

@@ -132,6 +132,23 @@ spec:
                       clusters. Responsibility for configuring DNS to resolve these addresses to the LoadBalancer Service 
                       IP is on the user. Must not end with a port specifier."
                       type: string
+                    service:
+                      type: object
+                      description: "Settings for the Kubernetes Service created for this loadBalancer ingress."
+                      properties:
+                        externalTrafficPolicy:
+                          type: string
+                          description: "Specifies how traffic is routed to the Service's endpoints. Cluster routes
+                          to any healthy endpoint. Local routes only to endpoints on the same node and preserves
+                          the client source IP address, but opens a healthCheckNodePort on every node."
+                          enum: ["Cluster", "Local"]
+                        allocateLoadBalancerNodePorts:
+                          type: boolean
+                          description: "Whether the API server should allocate NodePorts for this LoadBalancer
+                          Service. When set to false, no NodePorts are allocated, reducing the attack surface
+                          when NodePort access is not needed. Existing NodePorts are released when this field
+                          transitions from unset or true to false. Note: setting externalTrafficPolicy to Local
+                          still causes a healthCheckNodePort to be opened on every node regardless of this field."
                 openShiftRoute:
                   description: |-
                     specifies that this ingress is for access from outside the OpenShift cluster via OpenShift Routes.
