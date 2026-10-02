@@ -212,7 +212,7 @@ $ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --pa
 ====
 [source,terminal,kms="vault"]
 ----
-$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"VaultKmsService","kmsConfig":{"vaultToken":{"password":"myroottoken"},"vaultTransitEngineUrl":"http://vault.kms.svc.cluster.local:8200/v1/transit"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK-$(topicName)"}}}}' --type merge
+$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"VaultKmsService","kmsConfig":{"vaultUrl":"http://vault.kms.svc.cluster.local:8200","credentials":{"vaultToken":{"token":{"password":"myroottoken"}}}}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK-$(topicName)"}}}}' --type merge
 ----
 ====
 
