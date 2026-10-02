@@ -17,11 +17,12 @@
 name: System Tests for Pull-Requests
 
 on:
-  pull_request:
-    types: [ opened, synchronize, reopened, labeled ]
-    branches:
-      - "main"
-      - 'release/**'
+#  pull_request:
+#    types: [ opened, synchronize, reopened, labeled ]
+#    branches:
+#      - "main"
+#      - 'release/**'
+  workflow_call:
   workflow_dispatch:
 
 concurrency:
@@ -58,12 +59,12 @@ jobs:
               - '!kroxylicious-test-images/**'
               - '!kroxylicious-wire-fidelity-tests/**'
 
-  build_artifacts:
-    needs: changes
-    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
+#  build_artifacts:
+#    needs: changes
+#    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
 
   set_variables:
-    needs: changes
+#    needs: changes
     runs-on: ubuntu-latest
     outputs:
       kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}
@@ -100,7 +101,7 @@ jobs:
           echo "$KAFKA_CLIENT"
 
   run_system_tests:
-    needs: [changes,build_artifacts,set_variables]
+    needs: [changes,set_variables]
     uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}

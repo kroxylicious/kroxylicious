@@ -17,10 +17,11 @@
 name: "Run Kroxylicious Proxy Integration Tests"
 
 on:
-  push:
-    branches: [ main, 'release/**' ]
-  pull_request:
-    types: [ opened, synchronize, reopened ]
+  workflow_call:
+#  push:
+#    branches: [ main, 'release/**' ]
+#  pull_request:
+#    types: [ opened, synchronize, reopened ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
