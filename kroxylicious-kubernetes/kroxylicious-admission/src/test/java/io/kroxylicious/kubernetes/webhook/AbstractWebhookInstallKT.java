@@ -19,6 +19,9 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,9 +62,6 @@ abstract class AbstractWebhookInstallKT {
     private static final String WEBHOOK_NS = "kroxylicious-webhook";
     private static final String TEST_NS = "webhook-test";
 
-    private static final Path CRD_PATH = Path.of(
-            "../kroxylicious-admission-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.sidecar.kroxylicious.io-v1.yml");
-
     private KubernetesClient client;
 
     static boolean testImageAvailable() {
@@ -73,11 +73,20 @@ abstract class AbstractWebhookInstallKT {
         return true;
     }
 
-    @Test
-    void shouldInstallAndInjectSidecar() {
+    @ParameterizedTest(name = "shouldInstallAndInjectSidecar({0})")
+    @MethodSource("manifestSources")
+    void shouldInstallAndInjectSidecar(Path manifestSource) {
+        assumeThat(testImageAvailable()).isTrue();
         client = new KubernetesClientBuilder().build();
         try {
-            installWebhook();
+            applyManifests(manifestSource);
+
+            LOGGER.info("Creating self-signed TLS certificate for webhook");
+            createWebhookTlsSecret();
+
+            LOGGER.info("Patching MutatingWebhookConfiguration with CA bundle");
+            patchWebhookCaBundle();
+
             waitForWebhookReady();
             createTestNamespaceAndConfig();
             verifyInjection();
@@ -86,23 +95,14 @@ abstract class AbstractWebhookInstallKT {
             verifyFailClosed();
         }
         finally {
-            cleanup();
+            cleanup(manifestSource);
         }
     }
 
-    @Test
-    void shouldInstallFromInstallManifest() {
-        assumeThat(testImageAvailable()).isTrue();
-
-        Path manifest = getFullInstallManifest();
-        try {
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", manifest.toString())).isTrue();
-            waitForWebhookReady();
-            LOGGER.info("Webhook deployment became ready from rendered install manifest");
-        }
-        finally {
-            deleteManifest(manifest);
-        }
+    private static Stream<Arguments> manifestSources() {
+        return java.util.stream.Stream.of(
+                Arguments.argumentSet("install dir", Path.of(INSTALL_DIR)),
+                Arguments.argumentSet("all-in-one-yaml", getFullInstallManifest()));
     }
 
     @Test
@@ -122,12 +122,8 @@ abstract class AbstractWebhookInstallKT {
             LOGGER.info("CRDs installed and verified");
         }
         finally {
-            deleteManifest(crdsManifest);
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", crdsManifest.toString(), "--wait=true");
         }
-    }
-
-    private static void deleteManifest(Path manifest) {
-        ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", manifest.toString(), "--wait=true");
     }
 
     private static Path getFullInstallManifest() {
@@ -148,42 +144,25 @@ abstract class AbstractWebhookInstallKT {
         return manifest;
     }
 
-    private void installWebhook() {
-        LOGGER.info("Installing CRDs");
-        applyCrds();
-
-        LOGGER.info("Applying install manifests");
-        applyAllManifests();
-
-        LOGGER.info("Creating self-signed TLS certificate for webhook");
-        createWebhookTlsSecret();
-
-        LOGGER.info("Patching MutatingWebhookConfiguration with CA bundle");
-        patchWebhookCaBundle();
+    private void applyManifests(Path manifestPath) {
+        if (Files.isRegularFile(manifestPath)) {
+            applyManifestFile(manifestPath);
+        }
+        else if (Files.isDirectory(manifestPath)) {
+            try (var files = Files.list(manifestPath)) {
+                files.sorted()
+                        .forEach(this::applyManifestFile);
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
     }
 
-    private void applyCrds() {
-        try (InputStream is = Files.newInputStream(CRD_PATH)) {
+    private void applyManifestFile(Path path) {
+        LOGGER.info("Applying {}", path.getFileName());
+        try (InputStream is = Files.newInputStream(path)) {
             client.load(is).serverSideApply();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private void applyAllManifests() {
-        Path installDir = Path.of(INSTALL_DIR);
-        try (var files = Files.list(installDir)) {
-            files.sorted()
-                    .forEach(p -> {
-                        LOGGER.info("Applying {}", p.getFileName());
-                        try (InputStream is = Files.newInputStream(p)) {
-                            client.load(is).serverSideApply();
-                        }
-                        catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    });
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -509,46 +488,47 @@ abstract class AbstractWebhookInstallKT {
         waitForWebhookReady();
     }
 
-    private void cleanup() {
+    private void cleanup(Path manifestSource) {
         LOGGER.info("Cleaning up test resources");
         if (client == null) {
             return;
         }
+        ignoreCleanupErrors("uninstall",
+                () -> deleteManifests(manifestSource));
+
         ignoreCleanupErrors("test namespace",
                 () -> client.namespaces().withName(TEST_NS).delete());
-        deleteAllManifests();
-        ignoreCleanupErrors("CRD",
-                () -> {
-                    try (InputStream is = Files.newInputStream(CRD_PATH)) {
-                        client.load(is).delete();
-                    }
-                });
-        // Wait for webhook namespace to finish deleting to avoid interfering with subsequent tests
-        try {
-            await().atMost(30, TimeUnit.SECONDS)
-                    .pollDelay(100, TimeUnit.MILLISECONDS)
-                    .until(() -> client.namespaces().withName(WEBHOOK_NS).get() == null);
-        }
-        catch (Exception e) {
-            LOGGER.atWarn().setCause(e).log("Failed waiting for webhook namespace to be deleted");
-        }
+
+        ignoreCleanupErrors("await namespace deletion",
+                () -> await().atMost(30, TimeUnit.SECONDS)
+                        .pollDelay(100, TimeUnit.MILLISECONDS)
+                        .until(() -> client.namespaces().withName(WEBHOOK_NS).get() == null));
+
         ignoreCleanupErrors("Kubernetes client", client::close);
     }
 
-    private void deleteAllManifests() {
-        Path installDir = Path.of(INSTALL_DIR);
-        try (var files = Files.list(installDir)) {
-            files.sorted()
-                    .forEach(p -> ignoreCleanupErrors(p.getFileName().toString(),
-                            () -> {
-                                try (InputStream is = Files.newInputStream(p)) {
-                                    client.load(is).delete();
-                                }
-                            }));
+    private void deleteManifests(Path manifestPath) {
+        if (Files.isRegularFile(manifestPath)) {
+            deleteManifestFile(manifestPath);
         }
-        catch (IOException e) {
-            LOGGER.atWarn().setCause(e).log("failed to list install directory during cleanup");
+        else if (Files.isDirectory(manifestPath)) {
+            try (var files = Files.list(manifestPath)) {
+                files.sorted()
+                        .forEach(this::deleteManifestFile);
+            }
+            catch (IOException e) {
+                LOGGER.atWarn().setCause(e).log("failed to list install directory during cleanup");
+            }
         }
+    }
+
+    private void deleteManifestFile(Path path) {
+        ignoreCleanupErrors(path.getFileName().toString(),
+                () -> {
+                    try (InputStream is = Files.newInputStream(path)) {
+                        client.load(is).delete();
+                    }
+                });
     }
 
     private static void ignoreCleanupErrors(String description, CleanupAction action) {
