@@ -47,7 +47,7 @@ abstract class AbstractInstallKT {
             LOGGER.info("Operator deployment became ready");
         }
         finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", "target/packaged/install");
+            deleteManifest("target/packaged/install");
         }
     }
 
@@ -62,7 +62,7 @@ abstract class AbstractInstallKT {
             LOGGER.info("Operator deployment became ready from rendered install manifest");
         }
         finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", manifest.toString());
+            deleteManifest(manifest.toString());
         }
     }
 
@@ -83,8 +83,12 @@ abstract class AbstractInstallKT {
             LOGGER.info("CRDs installed and verified");
         }
         finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", crdsManifest.toString());
+            deleteManifest(crdsManifest.toString());
         }
+    }
+
+    private static void deleteManifest(String path) {
+        ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", path, "--wait=true");
     }
 
     private Path getFullInstallManifest() {

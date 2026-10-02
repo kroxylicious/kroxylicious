@@ -101,7 +101,7 @@ abstract class AbstractWebhookInstallKT {
             LOGGER.info("Webhook deployment became ready from rendered install manifest");
         }
         finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", manifest.toString());
+            deleteManifest(manifest);
         }
     }
 
@@ -122,8 +122,12 @@ abstract class AbstractWebhookInstallKT {
             LOGGER.info("CRDs installed and verified");
         }
         finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", crdsManifest.toString());
+            deleteManifest(crdsManifest);
         }
+    }
+
+    private static void deleteManifest(Path manifest) {
+        ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", manifest.toString(), "--wait=true");
     }
 
     private static Path getFullInstallManifest() {
@@ -519,6 +523,15 @@ abstract class AbstractWebhookInstallKT {
                         client.load(is).delete();
                     }
                 });
+        // Wait for webhook namespace to finish deleting to avoid interfering with subsequent tests
+        try {
+            await().atMost(30, TimeUnit.SECONDS)
+                    .pollDelay(100, TimeUnit.MILLISECONDS)
+                    .until(() -> client.namespaces().withName(WEBHOOK_NS).get() == null);
+        }
+        catch (Exception e) {
+            LOGGER.atWarn().setCause(e).log("Failed waiting for webhook namespace to be deleted");
+        }
         ignoreCleanupErrors("Kubernetes client", client::close);
     }
 
