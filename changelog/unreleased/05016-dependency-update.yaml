@@ -1,0 +1,4 @@
+title: "build(deps): bump org.slf4j:slf4j-bom from 2.0.18 to 2.0.20"
+type: build
+merge_requests:
+  - 5016
