@@ -23,7 +23,7 @@
         <java.recommended.version>21</java.recommended.version>
         <java.test.version>21</java.test.version>
         <maven.exec.version>3.1.0</maven.exec.version>
-        <maven.compiler.version>3.15.0</maven.compiler.version>
+        <maven.compiler.version>3.16.0</maven.compiler.version>
         <maven.failsafe.version>3.6.0</maven.failsafe.version>
         <maven.surefire.version>3.6.0</maven.surefire.version>
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
@@ -796,7 +796,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.15.0</version>
+                    <version>3.16.0</version>
                     <configuration>
                         <parameters>true</parameters>
                     </configuration>
