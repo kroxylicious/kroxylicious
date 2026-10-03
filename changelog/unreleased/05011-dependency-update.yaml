@@ -1,0 +1,4 @@
+title: "build(deps-dev): bump com.google.protobuf:protobuf-java from 4.36.1 to 4.36.2"
+type: build
+merge_requests:
+  - 5011
