@@ -1,0 +1,89 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// con-operator-json-logging.adoc
+
+[id='proc-operator-switching-json-log-format-proxy-{context}']
+
+= Switching proxy logging to JSON
+
+[role="_abstract"]
+This procedure describes how to switch the Kroxylicious Proxy to JSON log output.
+It applies to a proxy that is deployed by the Kroxylicious Operator.
+
+.Prerequisites
+
+* An instance of Kroxylicious deployed by the Kroxylicious Operator.
+
+.Procedure
+
+. Apply the `KROXYLICIOUS_LOG_FORMAT` environment variable to the proxy's Kubernetes `Deployment` resource:
++
+[source,bash]
+----
+kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_LOG_FORMAT=json
+----
++
+The `Deployment` resource has the same name as the `KafkaProxy`.
++
+Kubernetes recreates the proxy pod automatically.
+
+. Verify that the proxy emits JSON log output:
++
+[source,bash]
+----
+kubectl logs -f -n <namespace> deployment/<deployment_name>
+----
++
+Each log event is a JSON object similar to the following example:
++
+[source,json]
+----
+{
+  "@version": "1",
+  "@timestamp": "2026-04-01T14:25:30.123Z",
+  "message": "Connection established",
+  "logger_name": "io.kroxylicious.proxy.internal.FilterHandler",
+  "thread_name": "kafka-request-handler-1",
+  "level": "INFO",
+  "level_value": 20000,
+  "sessionId": "abc-123",
+  "clientId": "producer-1",
+  "apiKey": "Produce"
+}
+----
++
+When an exception is logged, the output also includes a `stack_trace` field.
+
+== Reverting proxy logging to text
+
+This procedure describes how to revert the Kroxylicious Proxy to text log output.
+
+.Prerequisites
+
+* An instance of Kroxylicious deployed by the Kroxylicious Operator.
+
+.Procedure
+
+. Remove the `KROXYLICIOUS_LOG_FORMAT` environment variable from the proxy's Kubernetes Deployment:
++
+[source,bash]
+----
+kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_LOG_FORMAT-
+----
++
+Kubernetes recreates the proxy pod automatically.
+
+. Verify that the logging format has reverted to text:
++
+[source,bash]
+----
+kubectl logs -f -n <namespace> deployment/<deployment_name>
+----
