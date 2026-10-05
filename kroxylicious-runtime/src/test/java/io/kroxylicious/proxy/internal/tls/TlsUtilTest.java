@@ -7,6 +7,8 @@
 package io.kroxylicious.proxy.internal.tls;
 
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SignatureException;
@@ -22,7 +24,13 @@ import javax.security.auth.x500.X500Principal;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import io.kroxylicious.proxy.config.secret.InlinePassword;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyStore;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -271,6 +279,206 @@ class TlsUtilTest {
                     .hasCauseInstanceOf(CertificateExpiredException.class);
         }
     }
+
+    @Nested
+    class ValidateCertificateKeyPair {
+
+        @Test
+        void returnsTrueForMatchingPkcs8KeyPair(@TempDir final Path dir) throws Exception {
+            final KeyPair keyPair = writeKeyPair(dir, keyAndCert.privateKey(), keyAndCert.cert(), false);
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).contains(true);
+        }
+
+        @Test
+        void returnsTrueForMatchingPkcs1RsaKeyPair(@TempDir final Path dir) throws Exception {
+            final KeyPair keyPair = writeKeyPair(dir, keyAndCert.privateKey(), keyAndCert.cert(), true);
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).contains(true);
+        }
+
+        @Test
+        void returnsTrueForMatchingEcKeyPair(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert ec = TestCertificateUtil.generateEcKeyStoreAndCert("CN=ec-test", "secp256r1");
+            final KeyPair keyPair = writeKeyPair(dir, ec.privateKey(), ec.cert(), false);
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).contains(true);
+        }
+
+        @Test
+        void returnsFalseForMismatchedKeyPair(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateKeyStoreAndCert("CN=other");
+            final KeyPair keyPair = writeKeyPair(dir, other.privateKey(), keyAndCert.cert(), false);
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).contains(false);
+        }
+
+        @Test
+        void returnsEmptyForMissingKeyFile(@TempDir final Path dir) throws Exception {
+            final Path certFile = Files.writeString(dir.resolve("cert.pem"), TestCertificateUtil.toPem(keyAndCert.cert()));
+            final KeyPair keyPair = new KeyPair(dir.resolve("does-not-exist.pem").toString(), certFile.toString(), null);
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).isEmpty();
+        }
+
+        @Test
+        void returnsEmptyForMalformedPem(@TempDir final Path dir) throws Exception {
+            final Path keyFile = Files.writeString(dir.resolve("key.pem"), "not a valid pem");
+            final Path certFile = Files.writeString(dir.resolve("cert.pem"), "not a valid pem");
+            final KeyPair keyPair = new KeyPair(keyFile.toString(), certFile.toString(), null);
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).isEmpty();
+        }
+
+        @Test
+        void returnsEmptyForEncryptedKeyPair(@TempDir final Path dir) throws Exception {
+            final Path keyFile = Files.writeString(dir.resolve("key.pem"), TestCertificateUtil.toPkcs8Pem(keyAndCert.privateKey()));
+            final Path certFile = Files.writeString(dir.resolve("cert.pem"), TestCertificateUtil.toPem(keyAndCert.cert()));
+            final KeyPair keyPair = new KeyPair(keyFile.toString(), certFile.toString(), new InlinePassword("changeit"));
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).isEmpty();
+        }
+
+        @Test
+        void returnsTrueForMatchingPemKeyStore(@TempDir final Path dir) throws Exception {
+            final KeyStore keyStore = writePemStore(dir, keyAndCert.privateKey(), keyAndCert.cert());
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(true);
+        }
+
+        @Test
+        void returnsFalseForMismatchedPemKeyStore(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateKeyStoreAndCert("CN=other");
+            final KeyStore keyStore = writePemStore(dir, other.privateKey(), keyAndCert.cert());
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(false);
+        }
+
+        @Test
+        void returnsTrueForMatchingJksKeyStore(@TempDir final Path dir) throws Exception {
+            final KeyStore keyStore = writeKeyStore(dir, keyAndCert.privateKey(), keyAndCert.cert(), "JKS");
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(true);
+        }
+
+        @Test
+        void returnsTrueForMatchingPkcs12KeyStore(@TempDir final Path dir) throws Exception {
+            final KeyStore keyStore = writeKeyStore(dir, keyAndCert.privateKey(), keyAndCert.cert(), "PKCS12");
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(true);
+        }
+
+        @Test
+        void usesStorePasswordWhenKeyPasswordAbsent(@TempDir final Path dir) throws Exception {
+            final Path file = writeKeyStoreFile(dir, keyAndCert.privateKey(), keyAndCert.cert(), "PKCS12");
+            final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), null, "PKCS12");
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(true);
+        }
+
+        @Test
+        void returnsEmptyForWrongKeyStorePassword(@TempDir final Path dir) throws Exception {
+            final Path file = writeKeyStoreFile(dir, keyAndCert.privateKey(), keyAndCert.cert(), "PKCS12");
+            final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword("wrong-password"), null, "PKCS12");
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).isEmpty();
+        }
+
+        @Test
+        void returnsEmptyForMissingKeyStoreFile(@TempDir final Path dir) {
+            final KeyStore keyStore = new KeyStore(dir.resolve("does-not-exist.p12").toString(), new InlinePassword(STORE_PASSWORD), null, "PKCS12");
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).isEmpty();
+        }
+
+        @Test
+        void returnsTrueWhenAllKeyEntriesMatch(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert second = TestCertificateUtil.generateKeyStoreAndCert("CN=second");
+            final Path file = writeMultiEntryKeyStore(dir, "JKS",
+                    new KeyStoreEntry("a", keyAndCert.privateKey(), STORE_PASSWORD, new X509Certificate[]{ keyAndCert.cert() }),
+                    new KeyStoreEntry("b", second.privateKey(), STORE_PASSWORD, new X509Certificate[]{ second.cert() }));
+            final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), "JKS");
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(true);
+        }
+
+        @Test
+        void returnsFalseWhenAnyKeyEntryMismatches(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateKeyStoreAndCert("CN=other");
+            final Path file = writeMultiEntryKeyStore(dir, "JKS",
+                    new KeyStoreEntry("good", keyAndCert.privateKey(), STORE_PASSWORD, new X509Certificate[]{ keyAndCert.cert() }),
+                    new KeyStoreEntry("bad", other.privateKey(), STORE_PASSWORD, new X509Certificate[]{ keyAndCert.cert() }));
+            final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), "JKS");
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(false);
+        }
+
+        @Test
+        void skipsKeyEntryThatCannotBeRecovered(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateKeyStoreAndCert("CN=other");
+            final Path file = writeMultiEntryKeyStore(dir, "JKS",
+                    new KeyStoreEntry("good", keyAndCert.privateKey(), STORE_PASSWORD, new X509Certificate[]{ keyAndCert.cert() }),
+                    new KeyStoreEntry("locked", other.privateKey(), "different-password", new X509Certificate[]{ keyAndCert.cert() }));
+            final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), "JKS");
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(true);
+        }
+
+        @Test
+        void usesLeafCertificateFromEntryChain(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert extra = TestCertificateUtil.generateKeyStoreAndCert("CN=extra");
+            // A certificate chain is ordered leaf-first, so element 0 is the leaf whose public key must
+            // correspond to the private key. Here the matching cert is the leaf and `extra` is a later
+            // (ignored) chain entry, so validation passes.
+            final Path file = writeMultiEntryKeyStore(dir, "JKS",
+                    new KeyStoreEntry("a", keyAndCert.privateKey(), STORE_PASSWORD, new X509Certificate[]{ keyAndCert.cert(), extra.cert() }));
+            final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), "JKS");
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(true);
+        }
+
+        @Test
+        void matchesAgainstLeafNotLaterChainCert(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert extra = TestCertificateUtil.generateKeyStoreAndCert("CN=extra");
+            // Only the leaf (chain element 0) is matched against the key. Here `extra` is deliberately placed
+            // first so the leaf does NOT match the key, whilst the matching cert sits later in the chain where
+            // it is ignored. This proves the ordering matters: validation fails because the leaf is checked.
+            final Path file = writeMultiEntryKeyStore(dir, "JKS",
+                    new KeyStoreEntry("a", keyAndCert.privateKey(), STORE_PASSWORD, new X509Certificate[]{ extra.cert(), keyAndCert.cert() }));
+            final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), "JKS");
+            assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(false);
+        }
+    }
+
+    private static final String STORE_PASSWORD = "changeit";
+
+    private static KeyPair writeKeyPair(final Path dir, final PrivateKey privateKey, final X509Certificate cert, final boolean pkcs1) throws Exception {
+        final String keyPem = pkcs1 ? TestCertificateUtil.toPkcs1Pem(privateKey) : TestCertificateUtil.toPkcs8Pem(privateKey);
+        final Path keyFile = Files.writeString(dir.resolve("key.pem"), keyPem);
+        final Path certFile = Files.writeString(dir.resolve("cert.pem"), TestCertificateUtil.toPem(cert));
+        return new KeyPair(keyFile.toString(), certFile.toString(), null);
+    }
+
+    private static KeyStore writePemStore(final Path dir, final PrivateKey privateKey, final X509Certificate cert) throws Exception {
+        final String pem = TestCertificateUtil.toPkcs8Pem(privateKey) + TestCertificateUtil.toPem(cert);
+        final Path file = Files.writeString(dir.resolve("store.pem"), pem);
+        return new KeyStore(file.toString(), null, null, "PEM");
+    }
+
+    private static KeyStore writeKeyStore(final Path dir, final PrivateKey privateKey, final X509Certificate cert, final String storeType) throws Exception {
+        final Path file = writeKeyStoreFile(dir, privateKey, cert, storeType);
+        return new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), storeType);
+    }
+
+    private static Path writeKeyStoreFile(final Path dir, final PrivateKey privateKey, final X509Certificate cert, final String storeType) throws Exception {
+        final java.security.KeyStore ks = java.security.KeyStore.getInstance(storeType);
+        ks.load(null, null);
+        ks.setKeyEntry("test", privateKey, STORE_PASSWORD.toCharArray(), new X509Certificate[]{ cert });
+        final Path file = dir.resolve("store." + storeType.toLowerCase(java.util.Locale.ROOT));
+        try (var os = Files.newOutputStream(file)) {
+            ks.store(os, STORE_PASSWORD.toCharArray());
+        }
+        return file;
+    }
+
+    private static Path writeMultiEntryKeyStore(final Path dir, final String storeType, final KeyStoreEntry... entries) throws Exception {
+        final java.security.KeyStore ks = java.security.KeyStore.getInstance(storeType);
+        ks.load(null, null);
+        for (final KeyStoreEntry entry : entries) {
+            ks.setKeyEntry(entry.alias(), entry.key(), entry.password().toCharArray(), entry.chain());
+        }
+        final Path file = dir.resolve("multi." + storeType.toLowerCase(java.util.Locale.ROOT));
+        try (var os = Files.newOutputStream(file)) {
+            ks.store(os, STORE_PASSWORD.toCharArray());
+        }
+        return file;
+    }
+
+    // `chain` is ordered leaf-first (element 0 is the leaf certificate, matching java.security.KeyStore
+    // semantics where getCertificate(alias) returns the leaf and getCertificateChain(alias)[0] is the leaf).
+    private record KeyStoreEntry(String alias, PrivateKey key, String password, X509Certificate[] chain) {}
 
     private static PrivateKey mockPrivateKey(String algorithm) {
         PrivateKey privateKey = mock(PrivateKey.class);
