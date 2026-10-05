@@ -50,3 +50,7 @@ runs:
         "kubernetes version": "v1.37.0"
         "github token": ${{ inputs.githubToken }}
         driver: docker
+        # debug/4168: pin the in-node container runtime to docker. minikube v1.39.0
+        # changed the default runtime to containerd (#23562); this is the A/B
+        # control that keeps the old docker runtime. REVERT before merging.
+        "container runtime": docker

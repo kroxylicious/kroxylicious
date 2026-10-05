@@ -48,6 +48,10 @@ jobs:
           TESTS_PER_CHUNK=15
           TEST_CHUNKS=$(./scripts/discover-integration-tests.sh ${TESTS_PER_CHUNK})
 
+          # debug/4168: limit the matrix to Kubernetes chunks only, to make the
+          # A/B runtime experiment cheaper. REVERT before merging.
+          TEST_CHUNKS=$(echo "$TEST_CHUNKS" | jq -c '[.[] | select(contains("kroxylicious-kubernetes/"))]')
+
           # Extract unique modules from the chunks JSON
           # Parse "module:TestClass" format and get unique module artifact IDs (basename)
           DISCOVERED_MODULES=$(echo "$TEST_CHUNKS" | jq -r '.[]' \
@@ -271,6 +275,41 @@ jobs:
             -Dit.test="${{ steps.parse.outputs.tests }}" \
             ${EXTRA_PROPS} \
             verify
+      - name: 'Diagnostics on failure (debug/4168)'
+        # debug/4168: capture the cluster state when a Kubernetes IT fails, to
+        # see the stuck preload pod's real state. REVERT before merging.
+        if: failure() && steps.check_k8s.outputs.needs_minikube == 'true'
+        env:
+          KROXYLICIOUS_IMAGE: ${{ needs.build_artifacts.outputs.kroxylicious_image }}
+        run: |
+          echo "::group::minikube profile list (runtime actually in use)"
+          minikube profile list || true
+          echo "::endgroup::"
+          echo "::group::kubectl get pods -A -o wide"
+          kubectl get pods -A -o wide || true
+          echo "::endgroup::"
+          echo "::group::kubectl get events -A (last 200)"
+          kubectl get events -A --sort-by=.lastTimestamp | tail -200 || true
+          echo "::endgroup::"
+          echo "::group::webhook configurations"
+          kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations -o wide || true
+          echo "::endgroup::"
+          echo "::group::image presence (minikube image ls vs node crictl)"
+          minikube image ls | grep -F "${KROXYLICIOUS_IMAGE}" || true
+          minikube ssh -- sudo crictl images | grep proxy || true
+          echo "::endgroup::"
+          echo "::group::minikube logs --problems"
+          minikube logs --problems || true
+          echo "::endgroup::"
+          echo "::group::kube-apiserver logs (last 300)"
+          kubectl logs -n kube-system -l component=kube-apiserver --tail=300 || true
+          echo "::endgroup::"
+          echo "::group::manual preload reproduction (preload-debug)"
+          kubectl run preload-debug -n default --image="${KROXYLICIOUS_IMAGE}" --restart=Never --command -- ls || true
+          sleep 60 || true
+          kubectl describe pod preload-debug -n default || true
+          kubectl get pod preload-debug -n default -o yaml || true
+          echo "::endgroup::"
   integration_test_filter_archetype:
     needs: build_artifacts
     runs-on: ubuntu-latest
