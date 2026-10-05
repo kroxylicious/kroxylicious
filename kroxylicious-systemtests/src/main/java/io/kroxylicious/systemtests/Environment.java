@@ -153,8 +153,14 @@ public class Environment {
     public static final boolean SKIP_TEARDOWN = ENVIRONMENT_VARIABLES.getOrDefault(SKIP_TEARDOWN_ENV, Boolean::parseBoolean, SKIP_TEARDOWN_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_IMAGE_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[2];
 
+    /**
+     * Source of the operator manifest. This can either be an all-in-one yaml file, or a directory containing many yaml files.
+     */
     public static final String KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE_ENV,
             KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE_DEFAULT);
+    /**
+     * Source of the admission manifest. This can either be an all-in-one yaml file, or a directory containing many yaml files.
+     */
     public static final String KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_ENV,
             KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_ORG_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[1];
@@ -239,23 +245,23 @@ public class Environment {
     }
 
     public static ManifestProvider createOperatorManifestProvider() {
-        var source = Path.of(KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE);
-        if (KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE.endsWith(".yaml")) {
-            return new AllInOneYamlManifestProvider(source);
-        }
-        else {
-            return new DirectoryManifestProvider(source);
-        }
+        return getManifestProvider(Path.of(KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE));
     }
 
     public static ManifestProvider createAdmissionManifestProvider() {
-        Path source = Path.of(KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE);
+        return getManifestProvider(Path.of(KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE));
+    }
+
+    private static ManifestProvider getManifestProvider(Path source) {
         var file = source.toFile();
         if (file.exists() && file.isFile() && file.getName().endsWith(".yaml")) {
             return new AllInOneYamlManifestProvider(source);
         }
-        else {
+        else if (file.exists() && file.isDirectory()) {
             return new DirectoryManifestProvider(source);
+        }
+        else {
+            throw new IllegalStateException("Unexpected manifest source file %s. The source may not exist or be of an unsuitable type".formatted(file));
         }
     }
 }

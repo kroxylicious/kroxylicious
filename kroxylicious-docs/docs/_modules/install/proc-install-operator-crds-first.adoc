@@ -46,7 +46,7 @@ kubectl wait --for=condition=Established --timeout=60s crd kafkaproxies.kroxylic
 kubectl apply -f {OperatorInstallManifestLink}
 ----
 +
-NOTE: The full install manifest includes CRDs, so applying it after the CRDs are already installed is safe - Kubernetes will recognize the CRDs already exist.
+NOTE: The full install manifest includes CRDs, so applying it after the CRDs are already installed is safe because Kubernetes will recognize the CRDs already exist.
 
 . Check the status of the deployment:
 +
