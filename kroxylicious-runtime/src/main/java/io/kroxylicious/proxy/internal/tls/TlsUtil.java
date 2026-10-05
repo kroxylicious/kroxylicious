@@ -367,12 +367,6 @@ public class TlsUtil {
     public static Optional<Boolean> validateCertificateKeyPair(final KeyProvider keyProvider) {
         try {
             final KeyAndCert keyAndCert = keyProvider.accept(new KeyProviderExtractionVisitor());
-            if (keyAndCert == null) {
-                LOGGER.atWarn()
-                        .log("Failed to extract private key and certificate from KeyProvider - validation skipped");
-                return Optional.empty();
-            }
-
             validateKeyAndCertMatch(keyAndCert.privateKey(), keyAndCert.certificate());
             return Optional.of(true);
         }
@@ -523,8 +517,7 @@ public class TlsUtil {
         while (matcher.find()) {
             final String base64 = matcher.group(1).replaceAll("\\s", "");
             final byte[] der = Base64.getDecoder().decode(base64);
-            final X509Certificate cert = (X509Certificate) cf.generateCertificate(
-                    new ByteArrayInputStream(der));
+            final X509Certificate cert = (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(der));
             certs.add(cert);
         }
 

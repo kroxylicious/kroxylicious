@@ -53,6 +53,7 @@ import io.kroxylicious.proxy.internal.routing.NoUpstreamClusterForRouteException
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
+import io.kroxylicious.proxy.internal.util.TlsTestUtils;
 import io.kroxylicious.proxy.internal.util.TlsTestUtils.KeyAndCert;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -67,7 +68,6 @@ import static io.kroxylicious.proxy.internal.util.TlsTestUtils.assertSslContextH
 import static io.kroxylicious.proxy.internal.util.TlsTestUtils.assertSslContextsHaveDifferentCerts;
 import static io.kroxylicious.proxy.internal.util.TlsTestUtils.createJksFile;
 import static io.kroxylicious.proxy.internal.util.TlsTestUtils.generateCertForKey;
-import static io.kroxylicious.proxy.internal.util.TlsTestUtils.generateEcKeyAndCert;
 import static io.kroxylicious.proxy.internal.util.TlsTestUtils.generateKeyAndCert;
 import static io.kroxylicious.proxy.internal.util.TlsTestUtils.parseKeyPair;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -424,7 +424,7 @@ class VirtualClusterModelTest {
         final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
-        final var initial = generateKeyAndCert();
+        final var initial = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
         final var keyFile = tempDir.resolve("server.key");
         final var certFile = tempDir.resolve("servercert.pem");
         Files.writeString(keyFile, initial.privateKeyPem());
@@ -457,7 +457,7 @@ class VirtualClusterModelTest {
         final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
-        final var initial = generateKeyAndCert();
+        final var initial = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
         final var keyFile = tempDir.resolve("server.key");
         final var certFile = tempDir.resolve("servercert.pem");
         Files.writeString(keyFile, initial.privateKeyPem());
@@ -502,7 +502,7 @@ class VirtualClusterModelTest {
         final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
-        final var initial = generateKeyAndCert();
+        final var initial = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
         final var keyFile = tempDir.resolve("server.key");
         final var certFile = tempDir.resolve("servercert.pem");
         Files.writeString(keyFile, initial.privateKeyPem());
@@ -514,7 +514,7 @@ class VirtualClusterModelTest {
         final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
 
         // When
-        final var rotated = generateKeyAndCert();
+        final var rotated = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
         Files.writeString(certFile, rotated.certificatePem(), StandardOpenOption.TRUNCATE_EXISTING);
         Awaitility.await("Gateway SSL context rejected and remains unchanged")
                 .atMost(5, TimeUnit.SECONDS)
@@ -543,7 +543,7 @@ class VirtualClusterModelTest {
         final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
-        final var initial = generateKeyAndCert();
+        final var initial = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
         final var keyFile = tempDir.resolve("server.key");
         final var certFile = tempDir.resolve("servercert.pem");
         Files.writeString(keyFile, initial.privateKeyPem());
@@ -555,7 +555,7 @@ class VirtualClusterModelTest {
         final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
 
         // When
-        final var rotated = generateKeyAndCert();
+        final var rotated = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
         Files.writeString(keyFile, rotated.privateKeyPem() + '\n', StandardOpenOption.TRUNCATE_EXISTING);
         Awaitility.await("Gateway SSL context rejected and remains unchanged")
                 .atMost(5, TimeUnit.SECONDS)
@@ -619,7 +619,7 @@ class VirtualClusterModelTest {
         final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
-        final var initialKeyAndCert = generateKeyAndCert();
+        final var initialKeyAndCert = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
         final var jksFile = tempDir.resolve("server.jks");
         createJksFile(jksFile, initialKeyAndCert, STOREPASS.getProvidedPassword());
 
@@ -706,7 +706,7 @@ class VirtualClusterModelTest {
     @Test
     void validateCertificateKeyPair_matchingRsaKeyPairPem() throws Exception {
         // Given
-        final KeyAndCert keyAndCert = generateKeyAndCert();
+        final KeyAndCert keyAndCert = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
         final Path keyFile = tempDir.resolve("rsa.key");
         final Path certFile = tempDir.resolve("rsa.crt");
         Files.writeString(keyFile, keyAndCert.privateKeyPem());
@@ -729,7 +729,7 @@ class VirtualClusterModelTest {
     @Test
     void validateCertificateKeyPair_matchingEcKeyPairPem() throws Exception {
         // Given
-        final KeyAndCert keyAndCert = generateEcKeyAndCert();
+        final KeyAndCert keyAndCert = generateKeyAndCert(TlsTestUtils.Algorithm.EC);
         final Path keyFile = tempDir.resolve("ec.key");
         final Path certFile = tempDir.resolve("ec.crt");
         Files.writeString(keyFile, keyAndCert.privateKeyPem());
@@ -752,8 +752,8 @@ class VirtualClusterModelTest {
     @Test
     void validateCertificateKeyPair_mismatchedRsaKeyPairThrowsException() throws Exception {
         // Given
-        final KeyAndCert correctPair = generateKeyAndCert();
-        final KeyAndCert wrongPair = generateKeyAndCert(); // Different key
+        final KeyAndCert correctPair = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final KeyAndCert wrongPair = generateKeyAndCert(TlsTestUtils.Algorithm.RSA); // Different key
 
         final Path wrongKeyFile = tempDir.resolve("wrong.key");
         final Path certFile = tempDir.resolve("cert.crt");
@@ -777,8 +777,8 @@ class VirtualClusterModelTest {
     @Test
     void validateCertificateKeyPair_algorithmMismatchThrowsException() throws Exception {
         // Given - EC key with RSA cert
-        final KeyAndCert ecPair = generateEcKeyAndCert();
-        final KeyAndCert rsaPair = generateKeyAndCert();
+        final KeyAndCert ecPair = generateKeyAndCert(TlsTestUtils.Algorithm.EC);
+        final KeyAndCert rsaPair = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
 
         final Path ecKeyFile = tempDir.resolve("ec.key");
         final Path rsaCertFile = tempDir.resolve("rsa.crt");
@@ -825,7 +825,7 @@ class VirtualClusterModelTest {
     @Test
     void validateCertificateKeyPair_matchingPemKeyStore() throws Exception {
         // Given - Combined key and cert in single PEM file
-        final KeyAndCert keyAndCert = generateKeyAndCert();
+        final KeyAndCert keyAndCert = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
         final Path pemFile = tempDir.resolve("combined.pem");
         Files.writeString(pemFile, keyAndCert.privateKeyPem() + keyAndCert.certificatePem());
 
@@ -846,8 +846,8 @@ class VirtualClusterModelTest {
     @Test
     void validateCertificateKeyPair_mismatchedPemKeyStoreThrowsException() throws Exception {
         // Given - Wrong key and correct cert in single PEM file
-        final KeyAndCert correctPair = generateKeyAndCert();
-        final KeyAndCert wrongPair = generateKeyAndCert();
+        final KeyAndCert correctPair = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final KeyAndCert wrongPair = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
 
         final Path pemFile = tempDir.resolve("mismatched.pem");
         Files.writeString(pemFile, wrongPair.privateKeyPem() + correctPair.certificatePem());
