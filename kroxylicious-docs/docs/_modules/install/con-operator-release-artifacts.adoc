@@ -6,12 +6,12 @@
 
 :_mod-docs-content-type: CONCEPT
 
-// Module included in the following:
+// Module included in the following _assemblies:
 //
-// _assemblies/assembly-admission-webhook-install.adoc
+// _assemblies/assembly-operator-install.adoc
 
-[id='con-admission-webhook-release-artifacts-{context}']
-= Admission webhook release artifacts
+[id='con-operator-release-artifacts-{context}']
+= Operator release artifacts
 
 [role="_abstract"]
 ifdef::IncludeSingleYamlFileManifest[]
@@ -26,9 +26,9 @@ endif::IncludeSingleYamlFileManifest[]
 
 Archive distributions are available in zip and tar.gz formats from {github-release-link}:
 
-Zip archive:: link:{WebhookAssetZipLink}[{WebhookAssetZipFileName}] contains CRD definitions, installation files, examples, and documentation.
+Zip archive:: link:{OperatorAssetZipLink}[{OperatorAssetZipFileName}] contains CRD definitions, installation files, examples, and documentation.
 
-Tar.gz archive:: link:{WebhookAssetTgzLink}[{WebhookAssetTgzFileName}] is the same content as the zip archive, provided in tar.gz format for environments that prefer this format.
+Tar.gz archive:: link:{OperatorAssetTgzLink}[{OperatorAssetTgzFileName}] is the same content as the zip archive, provided in tar.gz format for environments that prefer this format.
 
 ifdef::IncludeSingleYamlFileManifest[]
 
@@ -36,9 +36,9 @@ ifdef::IncludeSingleYamlFileManifest[]
 
 The single YAML file manifest and supplemental files are available from {github-release-link}:
 
-Full install manifest:: link:{WebhookInstallManifestLink}[{WebhookInstallManifestFileName}] contains all required resources (CRD definitions and installation files).
+Full install manifest:: link:{OperatorInstallManifestLink}[{OperatorInstallManifestFileName}] contains all required resources (CRD definitions and installation files).
 
-CRDs-only manifest:: link:{WebhookCrdsManifestLink}[{WebhookCrdsManifestFileName}] contains only CRD definitions.
+CRDs-only manifest:: link:{OperatorCrdsManifestLink}[{OperatorCrdsManifestFileName}] contains only CRD definitions.
 
-Examples archive:: link:{WebhookExamplesZipLink}[{WebhookExamplesZipFileName}] contains cert-manager configuration examples and other reference resources.
+Examples archive:: link:{OperatorExamplesZipLink}[{OperatorExamplesZipFileName}] contains example configurations.
 endif::IncludeSingleYamlFileManifest[]

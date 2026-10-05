@@ -30,8 +30,15 @@ endif::OpenShiftOnly[]
 Installation options and procedures are demonstrated using the example files included with Kroxylicious.
 
 include::../_modules/install/con-install-prereqs.adoc[leveloffset=+1]
-include::../_modules/install/con-install-product-downloads.adoc[leveloffset=+1]
-include::../_modules/install/proc-install-operator.adoc[leveloffset=+1]
+include::../_modules/install/con-operator-release-artifacts.adoc[leveloffset=+1]
+
+include::../_modules/install/proc-install-operator-archive.adoc[leveloffset=+1]
 ifdef::OpenShiftOnly[]
 include::../_modules/install/proc-install-operator-olm.adoc[leveloffset=+1]
 endif::OpenShiftOnly[]
+
+ifdef::IncludeSingleYamlFileManifest[]
+include::../_modules/install/proc-install-operator-single-yaml-file.adoc[leveloffset=+1]
+include::../_modules/install/proc-install-operator-crds-first.adoc[leveloffset=+1]
+endif::IncludeSingleYamlFileManifest[]
+
