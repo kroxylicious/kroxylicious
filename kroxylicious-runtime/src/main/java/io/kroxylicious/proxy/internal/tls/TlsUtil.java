@@ -19,6 +19,7 @@ import java.security.Key;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -357,17 +358,21 @@ public class TlsUtil {
     }
 
     /**
-     * Validates that the certificate in the KeyProvider was derived from its private key.
+     * Validates that the certificate(s) in the KeyProvider were derived from the corresponding private key.
+     * Where a key store contains multiple key entries, every recoverable key entry is validated, as the
+     * runtime KeyManager may serve any of them depending on the handshake (key type, acceptable issuers, SNI).
      *
      * @param keyProvider the key provider to validate
      * @return Optional.empty() if validation could not be performed (unsupported algorithm, I/O error, etc.),
-     *         Optional.of(true) if certificate matches the key,
-     *         Optional.of(false) if certificate does not match the key
+     *         Optional.of(true) if the certificate(s) match the key(s),
+     *         Optional.of(false) if a certificate does not match its key
      */
     public static Optional<Boolean> validateCertificateKeyPair(final KeyProvider keyProvider) {
         try {
-            final KeyAndCert keyAndCert = keyProvider.accept(new KeyProviderExtractionVisitor());
-            validateKeyAndCertMatch(keyAndCert.privateKey(), keyAndCert.certificate());
+            final List<KeyAndCert> keyAndCerts = keyProvider.accept(new KeyProviderExtractionVisitor());
+            for (final KeyAndCert keyAndCert : keyAndCerts) {
+                validateKeyAndCertMatch(keyAndCert.privateKey(), keyAndCert.certificate());
+            }
             return Optional.of(true);
         }
         catch (final BadTlsCredentialsException e) {
@@ -390,12 +395,13 @@ public class TlsUtil {
     }
 
     /**
-     * Visitor that extracts PrivateKey and X509Certificate from a KeyProvider.
+     * Visitor that extracts the PrivateKey and X509Certificate pairs from a KeyProvider.
+     * A KeyPair or PEM key store yields a single pair; a JKS/PKCS12 key store may yield several.
      */
-    private static class KeyProviderExtractionVisitor implements KeyProviderVisitor<KeyAndCert> {
+    private static class KeyProviderExtractionVisitor implements KeyProviderVisitor<List<KeyAndCert>> {
 
         @Override
-        public KeyAndCert visit(final KeyPair keyPair) {
+        public List<KeyAndCert> visit(final KeyPair keyPair) {
             try {
                 // Read files
                 final byte[] keyBytes = Files.readAllBytes(Paths.get(keyPair.privateKeyFile()));
@@ -411,7 +417,7 @@ public class TlsUtil {
                 final X509Certificate[] certs = parsePemCertificates(certBytes);
 
                 // Return leaf certificate (first in chain)
-                return new KeyAndCert(privateKey, certs[0]);
+                return List.of(new KeyAndCert(privateKey, certs[0]));
             }
             catch (final IOException | GeneralSecurityException e) {
                 throw new SslContextBuildException("Failed to extract key and certificate from KeyPair", e);
@@ -419,7 +425,7 @@ public class TlsUtil {
         }
 
         @Override
-        public KeyAndCert visit(final KeyStore keyStore) {
+        public List<KeyAndCert> visit(final KeyStore keyStore) {
             try {
                 if (keyStore.isPemType()) {
                     // PEM format: both key and cert in same file
@@ -440,7 +446,7 @@ public class TlsUtil {
                     final PrivateKey privateKey = parsePemPrivateKey(pemBytes, keyPass);
                     final X509Certificate[] certs = parsePemCertificates(pemBytes);
 
-                    return new KeyAndCert(privateKey, certs[0]);
+                    return List.of(new KeyAndCert(privateKey, certs[0]));
                 }
                 else {
                     // JKS/PKCS12 format
@@ -454,14 +460,17 @@ public class TlsUtil {
     }
 
     /**
-     * Extracts private key and certificate from a Java KeyStore (JKS/PKCS12).
+     * Extracts the private key and leaf certificate of every key entry from a Java KeyStore (JKS/PKCS12).
+     * All key entries are returned rather than only the first, as the runtime KeyManager may serve any of
+     * them depending on the handshake. A key entry whose key cannot be recovered with the configured
+     * password is skipped, mirroring the leniency of the runtime KeyManagerFactory.
      *
      * @param keyStoreConfig the keystore configuration
-     * @return the extracted key and certificate
-     * @throws IOException if the keystore cannot be read or contains no key entries
+     * @return the extracted key and certificate pairs
+     * @throws IOException if the keystore cannot be read or contains no recoverable key entries
      * @throws GeneralSecurityException if the keystore cannot be loaded or key extraction fails
      */
-    private static KeyAndCert extractFromKeyStore(final KeyStore keyStoreConfig)
+    private static List<KeyAndCert> extractFromKeyStore(final KeyStore keyStoreConfig)
             throws IOException, GeneralSecurityException {
         final char[] storePass = keyStoreConfig.storePasswordProvider() != null
                 ? keyStoreConfig.storePasswordProvider().getProvidedPassword().toCharArray()
@@ -475,21 +484,35 @@ public class TlsUtil {
             ks.load(fis, storePass);
         }
 
-        // Find first key entry
+        final List<KeyAndCert> keyAndCerts = new ArrayList<>();
         final Enumeration<String> aliases = ks.aliases();
         while (aliases.hasMoreElements()) {
             final String alias = aliases.nextElement();
-            if (ks.isKeyEntry(alias)) {
-                final Key key = ks.getKey(alias, keyPass);
-                if (key instanceof PrivateKey pk) {
-                    final Certificate cert = ks.getCertificate(alias);
-                    if (cert instanceof X509Certificate x509) {
-                        return new KeyAndCert(pk, x509);
-                    }
+            if (!ks.isKeyEntry(alias)) {
+                continue;
+            }
+            final Key key;
+            try {
+                key = ks.getKey(alias, keyPass);
+            }
+            catch (final UnrecoverableKeyException e) {
+                LOGGER.atDebug()
+                        .setCause(e)
+                        .addKeyValue("alias", alias)
+                        .log("Skipping key entry that could not be recovered with the configured password");
+                continue;
+            }
+            if (key instanceof PrivateKey pk) {
+                final Certificate cert = ks.getCertificate(alias);
+                if (cert instanceof X509Certificate x509) {
+                    keyAndCerts.add(new KeyAndCert(pk, x509));
                 }
             }
         }
-        throw new IOException("No key entry found in keystore: " + keyStoreConfig.storeFile());
+        if (keyAndCerts.isEmpty()) {
+            throw new IOException("No key entry found in keystore: " + keyStoreConfig.storeFile());
+        }
+        return keyAndCerts;
     }
 
     /**

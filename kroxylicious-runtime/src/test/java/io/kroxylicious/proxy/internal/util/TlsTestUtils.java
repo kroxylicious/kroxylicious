@@ -173,7 +173,7 @@ public final class TlsTestUtils {
             // PKCS#8 format
             final PrivateKey privateKey = converter.getPrivateKey(privateKeyInfo);
             // Extract public key from the private key (this works for RSA, EC)
-            switch(Algorithm.fromPrivateKey(privateKey)) {
+            switch (Algorithm.fromPrivateKey(privateKey)) {
                 case RSA:
                     final java.security.interfaces.RSAPrivateCrtKey rsaPrivate = (java.security.interfaces.RSAPrivateCrtKey) privateKey;
                     final java.security.spec.RSAPublicKeySpec publicKeySpec = new java.security.spec.RSAPublicKeySpec(
