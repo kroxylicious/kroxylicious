@@ -48,9 +48,13 @@ class KubernetesTokenProviderTest {
 
     @Test
     void testCreateAuthUrlVariations() {
-        new KubernetesTokenProvider(httpClient, URI.create("http://vault:8200"), "ns", "role", "path", "kubernetes");
-        new KubernetesTokenProvider(httpClient, URI.create("http://vault:8200/"), "ns/", "role", "path", "kubernetes/");
-        new KubernetesTokenProvider(httpClient, URI.create("http://vault:8200"), "", "role", "path", "kubernetes/");
+        KubernetesTokenProvider provider1 = new KubernetesTokenProvider(httpClient, URI.create("http://vault:8200"), "ns", "role", "path", "kubernetes");
+        KubernetesTokenProvider provider2 = new KubernetesTokenProvider(httpClient, URI.create("http://vault:8200/"), "ns/", "role", "path", "kubernetes/");
+        KubernetesTokenProvider provider3 = new KubernetesTokenProvider(httpClient, URI.create("http://vault:8200"), "", "role", "path", "kubernetes/");
+
+        assertThat(provider1.getAuthUrl()).isEqualTo(URI.create("http://vault:8200/v1/ns/auth/kubernetes/login"));
+        assertThat(provider2.getAuthUrl()).isEqualTo(URI.create("http://vault:8200/v1/ns/auth/kubernetes/login"));
+        assertThat(provider3.getAuthUrl()).isEqualTo(URI.create("http://vault:8200/v1/auth/kubernetes/login"));
     }
 
     @Test

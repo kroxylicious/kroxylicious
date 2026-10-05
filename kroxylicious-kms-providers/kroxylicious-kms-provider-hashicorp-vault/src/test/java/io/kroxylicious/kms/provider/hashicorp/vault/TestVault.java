@@ -57,7 +57,7 @@ public class TestVault implements Closeable {
         vaultContainer.start();
         this.vault = vaultContainer;
         this.vaultUrl = URI.create(serverKeys == null ? vaultContainer.getHttpHostAddress()
-                : String.format("https://%s:%s", vaultContainer.getHost(), vaultContainer.getMappedPort(TLS_PORT)));
+                : "https://" + vaultContainer.getHost() + ":" + vaultContainer.getMappedPort(TLS_PORT));
         this.endpoint = vaultUrl.resolve("v1/transit");
     }
 

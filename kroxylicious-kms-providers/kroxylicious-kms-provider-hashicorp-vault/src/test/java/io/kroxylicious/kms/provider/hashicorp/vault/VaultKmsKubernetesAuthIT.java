@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
@@ -56,7 +55,7 @@ class VaultKmsKubernetesAuthIT {
     }
 
     @AfterEach
-    void tearDown() throws IOException {
+    void tearDown() {
         if (testVault != null) {
             testVault.close();
         }

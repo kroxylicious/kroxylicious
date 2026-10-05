@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -157,7 +158,9 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
                 })
                 .thenApply(bytes -> {
                     try {
-                        return OBJECT_MAPPER.readValue(bytes, AUTH_RESPONSE_TYPE_REF);
+                        VaultAuthResponse response = OBJECT_MAPPER.readValue(bytes, AUTH_RESPONSE_TYPE_REF);
+                        Arrays.fill(bytes, (byte) 0);
+                        return response;
                     }
                     catch (IOException e) {
                         throw new UncheckedIOException("Failed to decode Vault auth response as JSON", e);
