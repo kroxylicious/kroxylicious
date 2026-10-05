@@ -48,6 +48,7 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<VaultAuthResponse> AUTH_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
+    private static final String VAULT_NAMESPACE_HEADER = "X-Vault-Namespace";
 
     private final HttpClient httpClient;
     private final URI authUrl;
@@ -58,7 +59,7 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
 
     @Nullable
     private CompletableFuture<String> tokenFuture;
-    private long expiryTimeMs;
+    private volatile long expiryTimeMs;
     private final Object lock = new Object();
 
     /**
@@ -141,7 +142,7 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
                 .header("Accept", "application/json");
 
         if (vaultNamespace != null) {
-            requestBuilder.header("X-Vault-Namespace", vaultNamespace);
+            requestBuilder.header(VAULT_NAMESPACE_HEADER, vaultNamespace);
         }
 
         HttpRequest request = requestBuilder.build();
