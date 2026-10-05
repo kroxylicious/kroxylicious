@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -54,21 +55,35 @@ public class VaultKmsService implements KmsService<Config, WrappingKey, VaultEde
         String transitEnginePath = config.transitEnginePath();
         URI vaultUrl = config.vaultUrl();
 
-        URI transitEngineUri = buildVaultEndpointUri(vaultUrl, transitEnginePath);
+        URI transitEngineUri = buildVaultEndpointUri(vaultUrl, vaultNamespace, transitEnginePath);
         LOGGER.atInfo().addKeyValue("transitEngineUri", transitEngineUri).log("Resolved Vault Transit Engine URL");
 
-        VaultTokenProvider tokenProvider = new StaticTokenProvider(credentials.vaultToken().token().getProvidedPassword());
+        VaultTokenProvider tokenProvider;
+        if (credentials.kubernetes() != null) {
+            var k8sCreds = credentials.kubernetes();
+            HttpClient httpClient = tlsConfigurator.apply(HttpClient.newBuilder()).build();
+            var k8sTokenProvider = new KubernetesTokenProvider(httpClient, vaultUrl, vaultNamespace, k8sCreds.vaultRole(),
+                    k8sCreds.serviceAccountTokenFile(), k8sCreds.authPath());
+            LOGGER.atInfo().addKeyValue("authUrl", k8sTokenProvider.getAuthUrl()).log("Resolved Vault Kubernetes Auth Login URL");
+            tokenProvider = k8sTokenProvider;
+        }
+        else {
+            tokenProvider = new StaticTokenProvider(credentials.vaultToken().token().getProvidedPassword());
+        }
 
         return new VaultKms(transitEngineUri, vaultNamespace, tokenProvider, Duration.ofSeconds(20),
                 tlsConfigurator);
     }
 
-    private static URI buildVaultEndpointUri(URI vaultUrl, String path) {
+    private static URI buildVaultEndpointUri(URI vaultUrl, @Nullable String vaultNamespace, String path) {
         String base = vaultUrl.toString();
         if (!base.endsWith("/")) {
             base += "/";
         }
         base += "v1/";
+        if (vaultNamespace != null && !vaultNamespace.isEmpty()) {
+            base += vaultNamespace.endsWith("/") ? vaultNamespace : vaultNamespace + "/";
+        }
         base += path.endsWith("/") ? path : path + "/";
         return URI.create(base);
     }

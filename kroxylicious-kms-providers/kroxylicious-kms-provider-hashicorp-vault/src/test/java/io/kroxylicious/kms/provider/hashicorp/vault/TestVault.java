@@ -35,6 +35,7 @@ public class TestVault implements Closeable {
 
     private final VaultContainer<?> vault;
     private final URI endpoint;
+    private final URI vaultUrl;
 
     private static final int TLS_PORT = 8202;
 
@@ -48,16 +49,16 @@ public class TestVault implements Closeable {
                 .withVaultToken(VAULT_TOKEN)
                 .withEnv("SKIP_SETCAP", "true") // Workaround for Vault 2.x in rootless containers (SETFCAP capability unavailable). Acceptable for development/testing.
                 .withEnv("VAULT_FORMAT", "json")
+                .withEnv("VAULT_LOG_LEVEL", "trace")
                 .withInitCommand("secrets enable transit");
         if (serverKeys != null) {
             withTls(vaultContainer, serverKeys, clientKeys);
         }
         vaultContainer.start();
         this.vault = vaultContainer;
-        endpoint = URI
-                .create(serverKeys == null ? vaultContainer.getHttpHostAddress()
-                        : String.format("https://%s:%s", vaultContainer.getHost(), vaultContainer.getMappedPort(TLS_PORT)))
-                .resolve("v1/transit");
+        this.vaultUrl = URI.create(serverKeys == null ? vaultContainer.getHttpHostAddress()
+                : String.format("https://%s:%s", vaultContainer.getHost(), vaultContainer.getMappedPort(TLS_PORT)));
+        this.endpoint = vaultUrl.resolve("v1/transit");
     }
 
     private static void withTls(VaultContainer<?> vault, CertificateGenerator.Keys serverKeys, CertificateGenerator.Keys clientKeys) {
@@ -95,9 +96,30 @@ public class TestVault implements Closeable {
         return endpoint;
     }
 
+    public URI getVaultUrl() {
+        return vaultUrl;
+    }
+
+    public String getLogs() {
+        return vault.getLogs();
+    }
+
     @Override
     public void close() {
         vault.close();
+    }
+
+    public org.testcontainers.containers.Container.ExecResult exec(String... command) {
+        try {
+            var execResult = vault.execInContainer(command);
+            if (execResult.getExitCode() != 0) {
+                throw new RuntimeException("Command failed: " + String.join(" ", command) + " stdout: " + execResult.getStdout() + " stderr: " + execResult.getStderr());
+            }
+            return execResult;
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Command failed: " + String.join(" ", command), e);
+        }
     }
 
     <D> D runVaultCommand(TypeReference<VaultResponse<D>> valueTypeRef, String... args) {

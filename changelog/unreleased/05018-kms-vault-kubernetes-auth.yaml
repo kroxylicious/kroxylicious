@@ -1,0 +1,6 @@
+title: "feat(kms-vault): support Kubernetes authentication for HashiCorp Vault KMS"
+type: added
+merge_requests:
+  - 5018
+important_notes:
+  - "HashiCorp Vault KMS provider now supports Kubernetes authentication using ServiceAccount tokens via the `credentials.kubernetes` configuration."
