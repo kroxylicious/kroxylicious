@@ -78,7 +78,7 @@
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <apicurio-registry.version>3.3.3</apicurio-registry.version>
         <avro.version>1.12.2</avro.version>
-        <protobuf-java.version>4.36.1</protobuf-java.version>
+        <protobuf-java.version>4.36.2</protobuf-java.version>
         <jose4j.version>0.9.7</jose4j.version>
 
         <!-- Test dependencies -->
