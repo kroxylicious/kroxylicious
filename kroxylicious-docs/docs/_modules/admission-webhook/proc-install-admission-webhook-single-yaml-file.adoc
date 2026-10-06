@@ -1,0 +1,69 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// Module included in the following:
+//
+// _assemblies/assembly-admission-webhook-install.adoc
+
+[id='proc-install-admission-webhook-single-yaml-file-{context}']
+= Installing the admission webhook using single YAML file manifest
+
+[role="_abstract"]
+This procedure shows how to install the Kroxylicious Admission Webhook directly from GitHub releases using a single YAML file manifest. This approach is suitable for production deployments and GitOps workflows.
+
+.Prerequisites
+
+* You need an account with permission to create `CustomResourceDefinition`, `MutatingWebhookConfiguration`, and RBAC (`ClusterRole`) resources.
+* link:https://cert-manager.io/[cert-manager^] is installed in the cluster.
+* Network access to GitHub releases.
+
+.Procedure
+
+. Download the examples:
++
+[source,shell,subs="+quotes,attributes+"]
+----
+curl -OL {WebhookExamplesZipLink}
+----
++
+
+. Install the cert-manager resources for TLS certificate provisioning:
++
+[source,shell,subs="+quotes,attributes+"]
+----
+unzip -q {WebhookExamplesZipFileName}
+kubectl apply -f cert-manager/
+----
++
+Alternatively, configure TLS manually (see cert-manager examples for reference).
+
+. Install the Kroxylicious admission webhook by applying the single YAML file manifest directly from the release:
++
+[source,shell,subs="+quotes,attributes+"]
+----
+kubectl apply -f {WebhookInstallManifestLink}
+----
++
+This manifest includes all required resources: CustomResourceDefinitions, Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding, Deployment, Service, PodDisruptionBudget, and MutatingWebhookConfiguration.
+
+. Check the status of the deployment:
++
+[source,shell,subs="+quotes"]
+----
+kubectl get deployments -n kroxylicious-webhook
+----
++
+.Output shows the deployment name and readiness
+[source,shell,subs="+quotes"]
+----
+NAME                      READY  UP-TO-DATE  AVAILABLE
+kroxylicious-webhook      2/2    2           2
+----
++
+`READY` shows the number of replicas that are ready/expected.
+The deployment is successful when the `AVAILABLE` output shows `2`.

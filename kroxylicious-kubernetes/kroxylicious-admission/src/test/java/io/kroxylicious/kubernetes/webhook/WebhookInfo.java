@@ -15,6 +15,7 @@ import java.util.Properties;
  */
 record WebhookInfo(String imageName,
                    String imageArchive,
+                   String version,
                    String proxyImageName,
                    String proxyImageArchive,
                    String testPluginImageName,
@@ -32,6 +33,7 @@ record WebhookInfo(String imageName,
             return new WebhookInfo(
                     properties.getProperty("webhook.image.name"),
                     properties.getProperty("webhook.image.archive"),
+                    properties.getProperty("webhook.version"),
                     properties.getProperty("proxy.image.name"),
                     properties.getProperty("proxy.image.archive"),
                     properties.getProperty("test.plugin.image.name"),
