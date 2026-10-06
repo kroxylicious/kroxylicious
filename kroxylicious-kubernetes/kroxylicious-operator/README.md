@@ -162,7 +162,7 @@ try {
 
 ## Deployment Resources Created
 
-For each KafkaProxy CR, the operator creates:
+For each `KafkaProxy` CR, the operator creates:
 
 **Core resources:**
 - **Deployment**: Runs proxy pods (replicas specified in CR)
@@ -170,9 +170,9 @@ For each KafkaProxy CR, the operator creates:
 - **Service**: Exposes proxy pods (ClusterIP or LoadBalancer)
 
 **Optional resources:**
-- **Route**: External access on OpenShift clusters (when openShiftRoute is supported and configured)
+- **Route**: External access on OpenShift clusters (when `openShiftRoute` is supported and configured)
 
-> **Note:** The operator does not create a ServiceAccount, NetworkPolicy, PodDisruptionBudget, or Kubernetes Ingress.
+> **Note:** The operator does not create a `ServiceAccount`, `NetworkPolicy`, `PodDisruptionBudget`, or Kubernetes `Ingress`.
 
 **Ownership:**
 
