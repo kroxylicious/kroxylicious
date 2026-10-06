@@ -61,7 +61,7 @@ public class KroxyliciousOperator {
         }
     }
 
-    private InstallationMethod createInstallationMethod() {
+    protected InstallationMethod createInstallationMethod() {
         if (Environment.INSTALL_TYPE == InstallType.Olm) {
             return new KroxyliciousOperatorOlmBundleInstaller(installationNamespace, operatorEnvVars);
         }

@@ -15,7 +15,6 @@ set +u
 REPOSITORY="origin"
 BRANCH_FROM="main"
 WORK_BRANCH_NAME="release-work-$(openssl rand -hex 12)"
-RELEASE_NOTES_DIR=${RELEASE_NOTES_DIR:-.releaseNotes}
 CHANGELOG_LINK_PREFIX="https://github.com/kroxylicious/kroxylicious"
 while getopts ":l:v:b:k:r:n:w:c:h" opt; do
   case $opt in
@@ -179,10 +178,6 @@ fi
 
 echo "Found Central Publishing Portal deployment id: ${DEPLOYMENT_ID}"
 echo "${DEPLOYMENT_ID}" > DEPLOYMENT.ID
-
-echo "Release deployed. Extracting release notes in: ${RELEASE_NOTES_DIR}"
-mkdir -p "${RELEASE_NOTES_DIR}"
-csplit --silent --prefix "${RELEASE_NOTES_DIR}/release-notes_" CHANGELOG.md "/^## /" '{*}'
 
 echo "Preparing for development of ${NEXT_VERSION}"
 PREPARE_DEVELOPMENT_BRANCH="${WORK_BRANCH_NAME}"

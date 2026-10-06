@@ -70,9 +70,17 @@ jobs:
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Cache Maven packages'
+        id: cache-maven
         uses: $/.github/actions/common/cache-maven-packages
         with:
           read-only: 'false'
+      - name: 'Warm Maven dependency cache'
+        # Only on a cache miss or restore-key hit; an exact hit already has everything.
+        if: steps.cache-maven.outputs.cache-hit != 'true'
+        # excludeArtifactIds=lifecycle-mapping: org.eclipse.m2e:lifecycle-mapping is an Eclipse m2e IDE
+        # hack that was never published to Maven Central (see eclipse-m2e/m2e-core#1412). go-offline tries
+        # to resolve every referenced plugin and fails on this phantom; command-line Maven never needs it.
+        run: mvn dependency:go-offline -DexcludeArtifactIds=lifecycle-mapping -Daether.dependencyCollector.impl=bf -q
       - name: 'Unit test all modules'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

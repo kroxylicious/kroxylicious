@@ -64,7 +64,7 @@ jobs:
           # Also include filter-archetype as it has special IT requirements
           # Also include kroxylicious-app to build operand container image for operator ITs
           # Also include dist modules for operator and admission webhook KT tests
-          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,:kroxylicious-operator-dist,:kroxylicious-admission-dist,${DISCOVERED_MODULES}"
+          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,${DISCOVERED_MODULES}"
 
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
           echo "modules=$MODULES" >> $GITHUB_OUTPUT
@@ -107,7 +107,6 @@ jobs:
             --also-make \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
-            -DskipDocs=true \
             -Derrorprone.skip=true \
             -Dio.kroxylicious.proxy.image.name="${KROXYLICIOUS_IMAGE}" \
             install
@@ -235,14 +234,14 @@ jobs:
           # Extract operator dist ZIP if this is an operator test
           if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-operator" ]; then
             mkdir -p kroxylicious-kubernetes/kroxylicious-operator/target/packaged
-            unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-operator-dist/${KROXYLICIOUS_VERSION}/kroxylicious-operator-dist-${KROXYLICIOUS_VERSION}.zip" \
+            unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-operator/${KROXYLICIOUS_VERSION}/kroxylicious-operator-${KROXYLICIOUS_VERSION}.zip" \
               -d kroxylicious-kubernetes/kroxylicious-operator/target/packaged/
           fi
 
           # Extract admission dist ZIP if this is an admission test
           if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-admission" ]; then
             mkdir -p kroxylicious-kubernetes/kroxylicious-admission/target/packaged
-            unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-admission-dist/${KROXYLICIOUS_VERSION}/kroxylicious-admission-dist-${KROXYLICIOUS_VERSION}.zip" \
+            unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-admission/${KROXYLICIOUS_VERSION}/kroxylicious-admission-${KROXYLICIOUS_VERSION}.zip" \
               -d kroxylicious-kubernetes/kroxylicious-admission/target/packaged/
           fi
       - name: 'Run integration tests'
