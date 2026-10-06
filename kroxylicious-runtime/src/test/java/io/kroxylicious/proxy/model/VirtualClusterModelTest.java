@@ -53,6 +53,7 @@ import io.kroxylicious.proxy.internal.routing.NoUpstreamClusterForRouteException
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
+import io.kroxylicious.proxy.internal.tls.TlsUtil;
 import io.kroxylicious.proxy.internal.util.TlsTestUtils;
 import io.kroxylicious.proxy.internal.util.TlsTestUtils.KeyAndCert;
 import io.kroxylicious.proxy.plugin.Plugin;
@@ -601,7 +602,7 @@ class VirtualClusterModelTest {
                 .untilAsserted(() -> {
                     final List<LoggingEvent> events = logs.logged(VirtualClusterModel.class); // extract cluster model logs
                     LoggingEventAssert.assertThat(events)
-                            .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("Gateway failed to update"));
+                            .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("retaining the previous TLS configuration"));
                 });
         Files.write(currentServerCertificate, Files.readAllBytes(newCertificate), StandardOpenOption.TRUNCATE_EXISTING);
 
@@ -771,7 +772,7 @@ class VirtualClusterModelTest {
         assertThatThrownBy(() -> model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls)))
                 .isInstanceOf(java.io.UncheckedIOException.class)
                 .hasCauseInstanceOf(javax.net.ssl.SSLException.class)
-                .hasMessageContaining("Certificate and private key do not match");
+                .hasMessageContaining("Could not validate certificate-key pair match");
     }
 
     @Test
@@ -796,7 +797,7 @@ class VirtualClusterModelTest {
         assertThatThrownBy(() -> model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls)))
                 .isInstanceOf(java.io.UncheckedIOException.class)
                 .hasCauseInstanceOf(javax.net.ssl.SSLException.class)
-                .hasMessageContaining("Certificate and private key do not match");
+                .hasMessageContaining("Could not validate certificate-key pair match");
     }
 
     @Test
@@ -810,16 +811,14 @@ class VirtualClusterModelTest {
                 false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         // When
-        // This should succeed validation (returns Optional.empty() and logs warning)
-        // but then fail when Netty tries to actually load the files for SSL context
         assertThatThrownBy(() -> model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls)))
-                .isInstanceOf(io.kroxylicious.proxy.internal.tls.SslContextBuildException.class);
+                .isInstanceOf(java.io.UncheckedIOException.class);
 
         // Then - validation warning should be logged
-        final List<LoggingEvent> events = logs.logged(VirtualClusterModel.class);
+        final List<LoggingEvent> events = logs.logged(TlsUtil.class);
         LoggingEventAssert.assertThat(events)
                 .anyMatch(event -> event.getLevel().equals(Level.WARN) &&
-                        event.getMessage().contains("Could not validate certificate-key pair match"));
+                        event.getMessage().contains("Certificate-key validation could not be performed"));
     }
 
     @Test
@@ -864,7 +863,7 @@ class VirtualClusterModelTest {
             assertThatThrownBy(() -> model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls)))
                     .isInstanceOf(java.io.UncheckedIOException.class)
                     .hasCauseInstanceOf(javax.net.ssl.SSLException.class)
-                    .hasMessageContaining("Certificate and private key do not match");
+                    .hasMessageContaining("Could not validate certificate-key pair match");
         }
         finally {
             model.close();
