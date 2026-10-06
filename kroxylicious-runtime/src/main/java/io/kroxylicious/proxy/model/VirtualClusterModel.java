@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -335,10 +336,13 @@ public class VirtualClusterModel implements AutoCloseable {
             final TlsFileWatchProvider watcher = new TlsFileWatchProvider(tlsConfig);
             watcher.apply(getCertWatcher(), () -> {
                 try {
-                    // Cross-thread update: virtual thread → Netty I/O threads.
-                    // Safe due to volatile field + local snapshot pattern at read sites.
-                    // See field declaration javadoc for full thread-safety contract.
-                    gateway.downstreamSslContext = gateway.buildDownstreamSslContext();
+                    // Cross-thread update: virtual thread → Netty I/O threads. The new context is built from the
+                    // current one so a failed rotation can retain the previous context, making this a read-modify-write.
+                    // updateAndGet keeps that atomic without relying on writes being confined to the watcher thread.
+                    // Under contention the build function may run more than once (CAS retry). That's acceptable here:
+                    // a retry only occurs when multiple file events for this virtual cluster model's watched files race,
+                    // cert rotations are infrequent, and a redundant rebuild is wasteful but correct.
+                    gateway.downstreamSslContext.updateAndGet(gateway::buildDownstreamSslContext);
                     LOGGER.atInfo().addKeyValue("name", name).log("Gateway TLS configuration was updated"); // log the change which will help show if it has recovered from a previous failure
                 }
                 catch (final Exception e) {
@@ -648,24 +652,27 @@ public class VirtualClusterModel implements AutoCloseable {
          *
          * <p><b>Thread-safety contract:</b>
          * <ul>
-         *   <li><b>Write path:</b> FileWatcher virtual thread atomically replaces the entire
-         *       Optional via assignment (line 337 in addGateway callback).</li>
+         *   <li><b>Write path:</b> the FileWatcher callback performs a read-modify-write
+         *       (the new context is built from the current one, so a failed rotation can
+         *       retain the previous context). This is done via
+         *       {@link AtomicReference#updateAndGet(java.util.function.UnaryOperator)} so the
+         *       read-modify-write is atomic without relying on writes being confined to a
+         *       single thread.</li>
          *   <li><b>Read path:</b> Netty I/O threads MUST take a local snapshot via
          *       {@link #getDownstreamSslContext()} and use that snapshot for the entire
-         *       operation. Reading the field multiple times risks observing different
+         *       operation. Reading the reference multiple times risks observing different
          *       SslContext instances mid-rotation.</li>
-         *   <li><b>Visibility:</b> volatile ensures writes are visible to all threads.</li>
+         *   <li><b>Visibility:</b> AtomicReference ensures writes are visible to all threads.</li>
          *   <li><b>Immutability:</b> SslContext is immutable once built, so concurrent
-         *       newEngine() calls on a snapshot are safe even if the field has been
+         *       newEngine() calls on a snapshot are safe even if the reference has been
          *       replaced with a newer context.</li>
          * </ul>
          *
-         * <p><b>Safety relies on:</b> (1) volatile visibility, (2) local snapshot at read
-         * sites, (3) SslContext immutability. Breaking any of these (e.g., reading the field
-         * twice without snapshotting) silently breaks thread-safety.
+         * <p><b>Safety relies on:</b> (1) atomic read-modify-write/visibility, (2) local
+         * snapshot at read sites, (3) SslContext immutability. Breaking any of these (e.g.,
+         * reading the reference twice without snapshotting) silently breaks thread-safety.
          */
-        @SuppressWarnings("java:S3077") // volatile reference: safe per contract above
-        private volatile Optional<SslContext> downstreamSslContext;
+        private final AtomicReference<Optional<SslContext>> downstreamSslContext = new AtomicReference<>();
         private final String name;
 
         /**
@@ -688,7 +695,7 @@ public class VirtualClusterModel implements AutoCloseable {
             this.name = name;
             validatePortUsage(nodeIdentificationStrategy);
             validateTLsSettings(nodeIdentificationStrategy, tls);
-            this.downstreamSslContext = buildDownstreamSslContext();
+            this.downstreamSslContext.set(buildDownstreamSslContext(Optional.empty()));
         }
 
         private void validatePortUsage(NodeIdentificationStrategy nodeIdentificationStrategy) {
@@ -827,7 +834,7 @@ public class VirtualClusterModel implements AutoCloseable {
 
         @Override
         public Optional<SslContext> getDownstreamSslContext() {
-            return downstreamSslContext;
+            return downstreamSslContext.get();
         }
 
         /**
@@ -839,7 +846,7 @@ public class VirtualClusterModel implements AutoCloseable {
             return tls;
         }
 
-        private Optional<SslContext> buildDownstreamSslContext() {
+        private Optional<SslContext> buildDownstreamSslContext(final Optional<SslContext> currentContext) {
             return tls.map(tlsConfiguration -> {
                 if (tlsConfiguration.key() == null) {
                     throw new IllegalConfigurationException(
@@ -850,20 +857,21 @@ public class VirtualClusterModel implements AutoCloseable {
                 try {
                     // Validate cert/key match BEFORE building the SslContext
                     final Optional<Boolean> validationResult = TlsUtil.validateCertificateKeyPair(tlsConfiguration.key());
-                    if (validationResult.isPresent()) {
-                        if (!validationResult.get()) {
-                            throw new SSLException("Certificate and private key do not match for virtual cluster '" +
+                    if (validationResult.isEmpty() || !validationResult.get()) {
+                        if (currentContext.isPresent()) {
+                            LOGGER.atWarn()
+                                    .addKeyValue("virtualCluster", virtualCluster.getClusterName())
+                                    .addKeyValue("name", name())
+                                    .log("Certificate-key pair could not be validated (this may be a transient condition), retaining the previous TLS configuration");
+                            return currentContext.get();
+                        }
+                        else {
+                            // hard failure as there is no existing context
+                            throw new SSLException("Could not validate certificate-key pair match for virtual cluster '" +
                                     virtualCluster.getClusterName() + "', gateway '" + name() + "'");
                         }
-                        // else: validation passed, continue
-                    }
-                    else {
-                        // Validation could not be performed - log warning but continue
-                        LOGGER.atWarn()
-                                .addKeyValue("virtualCluster", virtualCluster.getClusterName())
-                                .addKeyValue("gateway", name())
-                                .log("Could not validate certificate-key pair match - proceeding without validation");
-                    }
+
+                    } // else: validation passed, continue
 
                     var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
                             .orElseThrow();
