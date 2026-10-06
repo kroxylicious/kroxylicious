@@ -128,8 +128,8 @@ public class ResourceManager {
      * @param resources the resources
      */
     @SafeVarargs
-    public final void createResourceWithoutWait(Builder<? extends HasMetadata>... resources) {
-        KubeResourceManager.get().createResourceWithoutWait(Arrays.stream(resources).map(Builder::build).toList().toArray(new HasMetadata[0]));
+    public final <T extends HasMetadata> void createResourceWithoutWait(T... resources) {
+        KubeResourceManager.get().createResourceWithoutWait(resources);
     }
 
     /**

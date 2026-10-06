@@ -39,13 +39,20 @@
 :LatestKafkaVersion: 4.1.0
 
 :AppAssetArtifactBase: kroxylicious-app-{KroxyliciousVersion}
-:OperatorAssetZipFileName: kroxylicious-operator-{KroxyliciousVersion}.zip
-// TODO: Update when the admission webhook release artifact names are finalized
-:WebhookAssetZipFileName: kroxylicious-webhook-{KroxyliciousVersion}.zip
-:WebhookAssetTgzFileName: kroxylicious-webhook-{KroxyliciousVersion}.tar.gz
-:AppAssetZipFileName: {AppAssetArtifactBase}-bin.zip
-:OperatorAssetTgzFileName: kroxylicious-operator-{KroxyliciousVersion}.tar.gz
 :AppAssetTgzFileName: {AppAssetArtifactBase}-bin.tar.gz
+:AppAssetZipFileName: {AppAssetArtifactBase}-bin.zip
+
+:OperatorAssetZipFileName: kroxylicious-operator-{KroxyliciousVersion}.zip
+:OperatorAssetTgzFileName: kroxylicious-operator-{KroxyliciousVersion}.tar.gz
+:OperatorInstallManifestFileName: kroxylicious-operator-{KroxyliciousVersion}-install.yaml
+:OperatorCrdsManifestFileName: kroxylicious-operator-{KroxyliciousVersion}-crds.yaml
+:OperatorExamplesZipFileName: kroxylicious-operator-{KroxyliciousVersion}-examples.zip
+
+:WebhookAssetZipFileName: kroxylicious-admission-{KroxyliciousVersion}.zip
+:WebhookAssetTgzFileName: kroxylicious-admission-{KroxyliciousVersion}.tar.gz
+:WebhookInstallManifestFileName: kroxylicious-admission-{KroxyliciousVersion}-install.yaml
+:WebhookCrdsManifestFileName: kroxylicious-admission-{KroxyliciousVersion}-crds.yaml
+:WebhookExamplesZipFileName: kroxylicious-admission-{KroxyliciousVersion}-examples.zip
 
 // GitHub links
 :github: https://github.com/kroxylicious/kroxylicious
@@ -56,9 +63,21 @@
 :github-release: {github-release-base}/{KroxyliciousReleaseTag}
 :github-release-downloads: {github-release-base}/download/{KroxyliciousReleaseTag}
 :github-release-link: {github-release}[GitHub release page^]
+
 :AppAssetZipLink: {github-release-downloads}/{AppAssetZipFileName}
 :AppAssetTgzLink: {github-release-downloads}/{AppAssetTgzFileName}
+
 :OperatorAssetZipLink: {github-release-downloads}/{OperatorAssetZipFileName}
+:OperatorAssetTgzLink: {github-release-downloads}/{OperatorAssetTgzFileName}
+:OperatorInstallManifestLink: {github-release-downloads}/{OperatorInstallManifestFileName}
+:OperatorCrdsManifestLink: {github-release-downloads}/{OperatorCrdsManifestFileName}
+:OperatorExamplesZipLink: {github-release-downloads}/{OperatorExamplesZipFileName}
+
+:WebhookAssetZipLink: {github-release-downloads}/{WebhookAssetZipFileName}
+:WebhookAssetTgzLink: {github-release-downloads}/{WebhookAssetTgzFileName}
+:WebhookInstallManifestLink: {github-release-downloads}/{WebhookInstallManifestFileName}
+:WebhookCrdsManifestLink: {github-release-downloads}/{WebhookCrdsManifestFileName}
+:WebhookExamplesZipLink: {github-release-downloads}/{WebhookExamplesZipFileName}
 
 // GitHub source links
 :github-source-tree-root: {github}/tree/{KroxyliciousGitRef}
@@ -127,6 +146,7 @@
 
 // Conditional inclusion flags
 // (note: we control optional inclusion with ifdefs/ifndefs directives, so the value of the attribute is irrelevant)
+:IncludeSingleYamlFileManifest:
 :include-fortanix-dsm-kms: 1
 :include-thales-ctm-kms: 1
 :include-aws-kms-service-config-identity-ec2-metadata: 1

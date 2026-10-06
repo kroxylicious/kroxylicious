@@ -1,0 +1,4 @@
+title: "build(deps): bump com.google.guava:guava from 33.7.1-jre to 33.7.2-jre"
+type: build
+merge_requests:
+  - 5014
