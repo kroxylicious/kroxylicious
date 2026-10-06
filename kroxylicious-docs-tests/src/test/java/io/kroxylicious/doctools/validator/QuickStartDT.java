@@ -57,12 +57,16 @@ class QuickStartDT {
     private static final FileAttribute<Set<PosixFilePermission>> OWNER_RWX = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
 
     private static List<Arguments> quickStarts() {
-        Assertions.assertThat(Utils.OPERATOR_ZIP).exists();
         Assertions.assertThat(Utils.PROXY_IMAGE_TARBALL).exists();
         Assertions.assertThat(Utils.OPERATOR_IMAGE_TARBALL).exists();
+        Assertions.assertThat(Utils.OPERATOR_INSTALL_MANIFEST).exists();
+        Assertions.assertThat(Utils.OPERATOR_EXAMPLES_ZIP).exists();
 
+        // OperatorInstallManifestLink is a file path for kubectl apply -f (kubectl doesn't understand file:// URLs)
+        // OperatorExamplesZipLink is a file:// URL for curl (which requires URLs, not file paths)
         var attributes = Attributes.builder()
-                .attribute("OperatorAssetZipLink", pathToFileUrl(Utils.OPERATOR_ZIP))
+                .attribute("OperatorInstallManifestLink", Utils.OPERATOR_INSTALL_MANIFEST.toAbsolutePath().toString())
+                .attribute("OperatorExamplesZipLink", pathToFileUrl(Utils.OPERATOR_EXAMPLES_ZIP))
                 .build();
 
         var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quick-start").resolve("index.adoc");

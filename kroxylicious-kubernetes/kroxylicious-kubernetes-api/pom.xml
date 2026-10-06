@@ -28,7 +28,6 @@
 
     <properties>
         <log4j.version>2.20.0</log4j.version>
-        <fabric8-client.version>7.4.0</fabric8-client.version>
         <lombok.version>1.18.48</lombok.version>
         <errorprone.skip>true</errorprone.skip>
     </properties>
@@ -134,7 +133,7 @@
                 <!-- Our CRDs are the source of truth for the Kube API; Java code is derived -->
                 <groupId>io.fabric8</groupId>
                 <artifactId>java-generator-maven-plugin</artifactId>
-                <version>${fabric8-client.version}</version>
+                <version>${kubernetes-client.version}</version>
                 <executions>
                     <execution>
                         <goals>
