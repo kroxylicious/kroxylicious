@@ -228,7 +228,9 @@ class ServerConnectionStateMachine {
                 .channel(inboundChannel.getClass())
                 .handler(backendHandler)
                 .option(ChannelOption.AUTO_READ, true)
-                .option(ChannelOption.TCP_NODELAY, true);
+                .option(ChannelOption.TCP_NODELAY, true)
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS,
+                        (int) upstreamClusterModel.targetCluster().effectiveConnectTimeout().toMillis());
         return bootstrap;
     }
 

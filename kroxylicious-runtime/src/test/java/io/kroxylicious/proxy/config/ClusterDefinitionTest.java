@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.time.Duration;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -100,6 +102,31 @@ class ClusterDefinitionTest {
         // Then
         assertThat(target.selectionStrategy()).isNull();
         assertThat(target.effectiveSelectionStrategy()).isInstanceOf(RoundRobinBootstrapSelectionStrategy.class);
+    }
+
+    @Test
+    void toTargetClusterPassesConnectTimeoutThrough() {
+        // Given
+        var def = new ClusterDefinition("c1", "broker:9092", null, null, Duration.ofSeconds(5));
+
+        // When
+        var target = def.toTargetCluster();
+
+        // Then
+        assertThat(target.connectTimeout()).isEqualTo(Duration.ofSeconds(5));
+    }
+
+    @Test
+    void toTargetClusterWithoutConnectTimeout() {
+        // Given
+        var def = new ClusterDefinition("c1", "broker:9092", null);
+
+        // When
+        var target = def.toTargetCluster();
+
+        // Then
+        assertThat(target.connectTimeout()).isNull();
+        assertThat(target.effectiveConnectTimeout()).isEqualTo(Duration.ofSeconds(30));
     }
 
     @Test

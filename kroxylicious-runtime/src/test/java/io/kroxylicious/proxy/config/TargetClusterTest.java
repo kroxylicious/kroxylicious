@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -58,5 +59,91 @@ class TargetClusterTest {
                 Arguments.argumentSet("trailing whitepace",
                         "10.0.0.1:9092 ,  10.0.0.2:9092  ",
                         List.of(HostPort.parse("10.0.0.1:9092"), HostPort.parse("10.0.0.2:9092"))));
+    }
+
+    @Test
+    void shouldApplyDefaultConnectTimeoutWhenUnset() {
+        // Given
+        var targetCluster = new TargetCluster("broker:9092", Optional.empty());
+
+        // When
+        var effective = targetCluster.effectiveConnectTimeout();
+
+        // Then
+        assertThat(targetCluster.connectTimeout()).isNull();
+        assertThat(effective).isEqualTo(Duration.ofSeconds(30));
+    }
+
+    @Test
+    void shouldReturnExplicitConnectTimeout() {
+        // Given
+        var targetCluster = new TargetCluster("broker:9092", Optional.empty(), null, Duration.ofSeconds(5));
+
+        // When
+        var effective = targetCluster.effectiveConnectTimeout();
+
+        // Then
+        assertThat(targetCluster.connectTimeout()).isEqualTo(Duration.ofSeconds(5));
+        assertThat(effective).isEqualTo(Duration.ofSeconds(5));
+    }
+
+    @Test
+    void shouldRejectZeroConnectTimeout() {
+        // Given
+        Optional<Tls> empty = Optional.empty();
+
+        // When / Then
+        assertThatThrownBy(() -> new TargetCluster("broker:9092", empty, null, Duration.ZERO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("connectTimeout");
+    }
+
+    @Test
+    void shouldRejectNegativeConnectTimeout() {
+        // Given
+        Optional<Tls> empty = Optional.empty();
+        var negative = Duration.ofSeconds(-1);
+
+        // When / Then
+        assertThatThrownBy(() -> new TargetCluster("broker:9092", empty, null, negative))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("connectTimeout");
+    }
+
+    @Test
+    void shouldRejectConnectTimeoutExceedingIntegerMaxMillis() {
+        // Given
+        Optional<Tls> empty = Optional.empty();
+        var tooLong = Duration.ofMillis(Integer.MAX_VALUE).plusMillis(1);
+
+        // When / Then
+        assertThatThrownBy(() -> new TargetCluster("broker:9092", empty, null, tooLong))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("connectTimeout");
+    }
+
+    @Test
+    void shouldAcceptConnectTimeoutAtIntegerMaxMillis() {
+        // Given
+        var atLimit = Duration.ofMillis(Integer.MAX_VALUE);
+
+        // When
+        var targetCluster = new TargetCluster("broker:9092", Optional.empty(), null, atLimit);
+
+        // Then
+        assertThat(targetCluster.effectiveConnectTimeout()).isEqualTo(atLimit);
+    }
+
+    @Test
+    void shouldForwardSelectionStrategyAndLeaveConnectTimeoutUnset() {
+        // Given
+        var viaCanonicalWithNull = new TargetCluster("broker:9092", Optional.empty(), null, null);
+
+        // When
+        var viaOverload = new TargetCluster("broker:9092", Optional.empty(), null);
+
+        // Then
+        assertThat(viaOverload).isEqualTo(viaCanonicalWithNull);
+        assertThat(viaOverload.connectTimeout()).isNull();
     }
 }
