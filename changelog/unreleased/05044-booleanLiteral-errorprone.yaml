@@ -1,0 +1,4 @@
+title: "remove BooleanLiteral errorprone warnings"
+type: fixed
+merge_requests:
+  - 5044
