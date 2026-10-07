@@ -200,6 +200,7 @@ jobs:
             -Derrorprone.skip=true \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
+            -DskipDocs=true \
             -DskipContainerImageBuild=true \
             install
 
@@ -220,6 +221,7 @@ jobs:
             -Derrorprone.skip=true \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
+            -DskipDocs=true \
             -DskipContainerImageBuild=true \
             package
 
@@ -362,6 +364,7 @@ jobs:
             -Derrorprone.skip=true \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
+            -DskipDocs=true \
             -DskipContainerImageBuild=true \
             clean package
 

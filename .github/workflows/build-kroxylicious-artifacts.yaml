@@ -45,7 +45,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # The 'dist' profile builds the kroxylicious-operator artifact. This is needed by the systemtests.
+          # The 'dist' profile builds the kroxylicious-operator artifact. This is needed by the integration and system tests.
           mvn --batch-mode \
             --activate-profiles 'dist,!qa' \
             -DskipTests \
