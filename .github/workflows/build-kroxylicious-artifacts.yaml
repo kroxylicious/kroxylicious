@@ -50,7 +50,6 @@ jobs:
             --activate-profiles 'dist,!qa' \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
-            -DskipDocs=true \
             -DskipContainerImageBuild \
             -Derrorprone.skip=true \
             install
