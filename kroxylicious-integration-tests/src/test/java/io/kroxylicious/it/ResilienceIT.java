@@ -5,6 +5,10 @@
  */
 package io.kroxylicious.it;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -23,11 +27,14 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.ResourceLock;
 
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -36,6 +43,12 @@ import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
@@ -164,6 +177,62 @@ class ResilienceIT extends BaseIT {
                     .succeedsWithin(Duration.ofSeconds(10))
                     .asInstanceOf(InstanceOfAssertFactories.set(String.class))
                     .containsAll(List.of("beforeStop", "afterRestart")));
+        }
+    }
+
+    /**
+     * RFC 1112 reserved (class E) address. Chosen because a connect to it is silently dropped
+     * rather than refused, which is the only case that exercises CONNECT_TIMEOUT_MILLIS.
+     */
+    private static final String BLACKHOLED_ADDRESS = "240.0.0.1:9999";
+
+    @Test
+    void shouldHonourConfiguredUpstreamConnectTimeout() {
+        // Given
+        assumeAddressIsBlackholed(BLACKHOLED_ADDRESS);
+        var bootstrapServers = BLACKHOLED_ADDRESS + "," + cluster.getBootstrapServers();
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(
+                        new ClusterDefinition(DEFAULT_CLUSTER_DEF_NAME, bootstrapServers, null, null, Duration.ofSeconds(2)))
+                .addToVirtualClusters(new VirtualClusterBuilder()
+                        .withName(DEFAULT_VIRTUAL_CLUSTER)
+                        .withTarget(DEFAULT_CLUSTER_TARGET)
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
+                        .build());
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin()) {
+            // When
+            var startedAt = System.nanoTime();
+            var describeClusterResult = admin.describeCluster();
+            assertThat(describeClusterResult.clusterId())
+                    .succeedsWithin(40, TimeUnit.SECONDS, InstanceOfAssertFactories.STRING)
+                    .isNotBlank();
+            var elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
+
+            // Then
+            assertThat(elapsed)
+                    .as("completed in %s, under the configured 2s connectTimeout - the blackholed address "
+                            + "was never dialled, so this did not exercise the timeout", elapsed)
+                    .isGreaterThanOrEqualTo(Duration.ofSeconds(2));
+            assertThat(elapsed)
+                    .as("took %s - Netty's 30s default governed rather than the configured 2s", elapsed)
+                    .isLessThan(Duration.ofSeconds(10));
+        }
+    }
+
+    private static void assumeAddressIsBlackholed(String address) {
+        var hostPort = HostPort.parse(address);
+        try (var socket = new Socket()) {
+            socket.connect(new InetSocketAddress(hostPort.host(), hostPort.port()), 1_000);
+            Assumptions.abort(address + " accepted a connection, so it cannot stall an upstream connect");
+        }
+        catch (SocketTimeoutException e) {
+            // the connect stalled, which is what this test needs
+        }
+        catch (IOException e) {
+            Assumptions.abort(address + " failed fast (" + e + ") rather than stalling, so it cannot "
+                    + "exercise the connect timeout on this platform");
         }
     }
 

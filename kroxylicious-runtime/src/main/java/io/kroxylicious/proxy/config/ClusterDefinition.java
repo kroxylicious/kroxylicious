@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -23,12 +24,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param bootstrapServers comma-separated list of host:port pairs
  * @param tls optional TLS configuration for the upstream connection
  * @param selectionStrategy optional strategy for selecting a bootstrap server when several are listed
+ * @param connectTimeout optional maximum time to wait for a TCP connection to an upstream broker to be established
  */
 public record ClusterDefinition(
                                 @JsonProperty(required = true) String name,
                                 @JsonProperty(required = true) String bootstrapServers,
                                 @Nullable Tls tls,
-                                @Nullable @JsonProperty("bootstrapServerSelection") BootstrapSelectionStrategy selectionStrategy) {
+                                @Nullable @JsonProperty("bootstrapServerSelection") BootstrapSelectionStrategy selectionStrategy,
+                                @Nullable @JsonProperty("connectTimeout") Duration connectTimeout) {
 
     /**
      * Validates the cluster definition, stripping whitespace from {@code bootstrapServers}.
@@ -52,6 +55,18 @@ public record ClusterDefinition(
     }
 
     /**
+     * Convenience constructor with no connect timeout.
+     *
+     * @param name unique name for this cluster
+     * @param bootstrapServers comma-separated list of host:port pairs
+     * @param tls optional TLS configuration for the upstream connection
+     * @param selectionStrategy optional strategy for selecting a bootstrap server when several are listed
+     */
+    public ClusterDefinition(String name, String bootstrapServers, @Nullable Tls tls, @Nullable BootstrapSelectionStrategy selectionStrategy) {
+        this(name, bootstrapServers, tls, selectionStrategy, null);
+    }
+
+    /**
      * Converts this definition to a {@link TargetCluster} for use in the runtime.
      * <p>
      * A definition is referenced by many virtual clusters and routes, and this method is called
@@ -63,6 +78,6 @@ public record ClusterDefinition(
      * @return a target cluster with the same bootstrap servers, TLS and selection strategy
      */
     public TargetCluster toTargetCluster() {
-        return new TargetCluster(bootstrapServers, Optional.ofNullable(tls), selectionStrategy);
+        return new TargetCluster(bootstrapServers, Optional.ofNullable(tls), selectionStrategy, connectTimeout);
     }
 }

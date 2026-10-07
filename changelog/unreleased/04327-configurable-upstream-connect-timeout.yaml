@@ -1,0 +1,4 @@
+title: "feat(runtime): accept connectTimeout on clusterDefinitions"
+type: added
+issues:
+  - 4327

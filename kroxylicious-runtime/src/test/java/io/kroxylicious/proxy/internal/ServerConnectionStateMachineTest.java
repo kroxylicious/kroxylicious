@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -305,6 +306,49 @@ class ServerConnectionStateMachineTest {
 
         verify(ccsm).onServerConnectionException(tcpFailure);
         assertThat(scsm.state()).isInstanceOf(ServerConnectionState.Closed.class);
+    }
+
+    // === configureBootstrap() tests ===
+    // These exercise the real configureBootstrap, not an overriding subclass, so the configured
+    // CONNECT_TIMEOUT_MILLIS is actually asserted. The overriding subclasses elsewhere would bypass it.
+
+    private ServerConnectionStateMachine createScsmWithConnectTimeout(Duration connectTimeout) {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var model = new UpstreamClusterModel(
+                new TargetCluster("broker:9092", Optional.empty(), null, connectTimeout),
+                Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+        return new ServerConnectionStateMachine(
+                REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
+                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class), model);
+    }
+
+    @Test
+    void configureBootstrapShouldApplyDefaultConnectTimeout() {
+        // Given
+        var scsm = createScsmWithConnectTimeout(null);
+        var inboundChannel = new EmbeddedChannel();
+
+        // When
+        var bootstrap = scsm.configureBootstrap(scsm.backendHandler(), inboundChannel);
+
+        // Then
+        assertThat(bootstrap.config().options()).containsEntry(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30_000);
+    }
+
+    @Test
+    void configureBootstrapShouldApplyConfiguredConnectTimeout() {
+        // Given
+        var scsm = createScsmWithConnectTimeout(Duration.ofSeconds(5));
+        var inboundChannel = new EmbeddedChannel();
+
+        // When
+        var bootstrap = scsm.configureBootstrap(scsm.backendHandler(), inboundChannel);
+
+        // Then
+        assertThat(bootstrap.config().options()).containsEntry(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5_000);
     }
 
     // === TLS credential tests ===
