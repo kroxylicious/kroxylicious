@@ -52,8 +52,8 @@ class KubernetesTokenProviderTest {
         KubernetesTokenProvider provider2 = new KubernetesTokenProvider(httpClient, URI.create("http://vault:8200/"), "ns/", "role", "path", "kubernetes/");
         KubernetesTokenProvider provider3 = new KubernetesTokenProvider(httpClient, URI.create("http://vault:8200"), "", "role", "path", "kubernetes/");
 
-        assertThat(provider1.getAuthUrl()).isEqualTo(URI.create("http://vault:8200/v1/ns/auth/kubernetes/login"));
-        assertThat(provider2.getAuthUrl()).isEqualTo(URI.create("http://vault:8200/v1/ns/auth/kubernetes/login"));
+        assertThat(provider1.getAuthUrl()).isEqualTo(URI.create("http://vault:8200/v1/auth/kubernetes/login"));
+        assertThat(provider2.getAuthUrl()).isEqualTo(URI.create("http://vault:8200/v1/auth/kubernetes/login"));
         assertThat(provider3.getAuthUrl()).isEqualTo(URI.create("http://vault:8200/v1/auth/kubernetes/login"));
     }
 
@@ -65,7 +65,10 @@ class KubernetesTokenProviderTest {
                 .willReturn(aResponse().withFixedDelay(100).withStatus(200).withBody("{\"auth\":{\"client_token\":\"tok\",\"lease_duration\":3600}}")));
         KubernetesTokenProvider provider = new KubernetesTokenProvider(httpClient, URI.create(wireMockServer.baseUrl()), null, "my-role", tokenFile.toString(),
                 "kubernetes");
-        assertThat(provider.getToken()).isSameAs(provider.getToken());
+        java.util.concurrent.CompletionStage<String> firstCall = provider.getToken();
+        java.util.concurrent.CompletionStage<String> secondCall = provider.getToken();
+        assertThat(firstCall.toCompletableFuture()).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("tok");
+        assertThat(secondCall.toCompletableFuture()).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("tok");
     }
 
     @Test
@@ -217,8 +220,51 @@ class KubernetesTokenProviderTest {
         CompletableFuture<String> firstCall = provider.getToken().toCompletableFuture();
         assertThat(firstCall).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("vault-client-token-1");
 
+        // MIN_LEASE_DURATION_MS is 1000ms; wait past expiry so token is refreshed
+        Thread.sleep(1100);
+
         CompletableFuture<String> secondCall = provider.getToken().toCompletableFuture();
         assertThat(secondCall).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("vault-client-token-2");
+    }
+
+    @Test
+    void testGetTokenReturnsExistingTokenWhileRefreshInFlight(@TempDir Path tempDir) throws Exception {
+        Path tokenFile = tempDir.resolve("token");
+        Files.writeString(tokenFile, "my-jwt-token");
+
+        String jsonResponse1 = "{\"auth\": {\"client_token\": \"vault-client-token-1\", \"lease_duration\": 1}}";
+        String jsonResponse2 = "{\"auth\": {\"client_token\": \"vault-client-token-2\", \"lease_duration\": 3600}}";
+
+        wireMockServer.stubFor(post(urlEqualTo("/v1/auth/kubernetes/login"))
+                .inScenario("refresh-inflight")
+                .whenScenarioStateIs(Scenario.STARTED)
+                .willReturn(aResponse().withStatus(200).withBody(jsonResponse1))
+                .willSetStateTo("delayed"));
+
+        // Second call has a 500ms delay to simulate in-flight background refresh
+        wireMockServer.stubFor(post(urlEqualTo("/v1/auth/kubernetes/login"))
+                .inScenario("refresh-inflight")
+                .whenScenarioStateIs("delayed")
+                .willReturn(aResponse().withStatus(200).withFixedDelay(500).withBody(jsonResponse2)));
+
+        KubernetesTokenProvider provider = new KubernetesTokenProvider(
+                httpClient, URI.create(wireMockServer.baseUrl()), null, "my-role", tokenFile.toString(), "kubernetes");
+
+        CompletableFuture<String> firstCall = provider.getToken().toCompletableFuture();
+        assertThat(firstCall).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("vault-client-token-1");
+
+        // Wait 850ms: past soft refresh (800ms) but before hard expiry (1000ms)
+        Thread.sleep(850);
+
+        // During in-flight refresh window, getToken() immediately returns old token while refresh happens in background
+        CompletableFuture<String> inflightCall = provider.getToken().toCompletableFuture();
+        assertThat(inflightCall.isDone()).isTrue();
+        assertThat(inflightCall.get()).isEqualTo("vault-client-token-1");
+
+        // After background refresh finishes, subsequent call yields new token
+        Thread.sleep(600);
+        CompletableFuture<String> postRefreshCall = provider.getToken().toCompletableFuture();
+        assertThat(postRefreshCall).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("vault-client-token-2");
     }
 
     @Test
@@ -250,7 +296,7 @@ class KubernetesTokenProviderTest {
                   }
                 }
                 """;
-        wireMockServer.stubFor(post(urlEqualTo("/v1/my-ns/auth/kubernetes/login"))
+        wireMockServer.stubFor(post(urlEqualTo("/v1/auth/kubernetes/login"))
                 .withHeader("X-Vault-Namespace", com.github.tomakehurst.wiremock.client.WireMock.equalTo("my-ns"))
                 .willReturn(aResponse()
                         .withStatus(200)
@@ -267,5 +313,43 @@ class KubernetesTokenProviderTest {
         CompletableFuture<String> tokenFuture = provider.getToken().toCompletableFuture();
         assertThat(tokenFuture).succeedsWithin(Duration.ofSeconds(5))
                 .isEqualTo("vault-client-token");
+    }
+
+    @Test
+    void testGetTokenMinimalCompletionStageReturnsUnmodifiableStage(@TempDir Path tempDir) throws Exception {
+        Path tokenFile = tempDir.resolve("token");
+        Files.writeString(tokenFile, "my-jwt-token");
+
+        wireMockServer.stubFor(post(urlEqualTo("/v1/auth/kubernetes/login"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withBody("{\"auth\":{\"client_token\":\"tok\",\"lease_duration\":3600}}")));
+
+        KubernetesTokenProvider provider = new KubernetesTokenProvider(
+                httpClient, URI.create(wireMockServer.baseUrl()), null, "my-role", tokenFile.toString(), "kubernetes");
+
+        java.util.concurrent.CompletionStage<String> stage = provider.getToken();
+        assertThat(stage.toCompletableFuture()).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("tok");
+        // Verify stage is minimal by checking class name contains MinimalStage
+        assertThat(stage.getClass().getName()).contains("MinimalStage");
+    }
+
+    @Test
+    void testGetTokenFailureBackoff(@TempDir Path tempDir) throws Exception {
+        Path tokenFile = tempDir.resolve("token");
+        Files.writeString(tokenFile, "my-jwt-token");
+
+        wireMockServer.stubFor(post(urlEqualTo("/v1/auth/kubernetes/login"))
+                .willReturn(aResponse().withStatus(500).withBody("Internal Server Error")));
+
+        KubernetesTokenProvider provider = new KubernetesTokenProvider(
+                httpClient, URI.create(wireMockServer.baseUrl()), null, "my-role", tokenFile.toString(), "kubernetes");
+
+        CompletableFuture<String> firstCall = provider.getToken().toCompletableFuture();
+        assertThat(firstCall).failsWithin(Duration.ofSeconds(5));
+
+        // Immediate second call should fail fast without triggering another wiremock request
+        CompletableFuture<String> secondCall = provider.getToken().toCompletableFuture();
+        assertThat(secondCall).failsWithin(Duration.ofSeconds(5));
     }
 }

@@ -63,7 +63,7 @@ public class VaultKmsService implements KmsService<Config, WrappingKey, VaultEde
             var k8sCreds = credentials.kubernetes();
             HttpClient httpClient = tlsConfigurator.apply(HttpClient.newBuilder()).build();
             var k8sTokenProvider = new KubernetesTokenProvider(httpClient, vaultUrl, vaultNamespace, k8sCreds.vaultRole(),
-                    k8sCreds.serviceAccountTokenFile(), k8sCreds.authPath());
+                    k8sCreds.effectiveServiceAccountTokenFile(), k8sCreds.effectiveAuthPath());
             LOGGER.atInfo().addKeyValue("authUrl", k8sTokenProvider.getAuthUrl()).log("Resolved Vault Kubernetes Auth Login URL");
             tokenProvider = k8sTokenProvider;
         }

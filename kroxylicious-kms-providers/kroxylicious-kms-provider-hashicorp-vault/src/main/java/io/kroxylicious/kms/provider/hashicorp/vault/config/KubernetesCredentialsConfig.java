@@ -10,6 +10,8 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for authenticating to HashiCorp Vault using the Kubernetes auth method.
  *
@@ -26,8 +28,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public record KubernetesCredentialsConfig(
                                           @JsonProperty(value = "vaultRole", required = true) String vaultRole,
-                                          @JsonProperty(value = "serviceAccountTokenFile", required = false) String serviceAccountTokenFile,
-                                          @JsonProperty(value = "authPath", required = false) String authPath) {
+                                          @JsonProperty(value = "serviceAccountTokenFile", required = false) @Nullable String serviceAccountTokenFile,
+                                          @JsonProperty(value = "authPath", required = false) @Nullable String authPath) {
 
     /**
      * Default path at which kubelet mounts the projected ServiceAccount JWT token.
@@ -40,15 +42,27 @@ public record KubernetesCredentialsConfig(
     public static final String DEFAULT_AUTH_PATH = "kubernetes";
 
     /**
-     * Validates and applies defaults.
+     * Validates required configuration.
      */
     public KubernetesCredentialsConfig {
         Objects.requireNonNull(vaultRole, "vaultRole must not be null");
-        if (serviceAccountTokenFile == null) {
-            serviceAccountTokenFile = DEFAULT_SERVICE_ACCOUNT_TOKEN_FILE;
-        }
-        if (authPath == null) {
-            authPath = DEFAULT_AUTH_PATH;
-        }
+    }
+
+    /**
+     * Gets the effective service account token file path, returning {@link #DEFAULT_SERVICE_ACCOUNT_TOKEN_FILE} if null.
+     *
+     * @return the effective service account token file path
+     */
+    public String effectiveServiceAccountTokenFile() {
+        return serviceAccountTokenFile != null ? serviceAccountTokenFile : DEFAULT_SERVICE_ACCOUNT_TOKEN_FILE;
+    }
+
+    /**
+     * Gets the effective auth mount path, returning {@link #DEFAULT_AUTH_PATH} if null.
+     *
+     * @return the effective auth path
+     */
+    public String effectiveAuthPath() {
+        return authPath != null ? authPath : DEFAULT_AUTH_PATH;
     }
 }

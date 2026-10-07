@@ -39,10 +39,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * <p>The auth login URL is constructed as:
  * <pre>{@code
- *   {vaultUrl}/v1/[{vaultNamespace}/]auth/{authPath}/login
+ *   {vaultUrl}/v1/auth/{authPath}/login
  * }</pre>
- * If {@code vaultNamespace} is non-null and non-empty it is also sent as the
- * {@code X-Vault-Namespace} header (consistent with Enterprise namespace handling for Transit).
+ * If {@code vaultNamespace} is non-null and non-empty it is sent as the
+ * {@code X-Vault-Namespace} header (consistent with Vault Enterprise namespace handling).
  */
 public class KubernetesTokenProvider implements VaultTokenProvider {
 
@@ -50,6 +50,8 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
     private static final TypeReference<VaultAuthResponse> AUTH_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final String VAULT_NAMESPACE_HEADER = "X-Vault-Namespace";
+    private static final long MIN_LEASE_DURATION_MS = 1000L;
+    private static final long ERROR_BACKOFF_MS = 1000L;
 
     private final HttpClient httpClient;
     private final URI authUrl;
@@ -60,7 +62,10 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
 
     @Nullable
     private CompletableFuture<String> tokenFuture;
-    private volatile long expiryTimeMs;
+    @Nullable
+    private CompletableFuture<String> refreshFuture;
+    private volatile long refreshTimeMs;
+    private volatile long hardExpiryTimeMs;
     private final Object lock = new Object();
 
     /**
@@ -79,7 +84,7 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
         this.vaultNamespace = vaultNamespace;
         this.role = vaultRole;
         this.tokenPath = Path.of(serviceAccountTokenFile);
-        this.authUrl = createAuthUrl(vaultUrl, vaultNamespace, authPath);
+        this.authUrl = createAuthUrl(vaultUrl, authPath);
     }
 
     /**
@@ -91,18 +96,12 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
         return authUrl;
     }
 
-    private URI createAuthUrl(URI vaultUrl, @Nullable String vaultNamespace, String authPath) {
-        String base = vaultUrl.toString();
-        if (!base.endsWith("/")) {
-            base += "/";
-        }
-        base += "v1/";
-        if (vaultNamespace != null && !vaultNamespace.isEmpty()) {
-            base += vaultNamespace.endsWith("/") ? vaultNamespace : vaultNamespace + "/";
-        }
-        base += "auth/";
-        base += authPath.endsWith("/") ? authPath : authPath + "/";
-        base += "login";
+    private static String withTrailingSlash(String s) {
+        return s.endsWith("/") ? s : s + "/";
+    }
+
+    private URI createAuthUrl(URI vaultUrl, String authPath) {
+        String base = withTrailingSlash(vaultUrl.toString()) + "v1/auth/" + withTrailingSlash(authPath) + "login";
         return URI.create(base);
     }
 
@@ -110,13 +109,27 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
     public CompletionStage<String> getToken() {
         synchronized (lock) {
             long now = System.currentTimeMillis();
-            if (tokenFuture != null && now < expiryTimeMs) {
-                return tokenFuture;
+
+            // 1. If we have a current token that hasn't reached soft refresh (80% lease time), use it directly
+            if (tokenFuture != null && now < refreshTimeMs) {
+                return tokenFuture.minimalCompletionStage();
             }
-            if (tokenFuture == null || tokenFuture.isDone()) {
-                tokenFuture = fetchToken();
+
+            // 2. If token reaches soft refresh (80% lease) but hasn't reached hard expiry (100%), return existing token
+            // while triggering background refresh
+            if (tokenFuture != null && now < hardExpiryTimeMs) {
+                if (refreshFuture == null || refreshFuture.isDone()) {
+                    refreshFuture = fetchToken();
+                }
+                return tokenFuture.minimalCompletionStage();
             }
-            return tokenFuture;
+
+            // 3. Initial state or past hard expiry: block/await on the new token fetch
+            if (refreshFuture == null || refreshFuture.isDone()) {
+                refreshFuture = fetchToken();
+            }
+            tokenFuture = refreshFuture;
+            return tokenFuture.minimalCompletionStage();
         }
     }
 
@@ -126,6 +139,7 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
             jwt = Files.readString(tokenPath, StandardCharsets.UTF_8).trim();
         }
         catch (IOException e) {
+            recordFailureBackoff();
             return CompletableFuture.failedFuture(new KmsException("Failed to read Kubernetes service account token", e));
         }
 
@@ -134,6 +148,7 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
             requestBody = OBJECT_MAPPER.writeValueAsString(Map.of("jwt", jwt, "role", role));
         }
         catch (JsonProcessingException e) {
+            recordFailureBackoff();
             return CompletableFuture.failedFuture(new KmsException("Failed to create Kubernetes auth request body", e));
         }
 
@@ -142,7 +157,7 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .header("Accept", "application/json");
 
-        if (vaultNamespace != null) {
+        if (vaultNamespace != null && !vaultNamespace.isEmpty()) {
             requestBuilder.header(VAULT_NAMESPACE_HEADER, vaultNamespace);
         }
 
@@ -158,22 +173,46 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
                 })
                 .thenApply(bytes -> {
                     try {
-                        VaultAuthResponse response = OBJECT_MAPPER.readValue(bytes, AUTH_RESPONSE_TYPE_REF);
-                        Arrays.fill(bytes, (byte) 0);
-                        return response;
+                        return OBJECT_MAPPER.readValue(bytes, AUTH_RESPONSE_TYPE_REF);
                     }
                     catch (IOException e) {
                         throw new UncheckedIOException("Failed to decode Vault auth response as JSON", e);
                     }
+                    finally {
+                        Arrays.fill(bytes, (byte) 0);
+                    }
                 })
                 .thenApply(authResponse -> {
                     synchronized (lock) {
-                        long leaseDurationMs = authResponse.auth().leaseDuration() * 1000L;
-                        // Refresh token when 80% of lease duration has passed (20% safety window before hard expiry)
+                        long leaseDurationMs = Math.max(MIN_LEASE_DURATION_MS, authResponse.auth().leaseDuration() * 1000L);
                         long refreshBufferMs = (long) (leaseDurationMs * 0.20);
-                        this.expiryTimeMs = System.currentTimeMillis() + (leaseDurationMs - refreshBufferMs);
+                        long now = System.currentTimeMillis();
+                        this.refreshTimeMs = now + (leaseDurationMs - refreshBufferMs);
+                        this.hardExpiryTimeMs = now + leaseDurationMs;
                     }
                     return authResponse.auth().clientToken();
+                })
+                .whenComplete((result, ex) -> {
+                    synchronized (lock) {
+                        if (ex == null && result != null) {
+                            // On successful refresh, promote refreshFuture to tokenFuture
+                            this.tokenFuture = CompletableFuture.completedFuture(result);
+                        }
+                        else {
+                            recordFailureBackoff();
+                        }
+                    }
                 });
+    }
+
+    private void recordFailureBackoff() {
+        synchronized (lock) {
+            long now = System.currentTimeMillis();
+            this.refreshTimeMs = now + ERROR_BACKOFF_MS;
+            this.hardExpiryTimeMs = now + ERROR_BACKOFF_MS;
+            if (this.tokenFuture == null || this.tokenFuture.isCompletedExceptionally()) {
+                this.tokenFuture = null;
+            }
+        }
     }
 }
