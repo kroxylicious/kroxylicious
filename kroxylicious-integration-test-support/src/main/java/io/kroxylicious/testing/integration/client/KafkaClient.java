@@ -224,6 +224,10 @@ public final class KafkaClient implements AutoCloseable {
         }
     }
 
+    /**
+     * Certificates presented by the server when the client connected
+     * @return one or more server certificates
+     */
     public List<X509Certificate> getServerCertificateChain() {
         return certificateHandler.certificates;
     }

@@ -18,6 +18,7 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
+import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -381,8 +382,8 @@ class TlsUtilTest {
         void returnsTrueWhenAllKeyEntriesMatch(@TempDir final Path dir) throws Exception {
             final TestCertificateUtil.KeyAndCert second = TestCertificateUtil.generateKeyStoreAndCert("CN=second");
             final Path file = writeMultiEntryKeyStore(dir, "JKS",
-                    new KeyStoreEntry("a", keyAndCert.privateKey(), STORE_PASSWORD, new X509Certificate[]{ keyAndCert.cert() }),
-                    new KeyStoreEntry("b", second.privateKey(), STORE_PASSWORD, new X509Certificate[]{ second.cert() }));
+                    new KeyStoreEntry("a", keyAndCert.privateKey(), STORE_PASSWORD, List.of(keyAndCert.cert())),
+                    new KeyStoreEntry("b", second.privateKey(), STORE_PASSWORD, List.of(second.cert())));
             final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), "JKS");
             assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(true);
         }
@@ -391,8 +392,8 @@ class TlsUtilTest {
         void returnsFalseWhenAnyKeyEntryMismatches(@TempDir final Path dir) throws Exception {
             final TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateKeyStoreAndCert("CN=other");
             final Path file = writeMultiEntryKeyStore(dir, "JKS",
-                    new KeyStoreEntry("good", keyAndCert.privateKey(), STORE_PASSWORD, new X509Certificate[]{ keyAndCert.cert() }),
-                    new KeyStoreEntry("bad", other.privateKey(), STORE_PASSWORD, new X509Certificate[]{ keyAndCert.cert() }));
+                    new KeyStoreEntry("good", keyAndCert.privateKey(), STORE_PASSWORD, List.of(keyAndCert.cert())),
+                    new KeyStoreEntry("bad", other.privateKey(), STORE_PASSWORD, List.of(keyAndCert.cert())));
             final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), "JKS");
             assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(false);
         }
@@ -401,8 +402,8 @@ class TlsUtilTest {
         void skipsKeyEntryThatCannotBeRecovered(@TempDir final Path dir) throws Exception {
             final TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateKeyStoreAndCert("CN=other");
             final Path file = writeMultiEntryKeyStore(dir, "JKS",
-                    new KeyStoreEntry("good", keyAndCert.privateKey(), STORE_PASSWORD, new X509Certificate[]{ keyAndCert.cert() }),
-                    new KeyStoreEntry("locked", other.privateKey(), "different-password", new X509Certificate[]{ keyAndCert.cert() }));
+                    new KeyStoreEntry("good", keyAndCert.privateKey(), STORE_PASSWORD, List.of(keyAndCert.cert())),
+                    new KeyStoreEntry("locked", other.privateKey(), "different-password", List.of(keyAndCert.cert())));
             final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), "JKS");
             assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(true);
         }
@@ -414,7 +415,7 @@ class TlsUtilTest {
             // correspond to the private key. Here the matching cert is the leaf and `extra` is a later
             // (ignored) chain entry, so validation passes.
             final Path file = writeMultiEntryKeyStore(dir, "JKS",
-                    new KeyStoreEntry("a", keyAndCert.privateKey(), STORE_PASSWORD, new X509Certificate[]{ keyAndCert.cert(), extra.cert() }));
+                    new KeyStoreEntry("a", keyAndCert.privateKey(), STORE_PASSWORD, List.of(keyAndCert.cert(), extra.cert())));
             final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), "JKS");
             assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(true);
         }
@@ -426,7 +427,7 @@ class TlsUtilTest {
             // first so the leaf does NOT match the key, whilst the matching cert sits later in the chain where
             // it is ignored. This proves the ordering matters: validation fails because the leaf is checked.
             final Path file = writeMultiEntryKeyStore(dir, "JKS",
-                    new KeyStoreEntry("a", keyAndCert.privateKey(), STORE_PASSWORD, new X509Certificate[]{ extra.cert(), keyAndCert.cert() }));
+                    new KeyStoreEntry("a", keyAndCert.privateKey(), STORE_PASSWORD, List.of(extra.cert(), keyAndCert.cert())));
             final KeyStore keyStore = new KeyStore(file.toString(), new InlinePassword(STORE_PASSWORD), new InlinePassword(STORE_PASSWORD), "JKS");
             assertThat(TlsUtil.validateCertificateKeyPair(keyStore)).contains(false);
         }
@@ -467,7 +468,7 @@ class TlsUtilTest {
         final java.security.KeyStore ks = java.security.KeyStore.getInstance(storeType);
         ks.load(null, null);
         for (final KeyStoreEntry entry : entries) {
-            ks.setKeyEntry(entry.alias(), entry.key(), entry.password().toCharArray(), entry.chain());
+            ks.setKeyEntry(entry.alias(), entry.key(), entry.password().toCharArray(), entry.chain().toArray(X509Certificate[]::new));
         }
         final Path file = dir.resolve("multi." + storeType.toLowerCase(java.util.Locale.ROOT));
         try (var os = Files.newOutputStream(file)) {
@@ -478,7 +479,7 @@ class TlsUtilTest {
 
     // `chain` is ordered leaf-first (element 0 is the leaf certificate, matching java.security.KeyStore
     // semantics where getCertificate(alias) returns the leaf and getCertificateChain(alias)[0] is the leaf).
-    private record KeyStoreEntry(String alias, PrivateKey key, String password, X509Certificate[] chain) {}
+    private record KeyStoreEntry(String alias, PrivateKey key, String password, List<X509Certificate> chain) {}
 
     private static PrivateKey mockPrivateKey(String algorithm) {
         PrivateKey privateKey = mock(PrivateKey.class);
