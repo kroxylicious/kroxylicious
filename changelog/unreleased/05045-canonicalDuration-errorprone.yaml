@@ -1,0 +1,4 @@
+title: "remove CanonicalDuration errorprone warnings"
+type: fixed
+merge_requests:
+  - 5045
