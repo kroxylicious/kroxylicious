@@ -88,8 +88,8 @@ class VaultKmsServiceTest {
                         new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("vaultToken"))),
                         null));
         var kms = vaultKmsService.buildKms();
-        // Namespace is interpolated into the transit path (v1/<namespace>/<transitEnginePath>/)
-        assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/ns1/ns2/custom-transit/"));
+        // Namespace is sent via X-Vault-Namespace header by VaultKms — must NOT appear in the transit URI path
+        assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/custom-transit/"));
         assertThat(kms.getVaultNamespace()).isEqualTo("ns1/ns2");
     }
 
@@ -125,8 +125,8 @@ class VaultKmsServiceTest {
                         new VaultCredentialsConfig(null, new KubernetesCredentialsConfig("my-role", tokenFile.toString(), "kubernetes")),
                         null));
         var kms = vaultKmsService.buildKms();
-        // Namespace is interpolated into the transit path
-        assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/my-ns/transit/"));
+        // Namespace is sent via X-Vault-Namespace header by VaultKms — must NOT appear in the transit URI path
+        assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/transit/"));
         assertThat(kms.getVaultNamespace()).isEqualTo("my-ns");
     }
 
