@@ -1,4 +1,4 @@
 title: "removed StringCaseLocalUsage errorprone warnings"
 type: fixed
 merge_requests:
-  - 5047
+  - 5048
