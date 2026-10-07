@@ -95,4 +95,4 @@ jobs:
     with:
       kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}
       testFortanixKMS: ${{ contains(github.event.pull_request.labels.*.name, 'kms/fortanix') }}
-      skipSystemTestRun: ${{ needs.changes.outputs.systemtest == 'false' }}
+      skipSystemTestRun: ${{ needs.changes.outputs.systemtest == 'false' || github.event_name == 'merge_group' }}
