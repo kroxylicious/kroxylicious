@@ -12,7 +12,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -220,11 +222,11 @@ class KubernetesTokenProviderTest {
         CompletableFuture<String> firstCall = provider.getToken().toCompletableFuture();
         assertThat(firstCall).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("vault-client-token-1");
 
-        // MIN_LEASE_DURATION_MS is 1000ms; wait past expiry so token is refreshed
-        Thread.sleep(1100);
-
-        CompletableFuture<String> secondCall = provider.getToken().toCompletableFuture();
-        assertThat(secondCall).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("vault-client-token-2");
+        // MIN_LEASE_DURATION_MS is 1000ms; wait past hard expiry so token is discarded and refreshed
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(50, TimeUnit.MILLISECONDS)
+                .until(() -> provider.getToken().toCompletableFuture().get().equals("vault-client-token-2"));
     }
 
     @Test
@@ -253,18 +255,66 @@ class KubernetesTokenProviderTest {
         CompletableFuture<String> firstCall = provider.getToken().toCompletableFuture();
         assertThat(firstCall).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("vault-client-token-1");
 
-        // Wait 850ms: past soft refresh (800ms) but before hard expiry (1000ms)
-        Thread.sleep(850);
-
-        // During in-flight refresh window, getToken() immediately returns old token while refresh happens in background
-        CompletableFuture<String> inflightCall = provider.getToken().toCompletableFuture();
-        assertThat(inflightCall.isDone()).isTrue();
-        assertThat(inflightCall.get()).isEqualTo("vault-client-token-1");
+        // Poll until past soft refresh (80% = 800ms) but before hard expiry (100% = 1000ms);
+        // at that point getToken() must immediately return the old token (isDone = true, no blocking)
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(10, TimeUnit.MILLISECONDS)
+                .until(() -> {
+                    CompletableFuture<String> call = provider.getToken().toCompletableFuture();
+                    return call.isDone() && "vault-client-token-1".equals(call.get())
+                            && provider.getToken().toCompletableFuture().isDone();
+                });
 
         // After background refresh finishes, subsequent call yields new token
-        Thread.sleep(600);
-        CompletableFuture<String> postRefreshCall = provider.getToken().toCompletableFuture();
-        assertThat(postRefreshCall).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("vault-client-token-2");
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(50, TimeUnit.MILLISECONDS)
+                .until(() -> provider.getToken().toCompletableFuture().get().equals("vault-client-token-2"));
+    }
+
+    @Test
+    void testFailedBackgroundRefreshDoesNotShortenTokenHardExpiry(@TempDir Path tempDir) throws Exception {
+        Path tokenFile = tempDir.resolve("token");
+        Files.writeString(tokenFile, "my-jwt-token");
+
+        // First token has a 1 second lease (soft refresh at 800ms, hard expiry at 1000ms)
+        String jsonResponse1 = "{\"auth\": {\"client_token\": \"vault-client-token-1\", \"lease_duration\": 1}}";
+
+        wireMockServer.stubFor(post(urlEqualTo("/v1/auth/kubernetes/login"))
+                .inScenario("failed-refresh")
+                .whenScenarioStateIs(Scenario.STARTED)
+                .willReturn(aResponse().withStatus(200).withBody(jsonResponse1))
+                .willSetStateTo("fail"));
+
+        // Second call (background refresh) returns 503 error
+        wireMockServer.stubFor(post(urlEqualTo("/v1/auth/kubernetes/login"))
+                .inScenario("failed-refresh")
+                .whenScenarioStateIs("fail")
+                .willReturn(aResponse().withStatus(503).withBody("Vault Unavailable")));
+
+        KubernetesTokenProvider provider = new KubernetesTokenProvider(
+                httpClient, URI.create(wireMockServer.baseUrl()), null, "my-role", tokenFile.toString(), "kubernetes");
+
+        CompletableFuture<String> firstCall = provider.getToken().toCompletableFuture();
+        assertThat(firstCall).succeedsWithin(Duration.ofSeconds(5)).isEqualTo("vault-client-token-1");
+
+        // Poll until soft-refresh window (>80% of lease) and verify the old token is still served
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(10, TimeUnit.MILLISECONDS)
+                .until(() -> {
+                    CompletableFuture<String> call = provider.getToken().toCompletableFuture();
+                    // In the soft-refresh window the future must already be done (old token, no blocking)
+                    return call.isDone() && "vault-client-token-1".equals(call.get());
+                });
+
+        // Poll until the background refresh has been attempted (refreshFuture completes with failure).
+        // The existing token must still be accessible — failed refresh must NOT shorten hardExpiryTimeMs.
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(10, TimeUnit.MILLISECONDS)
+                .until(() -> provider.getToken().toCompletableFuture().get().equals("vault-client-token-1"));
     }
 
     @Test

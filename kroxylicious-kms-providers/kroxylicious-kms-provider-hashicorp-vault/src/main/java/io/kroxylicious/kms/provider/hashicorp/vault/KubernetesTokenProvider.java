@@ -208,9 +208,12 @@ public class KubernetesTokenProvider implements VaultTokenProvider {
     private void recordFailureBackoff() {
         synchronized (lock) {
             long now = System.currentTimeMillis();
+            // Only advance the soft-refresh time to impose a retry backoff.
+            // Do NOT touch hardExpiryTimeMs — the existing token (if any) remains valid until its original hard expiry.
             this.refreshTimeMs = now + ERROR_BACKOFF_MS;
-            this.hardExpiryTimeMs = now + ERROR_BACKOFF_MS;
             if (this.tokenFuture == null || this.tokenFuture.isCompletedExceptionally()) {
+                // No valid token at all — also reset hard expiry so callers retry promptly
+                this.hardExpiryTimeMs = now + ERROR_BACKOFF_MS;
                 this.tokenFuture = null;
             }
         }
