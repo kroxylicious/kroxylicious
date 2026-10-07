@@ -25,3 +25,5 @@ include::assembly-operator-secure-client-proxy-connection.adoc[leveloffset=+1]
 include::assembly-operator-secure-proxy-broker-connection.adoc[leveloffset=+1]
 
 include::assembly-operator-secure-filter.adoc[leveloffset=+1]
+
+include::../_modules/configuring/con-kafkaproxy-service-account.adoc[leveloffset=+1]
