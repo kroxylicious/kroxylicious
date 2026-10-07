@@ -25,7 +25,6 @@ import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.security.interfaces.ECPrivateKey;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
@@ -173,25 +172,25 @@ public final class TlsTestUtils {
             // PKCS#8 format
             final PrivateKey privateKey = converter.getPrivateKey(privateKeyInfo);
             // Extract public key from the private key (this works for RSA, EC)
-            switch (Algorithm.fromPrivateKey(privateKey)) {
-                case RSA:
+            return switch (Algorithm.fromPrivateKey(privateKey)) {
+                case RSA -> {
                     final java.security.interfaces.RSAPrivateCrtKey rsaPrivate = (java.security.interfaces.RSAPrivateCrtKey) privateKey;
                     final java.security.spec.RSAPublicKeySpec publicKeySpec = new java.security.spec.RSAPublicKeySpec(
                             rsaPrivate.getModulus(), rsaPrivate.getPublicExponent());
                     final KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                     final java.security.PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
-                    return new java.security.KeyPair(publicKey, privateKey);
-                case EC:
-                    final ECPrivateKey ecPrivate = (ECPrivateKey) privateKey;
+                    yield new java.security.KeyPair(publicKey, privateKey);
+                }
+                case EC -> {
                     // For EC keys, we need to extract the public key from the certificate since we can't derive it from the private key alone
                     // Parse the certificate to get the public key
                     final CertificateFactory cf = CertificateFactory.getInstance("X.509");
                     final X509Certificate cert = (X509Certificate) cf.generateCertificate(
                             new ByteArrayInputStream(keyAndCert.certificatePem().getBytes(StandardCharsets.UTF_8)));
-                    return new java.security.KeyPair(cert.getPublicKey(), privateKey);
-                default:
-                    throw new IllegalArgumentException("Unsupported key algorithm: " + privateKey.getAlgorithm());
-            }
+                    yield new java.security.KeyPair(cert.getPublicKey(), privateKey);
+                }
+                default -> throw new IllegalArgumentException("Unsupported key algorithm: " + privateKey.getAlgorithm());
+            };
         }
         throw new IllegalArgumentException("Unexpected PEM object type: " + pemObject.getClass().getName());
     }
