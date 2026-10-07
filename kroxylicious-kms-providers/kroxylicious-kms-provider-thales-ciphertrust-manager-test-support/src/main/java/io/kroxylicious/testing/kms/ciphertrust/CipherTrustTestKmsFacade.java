@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -181,7 +182,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
 
     private static AuthMode determineAuthMode() {
         // ENV_AUTH_MODE controls auth mode for both real and mock (defaults to CLIENT_CERT)
-        return AuthMode.valueOf(System.getenv().getOrDefault(ENV_AUTH_MODE, AuthMode.CLIENT_CERT.name()).toUpperCase());
+        return AuthMode.valueOf(System.getenv().getOrDefault(ENV_AUTH_MODE, AuthMode.CLIENT_CERT.name()).toUpperCase(Locale.ROOT));
     }
 
     @Override

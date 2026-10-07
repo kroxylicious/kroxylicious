@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -120,7 +121,7 @@ public class KafClient implements KafkaClient {
         });
         executableCommand.addAll(List.of("produce", topicName));
 
-        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
+        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase(Locale.ROOT));
     }
 
     @Override

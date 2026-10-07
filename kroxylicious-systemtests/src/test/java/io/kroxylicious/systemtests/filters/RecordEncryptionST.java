@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.filters;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.record.CompressionType;
@@ -266,7 +267,7 @@ class RecordEncryptionST extends AbstractSystemTests {
         assertThat(consumerRecords)
                 .withFailMessage("expected messages not received! Consumer records is empty")
                 .isNotEmpty();
-        assertThat(testKekManager.getClass().getSimpleName().toLowerCase())
+        assertThat(testKekManager.getClass().getSimpleName().toLowerCase(Locale.ROOT))
                 .withFailMessage("Another KMS different from Vault is not currently supported!")
                 .startsWith("vault");
 
@@ -333,6 +334,6 @@ class RecordEncryptionST extends AbstractSystemTests {
 
     private boolean isVaultKms(TestKmsFacade<?, ?, ?> testKmsFacade) {
         LOGGER.debug("Checking if Vault Kms is used");
-        return testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().startsWith("vault");
+        return testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase(Locale.ROOT).startsWith("vault");
     }
 }

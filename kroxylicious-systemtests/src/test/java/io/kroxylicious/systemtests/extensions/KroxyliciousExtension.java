@@ -63,7 +63,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         Parameter parameter = parameterContext.getParameter();
         Class<?> type = parameter.getType();
         LOGGER.trace("test {}: Resolving parameter ({} {})", extensionContext.getUniqueId(), type.getSimpleName(), parameter.getName());
-        if (parameter.getName().toLowerCase().contains("namespace")) {
+        if (parameter.getName().toLowerCase(Locale.ROOT).contains("namespace")) {
             return extractK8sNamespace(extensionContext);
         }
 
