@@ -1,0 +1,4 @@
+title: "remove JdkObsolete errorprone warnings"
+type: build
+merge_requests:
+  - 5046
