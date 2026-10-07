@@ -19,6 +19,7 @@ import org.junitpioneer.jupiter.ClearEnvironmentVariable;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -142,6 +143,40 @@ class ProxyDeploymentTest {
 
         // Then
         assertThat(actual.getSpec().getTemplate().getSpec().getSecurityContext().getSeccompProfile().getType()).isEqualTo("RuntimeDefault");
+    }
+
+    @Test
+    void shouldLeaveServiceAccountUnsetByDefault() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
+
+        // Then
+        assertThat(actual.getSpec().getTemplate().getSpec())
+                .extracting(PodSpec::getServiceAccountName, PodSpec::getServiceAccount)
+                .containsOnlyNulls();
+    }
+
+    @Test
+    void shouldUseConfiguredServiceAccount() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+        KafkaProxy proxyWithServiceAccount = kafkaProxy.edit().editOrNewSpec()
+                .editOrNewInfrastructure()
+                .withServiceAccountName("kroxylicious-proxy")
+                .endInfrastructure()
+                .endSpec()
+                .build();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(proxyWithServiceAccount, kubernetesContext);
+
+        // Then
+        assertThat(actual.getSpec().getTemplate().getSpec())
+                .extracting(PodSpec::getServiceAccountName, PodSpec::getServiceAccount)
+                .containsOnly("kroxylicious-proxy");
     }
 
     @Test

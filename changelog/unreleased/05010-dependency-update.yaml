@@ -1,0 +1,4 @@
+title: "build(deps): bump com.github.luben:zstd-jni from 1.5.7-15 to 1.5.7-20"
+type: build
+merge_requests:
+  - 5010
