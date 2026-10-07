@@ -184,6 +184,10 @@ public class ProxyDeploymentDependentResource
         return standardLabels(primary);
     }
 
+    private static Optional<Infrastructure> infrastructure(KafkaProxy primary) {
+        return Optional.ofNullable(primary.getSpec()).map(KafkaProxySpec::getInfrastructure);
+    }
+
     private PodTemplateSpec podTemplate(KafkaProxy primary,
                                         KafkaProxyContext kafkaProxyContext,
                                         ProxyNetworkingModel ingressModel,
@@ -218,7 +222,13 @@ public class ProxyDeploymentDependentResource
         if (!isOpenShift) {
             specBuilder = specBuilder.editSecurityContext().withFsGroup(PROXY_IMAGE_GID).endSecurityContext();
         }
+        String serviceAccountName = infrastructure(primary).map(Infrastructure::getServiceAccountName).orElse(null);
         return specBuilder
+                    // Also set the deprecated serviceAccount alias, which Kubernetes keeps as a copy of serviceAccountName.
+                    // Server-side apply only removes fields we set, so without this, removing the account from the
+                    // KafkaProxy would leave the alias behind and Kubernetes would restore serviceAccountName from it.
+                    .withServiceAccountName(serviceAccountName)
+                    .withServiceAccount(serviceAccountName)
                     .withContainers(proxyContainer(primary, kafkaProxyContext, ingressModel, clusterResolutionResults))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
@@ -314,8 +324,7 @@ public class ProxyDeploymentDependentResource
     @VisibleForTesting
     @Nullable
     ResourceRequirements proxyContainerResources(KafkaProxy primary) {
-        return Optional.ofNullable(primary.getSpec())
-                .map(KafkaProxySpec::getInfrastructure)
+        return infrastructure(primary)
                 .map(Infrastructure::getProxyContainer)
                 .map(ProxyContainer::getResources)
                 .orElse(null);

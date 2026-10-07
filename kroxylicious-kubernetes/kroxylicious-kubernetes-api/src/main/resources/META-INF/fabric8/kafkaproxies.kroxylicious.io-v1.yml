@@ -61,7 +61,19 @@ spec:
                     manifested resources for a KafkaProxy. This includes settings that affect resource behaviour at
                     the platform layer, such as:
                     - Resource limits and requests
+                    - The ServiceAccount used by proxy pods
                   properties:
+                    serviceAccountName:
+                      description: |
+                        The name of the user-managed ServiceAccount to use for proxy pods.
+                        The ServiceAccount must exist in the same namespace as this KafkaProxy.
+                        If omitted, Kubernetes uses the namespace's default ServiceAccount.
+                      type: string
+                      # ServiceAccount names are DNS-1123 subdomains; length and pattern match Kubernetes'
+                      # IsDNS1123Subdomain (k8s.io/apimachinery/pkg/util/validation).
+                      minLength: 1
+                      maxLength: 253
+                      pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$'
                     proxyContainer:
                       description: |
                         infrastructure-level settings applied to proxy containers
