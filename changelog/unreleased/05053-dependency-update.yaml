@@ -1,0 +1,4 @@
+title: "build(deps): bump at.yawk.lz4:lz4-java from 1.11.2 to 1.11.4"
+type: build
+merge_requests:
+  - 5053
