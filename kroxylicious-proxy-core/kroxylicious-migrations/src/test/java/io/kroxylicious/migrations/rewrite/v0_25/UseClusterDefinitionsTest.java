@@ -526,13 +526,19 @@ class UseClusterDefinitionsTest implements RewriteTest {
     }
 
     @Test
-    void shouldNotChangeTargetClusterWithoutBootstrapServers() {
+    void shouldFlagTargetClusterWithoutBootstrapServers() {
         rewriteRun(
                 yaml(
                         """
                                 virtualClusters:
                                   - name: demo
                                     targetCluster:
+                                      tls: {}
+                                """,
+                        """
+                                virtualClusters:
+                                  - name: demo
+                                    ~~(targetCluster has no bootstrapServers; migrate this virtual cluster to clusterDefinitions by hand)~~>targetCluster:
                                       tls: {}
                                 """));
     }

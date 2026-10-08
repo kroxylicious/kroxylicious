@@ -172,15 +172,19 @@ public class UseClusterDefinitions extends Recipe {
                     unmigratableTargetClusters.put(targetCluster.getId(), toMixedFormsWarning(targetCluster));
                     continue;
                 }
-                if (!isStructurallyMigratable(targetCluster)) {
+                if (!(targetCluster.getValue() instanceof Yaml.Mapping mapping)) {
                     continue;
                 }
-                if (containsAnchorOrAlias((Yaml.Mapping) targetCluster.getValue())) {
+                if (!hasEntry(mapping, BOOTSTRAP_SERVERS)) {
+                    unmigratableTargetClusters.put(targetCluster.getId(), toMissingBootstrapServersWarning(targetCluster));
+                    continue;
+                }
+                if (containsAnchorOrAlias(mapping)) {
                     unmigratableTargetClusters.put(targetCluster.getId(), toAnchorWarning(targetCluster));
                     continue;
                 }
                 String clusterDefinitionName = uniqueName(virtualClusterName + "-target", usedNames);
-                String rendered = renderClusterDefinition(clusterDefinitionName, (Yaml.Mapping) targetCluster.getValue(), newLine);
+                String rendered = renderClusterDefinition(clusterDefinitionName, mapping, newLine);
                 if (rendered == null) {
                     continue;
                 }
@@ -312,10 +316,10 @@ public class UseClusterDefinitions extends Recipe {
          * containing at least one named virtual cluster carrying a {@code targetCluster}, and that carries none of the
          * root keys which would mark it as some other kind of document.
          * <p>
-         * This deliberately doesn't require the {@code targetCluster} to be {@linkplain #isStructurallyMigratable
-         * structurally migratable}: a document whose only virtual cluster can't be migrated - for example because its
-         * {@code targetCluster} uses an anchor or alias - still needs to be visited so that can be flagged, rather than
-         * silently passed over as not looking like a proxy configuration at all.
+         * This deliberately doesn't require the {@code targetCluster} to be migratable: a document whose only virtual
+         * cluster can't be migrated - for example because its {@code targetCluster} uses an anchor or alias - still
+         * needs to be visited so that can be flagged, rather than silently passed over as not looking like a proxy
+         * configuration at all.
          */
         private static boolean looksLikeProxyConfiguration(Yaml.Mapping root) {
             if (root.getEntries().stream().anyMatch(e -> FOREIGN_ROOT_KEYS.contains(keyValue(e)))) {
@@ -330,20 +334,6 @@ public class UseClusterDefinitions extends Recipe {
                     .filter(Yaml.Mapping.class::isInstance)
                     .map(Yaml.Mapping.class::cast)
                     .anyMatch(m -> hasEntry(m, NAME) && hasEntry(m, TARGET_CLUSTER));
-        }
-
-        /**
-         * Whether the given {@code targetCluster} has a shape this recipe can migrate: it is a mapping carrying
-         * {@code bootstrapServers}. A {@code targetCluster} failing this check is left for a human with no comment:
-         * neither of those shapes are something this recipe can make sense of.
-         * <p>
-         * A structurally migratable {@code targetCluster} may still turn out to be unmigratable - see
-         * {@link #containsAnchorOrAlias} - in which case the caller is expected to flag it rather than silently skip
-         * it.
-         */
-        private static boolean isStructurallyMigratable(Yaml.Mapping.Entry targetCluster) {
-            return targetCluster.getValue() instanceof Yaml.Mapping mapping
-                    && hasEntry(mapping, BOOTSTRAP_SERVERS);
         }
 
         private static boolean containsAnchorOrAlias(Yaml.Mapping mapping) {
@@ -362,6 +352,18 @@ public class UseClusterDefinitions extends Recipe {
             return Markup.warn(targetCluster,
                     new IllegalStateException(
                             "virtual cluster declares both targetCluster and target, which the runtime rejects; remove the deprecated targetCluster by hand"));
+        }
+
+        /**
+         * Returns the given {@code targetCluster} entry annotated with a warning that its mapping has no
+         * {@code bootstrapServers}, so that it is surfaced to the user rather than silently left behind.
+         * <p>
+         * This only ever attaches the marker to the in-memory tree; {@code ConvertConfigCommand} is responsible for
+         * stripping it back out before writing a file to disk.
+         */
+        private static Yaml.Mapping.Entry toMissingBootstrapServersWarning(Yaml.Mapping.Entry targetCluster) {
+            return Markup.warn(targetCluster,
+                    new IllegalStateException("targetCluster has no bootstrapServers; migrate this virtual cluster to clusterDefinitions by hand"));
         }
 
         /**
