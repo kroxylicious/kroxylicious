@@ -527,7 +527,7 @@ class UseClusterDefinitionsTest implements RewriteTest {
     }
 
     @Test
-    void shouldNotChangeTargetClusterUsingAnchors() {
+    void shouldFlagTargetClusterUsingAnchors() {
         rewriteRun(
                 yaml(
                         """
@@ -535,6 +535,48 @@ class UseClusterDefinitionsTest implements RewriteTest {
                                   - name: demo
                                     targetCluster:
                                       bootstrapServers: localhost:9092
+                                      tls: &commonTls
+                                        trust:
+                                          storeFile: /x/trust.p12
+                                """,
+                        """
+                                virtualClusters:
+                                  - name: demo
+                                    ~~(targetCluster uses a YAML anchor or alias; migrate this virtual cluster to clusterDefinitions by hand)~~>targetCluster:
+                                      bootstrapServers: localhost:9092
+                                      tls: &commonTls
+                                        trust:
+                                          storeFile: /x/trust.p12
+                                """));
+    }
+
+    @Test
+    void shouldMigrateOneVirtualClusterAndFlagAnotherUsingAnchors() {
+        rewriteRun(
+                yaml(
+                        """
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: localhost:9092
+                                  - name: legacy
+                                    targetCluster:
+                                      bootstrapServers: localhost:9093
+                                      tls: &commonTls
+                                        trust:
+                                          storeFile: /x/trust.p12
+                                """,
+                        """
+                                clusterDefinitions:
+                                  - name: demo-target
+                                    bootstrapServers: localhost:9092
+                                virtualClusters:
+                                  - name: demo
+                                    target:
+                                      cluster: demo-target
+                                  - name: legacy
+                                    ~~(targetCluster uses a YAML anchor or alias; migrate this virtual cluster to clusterDefinitions by hand)~~>targetCluster:
+                                      bootstrapServers: localhost:9093
                                       tls: &commonTls
                                         trust:
                                           storeFile: /x/trust.p12

@@ -28,6 +28,7 @@ import org.openrewrite.TreeVisitor;
 import org.openrewrite.internal.ListUtils;
 import org.openrewrite.internal.StringUtils;
 import org.openrewrite.marker.Markers;
+import org.openrewrite.marker.Markup;
 import org.openrewrite.style.GeneralFormatStyle;
 import org.openrewrite.style.Style;
 import org.openrewrite.yaml.MergeYaml;
@@ -154,15 +155,21 @@ public class UseClusterDefinitions extends Recipe {
             Set<String> usedNames = existingClusterDefinitionNames(root);
             // keyed by the id of the targetCluster entry being replaced
             Map<UUID, String> plannedNames = new LinkedHashMap<>();
+            // keyed by the id of a targetCluster entry left in place, but annotated with why it wasn't migrated
+            Map<UUID, Yaml.Mapping.Entry> flagged = new LinkedHashMap<>();
             List<String> renderedDefinitions = new ArrayList<>();
 
             for (Yaml.Sequence.Entry sequenceEntry : sequence.getEntries()) {
                 if (!(sequenceEntry.getBlock() instanceof Yaml.Mapping virtualCluster)) {
                     continue;
                 }
-                Yaml.Mapping.Entry targetCluster = migratableTargetCluster(virtualCluster);
+                Yaml.Mapping.Entry targetCluster = eligibleTargetCluster(virtualCluster);
                 String virtualClusterName = scalarValue(entry(virtualCluster, NAME));
                 if (targetCluster == null || virtualClusterName == null) {
+                    continue;
+                }
+                if (containsAnchorOrAlias((Yaml.Mapping) targetCluster.getValue())) {
+                    flagged.put(targetCluster.getId(), flagUnmigratableAnchor(targetCluster));
                     continue;
                 }
                 String clusterDefinitionName = uniqueName(virtualClusterName + "-target", usedNames);
@@ -176,7 +183,10 @@ public class UseClusterDefinitions extends Recipe {
             }
 
             if (plannedNames.isEmpty()) {
-                return document;
+                if (flagged.isEmpty()) {
+                    return document;
+                }
+                return document.withBlock(replaceWithReferences(root, virtualClusters, sequence, plannedNames, flagged, newLine));
             }
 
             Yaml incoming = parseClusterDefinitions(CLUSTER_DEFINITIONS + ":" + newLine + String.join(newLine, renderedDefinitions));
@@ -186,7 +196,7 @@ public class UseClusterDefinitions extends Recipe {
             }
 
             Set<UUID> inlineEntries = entriesWithoutLeadingLineBreak(incoming);
-            Yaml.Document withReferences = document.withBlock(replaceWithReferences(root, virtualClusters, sequence, plannedNames, newLine));
+            Yaml.Document withReferences = document.withBlock(replaceWithReferences(root, virtualClusters, sequence, plannedNames, flagged, newLine));
             // mirrors MergeYaml's own handling of the `$` (document root) key
             Yaml.Block block = withReferences.getBlock();
             Yaml.Block merged = (Yaml.Block) new MergeYamlVisitor<ExecutionContext>(block,
@@ -292,8 +302,13 @@ public class UseClusterDefinitions extends Recipe {
 
         /**
          * A document is only migrated if it is a mapping that has a root level {@code virtualClusters} sequence
-         * containing at least one virtual cluster in the deprecated form, and that carries none of the root keys which
-         * would mark it as some other kind of document.
+         * containing at least one named virtual cluster carrying a {@code targetCluster}, and that carries none of the
+         * root keys which would mark it as some other kind of document.
+         * <p>
+         * This deliberately doesn't require the {@code targetCluster} to be fully {@linkplain #eligibleTargetCluster
+         * eligible for migration}: a document whose only virtual cluster can't be migrated - for example because its
+         * {@code targetCluster} uses an anchor or alias - still needs to be visited so that can be flagged, rather than
+         * silently passed over as not looking like a proxy configuration at all.
          */
         private static boolean looksLikeProxyConfiguration(Yaml.Mapping root) {
             if (root.getEntries().stream().anyMatch(e -> FOREIGN_ROOT_KEYS.contains(keyValue(e)))) {
@@ -307,23 +322,25 @@ public class UseClusterDefinitions extends Recipe {
                     .map(Yaml.Sequence.Entry::getBlock)
                     .filter(Yaml.Mapping.class::isInstance)
                     .map(Yaml.Mapping.class::cast)
-                    .anyMatch(m -> entry(m, NAME) != null && migratableTargetCluster(m) != null);
+                    .anyMatch(m -> entry(m, NAME) != null && entry(m, TARGET_CLUSTER) != null);
         }
 
         /**
-         * Returns the {@code targetCluster} entry of the given virtual cluster if, and only if, it is safe to migrate.
-         * A virtual cluster that already uses {@code target}, that uses both forms (which the runtime rejects anyway),
-         * whose {@code targetCluster} is not a mapping carrying {@code bootstrapServers}, or whose {@code targetCluster}
-         * involves anchors or aliases, is left for a human.
+         * Returns the {@code targetCluster} entry of the given virtual cluster if, and only if, it is a candidate for
+         * migration. A virtual cluster that already uses {@code target}, that uses both forms (which the runtime
+         * rejects anyway), or whose {@code targetCluster} is not a mapping carrying {@code bootstrapServers}, is left
+         * for a human with no comment: none of those shapes are something this recipe can make sense of.
+         * <p>
+         * An eligible entry may still turn out to be unmigratable - see {@link #containsAnchorOrAlias} - in which case
+         * the caller is expected to flag it rather than silently skip it.
          */
         @Nullable
-        private static Yaml.Mapping.Entry migratableTargetCluster(Yaml.Mapping virtualCluster) {
+        private static Yaml.Mapping.Entry eligibleTargetCluster(Yaml.Mapping virtualCluster) {
             Yaml.Mapping.Entry targetCluster = entry(virtualCluster, TARGET_CLUSTER);
             if (targetCluster == null
                     || entry(virtualCluster, TARGET) != null
                     || !(targetCluster.getValue() instanceof Yaml.Mapping mapping)
-                    || entry(mapping, BOOTSTRAP_SERVERS) == null
-                    || containsAnchorOrAlias(mapping)) {
+                    || entry(mapping, BOOTSTRAP_SERVERS) == null) {
                 return null;
             }
             return targetCluster;
@@ -331,6 +348,18 @@ public class UseClusterDefinitions extends Recipe {
 
         private static boolean containsAnchorOrAlias(Yaml.Mapping mapping) {
             return new AnchorOrAliasDetector().reduce(mapping, new AtomicBoolean()).get();
+        }
+
+        /**
+         * Annotates a {@code targetCluster} entry which couldn't be migrated because it involves a YAML anchor or
+         * alias, so that it is surfaced to the user rather than silently left behind.
+         * <p>
+         * This only ever attaches the marker to the in-memory tree; {@code ConvertConfigCommand} is responsible for
+         * stripping it back out before writing a file to disk.
+         */
+        private static Yaml.Mapping.Entry flagUnmigratableAnchor(Yaml.Mapping.Entry targetCluster) {
+            return Markup.warn(targetCluster,
+                    new IllegalStateException("targetCluster uses a YAML anchor or alias; migrate this virtual cluster to clusterDefinitions by hand"));
         }
 
         private static Set<String> existingClusterDefinitionNames(Yaml.Mapping root) {
@@ -396,13 +425,15 @@ public class UseClusterDefinitions extends Recipe {
         }
 
         /**
-         * Replaces each planned {@code targetCluster} entry with an equivalent {@code target} reference, keeping the
-         * original entry's prefix so that any preceding blank lines or comments are undisturbed.
+         * Replaces each planned {@code targetCluster} entry with an equivalent {@code target} reference, substitutes
+         * each flagged entry with its annotated form, and otherwise keeps the original entry's prefix so that any
+         * preceding blank lines or comments are undisturbed.
          */
         private static Yaml.Mapping replaceWithReferences(Yaml.Mapping root,
                                                           Yaml.Mapping.Entry virtualClusters,
                                                           Yaml.Sequence sequence,
                                                           Map<UUID, String> plannedNames,
+                                                          Map<UUID, Yaml.Mapping.Entry> flagged,
                                                           String newLine) {
             Yaml.Sequence migrated = sequence.withEntries(ListUtils.map(sequence.getEntries(), sequenceEntry -> {
                 if (!(sequenceEntry.getBlock() instanceof Yaml.Mapping virtualCluster)) {
@@ -410,7 +441,10 @@ public class UseClusterDefinitions extends Recipe {
                 }
                 return sequenceEntry.withBlock(virtualCluster.withEntries(ListUtils.map(virtualCluster.getEntries(), entry -> {
                     String clusterDefinitionName = plannedNames.get(entry.getId());
-                    return clusterDefinitionName == null ? entry : toClusterReference(entry, clusterDefinitionName, newLine);
+                    if (clusterDefinitionName != null) {
+                        return toClusterReference(entry, clusterDefinitionName, newLine);
+                    }
+                    return flagged.getOrDefault(entry.getId(), entry);
                 })));
             }));
             return root.withEntries(ListUtils.map(root.getEntries(),

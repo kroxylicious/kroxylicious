@@ -126,7 +126,7 @@ The `dryRun`/`run` invocations above already parse every YAML file under the pro
 
 ### Limitations
 
-* **Anchors and aliases are left alone.** A virtual cluster whose `targetCluster` involves either is skipped, because moving it could change what an alias resolves to. Migrate those by hand.
+* **Anchors and aliases are left alone, but flagged.** A virtual cluster whose `targetCluster` involves either is left unmigrated, because moving it could change what an alias resolves to, and the output carries a warning annotation calling it out. Migrate those by hand.
 * **Cluster definitions are not coalesced.** Each migrated virtual cluster gets its own `clusterDefinitions` entry, named `<virtualClusterName>-target`, even where several point at the same Kafka cluster.
 * **A comment written after the last key of `targetCluster` stays behind.** In the OpenRewrite YAML model such a comment belongs to the element that follows it, which is the virtual cluster's next key rather than the block being moved.
 
