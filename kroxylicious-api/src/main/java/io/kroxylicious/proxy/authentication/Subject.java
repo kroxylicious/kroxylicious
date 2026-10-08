@@ -25,6 +25,9 @@ import io.kroxylicious.identity.SingularPrincipals;
  * <li>information obtained about the client from a trusted source, such as lookup up role or group information from a directory.</li>
  * </ul>
  *
+ * <p>Instances are immutable: the principal set is defensively copied on construction and the {@link Principal}
+ * implementations it contains are required to be immutable.</p>
+ *
  * @param principals the set of identifiers associated with this subject.
  * @deprecated Use {@link io.kroxylicious.identity.Subject} instead. Will be removed at 1.0.
  */
