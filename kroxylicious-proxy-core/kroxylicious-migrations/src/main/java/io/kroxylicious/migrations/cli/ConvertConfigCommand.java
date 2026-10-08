@@ -81,10 +81,9 @@ class ConvertConfigCommand implements Callable<Integer> {
             out.println(result.diff());
             SourceFile after = Objects.requireNonNull(result.getAfter(), "after");
             if (!dryRun) {
-                // a recipe may annotate a tree it couldn't fully migrate, such as UseClusterDefinitions flagging a
-                // targetCluster which uses a YAML anchor; printAll()'s default marker printer renders those as
-                // `~~(message)~~>` text, which must not end up in the file written back to the user
-                Files.writeString(after.getSourcePath(), after.printAll(new PrintOutputCapture<>(0, PrintOutputCapture.MarkerPrinter.SANITIZED)));
+                PrintOutputCapture<Integer> captureWithoutDiagnosticMarkup = new PrintOutputCapture<>(0, PrintOutputCapture.MarkerPrinter.SANITIZED);
+                String sanitizedOutput = after.printAll(captureWithoutDiagnosticMarkup);
+                Files.writeString(after.getSourcePath(), sanitizedOutput);
             }
         }
 
