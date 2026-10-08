@@ -156,7 +156,7 @@ public class UseClusterDefinitions extends Recipe {
             // keyed by the id of the targetCluster entry being replaced
             Map<UUID, String> plannedNames = new LinkedHashMap<>();
             // keyed by the id of a targetCluster entry left in place, but annotated with why it wasn't migrated
-            Map<UUID, Yaml.Mapping.Entry> flagged = new LinkedHashMap<>();
+            Map<UUID, Yaml.Mapping.Entry> unmigratableTargetClusters = new LinkedHashMap<>();
             List<String> renderedDefinitions = new ArrayList<>();
 
             for (Yaml.Sequence.Entry sequenceEntry : sequence.getEntries()) {
@@ -169,7 +169,7 @@ public class UseClusterDefinitions extends Recipe {
                     continue;
                 }
                 if (containsAnchorOrAlias((Yaml.Mapping) targetCluster.getValue())) {
-                    flagged.put(targetCluster.getId(), flagUnmigratableAnchor(targetCluster));
+                    unmigratableTargetClusters.put(targetCluster.getId(), toAnchorWarning(targetCluster));
                     continue;
                 }
                 String clusterDefinitionName = uniqueName(virtualClusterName + "-target", usedNames);
@@ -183,10 +183,10 @@ public class UseClusterDefinitions extends Recipe {
             }
 
             if (plannedNames.isEmpty()) {
-                if (flagged.isEmpty()) {
+                if (unmigratableTargetClusters.isEmpty()) {
                     return document;
                 }
-                return document.withBlock(replaceWithReferences(root, virtualClusters, sequence, plannedNames, flagged, newLine));
+                return document.withBlock(replaceWithReferences(root, virtualClusters, sequence, plannedNames, unmigratableTargetClusters, newLine));
             }
 
             Yaml incoming = parseClusterDefinitions(CLUSTER_DEFINITIONS + ":" + newLine + String.join(newLine, renderedDefinitions));
@@ -196,7 +196,7 @@ public class UseClusterDefinitions extends Recipe {
             }
 
             Set<UUID> inlineEntries = entriesWithoutLeadingLineBreak(incoming);
-            Yaml.Document withReferences = document.withBlock(replaceWithReferences(root, virtualClusters, sequence, plannedNames, flagged, newLine));
+            Yaml.Document withReferences = document.withBlock(replaceWithReferences(root, virtualClusters, sequence, plannedNames, unmigratableTargetClusters, newLine));
             // mirrors MergeYaml's own handling of the `$` (document root) key
             Yaml.Block block = withReferences.getBlock();
             Yaml.Block merged = (Yaml.Block) new MergeYamlVisitor<ExecutionContext>(block,
@@ -346,13 +346,13 @@ public class UseClusterDefinitions extends Recipe {
         }
 
         /**
-         * Annotates a {@code targetCluster} entry which couldn't be migrated because it involves a YAML anchor or
-         * alias, so that it is surfaced to the user rather than silently left behind.
+         * Returns the given {@code targetCluster} entry annotated with a warning that it involves a YAML anchor or
+         * alias and couldn't be migrated, so that it is surfaced to the user rather than silently left behind.
          * <p>
          * This only ever attaches the marker to the in-memory tree; {@code ConvertConfigCommand} is responsible for
          * stripping it back out before writing a file to disk.
          */
-        private static Yaml.Mapping.Entry flagUnmigratableAnchor(Yaml.Mapping.Entry targetCluster) {
+        private static Yaml.Mapping.Entry toAnchorWarning(Yaml.Mapping.Entry targetCluster) {
             return Markup.warn(targetCluster,
                     new IllegalStateException("targetCluster uses a YAML anchor or alias; migrate this virtual cluster to clusterDefinitions by hand"));
         }
@@ -421,14 +421,14 @@ public class UseClusterDefinitions extends Recipe {
 
         /**
          * Replaces each planned {@code targetCluster} entry with an equivalent {@code target} reference, substitutes
-         * each flagged entry with its annotated form, and otherwise keeps the original entry's prefix so that any
+         * each unmigratable entry with its annotated form, and otherwise keeps the original entry's prefix so that any
          * preceding blank lines or comments are undisturbed.
          */
         private static Yaml.Mapping replaceWithReferences(Yaml.Mapping root,
                                                           Yaml.Mapping.Entry virtualClusters,
                                                           Yaml.Sequence sequence,
                                                           Map<UUID, String> plannedNames,
-                                                          Map<UUID, Yaml.Mapping.Entry> flagged,
+                                                          Map<UUID, Yaml.Mapping.Entry> unmigratableTargetClusters,
                                                           String newLine) {
             Yaml.Sequence migrated = sequence.withEntries(ListUtils.map(sequence.getEntries(), sequenceEntry -> {
                 if (!(sequenceEntry.getBlock() instanceof Yaml.Mapping virtualCluster)) {
@@ -439,7 +439,7 @@ public class UseClusterDefinitions extends Recipe {
                     if (clusterDefinitionName != null) {
                         return toClusterReference(entry, clusterDefinitionName, newLine);
                     }
-                    return flagged.getOrDefault(entry.getId(), entry);
+                    return unmigratableTargetClusters.getOrDefault(entry.getId(), entry);
                 })));
             }));
             return root.withEntries(ListUtils.map(root.getEntries(),
