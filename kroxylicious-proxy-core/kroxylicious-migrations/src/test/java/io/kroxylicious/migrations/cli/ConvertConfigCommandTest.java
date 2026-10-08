@@ -57,13 +57,16 @@ class ConvertConfigCommandTest {
     Path configDir;
 
     private StringWriter out;
+    private StringWriter err;
     private CommandLine commandLine;
 
     @BeforeEach
     void setUp() {
         out = new StringWriter();
+        err = new StringWriter();
         commandLine = new CommandLine(new KroxyliciousMigrations());
         commandLine.setOut(new PrintWriter(out));
+        commandLine.setErr(new PrintWriter(err));
     }
 
     @Test
@@ -136,9 +139,10 @@ class ConvertConfigCommandTest {
         int exitCode = commandLine.execute("convert-config", configFile.toString());
 
         // Then
-        assertThat(exitCode).isZero();
+        assertThat(exitCode).isEqualTo(ConvertConfigCommand.NEEDS_MANUAL_MIGRATION);
         assertThat(configFile).hasContent(UNMIGRATABLE_ANCHOR_FORM);
-        assertThat(out.toString()).contains("~~(targetCluster uses a YAML anchor or alias");
+        assertThat(err.toString()).contains("~~(targetCluster uses a YAML anchor or alias");
+        assertThat(out.toString()).doesNotContain("~~(targetCluster uses a YAML anchor or alias");
     }
 
     @Test
