@@ -165,7 +165,14 @@ public class UseClusterDefinitions extends Recipe {
                 }
                 Yaml.Mapping.Entry targetCluster = entry(virtualCluster, TARGET_CLUSTER);
                 String virtualClusterName = scalarValue(entry(virtualCluster, NAME));
-                if (targetCluster == null || virtualClusterName == null || !isStructurallyMigratable(virtualCluster, targetCluster)) {
+                if (targetCluster == null || virtualClusterName == null) {
+                    continue;
+                }
+                if (hasEntry(virtualCluster, TARGET)) {
+                    unmigratableTargetClusters.put(targetCluster.getId(), toMixedFormsWarning(targetCluster));
+                    continue;
+                }
+                if (!isStructurallyMigratable(targetCluster)) {
                     continue;
                 }
                 if (containsAnchorOrAlias((Yaml.Mapping) targetCluster.getValue())) {
@@ -326,23 +333,35 @@ public class UseClusterDefinitions extends Recipe {
         }
 
         /**
-         * Whether the given virtual cluster's {@code targetCluster} has a shape this recipe can migrate: the virtual
-         * cluster doesn't already use {@code target} (which the runtime rejects having both of anyway), and
-         * {@code targetCluster} is a mapping carrying {@code bootstrapServers}. A virtual cluster failing this check is
-         * left for a human with no comment: none of those shapes are something this recipe can make sense of.
+         * Whether the given {@code targetCluster} has a shape this recipe can migrate: it is a mapping carrying
+         * {@code bootstrapServers}. A {@code targetCluster} failing this check is left for a human with no comment:
+         * neither of those shapes are something this recipe can make sense of.
          * <p>
          * A structurally migratable {@code targetCluster} may still turn out to be unmigratable - see
          * {@link #containsAnchorOrAlias} - in which case the caller is expected to flag it rather than silently skip
          * it.
          */
-        private static boolean isStructurallyMigratable(Yaml.Mapping virtualCluster, Yaml.Mapping.Entry targetCluster) {
-            return !hasEntry(virtualCluster, TARGET)
-                    && targetCluster.getValue() instanceof Yaml.Mapping mapping
+        private static boolean isStructurallyMigratable(Yaml.Mapping.Entry targetCluster) {
+            return targetCluster.getValue() instanceof Yaml.Mapping mapping
                     && hasEntry(mapping, BOOTSTRAP_SERVERS);
         }
 
         private static boolean containsAnchorOrAlias(Yaml.Mapping mapping) {
             return new AnchorOrAliasDetector().reduce(mapping, new AtomicBoolean()).get();
+        }
+
+        /**
+         * Returns the given {@code targetCluster} entry annotated with a warning that the virtual cluster also
+         * declares {@code target}, which the runtime rejects, so that it is surfaced to the user rather than silently
+         * left behind.
+         * <p>
+         * This only ever attaches the marker to the in-memory tree; {@code ConvertConfigCommand} is responsible for
+         * stripping it back out before writing a file to disk.
+         */
+        private static Yaml.Mapping.Entry toMixedFormsWarning(Yaml.Mapping.Entry targetCluster) {
+            return Markup.warn(targetCluster,
+                    new IllegalStateException(
+                            "virtual cluster declares both targetCluster and target, which the runtime rejects; remove the deprecated targetCluster by hand"));
         }
 
         /**

@@ -498,7 +498,7 @@ class UseClusterDefinitionsTest implements RewriteTest {
     }
 
     @Test
-    void shouldNotChangeVirtualClusterDeclaringBothTargetAndTargetCluster() {
+    void shouldFlagVirtualClusterDeclaringBothTargetAndTargetCluster() {
         rewriteRun(
                 yaml(
                         """
@@ -508,6 +508,17 @@ class UseClusterDefinitionsTest implements RewriteTest {
                                 virtualClusters:
                                   - name: demo
                                     targetCluster:
+                                      bootstrapServers: localhost:9092
+                                    target:
+                                      cluster: demo-cluster
+                                """,
+                        """
+                                clusterDefinitions:
+                                  - name: demo-cluster
+                                    bootstrapServers: other.example:1234
+                                virtualClusters:
+                                  - name: demo
+                                    ~~(virtual cluster declares both targetCluster and target, which the runtime rejects; remove the deprecated targetCluster by hand)~~>targetCluster:
                                       bootstrapServers: localhost:9092
                                     target:
                                       cluster: demo-cluster
