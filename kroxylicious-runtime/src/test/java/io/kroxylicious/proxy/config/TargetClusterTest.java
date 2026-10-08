@@ -135,6 +135,20 @@ class TargetClusterTest {
     }
 
     @Test
+    void shouldRejectConnectTimeoutTooLargeToConvertToMillis() {
+        // Given
+        Optional<Tls> empty = Optional.empty();
+        // toMillis() would overflow and throw ArithmeticException for this duration; validation must
+        // reject it with IllegalArgumentException instead, via the non-overflowing compareTo bound.
+        var overflowing = Duration.ofSeconds(9223372036854776L);
+
+        // When / Then
+        assertThatThrownBy(() -> new TargetCluster("broker:9092", empty, null, overflowing))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("connectTimeout");
+    }
+
+    @Test
     void shouldForwardSelectionStrategyAndLeaveConnectTimeoutUnset() {
         // Given
         var viaCanonicalWithNull = new TargetCluster("broker:9092", Optional.empty(), null, null);

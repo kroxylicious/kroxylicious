@@ -24,7 +24,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param bootstrapServers comma-separated list of host:port pairs
  * @param tls optional TLS configuration for the upstream connection
  * @param selectionStrategy optional strategy for selecting a bootstrap server when several are listed
- * @param connectTimeout optional maximum time to wait for a TCP connection to an upstream broker to be established
+ * @param connectTimeout optional maximum time to wait for a TCP connection to an upstream broker to be established;
+ *                       when set it must be positive and must not exceed {@code Integer.MAX_VALUE} milliseconds (~24.8 days)
  */
 public record ClusterDefinition(
                                 @JsonProperty(required = true) String name,
@@ -41,6 +42,7 @@ public record ClusterDefinition(
         Objects.requireNonNull(name, "'name' is required in a cluster definition");
         Objects.requireNonNull(bootstrapServers, "'bootstrapServers' is required in a cluster definition");
         bootstrapServers = bootstrapServers.replaceAll("\\s", "");
+        TargetCluster.validateConnectTimeout(connectTimeout, "for cluster definition '" + name + "'");
     }
 
     /**
