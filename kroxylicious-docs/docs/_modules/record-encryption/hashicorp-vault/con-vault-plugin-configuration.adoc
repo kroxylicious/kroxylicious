@@ -14,7 +14,7 @@
 = HashiCorp Vault plugin configuration
 
 [role="_abstract"]
-For HashiCorp Vault, the KMS configuration used by the filter supports Token-based authentication via the `credentials` configuration node.
+For HashiCorp Vault, the KMS configuration used by the filter supports Token-based authentication and Kubernetes authentication via the `credentials` configuration node.
 
 == Token Authentication
 
@@ -35,6 +35,24 @@ kmsConfig:
         passwordFile: /opt/vault/token
 ----
 
+== Kubernetes Authentication
+
+When authenticating using Kubernetes ServiceAccount tokens, the KMS configuration looks like this:
+
+[source, yaml]
+----
+kms: VaultKmsService
+kmsConfig:
+  vaultUrl: https://myhashicorpvault:8200
+  vaultNamespace: a/b # optional, for Vault Enterprise namespaces
+  transitEnginePath: transit # optional, defaults to transit
+  credentials:
+    kubernetes:
+      vaultRole: kroxylicious # required
+      serviceAccountTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token # optional, defaults to standard SA token path
+      authPath: kubernetes # optional, defaults to kubernetes
+----
+
 == Configuration Properties
 
 * `kms` specifies the name of the KMS provider. Use `VaultKmsService`.
@@ -42,9 +60,13 @@ kmsConfig:
 ** `vaultUrl` (required) specifies the base URL of the Vault server (e.g. `https://myhashicorpvault:8200`).
 ** `vaultNamespace` (Optional) relative path for Vault Enterprise namespaces (e.g., `a/b`).
 ** `transitEnginePath` (Optional) mount path of the Transit secrets engine (defaults to `transit`).
-** `credentials` (required) specifies the authentication method.
+** `credentials` (required) specifies the authentication method. Specify either `vaultToken` or `kubernetes`:
 *** `credentials.vaultToken` — Token-based authentication:
 **** `credentials.vaultToken.token` references a PasswordProvider containing the Vault Token.
+*** `credentials.kubernetes` — Kubernetes ServiceAccount token authentication:
+**** `credentials.kubernetes.vaultRole` (required) the Vault role configured for Kubernetes auth.
+**** `credentials.kubernetes.serviceAccountTokenFile` (Optional) path to the Kubernetes ServiceAccount token file (defaults to `/var/run/secrets/kubernetes.io/serviceaccount/token`).
+**** `credentials.kubernetes.authPath` (Optional) mount path of the Kubernetes authentication backend in Vault (defaults to `kubernetes`).
 ** `tls` (Optional) TLS trust configuration.
 
 include::../../../_snippets/snip-tls-client-keystore.adoc[]
