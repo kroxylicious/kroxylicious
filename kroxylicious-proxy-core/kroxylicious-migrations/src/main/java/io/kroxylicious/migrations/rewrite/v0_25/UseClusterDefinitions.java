@@ -163,9 +163,9 @@ public class UseClusterDefinitions extends Recipe {
                 if (!(sequenceEntry.getBlock() instanceof Yaml.Mapping virtualCluster)) {
                     continue;
                 }
-                Yaml.Mapping.Entry targetCluster = eligibleTargetCluster(virtualCluster);
+                Yaml.Mapping.Entry targetCluster = entry(virtualCluster, TARGET_CLUSTER);
                 String virtualClusterName = scalarValue(entry(virtualCluster, NAME));
-                if (targetCluster == null || virtualClusterName == null) {
+                if (targetCluster == null || virtualClusterName == null || !isStructurallyMigratable(virtualCluster, targetCluster)) {
                     continue;
                 }
                 if (containsAnchorOrAlias((Yaml.Mapping) targetCluster.getValue())) {
@@ -305,8 +305,8 @@ public class UseClusterDefinitions extends Recipe {
          * containing at least one named virtual cluster carrying a {@code targetCluster}, and that carries none of the
          * root keys which would mark it as some other kind of document.
          * <p>
-         * This deliberately doesn't require the {@code targetCluster} to be fully {@linkplain #eligibleTargetCluster
-         * eligible for migration}: a document whose only virtual cluster can't be migrated - for example because its
+         * This deliberately doesn't require the {@code targetCluster} to be {@linkplain #isStructurallyMigratable
+         * structurally migratable}: a document whose only virtual cluster can't be migrated - for example because its
          * {@code targetCluster} uses an anchor or alias - still needs to be visited so that can be flagged, rather than
          * silently passed over as not looking like a proxy configuration at all.
          */
@@ -322,28 +322,23 @@ public class UseClusterDefinitions extends Recipe {
                     .map(Yaml.Sequence.Entry::getBlock)
                     .filter(Yaml.Mapping.class::isInstance)
                     .map(Yaml.Mapping.class::cast)
-                    .anyMatch(m -> entry(m, NAME) != null && entry(m, TARGET_CLUSTER) != null);
+                    .anyMatch(m -> hasEntry(m, NAME) && hasEntry(m, TARGET_CLUSTER));
         }
 
         /**
-         * Returns the {@code targetCluster} entry of the given virtual cluster if, and only if, it is a candidate for
-         * migration. A virtual cluster that already uses {@code target}, that uses both forms (which the runtime
-         * rejects anyway), or whose {@code targetCluster} is not a mapping carrying {@code bootstrapServers}, is left
-         * for a human with no comment: none of those shapes are something this recipe can make sense of.
+         * Whether the given virtual cluster's {@code targetCluster} has a shape this recipe can migrate: the virtual
+         * cluster doesn't already use {@code target} (which the runtime rejects having both of anyway), and
+         * {@code targetCluster} is a mapping carrying {@code bootstrapServers}. A virtual cluster failing this check is
+         * left for a human with no comment: none of those shapes are something this recipe can make sense of.
          * <p>
-         * An eligible entry may still turn out to be unmigratable - see {@link #containsAnchorOrAlias} - in which case
-         * the caller is expected to flag it rather than silently skip it.
+         * A structurally migratable {@code targetCluster} may still turn out to be unmigratable - see
+         * {@link #containsAnchorOrAlias} - in which case the caller is expected to flag it rather than silently skip
+         * it.
          */
-        @Nullable
-        private static Yaml.Mapping.Entry eligibleTargetCluster(Yaml.Mapping virtualCluster) {
-            Yaml.Mapping.Entry targetCluster = entry(virtualCluster, TARGET_CLUSTER);
-            if (targetCluster == null
-                    || entry(virtualCluster, TARGET) != null
-                    || !(targetCluster.getValue() instanceof Yaml.Mapping mapping)
-                    || entry(mapping, BOOTSTRAP_SERVERS) == null) {
-                return null;
-            }
-            return targetCluster;
+        private static boolean isStructurallyMigratable(Yaml.Mapping virtualCluster, Yaml.Mapping.Entry targetCluster) {
+            return !hasEntry(virtualCluster, TARGET)
+                    && targetCluster.getValue() instanceof Yaml.Mapping mapping
+                    && hasEntry(mapping, BOOTSTRAP_SERVERS);
         }
 
         private static boolean containsAnchorOrAlias(Yaml.Mapping mapping) {
@@ -535,6 +530,10 @@ public class UseClusterDefinitions extends Recipe {
                     .filter(e -> key.equals(keyValue(e)))
                     .findFirst()
                     .orElse(null);
+        }
+
+        private static boolean hasEntry(Yaml.Mapping mapping, String key) {
+            return entry(mapping, key) != null;
         }
 
         @Nullable
