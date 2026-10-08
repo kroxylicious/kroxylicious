@@ -39,7 +39,7 @@ class ResultComparatorTest {
         boolean inSection = false;
         int headerLinesSeen = 0;
 
-        for (String line : output.split("\n")) {
+        for (String line : output.split("\n", -1)) {
             if (line.contains(sectionName)) {
                 inSection = true;
                 headerLinesSeen = 0;
@@ -72,7 +72,7 @@ class ResultComparatorTest {
                 .filter(row -> row.trim().startsWith(metricLabel + " "))
                 .findFirst()
                 .map(row -> {
-                    String[] values = row.trim().substring(metricLabel.length()).trim().split("\\s+");
+                    String[] values = row.trim().substring(metricLabel.length()).trim().split("\\s+", -1);
                     return new RowValues(values[0], values[1], values[2]);
                 })
                 .orElse(null);

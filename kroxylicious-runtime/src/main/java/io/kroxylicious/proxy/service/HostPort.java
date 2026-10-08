@@ -102,7 +102,7 @@ public final class HostPort {
             return new HostPort(host, port);
         }
         else {
-            var split = PORT_SEPARATOR.split(trimmed);
+            var split = PORT_SEPARATOR.split(trimmed, -1);
             if (split.length != 2) {
                 throw new IllegalArgumentException(exceptionText);
             }

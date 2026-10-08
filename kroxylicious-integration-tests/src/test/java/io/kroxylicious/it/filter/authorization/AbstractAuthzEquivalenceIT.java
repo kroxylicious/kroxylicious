@@ -151,7 +151,7 @@ abstract class AbstractAuthzEquivalenceIT extends BaseIT {
      * @return A KafkaClient connected to the given cluster.
      */
     protected static KafkaClient client(String bootstrapServers) {
-        String[] hostPort = bootstrapServers.split(",")[0].split(":");
+        String[] hostPort = bootstrapServers.split(",", -1)[0].split(":", -1);
         return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
     }
 

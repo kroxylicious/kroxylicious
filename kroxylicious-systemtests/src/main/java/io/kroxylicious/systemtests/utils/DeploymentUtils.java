@@ -320,7 +320,7 @@ public class DeploymentUtils {
     @SuppressFBWarnings("PATH_TRAVERSAL_IN") // this is not production code
     public static void deployYamlFiles(String namespaceName, List<File> files) {
         for (File operatorFile : files) {
-            final String resourceType = operatorFile.getName().split("\\.")[1];
+            final String resourceType = operatorFile.getName().split("\\.", -1)[1];
 
             if (resourceType.equals(Constants.NAMESPACE)) {
                 Namespace namespace = KubeTestUtils.configFromYaml(operatorFile, Namespace.class);

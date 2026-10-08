@@ -151,7 +151,7 @@ public class Environment {
      * SKIP_TEARDOWN env variable assignment.
      */
     public static final boolean SKIP_TEARDOWN = ENVIRONMENT_VARIABLES.getOrDefault(SKIP_TEARDOWN_ENV, Boolean::parseBoolean, SKIP_TEARDOWN_DEFAULT);
-    public static final String KROXYLICIOUS_OPERATOR_IMAGE_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[2];
+    public static final String KROXYLICIOUS_OPERATOR_IMAGE_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/", -1)[2];
 
     /**
      * Source of the operator manifest. This can either be an all-in-one yaml file, or a directory containing many yaml files.
@@ -163,8 +163,8 @@ public class Environment {
      */
     public static final String KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_ENV,
             KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_DEFAULT);
-    public static final String KROXYLICIOUS_OPERATOR_ORG_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[1];
-    public static final String KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[0];
+    public static final String KROXYLICIOUS_OPERATOR_ORG_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/", -1)[1];
+    public static final String KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/", -1)[0];
 
     public static final String CONTAINER_CONFIG_PATH = ENVIRONMENT_VARIABLES.getOrDefault(CONTAINER_CONFIG_PATH_ENV, CONTAINER_CONFIG_PATH_DEFAULT);
 

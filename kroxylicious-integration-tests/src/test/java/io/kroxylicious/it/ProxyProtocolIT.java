@@ -88,7 +88,7 @@ class ProxyProtocolIT {
                     MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataResponseData()));
 
             var address = tester.getBootstrapAddress();
-            var parts = address.split(":");
+            var parts = address.split(":", -1);
             var host = parts[0];
             var port = Integer.parseInt(parts[1]);
 
@@ -161,7 +161,7 @@ class ProxyProtocolIT {
                     ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsResponseData()));
 
             var address = tester.getBootstrapAddress();
-            var parts = address.split(":");
+            var parts = address.split(":", -1);
             var host = parts[0];
             var port = Integer.parseInt(parts[1]);
 
@@ -252,7 +252,7 @@ class ProxyProtocolIT {
                     ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsResponseData()));
 
             var address = tester.getBootstrapAddress();
-            var parts = address.split(":");
+            var parts = address.split(":", -1);
             var host = parts[0];
             var port = Integer.parseInt(parts[1]);
 
@@ -302,7 +302,7 @@ class ProxyProtocolIT {
                 .withProxyProtocol(new ProxyProtocolConfig(ProxyProtocolMode.DISABLED)))) {
 
             var address = tester.getBootstrapAddress();
-            var parts = address.split(":");
+            var parts = address.split(":", -1);
             var host = parts[0];
             var port = Integer.parseInt(parts[1]);
 
