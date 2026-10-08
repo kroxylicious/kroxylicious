@@ -29,7 +29,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param selectionStrategy The strategy used for selecting a bootstrap server when multiple servers are specified,
  *                          or null when the default (round-robin) strategy is to be used.
  * @param connectTimeout The maximum time to wait for a TCP connection to an upstream broker to be established,
- *                       or null when the default is to be used.
+ *                       or null when the default is to be used. When set it must be positive and must not
+ *                       exceed {@code Integer.MAX_VALUE} milliseconds (~24.8 days).
  */
 public record TargetCluster(@JsonProperty(value = "bootstrapServers", required = true) String bootstrapServers,
                             @JsonProperty(value = "tls") Optional<Tls> tls,
@@ -40,6 +41,9 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
     // Matches Netty's io.netty.channel.DefaultChannelConfig.DEFAULT_CONNECT_TIMEOUT (30s), so leaving
     // connectTimeout unset preserves Netty's existing CONNECT_TIMEOUT_MILLIS default exactly.
     private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(30);
+    // The channel option takes an int number of milliseconds, so Integer.MAX_VALUE ms (~24.8 days) is the
+    // largest value that can be applied; anything larger is a configuration mistake rather than an intent.
+    private static final Duration MAX_CONNECT_TIMEOUT = Duration.ofMillis(Integer.MAX_VALUE);
 
     /**
      * Validates the target cluster, stripping whitespace from {@code bootstrapServers}.
@@ -50,18 +54,36 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
             throw new IllegalArgumentException("'bootstrapServers' is required in a target cluster.");
         }
         bootstrapServers = bootstrapServers.replaceAll("\\s", "");
-        // A null connectTimeout is allowed and means "use the default"; the resolved value is supplied
-        // by effectiveConnectTimeout() at the use site so that round-trip serialization preserves null.
-        // Zero is rejected because Netty interprets CONNECT_TIMEOUT_MILLIS == 0 as "no timeout at all",
-        // which would silently disable the bound rather than set a short one.
-        if (connectTimeout != null) {
-            if (connectTimeout.isZero() || connectTimeout.isNegative()) {
-                throw new IllegalArgumentException("'connectTimeout' for a target cluster must be positive, got: " + connectTimeout);
-            }
-            if (connectTimeout.toMillis() > Integer.MAX_VALUE) {
-                throw new IllegalArgumentException(
-                        "'connectTimeout' for a target cluster must not exceed " + Integer.MAX_VALUE + " ms, got: " + connectTimeout);
-            }
+        validateConnectTimeout(connectTimeout, "for a target cluster");
+    }
+
+    /**
+     * Validates a {@code connectTimeout} value, shared by {@link TargetCluster} and {@link ClusterDefinition}
+     * so the rule and its bound cannot drift apart. A {@code null} value is allowed and means "use the
+     * default"; the resolved value is supplied by {@link #effectiveConnectTimeout()} at the use site so that
+     * round-trip serialization preserves {@code null}.
+     * <p>
+     * Zero is rejected because Netty interprets {@code CONNECT_TIMEOUT_MILLIS == 0} as "no timeout at all",
+     * which would silently disable the bound rather than set a short one. The upper bound uses
+     * {@link Duration#compareTo(Duration)} rather than {@link Duration#toMillis()} because {@code toMillis()}
+     * throws {@link ArithmeticException} for very large durations (reachable from YAML), whereas {@code compareTo}
+     * cannot overflow.
+     *
+     * @param connectTimeout the value to validate, or null
+     * @param context phrase naming the offending config, interpolated into the exception message
+     */
+    static void validateConnectTimeout(@Nullable Duration connectTimeout, String context) {
+        if (connectTimeout == null) {
+            return;
+        }
+        if (connectTimeout.isZero() || connectTimeout.isNegative()) {
+            throw new IllegalArgumentException(
+                    "'connectTimeout' " + context + " must be positive, got: " + connectTimeout);
+        }
+        if (connectTimeout.compareTo(MAX_CONNECT_TIMEOUT) > 0) {
+            throw new IllegalArgumentException(
+                    "'connectTimeout' " + context + " must not exceed " + MAX_CONNECT_TIMEOUT
+                            + ", got: " + connectTimeout);
         }
     }
 
