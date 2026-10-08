@@ -15,6 +15,7 @@ import java.util.concurrent.Callable;
 
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.InMemoryExecutionContext;
+import org.openrewrite.PrintOutputCapture;
 import org.openrewrite.Recipe;
 import org.openrewrite.RecipeRun;
 import org.openrewrite.Result;
@@ -80,7 +81,10 @@ class ConvertConfigCommand implements Callable<Integer> {
             out.println(result.diff());
             SourceFile after = Objects.requireNonNull(result.getAfter(), "after");
             if (!dryRun) {
-                Files.writeString(after.getSourcePath(), after.printAll());
+                // a recipe may annotate a tree it couldn't fully migrate, such as UseClusterDefinitions flagging a
+                // targetCluster which uses a YAML anchor; printAll()'s default marker printer renders those as
+                // `~~(message)~~>` text, which must not end up in the file written back to the user
+                Files.writeString(after.getSourcePath(), after.printAll(new PrintOutputCapture<>(0, PrintOutputCapture.MarkerPrinter.SANITIZED)));
             }
         }
 

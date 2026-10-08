@@ -43,6 +43,16 @@ class ConvertConfigCommandTest {
                   cluster: demo-target
             """;
 
+    private static final String UNMIGRATABLE_ANCHOR_FORM = """
+            virtualClusters:
+              - name: demo
+                targetCluster:
+                  bootstrapServers: localhost:9092
+                  tls: &commonTls
+                    trust:
+                      storeFile: /x/trust.p12
+            """;
+
     @TempDir
     Path configDir;
 
@@ -115,6 +125,20 @@ class ConvertConfigCommandTest {
         assertThat(exitCode).isZero();
         assertThat(configFile).hasContent(CURRENT_FORM);
         assertThat(out.toString()).contains("No changes required.");
+    }
+
+    @Test
+    void shouldWriteCleanFileWhenTargetClusterCannotBeMigrated() throws Exception {
+        // Given
+        Path configFile = writeConfig("proxy-config.yaml", UNMIGRATABLE_ANCHOR_FORM);
+
+        // When
+        int exitCode = commandLine.execute("convert-config", configFile.toString());
+
+        // Then
+        assertThat(exitCode).isZero();
+        assertThat(configFile).hasContent(UNMIGRATABLE_ANCHOR_FORM);
+        assertThat(out.toString()).contains("~~(targetCluster uses a YAML anchor or alias");
     }
 
     @Test
