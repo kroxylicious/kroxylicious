@@ -48,7 +48,7 @@ Downstream filter projects do not need to modify their `pom.xml` to execute publ
 ### dry run
 ```bash
 mvn org.openrewrite.maven:rewrite-maven-plugin:dryRun \
-  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.25.0 \
+  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.26.0-SNAPSHOT \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24
 ```
 
@@ -57,7 +57,7 @@ Review the proposed patch file, if your happy apply it using `run`:
 ### Run
 ```bash
 mvn org.openrewrite.maven:rewrite-maven-plugin:run \
-  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.25.0 \
+  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.26.0-SNAPSHOT \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.v0_24.MigrateTo0_24
 ```
 
@@ -65,7 +65,7 @@ mvn org.openrewrite.maven:rewrite-maven-plugin:run \
 
 ```bash
 mvn org.openrewrite.maven:rewrite-maven-plugin:run \
-  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.25.0 \
+  -Drewrite.recipeArtifactCoordinates=io.kroxylicious:kroxylicious-migrations:0.26.0-SNAPSHOT \
   -Drewrite.activeRecipes=io.kroxylicious.migrations.rewrite.MigrateToLatest
 ```
 
@@ -79,7 +79,7 @@ plugins {
 }
 
 dependencies {
-    rewrite("io.kroxylicious:kroxylicious-migrations:0.25.0
+    rewrite("io.kroxylicious:kroxylicious-migrations:0.26.0-SNAPSHOT
 }
 ```
 
@@ -110,10 +110,10 @@ The migrations jar is runnable, and its `convert-config` command converts the fi
 
 ```bash
 # preview the changes
-jbang io.kroxylicious:kroxylicious-migrations:0.25.0 convert-config --dry-run /path/to/kroxylicious-config.yaml
+jbang io.kroxylicious:kroxylicious-migrations:0.26.0-SNAPSHOT convert-config --dry-run /path/to/kroxylicious-config.yaml
 
 # apply them
-jbang io.kroxylicious:kroxylicious-migrations:0.25.0 convert-config /path/to/kroxylicious-config.yaml
+jbang io.kroxylicious:kroxylicious-migrations:0.26.0-SNAPSHOT convert-config /path/to/kroxylicious-config.yaml
 ```
 
 Either form prints a unified diff of what it changed, or would change. More than one file may be given. Without jbang, run the same command with `java -cp <migrations jar and its dependencies> io.kroxylicious.migrations.cli.KroxyliciousMigrations`.
