@@ -138,6 +138,14 @@ public class UseClusterDefinitions extends Recipe {
      */
     private static class ClusterDefinitionsVisitor extends YamlIsoVisitor<ExecutionContext> {
 
+        private static final String MIXED_FORMS_MESSAGE = "virtual cluster declares both targetCluster and target, which the runtime rejects; "
+                + "remove the deprecated targetCluster by hand";
+        private static final String NOT_A_MAPPING_MESSAGE = "targetCluster is not a mapping; migrate this virtual cluster to clusterDefinitions by hand";
+        private static final String MISSING_BOOTSTRAP_SERVERS_MESSAGE = "targetCluster has no bootstrapServers; migrate this virtual cluster to "
+                + "clusterDefinitions by hand";
+        private static final String ANCHOR_OR_ALIAS_MESSAGE = "targetCluster uses a YAML anchor or alias; migrate this virtual cluster to clusterDefinitions "
+                + "by hand";
+
         @Override
         // S135: the loop below skips the several kinds of virtual cluster which cannot be migrated. Expressing those
         // guards as a single continue would nest the body three deep, which reads worse than the guards themselves.
@@ -169,19 +177,19 @@ public class UseClusterDefinitions extends Recipe {
                     continue;
                 }
                 if (hasEntry(virtualCluster, TARGET)) {
-                    unmigratableTargetClusters.put(targetCluster.getId(), toMixedFormsWarning(targetCluster));
+                    unmigratableTargetClusters.put(targetCluster.getId(), toWarning(targetCluster, MIXED_FORMS_MESSAGE));
                     continue;
                 }
                 if (!(targetCluster.getValue() instanceof Yaml.Mapping mapping)) {
-                    unmigratableTargetClusters.put(targetCluster.getId(), toNotAMappingWarning(targetCluster));
+                    unmigratableTargetClusters.put(targetCluster.getId(), toWarning(targetCluster, NOT_A_MAPPING_MESSAGE));
                     continue;
                 }
                 if (!hasEntry(mapping, BOOTSTRAP_SERVERS)) {
-                    unmigratableTargetClusters.put(targetCluster.getId(), toMissingBootstrapServersWarning(targetCluster));
+                    unmigratableTargetClusters.put(targetCluster.getId(), toWarning(targetCluster, MISSING_BOOTSTRAP_SERVERS_MESSAGE));
                     continue;
                 }
                 if (containsAnchorOrAlias(mapping)) {
-                    unmigratableTargetClusters.put(targetCluster.getId(), toAnchorWarning(targetCluster));
+                    unmigratableTargetClusters.put(targetCluster.getId(), toWarning(targetCluster, ANCHOR_OR_ALIAS_MESSAGE));
                     continue;
                 }
                 String clusterDefinitionName = uniqueName(virtualClusterName + "-target", usedNames);
@@ -342,53 +350,14 @@ public class UseClusterDefinitions extends Recipe {
         }
 
         /**
-         * Returns the given {@code targetCluster} entry annotated with a warning that the virtual cluster also
-         * declares {@code target}, which the runtime rejects, so that it is surfaced to the user rather than silently
-         * left behind.
+         * Returns the given {@code targetCluster} entry annotated with the given warning message, so that it is
+         * surfaced to the user rather than silently left behind.
          * <p>
          * This only ever attaches the marker to the in-memory tree; {@code ConvertConfigCommand} is responsible for
          * stripping it back out before writing a file to disk.
          */
-        private static Yaml.Mapping.Entry toMixedFormsWarning(Yaml.Mapping.Entry targetCluster) {
-            return Markup.warn(targetCluster,
-                    new IllegalStateException(
-                            "virtual cluster declares both targetCluster and target, which the runtime rejects; remove the deprecated targetCluster by hand"));
-        }
-
-        /**
-         * Returns the given {@code targetCluster} entry annotated with a warning that its value is not a mapping, so
-         * that it is surfaced to the user rather than silently left behind.
-         * <p>
-         * This only ever attaches the marker to the in-memory tree; {@code ConvertConfigCommand} is responsible for
-         * stripping it back out before writing a file to disk.
-         */
-        private static Yaml.Mapping.Entry toNotAMappingWarning(Yaml.Mapping.Entry targetCluster) {
-            return Markup.warn(targetCluster,
-                    new IllegalStateException("targetCluster is not a mapping; migrate this virtual cluster to clusterDefinitions by hand"));
-        }
-
-        /**
-         * Returns the given {@code targetCluster} entry annotated with a warning that its mapping has no
-         * {@code bootstrapServers}, so that it is surfaced to the user rather than silently left behind.
-         * <p>
-         * This only ever attaches the marker to the in-memory tree; {@code ConvertConfigCommand} is responsible for
-         * stripping it back out before writing a file to disk.
-         */
-        private static Yaml.Mapping.Entry toMissingBootstrapServersWarning(Yaml.Mapping.Entry targetCluster) {
-            return Markup.warn(targetCluster,
-                    new IllegalStateException("targetCluster has no bootstrapServers; migrate this virtual cluster to clusterDefinitions by hand"));
-        }
-
-        /**
-         * Returns the given {@code targetCluster} entry annotated with a warning that it involves a YAML anchor or
-         * alias and couldn't be migrated, so that it is surfaced to the user rather than silently left behind.
-         * <p>
-         * This only ever attaches the marker to the in-memory tree; {@code ConvertConfigCommand} is responsible for
-         * stripping it back out before writing a file to disk.
-         */
-        private static Yaml.Mapping.Entry toAnchorWarning(Yaml.Mapping.Entry targetCluster) {
-            return Markup.warn(targetCluster,
-                    new IllegalStateException("targetCluster uses a YAML anchor or alias; migrate this virtual cluster to clusterDefinitions by hand"));
+        private static Yaml.Mapping.Entry toWarning(Yaml.Mapping.Entry targetCluster, String message) {
+            return Markup.warn(targetCluster, new IllegalStateException(message));
         }
 
         private static Set<String> existingClusterDefinitionNames(Yaml.Mapping root) {
