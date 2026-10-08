@@ -544,6 +544,22 @@ class UseClusterDefinitionsTest implements RewriteTest {
     }
 
     @Test
+    void shouldFlagTargetClusterThatIsNotAMapping() {
+        rewriteRun(
+                yaml(
+                        """
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster: localhost:9092
+                                """,
+                        """
+                                virtualClusters:
+                                  - name: demo
+                                    ~~(targetCluster is not a mapping; migrate this virtual cluster to clusterDefinitions by hand)~~>targetCluster: localhost:9092
+                                """));
+    }
+
+    @Test
     void shouldFlagTargetClusterUsingAnchors() {
         rewriteRun(
                 yaml(

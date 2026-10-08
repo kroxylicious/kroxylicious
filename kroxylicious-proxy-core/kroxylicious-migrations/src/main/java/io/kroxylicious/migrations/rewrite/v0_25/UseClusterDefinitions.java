@@ -173,6 +173,7 @@ public class UseClusterDefinitions extends Recipe {
                     continue;
                 }
                 if (!(targetCluster.getValue() instanceof Yaml.Mapping mapping)) {
+                    unmigratableTargetClusters.put(targetCluster.getId(), toNotAMappingWarning(targetCluster));
                     continue;
                 }
                 if (!hasEntry(mapping, BOOTSTRAP_SERVERS)) {
@@ -352,6 +353,18 @@ public class UseClusterDefinitions extends Recipe {
             return Markup.warn(targetCluster,
                     new IllegalStateException(
                             "virtual cluster declares both targetCluster and target, which the runtime rejects; remove the deprecated targetCluster by hand"));
+        }
+
+        /**
+         * Returns the given {@code targetCluster} entry annotated with a warning that its value is not a mapping, so
+         * that it is surfaced to the user rather than silently left behind.
+         * <p>
+         * This only ever attaches the marker to the in-memory tree; {@code ConvertConfigCommand} is responsible for
+         * stripping it back out before writing a file to disk.
+         */
+        private static Yaml.Mapping.Entry toNotAMappingWarning(Yaml.Mapping.Entry targetCluster) {
+            return Markup.warn(targetCluster,
+                    new IllegalStateException("targetCluster is not a mapping; migrate this virtual cluster to clusterDefinitions by hand"));
         }
 
         /**
