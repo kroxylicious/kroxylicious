@@ -310,6 +310,7 @@ public final class TlsTestUtils {
      * @return SHA-256 fingerprint of the certificate
      * @throws Exception if extraction fails
      */
+    // extractCertFingerprint : AIA Entirely AI, Human-initiated, No human review, Claude Opus 4.8, Claude Sonnet 4.5 v1.0
     private static String extractCertFingerprint(final SslContext serverSslContext) throws Exception {
         // For Netty SslContext, we need to perform a handshake to get the certificate.
         // Create a test client that will connect and extract the server's certificate.

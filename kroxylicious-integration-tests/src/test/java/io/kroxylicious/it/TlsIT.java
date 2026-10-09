@@ -897,18 +897,22 @@ class TlsIT extends AbstractTlsIT {
         var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
         var proxyKeystorePasswordProvider = constructPasswordProvider(FilePassword.class, proxyKeystorePassword);
 
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
+                .addToClusterDefinitions(clusterDef)
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .withNewTls()
                                 .withNewKeyStoreKey()
-                                .withStoreFile(proxyKeystoreLocation)
-                                .withStorePasswordProvider(proxyKeystorePasswordProvider)
+                                    .withStoreFile(proxyKeystoreLocation)
+                                    .withStorePasswordProvider(proxyKeystorePasswordProvider)
                                 .endKeyStoreKey()
-                                .endTls()
-                                .build())
-                        .build());
+                            .endTls()
+                            .build())
+                .endVirtualCluster();
         // @formatter:on
         var request = new Request(ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.latestVersion(), null, new ApiVersionsRequestData());
         try (var tester = kroxyliciousTester(builder);

@@ -51,6 +51,7 @@ import io.kroxylicious.proxy.config.tls.KeyStore;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Utility class for TLS credential validation.
@@ -357,6 +358,12 @@ public class TlsUtil {
         }
     }
 
+    /*
+     * All code from this point until the closing comment
+     *
+     * AIA Entirely AI, Human-initiated, No human review, Claude Opus 4.8, Claude Sonnet 4.5 v1.0
+     */
+
     /**
      * Validates that the certificate(s) in the KeyProvider were derived from the corresponding private key.
      * Where a key store contains multiple key entries, every recoverable key entry is validated, as the
@@ -401,6 +408,8 @@ public class TlsUtil {
     private static class KeyProviderExtractionVisitor implements KeyProviderVisitor<List<KeyAndCert>> {
 
         @Override
+        // Paths come from the trusted proxy TLS configuration, not from untrusted input
+        @SuppressFBWarnings("PATH_TRAVERSAL_IN")
         public List<KeyAndCert> visit(final KeyPair keyPair) {
             try {
                 // Read files
@@ -425,6 +434,8 @@ public class TlsUtil {
         }
 
         @Override
+        // Paths come from the trusted proxy TLS configuration, not from untrusted input
+        @SuppressFBWarnings("PATH_TRAVERSAL_IN")
         public List<KeyAndCert> visit(final KeyStore keyStore) {
             try {
                 if (keyStore.isPemType()) {
@@ -470,6 +481,8 @@ public class TlsUtil {
      * @throws IOException if the keystore cannot be read or contains no recoverable key entries
      * @throws GeneralSecurityException if the keystore cannot be loaded or key extraction fails
      */
+    // Path comes from the trusted proxy TLS configuration, not from untrusted input
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
     private static List<KeyAndCert> extractFromKeyStore(final KeyStore keyStoreConfig)
             throws IOException, GeneralSecurityException {
         final char[] storePass = keyStoreConfig.storePasswordProvider() != null
@@ -551,7 +564,7 @@ public class TlsUtil {
     }
 
     /**
-     * Parses a private key from PEM-encoded bytes. Supports PKCS#8 and PKCS#1 RSA formats.
+     * Parses a private key from PEM-encoded bytes. Supports PKCS#8, PKCS#1 RSA and SEC1 EC formats.
      *
      * @param pemBytes PEM-encoded private key data
      * @param password password for encrypted keys (must be null - encrypted keys not supported)
@@ -591,8 +604,21 @@ public class TlsUtil {
             return parsePkcs8PrivateKey(pkcs8Der);
         }
 
+        // Try SEC1 EC format: "-----BEGIN EC PRIVATE KEY-----"
+        final Pattern sec1Pattern = Pattern.compile(
+                "-----BEGIN EC PRIVATE KEY-----\\s*([A-Za-z0-9+/=\\s]+?)\\s*-----END EC PRIVATE KEY-----",
+                Pattern.CASE_INSENSITIVE);
+        matcher = sec1Pattern.matcher(pem);
+        if (matcher.find()) {
+            final String base64 = matcher.group(1).replaceAll("\\s", "");
+            final byte[] sec1Der = Base64.getDecoder().decode(base64);
+            final byte[] pkcs8Der = convertSec1ToPkcs8(sec1Der);
+            return parsePkcs8PrivateKey(pkcs8Der);
+        }
+
         throw new IOException("No supported private key format found in PEM data. " +
-                "Supported formats: PKCS#8 (BEGIN PRIVATE KEY) and PKCS#1 RSA (BEGIN RSA PRIVATE KEY).");
+                "Supported formats: PKCS#8 (BEGIN PRIVATE KEY), PKCS#1 RSA (BEGIN RSA PRIVATE KEY) " +
+                "and SEC1 EC (BEGIN EC PRIVATE KEY).");
     }
 
     /**
@@ -675,12 +701,161 @@ public class TlsUtil {
     }
 
     /**
+     * Converts a SEC1 (RFC 5915) EC private key to PKCS#8 format using ASN.1 DER encoding.
+     * The traditional "EC PRIVATE KEY" PEM encoding is SEC1, not PKCS#1 (which is RSA specific).
+     * The named curve is read from the SEC1 {@code [0] parameters} field and placed in the PKCS#8
+     * AlgorithmIdentifier, as the JDK EC KeyFactory derives the curve from there. Only named curves
+     * are supported; keys using explicit curve parameters are rejected.
+     * PKCS#8 structure: SEQUENCE { version INTEGER, algorithm AlgorithmIdentifier { id-ecPublicKey, namedCurve }, privateKey OCTET STRING }
+     *
+     * @param sec1Bytes SEC1 DER-encoded EC private key
+     * @return PKCS#8 DER-encoded private key
+     * @throws IOException if the SEC1 structure cannot be parsed or omits the named curve
+     */
+    private static byte[] convertSec1ToPkcs8(final byte[] sec1Bytes) throws IOException {
+        // id-ecPublicKey OID 1.2.840.10045.2.1, as a complete DER element (tag, length, value)
+        final byte[] ecPublicKeyOid = new byte[]{ 0x06, 0x07, 0x2A, (byte) 0x86, 0x48, (byte) 0xCE, 0x3D, 0x02, 0x01 };
+
+        // The named-curve OID (complete DER element) lifted from the SEC1 [0] parameters field
+        final byte[] curveOid = extractEcCurveOid(sec1Bytes);
+
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        // Build algorithm identifier: SEQUENCE { id-ecPublicKey OID, namedCurve OID }
+        final int algorithmSeqLength = ecPublicKeyOid.length + curveOid.length;
+        final byte[] algorithmSeqLengthBytes = encodeDerLength(algorithmSeqLength);
+
+        // Build version: INTEGER 0
+        final byte[] version = new byte[]{ 0x02, 0x01, 0x00 };
+
+        // The SEC1 key is wrapped verbatim in the privateKey OCTET STRING; any redundant inner
+        // parameters or public key are ignored by the JDK EC KeyFactory.
+        final byte[] privateKeyLengthBytes = encodeDerLength(sec1Bytes.length);
+        final int privateKeyTotalLength = 1 + privateKeyLengthBytes.length + sec1Bytes.length;
+
+        final int totalLength = version.length +
+                1 + algorithmSeqLengthBytes.length + algorithmSeqLength +
+                privateKeyTotalLength;
+
+        // Write outer SEQUENCE
+        baos.write(0x30); // SEQUENCE tag
+        baos.write(encodeDerLength(totalLength));
+
+        // Write version
+        baos.write(version);
+
+        // Write algorithm identifier SEQUENCE
+        baos.write(0x30); // SEQUENCE tag
+        baos.write(algorithmSeqLengthBytes);
+        baos.write(ecPublicKeyOid);
+        baos.write(curveOid);
+
+        // Write SEC1 key as OCTET STRING
+        baos.write(0x04); // OCTET STRING tag
+        baos.write(privateKeyLengthBytes);
+        baos.write(sec1Bytes);
+
+        return baos.toByteArray();
+    }
+
+    /**
+     * Extracts the named-curve OID (as a complete DER element) from the {@code [0] parameters} field
+     * of a SEC1 EC private key. The JDK EC KeyFactory requires the curve in the PKCS#8
+     * AlgorithmIdentifier, so it must be recovered from the SEC1 structure.
+     *
+     * @param sec1Bytes SEC1 DER-encoded EC private key
+     * @return the DER-encoded OID element (tag 0x06) identifying the named curve
+     * @throws IOException if the structure is malformed, uses explicit (non-named) curve parameters,
+     *                     or omits the curve parameters entirely
+     */
+    private static byte[] extractEcCurveOid(final byte[] sec1Bytes) throws IOException {
+        int offset = 0;
+        if (sec1Bytes.length == 0 || (sec1Bytes[offset] & 0xFF) != 0x30) {
+            throw new IOException("Invalid SEC1 EC private key: expected a DER SEQUENCE");
+        }
+        offset++;
+        final int[] sequenceLengthAndSize = readDerLength(sec1Bytes, offset);
+        offset += sequenceLengthAndSize[1]; // step over the SEQUENCE length to its content
+        final int sequenceEnd = offset + sequenceLengthAndSize[0];
+        if (sequenceEnd > sec1Bytes.length) {
+            throw new IOException("Invalid SEC1 EC private key: SEQUENCE length exceeds the available data");
+        }
+
+        // Walk the elements of the ECPrivateKey SEQUENCE looking for the [0] parameters element,
+        // bounded by the SEQUENCE length so trailing or concatenated DER is not scanned.
+        while (offset < sequenceEnd) {
+            final int tag = sec1Bytes[offset] & 0xFF;
+            offset++;
+            final int[] lengthAndSize = readDerLength(sec1Bytes, offset);
+            final int contentLength = lengthAndSize[0];
+            offset += lengthAndSize[1];
+            if (offset + contentLength > sequenceEnd) {
+                throw new IOException("Invalid SEC1 EC private key: truncated element");
+            }
+
+            if (tag == 0xA0) { // context tag [0] parameters
+                if (contentLength == 0 || (sec1Bytes[offset] & 0xFF) != 0x06) {
+                    throw new IOException("Unsupported EC private key: only named curves (an OID) are supported");
+                }
+                final int[] oidLengthAndSize = readDerLength(sec1Bytes, offset + 1);
+                final int oidTotalLength = 1 + oidLengthAndSize[1] + oidLengthAndSize[0];
+                if (offset + oidTotalLength > sequenceEnd) {
+                    throw new IOException("Invalid SEC1 EC private key: truncated curve OID");
+                }
+                final byte[] oid = new byte[oidTotalLength];
+                System.arraycopy(sec1Bytes, offset, oid, 0, oidTotalLength);
+                return oid;
+            }
+            offset += contentLength; // skip this element's content
+        }
+        throw new IOException("EC private key does not specify a named curve; " +
+                "convert it to PKCS#8 (BEGIN PRIVATE KEY) or include named-curve parameters");
+    }
+
+    /**
+     * Reads a DER length at the given offset.
+     *
+     * @param der the DER bytes
+     * @param offset the offset of the length octet(s)
+     * @return a two element array: {decoded length, number of octets the length occupies}
+     * @throws IOException if the length is truncated or uses an unsupported (indefinite or oversized) form
+     */
+    private static int[] readDerLength(final byte[] der, final int offset) throws IOException {
+        if (offset >= der.length) {
+            throw new IOException("Truncated DER length");
+        }
+        final int first = der[offset] & 0xFF;
+        if (first < 0x80) {
+            // Short form: single length octet
+            return new int[]{ first, 1 };
+        }
+        final int numBytes = first & 0x7F;
+        if (numBytes == 0 || numBytes > 4 || offset + numBytes >= der.length) {
+            throw new IOException("Unsupported DER length encoding");
+        }
+        int length = 0;
+        for (int i = 1; i <= numBytes; i++) {
+            length = (length << 8) | (der[offset + i] & 0xFF);
+        }
+        if (length < 0) {
+            // A four-octet length with the top bit set overflows a signed 32-bit int
+            throw new IOException("Invalid DER length: value overflows a signed 32-bit integer");
+        }
+        return new int[]{ length, 1 + numBytes };
+    }
+
+    /**
      * Encodes a length value in DER format (short form for lengths < 128, long form otherwise).
+     * Long form up to four length octets is supported, covering the full non-negative int range.
      *
      * @param length the length to encode
      * @return DER-encoded length bytes
+     * @throws IOException if the length is negative
      */
-    private static byte[] encodeDerLength(final int length) {
+    private static byte[] encodeDerLength(final int length) throws IOException {
+        if (length < 0) {
+            throw new IOException("Invalid DER length: negative");
+        }
         if (length < 128) {
             // Short form: single byte
             return new byte[]{ (byte) length };
@@ -689,10 +864,19 @@ public class TlsUtil {
             // Long form: 0x81 followed by one length byte
             return new byte[]{ (byte) 0x81, (byte) length };
         }
-        else {
+        else if (length < 65536) {
             // Long form: 0x82 followed by two length bytes (big-endian)
             return new byte[]{ (byte) 0x82, (byte) (length >> 8), (byte) length };
         }
+        else if (length < 16777216) {
+            // Long form: 0x83 followed by three length bytes (big-endian)
+            return new byte[]{ (byte) 0x83, (byte) (length >> 16), (byte) (length >> 8), (byte) length };
+        }
+        else {
+            // Long form: 0x84 followed by four length bytes (big-endian)
+            return new byte[]{ (byte) 0x84, (byte) (length >> 24), (byte) (length >> 16), (byte) (length >> 8), (byte) length };
+        }
     }
 
+    // End of code generated by Claude Opus 4.8 <noreply@anthropic.com> and Claude Sonnet 4.5 <noreply@anthropic.com>
 }
