@@ -1,0 +1,67 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Run Tests For Main Branch
+
+on:
+  push:
+    branches: [ main, 'release/**' ]
+
+jobs:
+  build_artifacts:
+    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
+
+  integration_tests:
+    needs: build_artifacts
+    uses: $/.github/workflows/integration-tests.yaml
+
+  # JOB to run change detection to decide whether run the system tests
+  changes_for_system_tests:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      systemtest: ${{ steps.filter.outputs.systemtest }}
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
+        id: filter
+        with:
+          predicate-quantifier: 'some-with-excludes'
+          filters: |
+            systemtest:
+              - '.github/workflows/system-tests-merge.yaml'
+              - '.github/workflows/run-system-tests.yaml'
+              - '.github/workflows/push-tests.yaml'
+              - '.github/workflows/build-kroxylicious-container-images.yaml'
+              - '.github/workflows/build-kroxylicious-artifacts.yaml'
+              - 'pom.xml'
+              - 'kroxylicious-**/**'
+              - '!**/**.md'
+              - '!kroxylicious-annotations/**'
+              - '!kroxylicious-docs**/**'
+              - '!kroxylicious-integration-test**/**'
+              - '!kroxylicious-*benchmarks/**'
+              - '!kroxylicious-test-images/**'
+              - '!kroxylicious-wire-fidelity-tests/**'
+
+  system_tests:
+    needs: [build_artifacts,changes_for_system_tests]
+    if: ${{ needs.changes_for_system_tests.outputs.systemtest == 'true' }}
+    uses: $/.github/workflows/system-tests-merge.yaml

@@ -17,16 +17,7 @@
 name: System Tests for Pull-Requests
 
 on:
-  pull_request:
-    types: [ opened, synchronize, reopened, labeled ]
-    branches:
-      - "main"
-      - 'release/**'
-  workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  workflow_call:
 
 jobs:
   # JOB to run change detection
@@ -46,6 +37,7 @@ jobs:
             systemtest:
               - '.github/workflows/system-tests-pr.yaml'
               - '.github/workflows/run-system-tests.yaml'
+              - '.github/workflows/pr-tests.yaml'
               - '.github/workflows/build-kroxylicious-container-images.yaml'
               - '.github/workflows/build-kroxylicious-artifacts.yaml'
               - 'pom.xml'
@@ -58,12 +50,7 @@ jobs:
               - '!kroxylicious-test-images/**'
               - '!kroxylicious-wire-fidelity-tests/**'
 
-  build_artifacts:
-    needs: changes
-    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
-
   set_variables:
-    needs: changes
     runs-on: ubuntu-latest
     outputs:
       kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}
@@ -100,7 +87,7 @@ jobs:
           echo "$KAFKA_CLIENT"
 
   run_system_tests:
-    needs: [changes,build_artifacts,set_variables]
+    needs: [changes,set_variables]
     uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
@@ -108,4 +95,4 @@ jobs:
     with:
       kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}
       testFortanixKMS: ${{ contains(github.event.pull_request.labels.*.name, 'kms/fortanix') }}
-      skipSystemTestRun: ${{ needs.changes.outputs.systemtest == 'false' }}
+      skipSystemTestRun: ${{ needs.changes.outputs.systemtest == 'false' || github.event_name == 'merge_group' }}
