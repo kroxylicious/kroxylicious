@@ -16,13 +16,15 @@ REPOSITORY="origin"
 BRANCH_FROM="main"
 DRY_RUN="false"
 ORIGINAL_GH_DEFAULT_REPO=""
-while getopts ":v:b:u:dh" opt; do
+while getopts ":v:b:u:s:dh" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
     ;;
     b) RELEASE_DOCS_BRANCH="${OPTARG}"
     ;;
     u) WEBSITE_REPO_URL="${OPTARG}"
+    ;;
+    s) RELEASE_STATE_JSON="${OPTARG}"
     ;;
     d) DRY_RUN="true"
     ;;
@@ -140,6 +142,24 @@ cp -R "${KROXYLICIOUS_DOCS_LOCATION}"/* "${WEBSITE_DOCS_LOCATION}"
 
 "${SCRIPT_DIR}/update-latest-docs-release.sh" _data/kroxylicious.yml "${RELEASE_VERSION}"
 
+UNDERSCORED_VERSION=${RELEASE_VERSION//./_}
+RELEASE_YAML="_data/release/${UNDERSCORED_VERSION}.yaml"
+
+if [[ -n "${RELEASE_STATE_JSON:-}" && -f "${RELEASE_STATE_JSON}" ]]; then
+  PROXY_DIGEST=$(jq -r     '.stagedArtifacts.proxy.images.manifestImage.digest'     "${RELEASE_STATE_JSON}")
+  OPERATOR_DIGEST=$(jq -r  '.stagedArtifacts.operator.images.manifestImage.digest'  "${RELEASE_STATE_JSON}")
+  ADMISSION_DIGEST=$(jq -r '.stagedArtifacts.admission.images.manifestImage.digest' "${RELEASE_STATE_JSON}")
+
+  if [[ "${PROXY_DIGEST}" =~ ^sha256: && "${OPERATOR_DIGEST}" =~ ^sha256: && "${ADMISSION_DIGEST}" =~ ^sha256: ]]; then
+    echo "Substituting container image digests in ${RELEASE_YAML}"
+    ${SED} -i \
+      -e "/name: Proxy/,/digest:/    s|sha256:REPLACE_WITH_SHA_AFTER_IMAGE_RELEASE|${PROXY_DIGEST}|" \
+      -e "/name: Operator/,/digest:/ s|sha256:REPLACE_WITH_SHA_AFTER_IMAGE_RELEASE|${OPERATOR_DIGEST}|" \
+      -e "/name: Webhook/,/digest:/  s|sha256:REPLACE_WITH_SHA_AFTER_IMAGE_RELEASE|${ADMISSION_DIGEST}|" \
+      "${RELEASE_YAML}"
+  fi
+fi
+
 echo "Committing release documentation to git"
 # Commit and push changes to branch in `kroxylicious/kroxylicious.github.io`
 git add "${WEBSITE_DOCS_LOCATION}"
@@ -164,8 +184,12 @@ gh repo set-default "$(git remote get-url "${REPOSITORY}")"
 
 echo "Creating pull request to publish release documentation to website."
 # Open PR to merge branch to `main` in `kroxylicious/kroxylicious.github.io`
-UNDERSCORED_VERSION=${RELEASE_VERSION//./_}
-BODY="Prepare ${RELEASE_TAG} release documentation for publishing to website. Remember to replace the container image SHAs in \`_data/release/${UNDERSCORED_VERSION}.yaml\` once they are available, before merging!"
+if grep -q "REPLACE_WITH_SHA_AFTER_IMAGE_RELEASE" "${RELEASE_YAML}" 2>/dev/null; then
+  SHA_REMINDER=" Remember to replace the container image SHAs in \`${RELEASE_YAML}\` before merging!"
+else
+  SHA_REMINDER=""
+fi
+BODY="Prepare ${RELEASE_TAG} release documentation for publishing to website.${SHA_REMINDER}"
 gh pr create --head "${RELEASE_DOCS_BRANCH}" \
              --base "${BRANCH_FROM}" \
              --title "Kroxylicious ${RELEASE_TAG} release documentation ${RELEASE_DATE}" \
