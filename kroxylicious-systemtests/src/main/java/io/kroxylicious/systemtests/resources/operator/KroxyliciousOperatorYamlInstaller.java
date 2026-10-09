@@ -12,7 +12,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Predicate;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -74,9 +73,11 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     // by default, we expect at least empty method name in order to collect logs correctly
     private String testMethodName = "";
 
-    private static final Predicate<KroxyliciousOperatorYamlInstaller> IS_EMPTY = ko -> ko.extensionContext == null && ko.kroxyliciousOperatorName == null
-            && ko.namespaceInstallTo == null
-            && ko.testClassName == null && ko.testMethodName == null;
+    private boolean isEmpty() {
+        return extensionContext == null && kroxyliciousOperatorName == null
+                && namespaceInstallTo == null
+                && testClassName == null && testMethodName == null;
+    }
 
     public KroxyliciousOperatorYamlInstaller(String namespaceInstallTo, @NonNull Map<String, String> additionalEnvVars) {
         this(namespaceInstallTo, additionalEnvVars, Environment.createOperatorManifestProvider());
@@ -295,7 +296,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     @Override
     public synchronized void delete() {
         LOGGER.info(SEPARATOR);
-        if (IS_EMPTY.test(this) || Environment.SKIP_TEARDOWN) {
+        if (isEmpty() || Environment.SKIP_TEARDOWN) {
             LOGGER.info("Skip un-installation of the Kroxylicious Operator");
         }
         else {
