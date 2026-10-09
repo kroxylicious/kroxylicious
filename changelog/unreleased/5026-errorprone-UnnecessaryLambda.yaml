@@ -1,0 +1,4 @@
+title: "fix: resolve ErrorProne UnnecessaryLambda warnings by replacing constant lambda expressions by method references"
+type: fixed
+merge_requests:
+  - 5026
