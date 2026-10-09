@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -169,7 +170,7 @@ public class ApiMessageSampleGenerator {
     }
 
     private static String toSetterName(BoundField boundField) {
-        return "set" + Arrays.stream(boundField.def.name.split("_")).map(s -> s.substring(0, 1).toUpperCase() + s.substring(1)).collect(Collectors.joining());
+        return "set" + Arrays.stream(boundField.def.name.split("_")).map(s -> s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1)).collect(Collectors.joining());
     }
 
     @SuppressWarnings("java:S3776") // the complexity warning owing to the type ladder is a false positive in this case

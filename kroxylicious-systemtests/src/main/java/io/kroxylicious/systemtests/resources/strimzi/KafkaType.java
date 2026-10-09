@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.resources.strimzi;
 
+import java.util.Locale;
 import java.util.function.Consumer;
 
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
@@ -58,7 +59,8 @@ public class KafkaType implements ResourceType<Kafka> {
                 .get();
 
         return fd.getStatus().getConditions().stream()
-                .anyMatch(condition -> condition.getType().equalsIgnoreCase("Ready") && condition.getStatus().toUpperCase().equals(ConditionStatus.TRUE.toString()));
+                .anyMatch(condition -> condition.getType().equalsIgnoreCase("Ready") && condition.getStatus().toUpperCase(Locale.ROOT)
+                        .equals(ConditionStatus.TRUE.toString()));
     }
 
     @Override
