@@ -1,0 +1,38 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-operator-monitoring.adoc
+
+[id='con-operator-json-logging-{context}']
+= Configuring JSON logging
+
+[role="_abstract"]
+
+The Kroxylicious Operator and the Kroxylicious Proxy that it manages write logs in text format by default.
+You can switch either component to structured JSON output for integration with log aggregation systems such as Elasticsearch or Splunk.
+
+JSON logging is controlled by the `KROXYLICIOUS_LOG_FORMAT` environment variable.
+Set the value to `json` to emit one JSON object per log event.
+The default value is `text`.
+
+When JSON logging is enabled, Log4j2 `JsonTemplateLayout` formats each event using the Logstash JSON Event V1 template.
+Structured context fields appear as top-level JSON fields alongside standard log metadata such as timestamp, level, and logger name.
+
+The operator emits fields such as `namespace`, `name`, `kind`, and `error`.
+The proxy emits fields such as `sessionId`, `clientId`, and `apiKey`.
+
+You can override the JSON template with the `KROXYLICIOUS_LOG_JSON_TEMPLATE` environment variable.
+For example, use `classpath:EcsLayout.json` for Elastic Common Schema.
+
+include::./proc-operator-switching-json-log-format-proxy.adoc[leveloffset=+1]
+ifdef::include-olm[]
+include::./proc-operator-switching-json-log-format-operator-olm.adoc[leveloffset=+1]
+endif::[]
+include::./proc-operator-switching-json-log-format-operator-bundle.adoc[leveloffset=+1]
