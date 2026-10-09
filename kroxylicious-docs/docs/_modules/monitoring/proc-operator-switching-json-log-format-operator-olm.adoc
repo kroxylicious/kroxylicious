@@ -35,7 +35,9 @@ kubectl get subscriptions.operators.coreos.com --all-namespaces | grep kroxylici
 +
 [source,bash]
 ----
-kubectl patch subscription -n <namespace> <subscription_name> -p '{"spec":{"config":{"env":[{"name":"KROXYLICIOUS_LOG_FORMAT","value":"json"}]}}}' --type=merge
+kubectl patch subscription -n <namespace> <subscription_name> \
+  --type='json' \
+  -p='[{"op":"add","path":"/spec/config/env/-","value":{"name":"KROXYLICIOUS_LOG_FORMAT","value":"json"}}]'
 ----
 +
 Kubernetes recreates the operator pod automatically.
@@ -57,12 +59,26 @@ This procedure describes how to revert the Kroxylicious Operator to text log out
 
 .Procedure
 
-. Remove the `KROXYLICIOUS_LOG_FORMAT` environment variable from the Subscription:
+. Find the position of `KROXYLICIOUS_LOG_FORMAT` in the environment variables of the Subscription:
 +
 [source,bash]
 ----
-kubectl patch subscription <subscription_name> -p '{"spec":{"config":{"env":[]}}}' --type=merge
+kubectl get subscription -n <namespace> <subscription_name> -o jsonpath='{.spec.config.env[*].name}'
 ----
++
+The names are listed in order, starting at index 0.
+
+. Remove the `KROXYLICIOUS_LOG_FORMAT` environment variable from the Subscription, replacing `<index>` with its position:
++
+[source,bash]
+----
+kubectl patch subscription -n <namespace> <subscription_name> \
+  --type='json' \
+  -p='[{"op":"test","path":"/spec/config/env/<index>/name","value":"KROXYLICIOUS_LOG_FORMAT"},{"op":"remove","path":"/spec/config/env/<index>"}]'
+----
++
+Other environment variables on the Subscription are left unchanged.
+If the variable at `<index>` is not `KROXYLICIOUS_LOG_FORMAT`, the `test` operation fails and nothing is changed.
 +
 Kubernetes recreates the operator pod automatically.
 

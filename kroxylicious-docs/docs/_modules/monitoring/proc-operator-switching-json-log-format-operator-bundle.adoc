@@ -28,7 +28,7 @@ It applies when the operator was installed from the YAML bundle.
 +
 [source,bash]
 ----
-kubectl set env -n kroxylicious-operator deployment kroxylicious-operator KROXYLICIOUS_LOG_FORMAT=json
+kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_LOG_FORMAT=json
 ----
 +
 Kubernetes recreates the operator pod automatically.
@@ -37,7 +37,7 @@ Kubernetes recreates the operator pod automatically.
 +
 [source,bash]
 ----
-kubectl logs -f -n kroxylicious-operator deployment/kroxylicious-operator
+kubectl logs -f -n <namespace> deployment/<deployment_name>
 ----
 +
 Each log event is a JSON object similar to the following example:
@@ -73,7 +73,7 @@ This procedure describes how to revert the Kroxylicious Operator to text log out
 +
 [source,bash]
 ----
-kubectl set env -n kroxylicious-operator deployment kroxylicious-operator KROXYLICIOUS_LOG_FORMAT-
+kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_LOG_FORMAT-
 ----
 +
 Kubernetes recreates the operator pod automatically.
@@ -82,5 +82,5 @@ Kubernetes recreates the operator pod automatically.
 +
 [source,bash]
 ----
-kubectl logs -f -n kroxylicious-operator deployment/kroxylicious-operator
+kubectl logs -f -n <namespace> deployment/<deployment_name>
 ----
