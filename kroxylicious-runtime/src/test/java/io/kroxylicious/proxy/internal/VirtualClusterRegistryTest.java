@@ -48,7 +48,7 @@ class VirtualClusterRegistryTest {
      * No-op resolver for tests that don't exercise {@code resolveModel}. Throws if invoked so
      * accidental dependence on resolveModel surfaces as a clear failure rather than a null VCM.
      */
-    private static  VirtualClusterModel noOpResolver(Configuration cfg, String name){
+    private static  VirtualClusterModel noOpResolver(Configuration cfg, String name) {
         throw new UnsupportedOperationException("resolveModel not exercised by this test");
     };
 
