@@ -243,6 +243,12 @@ jobs:
             exit 1
           fi
 
+      - name: 'Configure Git username/email'
+        if: ${{ inputs.command == 'promote-release' }}
+        run: |
+          git config --global user.name "${GITHUB_ACTOR}"
+          git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+
       - name: 'Transition Central Publishing Portal to desired state'
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}

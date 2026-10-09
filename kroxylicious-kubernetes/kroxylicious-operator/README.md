@@ -168,12 +168,11 @@ For each `KafkaProxy` CR, the operator creates:
 - **Deployment**: Runs proxy pods (replicas specified in CR)
 - **ConfigMap**: Contains proxy YAML configuration
 - **Service**: Exposes proxy pods (ClusterIP or LoadBalancer)
-- **ServiceAccount**: Pod identity for RBAC
 
 **Optional resources:**
-- **Ingress/Route**: External access (if `KafkaProxyIngress` exists)
-- **PodDisruptionBudget**: High availability (if specified)
-- **NetworkPolicy**: Network isolation (if specified)
+- **Route**: External access on OpenShift clusters (when `openShiftRoute` is supported and configured)
+
+> **Note:** The operator does not create a `ServiceAccount`, `NetworkPolicy`, `PodDisruptionBudget`, or Kubernetes `Ingress`.
 
 **Ownership:**
 

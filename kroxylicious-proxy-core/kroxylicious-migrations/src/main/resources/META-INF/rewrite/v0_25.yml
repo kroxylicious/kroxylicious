@@ -1,0 +1,27 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.kroxylicious.migrations.rewrite.v0_25.UseKroxylicious0_25
+displayName: Use the latest 0.25 release of Kroxylicious
+description: Ensures the kroxylicious-api and kroxylicious-bom are from the 0.25 release or newer.
+recipeList:
+  - org.openrewrite.java.dependencies.UpgradeDependencyVersion:
+      groupId: io.kroxylicious
+      artifactId: '*'
+      newVersion: 0.25.X
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.kroxylicious.migrations.rewrite.v0_25.MigrateTo0_25
+displayName: Upgrade Kroxylicious to 0.25.0
+description: Applies all deprecations, renames, and breaking changes introduced in Kroxylicious 0.25.0.
+recipeList:
+  # Unlike the other recipes, this one rewrites proxy configuration YAML rather than Java sources. It considers every
+  # YAML file it is given, and migrates those that structurally look like a proxy configuration. Run it on its own,
+  # passing the filePattern option, if you would rather narrow that down.
+  - io.kroxylicious.migrations.rewrite.v0_25.UseClusterDefinitions
+  - io.kroxylicious.migrations.rewrite.v0_25.UseKroxylicious0_25
