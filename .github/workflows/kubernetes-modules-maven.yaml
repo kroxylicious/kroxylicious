@@ -104,6 +104,7 @@ jobs:
         with:
           name: PR_NUMBER
           path: PR_NUMBER.txt
+          if-no-files-found: error
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
         uses: $/.github/actions/common/slack-notification
