@@ -45,7 +45,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaRequestDecoderTest extends AbstractCodecTest {
 
-    private static final IntPredicate ALL_VERSIONS = i -> true;
+    private static  boolean allVersions(int i) {
+        return true;
+    }
 
     @Test
     void decodeUnknownApiVersionsRespectsOverriddenLatestVersion() {
@@ -189,17 +191,23 @@ class KafkaRequestDecoderTest extends AbstractCodecTest {
         };
 
         Stream<Arguments> targetedForDecode = produceRequestVersionFrames(RequestDecoderTest.DECODE_EVERYTHING,
-                "acks " + acks + " targeted for decode - no transaction id", nullTransactionId, withClientId, ALL_VERSIONS, hasResponse);
+                "acks " + acks + " targeted for decode - no transaction id", nullTransactionId, withClientId,
+                KafkaRequestDecoderTest::allVersions, hasResponse);
         Stream<Arguments> targetedForDecodeWithTransactionId = produceRequestVersionFrames(RequestDecoderTest.DECODE_EVERYTHING,
-                "acks " + acks + " targeted for decode - transaction id", nonNullTransactionId, withClientId, ALL_VERSIONS, hasResponse);
+                "acks " + acks + " targeted for decode - transaction id", nonNullTransactionId, withClientId,
+                KafkaRequestDecoderTest::allVersions, hasResponse);
         Stream<Arguments> notTargetedForDecode = produceRequestVersionFrames(RequestDecoderTest.DECODE_NOTHING,
-                "acks " + acks + " not targeted for decode - no transaction id", nullTransactionId, withClientId, ALL_VERSIONS, hasResponse);
+                "acks " + acks + " not targeted for decode - no transaction id", nullTransactionId, withClientId,
+                KafkaRequestDecoderTest::allVersions, hasResponse);
         Stream<Arguments> notTargetedForDecodeWithTransactionId = produceRequestVersionFrames(RequestDecoderTest.DECODE_NOTHING,
-                "acks " + acks + " not targeted for decode - transaction id", nonNullTransactionId, withClientId, ALL_VERSIONS, hasResponse);
+                "acks " + acks + " not targeted for decode - transaction id", nonNullTransactionId, withClientId,
+                KafkaRequestDecoderTest::allVersions, hasResponse);
         Stream<Arguments> notTargetedForDecodeWithNullClientId = produceRequestVersionFrames(RequestDecoderTest.DECODE_NOTHING,
-                "acks " + acks + " not targeted for decode - null client id", nullTransactionId, withNullClientId, ALL_VERSIONS, hasResponse);
+                "acks " + acks + " not targeted for decode - null client id", nullTransactionId, withNullClientId,
+                KafkaRequestDecoderTest::allVersions, hasResponse);
         Stream<Arguments> targetedForDecodeWithNullClientId = produceRequestVersionFrames(RequestDecoderTest.DECODE_EVERYTHING,
-                "acks " + acks + " not targeted for decode - null client id", nullTransactionId, withNullClientId, ALL_VERSIONS, hasResponse);
+                "acks " + acks + " not targeted for decode - null client id", nullTransactionId, withNullClientId,
+                KafkaRequestDecoderTest::allVersions, hasResponse);
         Stream<Arguments> withTaggedFieldInHeader = produceRequestVersionFrames(RequestDecoderTest.DECODE_EVERYTHING,
                 "acks " + acks + " tagged field in header", nullTransactionId, withTaggedField, version -> version >= 9, hasResponse);
         Stream<Arguments> withTaggedFieldsInHeader = produceRequestVersionFrames(RequestDecoderTest.DECODE_EVERYTHING,
