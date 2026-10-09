@@ -1,4 +1,4 @@
-title: "feat(cert-rotation): virtual cluster gateway certificate monitoring"
+title: "feat(cert-rotation): virtual cluster gateway certificate monitoring with RSA and EC private keys"
 type: added
 issues:
   - 104
