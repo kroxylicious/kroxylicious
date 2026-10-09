@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaRequestDecoderTest extends AbstractCodecTest {
 
-    private static  boolean allVersions(int i) {
+    private static boolean allVersions(int i) {
         return true;
     }
 
