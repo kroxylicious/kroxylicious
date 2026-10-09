@@ -267,12 +267,12 @@ class HaProxyProtocolDetectionHandlerTest {
         header[15] = 0x0C; // address length low byte (12)
 
         // Source address
-        String[] srcParts = srcAddr.split("\\.");
+        String[] srcParts = srcAddr.split("\\.", -1);
         for (int i = 0; i < 4; i++) {
             header[16 + i] = (byte) Integer.parseInt(srcParts[i]);
         }
         // Destination address
-        String[] dstParts = dstAddr.split("\\.");
+        String[] dstParts = dstAddr.split("\\.", -1);
         for (int i = 0; i < 4; i++) {
             header[20 + i] = (byte) Integer.parseInt(dstParts[i]);
         }
