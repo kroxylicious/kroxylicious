@@ -313,6 +313,7 @@ class KafkaProxyShutdownOrderingTest {
     }
 
     private static void noOpCallback(String name, Optional<Throwable> cause) {
+        // do nothing
     }
 
     private static boolean canConnect(int port) {
