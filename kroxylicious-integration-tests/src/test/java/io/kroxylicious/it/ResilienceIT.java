@@ -5,6 +5,10 @@
  */
 package io.kroxylicious.it;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -23,19 +27,23 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.ResourceLock;
 
+import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
+import io.kroxylicious.testing.integration.tester.SimpleMetricAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.api.TerminationStyle;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
+import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
@@ -164,6 +172,81 @@ class ResilienceIT extends BaseIT {
                     .succeedsWithin(Duration.ofSeconds(10))
                     .asInstanceOf(InstanceOfAssertFactories.set(String.class))
                     .containsAll(List.of("beforeStop", "afterRestart")));
+        }
+    }
+
+    /**
+     * RFC 1112 reserved (class E) address. Chosen because a connect to it is silently dropped
+     * rather than refused, which is the only case that exercises CONNECT_TIMEOUT_MILLIS.
+     */
+    private static final String BLACKHOLED_ADDRESS = "240.0.0.1:9999";
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
+    private static final Duration COMPLETION_BUDGET = Duration.ofSeconds(5);
+
+    /**
+     * Round robin selection is explicit because the blackholed address must be the one chosen
+     * first and the configured two second stall plus the client reconnect and metadata exchange
+     * completes inside the budget while staying far below Netty's thirty second default so the
+     * bound discriminates between the configured timeout and the default
+     */
+    @Test
+    void shouldHonourConfiguredUpstreamConnectTimeout() {
+        // Given
+        assumeAddressIsBlackholed(BLACKHOLED_ADDRESS);
+        // @formatter:off
+        var config = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addNewClusterDefinition()
+                    .withName(KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(BLACKHOLED_ADDRESS + "," + cluster.getBootstrapServers())
+                    .withSelectionStrategy(new RoundRobinBootstrapSelectionStrategy())
+                    .withConnectTimeout(CONNECT_TIMEOUT)
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName(KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER)
+                    .withTarget(KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET)
+                    .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(
+                            KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP).build())
+                .endVirtualCluster()
+                .withNewManagement()
+                    .withNewEndpoints()
+                        .withNewPrometheus()
+                        .endPrometheus()
+                    .endEndpoints()
+                .endManagement();
+        // @formatter:on
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin();
+                var managementClient = tester.getManagementClient()) {
+            var startedAt = System.nanoTime();
+
+            // When
+            var clusterId = admin.describeCluster().clusterId();
+
+            // Then
+            assertThat(clusterId).succeedsWithin(COMPLETION_BUDGET, InstanceOfAssertFactories.STRING).isNotBlank();
+            var elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
+            assertThat(elapsed).isGreaterThanOrEqualTo(CONNECT_TIMEOUT);
+            SimpleMetricAssert.assertThat(managementClient.scrapeMetrics())
+                    .withUniqueMetric("kroxylicious_proxy_to_server_errors_total",
+                            Map.of(NODE_ID_LABEL, "bootstrap"))
+                    .value()
+                    .isGreaterThanOrEqualTo(1.0);
+        }
+    }
+
+    private static void assumeAddressIsBlackholed(String address) {
+        var hostPort = HostPort.parse(address);
+        try (var socket = new Socket()) {
+            socket.connect(new InetSocketAddress(hostPort.host(), hostPort.port()), 1_000);
+            Assumptions.abort(address + " accepted a connection, so it cannot stall an upstream connect");
+        }
+        catch (SocketTimeoutException e) {
+            // the connect stalled, which is what this test needs
+        }
+        catch (IOException e) {
+            Assumptions.abort(address + " failed fast (" + e + ") rather than stalling, so it cannot "
+                    + "exercise the connect timeout on this platform");
         }
     }
 

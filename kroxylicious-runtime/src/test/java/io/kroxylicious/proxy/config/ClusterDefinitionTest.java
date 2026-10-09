@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.time.Duration;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -80,7 +82,7 @@ class ClusterDefinitionTest {
     void toTargetClusterPassesSelectionStrategyThrough() {
         // Given
         var strategy = new RandomBootstrapSelectionStrategy();
-        var def = new ClusterDefinition("c1", "broker:9092", null, strategy);
+        var def = new ClusterDefinition("c1", "broker:9092", null, strategy, null);
 
         // When
         var target = def.toTargetCluster();
@@ -103,9 +105,93 @@ class ClusterDefinitionTest {
     }
 
     @Test
+    void toTargetClusterPassesConnectTimeoutThrough() {
+        // Given
+        var def = new ClusterDefinition("c1", "broker:9092", null, null, Duration.ofSeconds(5));
+
+        // When
+        var target = def.toTargetCluster();
+
+        // Then
+        assertThat(target.connectTimeout()).isEqualTo(Duration.ofSeconds(5));
+    }
+
+    @Test
+    void toTargetClusterWithoutConnectTimeout() {
+        // Given
+        var def = new ClusterDefinition("c1", "broker:9092", null);
+
+        // When
+        var target = def.toTargetCluster();
+
+        // Then
+        assertThat(target.connectTimeout()).isNull();
+        assertThat(target.effectiveConnectTimeout()).isEqualTo(Duration.ofSeconds(30));
+    }
+
+    @Test
+    void shouldRejectZeroConnectTimeout() {
+        // When / Then
+        assertThatThrownBy(() -> new ClusterDefinition("c1", "broker:9092", null, null, Duration.ZERO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("connectTimeout")
+                .hasMessageContaining("cluster definition 'c1'");
+    }
+
+    @Test
+    void shouldRejectNegativeConnectTimeout() {
+        // Given
+        var negative = Duration.ofSeconds(-1);
+
+        // When / Then
+        assertThatThrownBy(() -> new ClusterDefinition("c1", "broker:9092", null, null, negative))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("connectTimeout")
+                .hasMessageContaining("cluster definition 'c1'");
+    }
+
+    @Test
+    void shouldRejectConnectTimeoutExceedingIntegerMaxMillis() {
+        // Given
+        var tooLong = Duration.ofMillis(Integer.MAX_VALUE).plusMillis(1);
+
+        // When / Then
+        assertThatThrownBy(() -> new ClusterDefinition("c1", "broker:9092", null, null, tooLong))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("connectTimeout")
+                .hasMessageContaining("cluster definition 'c1'");
+    }
+
+    @Test
+    void shouldRejectConnectTimeoutTooLargeToConvertToMillis() {
+        // Given
+        // toMillis() would overflow and throw ArithmeticException for this duration; validation must
+        // reject it with IllegalArgumentException instead, via the non-overflowing compareTo bound.
+        var overflowing = Duration.ofSeconds(9223372036854776L);
+
+        // When / Then
+        assertThatThrownBy(() -> new ClusterDefinition("c1", "broker:9092", null, null, overflowing))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("connectTimeout")
+                .hasMessageContaining("cluster definition 'c1'");
+    }
+
+    @Test
+    void shouldAcceptConnectTimeoutAtIntegerMaxMillis() {
+        // Given
+        var atLimit = Duration.ofMillis(Integer.MAX_VALUE);
+
+        // When
+        var def = new ClusterDefinition("c1", "broker:9092", null, null, atLimit);
+
+        // Then
+        assertThat(def.connectTimeout()).isEqualTo(atLimit);
+    }
+
+    @Test
     void upstreamClusterModelsDerivedFromTheSameDefinitionShouldHaveIndependentBootstrapSelectionState() {
         // Given
-        var def = new ClusterDefinition("c1", "broker1:9092,broker2:9092", null, new RoundRobinBootstrapSelectionStrategy());
+        var def = new ClusterDefinition("c1", "broker1:9092,broker2:9092", null, new RoundRobinBootstrapSelectionStrategy(), null);
         var first = UpstreamClusterModel.build(def.toTargetCluster(), null);
         var second = UpstreamClusterModel.build(def.toTargetCluster(), null);
         first.bootstrapServer();

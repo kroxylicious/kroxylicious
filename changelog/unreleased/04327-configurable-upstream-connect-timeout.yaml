@@ -1,0 +1,4 @@
+title: "feat(runtime): make upstream connect timeout configurable"
+type: added
+issues:
+  - 4327

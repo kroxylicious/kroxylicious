@@ -303,7 +303,8 @@ public class KafkaProxyReconciler implements
                 .map(targetCluster -> new ClusterDefinition(name,
                         targetCluster.bootstrapServers(),
                         targetCluster.tls().orElse(null),
-                        targetCluster.selectionStrategy()));
+                        targetCluster.selectionStrategy(),
+                        targetCluster.connectTimeout()));
     }
 
     private List<ConfigurationFragment<NamedFilterDefinition>> buildFilterDefinitions(ProxyModel model) {

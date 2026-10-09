@@ -1119,7 +1119,7 @@ class EndpointRegistryTest {
         when(gateway.requiresServerNameIndication()).thenReturn(sni);
         when(gateway.discoveryAddressMap()).thenReturn(discoveryAddressMap);
         when(gateway.getBindAddress()).thenReturn(bindAddress);
-        var targetCluster = new TargetCluster(upstreamBootstrap.toString(), Optional.empty(), selectionStrategy);
+        var targetCluster = new TargetCluster(upstreamBootstrap.toString(), Optional.empty(), selectionStrategy, null);
         when(gateway.targetCluster()).thenReturn(targetCluster);
 
         var bindingSpec = mock(BindingSpec.class);
