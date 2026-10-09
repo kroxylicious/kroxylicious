@@ -68,20 +68,3 @@ virtualClusters:
 where:
 
 * `strategy` specifies the strategy for bootstrap server selection.
-
-.Example configuring a connect timeout
-[source,yaml]
-----
-#...
-clusterDefinitions:
-  - name: my-cluster
-    bootstrapServers: my-cluster-kafka-bootstrap-0.kafka.svc.cluster.local:9093,my-cluster-kafka-bootstrap-1.kafka.svc.cluster.local:9093,my-cluster-kafka-bootstrap-2.kafka.svc.cluster.local:9093
-    connectTimeout: 10s
-    tls: {}
-virtualClusters:
-  - name: my-cluster-proxy
-    #...
-    target:
-      cluster: my-cluster
-#...
-----

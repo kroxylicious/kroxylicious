@@ -82,7 +82,7 @@ class ClusterDefinitionTest {
     void toTargetClusterPassesSelectionStrategyThrough() {
         // Given
         var strategy = new RandomBootstrapSelectionStrategy();
-        var def = new ClusterDefinition("c1", "broker:9092", null, strategy);
+        var def = new ClusterDefinition("c1", "broker:9092", null, strategy, null);
 
         // When
         var target = def.toTargetCluster();
@@ -191,7 +191,7 @@ class ClusterDefinitionTest {
     @Test
     void upstreamClusterModelsDerivedFromTheSameDefinitionShouldHaveIndependentBootstrapSelectionState() {
         // Given
-        var def = new ClusterDefinition("c1", "broker1:9092,broker2:9092", null, new RoundRobinBootstrapSelectionStrategy());
+        var def = new ClusterDefinition("c1", "broker1:9092,broker2:9092", null, new RoundRobinBootstrapSelectionStrategy(), null);
         var first = UpstreamClusterModel.build(def.toTargetCluster(), null);
         var second = UpstreamClusterModel.build(def.toTargetCluster(), null);
         first.bootstrapServer();
