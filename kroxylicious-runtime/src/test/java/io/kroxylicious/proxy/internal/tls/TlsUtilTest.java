@@ -304,6 +304,34 @@ class TlsUtilTest {
         }
 
         @Test
+        void returnsTrueForMatchingSec1EcKeyPair(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert ec = TestCertificateUtil.generateEcKeyStoreAndCert("CN=ec-sec1", "secp256r1");
+            final Path keyFile = Files.writeString(dir.resolve("key.pem"), TestCertificateUtil.toSec1EcPem(ec.privateKey()));
+            final Path certFile = Files.writeString(dir.resolve("cert.pem"), TestCertificateUtil.toPem(ec.cert()));
+            final KeyPair keyPair = new KeyPair(keyFile.toString(), certFile.toString(), null);
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).contains(true);
+        }
+
+        @Test
+        void returnsTrueForMatchingSec1EcKeyPairOnP384(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert ec = TestCertificateUtil.generateEcKeyStoreAndCert("CN=ec-sec1-384", "secp384r1");
+            final Path keyFile = Files.writeString(dir.resolve("key.pem"), TestCertificateUtil.toSec1EcPem(ec.privateKey()));
+            final Path certFile = Files.writeString(dir.resolve("cert.pem"), TestCertificateUtil.toPem(ec.cert()));
+            final KeyPair keyPair = new KeyPair(keyFile.toString(), certFile.toString(), null);
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).contains(true);
+        }
+
+        @Test
+        void returnsFalseForMismatchedSec1EcKeyPair(@TempDir final Path dir) throws Exception {
+            final TestCertificateUtil.KeyAndCert ec = TestCertificateUtil.generateEcKeyStoreAndCert("CN=ec-sec1", "secp256r1");
+            final TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateEcKeyStoreAndCert("CN=ec-other", "secp256r1");
+            final Path keyFile = Files.writeString(dir.resolve("key.pem"), TestCertificateUtil.toSec1EcPem(ec.privateKey()));
+            final Path certFile = Files.writeString(dir.resolve("cert.pem"), TestCertificateUtil.toPem(other.cert()));
+            final KeyPair keyPair = new KeyPair(keyFile.toString(), certFile.toString(), null);
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).contains(false);
+        }
+
+        @Test
         void returnsFalseForMismatchedKeyPair(@TempDir final Path dir) throws Exception {
             final TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateKeyStoreAndCert("CN=other");
             final KeyPair keyPair = writeKeyPair(dir, other.privateKey(), keyAndCert.cert(), false);
