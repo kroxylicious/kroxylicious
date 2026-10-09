@@ -335,7 +335,8 @@ jobs:
         run: |
           ./scripts/stage-docs.sh -v "${RELEASE_VERSION}" \
                                   -b "prepare-v${RELEASE_VERSION}-release-docs-${{ github.run_id }}" \
-                                  -u "https://user:${GH_TOKEN}@${WEBSITE_REPOSITORY}"
+                                  -u "https://user:${GH_TOKEN}@${WEBSITE_REPOSITORY}" \
+                                  -s RELEASE_STATE.json
 
       - name: 'Drop PR'
         if: ${{ inputs.command == 'drop-release' }}

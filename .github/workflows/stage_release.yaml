@@ -81,6 +81,14 @@ jobs:
           echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
           exit -1
 
+      - name: 'Login to container registry'
+        if: ${{ vars.REGISTRY_SERVER != '' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
       - name: 'Configure Git username/email'
         run: |
           git config --global user.name "${GITHUB_ACTOR}"
@@ -172,6 +180,20 @@ jobs:
           echo "DOCKER_RUN_ID=${RUN_ID}" >> $GITHUB_ENV
           echo "RELEASE_SHA=${RELEASE_SHA}" >> $GITHUB_ENV
 
+      - name: 'Resolve staged image digests'
+        if: ${{ vars.REGISTRY_SERVER != '' }}
+        run: |
+          SHA_TAG="commit-${RELEASE_SHA}"
+          REGISTRY="${{ vars.REGISTRY_SERVER }}"
+          ORG="${{ vars.REGISTRY_ORGANISATION }}"
+          PROXY="${REGISTRY}/${ORG}/${{ vars.PROXY_IMAGE_NAME }}"
+          OPERATOR="${REGISTRY}/${ORG}/${{ vars.OPERATOR_IMAGE_NAME }}"
+          ADMISSION="${REGISTRY}/${ORG}/${{ vars.ADMISSION_IMAGE_NAME }}"
+
+          echo "PROXY_DIGEST=$(skopeo inspect "docker://${PROXY}:${SHA_TAG}" | jq -r '.Digest')"         >> $GITHUB_ENV
+          echo "OPERATOR_DIGEST=$(skopeo inspect "docker://${OPERATOR}:${SHA_TAG}" | jq -r '.Digest')"   >> $GITHUB_ENV
+          echo "ADMISSION_DIGEST=$(skopeo inspect "docker://${ADMISSION}:${SHA_TAG}" | jq -r '.Digest')" >> $GITHUB_ENV
+
       - name: 'Build release state'
         run: |
           VERSION="${{ github.event.inputs.release-version }}"
@@ -195,8 +217,11 @@ jobs:
             --arg proxyAmd64Ref "${PROXY}:${SHA_TAG}-amd64" \
             --arg proxyArm64Ref "${PROXY}:${SHA_TAG}-arm64" \
             --arg proxyManifest "${PROXY}:${SHA_TAG}" \
+            --arg proxyDigest "${PROXY_DIGEST}" \
             --arg operatorManifest "${OPERATOR}:${SHA_TAG}" \
+            --arg operatorDigest "${OPERATOR_DIGEST}" \
             --arg admissionManifest "${ADMISSION}:${SHA_TAG}" \
+            --arg admissionDigest "${ADMISSION_DIGEST}" \
             '{
               deploymentId: $deploymentId,
               releaseVersion: $releaseVersion,
@@ -208,20 +233,20 @@ jobs:
               stagedArtifacts: {
                 proxy: {
                   images: {
-                    manifestImage: { ref: $proxyManifest },
+                    manifestImage: { ref: $proxyManifest, digest: $proxyDigest },
                     amd64: { ref: $proxyAmd64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist"] } },
                     arm64: { ref: $proxyArm64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist", "aarch64"] } }
                   }
                 },
                 operator: {
                   images: {
-                    manifestImage: { ref: $operatorManifest }
+                    manifestImage: { ref: $operatorManifest, digest: $operatorDigest }
                   },
                   builtFrom: { pom: ("io.kroxylicious:kroxylicious-operator:" + $releaseVersion + ":pom"), profiles: ["dist"] }
                 },
                 admission: {
                   images: {
-                    manifestImage: { ref: $admissionManifest }
+                    manifestImage: { ref: $admissionManifest, digest: $admissionDigest }
                   },
                   builtFrom: { pom: ("io.kroxylicious:kroxylicious-admission:" + $releaseVersion + ":pom"), profiles: ["dist"] }
                 }
