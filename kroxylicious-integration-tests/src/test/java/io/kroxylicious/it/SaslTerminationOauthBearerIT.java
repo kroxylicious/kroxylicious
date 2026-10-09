@@ -310,7 +310,7 @@ class SaslTerminationOauthBearerIT extends BaseOauthBearerIT {
 
         try (var tester = kroxyliciousTester(config)) {
             String bootstrapAddress = tester.getBootstrapAddress();
-            String[] hostPort = bootstrapAddress.split(":"); // NOPMD
+            String[] hostPort = bootstrapAddress.split(":", -1); // NOPMD
             try (var client = new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]))) {
                 var handshakeResponse = (SaslHandshakeResponseData) client.getSync(getRequest(
                         ApiKeys.SASL_HANDSHAKE.latestVersion(),

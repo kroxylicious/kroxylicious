@@ -425,7 +425,7 @@ public class Exec {
      * @return true.false boolean
      */
     public static boolean isExecutableOnPath(String cmd) {
-        for (String dir : PATH_SPLITTER.split(System.getenv("PATH"))) {
+        for (String dir : PATH_SPLITTER.split(System.getenv("PATH"), -1)) {
             if (new File(dir, cmd).canExecute()) {
                 return true;
             }

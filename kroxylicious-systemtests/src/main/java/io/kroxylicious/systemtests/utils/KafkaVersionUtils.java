@@ -21,7 +21,7 @@ public class KafkaVersionUtils {
      * @return the kafka protocol version
      */
     public static String getKafkaProtocolVersion(String kafkaVersion) {
-        String[] splitVersion = kafkaVersion.split("\\.");
+        String[] splitVersion = kafkaVersion.split("\\.", -1);
 
         return String.format("%s.%s", splitVersion[0], splitVersion[1]);
     }

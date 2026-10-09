@@ -197,7 +197,7 @@ class ExpositionIT extends BaseIT {
         assertThatThrownBy(() -> {
             try (var tester = kroxyliciousTester(proxy(cluster))) {
                 String bootstrap = tester.getBootstrapAddress();
-                String[] split = bootstrap.split(":");
+                String[] split = bootstrap.split(":", -1);
                 try (SSLSocket socket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket(split[0], Integer.parseInt(split[1]))) {
                     socket.setSoTimeout(5000);
                     socket.startHandshake();
