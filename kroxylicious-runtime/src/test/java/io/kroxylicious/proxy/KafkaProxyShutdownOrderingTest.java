@@ -13,7 +13,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -160,7 +159,7 @@ class KafkaProxyShutdownOrderingTest {
         try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
                 new VirtualClusterRegistry(models, (cfg, name) -> {
                     throw new UnsupportedOperationException();
-                }, noOpCallback()))) {
+                }, KafkaProxyShutdownOrderingTest::noOpCallback))) {
             // When
             var shutdownFuture = proxy.startup();
 
@@ -202,7 +201,7 @@ class KafkaProxyShutdownOrderingTest {
         try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
                 new VirtualClusterRegistry(models, (cfg, name) -> {
                     throw new UnsupportedOperationException();
-                }, noOpCallback()))) {
+                }, KafkaProxyShutdownOrderingTest::noOpCallback))) {
             var shutdownFuture = proxy.startup();
             assertThat(shutdownFuture).isNotDone();
 
@@ -237,7 +236,7 @@ class KafkaProxyShutdownOrderingTest {
         try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
                 new VirtualClusterRegistry(models, (cfg, name) -> {
                     throw new UnsupportedOperationException();
-                }, noOpCallback()))) {
+                }, KafkaProxyShutdownOrderingTest::noOpCallback))) {
             var shutdownFuture = proxy.startup();
             assertThat(shutdownFuture).isNotDone();
 
@@ -271,7 +270,7 @@ class KafkaProxyShutdownOrderingTest {
         try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
                 new VirtualClusterRegistry(models, (cfg, name) -> {
                     throw new UnsupportedOperationException();
-                }, noOpCallback()))) {
+                }, KafkaProxyShutdownOrderingTest::noOpCallback))) {
             var shutdownFuture = proxy.startup();
             assertThat(shutdownFuture).isNotDone();
 
@@ -287,7 +286,7 @@ class KafkaProxyShutdownOrderingTest {
                                                                    CountDownLatch drainCanComplete) {
         return new VirtualClusterRegistry(models, (cfg, name) -> {
             throw new UnsupportedOperationException("resolveModel not exercised by this test");
-        }, noOpCallback()) {
+        }, KafkaProxyShutdownOrderingTest::noOpCallback) {
             @Override
             public List<Throwable> shutdownAllClusters() {
                 drainStarted.countDown();
@@ -305,7 +304,7 @@ class KafkaProxyShutdownOrderingTest {
     private static VirtualClusterRegistry failingDrainCoordinator(java.util.List<VirtualClusterModel> models) {
         return new VirtualClusterRegistry(models, (cfg, name) -> {
             throw new UnsupportedOperationException("resolveModel not exercised by this test");
-        }, noOpCallback()) {
+        }, KafkaProxyShutdownOrderingTest::noOpCallback) {
             @Override
             public List<Throwable> shutdownAllClusters() {
                 throw new RuntimeException("simulated drain failure");
@@ -313,9 +312,8 @@ class KafkaProxyShutdownOrderingTest {
         };
     }
 
-    private static BiConsumer<String, Optional<Throwable>> noOpCallback() {
-        return (name, cause) -> {
-        };
+    private static void noOpCallback(String name, Optional<Throwable> cause) {
+        // do nothing
     }
 
     private static boolean canConnect(int port) {
