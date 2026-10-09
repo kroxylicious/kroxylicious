@@ -7,6 +7,9 @@
 package io.kroxylicious.testing.integration.client;
 
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -15,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.X509TrustManager;
 
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -25,6 +29,8 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -32,6 +38,8 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
@@ -75,6 +83,7 @@ public final class KafkaClient implements AutoCloseable {
     private final EventLoopGroup bossGroup;
     private final CorrelationManager correlationManager;
     private final KafkaClientHandler kafkaClientHandler;
+    private final CertificateHandler certificateHandler;
 
     /**
      * create empty kafkaClient without TLS
@@ -101,6 +110,7 @@ public final class KafkaClient implements AutoCloseable {
         bossGroup = eventGroupConfig.newBossGroup();
         correlationManager = new CorrelationManager();
         kafkaClientHandler = new KafkaClientHandler();
+        certificateHandler = new CertificateHandler();
     }
 
     private static final AtomicInteger correlationId = new AtomicInteger(1);
@@ -181,6 +191,7 @@ public final class KafkaClient implements AutoCloseable {
                             if (sslContext != null) {
                                 p.addLast(sslContext.newHandler(ch.alloc(), host, port));
                             }
+                            p.addLast(certificateHandler);
                             p.addLast(new KafkaRequestEncoder(correlationManager));
                             p.addLast(new KafkaResponseDecoder(correlationManager));
                             p.addLast(kafkaClientHandler);
@@ -211,6 +222,14 @@ public final class KafkaClient implements AutoCloseable {
             Channel now = channelCompletableFuture.getNow(null);
             return now != null && now.isOpen();
         }
+    }
+
+    /**
+     * Certificates presented by the server when the client connected
+     * @return one or more server certificates
+     */
+    public List<X509Certificate> getServerCertificateChain() {
+        return certificateHandler.certificates;
     }
 
     @Override
@@ -281,6 +300,25 @@ public final class KafkaClient implements AutoCloseable {
         @Override
         public X509Certificate[] getAcceptedIssuers() {
             return new X509Certificate[0];
+        }
+    }
+
+    // handler to allow server certificates to be inspected
+    private static class CertificateHandler extends ChannelInboundHandlerAdapter {
+        final List<X509Certificate> certificates = new ArrayList<>();
+
+        @Override
+        public void userEventTriggered(final ChannelHandlerContext ctx, final Object evt) throws Exception {
+            if (evt instanceof SslHandshakeCompletionEvent handshake) {
+                if (handshake.isSuccess()) {
+                    final SslHandler sslHandler = ctx.pipeline().get(SslHandler.class);
+                    final SSLSession session = sslHandler.engine().getSession();
+                    Arrays.stream(session.getPeerCertificates())
+                            .filter(c -> c instanceof X509Certificate)
+                            .map(c -> (X509Certificate) c)
+                            .forEach(certificates::add);
+                }
+            }
         }
     }
 }

@@ -6,14 +6,30 @@
 
 package io.kroxylicious.proxy.model;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.event.Level;
+import org.slf4j.event.LoggingEvent;
+
+import io.github.sambarker.logsquelcher.CapturedLogs;
+import io.github.sambarker.logsquelcher.LogSquelcherExtension;
+import io.github.sambarker.logsquelcher.LoggingEventAssert;
+import io.netty.handler.ssl.SslContext;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
@@ -23,8 +39,11 @@ import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
+import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.FlakyConfig;
 import io.kroxylicious.proxy.internal.filter.FlakyFactory;
@@ -33,12 +52,25 @@ import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.NoUpstreamClusterForRouteException;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
+import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
+import io.kroxylicious.proxy.internal.tls.TlsUtil;
+import io.kroxylicious.proxy.internal.util.TlsTestUtils;
+import io.kroxylicious.proxy.internal.util.TlsTestUtils.KeyAndCert;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.JKS;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.STOREPASS;
+import static io.kroxylicious.proxy.internal.util.TlsTestUtils.assertSslContextHasCert;
+import static io.kroxylicious.proxy.internal.util.TlsTestUtils.assertSslContextsHaveDifferentCerts;
+import static io.kroxylicious.proxy.internal.util.TlsTestUtils.createJksFile;
+import static io.kroxylicious.proxy.internal.util.TlsTestUtils.generateCertForKey;
+import static io.kroxylicious.proxy.internal.util.TlsTestUtils.generateKeyAndCert;
+import static io.kroxylicious.proxy.internal.util.TlsTestUtils.parseKeyPair;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -46,6 +78,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+@ExtendWith(LogSquelcherExtension.class)
 class VirtualClusterModelTest {
 
     public static final String DIRECT_ROUTE_NAME = "upstream";
@@ -382,6 +415,270 @@ class VirtualClusterModelTest {
         assertThat(summary).contains("Denied Protocols").contains("TLSv1.1");
     }
 
+    @TempDir
+    Path tempDir; // used to create a copy of existing TLS resources so that they can be replaced
+
+    @Test
+    void rotatedCertificateUpdatesGatewaySSLContext() throws Exception {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var initial = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final var keyFile = tempDir.resolve("server.key");
+        final var certFile = tempDir.resolve("servercert.pem");
+        Files.writeString(keyFile, initial.privateKeyPem());
+        Files.writeString(certFile, initial.certificatePem());
+
+        final var keyPair = new KeyPair(keyFile.toString(), certFile.toString(), null);
+        final var tls = new Tls(keyPair, null, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When
+        final var renewedCert = generateCertForKey(parseKeyPair(initial));
+        Files.writeString(certFile, renewedCert, StandardOpenOption.TRUNCATE_EXISTING);
+
+        // Then
+        Awaitility.await("Gateway SSL context changes when certificates are rotated")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    final var currentSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+                    assertThat(currentSSLContext).isNotEqualTo(startingSSLContext);
+                    assertSslContextHasCert(currentSSLContext, renewedCert);
+                });
+        model.close();
+    }
+
+    @Test
+    void certThenSameKeyUpdateResultsInIdenticalSSLContext() throws Exception {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var initial = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final var keyFile = tempDir.resolve("server.key");
+        final var certFile = tempDir.resolve("servercert.pem");
+        Files.writeString(keyFile, initial.privateKeyPem());
+        Files.writeString(certFile, initial.certificatePem());
+
+        final var keyPair = new KeyPair(keyFile.toString(), certFile.toString(), null);
+        final var tls = new Tls(keyPair, null, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When
+        final var renewedCert = generateCertForKey(parseKeyPair(initial));
+        Files.writeString(certFile, renewedCert, StandardOpenOption.TRUNCATE_EXISTING);
+        Awaitility.await("Gateway SSL context changes when certificates are rotated")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    final var currentSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+                    assertThat(currentSSLContext).isNotEqualTo(startingSSLContext);
+                    assertSslContextHasCert(currentSSLContext, renewedCert);
+                });
+
+        final var updatedSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        Files.writeString(keyFile, initial.privateKeyPem() + '\n', StandardOpenOption.TRUNCATE_EXISTING);
+
+        // Then
+        Awaitility.await("Gateway SSL context changes but is identical from a client perspective")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    final var currentSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+                    assertThat(currentSSLContext).isNotEqualTo(updatedSSLContext);
+                    assertSslContextHasCert(currentSSLContext, renewedCert);
+                });
+
+        model.close();
+    }
+
+    @Test
+    void fullRotationCertThenKey() throws Exception {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var initial = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final var keyFile = tempDir.resolve("server.key");
+        final var certFile = tempDir.resolve("servercert.pem");
+        Files.writeString(keyFile, initial.privateKeyPem());
+        Files.writeString(certFile, initial.certificatePem());
+
+        final var keyPair = new KeyPair(keyFile.toString(), certFile.toString(), null);
+        final var tls = new Tls(keyPair, null, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When
+        final var rotated = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        Files.writeString(certFile, rotated.certificatePem(), StandardOpenOption.TRUNCATE_EXISTING);
+        Awaitility.await("Gateway SSL context rejected and remains unchanged")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext().get()).isEqualTo(startingSSLContext);
+                });
+
+        Files.writeString(keyFile, rotated.privateKeyPem() + '\n', StandardOpenOption.TRUNCATE_EXISTING);
+
+        // Then
+        Awaitility.await("Gateway SSL context updates to rotated key and cert")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    final var currentSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+                    assertThat(currentSSLContext).isNotEqualTo(startingSSLContext);
+                    assertSslContextHasCert(currentSSLContext, rotated.certificatePem());
+                });
+
+        model.close();
+    }
+
+    @Test
+    void fullRotationKeyThenCert() throws Exception {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var initial = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final var keyFile = tempDir.resolve("server.key");
+        final var certFile = tempDir.resolve("servercert.pem");
+        Files.writeString(keyFile, initial.privateKeyPem());
+        Files.writeString(certFile, initial.certificatePem());
+
+        final var keyPair = new KeyPair(keyFile.toString(), certFile.toString(), null);
+        final var tls = new Tls(keyPair, null, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When
+        final var rotated = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        Files.writeString(keyFile, rotated.privateKeyPem() + '\n', StandardOpenOption.TRUNCATE_EXISTING);
+        Awaitility.await("Gateway SSL context rejected and remains unchanged")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext().get()).isEqualTo(startingSSLContext);
+                });
+
+        Files.writeString(certFile, rotated.certificatePem(), StandardOpenOption.TRUNCATE_EXISTING);
+
+        // Then
+        Awaitility.await("Gateway SSL context updates to rotated key and cert")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    final SslContext currentSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+                    assertThat(currentSSLContext).isNotEqualTo(startingSSLContext);
+                    assertSslContextsHaveDifferentCerts(initial.certificatePem(), rotated.certificatePem());
+                });
+
+        model.close();
+    }
+
+    @Test
+    void multiEventCertificateUpdatesGatewaySSLContext(final CapturedLogs logs) throws IOException {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var currentServerCertificate = tempDir.resolve("servercert.pem");
+        final var startingCertificate = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server.crt"));
+        final var newCertificate = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server_crt_encrypted_key.pem"));
+        Files.copy(startingCertificate, currentServerCertificate);
+
+        final var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), currentServerCertificate.toString(), null);
+        final var tls = new Tls(keyPair, null, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When
+        Files.write(currentServerCertificate, new byte[]{}, StandardOpenOption.TRUNCATE_EXISTING); // zero file to mimic a slow disk overwrite operation
+        Awaitility.await("Gateway TLS updates when a partial write occurs")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    final List<LoggingEvent> events = logs.logged(VirtualClusterModel.class); // extract cluster model logs
+                    LoggingEventAssert.assertThat(events)
+                            .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("retaining the previous TLS configuration"));
+                });
+        Files.write(currentServerCertificate, Files.readAllBytes(newCertificate), StandardOpenOption.TRUNCATE_EXISTING);
+
+        // Then
+        Awaitility.await("Gateway SSL context changes when certificates are rotated")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext().get()).isNotEqualTo(startingSSLContext));
+        model.close();
+    }
+
+    @Test
+    void rotatedJKSUpdatesGatewaySSLContext() throws Exception {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var initialKeyAndCert = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final var jksFile = tempDir.resolve("server.jks");
+        createJksFile(jksFile, initialKeyAndCert, STOREPASS.getProvidedPassword());
+
+        final var keyStore = new KeyStore(jksFile.toString(), STOREPASS, null, JKS);
+        final var tls = new Tls(keyStore, null, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When - create a new JKS with different content for rotation
+        final var renewedCert = generateCertForKey(parseKeyPair(initialKeyAndCert));
+        final var rotatedKeyAndCert = new KeyAndCert(initialKeyAndCert.privateKeyPem(), renewedCert);
+        final var rotatedJks = tempDir.resolve("rotated.jks");
+        createJksFile(rotatedJks, rotatedKeyAndCert, STOREPASS.getProvidedPassword());
+        // Atomic rename over the watched file so the watcher never observes a partial keystore. The rename stays
+        // within the watched directory, so its inotify watch survives and the IN_MOVED_TO fires an ENTRY_CREATE.
+        Files.move(rotatedJks, jksFile, StandardCopyOption.ATOMIC_MOVE);
+
+        // Then
+        Awaitility.await("Gateway SSL context changes when certificates are rotated")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    final var currentSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+                    assertSslContextHasCert(currentSSLContext, renewedCert);
+                    assertThat(currentSSLContext).isNotEqualTo(startingSSLContext);
+                });
+
+        model.close();
+    }
+
+    @Test
+    void rotatedTrustUpdatesGatewaySSLContext() throws IOException {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var currentTrustCertificate = tempDir.resolve("trustcert.pem");
+        final var startingTrust = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server.crt"));
+        final var newTrust = Path.of(TlsTestConstants.getResourceLocationOnFilesystem("server_crt_encrypted_key.pem"));
+        Files.copy(startingTrust, currentTrustCertificate);
+
+        final var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), TlsTestConstants.getResourceLocationOnFilesystem("server.crt"),
+                null);
+        final var trustOptions = new TrustStore(currentTrustCertificate.toString(), null, Tls.PEM, null);
+        final var tls = new Tls(keyPair, trustOptions, null, null, null);
+        model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+        final var startingSSLContext = model.gateways().get("wibbleGW").getDownstreamSslContext().get();
+
+        // When
+        Files.copy(newTrust, currentTrustCertificate, StandardCopyOption.REPLACE_EXISTING);
+
+        // Then
+        Awaitility.await("Gateway SSL context changes when certificates are rotated")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext().get()).isNotEqualTo(startingSSLContext));
+        model.close();
+    }
+
     private static PluginFactoryRegistry pluginFactoryRegistry() {
         return new PluginFactoryRegistry() {
             @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -405,6 +702,172 @@ class VirtualClusterModelTest {
                 };
             }
         };
+    }
+
+    @Test
+    void validateCertificateKeyPair_matchingRsaKeyPairPem() throws Exception {
+        // Given
+        final KeyAndCert keyAndCert = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final Path keyFile = tempDir.resolve("rsa.key");
+        final Path certFile = tempDir.resolve("rsa.crt");
+        Files.writeString(keyFile, keyAndCert.privateKeyPem());
+        Files.writeString(certFile, keyAndCert.certificatePem());
+
+        final KeyPair keyPair = new KeyPair(keyFile.toString(), certFile.toString(), null);
+        final Tls tls = new Tls(keyPair, null, null, null);
+
+        final VirtualClusterModel model = new VirtualClusterModel("test",
+                new DirectRouting(DIRECT_ROUTE_NAME, new TargetCluster("broker:9092", Optional.empty())),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        // When
+        model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+
+        // Then - no exception thrown means validation passed
+        model.close();
+    }
+
+    @Test
+    void validateCertificateKeyPair_matchingEcKeyPairPem() throws Exception {
+        // Given
+        final KeyAndCert keyAndCert = generateKeyAndCert(TlsTestUtils.Algorithm.EC);
+        final Path keyFile = tempDir.resolve("ec.key");
+        final Path certFile = tempDir.resolve("ec.crt");
+        Files.writeString(keyFile, keyAndCert.privateKeyPem());
+        Files.writeString(certFile, keyAndCert.certificatePem());
+
+        final KeyPair keyPair = new KeyPair(keyFile.toString(), certFile.toString(), null);
+        final Tls tls = new Tls(keyPair, null, null, null);
+
+        final VirtualClusterModel model = new VirtualClusterModel("test",
+                new DirectRouting(DIRECT_ROUTE_NAME, new TargetCluster("broker:9092", Optional.empty())),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        // When
+        model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+
+        // Then - no exception thrown means validation passed
+        model.close();
+    }
+
+    @Test
+    void validateCertificateKeyPair_mismatchedRsaKeyPairThrowsException() throws Exception {
+        // Given
+        final KeyAndCert correctPair = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final KeyAndCert wrongPair = generateKeyAndCert(TlsTestUtils.Algorithm.RSA); // Different key
+
+        final Path wrongKeyFile = tempDir.resolve("wrong.key");
+        final Path certFile = tempDir.resolve("cert.crt");
+        Files.writeString(wrongKeyFile, wrongPair.privateKeyPem());
+        Files.writeString(certFile, correctPair.certificatePem());
+
+        final KeyPair keyPair = new KeyPair(wrongKeyFile.toString(), certFile.toString(), null);
+        final Tls tls = new Tls(keyPair, null, null, null);
+
+        final VirtualClusterModel model = new VirtualClusterModel("test",
+                new DirectRouting(DIRECT_ROUTE_NAME, new TargetCluster("broker:9092", Optional.empty())),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        // When/Then
+        assertThatThrownBy(() -> model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls)))
+                .isInstanceOf(java.io.UncheckedIOException.class)
+                .hasCauseInstanceOf(javax.net.ssl.SSLException.class)
+                .hasMessageContaining("Could not validate certificate-key pair match");
+    }
+
+    @Test
+    void validateCertificateKeyPair_algorithmMismatchThrowsException() throws Exception {
+        // Given - EC key with RSA cert
+        final KeyAndCert ecPair = generateKeyAndCert(TlsTestUtils.Algorithm.EC);
+        final KeyAndCert rsaPair = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+
+        final Path ecKeyFile = tempDir.resolve("ec.key");
+        final Path rsaCertFile = tempDir.resolve("rsa.crt");
+        Files.writeString(ecKeyFile, ecPair.privateKeyPem());
+        Files.writeString(rsaCertFile, rsaPair.certificatePem());
+
+        final KeyPair keyPair = new KeyPair(ecKeyFile.toString(), rsaCertFile.toString(), null);
+        final Tls tls = new Tls(keyPair, null, null, null);
+
+        final VirtualClusterModel model = new VirtualClusterModel("test",
+                new DirectRouting(DIRECT_ROUTE_NAME, new TargetCluster("broker:9092", Optional.empty())),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        // When/Then
+        assertThatThrownBy(() -> model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls)))
+                .isInstanceOf(java.io.UncheckedIOException.class)
+                .hasCauseInstanceOf(javax.net.ssl.SSLException.class)
+                .hasMessageContaining("Could not validate certificate-key pair match");
+    }
+
+    @Test
+    void validateCertificateKeyPair_nonExistentKeyFileLogsWarning(final CapturedLogs logs) {
+        // Given
+        final KeyPair keyPair = new KeyPair("/non/existent/key.pem", "/non/existent/cert.pem", null);
+        final Tls tls = new Tls(keyPair, null, null, null);
+
+        final VirtualClusterModel model = new VirtualClusterModel("test",
+                new DirectRouting(DIRECT_ROUTE_NAME, new TargetCluster("broker:9092", Optional.empty())),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        // When
+        assertThatThrownBy(() -> model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls)))
+                .isInstanceOf(java.io.UncheckedIOException.class);
+
+        // Then - validation warning should be logged
+        final List<LoggingEvent> events = logs.logged(TlsUtil.class);
+        LoggingEventAssert.assertThat(events)
+                .anyMatch(event -> event.getLevel().equals(Level.WARN) &&
+                        event.getMessage().contains("Certificate-key validation could not be performed"));
+    }
+
+    @Test
+    void validateCertificateKeyPair_matchingPemKeyStore() throws Exception {
+        // Given - Combined key and cert in single PEM file
+        final KeyAndCert keyAndCert = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final Path pemFile = tempDir.resolve("combined.pem");
+        Files.writeString(pemFile, keyAndCert.privateKeyPem() + keyAndCert.certificatePem());
+
+        final KeyStore keyStore = new KeyStore(pemFile.toString(), null, null, "PEM");
+        final Tls tls = new Tls(keyStore, null, null, null);
+
+        final VirtualClusterModel model = new VirtualClusterModel("test",
+                new DirectRouting(DIRECT_ROUTE_NAME, new TargetCluster("broker:9092", Optional.empty())),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        // When
+        model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls));
+
+        // Then - no exception thrown means validation passed
+        model.close();
+    }
+
+    @Test
+    void validateCertificateKeyPair_mismatchedPemKeyStoreThrowsException() throws Exception {
+        // Given - Wrong key and correct cert in single PEM file
+        final KeyAndCert correctPair = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final KeyAndCert wrongPair = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+
+        final Path pemFile = tempDir.resolve("mismatched.pem");
+        Files.writeString(pemFile, wrongPair.privateKeyPem() + correctPair.certificatePem());
+
+        final KeyStore keyStore = new KeyStore(pemFile.toString(), null, null, "PEM");
+        final Tls tls = new Tls(keyStore, null, null, null);
+
+        final VirtualClusterModel model = new VirtualClusterModel("test",
+                new DirectRouting(DIRECT_ROUTE_NAME, new TargetCluster("broker:9092", Optional.empty())),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        // When/Then
+        try {
+            assertThatThrownBy(() -> model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls)))
+                    .isInstanceOf(java.io.UncheckedIOException.class)
+                    .hasCauseInstanceOf(javax.net.ssl.SSLException.class)
+                    .hasMessageContaining("Could not validate certificate-key pair match");
+        }
+        finally {
+            model.close();
+        }
     }
 
 }

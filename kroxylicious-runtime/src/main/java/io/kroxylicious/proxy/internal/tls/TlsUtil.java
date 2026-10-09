@@ -6,24 +6,52 @@
 
 package io.kroxylicious.proxy.internal.tls;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
+import java.security.Key;
+import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.security.auth.x500.X500Principal;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyProvider;
+import io.kroxylicious.proxy.config.tls.KeyProviderVisitor;
+import io.kroxylicious.proxy.config.tls.KeyStore;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Utility class for TLS credential validation.
@@ -44,7 +72,7 @@ public class TlsUtil {
      * @param certificate The certificate containing the public key
      * @throws BadTlsCredentialsException if the keys don't match
      */
-    static void validateKeyAndCertMatch(@NonNull PrivateKey privateKey, @NonNull X509Certificate certificate) {
+    public static void validateKeyAndCertMatch(@NonNull final PrivateKey privateKey, @NonNull final X509Certificate certificate) {
         PublicKey publicKey = certificate.getPublicKey();
 
         // Check if the algorithms match
@@ -330,4 +358,525 @@ public class TlsUtil {
         }
     }
 
+    /*
+     * All code from this point until the closing comment
+     *
+     * AIA Entirely AI, Human-initiated, No human review, Claude Opus 4.8, Claude Sonnet 4.5 v1.0
+     */
+
+    /**
+     * Validates that the certificate(s) in the KeyProvider were derived from the corresponding private key.
+     * Where a key store contains multiple key entries, every recoverable key entry is validated, as the
+     * runtime KeyManager may serve any of them depending on the handshake (key type, acceptable issuers, SNI).
+     *
+     * @param keyProvider the key provider to validate
+     * @return Optional.empty() if validation could not be performed (unsupported algorithm, I/O error, etc.),
+     *         Optional.of(true) if the certificate(s) match the key(s),
+     *         Optional.of(false) if a certificate does not match its key
+     */
+    public static Optional<Boolean> validateCertificateKeyPair(final KeyProvider keyProvider) {
+        try {
+            final List<KeyAndCert> keyAndCerts = keyProvider.accept(new KeyProviderExtractionVisitor());
+            for (final KeyAndCert keyAndCert : keyAndCerts) {
+                validateKeyAndCertMatch(keyAndCert.privateKey(), keyAndCert.certificate());
+            }
+            return Optional.of(true);
+        }
+        catch (final BadTlsCredentialsException e) {
+            // thrown when keys don't match
+            LOGGER.atDebug()
+                    .setCause(e)
+                    .log("Certificate and private key do not match");
+            return Optional.of(false);
+        }
+        catch (final RuntimeException e) {
+            // Parsing failed (SslContextBuildException), unsupported algorithm, or other error - cannot validate
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .addKeyValue("error", e.getMessage())
+                    .log(LOGGER.isDebugEnabled()
+                            ? "Certificate-key validation could not be performed"
+                            : "Certificate-key validation could not be performed, increase log level to DEBUG for stacktrace");
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Visitor that extracts the PrivateKey and X509Certificate pairs from a KeyProvider.
+     * A KeyPair or PEM key store yields a single pair; a JKS/PKCS12 key store may yield several.
+     */
+    private static class KeyProviderExtractionVisitor implements KeyProviderVisitor<List<KeyAndCert>> {
+
+        @Override
+        // Paths come from the trusted proxy TLS configuration, not from untrusted input
+        @SuppressFBWarnings("PATH_TRAVERSAL_IN")
+        public List<KeyAndCert> visit(final KeyPair keyPair) {
+            try {
+                // Read files
+                final byte[] keyBytes = Files.readAllBytes(Paths.get(keyPair.privateKeyFile()));
+                final byte[] certBytes = Files.readAllBytes(Paths.get(keyPair.certificateFile()));
+
+                // Get password
+                final char[] password = keyPair.keyPasswordProvider() != null
+                        ? keyPair.keyPasswordProvider().getProvidedPassword().toCharArray()
+                        : null;
+
+                // Parse using our PEM parsing helpers
+                final PrivateKey privateKey = parsePemPrivateKey(keyBytes, password);
+                final X509Certificate[] certs = parsePemCertificates(certBytes);
+
+                // Return leaf certificate (first in chain)
+                return List.of(new KeyAndCert(privateKey, certs[0]));
+            }
+            catch (final IOException | GeneralSecurityException e) {
+                throw new SslContextBuildException("Failed to extract key and certificate from KeyPair", e);
+            }
+        }
+
+        @Override
+        // Paths come from the trusted proxy TLS configuration, not from untrusted input
+        @SuppressFBWarnings("PATH_TRAVERSAL_IN")
+        public List<KeyAndCert> visit(final KeyStore keyStore) {
+            try {
+                if (keyStore.isPemType()) {
+                    // PEM format: both key and cert in same file
+                    final byte[] pemBytes = Files.readAllBytes(Paths.get(keyStore.storeFile()));
+
+                    final char[] keyPass;
+                    if (keyStore.keyPasswordProvider() != null) {
+                        keyPass = keyStore.keyPasswordProvider().getProvidedPassword().toCharArray();
+                    }
+                    else if (keyStore.storePasswordProvider() != null) {
+                        keyPass = keyStore.storePasswordProvider().getProvidedPassword().toCharArray();
+                    }
+                    else {
+                        keyPass = null;
+                    }
+
+                    // Parse using our PEM parsing helpers
+                    final PrivateKey privateKey = parsePemPrivateKey(pemBytes, keyPass);
+                    final X509Certificate[] certs = parsePemCertificates(pemBytes);
+
+                    return List.of(new KeyAndCert(privateKey, certs[0]));
+                }
+                else {
+                    // JKS/PKCS12 format
+                    return extractFromKeyStore(keyStore);
+                }
+            }
+            catch (final IOException | GeneralSecurityException e) {
+                throw new SslContextBuildException("Failed to extract key and certificate from KeyStore", e);
+            }
+        }
+    }
+
+    /**
+     * Extracts the private key and leaf certificate of every key entry from a Java KeyStore (JKS/PKCS12).
+     * All key entries are returned rather than only the first, as the runtime KeyManager may serve any of
+     * them depending on the handshake. A key entry whose key cannot be recovered with the configured
+     * password is skipped, mirroring the leniency of the runtime KeyManagerFactory.
+     *
+     * @param keyStoreConfig the keystore configuration
+     * @return the extracted key and certificate pairs
+     * @throws IOException if the keystore cannot be read or contains no recoverable key entries
+     * @throws GeneralSecurityException if the keystore cannot be loaded or key extraction fails
+     */
+    // Path comes from the trusted proxy TLS configuration, not from untrusted input
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
+    private static List<KeyAndCert> extractFromKeyStore(final KeyStore keyStoreConfig)
+            throws IOException, GeneralSecurityException {
+        final char[] storePass = keyStoreConfig.storePasswordProvider() != null
+                ? keyStoreConfig.storePasswordProvider().getProvidedPassword().toCharArray()
+                : null;
+        final char[] keyPass = keyStoreConfig.keyPasswordProvider() != null
+                ? keyStoreConfig.keyPasswordProvider().getProvidedPassword().toCharArray()
+                : storePass; // Default to store password if key password not specified
+
+        final java.security.KeyStore ks = java.security.KeyStore.getInstance(keyStoreConfig.getType());
+        try (FileInputStream fis = new FileInputStream(keyStoreConfig.storeFile())) {
+            ks.load(fis, storePass);
+        }
+
+        final List<KeyAndCert> keyAndCerts = new ArrayList<>();
+        final Enumeration<String> aliases = ks.aliases();
+        while (aliases.hasMoreElements()) {
+            final String alias = aliases.nextElement();
+            if (!ks.isKeyEntry(alias)) {
+                continue;
+            }
+            final Key key;
+            try {
+                key = ks.getKey(alias, keyPass);
+            }
+            catch (final UnrecoverableKeyException e) {
+                LOGGER.atDebug()
+                        .setCause(e)
+                        .addKeyValue("alias", alias)
+                        .log("Skipping key entry that could not be recovered with the configured password");
+                continue;
+            }
+            if (key instanceof PrivateKey pk) {
+                final Certificate cert = ks.getCertificate(alias);
+                if (cert instanceof X509Certificate x509) {
+                    keyAndCerts.add(new KeyAndCert(pk, x509));
+                }
+            }
+        }
+        if (keyAndCerts.isEmpty()) {
+            throw new IOException("No key entry found in keystore: " + keyStoreConfig.storeFile());
+        }
+        return keyAndCerts;
+    }
+
+    /**
+     * Holds a private key and its corresponding certificate.
+     */
+    private record KeyAndCert(PrivateKey privateKey, X509Certificate certificate) {}
+
+    /**
+     * Parses X.509 certificates from PEM-encoded bytes.
+     *
+     * @param pemBytes PEM-encoded certificate data
+     * @return array of parsed certificates (leaf certificate first)
+     * @throws CertificateException if no certificates found or parsing fails
+     */
+    private static X509Certificate[] parsePemCertificates(final byte[] pemBytes) throws CertificateException {
+        final String pem = new String(pemBytes, StandardCharsets.UTF_8);
+        final Pattern pattern = Pattern.compile(
+                "-----BEGIN CERTIFICATE-----\\s*([A-Za-z0-9+/=\\s]+?)\\s*-----END CERTIFICATE-----",
+                Pattern.CASE_INSENSITIVE);
+
+        final List<X509Certificate> certs = new ArrayList<>();
+        final Matcher matcher = pattern.matcher(pem);
+        final CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        while (matcher.find()) {
+            final String base64 = matcher.group(1).replaceAll("\\s", "");
+            final byte[] der = Base64.getDecoder().decode(base64);
+            final X509Certificate cert = (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(der));
+            certs.add(cert);
+        }
+
+        if (certs.isEmpty()) {
+            throw new CertificateException("No certificates found in PEM data");
+        }
+        return certs.toArray(new X509Certificate[0]);
+    }
+
+    /**
+     * Parses a private key from PEM-encoded bytes. Supports PKCS#8, PKCS#1 RSA and SEC1 EC formats.
+     *
+     * @param pemBytes PEM-encoded private key data
+     * @param password password for encrypted keys (must be null - encrypted keys not supported)
+     * @return parsed private key
+     * @throws IOException if encrypted key provided or no valid key found
+     * @throws GeneralSecurityException if key parsing fails
+     */
+    private static PrivateKey parsePemPrivateKey(final byte[] pemBytes, @Nullable final char[] password)
+            throws IOException, GeneralSecurityException {
+        if (password != null) {
+            throw new IOException("Encrypted private keys are not supported. " +
+                    "Use JKS or PKCS12 keystore format for encrypted keys.");
+        }
+
+        final String pem = new String(pemBytes, StandardCharsets.UTF_8);
+
+        // Try PKCS#8 format: "-----BEGIN PRIVATE KEY-----"
+        final Pattern pkcs8Pattern = Pattern.compile(
+                "-----BEGIN PRIVATE KEY-----\\s*([A-Za-z0-9+/=\\s]+?)\\s*-----END PRIVATE KEY-----",
+                Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pkcs8Pattern.matcher(pem);
+        if (matcher.find()) {
+            final String base64 = matcher.group(1).replaceAll("\\s", "");
+            final byte[] der = Base64.getDecoder().decode(base64);
+            return parsePkcs8PrivateKey(der);
+        }
+
+        // Try PKCS#1 RSA format: "-----BEGIN RSA PRIVATE KEY-----"
+        final Pattern pkcs1Pattern = Pattern.compile(
+                "-----BEGIN RSA PRIVATE KEY-----\\s*([A-Za-z0-9+/=\\s]+?)\\s*-----END RSA PRIVATE KEY-----",
+                Pattern.CASE_INSENSITIVE);
+        matcher = pkcs1Pattern.matcher(pem);
+        if (matcher.find()) {
+            final String base64 = matcher.group(1).replaceAll("\\s", "");
+            final byte[] pkcs1Der = Base64.getDecoder().decode(base64);
+            final byte[] pkcs8Der = convertPkcs1ToPkcs8(pkcs1Der);
+            return parsePkcs8PrivateKey(pkcs8Der);
+        }
+
+        // Try SEC1 EC format: "-----BEGIN EC PRIVATE KEY-----"
+        final Pattern sec1Pattern = Pattern.compile(
+                "-----BEGIN EC PRIVATE KEY-----\\s*([A-Za-z0-9+/=\\s]+?)\\s*-----END EC PRIVATE KEY-----",
+                Pattern.CASE_INSENSITIVE);
+        matcher = sec1Pattern.matcher(pem);
+        if (matcher.find()) {
+            final String base64 = matcher.group(1).replaceAll("\\s", "");
+            final byte[] sec1Der = Base64.getDecoder().decode(base64);
+            final byte[] pkcs8Der = convertSec1ToPkcs8(sec1Der);
+            return parsePkcs8PrivateKey(pkcs8Der);
+        }
+
+        throw new IOException("No supported private key format found in PEM data. " +
+                "Supported formats: PKCS#8 (BEGIN PRIVATE KEY), PKCS#1 RSA (BEGIN RSA PRIVATE KEY) " +
+                "and SEC1 EC (BEGIN EC PRIVATE KEY).");
+    }
+
+    /**
+     * Parses PKCS#8 DER-encoded private key by trying common algorithms.
+     *
+     * @param pkcs8Der PKCS#8 DER-encoded key bytes
+     * @return parsed private key
+     * @throws GeneralSecurityException if key cannot be parsed with any supported algorithm
+     */
+    private static PrivateKey parsePkcs8PrivateKey(final byte[] pkcs8Der) throws GeneralSecurityException {
+        final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(pkcs8Der);
+
+        // Try common algorithms in order of likelihood
+        final String[] algorithms = { "RSA", "EC", "EdDSA", "DSA" };
+        for (final String algorithm : algorithms) {
+            try {
+                final KeyFactory kf = KeyFactory.getInstance(algorithm);
+                return kf.generatePrivate(keySpec);
+            }
+            catch (final InvalidKeySpecException e) {
+                // Try next algorithm
+            }
+        }
+        throw new GeneralSecurityException("Could not parse private key with any supported algorithm");
+    }
+
+    /**
+     * Converts PKCS#1 RSA private key to PKCS#8 format using ASN.1 DER encoding.
+     * PKCS#8 structure: SEQUENCE { version INTEGER, algorithm AlgorithmIdentifier, privateKey OCTET STRING }
+     *
+     * @param pkcs1Bytes PKCS#1 DER-encoded RSA private key
+     * @return PKCS#8 DER-encoded private key
+     * @throws IOException if encoding fails
+     */
+    private static byte[] convertPkcs1ToPkcs8(final byte[] pkcs1Bytes) throws IOException {
+        // RSA algorithm OID: 1.2.840.113549.1.1.1
+        final byte[] rsaOid = new byte[]{ 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7,
+                0x0D, 0x01, 0x01, 0x01 };
+
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        // Build algorithm identifier: SEQUENCE { OID, NULL }
+        final int algorithmSeqLength = 2 + rsaOid.length + 2; // OID header + OID + NULL
+
+        // Build version: INTEGER 0
+        final byte[] version = new byte[]{ 0x02, 0x01, 0x00 };
+
+        // Calculate total SEQUENCE length
+        final byte[] privateKeyHeader = new byte[]{ 0x04 };
+        final byte[] privateKeyLengthBytes = encodeDerLength(pkcs1Bytes.length);
+        final int privateKeyTotalLength = privateKeyHeader.length + privateKeyLengthBytes.length + pkcs1Bytes.length;
+
+        final byte[] algorithmSeqLengthBytes = encodeDerLength(algorithmSeqLength);
+        final int totalLength = version.length +
+                1 + algorithmSeqLengthBytes.length + algorithmSeqLength +
+                privateKeyTotalLength;
+
+        // Write outer SEQUENCE
+        baos.write(0x30); // SEQUENCE tag
+        baos.write(encodeDerLength(totalLength));
+
+        // Write version
+        baos.write(version);
+
+        // Write algorithm identifier SEQUENCE
+        baos.write(0x30); // SEQUENCE tag
+        baos.write(algorithmSeqLengthBytes);
+        baos.write(0x06); // OID tag
+        baos.write(rsaOid.length);
+        baos.write(rsaOid);
+        baos.write(0x05); // NULL tag
+        baos.write(0x00); // NULL value (zero length)
+
+        // Write private key as OCTET STRING
+        baos.write(0x04); // OCTET STRING tag
+        baos.write(privateKeyLengthBytes);
+        baos.write(pkcs1Bytes);
+
+        return baos.toByteArray();
+    }
+
+    /**
+     * Converts a SEC1 (RFC 5915) EC private key to PKCS#8 format using ASN.1 DER encoding.
+     * The traditional "EC PRIVATE KEY" PEM encoding is SEC1, not PKCS#1 (which is RSA specific).
+     * The named curve is read from the SEC1 {@code [0] parameters} field and placed in the PKCS#8
+     * AlgorithmIdentifier, as the JDK EC KeyFactory derives the curve from there. Only named curves
+     * are supported; keys using explicit curve parameters are rejected.
+     * PKCS#8 structure: SEQUENCE { version INTEGER, algorithm AlgorithmIdentifier { id-ecPublicKey, namedCurve }, privateKey OCTET STRING }
+     *
+     * @param sec1Bytes SEC1 DER-encoded EC private key
+     * @return PKCS#8 DER-encoded private key
+     * @throws IOException if the SEC1 structure cannot be parsed or omits the named curve
+     */
+    private static byte[] convertSec1ToPkcs8(final byte[] sec1Bytes) throws IOException {
+        // id-ecPublicKey OID 1.2.840.10045.2.1, as a complete DER element (tag, length, value)
+        final byte[] ecPublicKeyOid = new byte[]{ 0x06, 0x07, 0x2A, (byte) 0x86, 0x48, (byte) 0xCE, 0x3D, 0x02, 0x01 };
+
+        // The named-curve OID (complete DER element) lifted from the SEC1 [0] parameters field
+        final byte[] curveOid = extractEcCurveOid(sec1Bytes);
+
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        // Build algorithm identifier: SEQUENCE { id-ecPublicKey OID, namedCurve OID }
+        final int algorithmSeqLength = ecPublicKeyOid.length + curveOid.length;
+        final byte[] algorithmSeqLengthBytes = encodeDerLength(algorithmSeqLength);
+
+        // Build version: INTEGER 0
+        final byte[] version = new byte[]{ 0x02, 0x01, 0x00 };
+
+        // The SEC1 key is wrapped verbatim in the privateKey OCTET STRING; any redundant inner
+        // parameters or public key are ignored by the JDK EC KeyFactory.
+        final byte[] privateKeyLengthBytes = encodeDerLength(sec1Bytes.length);
+        final int privateKeyTotalLength = 1 + privateKeyLengthBytes.length + sec1Bytes.length;
+
+        final int totalLength = version.length +
+                1 + algorithmSeqLengthBytes.length + algorithmSeqLength +
+                privateKeyTotalLength;
+
+        // Write outer SEQUENCE
+        baos.write(0x30); // SEQUENCE tag
+        baos.write(encodeDerLength(totalLength));
+
+        // Write version
+        baos.write(version);
+
+        // Write algorithm identifier SEQUENCE
+        baos.write(0x30); // SEQUENCE tag
+        baos.write(algorithmSeqLengthBytes);
+        baos.write(ecPublicKeyOid);
+        baos.write(curveOid);
+
+        // Write SEC1 key as OCTET STRING
+        baos.write(0x04); // OCTET STRING tag
+        baos.write(privateKeyLengthBytes);
+        baos.write(sec1Bytes);
+
+        return baos.toByteArray();
+    }
+
+    /**
+     * Extracts the named-curve OID (as a complete DER element) from the {@code [0] parameters} field
+     * of a SEC1 EC private key. The JDK EC KeyFactory requires the curve in the PKCS#8
+     * AlgorithmIdentifier, so it must be recovered from the SEC1 structure.
+     *
+     * @param sec1Bytes SEC1 DER-encoded EC private key
+     * @return the DER-encoded OID element (tag 0x06) identifying the named curve
+     * @throws IOException if the structure is malformed, uses explicit (non-named) curve parameters,
+     *                     or omits the curve parameters entirely
+     */
+    private static byte[] extractEcCurveOid(final byte[] sec1Bytes) throws IOException {
+        int offset = 0;
+        if (sec1Bytes.length == 0 || (sec1Bytes[offset] & 0xFF) != 0x30) {
+            throw new IOException("Invalid SEC1 EC private key: expected a DER SEQUENCE");
+        }
+        offset++;
+        final int[] sequenceLengthAndSize = readDerLength(sec1Bytes, offset);
+        offset += sequenceLengthAndSize[1]; // step over the SEQUENCE length to its content
+        final int sequenceEnd = offset + sequenceLengthAndSize[0];
+        if (sequenceEnd > sec1Bytes.length) {
+            throw new IOException("Invalid SEC1 EC private key: SEQUENCE length exceeds the available data");
+        }
+
+        // Walk the elements of the ECPrivateKey SEQUENCE looking for the [0] parameters element,
+        // bounded by the SEQUENCE length so trailing or concatenated DER is not scanned.
+        while (offset < sequenceEnd) {
+            final int tag = sec1Bytes[offset] & 0xFF;
+            offset++;
+            final int[] lengthAndSize = readDerLength(sec1Bytes, offset);
+            final int contentLength = lengthAndSize[0];
+            offset += lengthAndSize[1];
+            if (offset + contentLength > sequenceEnd) {
+                throw new IOException("Invalid SEC1 EC private key: truncated element");
+            }
+
+            if (tag == 0xA0) { // context tag [0] parameters
+                if (contentLength == 0 || (sec1Bytes[offset] & 0xFF) != 0x06) {
+                    throw new IOException("Unsupported EC private key: only named curves (an OID) are supported");
+                }
+                final int[] oidLengthAndSize = readDerLength(sec1Bytes, offset + 1);
+                final int oidTotalLength = 1 + oidLengthAndSize[1] + oidLengthAndSize[0];
+                if (offset + oidTotalLength > sequenceEnd) {
+                    throw new IOException("Invalid SEC1 EC private key: truncated curve OID");
+                }
+                final byte[] oid = new byte[oidTotalLength];
+                System.arraycopy(sec1Bytes, offset, oid, 0, oidTotalLength);
+                return oid;
+            }
+            offset += contentLength; // skip this element's content
+        }
+        throw new IOException("EC private key does not specify a named curve; " +
+                "convert it to PKCS#8 (BEGIN PRIVATE KEY) or include named-curve parameters");
+    }
+
+    /**
+     * Reads a DER length at the given offset.
+     *
+     * @param der the DER bytes
+     * @param offset the offset of the length octet(s)
+     * @return a two element array: {decoded length, number of octets the length occupies}
+     * @throws IOException if the length is truncated or uses an unsupported (indefinite or oversized) form
+     */
+    private static int[] readDerLength(final byte[] der, final int offset) throws IOException {
+        if (offset >= der.length) {
+            throw new IOException("Truncated DER length");
+        }
+        final int first = der[offset] & 0xFF;
+        if (first < 0x80) {
+            // Short form: single length octet
+            return new int[]{ first, 1 };
+        }
+        final int numBytes = first & 0x7F;
+        if (numBytes == 0 || numBytes > 4 || offset + numBytes >= der.length) {
+            throw new IOException("Unsupported DER length encoding");
+        }
+        int length = 0;
+        for (int i = 1; i <= numBytes; i++) {
+            length = (length << 8) | (der[offset + i] & 0xFF);
+        }
+        if (length < 0) {
+            // A four-octet length with the top bit set overflows a signed 32-bit int
+            throw new IOException("Invalid DER length: value overflows a signed 32-bit integer");
+        }
+        return new int[]{ length, 1 + numBytes };
+    }
+
+    /**
+     * Encodes a length value in DER format (short form for lengths < 128, long form otherwise).
+     * Long form up to four length octets is supported, covering the full non-negative int range.
+     *
+     * @param length the length to encode
+     * @return DER-encoded length bytes
+     * @throws IOException if the length is negative
+     */
+    private static byte[] encodeDerLength(final int length) throws IOException {
+        if (length < 0) {
+            throw new IOException("Invalid DER length: negative");
+        }
+        if (length < 128) {
+            // Short form: single byte
+            return new byte[]{ (byte) length };
+        }
+        else if (length < 256) {
+            // Long form: 0x81 followed by one length byte
+            return new byte[]{ (byte) 0x81, (byte) length };
+        }
+        else if (length < 65536) {
+            // Long form: 0x82 followed by two length bytes (big-endian)
+            return new byte[]{ (byte) 0x82, (byte) (length >> 8), (byte) length };
+        }
+        else if (length < 16777216) {
+            // Long form: 0x83 followed by three length bytes (big-endian)
+            return new byte[]{ (byte) 0x83, (byte) (length >> 16), (byte) (length >> 8), (byte) length };
+        }
+        else {
+            // Long form: 0x84 followed by four length bytes (big-endian)
+            return new byte[]{ (byte) 0x84, (byte) (length >> 24), (byte) (length >> 16), (byte) (length >> 8), (byte) length };
+        }
+    }
+
+    // End of code generated by Claude Opus 4.8 <noreply@anthropic.com> and Claude Sonnet 4.5 <noreply@anthropic.com>
 }
