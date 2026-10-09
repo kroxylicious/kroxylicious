@@ -435,6 +435,7 @@ jobs:
           name: kroxylicious-proxy
           path: /tmp/kroxylicious-proxy.img.tar.gz
           retention-days: 1
+          if-no-files-found: error
 
       - name: Archive operator image tarball
         if: steps.build_configuration.outputs.output_tarballs == 'true'
@@ -443,6 +444,7 @@ jobs:
           name: kroxylicious-operator
           path: /tmp/kroxylicious-operator.img.tar.gz
           retention-days: 1
+          if-no-files-found: error
 
       - name: Archive admission webhook image tarball
         if: steps.build_configuration.outputs.output_tarballs == 'true'
@@ -451,3 +453,4 @@ jobs:
           name: kroxylicious-admission-webhook
           path: /tmp/kroxylicious-webhook.img.tar.gz
           retention-days: 1
+          if-no-files-found: error
