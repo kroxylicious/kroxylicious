@@ -8,7 +8,6 @@ package io.kroxylicious.testing.integration;
 
 import java.io.UncheckedIOException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -20,44 +19,50 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ShellUtilsTest {
 
     private static final String NO_SUCH_CMD = "no_such_cmd_xyz_kroxy";
-    private static final Predicate<Stream<String>> ALWAYS_VALID = lines -> true;
-    private static final Predicate<Stream<String>> ALWAYS_INVALID = lines -> false;
+
+    private static boolean alwaysValid(Stream<String> lines) {
+        return true;
+    }
+
+    private static boolean alwaysInvalid(Stream<String> lines) {
+        return false;
+    }
 
     // execValidate
 
     @Test
     void execValidateShouldReturnTrueWhenCommandSucceedsAndValidatorsPass() {
-        var result = ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "true");
+        var result = ShellUtils.execValidate(ShellUtilsTest::alwaysValid, ShellUtilsTest::alwaysValid, "true");
         assertThat(result).isTrue();
     }
 
     @Test
     void execValidateShouldReturnFalseWhenStdoutValidatorRejects() {
-        var result = ShellUtils.execValidate(ALWAYS_INVALID, ALWAYS_VALID, "true");
+        var result = ShellUtils.execValidate(ShellUtilsTest::alwaysInvalid, ShellUtilsTest::alwaysValid, "true");
         assertThat(result).isFalse();
     }
 
     @Test
     void execValidateShouldReturnFalseWhenStderrValidatorRejects() {
-        var result = ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_INVALID, "true");
+        var result = ShellUtils.execValidate(ShellUtilsTest::alwaysValid, ShellUtilsTest::alwaysInvalid, "true");
         assertThat(result).isFalse();
     }
 
     @Test
     void execValidateShouldReturnFalseWhenBothValidatorsReject() {
-        var result = ShellUtils.execValidate(ALWAYS_INVALID, ALWAYS_INVALID, "true");
+        var result = ShellUtils.execValidate(ShellUtilsTest::alwaysInvalid, ShellUtilsTest::alwaysInvalid, "true");
         assertThat(result).isFalse();
     }
 
     @Test
     void execValidateShouldThrowOnNonZeroExit() {
-        assertThatThrownBy(() -> ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "false"))
+        assertThatThrownBy(() -> ShellUtils.execValidate(ShellUtilsTest::alwaysValid, ShellUtilsTest::alwaysValid, "false"))
                 .isInstanceOf(AssertionError.class);
     }
 
     @Test
     void execValidateShouldThrowOnNonExistentCommand() {
-        assertThatThrownBy(() -> ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, NO_SUCH_CMD))
+        assertThatThrownBy(() -> ShellUtils.execValidate(ShellUtilsTest::alwaysValid, ShellUtilsTest::alwaysValid, NO_SUCH_CMD))
                 .isInstanceOf(UncheckedIOException.class);
     }
 
@@ -65,7 +70,7 @@ class ShellUtilsTest {
     void execValidateShouldPassStdoutContentToValidator() {
         var result = ShellUtils.execValidate(
                 lines -> lines.anyMatch(line -> line.contains("hello")),
-                ALWAYS_VALID,
+                ShellUtilsTest::alwaysValid,
                 "echo", "hello");
         assertThat(result).isTrue();
     }
@@ -73,7 +78,7 @@ class ShellUtilsTest {
     @Test
     void execValidateShouldThrowOnTimeout() {
         assertThatThrownBy(() -> ShellUtils.execValidate(
-                ALWAYS_VALID, ALWAYS_VALID, 1, TimeUnit.MILLISECONDS, "sleep", "60"))
+                ShellUtilsTest::alwaysValid, ShellUtilsTest::alwaysValid, 1, TimeUnit.MILLISECONDS, "sleep", "60"))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("did not complete within timeout");
     }
@@ -81,7 +86,7 @@ class ShellUtilsTest {
     @Test
     void execValidateShouldPassStderrContentToValidator() {
         var result = ShellUtils.execValidate(
-                ALWAYS_VALID,
+                ShellUtilsTest::alwaysValid,
                 lines -> lines.anyMatch(line -> line.contains("err")),
                 "sh", "-c", "echo err >&2");
         assertThat(result).isTrue();
