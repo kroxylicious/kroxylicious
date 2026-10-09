@@ -148,16 +148,4 @@ class TargetClusterTest {
                 .hasMessageContaining("connectTimeout");
     }
 
-    @Test
-    void shouldForwardSelectionStrategyAndLeaveConnectTimeoutUnset() {
-        // Given
-        var viaCanonicalWithNull = new TargetCluster("broker:9092", Optional.empty(), null, null);
-
-        // When
-        var viaOverload = new TargetCluster("broker:9092", Optional.empty(), null);
-
-        // Then
-        assertThat(viaOverload).isEqualTo(viaCanonicalWithNull);
-        assertThat(viaOverload.connectTimeout()).isNull();
-    }
 }

@@ -312,23 +312,12 @@ class ServerConnectionStateMachineTest {
     // These exercise the real configureBootstrap, not an overriding subclass, so the configured
     // CONNECT_TIMEOUT_MILLIS is actually asserted. The overriding subclasses elsewhere would bypass it.
 
-    private ServerConnectionStateMachine createScsmWithConnectTimeout(Duration connectTimeout) {
-        var ccsm = mock(ClientConnectionStateMachine.class);
-        when(ccsm.sessionId()).thenReturn("test-session");
-        when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
-        var virtualCluster = mock(VirtualClusterModel.class);
-        var model = new UpstreamClusterModel(
-                new TargetCluster("broker:9092", Optional.empty(), null, connectTimeout),
-                Optional.empty(), TlsCredentialSupplierManager.unconfigured());
-        return new ServerConnectionStateMachine(
-                REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class), model);
-    }
-
     @Test
     void configureBootstrapShouldApplyDefaultConnectTimeout() {
         // Given
-        var scsm = createScsmWithConnectTimeout(null);
+        var clusterModel = new UpstreamClusterModel(new TargetCluster("broker:9092", Optional.empty(), null, null),
+                Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+        var scsm = createScsmWithMocks(mock(ClientConnectionStateMachine.class), mock(VirtualClusterModel.class), clusterModel);
         var inboundChannel = new EmbeddedChannel();
 
         // When
@@ -341,7 +330,9 @@ class ServerConnectionStateMachineTest {
     @Test
     void configureBootstrapShouldApplyConfiguredConnectTimeout() {
         // Given
-        var scsm = createScsmWithConnectTimeout(Duration.ofSeconds(5));
+        var clusterModel = new UpstreamClusterModel(new TargetCluster("broker:9092", Optional.empty(), null, Duration.ofSeconds(5)),
+                Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+        var scsm = createScsmWithMocks(mock(ClientConnectionStateMachine.class), mock(VirtualClusterModel.class), clusterModel);
         var inboundChannel = new EmbeddedChannel();
 
         // When

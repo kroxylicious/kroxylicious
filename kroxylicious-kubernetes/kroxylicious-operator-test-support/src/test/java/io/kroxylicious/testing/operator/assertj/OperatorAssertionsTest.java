@@ -92,7 +92,7 @@ class OperatorAssertionsTest {
     @Test
     void shouldReturnConfigurationAssert() {
         // Given
-        ClusterDefinition clusterDef = new ClusterDefinition("Bob-target", "", null, null);
+        ClusterDefinition clusterDef = new ClusterDefinition("Bob-target", "", null, null, null);
         RouteTarget target = new RouteTarget("Bob-target", null);
         var configurations = new Configuration(null,
                 List.of(clusterDef),

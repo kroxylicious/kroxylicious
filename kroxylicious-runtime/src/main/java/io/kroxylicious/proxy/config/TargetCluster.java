@@ -94,20 +94,7 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
      * @param tls tls configuration if a secure connection is to be used
      */
     public TargetCluster(String bootstrapServers, @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Tls> tls) {
-        this(bootstrapServers, tls, DEFAULT_SELECTION_STRATEGY);
-    }
-
-    /**
-     * Convenience constructor using the default connect timeout.
-     *
-     * @param bootstrapServers comma separated list of host/port pairs
-     * @param tls tls configuration if a secure connection is to be used
-     * @param selectionStrategy the bootstrap server selection strategy, or null for the default
-     */
-    public TargetCluster(String bootstrapServers,
-                         @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Tls> tls,
-                         @Nullable BootstrapSelectionStrategy selectionStrategy) {
-        this(bootstrapServers, tls, selectionStrategy, null);
+        this(bootstrapServers, tls, DEFAULT_SELECTION_STRATEGY, null);
     }
 
     /**

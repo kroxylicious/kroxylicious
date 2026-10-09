@@ -32,23 +32,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.ResourceLock;
 
-import io.kroxylicious.proxy.config.ClusterDefinition;
+import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
+import io.kroxylicious.testing.integration.tester.SimpleMetricAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.api.TerminationStyle;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
@@ -185,39 +180,58 @@ class ResilienceIT extends BaseIT {
      * rather than refused, which is the only case that exercises CONNECT_TIMEOUT_MILLIS.
      */
     private static final String BLACKHOLED_ADDRESS = "240.0.0.1:9999";
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
+    private static final Duration COMPLETION_BUDGET = Duration.ofSeconds(5);
 
+    /**
+     * Round robin selection is explicit because the blackholed address must be the one chosen
+     * first and the configured two second stall plus the client reconnect and metadata exchange
+     * completes inside the budget while staying far below Netty's thirty second default so the
+     * bound discriminates between the configured timeout and the default
+     */
     @Test
     void shouldHonourConfiguredUpstreamConnectTimeout() {
         // Given
         assumeAddressIsBlackholed(BLACKHOLED_ADDRESS);
-        var bootstrapServers = BLACKHOLED_ADDRESS + "," + cluster.getBootstrapServers();
-        var config = baseConfigurationBuilder()
-                .addToClusterDefinitions(
-                        new ClusterDefinition(DEFAULT_CLUSTER_DEF_NAME, bootstrapServers, null, null, Duration.ofSeconds(2)))
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName(DEFAULT_VIRTUAL_CLUSTER)
-                        .withTarget(DEFAULT_CLUSTER_TARGET)
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(OS_ASSIGNED_BOOTSTRAP).build())
-                        .build());
+        // @formatter:off
+        var config = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addNewClusterDefinition()
+                    .withName(KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(BLACKHOLED_ADDRESS + "," + cluster.getBootstrapServers())
+                    .withSelectionStrategy(new RoundRobinBootstrapSelectionStrategy())
+                    .withConnectTimeout(CONNECT_TIMEOUT)
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName(KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER)
+                    .withTarget(KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET)
+                    .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(
+                            KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP).build())
+                .endVirtualCluster()
+                .withNewManagement()
+                    .withNewEndpoints()
+                        .withNewPrometheus()
+                        .endPrometheus()
+                    .endEndpoints()
+                .endManagement();
+        // @formatter:on
 
         try (var tester = kroxyliciousTester(config);
-                var admin = tester.admin()) {
-            // When
+                var admin = tester.admin();
+                var managementClient = tester.getManagementClient()) {
             var startedAt = System.nanoTime();
-            var describeClusterResult = admin.describeCluster();
-            assertThat(describeClusterResult.clusterId())
-                    .succeedsWithin(40, TimeUnit.SECONDS, InstanceOfAssertFactories.STRING)
-                    .isNotBlank();
-            var elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
+
+            // When
+            var clusterId = admin.describeCluster().clusterId();
 
             // Then
-            assertThat(elapsed)
-                    .as("completed in %s, under the configured 2s connectTimeout - the blackholed address "
-                            + "was never dialled, so this did not exercise the timeout", elapsed)
-                    .isGreaterThanOrEqualTo(Duration.ofSeconds(2));
-            assertThat(elapsed)
-                    .as("took %s - Netty's 30s default governed rather than the configured 2s", elapsed)
-                    .isLessThan(Duration.ofSeconds(10));
+            assertThat(clusterId).succeedsWithin(COMPLETION_BUDGET, InstanceOfAssertFactories.STRING).isNotBlank();
+            var elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
+            assertThat(elapsed).isGreaterThanOrEqualTo(CONNECT_TIMEOUT);
+            SimpleMetricAssert.assertThat(managementClient.scrapeMetrics())
+                    .withUniqueMetric("kroxylicious_proxy_to_server_errors_total",
+                            Map.of(NODE_ID_LABEL, "bootstrap"))
+                    .value()
+                    .isGreaterThanOrEqualTo(1.0);
         }
     }
 

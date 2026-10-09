@@ -53,19 +53,7 @@ public record ClusterDefinition(
      * @param tls optional TLS configuration for the upstream connection
      */
     public ClusterDefinition(String name, String bootstrapServers, @Nullable Tls tls) {
-        this(name, bootstrapServers, tls, null);
-    }
-
-    /**
-     * Convenience constructor with no connect timeout.
-     *
-     * @param name unique name for this cluster
-     * @param bootstrapServers comma-separated list of host:port pairs
-     * @param tls optional TLS configuration for the upstream connection
-     * @param selectionStrategy optional strategy for selecting a bootstrap server when several are listed
-     */
-    public ClusterDefinition(String name, String bootstrapServers, @Nullable Tls tls, @Nullable BootstrapSelectionStrategy selectionStrategy) {
-        this(name, bootstrapServers, tls, selectionStrategy, null);
+        this(name, bootstrapServers, tls, null, null);
     }
 
     /**
