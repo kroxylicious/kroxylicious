@@ -233,12 +233,14 @@ jobs:
         with:
           name: RELEASE_STATE.json
           path: RELEASE_STATE.json
+          if-no-files-found: error
 
       - name: 'Archive release notes (used by the promote workflow)'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: RELEASE_NOTES
           path: .releaseNotes/release-notes_01
+          if-no-files-found: error
 
       - name: 'Collect release assets'
         run: |
@@ -275,6 +277,7 @@ jobs:
         with:
           name: RELEASE_ASSETS
           path: release-assets/
+          if-no-files-found: error
 
       - name: 'Drop stage repository, if failed'
         if: ${{ failure() &&  env.DEPLOYMENT_ID }}

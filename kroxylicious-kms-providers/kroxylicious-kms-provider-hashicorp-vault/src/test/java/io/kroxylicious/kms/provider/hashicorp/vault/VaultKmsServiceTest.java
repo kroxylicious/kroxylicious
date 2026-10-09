@@ -8,6 +8,8 @@ package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,8 +19,10 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.KubernetesCredentialsConfig;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.TokenCredentialsConfig;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.VaultCredentialsConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
@@ -84,8 +88,46 @@ class VaultKmsServiceTest {
                         new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword("vaultToken"))),
                         null));
         var kms = vaultKmsService.buildKms();
+        // Namespace is sent via X-Vault-Namespace header by VaultKms — must NOT appear in the transit URI path
         assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/custom-transit/"));
         assertThat(kms.getVaultNamespace()).isEqualTo("ns1/ns2");
+    }
+
+    @Test
+    void buildsKmsWithKubernetesAuth(@TempDir Path tempDir) throws Exception {
+        Path tokenFile = tempDir.resolve("token");
+        Files.writeString(tokenFile, "my-jwt");
+
+        vaultKmsService.initialize(
+                new Config(URI.create("http://vault:8200"),
+                        null,
+                        null,
+                        null,
+                        null,
+                        new VaultCredentialsConfig(null, new KubernetesCredentialsConfig("my-role", tokenFile.toString(), "kubernetes")),
+                        null));
+        var kms = vaultKmsService.buildKms();
+        assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/transit/"));
+        assertThat(kms.getVaultNamespace()).isNull();
+    }
+
+    @Test
+    void buildsKmsWithKubernetesAuthAndNamespace(@TempDir Path tempDir) throws Exception {
+        Path tokenFile = tempDir.resolve("token");
+        Files.writeString(tokenFile, "my-jwt");
+
+        vaultKmsService.initialize(
+                new Config(URI.create("http://vault:8200"),
+                        "my-ns",
+                        null,
+                        null,
+                        null,
+                        new VaultCredentialsConfig(null, new KubernetesCredentialsConfig("my-role", tokenFile.toString(), "kubernetes")),
+                        null));
+        var kms = vaultKmsService.buildKms();
+        // Namespace is sent via X-Vault-Namespace header by VaultKms — must NOT appear in the transit URI path
+        assertThat(kms.getVaultTransitEngineUri()).isEqualTo(URI.create("http://vault:8200/v1/transit/"));
+        assertThat(kms.getVaultNamespace()).isEqualTo("my-ns");
     }
 
 }
