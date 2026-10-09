@@ -13,6 +13,11 @@ import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.Base64;
 
+import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.sec.ECPrivateKey;
+
 /**
  * Utility for generating test certificates using JDK's keytool subprocess.
  */
@@ -171,6 +176,26 @@ public final class TestCertificateUtil {
         sb.append("-----BEGIN RSA PRIVATE KEY-----\n");
         sb.append(Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(pkcs1));
         sb.append("\n-----END RSA PRIVATE KEY-----\n");
+        return sb.toString();
+    }
+
+    /**
+     * Generates a PEM-encoded SEC1 (EC PRIVATE KEY) string, the traditional OpenSSL EC key encoding.
+     * The named curve is retained in the SEC1 [0] parameters field, matching real-world EC key files
+     * (the JDK's own PKCS#8 encoding omits it, placing the curve only in the AlgorithmIdentifier).
+     */
+    static String toSec1EcPem(final PrivateKey key) throws Exception {
+        final java.security.interfaces.ECPrivateKey ecKey = (java.security.interfaces.ECPrivateKey) key;
+        final int orderBitLength = ecKey.getParams().getOrder().bitLength();
+        final PrivateKeyInfo pkcs8 = PrivateKeyInfo.getInstance(key.getEncoded());
+        final ASN1Encodable namedCurve = pkcs8.getPrivateKeyAlgorithm().getParameters();
+        final ECPrivateKey sec1 = new ECPrivateKey(orderBitLength, ecKey.getS(), namedCurve);
+        final byte[] der = sec1.getEncoded(ASN1Encoding.DER);
+
+        final var sb = new StringBuilder();
+        sb.append("-----BEGIN EC PRIVATE KEY-----\n");
+        sb.append(Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(der));
+        sb.append("\n-----END EC PRIVATE KEY-----\n");
         return sb.toString();
     }
 
