@@ -243,6 +243,12 @@ jobs:
             exit 1
           fi
 
+      - name: 'Configure Git username/email'
+        if: ${{ inputs.command == 'promote-release' }}
+        run: |
+          git config --global user.name "${GITHUB_ACTOR}"
+          git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+
       - name: 'Transition Central Publishing Portal to desired state'
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
@@ -329,7 +335,8 @@ jobs:
         run: |
           ./scripts/stage-docs.sh -v "${RELEASE_VERSION}" \
                                   -b "prepare-v${RELEASE_VERSION}-release-docs-${{ github.run_id }}" \
-                                  -u "https://user:${GH_TOKEN}@${WEBSITE_REPOSITORY}"
+                                  -u "https://user:${GH_TOKEN}@${WEBSITE_REPOSITORY}" \
+                                  -s RELEASE_STATE.json
 
       - name: 'Drop PR'
         if: ${{ inputs.command == 'drop-release' }}

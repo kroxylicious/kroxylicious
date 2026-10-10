@@ -6,10 +6,10 @@
 package io.kroxylicious.it.filter.multitenant;
 
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -148,7 +148,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, MY_VALUE))),
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new ArrayDeque<>(List.of(matchesRecord(topicName, MY_KEY, MY_VALUE))),
                     false);
         }
     }
@@ -161,8 +161,8 @@ class MultiTenantIT extends BaseMultiTenantIT {
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), new ProducerRecord<>(topicName, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new ArrayDeque<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new ArrayDeque<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
         }
     }
 
@@ -175,12 +175,12 @@ class MultiTenantIT extends BaseMultiTenantIT {
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), new ProducerRecord<>(topicName, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new ArrayDeque<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
             var rememberedOffsets = admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new ArrayDeque<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
 
             admin.alterConsumerGroupOffsets(groupId, rememberedOffsets).all().get();
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new ArrayDeque<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
         }
     }
 
@@ -192,10 +192,10 @@ class MultiTenantIT extends BaseMultiTenantIT {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), inCaseOfFailure()), Optional.empty());
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new ArrayDeque<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
 
             admin.deleteConsumerGroupOffsets(groupId, Set.of(new TopicPartition(topicName, 0))).all().get();
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new ArrayDeque<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
         }
     }
 
@@ -316,7 +316,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
             }
 
             // now verify that output contains the expected values.
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, outputTopic, groupId, new LinkedList<>(
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, outputTopic, groupId, new ArrayDeque<>(
                     List.of(matchesRecord(outputTopic, MY_KEY, "1"),
                             matchesRecord(outputTopic, MY_KEY, "2"),
                             matchesRecord(outputTopic, MY_KEY, "3"))),
