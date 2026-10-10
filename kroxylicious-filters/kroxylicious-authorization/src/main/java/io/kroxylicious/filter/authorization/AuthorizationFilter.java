@@ -191,9 +191,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 .map(supportedTypes -> actions.stream().collect(Collectors.partitioningBy(
                         action -> action.resourceTypeClass() == ClusterResource.class
                                 || supportedTypes.contains(action.resourceTypeClass()))))
-                .orElse(Map.of(Boolean.TRUE, actions));
-        var actionsWithSupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(Boolean.TRUE, List.of());
-        var actionsWithUnsupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(Boolean.FALSE, List.of());
+                .orElse(Map.of(true, actions));
+        var actionsWithSupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(true, List.of());
+        var actionsWithUnsupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(false, List.of());
         return authorizer.authorize(context.authenticatedSubject(),
                 actionsWithSupportedResourceTypes)
                 .thenApply(authz -> {
