@@ -1,0 +1,4 @@
+title: "build(deps): bump netty.version from 4.2.18.Final to 4.2.19.Final"
+type: build
+merge_requests:
+  - 5071
