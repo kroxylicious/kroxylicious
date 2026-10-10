@@ -254,14 +254,14 @@ jobs:
             }' > RELEASE_STATE.json
 
       - name: 'Archive release state (used by the promote workflow)'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: RELEASE_STATE.json
           path: RELEASE_STATE.json
           if-no-files-found: error
 
       - name: 'Archive release notes (used by the promote workflow)'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: RELEASE_NOTES
           path: .releaseNotes/release-notes_01
@@ -298,7 +298,7 @@ jobs:
           cp "kroxylicious-api/target/japicmp/japicmp.html" "release-assets/${VERSION}-compatability.html"
 
       - name: 'Archive release assets (used by the promote workflow)'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: RELEASE_ASSETS
           path: release-assets/

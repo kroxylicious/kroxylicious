@@ -60,7 +60,7 @@ jobs:
           cd "$HOME/.m2/repository"
           tar czf /tmp/kroxylicious-artifacts/maven-repo.tar.gz io/kroxylicious
       - name: 'Upload Kroxylicious Maven artifacts'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts/maven-repo.tar.gz
