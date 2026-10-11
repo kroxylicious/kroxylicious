@@ -104,7 +104,7 @@ class EntityIsolationIT {
             @SaslMechanism.Principal(user = "dash-boy", password = "pwd") })
     KafkaCluster cluster;
 
-    private enum ConsumerStyle {
+    enum ConsumerStyle {
         ASSIGN,
         SUBSCRIBE
     }
