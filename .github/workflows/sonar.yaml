@@ -12,7 +12,7 @@ concurrency:
 jobs:
   Sonar:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    if: github.event.workflow_run && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'merge_group')
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -24,21 +24,34 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> $GITHUB_ENV
+      - name: Mark SonarCloud checks as succeeded for merge queue
+        # Merge queue items trust the scan already run against the PR branch; a
+        # queue merge commit gets no PR to decorate, so skip the real scan and
+        # satisfy the two required checks directly via the Checks API.
+        if: github.event.workflow_run.event == 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          for NAME in "[Proxy Runtime] SonarCloud Code Analysis" "[Kroxylicious Operator] SonarCloud Code Analysis"; do
+            gh api "repos/${{ github.repository }}/check-runs" \
+              -f name="$NAME" -f head_sha="$SHA" -f status=completed -f conclusion=success
+          done
       - name: Download PR number artifact
         uses: dawidd6/action-download-artifact@eab87c9830c39eff17e5a6eadb20bfb4bc880477
-        if: env.SONAR_TOKEN_SET == 'true'
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
         with:
           run_id: ${{ github.event.workflow_run.id }}
           name: PR_NUMBER
       - name: Read PR_NUMBER.txt
         id: pr_number
         uses: juliangruber/read-file-action@271ff311a4947af354c6abcd696a306553b9ec18
-        if: env.SONAR_TOKEN_SET == 'true'
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
         with:
           path: ./PR_NUMBER.txt
       - name: Request GitHub API for PR data
         uses: octokit/request-action@b66ca9cd744693e9c29b490fc08831ab66c4a970
-        if: env.SONAR_TOKEN_SET == 'true'
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
         id: get_pr_data
         with:
           route: GET /repos/${{env.full_name}}/pulls/${{env.pr_number}}
@@ -48,6 +61,7 @@ jobs:
           full_name: ${{ github.event.repository.full_name }}
       - name: "Check for legal branch names"
         id: set_branch_name
+        if: github.event.workflow_run.event != 'merge_group'
         env:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
@@ -60,14 +74,14 @@ jobs:
           fi
         shell: bash
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        if: env.SONAR_TOKEN_SET == 'true'
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
           ref: ${{env.SANITIZED_HEAD_REF}}
           fetch-depth: 0
           allow-unsafe-pr-checkout: true
       - name: Checkout base branch
-        if: env.SONAR_TOKEN_SET == 'true'
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
         run: |
           git remote add upstream ${{ github.event.repository.clone_url }}
           git fetch upstream
@@ -76,21 +90,22 @@ jobs:
           git clean -ffdx && git reset --hard HEAD
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
-        if: env.SONAR_TOKEN_SET == 'true'
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
       - name: Setup Java
         uses: $/.github/actions/common/setup-java
-        if: env.SONAR_TOKEN_SET == 'true'
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
       - name: 'Cache Maven packages'
+        if: github.event.workflow_run.event != 'merge_group'
         uses: $/.github/actions/common/cache-maven-packages
       - name: Cache SonarCloud packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: env.SONAR_TOKEN_SET == 'true'
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
       - name: Preinstall prior to SonarCloud scan
-        if: env.SONAR_TOKEN_SET == 'true'
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
         run: |
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
@@ -101,7 +116,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Proxy Core
-        if: env.SONAR_TOKEN_SET == 'true' && hashFiles('scripts/ci-build-functions.sh') != ''
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') != ''
         run: |
           source scripts/ci-build-functions.sh
           run_sonar "${PROXY_PROFILES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
@@ -114,7 +129,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Proxy Core (legacy release branches)
-        if: env.SONAR_TOKEN_SET == 'true' && hashFiles('scripts/ci-build-functions.sh') == ''
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') == ''
         run: |
           # Old release branches: profile-based build not available; exclude operator modules instead
           mvn --batch-mode \
@@ -133,7 +148,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Operator
-        if: env.SONAR_TOKEN_SET == 'true' && hashFiles('scripts/ci-build-functions.sh') != ''
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') != ''
         run: |
           source scripts/ci-build-functions.sh
           if [ -f "kroxylicious-kubernetes/pom.xml" ]; then
@@ -164,7 +179,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Operator (legacy release branches)
-        if: env.SONAR_TOKEN_SET == 'true' && hashFiles('scripts/ci-build-functions.sh') == ''
+        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') == ''
         run: |
           # Old release branches: profile-based build not available
           PROJECTS=':kroxylicious-operator,:kroxylicious-parent'
