@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Comparator;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -172,6 +173,43 @@ class FileWatcherTest {
                     .atMost(5, TimeUnit.SECONDS)
                     .untilAsserted(() -> assertThat(notificationReceived.get()).isTrue());
 
+        }
+    }
+
+    @Test
+    void relativeMultiSegmentPathNotified() throws IOException {
+        // Given
+        final Path relativeDir = Path.of("target", "file-watcher-" + UUID.randomUUID());
+        Files.createDirectories(relativeDir);
+        try {
+            final Path relativeFile = relativeDir.resolve("watch-test.txt");
+            Files.writeString(relativeFile, "Some text", StandardOpenOption.CREATE);
+            final var notificationReceived = new AtomicBoolean(false);
+
+            try (var watcher = new FileWatcher()) {
+                watcher.register(relativeFile, () -> notificationReceived.set(true));
+                watcher.start();
+
+                // When
+                Files.writeString(relativeFile, "Updated value", StandardOpenOption.TRUNCATE_EXISTING);
+
+                // Then
+                Awaitility.await("relative-path file change should notify the registered listener")
+                        .atMost(5, TimeUnit.SECONDS)
+                        .untilAsserted(() -> assertThat(notificationReceived.get()).isTrue());
+            }
+        }
+        finally {
+            try (var paths = Files.walk(relativeDir)) {
+                paths.sorted(Comparator.reverseOrder()).forEach(p -> {
+                    try {
+                        Files.deleteIfExists(p);
+                    }
+                    catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+            }
         }
     }
 
