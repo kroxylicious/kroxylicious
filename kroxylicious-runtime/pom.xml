@@ -399,6 +399,66 @@
     </build>
 
     <profiles>
+        <!-- Netty does not publish native transport (epoll/io_uring/kqueue) binaries for ppc64le or s390x.
+             On those architectures the native transport JARs are made non-transitive (provided) so that
+             distributions built for them do not ship binaries for another architecture. At runtime the
+             proxy falls back to the NIO transport. -->
+        <profile>
+            <id>ppc64le</id>
+            <activation>
+                <os>
+                    <arch>ppc64le</arch>
+                </os>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-transport-native-epoll</artifactId>
+                    <classifier>${netty.epoll.architecture}</classifier>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-transport-native-kqueue</artifactId>
+                    <classifier>${netty.kqueue.architecture}</classifier>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-transport-native-io_uring</artifactId>
+                    <classifier>${netty.io_uring.architecture}</classifier>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>s390x</id>
+            <activation>
+                <os>
+                    <arch>s390x</arch>
+                </os>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-transport-native-epoll</artifactId>
+                    <classifier>${netty.epoll.architecture}</classifier>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-transport-native-kqueue</artifactId>
+                    <classifier>${netty.kqueue.architecture}</classifier>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-transport-native-io_uring</artifactId>
+                    <classifier>${netty.io_uring.architecture}</classifier>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+        </profile>
         <profile>
             <id>debug</id>
             <dependencies>
