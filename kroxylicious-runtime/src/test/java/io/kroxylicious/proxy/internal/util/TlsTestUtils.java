@@ -41,10 +41,13 @@ import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.PKCS8Generator;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.openssl.jcajce.JcaPKCS8Generator;
+import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder;
 import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.OutputEncryptor;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import io.netty.buffer.ByteBufAllocator;
@@ -214,6 +217,27 @@ public final class TlsTestUtils {
             else {
                 pemWriter.writeObject(object);
             }
+        }
+        return writer.toString();
+    }
+
+    /**
+     * Encodes a private key as a password-encrypted PKCS#8 PEM (BEGIN ENCRYPTED PRIVATE KEY),
+     * the format produced by {@code openssl pkcs8 -topk8} and accepted by Netty's key loader.
+     *
+     * @param privateKey the key to encrypt
+     * @param password the encryption password
+     * @return the encrypted PKCS#8 PEM
+     * @throws Exception if encryption or PEM writing fails
+     */
+    public static String encryptedKeyPem(final PrivateKey privateKey, final String password) throws Exception {
+        final OutputEncryptor encryptor = new JceOpenSSLPKCS8EncryptorBuilder(PKCS8Generator.AES_256_CBC)
+                .setProvider(new BouncyCastleProvider())
+                .setPassword(password.toCharArray())
+                .build();
+        final StringWriter writer = new StringWriter();
+        try (JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
+            pemWriter.writeObject(new JcaPKCS8Generator(privateKey, encryptor).generate());
         }
         return writer.toString();
     }
