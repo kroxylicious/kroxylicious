@@ -22,6 +22,7 @@ on:
     branches:
       - "main"
       - 'release/**'
+  merge_group:
   workflow_dispatch:
 
 concurrency:
@@ -32,6 +33,7 @@ jobs:
   # JOB to run change detection
   changes:
     runs-on: ubuntu-latest
+    if: github.event_name != 'merge_group'
     permissions:
       pull-requests: read
     outputs:
@@ -60,10 +62,12 @@ jobs:
 
   build_artifacts:
     needs: changes
+    if: github.event_name != 'merge_group'
     uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
 
   set_variables:
     needs: changes
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}
@@ -101,6 +105,7 @@ jobs:
 
   run_system_tests:
     needs: [changes,build_artifacts,set_variables]
+    if: always()
     uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
@@ -108,4 +113,6 @@ jobs:
     with:
       kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}
       testFortanixKMS: ${{ contains(github.event.pull_request.labels.*.name, 'kms/fortanix') }}
-      skipSystemTestRun: ${{ needs.changes.outputs.systemtest == 'false' }}
+      # Merge queue items trust the system tests already run against the PR branch;
+      # re-running the full suite per queue item would just duplicate that coverage.
+      skipSystemTestRun: ${{ github.event_name == 'merge_group' || needs.changes.outputs.systemtest == 'false' }}
