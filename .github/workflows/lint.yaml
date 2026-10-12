@@ -19,6 +19,7 @@ name: "Lint Pull Request"
 on:
   pull_request:
     types: [ opened, synchronize, reopened ]
+  merge_group:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -34,24 +35,30 @@ jobs:
           egress-policy: audit
 
       - name: 'Test for Slack secret'
+        if: github.event_name != 'merge_group'
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
           echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
       - name: 'Check out repository'
+        if: github.event_name != 'merge_group'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
       - name: 'Test release documentation scripts'
+        if: github.event_name != 'merge_group'
         run: |
           bash -n scripts/stage-docs.sh scripts/update-latest-docs-release.sh scripts/update-latest-docs-release-test.sh
           shellcheck scripts/stage-docs.sh scripts/update-latest-docs-release.sh scripts/update-latest-docs-release-test.sh
           ./scripts/update-latest-docs-release-test.sh
       - name: Setup Java
+        if: github.event_name != 'merge_group'
         uses: $/.github/actions/common/setup-java
       - name: 'Cache Maven packages'
+        if: github.event_name != 'merge_group'
         uses: $/.github/actions/common/cache-maven-packages
       - name: 'Compile and lint the project'
+        if: github.event_name != 'merge_group'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -66,6 +73,7 @@ jobs:
             -Djapicmp.skip=true \
             verify
       - name: 'Validate POM metadata for Central Portal'
+        if: github.event_name != 'merge_group'
         run: |
           mvn --batch-mode --quiet help:effective-pom -Doutput=target/effective-pom.xml
           mvn --batch-mode --quiet --projects kroxylicious-bom help:effective-pom -Doutput=target/effective-pom.xml
@@ -74,6 +82,7 @@ jobs:
           python3 scripts/validate_pom_metadata.py target/effective-pom.xml "$expected"
           python3 scripts/validate_pom_metadata.py kroxylicious-bom/target/effective-pom.xml
       - name: 'Validate JAR manifest entries'
+        if: github.event_name != 'merge_group'
         run: |
           KROXYLICIOUS_VERSION="$(mvn --batch-mode --quiet help:evaluate -Dexpression=project.version -DforceStdout)"
           KROXYLICIOUS_API_FINAL_NAME="$(mvn --batch-mode --quiet --projects kroxylicious-api help:evaluate -Dexpression=project.build.finalName -DforceStdout)"
@@ -83,12 +92,16 @@ jobs:
             --expected-title="Kroxylicious API" \
             --expected-vendor="Kroxylicious"
       - name: 'Install xmllint'
+        if: github.event_name != 'merge_group'
         run: sudo apt-get update && sudo apt-get install -y libxml2-utils
       - name: 'Validate module-profile structure'
+        if: github.event_name != 'merge_group'
         run: bash scripts/validate-module-structure.sh
       - name: Save PR number to file
+        if: github.event_name != 'merge_group'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number
+        if: github.event_name != 'merge_group'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: PR_NUMBER
