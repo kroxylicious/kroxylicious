@@ -38,6 +38,7 @@ import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.KeyStore;
@@ -52,6 +53,7 @@ import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.NoUpstreamClusterForRouteException;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
+import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.internal.tls.TlsUtil;
 import io.kroxylicious.proxy.internal.util.TlsTestUtils;
@@ -417,6 +419,33 @@ class VirtualClusterModelTest {
 
     @TempDir
     Path tempDir; // used to create a copy of existing TLS resources so that they can be replaced
+
+    @Test
+    void addGatewayAcceptsEncryptedPemKey() throws Exception {
+        // Given
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        final var initial = generateKeyAndCert(TlsTestUtils.Algorithm.RSA);
+        final var password = "cert-password";
+        final var keyFile = tempDir.resolve("server.key");
+        final var certFile = tempDir.resolve("servercert.pem");
+        Files.writeString(keyFile, TlsTestUtils.encryptedKeyPem(parseKeyPair(initial).getPrivate(), password));
+        Files.writeString(certFile, initial.certificatePem());
+
+        final var keyPair = new KeyPair(keyFile.toString(), certFile.toString(), new InlinePassword(password));
+        final var tls = new Tls(keyPair, null, null, null, null);
+
+        // Netty loads the encrypted key, so the configuration is valid and the gateway must build
+        assertThatCode(() -> new NettyKeyProvider(keyPair).forServer().build()).doesNotThrowAnyException();
+
+        // When / Then
+        assertThatCode(() -> model.addGateway("wibbleGW", mock(NodeIdentificationStrategy.class), Optional.of(tls)))
+                .doesNotThrowAnyException();
+        assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext()).isPresent();
+        model.close();
+    }
 
     @Test
     void rotatedCertificateUpdatesGatewaySSLContext() throws Exception {

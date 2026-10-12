@@ -943,6 +943,44 @@ class TlsIT extends AbstractTlsIT {
         }
     }
 
+    @Test
+    void downstream_EncryptedPemKeyPair() throws Exception {
+        // Given
+        var keyProvider = constructPasswordProvider(InlinePassword.class, "keypass");
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .withNewTls()
+                                .withNewKeyPairKey()
+                                    .withPrivateKeyFile(resourceOnFilesystem("tls/server_encrypted.key"))
+                                    .withCertificateFile(resourceOnFilesystem("tls/server.crt"))
+                                    .withKeyPasswordProvider(keyProvider)
+                                .endKeyPairKey()
+                            .endTls()
+                            .build())
+                .endVirtualCluster();
+        // @formatter:on
+        var request = new Request(ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.latestVersion(), null, new ApiVersionsRequestData());
+
+        // When / Then
+        try (var tester = kroxyliciousTester(builder);
+                var client = tester.simpleTestClient(PROXY_ADDRESS.toString(), true)) {
+            assertThat(client.get(request)).succeedsWithin(Duration.ofSeconds(10));
+            assertThat(client.getServerCertificateChain()).isNotEmpty();
+        }
+    }
+
+    private String resourceOnFilesystem(String resource) throws Exception {
+        var url = getClass().getResource(resource);
+        assertThat(url).as("test resource %s", resource).isNotNull();
+        return new File(url.toURI()).getAbsolutePath();
+    }
+
     /**
      * Pings the cluster in order to assert connectivity. We don't care about the result.
      * @param admin admin
