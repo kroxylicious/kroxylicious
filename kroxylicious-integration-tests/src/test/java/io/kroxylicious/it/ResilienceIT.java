@@ -44,6 +44,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
+import static io.kroxylicious.proxy.internal.util.Metrics.VIRTUAL_CLUSTER_LABEL;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
@@ -182,6 +183,7 @@ class ResilienceIT extends BaseIT {
     private static final String BLACKHOLED_ADDRESS = "240.0.0.1:9999";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration COMPLETION_BUDGET = Duration.ofSeconds(5);
+    private static final String CONNECT_TIMEOUT_CLUSTER = "connect-timeout-demo";
 
     /**
      * Round robin selection is explicit because the blackholed address must be the one chosen
@@ -202,7 +204,7 @@ class ResilienceIT extends BaseIT {
                     .withConnectTimeout(CONNECT_TIMEOUT)
                 .endClusterDefinition()
                 .addNewVirtualCluster()
-                    .withName(KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER)
+                    .withName(CONNECT_TIMEOUT_CLUSTER)
                     .withTarget(KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET)
                     .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(
                             KroxyliciousConfigUtils.OS_ASSIGNED_BOOTSTRAP).build())
@@ -229,7 +231,8 @@ class ResilienceIT extends BaseIT {
             assertThat(elapsed).isGreaterThanOrEqualTo(CONNECT_TIMEOUT);
             SimpleMetricAssert.assertThat(managementClient.scrapeMetrics())
                     .withUniqueMetric("kroxylicious_proxy_to_server_errors_total",
-                            Map.of(NODE_ID_LABEL, "bootstrap"))
+                            Map.of(VIRTUAL_CLUSTER_LABEL, CONNECT_TIMEOUT_CLUSTER,
+                                    NODE_ID_LABEL, "bootstrap"))
                     .value()
                     .isGreaterThanOrEqualTo(1.0);
         }

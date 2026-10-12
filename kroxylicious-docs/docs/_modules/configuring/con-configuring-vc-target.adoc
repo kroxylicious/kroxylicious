@@ -22,7 +22,7 @@ The cluster definition defines four properties:
 3. `tls`: TLS configuration for connecting to the target Kafka cluster.
 See xref:con-configuring-vc-target-tls-{context}[Securing connections to target clusters] for more details.
 
-4. `connectTimeout`: Optional maximum time to wait for a TCP connection to an upstream broker to be established. It bounds both the initial bootstrap connection and the per-broker connections. Defaults to 30 seconds if not specified. The value must be positive.
+4. `connectTimeout`: Optional maximum time to wait for a TCP connection to an upstream broker to be established. It bounds both the initial bootstrap connection and the per-broker connections. Uses Go-style duration format and requires a unit, for example `10s`, `500ms` or `1m30s`. A value without a unit is rejected. Supported units are `d`, `h`, `m`, `s`, `ms`, `us` and `ns`. The value must be positive. Defaults to `30s` if not specified.
 
 When multiple bootstrap servers are configured, the bootstrap server is selected using the `round-robin` strategy.
 
