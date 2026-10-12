@@ -27,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.event.Level;
@@ -51,6 +52,7 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
+import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
@@ -84,6 +86,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -356,6 +359,72 @@ class KafkaProxyInitializerTest {
         assertErrorHandlerAdded();
     }
 
+
+    // Using SNI test data from Netty
+    // https://github.com/netty/netty/blob/57bea3bea22717639ba200432c81b23154e4bbd9/handler/src/test/java/io/netty/handler/ssl/SniHandlerTest.java#L222
+    // hex dump of a client hello packet, which contains hostname "CHAT4.LEANCLOUD.CN"
+    private static final String tlsHandshakeMessageHex1 = "16030100";
+    // part 2
+    private static final String tlsHandshakeMessageHex = "c6010000c20303bb0855d66532c05a0ef784f7c384feeafa68b3" +
+            "b655ac7288650d5eed4aa3fb52000038c02cc030009fcca9cca8ccaac02b" +
+            "c02f009ec024c028006bc023c0270067c00ac0140039c009c0130033009d" +
+            "009c003d003c0035002f00ff010000610000001700150000124348415434" +
+            "2e4c45414e434c4f55442e434e000b000403000102000a000a0008001d00" +
+            "170019001800230000000d0020001e060106020603050105020503040104" +
+            "0204030301030203030201020202030016000000170000";
+
+    @Test
+    void resolveShouldInitialiseTlsChannel(final CapturedLogs logs) {
+        // Given
+        var embeddedChannel = new EmbeddedChannel(acceptingSocketChannel, DefaultChannelId.newInstance(), true, false);
+        var endpointBindingResolver = mock(EndpointBindingResolver.class);
+        var endpointBinding = mock(EndpointBinding.class);
+        var gateway = mock(EndpointGateway.class);
+        kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver);
+
+        final KafkaProxyInitializer spy = Mockito.spy(kafkaProxyInitializer);
+        doNothing().when(spy).initConnection(any(), any(), any()); // prevent initConnection from trying to run as it does not have real instances
+
+        when(gateway.getDownstreamSslContext()).thenReturn(Optional.of(mock(SslContext.class)));
+        when(endpointBinding.endpointGateway()).thenReturn(gateway);
+        when(endpointBindingResolver.resolve(any(), any())).thenReturn(CompletableFuture.completedStage(endpointBinding));
+        spy.initChannel(embeddedChannel);
+
+        // When
+        embeddedChannel.writeInbound(Unpooled.wrappedBuffer(StringUtil.decodeHexDump(tlsHandshakeMessageHex1)),
+                Unpooled.wrappedBuffer(StringUtil.decodeHexDump(tlsHandshakeMessageHex)));
+
+        // Then
+        final List<LoggingEvent> events = logs.logged(KafkaProxyInitializer.class);
+        LoggingEventAssert.assertThat(events)
+                .noneMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("Exception resolving Virtual Cluster Binding"));
+        assertThat(embeddedChannel.isOpen())
+                .isTrue();
+        verify(spy).initConnection(any(), any(), any());
+    }
+
+    @Test
+    void resolverExceptionClosesTlsChannel() {
+        // Given
+        var embeddedChannel = new EmbeddedChannel(acceptingSocketChannel, DefaultChannelId.newInstance(), true, false);
+        var endpointBindingResolver = mock(EndpointBindingResolver.class);
+        kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver);
+
+        when(endpointBindingResolver.resolve(any(), any())).thenThrow(new IllegalStateException());
+        kafkaProxyInitializer.initChannel(embeddedChannel);
+
+        assertThat(embeddedChannel.isOpen())
+                .isTrue();
+
+        // When
+        embeddedChannel.writeInbound(Unpooled.wrappedBuffer(StringUtil.decodeHexDump(tlsHandshakeMessageHex1)),
+                Unpooled.wrappedBuffer(StringUtil.decodeHexDump(tlsHandshakeMessageHex)));
+
+        // Then
+        assertThat(embeddedChannel.isOpen())
+                .isFalse();
+    }
+
     @Test
     void shouldLogAFailedSSLContextInInitialiseTlsChannel(final CapturedLogs logs) {
         // Given
@@ -365,20 +434,6 @@ class KafkaProxyInitializerTest {
         var gateway = mock(EndpointGateway.class);
         kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver);
 
-        // Using SNI test data from Netty
-        // https://github.com/netty/netty/blob/57bea3bea22717639ba200432c81b23154e4bbd9/handler/src/test/java/io/netty/handler/ssl/SniHandlerTest.java#L222
-        // hex dump of a client hello packet, which contains hostname "CHAT4.LEANCLOUD.CN"
-        String tlsHandshakeMessageHex1 = "16030100";
-        // part 2
-        String tlsHandshakeMessageHex = "c6010000c20303bb0855d66532c05a0ef784f7c384feeafa68b3" +
-                "b655ac7288650d5eed4aa3fb52000038c02cc030009fcca9cca8ccaac02b" +
-                "c02f009ec024c028006bc023c0270067c00ac0140039c009c0130033009d" +
-                "009c003d003c0035002f00ff010000610000001700150000124348415434" +
-                "2e4c45414e434c4f55442e434e000b000403000102000a000a0008001d00" +
-                "170019001800230000000d0020001e060106020603050105020503040104" +
-                "0204030301030203030201020202030016000000170000";
-
-        // When
         when(gateway.getDownstreamSslContext()).thenReturn(Optional.empty()); // mock a failed gaeway SSL context
         when(endpointBinding.endpointGateway()).thenReturn(gateway);
         when(endpointBindingResolver.resolve(any(), any())).thenReturn(CompletableFuture.completedStage(endpointBinding));
@@ -387,6 +442,7 @@ class KafkaProxyInitializerTest {
         assertThat(embeddedChannel.isOpen())
                 .isTrue();
 
+        // When
         embeddedChannel.writeInbound(Unpooled.wrappedBuffer(StringUtil.decodeHexDump(tlsHandshakeMessageHex1)),
                 Unpooled.wrappedBuffer(StringUtil.decodeHexDump(tlsHandshakeMessageHex)));
 
@@ -407,18 +463,6 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.initChannel(embeddedChannel);
         when(endpointBindingResolver.resolve(any(), eq("chat4.leancloud.cn"))).thenReturn(CompletableFuture.failedStage(new EndpointResolutionException("not resolved")));
 
-        // Using SNI test data from Netty
-        // https://github.com/netty/netty/blob/57bea3bea22717639ba200432c81b23154e4bbd9/handler/src/test/java/io/netty/handler/ssl/SniHandlerTest.java#L222
-        // hex dump of a client hello packet, which contains hostname "CHAT4.LEANCLOUD.CN"
-        String tlsHandshakeMessageHex1 = "16030100";
-        // part 2
-        String tlsHandshakeMessageHex = "c6010000c20303bb0855d66532c05a0ef784f7c384feeafa68b3" +
-                "b655ac7288650d5eed4aa3fb52000038c02cc030009fcca9cca8ccaac02b" +
-                "c02f009ec024c028006bc023c0270067c00ac0140039c009c0130033009d" +
-                "009c003d003c0035002f00ff010000610000001700150000124348415434" +
-                "2e4c45414e434c4f55442e434e000b000403000102000a000a0008001d00" +
-                "170019001800230000000d0020001e060106020603050105020503040104" +
-                "0204030301030203030201020202030016000000170000";
         assertThat(embeddedChannel.isOpen())
                 .isTrue();
 
