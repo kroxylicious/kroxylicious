@@ -359,7 +359,6 @@ class KafkaProxyInitializerTest {
         assertErrorHandlerAdded();
     }
 
-
     // Using SNI test data from Netty
     // https://github.com/netty/netty/blob/57bea3bea22717639ba200432c81b23154e4bbd9/handler/src/test/java/io/netty/handler/ssl/SniHandlerTest.java#L222
     // hex dump of a client hello packet, which contains hostname "CHAT4.LEANCLOUD.CN"
