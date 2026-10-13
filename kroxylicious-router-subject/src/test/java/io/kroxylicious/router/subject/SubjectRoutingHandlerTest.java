@@ -7,6 +7,7 @@
 package io.kroxylicious.router.subject;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -40,6 +41,8 @@ import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.router.TerminalStage;
 import io.kroxylicious.proxy.topology.VirtualNode;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -56,12 +59,10 @@ class SubjectRoutingHandlerTest {
 
     private static final RequestHeaderData HEADER = new RequestHeaderData();
     private static final MetadataRequestData REQUEST = new MetadataRequestData();
+    private static final Map<String, String> PRINCIPAL_TO_ROUTE = Map.of("CN=alice", "team-a", "CN=carol", "team-b");
 
     @Mock
     private RouterContext ctx;
-
-    @Mock
-    private RouteSelector<Object> selector;
 
     private SimpleMeterRegistry meterRegistry;
 
@@ -122,8 +123,11 @@ class SubjectRoutingHandlerTest {
     }
 
     private SubjectRoutingHandler newHandler() {
-        RouteSelectorContext selectorContext = new RouteSelectorContextImpl(Set.of("team-a", "team-b"));
-        return new SubjectRoutingHandler(selector, selectorContext, "vc1", "subj-router");
+        return newHandler(PRINCIPAL_TO_ROUTE, null);
+    }
+
+    private SubjectRoutingHandler newHandler(Map<String, String> principalToRoute, @Nullable String defaultRoute) {
+        return new SubjectRoutingHandler(User.class, principalToRoute, defaultRoute, Set.of("team-a", "team-b"), "vc1", "subj-router");
     }
 
     @Test
@@ -143,7 +147,6 @@ class SubjectRoutingHandlerTest {
         // Given
         Subject subject = new Subject(Set.of(new User("CN=alice")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
-        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.of("team-a")));
         VirtualNode node = mock(VirtualNode.class);
         when(ctx.anyNode("team-a")).thenReturn(node);
         MetadataResponseData upstreamResponse = new MetadataResponseData();
@@ -165,7 +168,6 @@ class SubjectRoutingHandlerTest {
         // Given
         Subject subject = new Subject(Set.of(new User("CN=alice")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
-        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.of("team-a")));
         VirtualNode connectedNode = mock(VirtualNode.class);
         when(ctx.virtualNode()).thenReturn(Optional.of(connectedNode));
         MetadataResponseData upstreamResponse = new MetadataResponseData();
@@ -204,7 +206,6 @@ class SubjectRoutingHandlerTest {
         // Given
         Subject subject = new Subject(Set.of(new User("CN=eve")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
-        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         RouterResponse errorResponse = mock(RouterResponse.class);
         when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(errorResponse));
 
@@ -217,20 +218,24 @@ class SubjectRoutingHandlerTest {
     }
 
     @Test
-    void selectorErrorRejected() {
+    void unmappedSubjectWithDefaultRouteRoutesToDefault() {
         // Given
-        Subject subject = new Subject(Set.of(new User("CN=alice")));
+        Subject subject = new Subject(Set.of(new User("CN=eve")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
-        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.failedFuture(new RuntimeException("boom")));
-        RouterResponse errorResponse = mock(RouterResponse.class);
-        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(errorResponse));
+        VirtualNode node = mock(VirtualNode.class);
+        when(ctx.anyNode("team-b")).thenReturn(node);
+        MetadataResponseData upstreamResponse = new MetadataResponseData();
+        when(ctx.sendRequest(node, HEADER, REQUEST)).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
+        RouterResponse routerResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
 
         // When
-        RouterResponse result = newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = newHandler(PRINCIPAL_TO_ROUTE, "team-b").onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
-        assertThat(result).isSameAs(errorResponse);
+        assertThat(result).isSameAs(routerResponse);
+        verify(ctx).sendRequest(node, HEADER, REQUEST);
     }
 
     @Test
@@ -296,7 +301,6 @@ class SubjectRoutingHandlerTest {
         // Given
         Subject subject = new Subject(Set.of(new User("CN=alice")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
-        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.of("team-a")));
         VirtualNode node = mock(VirtualNode.class);
         when(ctx.anyNode("team-a")).thenReturn(node);
         MetadataResponseData upstreamResponse = new MetadataResponseData();
@@ -317,9 +321,10 @@ class SubjectRoutingHandlerTest {
 
     @Test
     void routeChangeMidConnectionRejectedAndConnectionClosed() {
-        // Given
-        Subject subject = new Subject(Set.of(new User("CN=alice")));
-        when(ctx.authenticatedSubject()).thenReturn(subject);
+        // Given: reauthentication changes the subject from alice (team-a) to carol (team-b)
+        Subject alice = new Subject(Set.of(new User("CN=alice")));
+        Subject carol = new Subject(Set.of(new User("CN=carol")));
+        when(ctx.authenticatedSubject()).thenReturn(alice, carol);
         VirtualNode nodeA = mock(VirtualNode.class);
         when(ctx.anyNode("team-a")).thenReturn(nodeA);
         MetadataResponseData upstreamResponse = new MetadataResponseData();
@@ -329,9 +334,7 @@ class SubjectRoutingHandlerTest {
         RouterResponse errorResponse = mock(RouterResponse.class);
         when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(errorResponse));
         SubjectRoutingHandler handler = newHandler();
-        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.of("team-a")));
         handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
-        when(selector.selectRoute(eq(subject), any())).thenReturn(CompletableFuture.completedFuture(Optional.of("team-b")));
 
         // When
         RouterResponse result = handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
