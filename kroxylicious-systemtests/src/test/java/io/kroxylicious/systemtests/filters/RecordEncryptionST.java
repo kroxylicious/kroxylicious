@@ -38,6 +38,8 @@ import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
+import io.kroxylicious.systemtests.resources.kms.KmsFacades;
+import io.kroxylicious.systemtests.resources.kms.ServiceAccountAuthTestKmsFacade;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
@@ -46,7 +48,6 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 import io.kroxylicious.testing.kms.TestKekManager;
 import io.kroxylicious.testing.kms.TestKmsFacade;
-import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -68,9 +69,8 @@ class RecordEncryptionST extends AbstractSystemTests {
     static Stream<? extends TestKmsFacade<?, ?, ?>> facadesSource() {
         // We rely on the fact that streams are lazy so the facade isn't built
         // or started until the first test needs it.
-        return TestKmsFacadeFactory.getTestKmsFacadeFactories()
-                .filter(f -> f.getClass().getName().contains("systemtests"))
-                .map(TestKmsFacadeFactory::build)
+        // Static-credential facades only. ServiceAccount-auth facades are covered by AlternativeAuthRecordEncryptionST.
+        return KmsFacades.inCluster(f -> !(f instanceof ServiceAccountAuthTestKmsFacade))
                 .filter(TestKmsFacade::isAvailable)
                 .peek(TestKmsFacade::start);
     }
