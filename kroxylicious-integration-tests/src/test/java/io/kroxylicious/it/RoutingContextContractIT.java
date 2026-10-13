@@ -87,7 +87,7 @@ class RoutingContextContractIT {
     }
 
     private ConfigurationBuilder config(KafkaCluster cluster) {
-        return config("localhost:" + cluster.getBootstrapServers().split(":")[1]);
+        return config("localhost:" + cluster.getBootstrapServers().split(":", -1)[1]);
     }
 
     private ConfigurationBuilder config(String upstreamBootstrap) {
@@ -361,7 +361,7 @@ class RoutingContextContractIT {
         var saslInspection = new NamedFilterDefinitionBuilder(SaslInspection.class.getName(), SaslInspection.class.getName())
                 .withConfig("enabledMechanisms", Set.of("PLAIN"))
                 .build();
-        var upstreamBootstrap = "localhost:" + cluster.getBootstrapServers().split(":")[1];
+        var upstreamBootstrap = "localhost:" + cluster.getBootstrapServers().split(":", -1)[1];
         var clusterDef = new ClusterDefinition(CLUSTER, upstreamBootstrap, null);
         var route = new RouteDefinition(ROUTE, 0, List.of(), new RouteTarget(CLUSTER, null));
         var routerDef = new RouterDefinition(ROUTER,
