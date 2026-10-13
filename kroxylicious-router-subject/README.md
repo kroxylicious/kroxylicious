@@ -7,12 +7,12 @@ This is a preview feature, gated behind `KROXYLICIOUS_UNLOCK_ROUTING=true` (see 
 
 ## How it routes
 
-The router asks a pluggable `RouteSelector` to map the connection's authenticated `Subject` to a route name, then pins the connection to that route:
+The router matches the connection's authenticated `Subject` against a static principal-name-to-route mapping (`singularPrincipalMatch`), then pins the connection to the resolved route:
 
-1. **Authenticated request** — the selector picks a route for the subject. The first pick pins the connection; a later request that resolves to a *different* route closes the connection rather than switching clusters.
+1. **Authenticated request** — the mapping picks a route for the subject. The first pick pins the connection; a later request that resolves to a *different* route closes the connection rather than switching clusters.
 2. **Anonymous `API_VERSIONS`** — before a client authenticates (mTLS handshake pending, or pre-SASL), the router fans the request out to every configured route and returns the intersection of supported API versions, so the client negotiates a version range every downstream cluster actually supports. See [Anonymous `API_VERSIONS` fan-out](#anonymous-api_versions-fan-out).
 3. **Everything else anonymous, including `SASL_HANDSHAKE`/`SASL_AUTHENTICATE`** — rejected fail-closed. SASL passthrough is not supported: a passthrough-inferred identity is asserted by the backend rather than verified by the proxy, so the router has no verified subject to route on. Deferred to future work.
-4. **No route for the subject** (selector returns nothing, or throws) — rejected fail-closed.
+4. **No route for the subject** (no principal of the configured type, or its name is absent from `routeMapping`, and no `defaultRoute` is configured) — rejected fail-closed.
 
 If the connection is to a broker-specific gateway endpoint (`RouterContext#virtualNode()` non-empty), the router sends there rather than to an arbitrary node of the chosen route, so a client that dialed a specific broker keeps talking to it.
 
@@ -25,14 +25,16 @@ routerDefinitions:
   - name: subject-router
     type: SubjectRouter
     config:
-      selector: UserNameMatch
-      selectorConfig:
-        mappings:
-          - route: team-a
-            principals: [ "CN=alice", "CN=bob" ]
-          - route: team-b
-            principals: [ "CN=carol" ]
+      singularPrincipalMatch:
+        type: io.kroxylicious.proxy.authentication.User
         defaultRoute: team-a   # optional
+        routeMapping:
+          - principalName: "CN=alice"
+            route: team-a
+          - principalName: "CN=bob"
+            route: team-a
+          - principalName: "CN=carol"
+            route: team-b
     routes:
       - name: team-a
         id: 0
@@ -46,39 +48,11 @@ routerDefinitions:
 
 | Field | Type | Description |
 |---|---|---|
-| `selector` | string | The `RouteSelector` implementation name (plugin simple name or FQCN). |
-| `selectorConfig` | object | The selector's own configuration, shaped by the chosen `selector`. |
+| `singularPrincipalMatch.type` | string | Fully-qualified name of a `Principal` implementation annotated `@Unique` or `@SingularPrincipal`. The factory rejects a non-singular type at startup. |
+| `singularPrincipalMatch.routeMapping` | list of `{principalName, route}` | Each entry pairs a principal name with a route declared in the router's `routes`. Startup fails if the same `principalName` appears more than once, or if a `route` is not declared. |
+| `singularPrincipalMatch.defaultRoute` | string, optional | Route for an authenticated subject whose principal name is absent from `routeMapping`, or that carries no principal of `type` at all. Omit to reject such a subject fail-closed. |
 
-### `RouteSelector` SPI
-
-`RouteSelector` is a nested plugin point (like `KekSelectorService` in `kroxylicious-record-encryption`): implementations carry their own `@Plugin(configType = ...)` and are discovered via `META-INF/services`. An implementation:
-
-- Is constructed with a no-arg constructor, then `initialize(config)` is called once before any routing decision — config never flows through the constructor.
-- Implements `selectRoute(Subject, RouteSelectorContext)`, returning the route name or empty to reject.
-- Optionally implements `referencedRoutes()` to declare, ahead of time, every route name it may return. The router validates these against the router's declared routes at startup and fails fast on an unknown route. A selector that routes dynamically (can't enumerate routes upfront) returns `Optional.empty()` from `referencedRoutes()` to opt out of this check.
-
-### Built-in selector: `UserNameMatch`
-
-Maps principal names to routes.
-
-```yaml
-selectorConfig:
-  mappings:
-    - route: team-a
-      principals: [ "CN=alice", "CN=bob" ]
-    - route: team-b
-      principals: [ "CN=carol" ]
-  defaultRoute: team-a   # optional: used for any principal not listed above
-```
-
-| Field | Type | Description |
-|---|---|---|
-| `mappings` | list | Each entry maps one route to the principal names sent there. |
-| `defaultRoute` | string, optional | Route used for a principal that matches no mapping. Omit to reject unmapped principals fail-closed. |
-
-Startup fails if the same principal name appears in two different mappings.
-
-The principal name matched is `Subject.uniquePrincipalOfType(User.class).map(User::name)` — for mTLS this is the client certificate's subject DN as rendered by `X500Principal.getName(X500Principal.RFC1779, ...)` (with `emailAddress` mapped from its OID); for SASL termination it is the authenticated username.
+The principal matched is `subject.uniquePrincipalOfType(type).map(Principal::name)` — for mTLS against the default `User` type this is the client certificate's subject DN as rendered by `X500Principal.getName(X500Principal.RFC1779, ...)` (with `emailAddress` mapped from its OID); for SASL termination it is the authenticated username.
 
 ## Anonymous `API_VERSIONS` fan-out
 
@@ -99,7 +73,7 @@ For an anonymous connection's `API_VERSIONS` request, the router sends the reque
 |---|---|
 | `virtual_cluster` | The virtual cluster name. |
 | `router` | The router name, as declared in `routerDefinitions`. |
-| `reason` | One of a fixed set: `anonymous`, `no-route`, `selector-error`, `route-changed`, `fan-out-error`. |
+| `reason` | One of a fixed set: `anonymous`, `no-route`, `route-changed`, `fan-out-error`. |
 
 `reason` is a bounded enum, not derived from principal names or other unbounded input — this avoids both unbounded metric cardinality and leaking identity data into a metric label. Richer detail (e.g. which two routes conflicted on a mid-connection change) is only in the DEBUG-level log, never in the metric.
 
@@ -113,6 +87,5 @@ Routing (routers, routes, and multi-cluster dispatch generally, not just this ro
 
 ## Known deviations from proposal #140
 
-1. **Flat selector config.** The proposal nests `selector: { type, config }`; this prototype uses the flat `selector` + `selectorConfig` pair instead, matching the `kroxylicious-record-encryption` idiom (`kms`/`kmsConfig`, `selector`/`selectorConfig`) already established in this codebase.
-2. **Response builder method name.** The proposal's text uses `andCloseConnection()`; the implemented Router API uses `withCloseConnection()`.
-3. **Fail-closed rejection mechanism.** The proposal describes throwing a `SaslAuthenticationException`; the Router API exposes rejection via `RouterContext#respondWithError(..., Errors)`, not exception-based rejection, so this router calls `respondWithError(..., Errors.SASL_AUTHENTICATION_FAILED)` instead.
+1. **Response builder method name.** The proposal's text uses `andCloseConnection()`; the implemented Router API uses `withCloseConnection()`.
+2. **Fail-closed rejection mechanism.** The proposal describes throwing a `SaslAuthenticationException`; the Router API exposes rejection via `RouterContext#respondWithError(..., Errors)`, not exception-based rejection, so this router calls `respondWithError(..., Errors.SASL_AUTHENTICATION_FAILED)` instead.
