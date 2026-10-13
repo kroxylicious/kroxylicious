@@ -1,0 +1,4 @@
+title: "build(deps-dev): bump com.azure:azure-core from 1.59.1 to 1.60.0"
+type: build
+merge_requests:
+  - 5076

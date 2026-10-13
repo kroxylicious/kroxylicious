@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.templates.kms.azure;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
@@ -33,10 +34,10 @@ import io.kroxylicious.systemtests.utils.DeploymentUtils;
 public class LowkeyVaultTemplates {
     private static final String LOWKEY_VAULT_NAMES_VAR = "LOWKEY_VAULT_NAMES";
     private static final String LOWKEY_VAULT_ALIASES_VAR = "LOWKEY_VAULT_ALIASES";
-    public static final String LOWKEY_VAULT_NODE_PORT_SERVICE_NAME = "lowkey-vault-" + Constants.NODE_PORT_TYPE.toLowerCase();
-    public static final String LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME = "lowkey-vault-" + Constants.CLUSTER_IP_TYPE.toLowerCase();
-    public static final String MOCK_OAUTH_SERVER_NODE_PORT_SERVICE_NAME = "mock-oauth2-server-" + Constants.NODE_PORT_TYPE.toLowerCase();
-    public static final String MOCK_OAUTH_SERVER_CLUSTER_IP_SERVICE_NAME = "mock-oauth2-server-" + Constants.CLUSTER_IP_TYPE.toLowerCase();
+    public static final String LOWKEY_VAULT_NODE_PORT_SERVICE_NAME = "lowkey-vault-" + Constants.NODE_PORT_TYPE.toLowerCase(Locale.ROOT);
+    public static final String LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME = "lowkey-vault-" + Constants.CLUSTER_IP_TYPE.toLowerCase(Locale.ROOT);
+    public static final String MOCK_OAUTH_SERVER_NODE_PORT_SERVICE_NAME = "mock-oauth2-server-" + Constants.NODE_PORT_TYPE.toLowerCase(Locale.ROOT);
+    public static final String MOCK_OAUTH_SERVER_CLUSTER_IP_SERVICE_NAME = "mock-oauth2-server-" + Constants.CLUSTER_IP_TYPE.toLowerCase(Locale.ROOT);
     private static final String LOWKEY_VAULT_DEPLOYMENT_NAME = "my-key-vault";
     public static final String MOCK_OAUTH_SERVER_SERVICE_NAME = "mock-oauth2-server";
     private static final int CLUSTER_IP_PORT = 443;
