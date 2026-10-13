@@ -368,7 +368,7 @@ public class RunMetadata {
                 .filter(l -> l.startsWith("MemTotal:"))
                 .findFirst()
                 .map(totalMem -> {
-                    String[] parts = totalMem.split("\\s+");
+                    String[] parts = totalMem.split("\\s+", -1);
                     if (parts.length >= 2) {
                         return Map.<String, Object> of("totalMemoryGb", Long.parseLong(parts[1]) / (1024 * 1024));
                     }
