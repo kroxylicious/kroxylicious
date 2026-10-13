@@ -157,10 +157,10 @@ class VirtualClusterChangeDetectorTest {
         var newKafkaB = new RouteTarget("new-kafka-b", null);
         var kafkaC = new RouteTarget("kafka-c", null);
 
-        var definitions = List.of(new ClusterDefinition("kafka-a", "kafka-a:9092", null, null),
-                new ClusterDefinition("kafka-b", "kafka-b:9092", null, null),
-                new ClusterDefinition("new-kafka-b", "new-kafka-b:9092", null, null),
-                new ClusterDefinition("kafka-c", "kafka-c:9092", null, null));
+        var definitions = List.of(new ClusterDefinition("kafka-a", "kafka-a:9092", null, null, null),
+                new ClusterDefinition("kafka-b", "kafka-b:9092", null, null, null),
+                new ClusterDefinition("new-kafka-b", "new-kafka-b:9092", null, null, null),
+                new ClusterDefinition("kafka-c", "kafka-c:9092", null, null, null));
 
         var oldConfig = configWith(definitions,
                 vc("keep", 9192, kafkaA),
@@ -393,11 +393,11 @@ class VirtualClusterChangeDetectorTest {
     void shouldNotDetectModificationWhenBootstrapSelectionStrategyUnchanged() {
         // Given
         var oldVc = new VirtualCluster("cluster",
-                new TargetCluster("kafka:9092", Optional.empty(), new RoundRobinBootstrapSelectionStrategy()),
+                new TargetCluster("kafka:9092", Optional.empty(), new RoundRobinBootstrapSelectionStrategy(), null),
                 List.of(gateway("default", 9192)),
                 false, false, List.of());
         var newVc = new VirtualCluster("cluster",
-                new TargetCluster("kafka:9092", Optional.empty(), new RoundRobinBootstrapSelectionStrategy()),
+                new TargetCluster("kafka:9092", Optional.empty(), new RoundRobinBootstrapSelectionStrategy(), null),
                 List.of(gateway("default", 9192)),
                 false, false, List.of());
         var oldConfig = new Configuration(null, null, null, null, null, List.of(new VirtualCluster[]{ oldVc }), null, false, Optional.empty(), null,
@@ -419,11 +419,11 @@ class VirtualClusterChangeDetectorTest {
     void shouldNotDetectModificationWhenRandomBootstrapSelectionStrategyUnchanged() {
         // Given
         var oldVc = new VirtualCluster("cluster",
-                new TargetCluster("kafka:9092", Optional.empty(), new io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy()),
+                new TargetCluster("kafka:9092", Optional.empty(), new io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy(), null),
                 List.of(gateway("default", 9192)),
                 false, false, List.of());
         var newVc = new VirtualCluster("cluster",
-                new TargetCluster("kafka:9092", Optional.empty(), new io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy()),
+                new TargetCluster("kafka:9092", Optional.empty(), new io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy(), null),
                 List.of(gateway("default", 9192)),
                 false, false, List.of());
         var oldConfig = configWith(CLUSTER_DEFINITION_LIST, oldVc);

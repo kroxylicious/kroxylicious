@@ -401,6 +401,20 @@ class ConfigParserTest {
                             portIdentifiesNode:
                               bootstrapAddress: "localhost:9082"
                         """),
+                argumentSet("Cluster definitions with connect timeout", """
+                        clusterDefinitions:
+                        - name: my-cluster
+                          bootstrapServers: broker1:9092,broker2:9092
+                          connectTimeout: 10s
+                        virtualClusters:
+                        - name: demo1
+                          target:
+                            cluster: my-cluster
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
+                        """),
                 argumentSet("Cluster definitions with TLS", """
                         clusterDefinitions:
                         - name: my-cluster
@@ -481,6 +495,47 @@ class ConfigParserTest {
                                         .satisfies(strategy -> assertThat(strategy.getBootstrapAddress()).isEqualTo(HostPort.parse("localhost:9192")));
                             });
                 });
+    }
+
+    @Test
+    void shouldDeserializeClusterDefinitionConnectTimeout() {
+        var configuration = configParser.parseConfiguration("""
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
+                  connectTimeout: 5s
+                virtualClusters:
+                - name: demo1
+                  target:
+                    cluster: demo-cluster
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """);
+        assertThat(configuration.clusterDefinitions())
+                .singleElement()
+                .satisfies(clusterDef -> assertThat(clusterDef.connectTimeout()).isEqualTo(Duration.ofSeconds(5)));
+    }
+
+    @Test
+    void shouldLeaveClusterDefinitionConnectTimeoutAbsentWhenOmitted() {
+        var configuration = configParser.parseConfiguration("""
+                clusterDefinitions:
+                - name: demo-cluster
+                  bootstrapServers: magic-kafka.example:1234
+                virtualClusters:
+                - name: demo1
+                  target:
+                    cluster: demo-cluster
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """);
+        assertThat(configuration.clusterDefinitions())
+                .singleElement()
+                .satisfies(clusterDef -> assertThat(clusterDef.connectTimeout()).isNull());
     }
 
     @Test
