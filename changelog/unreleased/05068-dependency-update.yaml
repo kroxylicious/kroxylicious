@@ -1,0 +1,4 @@
+title: "build(deps): bump org.xerial.snappy:snappy-java from 1.1.10.8 to 1.1.10.11"
+type: build
+merge_requests:
+  - 5068
