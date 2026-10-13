@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
+import java.util.Locale;
 
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
@@ -65,7 +66,7 @@ public class UpperCasing implements ByteBufferTransformationFactory<UpperCasing.
 
         @Override
         public ByteBuffer transform(String topicName, ByteBuffer in) {
-            return ByteBuffer.wrap(new String(charset.decode(in).array()).toUpperCase().getBytes(charset));
+            return ByteBuffer.wrap(new String(charset.decode(in).array()).toUpperCase(Locale.ROOT).getBytes(charset));
         }
     }
 }

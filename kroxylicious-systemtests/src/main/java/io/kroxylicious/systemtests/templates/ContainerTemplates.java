@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.templates;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -39,7 +40,7 @@ public class ContainerTemplates {
      */
     public static ContainerBuilder baseImageBuilder(String containerName, String image) {
         var imagePullPolicy = Constants.PULL_IMAGE_IF_NOT_PRESENT;
-        String lowerCaseImage = image.toLowerCase();
+        String lowerCaseImage = image.toLowerCase(Locale.ROOT);
         synchronized (IMAGE_PULL_LOCK) {
             if (SNAPSHOT_STRINGS.stream().anyMatch(lowerCaseImage::contains) && !snapshotImagesPulledOnce.contains(image)) {
                 imagePullPolicy = Constants.PULL_IMAGE_ALWAYS;
