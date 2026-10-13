@@ -6,16 +6,19 @@
 
 package io.kroxylicious.router.subject;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.identity.SingularPrincipals;
+import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
-import io.kroxylicious.proxy.plugin.PluginImplConfig;
-import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
@@ -26,7 +29,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A {@link RouterFactory} that routes each client connection to a downstream cluster based on the
- * connection's authenticated identity, using a pluggable {@link RouteSelector}.
+ * connection's authenticated identity, matched against a static mapping of principal name to route.
  */
 @Plugin(configType = SubjectRouter.Config.class)
 public class SubjectRouter implements RouterFactory<SubjectRouter.Config, SubjectRouter.Initialized> {
@@ -40,40 +43,74 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
     /**
      * Configuration for {@link SubjectRouter}.
      *
-     * @param selector the name of the {@link RouteSelector} implementation used to select a route for a subject
-     * @param selectorConfig the selector implementation's configuration
+     * @param singularPrincipalMatch the principal-to-route matching configuration
      */
-    public record Config(@JsonProperty(required = true) @PluginImplName(RouteSelector.class) String selector,
-                         @PluginImplConfig(implNameProperty = "selector") Object selectorConfig) {}
+    public record Config(@JsonProperty(required = true) SingularPrincipalMatch singularPrincipalMatch) {}
+
+    /**
+     * Maps the subject's unique principal of {@code type} to a route via a static {@code routeMapping}.
+     *
+     * @param type fully-qualified name of a {@link Principal} implementation annotated as singular
+     *             ({@code @Unique} or {@code @SingularPrincipal}); the factory refuses to start if
+     *             the type is not singular
+     * @param routeMapping principal-name-to-route entries; a principal name must not appear more than once
+     * @param defaultRoute route for an authenticated subject whose principal name is absent from
+     *                     {@code routeMapping}, or that carries no principal of {@code type} at all;
+     *                     if {@code null}, such a subject is rejected fail-closed
+     */
+    public record SingularPrincipalMatch(@JsonProperty(required = true) String type,
+                                         @JsonProperty(required = true) List<RouteMappingEntry> routeMapping,
+                                         @Nullable String defaultRoute) {}
+
+    /**
+     * Pairs a principal name with the route its subject should be forwarded to.
+     *
+     * @param principalName the principal name
+     * @param route the route name, declared in the router's {@code routes} block
+     */
+    public record RouteMappingEntry(@JsonProperty(required = true) String principalName,
+                                    @JsonProperty(required = true) String route) {}
 
     /**
      * Immutable, thread-safe: shared across all connections of a virtual cluster.
      *
-     * @param selector the initialized route selector
-     * @param routeNames the route names declared for this router
+     * @param principalType the singular principal type matched against the authenticated subject
+     * @param principalToRoute the principal-name-to-route mapping
+     * @param defaultRoute the route for an unmapped subject, or {@code null} to reject it
      */
-    public record Initialized(RouteSelector<Object> selector, Set<String> routeNames) {}
+    public record Initialized(Class<? extends Principal> principalType, Map<String, String> principalToRoute, @Nullable String defaultRoute) {}
 
     @Override
     public Initialized initialize(RouterFactoryContext context, Config config) throws PluginConfigurationException {
         Config cfg = Plugins.requireConfig(this, config);
-        RouteSelector<Object> selector = context.pluginInstance(RouteSelector.class, cfg.selector());
-        selector.initialize(cfg.selectorConfig());
-        Set<String> routeNames = context.routeNames();
-        context.allowSharedClusterTargets(); // multiple identities may target the same cluster
+        SingularPrincipalMatch match = cfg.singularPrincipalMatch();
+        Class<? extends Principal> principalType = resolvePrincipalType(match.type());
+        if (!SingularPrincipals.isSingular(principalType)) {
+            throw new PluginConfigurationException(
+                    "singularPrincipalMatch.type " + principalType.getName() + " is not a singular principal type");
+        }
 
-        // Startup validation: every route the selector declares it may return must exist.
-        // Empty Optional means the selector routes dynamically -> skip validation.
-        // referencedRoutes() is sync-only, so resolving the stage here does not block on I/O.
-        selector.referencedRoutes().toCompletableFuture().join().ifPresent(declared -> {
-            Set<String> unknown = new HashSet<>(declared);
-            unknown.removeAll(routeNames);
-            if (!unknown.isEmpty()) {
+        Map<String, String> principalToRoute = new HashMap<>();
+        for (RouteMappingEntry entry : match.routeMapping()) {
+            if (principalToRoute.putIfAbsent(entry.principalName(), entry.route()) != null) {
                 throw new PluginConfigurationException(
-                        "selector references unknown routes " + unknown + "; declared routes are " + routeNames);
+                        "singularPrincipalMatch.routeMapping contains principal '" + entry.principalName() + "' more than once");
             }
-        });
-        return new Initialized(selector, routeNames);
+        }
+
+        Set<String> routeNames = context.routeNames();
+        Set<String> referenced = new HashSet<>(principalToRoute.values());
+        if (match.defaultRoute() != null) {
+            referenced.add(match.defaultRoute());
+        }
+        referenced.removeAll(routeNames);
+        if (!referenced.isEmpty()) {
+            throw new PluginConfigurationException(
+                    "singularPrincipalMatch references unknown routes " + referenced + "; declared routes are " + routeNames);
+        }
+
+        context.allowSharedClusterTargets(); // multiple identities may target the same cluster
+        return new Initialized(principalType, Map.copyOf(principalToRoute), match.defaultRoute());
     }
 
     @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "init is marked @Nullable to match the @UnknownNullness contract of RouterFactory#createRouter,"
@@ -81,7 +118,22 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
     @Override
     public Router createRouter(RouterFactoryContext context, @Nullable Initialized init) {
         Objects.requireNonNull(init);
-        return new SubjectRoutingHandler(init.selector(), new RouteSelectorContextImpl(init.routeNames()),
+        return new SubjectRoutingHandler(init.principalType(), init.principalToRoute(), init.defaultRoute(), context.routeNames(),
                 context.virtualClusterName(), context.routerName());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Class<? extends Principal> resolvePrincipalType(String typeName) {
+        Class<?> type;
+        try {
+            type = Class.forName(typeName);
+        }
+        catch (ClassNotFoundException e) {
+            throw new PluginConfigurationException("singularPrincipalMatch.type '" + typeName + "' not found", e);
+        }
+        if (!Principal.class.isAssignableFrom(type)) {
+            throw new PluginConfigurationException("singularPrincipalMatch.type '" + typeName + "' does not implement " + Principal.class.getName());
+        }
+        return (Class<? extends Principal>) type;
     }
 }
