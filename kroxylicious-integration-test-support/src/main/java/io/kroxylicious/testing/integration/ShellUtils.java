@@ -38,7 +38,10 @@ public final class ShellUtils {
 
     private static final FileAttribute<Set<PosixFilePermission>> OWNER_RW = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"));
 
-    private static final Predicate<Stream<String>> ALWAYS_VALID = lines -> true;
+    @SuppressWarnings("java:S3400") // constant lambda form would re-trigger ErrorProne UnnecessaryLambda
+    private static boolean alwaysValid(Stream<String> lines) {
+        return true;
+    }
 
     private ShellUtils() {
         throw new UnsupportedOperationException();
@@ -50,7 +53,7 @@ public final class ShellUtils {
      * @param args the command and its arguments
      */
     public static void exec(String... args) {
-        execValidate(ALWAYS_VALID, ALWAYS_VALID, args);
+        execValidate(ShellUtils::alwaysValid, ShellUtils::alwaysValid, args);
     }
 
     /**
@@ -174,7 +177,7 @@ public final class ShellUtils {
      */
     public static boolean validateKubeContext(String expectedContext) {
         return validateToolsOnPath("kubectl")
-                && execValidate(lines -> lines.anyMatch(line -> line.contains(expectedContext)), ALWAYS_VALID, "kubectl", "config", "current-context");
+                && execValidate(lines -> lines.anyMatch(line -> line.contains(expectedContext)), ShellUtils::alwaysValid, "kubectl", "config", "current-context");
     }
 
 }

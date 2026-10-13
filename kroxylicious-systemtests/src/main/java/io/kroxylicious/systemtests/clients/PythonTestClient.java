@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -94,7 +95,7 @@ public class PythonTestClient implements KafkaClient {
                     .append("\n");
         }
 
-        KafkaUtils.produceMessagesWithCmdWithoutWait(executableCommand, String.valueOf(msg), KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase());
+        KafkaUtils.produceMessagesWithCmdWithoutWait(executableCommand, String.valueOf(msg), KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase(Locale.ROOT));
     }
 
     private List<String> getExecutableCommand(String topicName, String name, String bootstrap, @Nullable String messageKey,
@@ -135,7 +136,8 @@ public class PythonTestClient implements KafkaClient {
                     .append("\n");
         }
 
-        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase());
+        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.PYTHON_TEST_CLIENT.name()
+                .toLowerCase(Locale.ROOT));
     }
 
     @Override

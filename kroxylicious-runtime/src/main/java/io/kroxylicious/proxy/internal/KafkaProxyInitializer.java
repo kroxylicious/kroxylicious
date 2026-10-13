@@ -183,28 +183,25 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 var stage = bindingResolver.resolve(ch, sniHostname);
                 // completes the netty promise when then resolution completes (success/otherwise).
                 stage.handle((binding, t) -> {
-                    try {
-                        if (t != null) {
-                            LOGGER.atWarn()
-                                    .addKeyValue("channel", ch)
-                                    .addKeyValue("sniHostname", sniHostname)
-                                    .addKeyValue("error", t.getMessage())
-                                    .log("Exception resolving Virtual Cluster Binding");
-                            promise.setFailure(t);
-                            return null;
-                        }
-                        var gateway = binding.endpointGateway();
-                        var sslContext = gateway.getDownstreamSslContext();
-                        if (sslContext.isEmpty()) {
-                            promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
-                        }
-                        else {
+                    if (Objects.isNull(t)) {
+                        try {
+                            var gateway = binding.endpointGateway();
+                            var sslContext = gateway.getDownstreamSslContext()
+                                    .orElseThrow(() -> new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
                             KafkaProxyInitializer.this.initConnection(ch, binding, kafkaSession);
-                            promise.setSuccess(sslContext.get());
+                            promise.setSuccess(sslContext);
+                        }
+                        catch (final Throwable t1) {
+                            t = t1;
                         }
                     }
-                    catch (Throwable t1) {
-                        promise.setFailure(t1);
+                    if (Objects.nonNull(t)) {
+                        LOGGER.atWarn()
+                                .addKeyValue("channel", ch)
+                                .addKeyValue("sniHostname", sniHostname)
+                                .addKeyValue("error", t.getMessage())
+                                .log("Exception resolving Virtual Cluster Binding");
+                        promise.setFailure(t);
                     }
                     return null;
                 });
