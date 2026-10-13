@@ -123,7 +123,7 @@ class UpstreamClusterModelTest {
     @Test
     void bootstrapServerSelectsUsingTheConfiguredStrategy() {
         // Given
-        var cluster = new TargetCluster("a:9092,b:9093", Optional.empty(), new RoundRobinBootstrapSelectionStrategy());
+        var cluster = new TargetCluster("a:9092,b:9093", Optional.empty(), new RoundRobinBootstrapSelectionStrategy(), null);
         var model = new UpstreamClusterModel(cluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured());
 
         // When
@@ -155,7 +155,7 @@ class UpstreamClusterModelTest {
     @Test
     void modelsBuiltFromTheSameTargetClusterHaveIndependentSelectionState() {
         // Given
-        var cluster = new TargetCluster("a:9092,b:9093", Optional.empty(), new RoundRobinBootstrapSelectionStrategy());
+        var cluster = new TargetCluster("a:9092,b:9093", Optional.empty(), new RoundRobinBootstrapSelectionStrategy(), null);
         var first = UpstreamClusterModel.build(cluster, null);
         var second = UpstreamClusterModel.build(cluster, null);
         first.bootstrapServer();

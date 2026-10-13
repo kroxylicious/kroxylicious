@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -23,12 +24,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param bootstrapServers comma-separated list of host:port pairs
  * @param tls optional TLS configuration for the upstream connection
  * @param selectionStrategy optional strategy for selecting a bootstrap server when several are listed
+ * @param connectTimeout optional maximum time to wait for a TCP connection to an upstream broker to be established;
+ *                       when set it must be positive and must not exceed {@code Integer.MAX_VALUE} milliseconds (~24.8 days)
  */
 public record ClusterDefinition(
                                 @JsonProperty(required = true) String name,
                                 @JsonProperty(required = true) String bootstrapServers,
                                 @Nullable Tls tls,
-                                @Nullable @JsonProperty("bootstrapServerSelection") BootstrapSelectionStrategy selectionStrategy) {
+                                @Nullable @JsonProperty("bootstrapServerSelection") BootstrapSelectionStrategy selectionStrategy,
+                                @Nullable @JsonProperty("connectTimeout") Duration connectTimeout) {
 
     /**
      * Validates the cluster definition, stripping whitespace from {@code bootstrapServers}.
@@ -38,6 +42,7 @@ public record ClusterDefinition(
         Objects.requireNonNull(name, "'name' is required in a cluster definition");
         Objects.requireNonNull(bootstrapServers, "'bootstrapServers' is required in a cluster definition");
         bootstrapServers = bootstrapServers.replaceAll("\\s", "");
+        TargetCluster.validateConnectTimeout(connectTimeout, "for cluster definition '" + name + "'");
     }
 
     /**
@@ -48,7 +53,7 @@ public record ClusterDefinition(
      * @param tls optional TLS configuration for the upstream connection
      */
     public ClusterDefinition(String name, String bootstrapServers, @Nullable Tls tls) {
-        this(name, bootstrapServers, tls, null);
+        this(name, bootstrapServers, tls, null, null);
     }
 
     /**
@@ -63,6 +68,6 @@ public record ClusterDefinition(
      * @return a target cluster with the same bootstrap servers, TLS and selection strategy
      */
     public TargetCluster toTargetCluster() {
-        return new TargetCluster(bootstrapServers, Optional.ofNullable(tls), selectionStrategy);
+        return new TargetCluster(bootstrapServers, Optional.ofNullable(tls), selectionStrategy, connectTimeout);
     }
 }
