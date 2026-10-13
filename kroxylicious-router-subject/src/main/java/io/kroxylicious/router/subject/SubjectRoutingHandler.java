@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -25,6 +27,7 @@ import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.common.protocol.Errors;
+import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
@@ -48,7 +51,6 @@ class SubjectRoutingHandler implements Router {
     enum RejectReason {
         ANONYMOUS("anonymous"),
         NO_ROUTE("no-route"),
-        SELECTOR_ERROR("selector-error"),
         ROUTE_CHANGED("route-changed"),
         FAN_OUT_ERROR("fan-out-error");
 
@@ -63,8 +65,10 @@ class SubjectRoutingHandler implements Router {
         }
     }
 
-    private final RouteSelector<Object> selector;
-    private final RouteSelectorContext selectorContext;
+    private final Class<? extends Principal> principalType;
+    private final Map<String, String> principalToRoute;
+    private final @Nullable String defaultRoute;
+    private final Set<String> routeNames;
     private final String virtualClusterName;
     private final String routerName;
     private final Meter.MeterProvider<Counter> rejectedCounter;
@@ -75,10 +79,12 @@ class SubjectRoutingHandler implements Router {
      */
     private @Nullable String pinnedRoute;
 
-    SubjectRoutingHandler(RouteSelector<Object> selector, RouteSelectorContext selectorContext,
-                          String virtualClusterName, String routerName) {
-        this.selector = selector;
-        this.selectorContext = selectorContext;
+    SubjectRoutingHandler(Class<? extends Principal> principalType, Map<String, String> principalToRoute, @Nullable String defaultRoute,
+                          Set<String> routeNames, String virtualClusterName, String routerName) {
+        this.principalType = principalType;
+        this.principalToRoute = principalToRoute;
+        this.defaultRoute = defaultRoute;
+        this.routeNames = routeNames;
         this.virtualClusterName = virtualClusterName;
         this.routerName = routerName;
         this.rejectedCounter = SubjectRouterMetrics.rejectedCounter(virtualClusterName, routerName);
@@ -101,25 +107,27 @@ class SubjectRoutingHandler implements Router {
             }
             return reject(ctx, header, request, RejectReason.ANONYMOUS, "anonymous non-ApiVersions request");
         }
-        return selector.selectRoute(subject, selectorContext).thenCompose(routeOpt -> {
-            if (routeOpt.isEmpty()) {
-                return reject(ctx, header, request, RejectReason.NO_ROUTE, "no route for subject");
-            }
-            String route = routeOpt.get();
-            if (pinnedRoute == null) {
-                pinnedRoute = route;
-            }
-            else if (!pinnedRoute.equals(route)) {
-                return reject(ctx, header, request, RejectReason.ROUTE_CHANGED, "subject route changed mid-connection from "
-                        + pinnedRoute + " to " + route);
-            }
-            // Prefer the node the client is already connected to (a broker-specific gateway
-            // endpoint) over an arbitrary node of the route, so a client that dialed a specific
-            // broker keeps talking to that broker.
-            VirtualNode node = ctx.virtualNode().orElseGet(() -> ctx.anyNode(route));
-            return ctx.sendRequest(node, header, request)
-                    .thenCompose(response -> ctx.respondWith(response).completed());
-        }).exceptionallyCompose(err -> reject(ctx, header, request, RejectReason.SELECTOR_ERROR, "selector error"));
+        Optional<String> routeOpt = subject.uniquePrincipalOfType(principalType)
+                .map(Principal::name)
+                .map(principalToRoute::get)
+                .or(() -> Optional.ofNullable(defaultRoute));
+        if (routeOpt.isEmpty()) {
+            return reject(ctx, header, request, RejectReason.NO_ROUTE, "no route for subject");
+        }
+        String route = routeOpt.get();
+        if (pinnedRoute == null) {
+            pinnedRoute = route;
+        }
+        else if (!pinnedRoute.equals(route)) {
+            return reject(ctx, header, request, RejectReason.ROUTE_CHANGED, "subject route changed mid-connection from "
+                    + pinnedRoute + " to " + route);
+        }
+        // Prefer the node the client is already connected to (a broker-specific gateway
+        // endpoint) over an arbitrary node of the route, so a client that dialed a specific
+        // broker keeps talking to that broker.
+        VirtualNode node = ctx.virtualNode().orElseGet(() -> ctx.anyNode(route));
+        return ctx.sendRequest(node, header, request)
+                .thenCompose(response -> ctx.respondWith(response).completed());
     }
 
     /**
@@ -128,7 +136,7 @@ class SubjectRoutingHandler implements Router {
      * the connection to any route.
      */
     private CompletionStage<RouterResponse> fanOutApiVersions(RequestHeaderData header, ApiMessage request, RouterContext ctx) {
-        List<String> routes = List.copyOf(selectorContext.routeNames());
+        List<String> routes = List.copyOf(routeNames);
         List<CompletableFuture<ApiVersionsResponseData>> perRoute = routes.stream()
                 .map(route -> ctx.sendRequest(ctx.anyNode(route), header.duplicate(), (ApiMessage) request.duplicate())
                         .thenApply(m -> (ApiVersionsResponseData) m)

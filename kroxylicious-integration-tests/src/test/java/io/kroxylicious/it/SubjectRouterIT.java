@@ -47,6 +47,7 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.kroxylicious.filter.sasl.termination.SaslTermination;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -62,7 +63,6 @@ import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.router.subject.SubjectRouter;
-import io.kroxylicious.router.subject.UserNameMatch;
 import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileManager;
 import io.kroxylicious.scram.credentialstore.file.ScramCredentialFileService;
 import io.kroxylicious.testing.filter.assertj.KafkaAssertions;
@@ -209,12 +209,12 @@ class SubjectRouterIT {
         var routeA = new RouteDefinition("route-a", 0, routeAFilterNames, new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
 
-        var selectorConfig = new UserNameMatch.Config(
-                List.of(new UserNameMatch.Mapping("route-a", List.of(principalNameOf(aliceCertGenerator))),
-                        new UserNameMatch.Mapping("route-b", List.of(principalNameOf(carolCertGenerator)))),
+        var singularPrincipalMatch = new SubjectRouter.SingularPrincipalMatch(User.class.getName(),
+                List.of(new SubjectRouter.RouteMappingEntry(principalNameOf(aliceCertGenerator), "route-a"),
+                        new SubjectRouter.RouteMappingEntry(principalNameOf(carolCertGenerator), "route-b")),
                 null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
-                new SubjectRouter.Config("UserNameMatch", selectorConfig), List.of(routeA, routeB));
+                new SubjectRouter.Config(singularPrincipalMatch), List.of(routeA, routeB));
 
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
@@ -323,10 +323,10 @@ class SubjectRouterIT {
         var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
         var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
-        var selectorConfig = new UserNameMatch.Config(
-                List.of(new UserNameMatch.Mapping("route-a", List.of("CN=alice"))), null);
+        var singularPrincipalMatch = new SubjectRouter.SingularPrincipalMatch(User.class.getName(),
+                List.of(new SubjectRouter.RouteMappingEntry("CN=alice", "route-a")), null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
-                new SubjectRouter.Config("UserNameMatch", selectorConfig), List.of(routeA, routeB));
+                new SubjectRouter.Config(singularPrincipalMatch), List.of(routeA, routeB));
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
                 .withTarget(new RouteTarget(null, "subject-router"))
@@ -397,9 +397,10 @@ class SubjectRouterIT {
         var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
         var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
-        var selectorConfig = new UserNameMatch.Config(List.of(new UserNameMatch.Mapping("route-a", List.of(username))), null);
+        var singularPrincipalMatch = new SubjectRouter.SingularPrincipalMatch(User.class.getName(),
+                List.of(new SubjectRouter.RouteMappingEntry(username, "route-a")), null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
-                new SubjectRouter.Config("UserNameMatch", selectorConfig), List.of(routeA, routeB));
+                new SubjectRouter.Config(singularPrincipalMatch), List.of(routeA, routeB));
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
                 .withTarget(new RouteTarget(null, "subject-router"))
