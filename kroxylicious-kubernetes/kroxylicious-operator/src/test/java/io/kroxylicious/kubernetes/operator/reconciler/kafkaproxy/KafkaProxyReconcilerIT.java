@@ -56,6 +56,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentCondition;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.fabric8.openshift.api.model.Route;
 
@@ -1801,7 +1802,19 @@ public class KafkaProxyReconcilerIT {
     }
 
     private void updateServiceAccountName(KafkaProxy proxy, @Nullable String serviceAccountName) {
-        clusterUser.replace(withServiceAccountName(Objects.requireNonNull(clusterUser.get(KafkaProxy.class, name(proxy))), serviceAccountName));
+        // get-then-replace races against the operator's own concurrent writes to the KafkaProxy,
+        // so retry on a 409 Conflict rather than failing the test.
+        AWAIT.alias("update KafkaProxy serviceAccountName").untilAsserted(() -> {
+            try {
+                clusterUser.replace(withServiceAccountName(Objects.requireNonNull(clusterUser.get(KafkaProxy.class, name(proxy))), serviceAccountName));
+            }
+            catch (KubernetesClientException e) {
+                if (e.getCode() == 409) {
+                    throw new AssertionError("conflict replacing KafkaProxy, retrying", e);
+                }
+                throw e;
+            }
+        });
     }
 
     private static KafkaProxy withServiceAccountName(KafkaProxy proxy, @Nullable String serviceAccountName) {

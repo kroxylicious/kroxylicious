@@ -138,8 +138,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
     Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, String virtualCluster, String groupId, Map<String, Object> baseConfig,
                                                    Map<String, Object> additionalConfig) {
         Map<String, Object> standardConfig = Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId,
-                ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
-                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(),
+                ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, false,
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false,
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, AutoOffsetResetStrategy.StrategyType.EARLIEST.toString());
         return getConsumerWithConfig(tester, Optional.of(virtualCluster), baseConfig, standardConfig, additionalConfig);
     }
