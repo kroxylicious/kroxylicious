@@ -38,6 +38,7 @@ public final class ShellUtils {
 
     private static final FileAttribute<Set<PosixFilePermission>> OWNER_RW = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"));
 
+    @SuppressWarnings("java:S3400") // constant lambda form would re-trigger ErrorProne UnnecessaryLambda
     private static boolean alwaysValid(Stream<String> lines) {
         return true;
     }

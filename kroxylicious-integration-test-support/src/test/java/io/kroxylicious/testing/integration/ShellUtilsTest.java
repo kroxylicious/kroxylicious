@@ -20,10 +20,12 @@ class ShellUtilsTest {
 
     private static final String NO_SUCH_CMD = "no_such_cmd_xyz_kroxy";
 
+    @SuppressWarnings("java:S3400") // constant lambda form would re-trigger ErrorProne UnnecessaryLambda
     private static boolean alwaysValid(Stream<String> lines) {
         return true;
     }
 
+    @SuppressWarnings("java:S3400") // constant lambda form would re-trigger ErrorProne UnnecessaryLambda
     private static boolean alwaysInvalid(Stream<String> lines) {
         return false;
     }

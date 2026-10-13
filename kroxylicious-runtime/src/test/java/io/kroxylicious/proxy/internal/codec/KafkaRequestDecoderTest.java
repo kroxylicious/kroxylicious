@@ -45,6 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaRequestDecoderTest extends AbstractCodecTest {
 
+    @SuppressWarnings("java:S3400") // constant lambda form would re-trigger ErrorProne UnnecessaryLambda
     private static boolean allVersions(int i) {
         return true;
     }

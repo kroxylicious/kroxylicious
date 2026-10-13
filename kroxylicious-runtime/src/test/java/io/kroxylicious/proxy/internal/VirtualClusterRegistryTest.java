@@ -50,7 +50,7 @@ class VirtualClusterRegistryTest {
      */
     private static VirtualClusterModel noOpResolver(Configuration cfg, String name) {
         throw new UnsupportedOperationException("resolveModel not exercised by this test");
-    };
+    }
 
     @SuppressWarnings("unchecked")
     private final BiConsumer<String, Optional<Throwable>> noOpCallback = mock(BiConsumer.class);
