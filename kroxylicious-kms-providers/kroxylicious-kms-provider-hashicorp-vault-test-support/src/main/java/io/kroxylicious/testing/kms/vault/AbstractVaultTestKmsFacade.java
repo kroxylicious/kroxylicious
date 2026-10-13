@@ -67,6 +67,10 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
      * The root token used to authenticate with the Vault instance.
      */
     public static final String VAULT_ROOT_TOKEN = "rootToken";
+    /**
+     * The name of the Vault policy granting the privileges the KMS requires on the Transit engine.
+     */
+    protected static final String ENCRYPTION_FILTER_POLICY_NAME = "kroxylicious_encryption_filter_policy";
 
     /**
      * Creates the facade.
@@ -93,7 +97,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         withRetry(this::enableTransit, 3);
 
         // create policy
-        var policyName = "kroxylicious_encryption_filter_policy";
+        var policyName = ENCRYPTION_FILTER_POLICY_NAME;
         try (var policyStream = AbstractVaultTestKmsFacade.class.getResourceAsStream("kroxylicious_encryption_filter_policy.hcl")) {
             createPolicy(policyName, policyStream);
         }
@@ -106,7 +110,14 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         kmsVaultToken = createOrphanToken("kroxylicious_encryption_filter", true, Set.of(policyName));
     }
 
-    private void withRetry(Runnable r, int maxAttempts) {
+    /**
+     * Runs the given task, retrying with a fixed delay between attempts until it succeeds or the attempt
+     * limit is reached. Intended for operations against Vault that may fail while it is still starting up.
+     *
+     * @param r the task to run.
+     * @param maxAttempts the maximum number of attempts.
+     */
+    protected void withRetry(Runnable r, int maxAttempts) {
         var done = false;
         int remaining = maxAttempts;
         RuntimeException last = null;
@@ -188,8 +199,14 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
      */
     protected abstract URI getVaultUrl();
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Returns configuration that authenticates the KMS with a static Vault token. Subclasses may
+     * override this to have the KMS authenticate using a different Vault auth method.
+     */
     @Override
-    public final Config getKmsServiceConfig() {
+    public Config getKmsServiceConfig() {
         return new Config(getVaultTransitEngineUrl(), new InlinePassword(kmsVaultToken), null);
     }
 
