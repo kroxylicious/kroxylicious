@@ -126,7 +126,7 @@ class SaslInspectionOauthBearerIT extends BaseOauthBearerIT {
 
         try (var tester = kroxyliciousTester(config)) {
 
-            var sleepTime = Duration.ofMillis(10_000); // Needs to be larger than connections.max.reauth.ms in order to be sure that the client has to re-auth
+            var sleepTime = Duration.ofSeconds(10); // Needs to be larger than connections.max.reauth.ms in order to be sure that the client has to re-auth
             sendReceiveBatches(tester, topic, getProducerConfig(), getConsumerConfig(), 2, (batchNum, records) -> {
                 var headers = Assertions.assertThat(records.records(topic.name()))
                         .as("topic %s records", topic.name())

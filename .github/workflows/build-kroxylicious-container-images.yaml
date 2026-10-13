@@ -89,7 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -435,6 +435,7 @@ jobs:
           name: kroxylicious-proxy
           path: /tmp/kroxylicious-proxy.img.tar.gz
           retention-days: 1
+          if-no-files-found: error
 
       - name: Archive operator image tarball
         if: steps.build_configuration.outputs.output_tarballs == 'true'
@@ -443,6 +444,7 @@ jobs:
           name: kroxylicious-operator
           path: /tmp/kroxylicious-operator.img.tar.gz
           retention-days: 1
+          if-no-files-found: error
 
       - name: Archive admission webhook image tarball
         if: steps.build_configuration.outputs.output_tarballs == 'true'
@@ -451,3 +453,4 @@ jobs:
           name: kroxylicious-admission-webhook
           path: /tmp/kroxylicious-webhook.img.tar.gz
           retention-days: 1
+          if-no-files-found: error

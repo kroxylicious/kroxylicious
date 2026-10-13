@@ -35,7 +35,7 @@ jobs:
       modules: ${{ steps.discover.outputs.modules }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -77,7 +77,7 @@ jobs:
       kroxylicious_image: ${{ steps.build_image.outputs.KROXYLICIOUS_IMAGE }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -118,6 +118,7 @@ jobs:
           name: kroxylicious-operand-image
           path: kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
           retention-days: 1
+          if-no-files-found: error
       - name: 'Package Kroxylicious Maven artifacts'
         run: |
           mkdir -p /tmp/kroxylicious-artifacts
@@ -129,6 +130,7 @@ jobs:
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts/maven-repo.tar.gz
           retention-days: 1
+          if-no-files-found: error
   run_integration_tests:
     needs: [build_artifacts, discover_integration_test_chunks]
     runs-on: ubuntu-latest
@@ -138,7 +140,7 @@ jobs:
         tests: ${{ fromJson(needs.discover_integration_test_chunks.outputs.test_chunks) }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -276,7 +278,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -309,7 +311,7 @@ jobs:
       actions: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 

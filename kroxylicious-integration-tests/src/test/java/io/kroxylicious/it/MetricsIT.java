@@ -225,7 +225,7 @@ class MetricsIT {
 
     static Stream<Arguments> messageCountMetricScenarios() {
         var decodeAll = new NamedFilterDefinitionBuilder("decodeAll", "DecodeAll").build();
-        var rejectCreateTopic = new NamedFilterDefinitionBuilder("rejectCreateTopic", "RejectingCreateTopicFilterFactory").withConfig("respondWithError", Boolean.FALSE)
+        var rejectCreateTopic = new NamedFilterDefinitionBuilder("rejectCreateTopic", "RejectingCreateTopicFilterFactory").withConfig("respondWithError", false)
                 .build();
         return Stream.of(
                 argumentSet("counts opaque requests from client",

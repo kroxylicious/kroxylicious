@@ -184,7 +184,7 @@ class SaslInspectionIT extends BaseIT {
 
         assertClientsCanAccessCluster(cluster, Set.of(mechanism), null, topic, mechanism, clientLoginModule, username, password,
                 2, 1,
-                Duration.ofMillis(10_000), headers -> {
+                Duration.ofSeconds(10), headers -> {
                     KafkaHeadersAssert.assertThat(headers)
                             .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                             .hasValueEqualTo("alice");
@@ -210,7 +210,7 @@ class SaslInspectionIT extends BaseIT {
 
         assertClientsCanAccessCluster(cluster, Set.of(mechanism), null, topic, mechanism, clientLoginModule, username, password,
                 2, 2,
-                Duration.ofMillis(10_000), headers -> {
+                Duration.ofSeconds(10), headers -> {
                     KafkaHeadersAssert.assertThat(headers)
                             .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                             .hasValueEqualTo("alice");
