@@ -79,18 +79,18 @@ class ParcelTest {
         assertThat(buffer.remaining()).isZero();
     }
 
-    private record Header(@JsonProperty(required = true) ByteBuffer keyBase64, ByteBuffer valueBase64) {}
+    record Header(@JsonProperty(required = true) ByteBuffer keyBase64, ByteBuffer valueBase64) {}
 
-    private record ParcelContents(ByteBuffer valueBase64, @JsonProperty(required = true) List<ParcelTest.Header> headers) {
+    record ParcelContents(ByteBuffer valueBase64, @JsonProperty(required = true) List<ParcelTest.Header> headers) {
         io.kroxylicious.kafka.common.header.Header[] kafkaHeaders() {
             return this.headers.stream().map(header -> new RecordHeader(header.keyBase64(), header.valueBase64()))
                     .toArray(io.kroxylicious.kafka.common.header.Header[]::new);
         }
     }
 
-    private record Exemplar(ByteBuffer serializedBase64) {}
+    record Exemplar(ByteBuffer serializedBase64) {}
 
-    private record SerializationOptions(@JsonProperty(required = true) Set<RecordField> recordFields) {}
+    record SerializationOptions(@JsonProperty(required = true) Set<RecordField> recordFields) {}
 
     private record ParcelSerializationExemplar(@JsonProperty(required = true) ParcelContents originalRecordContents,
                                                @JsonProperty(required = true) ParcelContents deserializedParcelContents,
@@ -110,8 +110,8 @@ class ParcelTest {
         }
     }
 
-    private record NamedExemplar(ParcelContents originalRecordContents, ParcelContents deserializedParcelContents, ParcelVersion version, Exemplar exemplar, String name,
-                                 SerializationOptions options) {
+    record NamedExemplar(ParcelContents originalRecordContents, ParcelContents deserializedParcelContents, ParcelVersion version, Exemplar exemplar, String name,
+                         SerializationOptions options) {
 
         private ByteBuffer serialized() {
             return exemplar.serializedBase64();

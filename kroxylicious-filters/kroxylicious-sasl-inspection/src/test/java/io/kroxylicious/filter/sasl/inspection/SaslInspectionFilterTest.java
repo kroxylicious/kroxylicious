@@ -893,13 +893,13 @@ class SaslInspectionFilterTest {
                 metadataRequest, context);
     }
 
-    private interface SaslInteraction {
+    interface SaslInteraction {
         byte[] response();
     }
 
-    private record InitialResponse(@SuppressWarnings("ArrayRecordComponent") byte[] response) implements SaslInteraction {} // byte[] retained: test-only record modelling SASL wire bytes, equality
-                                                                                                                            // unused
+    record InitialResponse(@SuppressWarnings("ArrayRecordComponent") byte[] response) implements SaslInteraction {} // byte[] retained: test-only record modelling SASL wire bytes, equality
+                                                                                                                    // unused
 
-    private record ChallengeResponse(@SuppressWarnings("ArrayRecordComponent") byte[] challenge, @SuppressWarnings("ArrayRecordComponent") @Nullable byte[] response)
+    record ChallengeResponse(@SuppressWarnings("ArrayRecordComponent") byte[] challenge, @SuppressWarnings("ArrayRecordComponent") @Nullable byte[] response)
             implements SaslInteraction {} // byte[] retained: test-only record modelling SASL wire bytes, equality unused
 }
