@@ -39,6 +39,7 @@ import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMEncryptor;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.PKCS8Generator;
@@ -46,6 +47,7 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.openssl.jcajce.JcaPKCS8Generator;
 import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder;
+import org.bouncycastle.openssl.jcajce.JcePEMEncryptorBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OutputEncryptor;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
@@ -238,6 +240,27 @@ public final class TlsTestUtils {
         final StringWriter writer = new StringWriter();
         try (JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
             pemWriter.writeObject(new JcaPKCS8Generator(privateKey, encryptor).generate());
+        }
+        return writer.toString();
+    }
+
+    /**
+     * Encodes a private key as a legacy OpenSSL-encrypted PEM (BEGIN RSA/EC PRIVATE KEY with
+     * 'Proc-Type: 4,ENCRYPTED' and 'DEK-Info' headers), the format produced by {@code openssl rsa}
+     * without {@code -topk8}. Netty decrypts it at build time; it cannot be parsed for validation.
+     *
+     * @param privateKey the key to encrypt
+     * @param password the encryption password
+     * @return the legacy-encrypted PEM
+     * @throws Exception if encryption or PEM writing fails
+     */
+    public static String legacyEncryptedKeyPem(final PrivateKey privateKey, final String password) throws Exception {
+        final PEMEncryptor encryptor = new JcePEMEncryptorBuilder("AES-256-CBC")
+                .setProvider(new BouncyCastleProvider())
+                .build(password.toCharArray());
+        final StringWriter writer = new StringWriter();
+        try (JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
+            pemWriter.writeObject(privateKey, encryptor);
         }
         return writer.toString();
     }

@@ -113,7 +113,7 @@ public class FileWatcher implements AutoCloseable {
             throw new IllegalArgumentException("Watched files require a parent directory, only a filename was supplied " + path);
         }
 
-        final Path key = path.isAbsolute() ? path : path.getParent().resolve(path).toAbsolutePath();
+        final Path key = path.toAbsolutePath();
         // CopyOnWriteArrayList: register() runs on the caller's thread whilst the watcher thread iterates the same
         // list to notify handlers, so the handler list must tolerate concurrent mutation and traversal
         final List<NotificationHandler> watcher = watchList.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>());
@@ -230,10 +230,12 @@ public class FileWatcher implements AutoCloseable {
                 }
                 if (Files.isDirectory(resolvedPath)) {
                     // if a directory is the context for the change event then flag all files in the directory as changed (we don't know which one has)
-                    Files.walk(resolvedPath).filter(Files::isRegularFile).forEach(resolved -> {
-                        // represent the symlink change as a change in the originally watched directory
-                        resolvedPaths.add(watchedDirectory.resolve(resolved.getFileName()).toAbsolutePath());
-                    });
+                    try (var stream = Files.walk(resolvedPath)) {
+                        stream.filter(Files::isRegularFile).forEach(resolved -> {
+                            // represent the symlink change as a change in the originally watched directory
+                            resolvedPaths.add(watchedDirectory.resolve(resolved.getFileName()).toAbsolutePath());
+                        });
+                    }
                 }
                 else {
                     resolvedPaths.add(watchedDirectory.resolve(resolvedPath.getFileName()).toAbsolutePath()); // symlink resolved to a file, so add the resolved file to the list to process

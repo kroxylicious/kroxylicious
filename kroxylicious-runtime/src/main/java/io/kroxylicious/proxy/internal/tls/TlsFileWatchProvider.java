@@ -30,7 +30,7 @@ public class TlsFileWatchProvider {
 
     /**
      * Create a file watcher for watching certificates
-     * @param tls The Tls configuration contaiing the certificate file paths
+     * @param tls The Tls configuration containing the certificate file paths
      */
     public TlsFileWatchProvider(final Tls tls) {
         this.delegate = tls;

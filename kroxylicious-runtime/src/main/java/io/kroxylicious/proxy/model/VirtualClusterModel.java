@@ -129,8 +129,10 @@ public class VirtualClusterModel implements AutoCloseable {
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
 
+    // volatile: written under the getCertWatcher lock but read without it in close(), so the
+    // close() thread needs a happens-before edge to the lazy write to avoid observing a stale null
     @Nullable
-    private FileWatcher certWatcher = null;
+    private volatile FileWatcher certWatcher = null;
 
     /**
      * The filter chain factory for <em>this</em> virtual cluster. Owned by the VCM — its
@@ -453,8 +455,9 @@ public class VirtualClusterModel implements AutoCloseable {
         // first failure at the end so callers see something rather than nothing.
         RuntimeException firstFailure = null;
         firstFailure = handleException(routing, firstFailure);
-        if (Objects.nonNull(certWatcher)) {
-            firstFailure = handleException(certWatcher, firstFailure);
+        final FileWatcher watcher = certWatcher; // single consistent read of the volatile field
+        if (Objects.nonNull(watcher)) {
+            firstFailure = handleException(watcher, firstFailure);
         }
         firstFailure = handleException(filterChainFactory, firstFailure);
         for (var fcf : routeFilterChainFactories.values()) {
@@ -472,7 +475,8 @@ public class VirtualClusterModel implements AutoCloseable {
         }
         catch (final Exception e) {
             if (firstFailure == null) {
-                firstFailure = new RuntimeException(e.getMessage(), e);
+                // preserve a RuntimeException as-is; only wrap checked exceptions (certWatcher.close throws IOException)
+                firstFailure = e instanceof RuntimeException re ? re : new RuntimeException(e.getMessage(), e);
             }
             else {
                 firstFailure.addSuppressed(e);
