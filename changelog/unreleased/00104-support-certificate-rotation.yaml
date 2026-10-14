@@ -1,4 +1,4 @@
-title: "feat(cert-rotation): virtual cluster gateway certificate monitoring with RSA and EC private keys"
+title: "feat(cert-rotation): automatic downstream TLS certificate and key reload for virtual cluster gateways"
 type: added
 issues:
   - 104

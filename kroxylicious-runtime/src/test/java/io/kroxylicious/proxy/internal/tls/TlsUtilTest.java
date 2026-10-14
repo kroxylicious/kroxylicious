@@ -30,6 +30,7 @@ import org.junit.jupiter.api.io.TempDir;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.KeyStore;
+import io.kroxylicious.proxy.internal.util.TlsTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -354,11 +355,26 @@ class TlsUtilTest {
         }
 
         @Test
-        void returnsEmptyForEncryptedKeyPair(@TempDir final Path dir) throws Exception {
-            final Path keyFile = Files.writeString(dir.resolve("key.pem"), TestCertificateUtil.toPkcs8Pem(keyAndCert.privateKey()));
+        void returnsTrueForEncryptedKeyPair(@TempDir final Path dir) throws Exception {
+            final String password = "changeit";
+            final Path keyFile = Files.writeString(dir.resolve("key.pem"), TlsTestUtils.encryptedKeyPem(keyAndCert.privateKey(), password));
             final Path certFile = Files.writeString(dir.resolve("cert.pem"), TestCertificateUtil.toPem(keyAndCert.cert()));
-            final KeyPair keyPair = new KeyPair(keyFile.toString(), certFile.toString(), new InlinePassword("changeit"));
-            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).isEmpty();
+            final KeyPair keyPair = new KeyPair(keyFile.toString(), certFile.toString(), new InlinePassword(password));
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).contains(true);
+        }
+
+        @Test
+        void returnsTrueForLegacyEncryptedKeyPair(@TempDir final Path dir) throws Exception {
+            // Given
+            final String password = "changeit";
+            final Path keyFile = Files.writeString(dir.resolve("key.pem"), TlsTestUtils.legacyEncryptedKeyPem(keyAndCert.privateKey(), password));
+            final Path certFile = Files.writeString(dir.resolve("cert.pem"), TestCertificateUtil.toPem(keyAndCert.cert()));
+            final KeyPair keyPair = new KeyPair(keyFile.toString(), certFile.toString(), new InlinePassword(password));
+
+            // When / Then
+            // legacy OpenSSL-encrypted keys cannot be parsed here, so validation is skipped and treated as valid,
+            // leaving Netty to decrypt them at build time
+            assertThat(TlsUtil.validateCertificateKeyPair(keyPair)).contains(true);
         }
 
         @Test
