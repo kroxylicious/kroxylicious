@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -923,7 +924,8 @@ class TlsIT extends AbstractTlsIT {
             assertThat(originalCertificate.getSubjectX500Principal().getName()).contains("CN=localhost");
 
             // When
-            downstreamCertificateGenerator.generateSelfSignedCertificateEntry("test@kroxylicious.io", "localhost", "SO", "kroxylicious.io", null, null, "US");
+            final String rotatedOu = UUID.randomUUID().toString();
+            downstreamCertificateGenerator.generateSelfSignedCertificateEntry("test@kroxylicious.io", "localhost", rotatedOu, "kroxylicious.io", null, null, "US");
 
             // Then
             await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
@@ -931,7 +933,7 @@ class TlsIT extends AbstractTlsIT {
                     assertThat(newClient.get(request)).succeedsWithin(Duration.ofSeconds(10));
                     assertThat(newClient.getServerCertificateChain()).isNotEmpty();
                     X509Certificate certificate = newClient.getServerCertificateChain().getFirst();
-                    assertThat(certificate.getSubjectX500Principal().getName()).contains("OU=SO");
+                    assertThat(certificate.getSubjectX500Principal().getName()).contains("OU=" + rotatedOu);
                     assertThat(certificate).isNotEqualTo(originalCertificate);
                 }
             });

@@ -412,20 +412,22 @@ public class TlsUtil {
         @SuppressFBWarnings("PATH_TRAVERSAL_IN")
         public List<KeyAndCert> visit(final KeyPair keyPair) {
             try {
-                // Read files
                 final byte[] keyBytes = Files.readAllBytes(Paths.get(keyPair.privateKeyFile()));
+
+                // Encrypted PKCS#8 keys are decrypted by Netty when constructing the endpoint; we cannot parse them here
+                if (isEncryptedPem(keyBytes)) {
+                    return List.of();
+                }
+
                 final byte[] certBytes = Files.readAllBytes(Paths.get(keyPair.certificateFile()));
 
-                // Get password
                 final char[] password = keyPair.keyPasswordProvider() != null
                         ? keyPair.keyPasswordProvider().getProvidedPassword().toCharArray()
                         : null;
 
-                // Parse using our PEM parsing helpers
                 final PrivateKey privateKey = parsePemPrivateKey(keyBytes, password);
                 final X509Certificate[] certs = parsePemCertificates(certBytes);
 
-                // Return leaf certificate (first in chain)
                 return List.of(new KeyAndCert(privateKey, certs[0]));
             }
             catch (final IOException | GeneralSecurityException e) {
@@ -439,8 +441,12 @@ public class TlsUtil {
         public List<KeyAndCert> visit(final KeyStore keyStore) {
             try {
                 if (keyStore.isPemType()) {
-                    // PEM format: both key and cert in same file
                     final byte[] pemBytes = Files.readAllBytes(Paths.get(keyStore.storeFile()));
+
+                    // Encrypted PKCS#8 keys are decrypted by Netty when constructing the endpoint; we cannot parse them here
+                    if (isEncryptedPem(pemBytes)) {
+                        return List.of();
+                    }
 
                     final char[] keyPass;
                     if (keyStore.keyPasswordProvider() != null) {
@@ -453,7 +459,6 @@ public class TlsUtil {
                         keyPass = null;
                     }
 
-                    // Parse using our PEM parsing helpers
                     final PrivateKey privateKey = parsePemPrivateKey(pemBytes, keyPass);
                     final X509Certificate[] certs = parsePemCertificates(pemBytes);
 
@@ -564,20 +569,17 @@ public class TlsUtil {
     }
 
     /**
-     * Parses a private key from PEM-encoded bytes. Supports PKCS#8, PKCS#1 RSA and SEC1 EC formats.
+     * Parses a private key from PEM-encoded bytes. Supports unencrypted PKCS#8, PKCS#1 RSA and SEC1 EC formats.
+     * Encrypted PKCS#8 keys (BEGIN ENCRYPTED PRIVATE KEY) are not parsed here; Netty handles decryption at build time.
      *
      * @param pemBytes PEM-encoded private key data
-     * @param password password for encrypted keys (must be null - encrypted keys not supported)
+     * @param password ignored; present for signature compatibility with callers that pass a password through to Netty
      * @return parsed private key
-     * @throws IOException if encrypted key provided or no valid key found
+     * @throws IOException if no supported unencrypted key format found
      * @throws GeneralSecurityException if key parsing fails
      */
     private static PrivateKey parsePemPrivateKey(final byte[] pemBytes, @Nullable final char[] password)
             throws IOException, GeneralSecurityException {
-        if (password != null) {
-            throw new IOException("Encrypted private keys are not supported. " +
-                    "Use JKS or PKCS12 keystore format for encrypted keys.");
-        }
 
         final String pem = new String(pemBytes, StandardCharsets.UTF_8);
 
@@ -619,6 +621,14 @@ public class TlsUtil {
         throw new IOException("No supported private key format found in PEM data. " +
                 "Supported formats: PKCS#8 (BEGIN PRIVATE KEY), PKCS#1 RSA (BEGIN RSA PRIVATE KEY) " +
                 "and SEC1 EC (BEGIN EC PRIVATE KEY).");
+    }
+
+    private static boolean isEncryptedPem(final byte[] pemBytes) {
+        final String pem = new String(pemBytes, StandardCharsets.UTF_8);
+        // Modern encrypted keys carry a dedicated PKCS#8 header. Legacy OpenSSL-encrypted PKCS#1/SEC1 keys
+        // are a plain 'BEGIN RSA/EC PRIVATE KEY' block marked internally by a 'DEK-Info' line (written
+        // alongside 'Proc-Type: 4,ENCRYPTED'). Neither can be parsed here, so Netty decrypts them at build time.
+        return pem.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") || pem.contains("DEK-Info:");
     }
 
     /**
