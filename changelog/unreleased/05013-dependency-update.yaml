@@ -1,0 +1,4 @@
+title: "build(deps): bump com.github.ben-manes.caffeine:caffeine from 3.2.4 to 3.3.0"
+type: build
+merge_requests:
+  - 5013

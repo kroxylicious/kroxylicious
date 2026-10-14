@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -305,6 +306,40 @@ class ServerConnectionStateMachineTest {
 
         verify(ccsm).onServerConnectionException(tcpFailure);
         assertThat(scsm.state()).isInstanceOf(ServerConnectionState.Closed.class);
+    }
+
+    // === configureBootstrap() tests ===
+    // These exercise the real configureBootstrap, not an overriding subclass, so the configured
+    // CONNECT_TIMEOUT_MILLIS is actually asserted. The overriding subclasses elsewhere would bypass it.
+
+    @Test
+    void configureBootstrapShouldApplyDefaultConnectTimeout() {
+        // Given
+        var clusterModel = new UpstreamClusterModel(new TargetCluster("broker:9092", Optional.empty(), null, null),
+                Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+        var scsm = createScsmWithMocks(mock(ClientConnectionStateMachine.class), mock(VirtualClusterModel.class), clusterModel);
+        var inboundChannel = new EmbeddedChannel();
+
+        // When
+        var bootstrap = scsm.configureBootstrap(scsm.backendHandler(), inboundChannel);
+
+        // Then
+        assertThat(bootstrap.config().options()).containsEntry(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30_000);
+    }
+
+    @Test
+    void configureBootstrapShouldApplyConfiguredConnectTimeout() {
+        // Given
+        var clusterModel = new UpstreamClusterModel(new TargetCluster("broker:9092", Optional.empty(), null, Duration.ofSeconds(5)),
+                Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+        var scsm = createScsmWithMocks(mock(ClientConnectionStateMachine.class), mock(VirtualClusterModel.class), clusterModel);
+        var inboundChannel = new EmbeddedChannel();
+
+        // When
+        var bootstrap = scsm.configureBootstrap(scsm.backendHandler(), inboundChannel);
+
+        // Then
+        assertThat(bootstrap.config().options()).containsEntry(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5_000);
     }
 
     // === TLS credential tests ===

@@ -21,6 +21,9 @@ import java.util.Set;
  * <li>information obtained about the client from a trusted source, such as looked-up role or group information.</li>
  * </ul>
  *
+ * <p>Instances are immutable: the principal set is defensively copied on construction and the {@link Principal}
+ * implementations it contains are required to be immutable.</p>
+ *
  * @param principals the set of identifiers associated with this subject
  */
 @SuppressWarnings({ "java:S5738", "removal" })

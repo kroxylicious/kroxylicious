@@ -40,7 +40,7 @@ class ConnectionExpirationTest {
     @Test
     void shouldInitializeWithValidConfig() {
         ConnectionExpiration factory = new ConnectionExpiration();
-        ConnectionExpirationFilterConfig config = new ConnectionExpirationFilterConfig(Duration.ofSeconds(300), null);
+        ConnectionExpirationFilterConfig config = new ConnectionExpirationFilterConfig(Duration.ofMinutes(5), null);
 
         ConnectionExpirationFilterConfig result = factory.initialize(context, config);
 
@@ -58,7 +58,7 @@ class ConnectionExpirationTest {
     @Test
     void shouldCreateFilter() {
         ConnectionExpiration factory = new ConnectionExpiration(Clock.fixed(NOW, ZONE));
-        ConnectionExpirationFilterConfig config = new ConnectionExpirationFilterConfig(Duration.ofSeconds(300), null);
+        ConnectionExpirationFilterConfig config = new ConnectionExpirationFilterConfig(Duration.ofMinutes(5), null);
         factory.initialize(context, config);
 
         var filter = factory.createFilter(context, config);
@@ -69,7 +69,7 @@ class ConnectionExpirationTest {
     @Test
     void shouldCreateFilterWithJitter() {
         ConnectionExpiration factory = new ConnectionExpiration(Clock.fixed(NOW, ZONE));
-        ConnectionExpirationFilterConfig config = new ConnectionExpirationFilterConfig(Duration.ofSeconds(300), Duration.ofSeconds(30));
+        ConnectionExpirationFilterConfig config = new ConnectionExpirationFilterConfig(Duration.ofMinutes(5), Duration.ofSeconds(30));
         factory.initialize(context, config);
 
         var filter = factory.createFilter(context, config);
@@ -80,7 +80,7 @@ class ConnectionExpirationTest {
     @Test
     void shouldApplyPositiveJitterToEffectiveMaxAge() {
         MutableClock mutableClock = MutableClock.of(NOW, ZONE);
-        Duration maxAge = Duration.ofSeconds(300);
+        Duration maxAge = Duration.ofMinutes(5);
         Duration jitter = Duration.ofSeconds(30);
         ConnectionExpiration factory = new ConnectionExpiration(mutableClock, (origin, bound) -> jitter.toMillis());
         ConnectionExpirationFilterConfig config = new ConnectionExpirationFilterConfig(maxAge, jitter);
@@ -100,7 +100,7 @@ class ConnectionExpirationTest {
     @Test
     void shouldApplyNegativeJitterToEffectiveMaxAge() {
         MutableClock mutableClock = MutableClock.of(NOW, ZONE);
-        Duration maxAge = Duration.ofSeconds(300);
+        Duration maxAge = Duration.ofMinutes(5);
         Duration jitter = Duration.ofSeconds(30);
         ConnectionExpiration factory = new ConnectionExpiration(mutableClock, (origin, bound) -> -jitter.toMillis());
         ConnectionExpirationFilterConfig config = new ConnectionExpirationFilterConfig(maxAge, jitter);
@@ -124,8 +124,8 @@ class ConnectionExpirationTest {
     @Test
     void shouldClampEffectiveMaxAgeToOneMillisecond() {
         MutableClock mutableClock = MutableClock.of(NOW, ZONE);
-        Duration maxAge = Duration.ofSeconds(300);
-        Duration jitter = Duration.ofSeconds(300);
+        Duration maxAge = Duration.ofMinutes(5);
+        Duration jitter = Duration.ofMinutes(5);
         ConnectionExpiration factory = new ConnectionExpiration(mutableClock, (origin, bound) -> -jitter.toMillis());
         ConnectionExpirationFilterConfig config = new ConnectionExpirationFilterConfig(maxAge, jitter);
         factory.initialize(context, config);

@@ -111,6 +111,58 @@ class ConfigParseTest {
         assertThat(config.vaultToken()).isNull();
     }
 
+    @Test
+    void credentialsKubernetesAuthParse() throws IOException {
+        String json = """
+                {
+                    "vaultUrl": "http://vault:8200",
+                    "credentials": {
+                        "kubernetes": {
+                            "vaultRole": "my-role",
+                            "serviceAccountTokenFile": "/custom/path/token",
+                            "authPath": "custom-k8s"
+                        }
+                    }
+                }
+                """;
+        Config config = readConfig(json);
+        assertThat(config.credentials()).isNotNull();
+        KubernetesCredentialsConfig k8sConfig = config.credentials().kubernetes();
+        assertThat(k8sConfig).isNotNull();
+        assertThat(k8sConfig.vaultRole()).isEqualTo("my-role");
+        assertThat(k8sConfig.serviceAccountTokenFile()).isEqualTo("/custom/path/token");
+        assertThat(k8sConfig.authPath()).isEqualTo("custom-k8s");
+        assertThat(k8sConfig.effectiveServiceAccountTokenFile()).isEqualTo("/custom/path/token");
+        assertThat(k8sConfig.effectiveAuthPath()).isEqualTo("custom-k8s");
+    }
+
+    @Test
+    void credentialsKubernetesAuthDefaults() throws IOException {
+        String json = """
+                {
+                    "vaultUrl": "http://vault:8200",
+                    "credentials": {
+                        "kubernetes": {
+                            "vaultRole": "my-role"
+                        }
+                    }
+                }
+                """;
+        Config config = readConfig(json);
+        KubernetesCredentialsConfig k8sConfig = config.credentials().kubernetes();
+        assertThat(k8sConfig).isNotNull();
+        assertThat(k8sConfig.vaultRole()).isEqualTo("my-role");
+        assertThat(k8sConfig.serviceAccountTokenFile()).isNull();
+        assertThat(k8sConfig.authPath()).isNull();
+        assertThat(k8sConfig.effectiveServiceAccountTokenFile()).isEqualTo(KubernetesCredentialsConfig.DEFAULT_SERVICE_ACCOUNT_TOKEN_FILE);
+        assertThat(k8sConfig.effectiveAuthPath()).isEqualTo(KubernetesCredentialsConfig.DEFAULT_AUTH_PATH);
+
+        // Verify roundtrip serialization preserves null for optional fields
+        String serialized = MAPPER.writeValueAsString(config);
+        Config deserialized = MAPPER.readValue(serialized, Config.class);
+        assertThat(deserialized).isEqualTo(config);
+    }
+
     // ---------------------------------------------------------------------------
     // Validation errors
     // ---------------------------------------------------------------------------

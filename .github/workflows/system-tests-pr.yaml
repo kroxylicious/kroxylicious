@@ -23,6 +23,7 @@ jobs:
   # JOB to run change detection
   changes:
     runs-on: ubuntu-latest
+    if: github.event_name != 'merge_group'
     permissions:
       pull-requests: read
     outputs:
@@ -51,12 +52,13 @@ jobs:
               - '!kroxylicious-wire-fidelity-tests/**'
 
   set_variables:
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
       - name: 'Check out repository'
@@ -88,6 +90,7 @@ jobs:
 
   run_system_tests:
     needs: [changes,set_variables]
+    if: always()
     uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
@@ -95,4 +98,6 @@ jobs:
     with:
       kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}
       testFortanixKMS: ${{ contains(github.event.pull_request.labels.*.name, 'kms/fortanix') }}
-      skipSystemTestRun: ${{ needs.changes.outputs.systemtest == 'false' || github.event_name == 'merge_group' }}
+      # Merge queue items trust the system tests already run against the PR branch;
+      # re-running the full suite per queue item would just duplicate that coverage.
+      skipSystemTestRun: ${{ github.event_name == 'merge_group' || needs.changes.outputs.systemtest == 'false' }}

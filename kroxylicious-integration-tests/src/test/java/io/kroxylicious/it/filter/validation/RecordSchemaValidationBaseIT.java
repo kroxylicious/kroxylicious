@@ -23,6 +23,7 @@ public abstract class RecordSchemaValidationBaseIT extends RecordValidationBaseI
     protected static final String APICURIO_REGISTRY_IMAGE = "quay.io/apicurio/apicurio-registry:3.3.3@sha256:c9cae4c90ce46538abf673c68eb591345f23bcc6c2aa6bfd47189adcf609d8f1";
     protected static final String APICURIO_REGISTRY_API = "/apis/registry/v3";
     protected static final int CONTAINER_PORT = 8080;
+    protected static final int MANAGEMENT_PORT = 9000;
 
     protected static DockerImageName apicurioRegistryDockerImageName() {
         return DockerImageName.parse(APICURIO_REGISTRY_IMAGE)
@@ -33,8 +34,8 @@ public abstract class RecordSchemaValidationBaseIT extends RecordValidationBaseI
         DockerImageName dockerImageName = apicurioRegistryDockerImageName();
 
         GenericContainer<?> container = new GenericContainer<>(dockerImageName)
-                .withExposedPorts(CONTAINER_PORT)
-                .waitingFor(Wait.forHttp(APICURIO_REGISTRY_API + "/system/info").forStatusCode(200));
+                .withExposedPorts(CONTAINER_PORT, MANAGEMENT_PORT)
+                .waitingFor(Wait.forHttp("/health/ready").forPort(MANAGEMENT_PORT).forStatusCode(200));
 
         container.start();
         return container;

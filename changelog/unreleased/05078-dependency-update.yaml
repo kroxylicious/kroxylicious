@@ -1,0 +1,4 @@
+title: "build(deps): bump org.mockito:mockito-bom from 5.23.0 to 5.24.0"
+type: build
+merge_requests:
+  - 5078

@@ -5,6 +5,67 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## 0.25.0
+
+* [#3758](https://github.com/kroxylicious/kroxylicious/issues/3758): feat(operator): support dedicated ServiceAccounts for proxy pods
+* [#4155](https://github.com/kroxylicious/kroxylicious/issues/4155): feat(runtime): implement TopologyService.topicNames() and invalidateRoute() for Router plugins
+* [#4161](https://github.com/kroxylicious/kroxylicious/issues/4161): feat(operator): add externalTrafficPolicy and allocateLoadBalancerNodePorts to KafkaProxyIngress loadBalancer
+* [#4462](https://github.com/kroxylicious/kroxylicious/issues/4462): feat(migrations): OpenRewrite recipe migrating targetCluster to clusterDefinitions
+* feat(identity): add standalone kroxylicious-identity-api module ([proposal 119](https://github.com/kroxylicious/design/blob/main/proposals/119-auth-api-refactor.md))
+* [#4840](https://github.com/kroxylicious/kroxylicious/issues/4840): feat(runtime): accept bootstrapServerSelection on clusterDefinitions
+* [#4980](https://github.com/kroxylicious/kroxylicious/pull/4980): feat(kms-vault): introduce vaultUrl and credentials object, deprecating legacy options
+* [#5032](https://github.com/kroxylicious/kroxylicious/pull/5032): feat(kms-vault): support Kubernetes authentication for HashiCorp Vault KMS
+* [#3969](https://github.com/kroxylicious/kroxylicious/issues/3969): docs(operator): document Strimzi integration via `KafkaService.spec.strimziKafkaRef`
+* [#4277](https://github.com/kroxylicious/kroxylicious/issues/4277): docs: use clusterDefinitions in examples and docs
+* [#4388](https://github.com/kroxylicious/kroxylicious/issues/4388): fix(operator): stop enabling 3 minute periodic reconciliation by default; set `KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS` to opt in
+* [#4924](https://github.com/kroxylicious/kroxylicious/issues/4924): test: configure the proxy using top-level clusterDefinitions in the test suites
+* [#4934](https://github.com/kroxylicious/kroxylicious/issues/4934): feat(operator): create one LoadBalancer Service per KafkaProxyIngress ([Proposal 134](https://github.com/kroxylicious/design/pull/134))
+* feat(runtime): emit deprecation warning when VirtualCluster.targetCluster is used
+* [#4770](https://github.com/kroxylicious/kroxylicious/issues/4770): fix(runtime): close virtual cluster model when initialization fails, releasing filter and router resources
+* [#4838](https://github.com/kroxylicious/kroxylicious/issues/4838): fix(operator): apply KafkaProxyIngress infrastructure annotations to LoadBalancer Services
+* [#4871](https://github.com/kroxylicious/kroxylicious/issues/4871): fix(app): proxy start script no longer fails under systemd with `/dev/stdout: No such device or address`
+* [#4910](https://github.com/kroxylicious/kroxylicious/issues/4910): fix(runtime): prevent spurious virtual cluster restarts during hot reload when bootstrapServerSelection is configured
+* [#4922](https://github.com/kroxylicious/kroxylicious/issues/4922): fix(runtime): make bootstrap server selection thread-safe by separating the selection strategy configuration from its runtime state
+* [#4944](https://github.com/kroxylicious/kroxylicious/issues/4944): fix(authzn-filter): prevent NPE when upstream sends a KIP-511 style apiversions response
+* [#4981](https://github.com/kroxylicious/kroxylicious/issues/4981): fix(record-validation): make apicurio registry use java-based HTTP stack
+* [#4995](https://github.com/kroxylicious/kroxylicious/issues/4995): fix(routing): resolve authenticated subject per-request, not at connection setup
+* [#4989](https://github.com/kroxylicious/kroxylicious/pull/4989): build(deps): bump graalvm.version from 25.3.4.1 to 25.4.4.1.1
+* [#4990](https://github.com/kroxylicious/kroxylicious/pull/4990): build(deps): bump com.fasterxml.jackson:jackson-bom from 2.22.2 to 2.22.3
+* [#5005](https://github.com/kroxylicious/kroxylicious/pull/5005): build(deps): bump maven.core.version from 3.9.16 to 3.10.0
+* [#5010](https://github.com/kroxylicious/kroxylicious/pull/5010): build(deps): bump com.github.luben:zstd-jni from 1.5.7-15 to 1.5.7-20
+* [#5011](https://github.com/kroxylicious/kroxylicious/pull/5011): build(deps-dev): bump com.google.protobuf:protobuf-java from 4.36.1 to 4.36.2
+* [#5014](https://github.com/kroxylicious/kroxylicious/pull/5014): build(deps): bump com.google.guava:guava from 33.7.1-jre to 33.7.2-jre
+* [#5016](https://github.com/kroxylicious/kroxylicious/pull/5016): build(deps): bump org.slf4j:slf4j-bom from 2.0.18 to 2.0.20
+
+### Changes, deprecations and removals
+
+* [#4462](https://github.com/kroxylicious/kroxylicious/issues/4462): Proxy configuration using the `virtualClusters[].targetCluster` field, deprecated
+  in 0.22.0, can now be migrated automatically. The
+  `io.kroxylicious.migrations.rewrite.v0_25.UseClusterDefinitions` OpenRewrite recipe
+  moves each inline definition into the top-level `clusterDefinitions` list and
+  replaces it with a `target: {cluster: <name>}` reference. It runs as part of
+  `MigrateTo0_25` and `MigrateToLatest`.
+  
+  For configuration which is not part of a Maven or Gradle project, the migrations
+  jar is now runnable and offers a `convert-config` command, for example:
+  
+      jbang io.kroxylicious:kroxylicious-migrations:0.25.0 convert-config --dry-run my-config.yaml
+  
+  See kroxylicious-proxy-core/kroxylicious-migrations/README.md, which also documents
+  the cases the migration deliberately leaves for a human.
+* `Authorizer.authorize` and `AuthorizeResult` now use `io.kroxylicious.identity.Identity` instead of `io.kroxylicious.proxy.authentication.Subject`. Existing `Authorizer` implementations must update their `authorize` signature; callers passing the deprecated `Subject` are unaffected as it now implements `Identity`.
+  * `io.kroxylicious.proxy.authentication.Subject`, `Principal` and `@Unique` are deprecated in favour of `io.kroxylicious.identity.Subject`, `Principal` and `@SingularPrincipal`.
+* [#4980](https://github.com/kroxylicious/kroxylicious/pull/4980): Deprecation: Top-level `vaultTransitEngineUrl`, `vaultToken`, and `vaultTokenPassword` in HashiCorp Vault KMS configuration are deprecated in favor of `vaultUrl` and the new `credentials` object.
+* [#5032](https://github.com/kroxylicious/kroxylicious/pull/5032): HashiCorp Vault KMS provider now supports Kubernetes authentication using ServiceAccount tokens via the `credentials.kubernetes` configuration.
+* [#4934](https://github.com/kroxylicious/kroxylicious/issues/4934): **Behaviour change**: each `loadBalancer` `KafkaProxyIngress` now gets its own LoadBalancer
+  Service, named after the ingress, replacing the single shared `<proxy>-sni` Service per
+  `KafkaProxy`. On upgrade the `<proxy>-sni` Service is deleted and the per-ingress Services are
+  created with new external addresses, so DNS records pointing at the old load balancer must be
+  re-pointed. The interruption lasts until that re-pointing has propagated.
+  * Proxies with several `loadBalancer` ingresses will now provision one load balancer per ingress
+    rather than one per proxy, which may increase cloud cost. Clusters referencing the same ingress
+    continue to share its load balancer.
+
 ## 0.24.0
 
 * [#1121](https://github.com/kroxylicious/kroxylicious/issues/1121): feat(filters): add ProtocolLogger filter for wire-level request/response tracing
