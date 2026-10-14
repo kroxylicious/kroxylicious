@@ -248,6 +248,39 @@ class FileWatcherTest {
 
     @EnabledOnOs({ OS.LINUX, OS.MAC }) // test uses symlinks which may not be available
     @Test
+    void replaceSymlinkWhereSymlinkNameDiffersFromTargetFilename() throws IOException {
+
+        // Given
+        final var target = differentTempDir.resolve("tls-cert.pem");
+        final var link = tempDir.resolve("link.pem"); // symlink name differs from target filename
+        Files.writeString(target, "Some text", StandardOpenOption.CREATE);
+        Files.createSymbolicLink(link, target);
+
+        final var notificationReceived = new AtomicBoolean(false);
+
+        try (var watcher = new FileWatcher()) {
+            watcher.register(link, () -> {
+                notificationReceived.set(true);
+            });
+            watcher.start();
+
+            Awaitility.await("watcher should enter the running state")
+                    .atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(watcher.isRunning()).isTrue());
+
+            // When
+            Files.delete(link);
+            Files.createSymbolicLink(link, target);
+
+            // Then
+            Awaitility.await("file change should notify the registered listener")
+                    .atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(notificationReceived.get()).isTrue());
+        }
+    }
+
+    @EnabledOnOs({ OS.LINUX, OS.MAC }) // test uses symlinks which may not be available
+    @Test
     void simulateRealK8sAtomicSymlinkSwap() throws IOException {
 
         // Given

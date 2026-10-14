@@ -563,7 +563,7 @@ class VirtualClusterModelTest {
         Awaitility.await("Gateway SSL context rejected and remains unchanged")
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
-                    assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext().get()).isEqualTo(startingSSLContext);
+                    assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext()).contains(startingSSLContext);
                 });
 
         Files.writeString(keyFile, rotated.privateKeyPem() + '\n', StandardOpenOption.TRUNCATE_EXISTING);
@@ -604,7 +604,7 @@ class VirtualClusterModelTest {
         Awaitility.await("Gateway SSL context rejected and remains unchanged")
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
-                    assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext().get()).isEqualTo(startingSSLContext);
+                    assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext()).contains(startingSSLContext);
                 });
 
         Files.writeString(certFile, rotated.certificatePem(), StandardOpenOption.TRUNCATE_EXISTING);
@@ -766,7 +766,8 @@ class VirtualClusterModelTest {
         // When
         model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls));
 
-        // Then - no exception thrown means validation passed
+        // Then
+        assertThat(model.gateways().get("gateway1").getDownstreamSslContext()).isPresent();
         model.close();
     }
 
@@ -789,7 +790,8 @@ class VirtualClusterModelTest {
         // When
         model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls));
 
-        // Then - no exception thrown means validation passed
+        // Then
+        assertThat(model.gateways().get("gateway1").getDownstreamSslContext()).isPresent();
         model.close();
     }
 
@@ -881,7 +883,8 @@ class VirtualClusterModelTest {
         // When
         model.addGateway("gateway1", mock(NodeIdentificationStrategy.class), Optional.of(tls));
 
-        // Then - no exception thrown means validation passed
+        // Then
+        assertThat(model.gateways().get("gateway1").getDownstreamSslContext()).isPresent();
         model.close();
     }
 
