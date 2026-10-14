@@ -309,15 +309,13 @@ public final class KafkaClient implements AutoCloseable {
 
         @Override
         public void userEventTriggered(final ChannelHandlerContext ctx, final Object evt) throws Exception {
-            if (evt instanceof SslHandshakeCompletionEvent handshake) {
-                if (handshake.isSuccess()) {
-                    final SslHandler sslHandler = ctx.pipeline().get(SslHandler.class);
-                    final SSLSession session = sslHandler.engine().getSession();
-                    Arrays.stream(session.getPeerCertificates())
-                            .filter(c -> c instanceof X509Certificate)
-                            .map(c -> (X509Certificate) c)
-                            .forEach(certificates::add);
-                }
+            if (evt instanceof SslHandshakeCompletionEvent handshake && handshake.isSuccess()) {
+                final SslHandler sslHandler = ctx.pipeline().get(SslHandler.class);
+                final SSLSession session = sslHandler.engine().getSession();
+                Arrays.stream(session.getPeerCertificates())
+                        .filter(X509Certificate.class::isInstance)
+                        .map(X509Certificate.class::cast)
+                        .forEach(certificates::add);
             }
         }
     }

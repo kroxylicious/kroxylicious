@@ -156,52 +156,68 @@ public class FileWatcher implements AutoCloseable {
             return this; // watcher is already running, so no-op additional start invocations
         }
 
-        executor.execute(() -> {
-            try {
-                while (running.get()) {
-                    try {
-                        final var key = service.get().take(); // blocks if there are no notifications to process
-                        final var watchedDirectory = (Path) key.watchable();
-                        final var partitioned = key.pollEvents().stream()
-                                .flatMap(event -> event.context() instanceof Path p ? Stream.of(p) : Stream.empty()) // check the context is not null and refers to a path
-                                .map(watchedDirectory::resolve) // the path is relative, so need to resolve it against the directory for these watch events
-                                .map(Path::toAbsolutePath)
-                                .collect(Collectors.partitioningBy(Files::isSymbolicLink, Collectors.toCollection(ArrayList::new)));
-
-                        final var paths = partitioned.get(false);
-                        paths.addAll(resolveSymlinks(watchedDirectory, partitioned.get(true)));
-
-                        final var handlers = paths.stream().filter(watchList::containsKey) // see if we are watching the path
-                                .flatMap(absPath -> watchList.get(absPath).stream()) // extract all the listeners that need to be notified
-                                .toList();
-
-                        handlers.forEach(handler -> {
-                            try {
-                                handler.onChange();
-                            }
-                            catch (final Exception e) { // multiple handlers can be registered against the same watcher so make sure they all get notified
-                                LOGGER.atWarn().setCause(e).log("Handler threw an exception");
-                            }
-                        });
-                        key.reset(); // all events processed, so reset the key which puts it back in the wait state
-                    }
-                    catch (final InterruptedException | ClosedWatchServiceException ignored) {
-                        // These are expected when either the thread is being terminated and/or the watcher service is being closed
-                        if (ignored instanceof InterruptedException) {
-                            // the thread executor pool owns the thread so need to make sure it sees the interrupt status
-                            Thread.currentThread().interrupt();
-                        }
-                        // break so the loop exits, otherwise take() would keep throwing the same exception and spin the thread.
-                        break;
-                    }
-                }
-            }
-            finally {
-                running.set(false); // indicate that the watcher is no longer running
-            }
-        });
+        executor.execute(this::watchLoop);
 
         return this;
+    }
+
+    /**
+     * Polls the watch service until the watcher is stopped or its service is closed, dispatching
+     * each batch of change events to the registered handlers.
+     */
+    private void watchLoop() {
+        try {
+            while (running.get()) {
+                try {
+                    processNextWatchKey();
+                }
+                catch (final InterruptedException | ClosedWatchServiceException ignored) {
+                    // These are expected when either the thread is being terminated and/or the watcher service is being closed
+                    if (ignored instanceof InterruptedException) {
+                        // the thread executor pool owns the thread so need to make sure it sees the interrupt status
+                        Thread.currentThread().interrupt();
+                    }
+                    // break so the loop exits, otherwise take() would keep throwing the same exception and spin the thread.
+                    break;
+                }
+            }
+        }
+        finally {
+            running.set(false); // indicate that the watcher is no longer running
+        }
+    }
+
+    /**
+     * Blocks for the next watch key, resolves its events to absolute paths and notifies the handlers
+     * registered against those paths.
+     *
+     * @throws InterruptedException if the waiting thread is interrupted
+     */
+    private void processNextWatchKey() throws InterruptedException {
+        final var key = service.get().take(); // blocks if there are no notifications to process
+        final var watchedDirectory = (Path) key.watchable();
+        final var partitioned = key.pollEvents().stream()
+                .flatMap(event -> event.context() instanceof Path p ? Stream.of(p) : Stream.empty()) // check the context is not null and refers to a path
+                .map(watchedDirectory::resolve) // the path is relative, so need to resolve it against the directory for these watch events
+                .map(Path::toAbsolutePath)
+                .collect(Collectors.partitioningBy(Files::isSymbolicLink, Collectors.toCollection(ArrayList::new)));
+
+        final var paths = partitioned.get(false);
+        paths.addAll(resolveSymlinks(watchedDirectory, partitioned.get(true)));
+
+        final var handlers = paths.stream().filter(watchList::containsKey) // see if we are watching the path
+                .flatMap(absPath -> watchList.get(absPath).stream()) // extract all the listeners that need to be notified
+                .toList();
+
+        handlers.forEach(handler -> {
+            try {
+                handler.onChange();
+            }
+            catch (final Exception e) { // multiple handlers can be registered against the same watcher so make sure they all get notified
+                LOGGER.atWarn().setCause(e).log("Handler threw an exception");
+            }
+        });
+        key.reset(); // all events processed, so reset the key which puts it back in the wait state
     }
 
     /**
@@ -238,7 +254,12 @@ public class FileWatcher implements AutoCloseable {
                     }
                 }
                 else {
-                    resolvedPaths.add(watchedDirectory.resolve(resolvedPath.getFileName()).toAbsolutePath()); // symlink resolved to a file, so add the resolved file to the list to process
+                    // the changed symlink is itself a watched file, so notify against its own path; its target
+                    // filename may differ from the symlink name, so mapping by the target filename alone would miss it
+                    resolvedPaths.add(symlink.toAbsolutePath());
+                    // also surface the target mapped into the watched directory, for the case where the resolved
+                    // filename matches a watched file in this directory
+                    resolvedPaths.add(watchedDirectory.resolve(resolvedPath.getFileName()).toAbsolutePath());
                 }
             }
             catch (final IOException e) {

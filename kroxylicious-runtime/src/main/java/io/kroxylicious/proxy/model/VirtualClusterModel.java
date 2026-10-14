@@ -129,7 +129,10 @@ public class VirtualClusterModel implements AutoCloseable {
     private TopicNameCacheFilter topicNameCacheFilter = null;
 
     // volatile: written under the getCertWatcher lock but read without it in close(), so the
-    // close() thread needs a happens-before edge to the lazy write to avoid observing a stale null
+    // close() thread needs a happens-before edge to the lazy write to avoid observing a stale null.
+    // S3077: only the reference is published and read, never a compound operation on the watcher's
+    // state through this field, so volatile is sufficient and a thread-safe container adds nothing.
+    @SuppressWarnings("java:S3077")
     @Nullable
     private volatile FileWatcher certWatcher = null;
 
@@ -368,6 +371,9 @@ public class VirtualClusterModel implements AutoCloseable {
      *
      * @return the started FileWatcher instance.
      */
+    // S2095: the watcher is not closed here on purpose; its lifecycle is tied to this model, and it is
+    // closed in close(). It is held in the certWatcher field, not leaked.
+    @SuppressWarnings("java:S2095")
     private synchronized FileWatcher getCertWatcher() {
         if (Objects.isNull(certWatcher)) {
             certWatcher = new FileWatcher().start();
@@ -861,7 +867,8 @@ public class VirtualClusterModel implements AutoCloseable {
                 try {
                     // Validate cert/key match BEFORE building the SslContext
                     final Optional<Boolean> validationResult = TlsUtil.validateCertificateKeyPair(tlsConfiguration.key());
-                    if (validationResult.isEmpty() || !validationResult.get()) {
+                    final boolean validated = validationResult.orElse(false);
+                    if (!validated) {
                         if (currentContext.isPresent()) {
                             LOGGER.atWarn()
                                     .addKeyValue("virtualCluster", virtualCluster.getClusterName())

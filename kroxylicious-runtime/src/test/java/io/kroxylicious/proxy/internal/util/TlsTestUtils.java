@@ -39,7 +39,6 @@ import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openssl.PEMEncryptor;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.PKCS8Generator;
@@ -47,7 +46,6 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.openssl.jcajce.JcaPKCS8Generator;
 import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder;
-import org.bouncycastle.openssl.jcajce.JcePEMEncryptorBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OutputEncryptor;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
@@ -245,27 +243,6 @@ public final class TlsTestUtils {
     }
 
     /**
-     * Encodes a private key as a legacy OpenSSL-encrypted PEM (BEGIN RSA/EC PRIVATE KEY with
-     * 'Proc-Type: 4,ENCRYPTED' and 'DEK-Info' headers), the format produced by {@code openssl rsa}
-     * without {@code -topk8}. Netty decrypts it at build time; it cannot be parsed for validation.
-     *
-     * @param privateKey the key to encrypt
-     * @param password the encryption password
-     * @return the legacy-encrypted PEM
-     * @throws Exception if encryption or PEM writing fails
-     */
-    public static String legacyEncryptedKeyPem(final PrivateKey privateKey, final String password) throws Exception {
-        final PEMEncryptor encryptor = new JcePEMEncryptorBuilder("AES-256-CBC")
-                .setProvider(new BouncyCastleProvider())
-                .build(password.toCharArray());
-        final StringWriter writer = new StringWriter();
-        try (JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
-            pemWriter.writeObject(privateKey, encryptor);
-        }
-        return writer.toString();
-    }
-
-    /**
      * Creates a JKS file containing the given key and certificate.
      *
      * @param jksPath path where the JKS file should be created
@@ -357,7 +334,6 @@ public final class TlsTestUtils {
      * @return SHA-256 fingerprint of the certificate
      * @throws Exception if extraction fails
      */
-    // extractCertFingerprint : AIA Entirely AI, Human-initiated, No human review, Claude Opus 4.8, Claude Sonnet 4.5 v1.0
     private static String extractCertFingerprint(final SslContext serverSslContext) throws Exception {
         // For Netty SslContext, we need to perform a handshake to get the certificate.
         // Create a test client that will connect and extract the server's certificate.
@@ -401,6 +377,9 @@ public final class TlsTestUtils {
                     case NOT_HANDSHAKING, FINISHED -> {
                         // Client handshake complete
                     }
+                    default -> {
+                        // NEED_UNWRAP_AGAIN only arises for DTLS, which this buffer-based TLS handshake never uses
+                    }
                 }
 
                 // Try to extract certificate after processing client
@@ -435,6 +414,9 @@ public final class TlsTestUtils {
                     case NEED_TASK -> runDelegatedTasks(server);
                     case NOT_HANDSHAKING, FINISHED -> {
                         // Server handshake complete
+                    }
+                    default -> {
+                        // NEED_UNWRAP_AGAIN only arises for DTLS, which this buffer-based TLS handshake never uses
                     }
                 }
 
