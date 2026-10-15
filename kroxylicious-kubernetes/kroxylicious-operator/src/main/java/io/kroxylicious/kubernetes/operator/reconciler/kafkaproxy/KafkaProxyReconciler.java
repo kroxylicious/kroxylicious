@@ -689,7 +689,7 @@ public class KafkaProxyReconciler implements
                 .withSecondaryToPrimaryMapper(new VirtualKafkaClusterSecondaryToKafkaProxyPrimaryMapper(context))
                 .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToVirtualKafkaClusterSecondaryMapper(context))
                 .build();
-        return new InformerEventSource<>(configuration, context);
+        return new InformerEventSource<>(configuration);
     }
 
     private static InformerEventSource<KafkaProxyIngress, KafkaProxy> buildKafkaProxyIngressEventSource(EventSourceContext<KafkaProxy> context) {
@@ -697,7 +697,7 @@ public class KafkaProxyReconciler implements
                 .withSecondaryToPrimaryMapper(new KafkaProxyIngressSecondaryToKafkaProxyPrimaryMapper(context))
                 .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToKafkaProxyIngressSecondaryMapper(context))
                 .build();
-        return new InformerEventSource<>(configuration, context);
+        return new InformerEventSource<>(configuration);
     }
 
     private static InformerEventSource<KafkaService, KafkaProxy> buildKafkaServiceEventSource(EventSourceContext<KafkaProxy> context) {
@@ -705,7 +705,7 @@ public class KafkaProxyReconciler implements
                 .withSecondaryToPrimaryMapper(new KafkaServiceSecondaryToKafkaProxyPrimaryMapper(context))
                 .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToKafkaServiceSecondaryMapper(context))
                 .build();
-        return new InformerEventSource<>(configuration, context);
+        return new InformerEventSource<>(configuration);
     }
 
     private static InformerEventSource<KafkaProtocolFilter, KafkaProxy> buildFilterEventSource(EventSourceContext<KafkaProxy> context) {
@@ -715,6 +715,6 @@ public class KafkaProxyReconciler implements
                 .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToKafkaProtocolFilterSecondaryMapper(context))
                 .build();
 
-        return new InformerEventSource<>(configuration, context);
+        return new InformerEventSource<>(configuration);
     }
 }
