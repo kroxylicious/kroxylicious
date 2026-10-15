@@ -18,6 +18,8 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultEdek;
+import io.kroxylicious.kms.provider.hashicorp.vault.WrappingKey;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.KubernetesCredentialsConfig;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.VaultCredentialsConfig;
@@ -32,7 +34,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * static Vault token. The ServiceAccount the proxy runs as must be granted access via
  * {@link #bindToServiceAccount(String, String)} before the proxy is deployed.
  */
-public class KubeVaultKubernetesAuthTestKmsFacade extends KubeVaultTestKmsFacade implements ServiceAccountAuthTestKmsFacade {
+public class KubeVaultKubernetesAuthTestKmsFacade extends KubeVaultTestKmsFacade implements ServiceAccountAuthTestKmsFacade<Config, WrappingKey, VaultEdek> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final HttpClient VAULT_CLIENT = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
