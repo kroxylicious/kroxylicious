@@ -641,6 +641,31 @@ public abstract class AbstractTracingIT extends AuthzIT {
             return outcome;
         }
 
+        /**
+         * Polls until records are available or the timeout expires. Retries are kept within one traced operation so
+         * timing-dependent consumer-group assignment does not make otherwise equivalent cluster traces differ.
+         *
+         * @return the records from the first non-empty poll, or the final empty poll after the timeout
+         */
+        public Outcome<ConsumerRecords<K, V>> pollUntilRecords() {
+            Outcome<ConsumerRecords<K, V>> outcome;
+            try {
+                long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+                ConsumerRecords<K, V> records;
+                do {
+                    records = consumer.poll(Duration.ofMillis(100));
+                }
+                while (records.isEmpty() && System.nanoTime() < deadline);
+
+                outcome = new Success<>(records);
+            }
+            catch (KafkaException e) {
+                outcome = Fail.of(e);
+            }
+            trace("poll", outcome.map(PrettyRecords::new));
+            return outcome;
+        }
+
         public Outcome<Void> commitSync() {
             Outcome<Void> outcome;
             try {

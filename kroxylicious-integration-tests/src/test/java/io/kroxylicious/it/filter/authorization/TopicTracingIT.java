@@ -247,7 +247,7 @@ class TopicTracingIT extends AbstractTracingIT {
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
                         ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1))) {
                     groupedConsumer.subscribe(Pattern.compile(".*"));
-                    Outcome<ConsumerRecords<String, Integer>> poll = groupedConsumer.poll();
+                    Outcome<ConsumerRecords<String, Integer>> poll = groupedConsumer.pollUntilRecords();
                     Set<TopicPartition> partitions = poll.value().partitions();
                     assertThat(partitions).containsExactly(topicAPartition0);
                     assertThat(poll.value()).singleElement().satisfies(record -> {
