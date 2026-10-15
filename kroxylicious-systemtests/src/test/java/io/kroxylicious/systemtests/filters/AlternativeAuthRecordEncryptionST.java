@@ -75,17 +75,18 @@ class AlternativeAuthRecordEncryptionST extends AbstractSystemTests {
     private KroxyliciousOperator kroxyliciousOperator;
     private Kroxylicious kroxylicious;
 
-    static Stream<? extends TestKmsFacade<?, ?, ?>> facadesSource() {
+    static Stream<ServiceAccountAuthTestKmsFacade<?, ?, ?>> facadesSource() {
         // We rely on the fact that streams are lazy so the facade isn't built
         // or started until the first test needs it.
         // ServiceAccount-auth facades only. Static-credential facades are covered by RecordEncryptionST.
         return KmsFacades.inCluster(ServiceAccountAuthTestKmsFacade.class::isInstance)
+                .<ServiceAccountAuthTestKmsFacade<?, ?, ?>> map(ServiceAccountAuthTestKmsFacade.class::cast)
                 .filter(TestKmsFacade::isAvailable)
                 .peek(TestKmsFacade::start);
     }
 
     @Parameter
-    TestKmsFacade<?, ?, ?> testKmsFacade;
+    ServiceAccountAuthTestKmsFacade<?, ?, ?> testKmsFacade;
 
     @BeforeAll
     void setUp() {
@@ -143,8 +144,7 @@ class AlternativeAuthRecordEncryptionST extends AbstractSystemTests {
         createServiceAccount(namespace, SERVICE_ACCOUNT_NAME);
 
         // Grant the KMS role to this ServiceAccount, so a proxy pod running as it can authenticate.
-        var serviceAccountAuthFacade = (ServiceAccountAuthTestKmsFacade) testKmsFacade;
-        serviceAccountAuthFacade.bindToServiceAccount(namespace, SERVICE_ACCOUNT_NAME);
+        testKmsFacade.bindToServiceAccount(namespace, SERVICE_ACCOUNT_NAME);
 
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(KEK_PREFIX + topicName);
