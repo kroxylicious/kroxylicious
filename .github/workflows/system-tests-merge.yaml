@@ -17,35 +17,17 @@
 name: System Tests for Main branch
 
 on:
-  push:
-    paths-ignore:
-      - '**/**.md'
-      - '**/**.txt'
-      - '.github/**'
-      - '!.github/workflows/system-tests-merge.yaml'
-      - '!.github/workflows/run-system-tests.yaml'
-      - '!.github/workflows/build-kroxylicious-container-images.yaml'
-      - '!.github/actions/**'
-      - 'kroxylicious-docs**/**'
-      - 'kroxylicious-integration-test**/**'
-      - 'kroxylicious-*benchmarks/**'
-    branches:
-      - "main"
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
-  build_artifacts:
-    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
-
   # First we run the tests that are independent of the KAFKA_CLIENT selected
   run_external_kafka_client_and_operator_system_tests:
-    needs: build_artifacts
     uses: $/.github/workflows/run-system-tests.yaml
     with:
       groups: 'externalKafkaClients,operator'
+      skipSystemTestRun: ${{ needs.changes.outputs.systemtest == 'false' }}
 
   discover_system_test_clients:
-    needs: build_artifacts
     runs-on: ubuntu-latest
     outputs:
       test_clients: ${{ steps.discover.outputs.test_clients }}
@@ -69,7 +51,7 @@ jobs:
 
   # Then we run the tests that with the KAFKA_CLIENT selected
   run_system_tests:
-    needs: discover_system_test_clients
+    needs: [discover_system_test_clients]
     uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
