@@ -17,14 +17,20 @@
 # build-kroxylicious-container-images.yaml — the single canonical place for building
 # Kroxylicious container images.
 #
-# Multi-arch proxy images are built as a 4-phase process:
+# Multi-arch proxy images are built as a 5-phase process:
 #   1. mvn install  — compile and install all module JARs into ~/.m2 once
 #   2. mvn + docker — dist packaging and image build for linux/amd64
 #   3. mvn + docker — dist packaging (with -Paarch64) and image build for linux/arm64
-#   4. manifest     — merge per-arch images into a multi-arch manifest list
+#   4. mvn + docker — dist packaging (with -Pppc64le / -Ps390x) on the x86 runner, then
+#                     image build on native IBM Power (ppc64le) and Z (s390x) runners
+#   5. manifest     — merge per-arch images into a multi-arch manifest list
+#
+# The IBM Power and Z runners (https://github.com/IBM/actionspz) are only available to
+# the kroxylicious/kroxylicious repository, not to forks, so phase 4 is skipped elsewhere.
+# Netty publishes no native transports for ppc64le or s390x, so those images use NIO.
 #
 # The operator and admission webhook have no architecture-specific native JARs,
-# so a single multi-arch Docker Buildx build covers both platforms.
+# so a single multi-arch Docker Buildx build (using QEMU) covers all platforms.
 #
 # Callers:
 #   - maven.yaml          — CI validation (PR) and snapshot image pushes (main/release branches)
@@ -51,7 +57,7 @@ on:
         type: boolean
         default: false
       multi-arch:
-        description: 'Build linux/amd64 and linux/arm64 images (proxy only; operator and admission are always multi-arch)'
+        description: 'Build linux/amd64, linux/arm64, linux/ppc64le and linux/s390x proxy images (ppc64le and s390x only within kroxylicious/kroxylicious). Operator and admission are always multi-arch when pushed.'
         type: boolean
         default: false
       additional-tags:
@@ -72,7 +78,7 @@ on:
         type: boolean
         default: false
       multi-arch:
-        description: 'Build linux/amd64 and linux/arm64 images'
+        description: 'Build linux/amd64, linux/arm64, linux/ppc64le and linux/s390x images'
         type: boolean
         default: false
       additional-tags:
@@ -87,6 +93,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      release_version: ${{ steps.build_configuration.outputs.release_version }}
+      image_created: ${{ steps.build_configuration.outputs.image_created }}
+      multi_arch: ${{ steps.build_configuration.outputs.multi_arch }}
+      power_z: ${{ steps.build_configuration.outputs.power_z }}
+      proxy_amd64_tag: ${{ steps.build_configuration.outputs.proxy_amd64_tag }}
+      proxy_arm64_tag: ${{ steps.build_configuration.outputs.proxy_arm64_tag }}
+      proxy_arch_tag_prefix: ${{ steps.build_configuration.outputs.proxy_arch_tag_prefix }}
+      proxy_final_tags: ${{ steps.build_configuration.outputs.proxy_final_tags }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
@@ -132,6 +147,8 @@ jobs:
             echo "multi_arch=false" >> $GITHUB_OUTPUT
             echo "proxy_amd64_tag=quay.io/kroxylicious/proxy:${POMS_VERSION}" >> $GITHUB_OUTPUT
             echo "proxy_arm64_tag=" >> $GITHUB_OUTPUT
+            echo "proxy_arch_tag_prefix=" >> $GITHUB_OUTPUT
+            echo "power_z=false" >> $GITHUB_OUTPUT
             echo "proxy_final_tags=" >> $GITHUB_OUTPUT
             echo "operator_platforms=linux/amd64" >> $GITHUB_OUTPUT
             echo "operator_tags=quay.io/kroxylicious/operator:${POMS_VERSION}" >> $GITHUB_OUTPUT
@@ -143,6 +160,8 @@ jobs:
             echo "multi_arch=false" >> $GITHUB_OUTPUT
             echo "proxy_amd64_tag=kroxylicious-proxy:${SHA_TAG}" >> $GITHUB_OUTPUT
             echo "proxy_arm64_tag=" >> $GITHUB_OUTPUT
+            echo "proxy_arch_tag_prefix=" >> $GITHUB_OUTPUT
+            echo "power_z=false" >> $GITHUB_OUTPUT
             echo "proxy_final_tags=" >> $GITHUB_OUTPUT
             echo "operator_platforms=linux/amd64" >> $GITHUB_OUTPUT
             echo "operator_tags=kroxylicious-operator:${SHA_TAG}" >> $GITHUB_OUTPUT
@@ -159,6 +178,15 @@ jobs:
             echo "multi_arch=${{ inputs.multi-arch }}" >> $GITHUB_OUTPUT
             echo "proxy_amd64_tag=${PROXY_IMAGE}:${SHA_TAG}-amd64" >> $GITHUB_OUTPUT
             echo "proxy_arm64_tag=${PROXY_IMAGE}:${SHA_TAG}-arm64" >> $GITHUB_OUTPUT
+            # ppc64le and s390x tags are derived from this prefix by the build-proxy-power-z job.
+            echo "proxy_arch_tag_prefix=${PROXY_IMAGE}:${SHA_TAG}" >> $GITHUB_OUTPUT
+
+            # The IBM Power and Z runners are only granted to the upstream repository.
+            if [[ "${{ inputs.multi-arch }}" == "true" && "${{ github.repository }}" == "kroxylicious/kroxylicious" ]]; then
+              echo "power_z=true" >> $GITHUB_OUTPUT
+            else
+              echo "power_z=false" >> $GITHUB_OUTPUT
+            fi
 
             # All builds get a commit SHA tag. Callers may also pass arbitrary
             # additional-tags (e.g. maven.yaml adds the POM version on pushes
@@ -181,9 +209,9 @@ jobs:
             done
 
             echo "proxy_final_tags=${PROXY_FINAL_TAGS}" >> $GITHUB_OUTPUT
-            echo "operator_platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+            echo "operator_platforms=linux/amd64,linux/arm64,linux/ppc64le,linux/s390x" >> $GITHUB_OUTPUT
             echo "operator_tags=${OPERATOR_TAGS}" >> $GITHUB_OUTPUT
-            echo "admission_platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+            echo "admission_platforms=linux/amd64,linux/arm64,linux/ppc64le,linux/s390x" >> $GITHUB_OUTPUT
             echo "admission_tags=${ADMISSION_TAGS}" >> $GITHUB_OUTPUT
           fi
 
@@ -406,19 +434,49 @@ jobs:
             exit 1
           fi
 
-      - name: Create and push proxy multi-arch manifest
-        if: steps.build_configuration.outputs.multi_arch == 'true'
+      # Netty has no ppc64le/s390x native transports; the ppc64le and s390x profiles
+      # drop the native transport JARs so the distribution ships no foreign binaries.
+      # The distribution tarballs are handed to the native runners, which only build
+      # the image (see build-proxy-power-z).
+
+      - name: Build ppc64le and s390x distribution artifacts
+        if: steps.build_configuration.outputs.power_z == 'true'
+        env:
+          RELEASE_VERSION: ${{ steps.build_configuration.outputs.release_version }}
         run: |
-          for TAG in $(echo "${{ steps.build_configuration.outputs.proxy_final_tags }}" | tr ',' ' '); do
-            docker buildx imagetools create \
-              --annotation "index:org.opencontainers.image.created=${{ steps.build_configuration.outputs.image_created }}" \
-              --annotation "index:org.opencontainers.image.revision=${{ github.sha }}" \
-              --annotation "index:org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious" \
-              --annotation "index:org.opencontainers.image.version=${{ steps.build_configuration.outputs.release_version }}" \
-              -t "${TAG}" \
-              "${{ steps.build_configuration.outputs.proxy_amd64_tag }}" \
-              "${{ steps.build_configuration.outputs.proxy_arm64_tag }}"
+          mkdir -p /tmp/proxy-dist
+          for ARCH in ppc64le s390x; do
+            mvn --quiet \
+              --batch-mode \
+              --activate-profiles "dist,${ARCH},!qa" \
+              --projects :kroxylicious-runtime,:kroxylicious-app \
+              -Derrorprone.skip=true \
+              -DskipTests \
+              -Dmaven.javadoc.skip=true \
+              -DskipDocs=true \
+              -DskipContainerImageBuild=true \
+              clean package
+            mkdir -p "/tmp/proxy-dist/${ARCH}"
+            cp "kroxylicious-app/target/kroxylicious-app-${RELEASE_VERSION}-bin.tar.gz" "/tmp/proxy-dist/${ARCH}/"
           done
+
+      - name: Archive ppc64le proxy distribution
+        if: steps.build_configuration.outputs.power_z == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: kroxylicious-proxy-dist-ppc64le
+          path: /tmp/proxy-dist/ppc64le/
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Archive s390x proxy distribution
+        if: steps.build_configuration.outputs.power_z == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: kroxylicious-proxy-dist-s390x
+          path: /tmp/proxy-dist/s390x/
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
@@ -454,3 +512,129 @@ jobs:
           path: /tmp/kroxylicious-webhook.img.tar.gz
           retention-days: 1
           if-no-files-found: error
+
+  build-proxy-power-z:
+    needs: build
+    if: needs.build.outputs.power_z == 'true'
+    strategy:
+      matrix:
+        arch: [ ppc64le, s390x ]
+    # IBM-provided self-hosted runners, see https://github.com/IBM/actionspz
+    runs-on: ubuntu-24.04-${{ matrix.arch }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Download proxy distribution
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: kroxylicious-proxy-dist-${{ matrix.arch }}
+          path: /tmp/proxy-dist
+
+      - name: Unpack proxy distribution
+        env:
+          RELEASE_VERSION: ${{ needs.build.outputs.release_version }}
+        run: |
+          # Recreate the layout the proxy Dockerfile copies from.
+          DIST_DIR="kroxylicious-app/target/kroxylicious-app-${RELEASE_VERSION}-bin"
+          mkdir -p "${DIST_DIR}"
+          tar -xzf "/tmp/proxy-dist/kroxylicious-app-${RELEASE_VERSION}-bin.tar.gz" -C "${DIST_DIR}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+
+      - name: Login to container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Build and push ${{ matrix.arch }} proxy image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
+        with:
+          context: ./kroxylicious-app
+          file: ./kroxylicious-app/src/main/docker/proxy.dockerfile
+          platforms: linux/${{ matrix.arch }}
+          push: true
+          build-args: |
+            KROXYLICIOUS_VERSION=${{ needs.build.outputs.release_version }}
+          labels: |
+            org.opencontainers.image.created=${{ needs.build.outputs.image_created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious
+            org.opencontainers.image.version=${{ needs.build.outputs.release_version }}
+          tags: ${{ needs.build.outputs.proxy_arch_tag_prefix }}-${{ matrix.arch }}
+          cache-from: type=gha,scope=proxy-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,compression=zstd,scope=proxy-${{ matrix.arch }}
+
+      - name: Verify ${{ matrix.arch }} proxy image
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.proxy_arch_tag_prefix }}-${{ matrix.arch }}
+        run: |
+          echo "Verifying ${IMAGE_TAG}..."
+          # The image runs natively on this runner, so check the JVM actually starts.
+          docker run --rm --entrypoint java "${IMAGE_TAG}" -version
+          _CONTAINER_ID=$(docker create "${IMAGE_TAG}")
+          _NATIVE_DIR=$(mktemp -d)
+          docker cp "${_CONTAINER_ID}:/opt/kroxylicious/libs/native/." "${_NATIVE_DIR}/"
+          docker rm "${_CONTAINER_ID}" > /dev/null
+          # Netty publishes no native transports for this arch, so none must be present.
+          _NETTY_COUNT=$(find "${_NATIVE_DIR}" -path '*netty*' -type f | wc -l | tr -d ' ')
+          _ZSTD_COUNT=$(find "${_NATIVE_DIR}/zstd-jni/linux/${{ matrix.arch }}" -name '*.so' 2>/dev/null | wc -l | tr -d ' ')
+          rm -rf "${_NATIVE_DIR}"
+          if [[ "${_NETTY_COUNT}" -eq 0 && "${_ZSTD_COUNT}" -gt 0 ]]; then
+            echo "${{ matrix.arch }} proxy image OK: no Netty native libs, ${_ZSTD_COUNT} zstd native lib(s)."
+          else
+            echo "ERROR: ${{ matrix.arch }} native lib check failed (netty=${_NETTY_COUNT}, zstd=${_ZSTD_COUNT})." >&2
+            exit 1
+          fi
+
+  proxy-manifest:
+    needs: [ build, build-proxy-power-z ]
+    # build-proxy-power-z is skipped outside kroxylicious/kroxylicious; in that case the
+    # manifest covers amd64 and arm64 only. A failed ppc64le/s390x build fails the manifest.
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build.outputs.multi_arch == 'true' && needs.build-proxy-power-z.result != 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+
+      - name: Login to container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Create and push proxy multi-arch manifest
+        env:
+          PROXY_FINAL_TAGS: ${{ needs.build.outputs.proxy_final_tags }}
+          PROXY_AMD64_TAG: ${{ needs.build.outputs.proxy_amd64_tag }}
+          PROXY_ARM64_TAG: ${{ needs.build.outputs.proxy_arm64_tag }}
+          PROXY_ARCH_TAG_PREFIX: ${{ needs.build.outputs.proxy_arch_tag_prefix }}
+          POWER_Z_RESULT: ${{ needs.build-proxy-power-z.result }}
+        run: |
+          SOURCES=("${PROXY_AMD64_TAG}" "${PROXY_ARM64_TAG}")
+          if [[ "${POWER_Z_RESULT}" == "success" ]]; then
+            SOURCES+=("${PROXY_ARCH_TAG_PREFIX}-ppc64le" "${PROXY_ARCH_TAG_PREFIX}-s390x")
+          fi
+          for TAG in $(echo "${PROXY_FINAL_TAGS}" | tr ',' ' '); do
+            docker buildx imagetools create \
+              --annotation "index:org.opencontainers.image.created=${{ needs.build.outputs.image_created }}" \
+              --annotation "index:org.opencontainers.image.revision=${{ github.sha }}" \
+              --annotation "index:org.opencontainers.image.source=https://github.com/kroxylicious/kroxylicious" \
+              --annotation "index:org.opencontainers.image.version=${{ needs.build.outputs.release_version }}" \
+              -t "${TAG}" \
+              "${SOURCES[@]}"
+          done
