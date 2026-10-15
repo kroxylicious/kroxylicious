@@ -390,7 +390,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
     // UTILS
     // ========================================================
 
-    private enum ConsumerStyle {
+    enum ConsumerStyle {
         ASSIGN
     }
 

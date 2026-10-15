@@ -1,0 +1,4 @@
+title: "build(deps): bump io.sundr:builder-annotations from 0.300.0 to 0.400.1"
+type: build
+merge_requests:
+  - 5069

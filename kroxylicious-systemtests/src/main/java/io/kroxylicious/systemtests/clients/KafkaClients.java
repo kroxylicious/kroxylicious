@@ -6,6 +6,8 @@
 
 package io.kroxylicious.systemtests.clients;
 
+import java.util.Locale;
+
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 
@@ -23,7 +25,7 @@ public class KafkaClients {
      * @return the kafka client
      */
     public static KafkaClient getKafkaClient() {
-        return switch (Enum.valueOf(KafkaClientType.class, Environment.KAFKA_CLIENT.toUpperCase())) {
+        return switch (Enum.valueOf(KafkaClientType.class, Environment.KAFKA_CLIENT.toUpperCase(Locale.ROOT))) {
             case KAF -> kaf();
             case KCAT -> kcat();
             case PYTHON_TEST_CLIENT -> pythonTestClient();

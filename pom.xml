@@ -63,7 +63,7 @@
         <caffeine.version>3.3.0</caffeine.version>
         <argparse4j.version>0.7.0</argparse4j.version>
         <picocli.version>4.7.7</picocli.version>
-        <netty.version>4.2.18.Final</netty.version>
+        <netty.version>4.2.19.Final</netty.version>
         <netty.epoll.architecture>linux-x86_64</netty.epoll.architecture>
         <netty.io_uring.architecture>linux-x86_64</netty.io_uring.architecture>
         <netty.kqueue.architecture>osx-x86_64</netty.kqueue.architecture>
@@ -71,7 +71,7 @@
         <mockito.version>5.24.0</mockito.version>
         <micrometer.version>1.17.1</micrometer.version>
         <slf4j.version>2.0.20</slf4j.version>
-        <sundr-builder-annotations.version>0.300.0</sundr-builder-annotations.version>
+        <sundr-builder-annotations.version>0.400.1</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.10.4</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
@@ -1578,7 +1578,7 @@
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
                                 <!-- The following <arg> cannot be split over multiple lines :-( -->
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka)/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR -Xep:FutureReturnValueIgnored:ERROR -Xep:JdkObsolete:ERROR -Xep:CanonicalDuration:ERROR -Xep:BooleanLiteral:ERROR</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka)/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR -Xep:FutureReturnValueIgnored:ERROR -Xep:JdkObsolete:ERROR -Xep:CanonicalDuration:ERROR -Xep:BooleanLiteral:ERROR -Xep:StringCaseLocaleUsage:ERROR -Xep:StringSplitter:ERROR -Xep:UnnecessaryLambda:ERROR -Xep:ExposedPrivateType:ERROR</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

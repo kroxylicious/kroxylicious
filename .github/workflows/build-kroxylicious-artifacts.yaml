@@ -45,12 +45,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # The 'dist' profile builds the kroxylicious-operator artifact. This is needed by the systemtests.
+          # The 'dist' profile builds the kroxylicious-operator artifact. This is needed by the integration and system tests.
           mvn --batch-mode \
             --activate-profiles 'dist,!qa' \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
-            -DskipDocs=true \
             -DskipContainerImageBuild \
             -Derrorprone.skip=true \
             install
@@ -60,7 +59,7 @@ jobs:
           cd "$HOME/.m2/repository"
           tar czf /tmp/kroxylicious-artifacts/maven-repo.tar.gz io/kroxylicious
       - name: 'Upload Kroxylicious Maven artifacts'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts/maven-repo.tar.gz
