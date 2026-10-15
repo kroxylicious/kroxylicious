@@ -17,17 +17,7 @@
 name: System Tests for Pull-Requests
 
 on:
-  pull_request:
-    types: [ opened, synchronize, reopened, labeled ]
-    branches:
-      - "main"
-      - 'release/**'
-  merge_group:
-  workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  workflow_call:
 
 jobs:
   # JOB to run change detection
@@ -48,6 +38,7 @@ jobs:
             systemtest:
               - '.github/workflows/system-tests-pr.yaml'
               - '.github/workflows/run-system-tests.yaml'
+              - '.github/workflows/pr-tests.yaml'
               - '.github/workflows/build-kroxylicious-container-images.yaml'
               - '.github/workflows/build-kroxylicious-artifacts.yaml'
               - 'pom.xml'
@@ -60,13 +51,7 @@ jobs:
               - '!kroxylicious-test-images/**'
               - '!kroxylicious-wire-fidelity-tests/**'
 
-  build_artifacts:
-    needs: changes
-    if: github.event_name != 'merge_group'
-    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
-
   set_variables:
-    needs: changes
     if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     outputs:
@@ -104,7 +89,7 @@ jobs:
           echo "$KAFKA_CLIENT"
 
   run_system_tests:
-    needs: [changes,build_artifacts,set_variables]
+    needs: [changes,set_variables]
     if: always()
     uses: $/.github/workflows/run-system-tests.yaml
     secrets:
