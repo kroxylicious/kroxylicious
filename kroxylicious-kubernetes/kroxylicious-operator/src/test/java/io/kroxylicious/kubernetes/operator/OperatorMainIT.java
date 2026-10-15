@@ -130,7 +130,10 @@ class OperatorMainIT {
         Awaitility.await()
                 .atMost(10, TimeUnit.SECONDS)
                 .ignoreException(MeterNotFoundException.class)
-                .untilAsserted(() -> assertThat(Metrics.globalRegistry.get("operator.sdk.events.received").meter().getId()).isNotNull());
+                .untilAsserted(() -> assertThat(Metrics.globalRegistry.get("events.received")
+                        .tags("controller.name", "kafkaproxyreconciler", "namespace", kafkaProxy.getMetadata().getNamespace(),
+                                "event", "ResourceEvent", "action", "ADDED")
+                        .counter().count()).isPositive());
     }
 
     @Test
@@ -141,7 +144,8 @@ class OperatorMainIT {
         operatorMain.start();
 
         // Then
-        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.kafkaproxyreconciler").meter().getId()).isNotNull();
+        assertThat(Metrics.globalRegistry.get("reconciliations.active")
+                .tag("controller.name", "kafkaproxyreconciler").gauge()).isNotNull();
     }
 
     @SuppressWarnings("resource")
@@ -172,8 +176,10 @@ class OperatorMainIT {
                     assertThat(response.body())
                             .isNotEmpty()
                             .anySatisfy(line -> assertThat(line).contains("kroxylicious_operator_build_info"))
-                            .anySatisfy(line -> assertThat(line).contains("operator_sdk_reconciliations_executions_kafkaproxyreconciler"))
-                            .anySatisfy(line -> assertThat(line).contains("operator_sdk_events_received"));
+                            .anySatisfy(line -> assertThat(line).startsWith("reconciliations_active{")
+                                    .contains("controller_name=\"kafkaproxyreconciler\""))
+                            .anySatisfy(line -> assertThat(line).startsWith("events_received_total{")
+                                    .contains("controller_name=\"kafkaproxyreconciler\""));
                 });
     }
 

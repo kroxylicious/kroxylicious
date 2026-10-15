@@ -109,13 +109,16 @@ class OperatorMainTest {
         operatorMain.start();
 
         // When
-        kubeClient.resource(proxyBuilder.build()).create();
+        var kafkaProxy = kubeClient.resource(proxyBuilder.build()).create();
 
         // Then
         Awaitility.await()
                 .atMost(10, TimeUnit.SECONDS)
                 .ignoreException(MeterNotFoundException.class)
-                .untilAsserted(() -> assertThat(Metrics.globalRegistry.get("operator.sdk.events.received").meter().getId()).isNotNull());
+                .untilAsserted(() -> assertThat(Metrics.globalRegistry.get("events.received")
+                        .tags("controller.name", "kafkaproxyreconciler", "namespace", kafkaProxy.getMetadata().getNamespace(),
+                                "event", "ResourceEvent", "action", "ADDED")
+                        .counter().count()).isPositive());
 
     }
 
@@ -127,7 +130,8 @@ class OperatorMainTest {
         operatorMain.start();
 
         // Then
-        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.kafkaproxyreconciler").meter().getId()).isNotNull();
+        assertThat(Metrics.globalRegistry.get("reconciliations.active")
+                .tag("controller.name", "kafkaproxyreconciler").gauge()).isNotNull();
     }
 
     @Test
