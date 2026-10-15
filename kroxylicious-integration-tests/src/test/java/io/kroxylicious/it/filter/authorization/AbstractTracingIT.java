@@ -8,6 +8,7 @@ package io.kroxylicious.it.filter.authorization;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -19,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -642,28 +644,35 @@ public abstract class AbstractTracingIT extends AuthzIT {
         }
 
         /**
-         * Polls until records are available or the timeout expires. Retries are kept within one traced operation so
-         * timing-dependent consumer-group assignment does not make otherwise equivalent cluster traces differ.
+         * Polls until {@code condition} is satisfied or the 10-second timeout expires. All retries are absorbed
+         * into one traced "poll" operation so timing-dependent variance in poll count does not cause otherwise
+         * equivalent cluster traces to differ.
          *
-         * @return the records from the first non-empty poll, or the final empty poll after the timeout
+         * @param condition predicate evaluated against each poll result
+         * @return Success wrapping the first result satisfying {@code condition}, or Fail on timeout
          */
-        public Outcome<ConsumerRecords<K, V>> pollUntilRecords() {
+        public Outcome<ConsumerRecords<K, V>> pollUntil(Predicate<ConsumerRecords<K, V>> condition) {
             Outcome<ConsumerRecords<K, V>> outcome;
             try {
-                long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+                Instant deadline = Instant.now().plusSeconds(10);
                 ConsumerRecords<K, V> records;
                 do {
                     records = consumer.poll(Duration.ofMillis(100));
-                }
-                while (records.isEmpty() && System.nanoTime() < deadline);
+                } while (!condition.test(records) && Instant.now().isBefore(deadline));
 
-                outcome = new Success<>(records);
+                outcome = condition.test(records)
+                        ? new Success<>(records)
+                        : Fail.of(new RuntimeException("timed out waiting for records matching condition"));
             }
             catch (KafkaException e) {
                 outcome = Fail.of(e);
             }
             trace("poll", outcome.map(PrettyRecords::new));
             return outcome;
+        }
+
+        public Outcome<ConsumerRecords<K, V>> pollUntilRecords() {
+            return pollUntil(records -> !records.isEmpty());
         }
 
         public Outcome<Void> commitSync() {
@@ -715,6 +724,13 @@ public abstract class AbstractTracingIT extends AuthzIT {
             trace("groupMetadata", outcome.map(m -> new ConsumerGroupMetadata(m.groupId(), m.generationId(), "CLOBBERED", m.groupInstanceId())));
             return outcome;
         }
+    }
+
+    protected static <K, V> Predicate<ConsumerRecords<K, V>> receivedAtLeastUpTo(TopicPartition partition, long minOffset) {
+        return records -> {
+            var recs = records.records(partition);
+            return !recs.isEmpty() && recs.get(recs.size() - 1).offset() >= minOffset;
+        };
     }
 
     public record PrettyRecords<K, V>(ConsumerRecords<K, V> records) {
