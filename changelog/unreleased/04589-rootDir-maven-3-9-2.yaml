@@ -1,0 +1,6 @@
+title: "build(chore): replace home-grown maven property `rootDir` with new maven standard `session.rootDirectory`. Needs maven 3.9.2+"
+type: fixed
+issues:
+  - 4589
+important_notes:
+  - Maven 3.9.2+ required from now on. Please update your tool chain in line with the change
