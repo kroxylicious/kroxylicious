@@ -24,7 +24,7 @@ They allow users to assess the impact of the proxy and its filters on their Kafk
 
 == Connection metrics
 
-Connection metrics count the TCP connections made from the client to the proxy (`kroxylicious_client_to_proxy_request_total`) and from the proxy to the broker (`kroxylicious_proxy_to_server_connections_total`).
+Connection metrics count the TCP connections made from the client to the proxy (`kroxylicious_client_to_proxy_connections_total`) and from the proxy to the broker (`kroxylicious_proxy_to_server_connections_total`).
 These metrics count connection _attempts_, so the connection count is incremented even if the connection attempt ultimately fails.
 
 In addition to the count metrics, there are active connection gauge metrics that track the current number of open connections, and error metrics.
@@ -165,27 +165,38 @@ When the client connects to the bootstrap endpoint of the virtual cluster, metri
 |`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
 |Incremented by one every time a response goes from the proxy to a client.
 
-|`kroxylicious_client_to_proxy_request_total`
+|`kroxylicious_client_to_proxy_request_size_bytes`
 |Distribution
 |`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
 |Incremented by the size of the message each time a request arrives at the proxy from a client.
 
-|`kroxylicious_proxy_to_server_request_total`
+|`kroxylicious_proxy_to_server_request_size_bytes`
 |Distribution
 |`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
 |Incremented by the size of the message each time a request goes from the proxy to a server.
 
-|`kroxylicious_server_to_proxy_response_total`
+|`kroxylicious_server_to_proxy_response_size_bytes`
 |Distribution
 |`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
 |Incremented by the size of the message each time a response arrives at the proxy from a server.
 
-|`kroxylicious_proxy_to_client_response_total`
+|`kroxylicious_proxy_to_client_response_size_bytes`
 |Distribution
 |`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
 |Incremented by the size of the message each time a response goes from the proxy to a client.
 
 |===
+
+[NOTE]
+====
+Metrics with a type of `Distribution` are recorded as distribution summaries.
+When scraped, Prometheus exposes each distribution summary as three separate time series, suffixed `_count`, `_sum`, and `_max`.
+For example, `kroxylicious_client_to_proxy_request_size_bytes` is exposed as the following series:
+
+* `kroxylicious_client_to_proxy_request_size_bytes_count`: the number of messages recorded. This value matches the corresponding `_total` counter, because both are incremented once per message.
+* `kroxylicious_client_to_proxy_request_size_bytes_sum`: the cumulative size, in bytes, of all recorded messages.
+* `kroxylicious_client_to_proxy_request_size_bytes_max`: the largest single message size, in bytes, observed within a recent time window. This value decays over time, so it does not represent an all-time maximum.
+====
 
 == Reconfiguration metrics
 
