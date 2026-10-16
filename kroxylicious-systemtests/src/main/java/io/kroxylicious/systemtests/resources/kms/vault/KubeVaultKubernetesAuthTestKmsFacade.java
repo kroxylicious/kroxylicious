@@ -6,17 +6,9 @@
 
 package io.kroxylicious.systemtests.resources.kms.vault;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultEdek;
 import io.kroxylicious.kms.provider.hashicorp.vault.WrappingKey;
@@ -36,9 +28,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class KubeVaultKubernetesAuthTestKmsFacade extends KubeVaultTestKmsFacade implements ServiceAccountAuthTestKmsFacade<Config, WrappingKey, VaultEdek> {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final HttpClient VAULT_CLIENT = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-
     /**
      * The Vault role the proxy authenticates as. Bound to a single ServiceAccount by
      * {@link #bindToServiceAccount(String, String)}.
@@ -49,7 +38,7 @@ public class KubeVaultKubernetesAuthTestKmsFacade extends KubeVaultTestKmsFacade
      * In-cluster address of the Kubernetes API, used by Vault to validate ServiceAccount tokens via the
      * TokenReview API.
      */
-    private static final String KUBERNETES_HOST = "https://kubernetes.default.svc:443";
+    private static final String KUBERNETES_HOST = "https://kubernetes.default.svc";
 
     /**
      * Instantiates a new Kube Vault Kubernetes auth test kms facade.
@@ -67,18 +56,16 @@ public class KubeVaultKubernetesAuthTestKmsFacade extends KubeVaultTestKmsFacade
     }
 
     private void enableKubernetesAuth() {
-        // Enable the Kubernetes auth method, tolerating the case where a previous run already enabled it.
-        var enableResponse = send(post("v1/sys/auth/kubernetes", encodeJson(Map.of("type", "kubernetes"))));
-        boolean enabled = enableResponse.statusCode() == 204;
-        boolean alreadyEnabled = enableResponse.statusCode() == 400 && enableResponse.body().contains("path is already in use");
-        if (!enabled && !alreadyEnabled) {
-            throw new IllegalStateException(
-                    "Unexpected response %d enabling Kubernetes auth: %s".formatted(enableResponse.statusCode(), enableResponse.body()));
+        // Enable the Kubernetes auth method, if it is not already enabled. Reading v1/sys/auth/:path needs sudo,
+        // which the root token used by the request helpers has.
+        if (!sendRequestExpectingOk(createVaultGet(getVaultUrl().resolve("v1/sys/auth/kubernetes")))) {
+            sendRequestExpectingNoContentResponse(createVaultPost(getVaultUrl().resolve("v1/sys/auth/kubernetes"),
+                    HttpRequest.BodyPublishers.ofString(encodeJson(Map.of("type", "kubernetes")))));
         }
-
         // Point the auth method at the in-cluster Kubernetes API. Vault runs in-cluster and uses its own pod
         // ServiceAccount token for the TokenReview call, so no additional configuration is required here.
-        expectSuccess(send(post("v1/auth/kubernetes/config", encodeJson(Map.of("kubernetes_host", KUBERNETES_HOST)))));
+        sendRequestExpectingNoContentResponse(createVaultPost(getVaultUrl().resolve("v1/auth/kubernetes/config"),
+                HttpRequest.BodyPublishers.ofString(encodeJson(Map.of("kubernetes_host", KUBERNETES_HOST)))));
     }
 
     @Override
@@ -90,49 +77,14 @@ public class KubeVaultKubernetesAuthTestKmsFacade extends KubeVaultTestKmsFacade
                 "bound_service_account_namespaces", List.of(namespace),
                 "token_policies", List.of(ENCRYPTION_FILTER_POLICY_NAME),
                 "token_ttl", "1h"));
-        expectSuccess(send(post("v1/auth/kubernetes/role/" + encode(ROLE, UTF_8), body)));
+        if (!sendRequestExpectingOk(createVaultPost(getVaultUrl().resolve("v1/auth/kubernetes/role/" + encode(ROLE, UTF_8)),
+                HttpRequest.BodyPublishers.ofString(body)))) {
+            throw new IllegalStateException("Failed to create Vault Kubernetes auth role " + ROLE);
+        }
     }
 
     @Override
     public Config getKmsServiceConfig() {
         return new Config(getVaultUrl(), new VaultCredentialsConfig(null, new KubernetesCredentialsConfig(ROLE, null, null)), null);
-    }
-
-    private HttpRequest post(String relativePath, String jsonBody) {
-        return HttpRequest.newBuilder()
-                .uri(getVaultUrl().resolve(relativePath))
-                .header("X-Vault-Token", VAULT_ROOT_TOKEN)
-                .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
-    }
-
-    private static HttpResponse<String> send(HttpRequest request) {
-        try {
-            return VAULT_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException("Request to %s failed".formatted(request.uri()), e);
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted during REST API call: %s".formatted(request.uri()), e);
-        }
-    }
-
-    private static void expectSuccess(HttpResponse<String> response) {
-        if (response.statusCode() != 200 && response.statusCode() != 204) {
-            throw new IllegalStateException(
-                    "Unexpected response %d from %s: %s".formatted(response.statusCode(), response.uri(), response.body()));
-        }
-    }
-
-    private static String encodeJson(Object obj) {
-        try {
-            return OBJECT_MAPPER.writeValueAsString(obj);
-        }
-        catch (JsonProcessingException e) {
-            throw new UncheckedIOException("Failed to encode the request body", e);
-        }
     }
 }

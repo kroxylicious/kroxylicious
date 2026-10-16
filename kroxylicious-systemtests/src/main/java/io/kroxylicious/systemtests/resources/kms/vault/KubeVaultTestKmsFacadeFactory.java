@@ -6,12 +6,14 @@
 
 package io.kroxylicious.systemtests.resources.kms.vault;
 
+import io.kroxylicious.systemtests.resources.kms.StaticCredentialAuthKmsFacadeFactory;
 import io.kroxylicious.testing.kms.vault.AbstractVaultTestKmsFacadeFactory;
 
 /**
  * Factory for {@link KubeVaultTestKmsFacade}s.
  */
-public class KubeVaultTestKmsFacadeFactory extends AbstractVaultTestKmsFacadeFactory {
+public class KubeVaultTestKmsFacadeFactory extends AbstractVaultTestKmsFacadeFactory
+        implements StaticCredentialAuthKmsFacadeFactory {
 
     /**
      * {@inheritDoc}

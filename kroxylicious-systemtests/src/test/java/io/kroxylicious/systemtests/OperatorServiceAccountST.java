@@ -7,7 +7,6 @@
 package io.kroxylicious.systemtests;
 
 import java.time.Duration;
-import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -16,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
@@ -24,6 +22,7 @@ import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
+import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
 
 import static io.kroxylicious.systemtests.TestTags.OPERATOR;
@@ -128,19 +127,12 @@ class OperatorServiceAccountST extends AbstractSystemTests {
     private static void assertProxyPodServiceAccount(String namespace, String expectedServiceAccountName) {
         // A pod's ServiceAccount is immutable, so a change is only ever observable on replacement pods. Waiting for the
         // single surviving proxy pod to report the expected account therefore also proves the rollout has converged.
-        await().atMost(ASSERTION_DURATION).untilAsserted(() -> assertThat(proxyPods(namespace))
+        await().atMost(ASSERTION_DURATION).untilAsserted(() -> assertThat(KroxyliciousSteps.getProxyPods(namespace))
                 .as("proxy pods running under ServiceAccount '%s'", expectedServiceAccountName)
                 .singleElement()
                 .satisfies(pod -> {
                     assertThat(pod.getStatus()).extracting(PodStatus::getPhase).isEqualTo(RUNNING_PHASE);
                     assertThat(pod.getSpec()).extracting(PodSpec::getServiceAccountName).isEqualTo(expectedServiceAccountName);
                 }));
-    }
-
-    private static List<Pod> proxyPods(String namespace) {
-        return kubeClient(namespace).listPods(namespace, "app.kubernetes.io/name", "kroxylicious").stream()
-                .filter(pod -> "proxy".equals(pod.getMetadata().getLabels().get("app.kubernetes.io/component")))
-                .filter(pod -> pod.getMetadata().getDeletionTimestamp() == null)
-                .toList();
     }
 }

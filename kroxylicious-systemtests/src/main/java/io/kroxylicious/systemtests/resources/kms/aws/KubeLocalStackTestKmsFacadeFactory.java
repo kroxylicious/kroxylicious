@@ -6,12 +6,14 @@
 
 package io.kroxylicious.systemtests.resources.kms.aws;
 
+import io.kroxylicious.systemtests.resources.kms.StaticCredentialAuthKmsFacadeFactory;
 import io.kroxylicious.testing.kms.aws.AbstractAwsKmsTestKmsFacadeFactory;
 
 /**
  * Factory for {@link KubeLocalStackTestKmsFacade}s.
  */
-public class KubeLocalStackTestKmsFacadeFactory extends AbstractAwsKmsTestKmsFacadeFactory {
+public class KubeLocalStackTestKmsFacadeFactory extends AbstractAwsKmsTestKmsFacadeFactory
+        implements StaticCredentialAuthKmsFacadeFactory {
 
     /**
      * {@inheritDoc}

@@ -107,6 +107,14 @@ public final class Constants {
     public static final String KROXYLICIOUS_VIRTUAL_KAFKA_CLUSTER_KIND = "VirtualKafkaCluster";
 
     /**
+     * Kubernetes recommended labels (see https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/)
+     */
+    public static final String APP_KUBERNETES_IO_NAME_LABEL = "app.kubernetes.io/name";
+    public static final String APP_KUBERNETES_IO_COMPONENT_LABEL = "app.kubernetes.io/component";
+    public static final String KROXYLICIOUS_APP_NAME = "kroxylicious";
+    public static final String PROXY_COMPONENT = "proxy";
+
+    /**
      * Admission webhook related constants
      */
     public static final String ADMISSION_NAMESPACE = "kroxylicious-webhook";

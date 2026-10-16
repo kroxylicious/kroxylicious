@@ -16,7 +16,7 @@ The `scripts/vault-k8s-auth-minikube.sh` script provides automated setup for tes
 - Provides step-by-step instructions for testing
 
 ```bash
-./scripts/vault-k8s-auth-minikube.sh setup local
+./scripts/vault-k8s-auth-minikube.sh setup
 ```
 
 The script also:
@@ -33,7 +33,7 @@ To remove all resources:
 
 The script output includes all necessary commands and verification steps for testing encryption end-to-end.
 
-In-cluster testing is covered by the system test `AlternativeAuthRecordEncryptionST` (see [Testing in a Real Kubernetes Cluster](#testing-in-a-real-kubernetes-cluster)).
+In-cluster testing is covered by the system test `ServiceAccountAuthRecordEncryptionST` (see [Testing in a Real Kubernetes Cluster](#testing-in-a-real-kubernetes-cluster)).
 
 ## Quick Start for Off Cluster Testing
 
@@ -120,7 +120,7 @@ In-cluster testing is covered by the system test `AlternativeAuthRecordEncryptio
 
 ## Testing in a Real Kubernetes Cluster
 
-In-cluster testing is covered by the system test `AlternativeAuthRecordEncryptionST` (in `kroxylicious-systemtests`). It deploys the proxy via the operator under a dedicated ServiceAccount (`KafkaProxy.spec.infrastructure.serviceAccountName`), binds a Vault role to that ServiceAccount, and verifies records are encrypted at rest and decrypted through the proxy. See "Running system tests locally" in the top-level [DEV_GUIDE.md](../../DEV_GUIDE.md).
+In-cluster testing is covered by the system test `ServiceAccountAuthRecordEncryptionST` (in `kroxylicious-systemtests`). It deploys the proxy via the operator under a dedicated ServiceAccount (`KafkaProxy.spec.infrastructure.serviceAccountName`), binds a Vault role to that ServiceAccount, and verifies records are encrypted at rest and decrypted through the proxy. See "Running system tests locally" in the top-level [DEV_GUIDE.md](../../DEV_GUIDE.md).
 
 ## Testing Token Renewal
 
@@ -178,7 +178,7 @@ filterDefinitions:
 4. **Verify Vault can reach Kubernetes API**:
    ```bash
    kubectl exec -n vault vault-0 -- vault write auth/kubernetes/config \
-     kubernetes_host="https://kubernetes.default.svc:443"
+     kubernetes_host="https://kubernetes.default.svc"
    ```
 
 ### Token Expiration Issues
@@ -204,46 +204,6 @@ If Kroxylicious can't reach Vault:
    ```
 
 2. **Check the login URL** in the startup log (`Resolved Vault Kubernetes Auth Login URL`) matches your `vaultUrl` and `authPath`
-
-## Security Considerations
-
-### Production Deployment
-
-For production deployments:
-
-1. **Use TLS** for Vault communication:
-   ```yaml
-   kmsConfig:
-     vaultUrl: https://vault.vault.svc.cluster.local:8200
-     tls:
-       trust:
-         storeFile: /path/to/truststore.jks
-         storePassword: changeit
-         storeType: JKS
-   ```
-
-2. **Use proper Vault storage backend** (Consul, Raft, etc.) instead of dev mode
-
-3. **Enable Vault audit logging**:
-   ```bash
-   kubectl exec -n vault vault-0 -- vault audit enable file file_path=/vault/logs/audit.log
-   ```
-
-4. **Implement least-privilege policies** - only grant the minimum permissions needed
-
-5. **Rotate ServiceAccount tokens** regularly
-
-6. **Monitor token renewal** and set up alerts for failures
-
-7. **Use Vault namespaces** for multi-tenancy if needed
-
-### Token Lifecycle
-
-- ServiceAccount tokens are automatically mounted at `/var/run/secrets/kubernetes.io/serviceaccount/token`
-- Kubernetes rotates these tokens periodically (default: 1 hour)
-- Kroxylicious reads the token file on each authentication attempt, picking up rotations automatically
-- Vault tokens obtained via Kubernetes auth have a configurable TTL (default: 24h in examples)
-- Kroxylicious renews Vault tokens at 80% of their TTL
 
 ## Integration Tests
 
