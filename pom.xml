@@ -986,11 +986,6 @@
                         </argLine>
                     </configuration>
                 </plugin>
-                <plugin>
-                    <groupId>org.commonjava.maven.plugins</groupId>
-                    <artifactId>directory-maven-plugin</artifactId>
-                    <version>1.0</version>
-                </plugin>
                 <!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
                 <plugin>
                     <groupId>org.eclipse.m2e</groupId>
@@ -1006,19 +1001,6 @@
                                         <versionRange>[3.6.0,)</versionRange>
                                         <goals>
                                             <goal>descriptor</goal>
-                                        </goals>
-                                    </pluginExecutionFilter>
-                                    <action>
-                                        <ignore/>
-                                    </action>
-                                </pluginExecution>
-                                <pluginExecution>
-                                    <pluginExecutionFilter>
-                                        <groupId>org.commonjava.maven.plugins</groupId>
-                                        <artifactId>directory-maven-plugin</artifactId>
-                                        <versionRange>[0.3.1,)</versionRange>
-                                        <goals>
-                                            <goal>highest-basedir</goal>
                                         </goals>
                                     </pluginExecutionFilter>
                                     <action>
@@ -1227,22 +1209,6 @@
                 <version>3.6.4</version>
             </plugin>
             <plugin>
-                <groupId>org.commonjava.maven.plugins</groupId>
-                <artifactId>directory-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>resolve-rootdir</id>
-                        <goals>
-                            <goal>highest-basedir</goal>
-                        </goals>
-                        <phase>initialize</phase>
-                        <configuration>
-                            <property>rootdir</property>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <executions>
@@ -1256,7 +1222,7 @@
                             <failFast>true</failFast>
                             <rules>
                                 <requireMavenVersion>
-                                    <version>[3.8.8,)</version>
+                                    <version>[3.9.2,)</version>
                                 </requireMavenVersion>
                             </rules>
                         </configuration>
