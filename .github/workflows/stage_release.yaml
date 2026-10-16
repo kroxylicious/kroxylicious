@@ -102,7 +102,7 @@ jobs:
         with:
           javaVersion: '21'
           javaDistro: 'temurin'
-          server-id: central
+          server-id: sonatype-central
           server-username: SONATYPE_TOKEN_USERNAME # env variable for Sonatype username
           server-password: SONATYPE_TOKEN_PASSWORD # env variable for Sonatype password
           gpg-passphrase: MAVEN_GPG_PASSPHRASE # env variable for GPG private key passphrase
