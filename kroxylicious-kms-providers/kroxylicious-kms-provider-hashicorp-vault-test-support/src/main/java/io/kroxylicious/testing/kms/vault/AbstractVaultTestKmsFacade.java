@@ -98,7 +98,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
         // create policy
         var policyName = ENCRYPTION_FILTER_POLICY_NAME;
-        try (var policyStream = AbstractVaultTestKmsFacade.class.getResourceAsStream("kroxylicious_encryption_filter_policy.hcl")) {
+        try (var policyStream = AbstractVaultTestKmsFacade.class.getResourceAsStream(ENCRYPTION_FILTER_POLICY_NAME + ".hcl")) {
             createPolicy(policyName, policyStream);
         }
         catch (IOException e) {
@@ -263,7 +263,13 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
-    private HttpRequest createVaultGet(URI url) {
+    /**
+     * Creates a GET request to the Vault instance, authenticated with the root token.
+     *
+     * @param url the request URL.
+     * @return the request.
+     */
+    protected HttpRequest createVaultGet(URI url) {
         return createVaultRequest()
                 .uri(url)
                 .GET()
@@ -278,7 +284,14 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
                 .build();
     }
 
-    private HttpRequest createVaultPost(URI url, HttpRequest.BodyPublisher bodyPublisher) {
+    /**
+     * Creates a POST request to the Vault instance, authenticated with the root token.
+     *
+     * @param url the request URL.
+     * @param bodyPublisher the request body publisher.
+     * @return the request.
+     */
+    protected HttpRequest createVaultPost(URI url, HttpRequest.BodyPublisher bodyPublisher) {
         return createVaultRequest()
                 .uri(url)
                 .POST(bodyPublisher).build();
@@ -290,7 +303,13 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
                 .header("Accept", "application/json");
     }
 
-    private boolean sendRequestExpectingOk(HttpRequest request) {
+    /**
+     * Sends the given request, returning whether the response status was {@code 200 OK}.
+     *
+     * @param request the request to send.
+     * @return {@code true} if the response status was 200, {@code false} otherwise.
+     */
+    protected boolean sendRequestExpectingOk(HttpRequest request) {
         try {
             HttpResponse<String> response = vaultClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
@@ -338,7 +357,12 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
-    private void sendRequestExpectingNoContentResponse(HttpRequest request) {
+    /**
+     * Sends the given request, expecting a {@code 204 No Content} response.
+     *
+     * @param request the request to send.
+     */
+    protected void sendRequestExpectingNoContentResponse(HttpRequest request) {
         try {
             var response = vaultClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 204) {
@@ -359,7 +383,13 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
-    private String encodeJson(Object obj) {
+    /**
+     * Encodes the given object as a JSON string.
+     *
+     * @param obj the object to encode.
+     * @return the JSON representation.
+     */
+    protected String encodeJson(Object obj) {
         try {
             return OBJECT_MAPPER.writeValueAsString(obj);
         }

@@ -8,7 +8,6 @@ package io.kroxylicious.systemtests.filters;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterAll;
@@ -37,7 +36,7 @@ import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
-import io.kroxylicious.systemtests.resources.kms.KmsFacades;
+import io.kroxylicious.systemtests.resources.kms.ServiceAccountAuthKmsFacadeFactory;
 import io.kroxylicious.systemtests.resources.kms.ServiceAccountAuthTestKmsFacade;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
@@ -48,6 +47,7 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 import io.kroxylicious.testing.kms.TestKekManager;
 import io.kroxylicious.testing.kms.TestKmsFacade;
+import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,19 +57,19 @@ import static org.awaitility.Awaitility.await;
  * Covers record encryption where the proxy authenticates with the KMS as its own Kubernetes
  * {@code ServiceAccount}, rather than with a static credential embedded in the filter configuration.
  * <p>
- * The {@link ServiceAccountAuthTestKmsFacade} binds the KMS role to exactly the ServiceAccount the proxy
- * runs as, so a successful encrypt/decrypt proves the proxy pod authenticated as that ServiceAccount.
+ * The {@link ServiceAccountAuthTestKmsFacade} binds the KMS role only to the ServiceAccount the proxy runs as,
+ * so a successful encrypt/decrypt proves the proxy pod authenticated as that ServiceAccount.
  */
 @ParameterizedClass(autoCloseArguments = true)
 @MethodSource("facadesSource")
-class AlternativeAuthRecordEncryptionST extends AbstractSystemTests {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AlternativeAuthRecordEncryptionST.class);
+class ServiceAccountAuthRecordEncryptionST extends AbstractSystemTests {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServiceAccountAuthRecordEncryptionST.class);
     private static final String MESSAGE = "Hello-world";
     private static final String KEK_PREFIX = "KEK-";
-    private static final String SERVICE_ACCOUNT_NAME = "alt-auth-proxy";
+    private static final String SERVICE_ACCOUNT_NAME = "service-account-auth-proxy";
     private static final String RUNNING_PHASE = "Running";
     private static final Duration ASSERTION_DURATION = Duration.ofSeconds(90);
-    private final String clusterName = "alt-auth-encryption-cluster";
+    private final String clusterName = "service-account-auth-encryption-cluster";
     private String bootstrap;
     private TestKekManager testKekManager;
     private KroxyliciousOperator kroxyliciousOperator;
@@ -79,8 +79,10 @@ class AlternativeAuthRecordEncryptionST extends AbstractSystemTests {
         // We rely on the fact that streams are lazy so the facade isn't built
         // or started until the first test needs it.
         // ServiceAccount-auth facades only. Static-credential facades are covered by RecordEncryptionST.
-        return KmsFacades.inCluster(ServiceAccountAuthTestKmsFacade.class::isInstance)
-                .<ServiceAccountAuthTestKmsFacade<?, ?, ?>> map(ServiceAccountAuthTestKmsFacade.class::cast)
+        return TestKmsFacadeFactory.getTestKmsFacadeFactories()
+                .filter(ServiceAccountAuthKmsFacadeFactory.class::isInstance)
+                // Cast is safe: the filter guarantees a ServiceAccountAuthKmsFacadeFactory, whose build() returns a ServiceAccountAuthTestKmsFacade.
+                .<ServiceAccountAuthTestKmsFacade<?, ?, ?>> map(f -> ((ServiceAccountAuthKmsFacadeFactory<?, ?, ?>) f).build())
                 .filter(TestKmsFacade::isAvailable)
                 .peek(TestKmsFacade::start);
     }
@@ -139,23 +141,9 @@ class AlternativeAuthRecordEncryptionST extends AbstractSystemTests {
     }
 
     @Test
-    void shouldEncryptAndDecryptWhenProxyAuthenticatesWithItsServiceAccount(String namespace) {
-        // The ServiceAccount is user-managed, so it must exist before the proxy is deployed, otherwise the rollout stalls.
-        createServiceAccount(namespace, SERVICE_ACCOUNT_NAME);
-
-        // Grant the KMS role to this ServiceAccount, so a proxy pod running as it can authenticate.
-        testKmsFacade.bindToServiceAccount(namespace, SERVICE_ACCOUNT_NAME);
-
-        testKekManager = testKmsFacade.getTestKekManager();
-        testKekManager.generateKek(KEK_PREFIX + topicName);
+    void ensureClusterHasEncryptedMessage(String namespace) {
         int numberOfMessages = 1;
-
-        LOGGER.info("Given Kroxylicious in {} namespace running as ServiceAccount {}", namespace, SERVICE_ACCOUNT_NAME);
-        deployProxyWithServiceAccountAuth(namespace, SERVICE_ACCOUNT_NAME);
-        bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
-
-        LOGGER.info("Then the single proxy pod runs as ServiceAccount {}", SERVICE_ACCOUNT_NAME);
-        assertProxyPodServiceAccount(namespace, SERVICE_ACCOUNT_NAME);
+        deployProxyAuthenticatingWithServiceAccount(namespace);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
@@ -174,18 +162,46 @@ class AlternativeAuthRecordEncryptionST extends AbstractSystemTests {
         assertThat(resultEncrypted.stream())
                 .withFailMessage("Encrypted message still includes the original one!")
                 .allMatch(r -> !r.getPayload().contains(MESSAGE));
+    }
 
-        LOGGER.info("And the message read through the proxy is decrypted");
-        // Use a distinct consumer group: the direct-from-Kafka read above already committed offsets for the default
-        // group, so reusing it here would start past the only record and read nothing.
-        List<ConsumerRecord> resultDecrypted = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2),
-                Map.of(), "through-proxy-" + topicName);
-        LOGGER.info("Received through proxy: {}", resultDecrypted);
-        assertThat(resultDecrypted)
+    @Test
+    void produceAndConsumeMessage(String namespace) {
+        int numberOfMessages = 1;
+        deployProxyAuthenticatingWithServiceAccount(namespace);
+
+        LOGGER.info("And a kafka Topic named {}", topicName);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
+
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
+        ExecResult produceResult = KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
+        assertThat(produceResult.isSuccess()).withFailMessage("Unable to produce messages! " + produceResult.err()).isTrue();
+
+        LOGGER.info("Then the message read through the proxy is decrypted");
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
+        LOGGER.info("Received through proxy: {}", result);
+        assertThat(result)
                 .withFailMessage("expected decrypted messages have not been received!")
                 .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(payload -> assertThat(payload).contains(MESSAGE));
+    }
+
+    private void deployProxyAuthenticatingWithServiceAccount(String namespace) {
+        // The ServiceAccount is user-managed, so it must exist before the proxy is deployed, otherwise the rollout stalls.
+        createServiceAccount(namespace, SERVICE_ACCOUNT_NAME);
+
+        // Grant the KMS role to this ServiceAccount, so a proxy pod running as it can authenticate.
+        testKmsFacade.bindToServiceAccount(namespace, SERVICE_ACCOUNT_NAME);
+
+        testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(KEK_PREFIX + topicName);
+
+        LOGGER.info("Given Kroxylicious in {} namespace running as ServiceAccount {}", namespace, SERVICE_ACCOUNT_NAME);
+        deployProxyWithServiceAccountAuth(namespace, SERVICE_ACCOUNT_NAME);
+        bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
+
+        LOGGER.info("Then the single proxy pod runs as ServiceAccount {}", SERVICE_ACCOUNT_NAME);
+        assertProxyPodServiceAccount(namespace, SERVICE_ACCOUNT_NAME);
     }
 
     private void deployProxyWithServiceAccountAuth(String namespace, String serviceAccountName) {
@@ -221,19 +237,12 @@ class AlternativeAuthRecordEncryptionST extends AbstractSystemTests {
     }
 
     private static void assertProxyPodServiceAccount(String namespace, String expectedServiceAccountName) {
-        await().atMost(ASSERTION_DURATION).untilAsserted(() -> assertThat(proxyPods(namespace))
+        await().atMost(ASSERTION_DURATION).untilAsserted(() -> assertThat(KroxyliciousSteps.getProxyPods(namespace))
                 .as("proxy pods running under ServiceAccount '%s'", expectedServiceAccountName)
                 .singleElement()
                 .satisfies(pod -> {
                     assertThat(pod.getStatus()).extracting(PodStatus::getPhase).isEqualTo(RUNNING_PHASE);
                     assertThat(pod.getSpec()).extracting(PodSpec::getServiceAccountName).isEqualTo(expectedServiceAccountName);
                 }));
-    }
-
-    private static List<Pod> proxyPods(String namespace) {
-        return kubeClient(namespace).listPods(namespace, "app.kubernetes.io/name", "kroxylicious").stream()
-                .filter(pod -> "proxy".equals(pod.getMetadata().getLabels().get("app.kubernetes.io/component")))
-                .filter(pod -> pod.getMetadata().getDeletionTimestamp() == null)
-                .toList();
     }
 }
