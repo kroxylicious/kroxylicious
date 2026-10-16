@@ -495,12 +495,12 @@ public final class VirtualKafkaClusterReconciler implements
                 allowedNamespaces);
 
         return List.of(
-                new InformerEventSource<>(clusterToProxy, context),
+                new InformerEventSource<>(clusterToProxy),
                 clusterToProxyConfigState,
-                new InformerEventSource<>(clusterToIngresses, context),
-                new InformerEventSource<>(clusterToService, context),
-                new InformerEventSource<>(clusterToFilters, context),
-                new InformerEventSource<>(clusterToKubeService, context),
+                new InformerEventSource<>(clusterToIngresses),
+                new InformerEventSource<>(clusterToService),
+                new InformerEventSource<>(clusterToFilters),
+                new InformerEventSource<>(clusterToKubeService),
                 clusterToSecret,
                 clusterToConfigMapTrustAnchorRef,
                 clusterToSecretTrustAnchorRef);

@@ -54,6 +54,6 @@ Prometheus begins to regularly to scrape the Kroxylicious Operator's metric.
 +
 [source]
 ----
-operator_sdk_reconciliations_queue_size_kafkaproxyreconciler{kind="KafkaProxy", group="kroxylicious.io"}
+reconciliations_queue{controller_name="kafkaproxyreconciler"}
 ----
 

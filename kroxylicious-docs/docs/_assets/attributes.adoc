@@ -142,7 +142,7 @@
 
 // Java Operator SDK links
 :josdk: https://javaoperatorsdk.io/
-:josdk-metrics: https://github.com/operator-framework/java-operator-sdk/blob/v5.0.4/docs/content/en/docs/features/_index.md#operator-sdk-metrics
+:josdk-metrics: https://github.com/operator-framework/java-operator-sdk/blob/v5.6.2/docs/content/en/docs/documentation/operations/metrics.md
 
 // Conditional inclusion flags
 // (note: we control optional inclusion with ifdefs/ifndefs directives, so the value of the attribute is irrelevant)

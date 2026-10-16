@@ -1,0 +1,11 @@
+title: "refactor(operator): replace deprecated Java Operator SDK APIs"
+type: changed
+issues:
+  - 5035
+important_notes:
+  - |
+    Operator metrics now use the Java Operator SDK MicrometerMetricsV2 names and labels.
+    Update dashboards and alerts that use the previous operator_sdk_ metrics.
+    Metrics are grouped by controller, with a namespace label on event and reconciliation counters;
+    metrics for individual resources are no longer collected.
+    See the operator metrics documentation for migration examples.

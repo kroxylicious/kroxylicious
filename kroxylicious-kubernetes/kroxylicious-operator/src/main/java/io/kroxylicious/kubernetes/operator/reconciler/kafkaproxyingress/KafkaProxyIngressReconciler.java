@@ -89,7 +89,7 @@ public class KafkaProxyIngressReconciler implements
                         KafkaProxyIngress.class,
                         ingress -> Optional.of(ingress.getSpec().getProxyRef())))
                 .build();
-        return List.of(new InformerEventSource<>(configuration, context));
+        return List.of(new InformerEventSource<>(configuration));
     }
 
     @Override
