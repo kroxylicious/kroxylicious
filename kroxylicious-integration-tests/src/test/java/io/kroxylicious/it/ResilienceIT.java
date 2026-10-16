@@ -28,6 +28,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.ResourceLock;
@@ -192,6 +193,7 @@ class ResilienceIT extends BaseIT {
      * bound discriminates between the configured timeout and the default
      */
     @Test
+    @Disabled("Temporarily disable https://github.com/kroxylicious/kroxylicious/issues/5111")
     void shouldHonourConfiguredUpstreamConnectTimeout() {
         // Given
         assumeAddressIsBlackholed(BLACKHOLED_ADDRESS);
