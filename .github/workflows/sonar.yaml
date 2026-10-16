@@ -116,6 +116,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Proxy Core
+        id: proxy_scan
+        continue-on-error: true
         if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') != ''
         run: |
           source scripts/ci-build-functions.sh
@@ -129,6 +131,8 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Proxy Core (legacy release branches)
+        id: proxy_scan_legacy
+        continue-on-error: true
         if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') == ''
         run: |
           # Old release branches: profile-based build not available; exclude operator modules instead
@@ -148,6 +152,8 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Operator
+        id: operator_scan
+        continue-on-error: true
         if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') != ''
         run: |
           source scripts/ci-build-functions.sh
@@ -179,6 +185,8 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Operator (legacy release branches)
+        id: operator_scan_legacy
+        continue-on-error: true
         if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') == ''
         run: |
           # Old release branches: profile-based build not available
@@ -203,3 +211,32 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Post failed Proxy Core SonarCloud check
+        if: steps.proxy_scan.outcome == 'failure' || steps.proxy_scan_legacy.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name="[Proxy Runtime] SonarCloud Code Analysis" \
+            -f head_sha="$SHA" \
+            -f status=completed \
+            -f conclusion=failure \
+            -f "output[title]=SonarCloud Proxy Core scan failed" \
+            -f "output[summary]=The SonarCloud Proxy Core scan encountered an error. Re-run the [Sonar workflow job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) to retry."
+      - name: Post failed Operator SonarCloud check
+        if: steps.operator_scan.outcome == 'failure' || steps.operator_scan_legacy.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name="[Kroxylicious Operator] SonarCloud Code Analysis" \
+            -f head_sha="$SHA" \
+            -f status=completed \
+            -f conclusion=failure \
+            -f "output[title]=SonarCloud Operator scan failed" \
+            -f "output[summary]=The SonarCloud Operator scan encountered an error. Re-run the [Sonar workflow job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) to retry."
+      - name: Fail job if any SonarCloud scan failed
+        if: steps.proxy_scan.outcome == 'failure' || steps.proxy_scan_legacy.outcome == 'failure' || steps.operator_scan.outcome == 'failure' || steps.operator_scan_legacy.outcome == 'failure'
+        run: exit 1
