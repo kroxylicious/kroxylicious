@@ -1281,7 +1281,7 @@
                 <artifactId>central-publishing-maven-plugin</artifactId>
                 <extensions>true</extensions>
                 <configuration>
-                    <publishingServerId>central</publishingServerId>
+                    <publishingServerId>sonatype-central</publishingServerId>
                     <waitMaxTime>3600</waitMaxTime>
                     <skipPublishing>${central.publishing.skip}</skipPublishing>
                     <checksums>required</checksums>
