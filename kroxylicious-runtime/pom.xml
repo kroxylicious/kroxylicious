@@ -24,6 +24,9 @@
     <properties>
         <libs.dir>libs</libs.dir>
         <release.version>${project.version}</release.version>
+        <!-- PemUtils is a deliberate copy of the one in kroxylicious-kms-tls-support (see its class javadoc),
+             pending a decision on sharing it, so exclude it from Sonar duplication detection -->
+        <sonar.cpd.exclusions>**/proxy/internal/tls/PemUtils.java</sonar.cpd.exclusions>
     </properties>
 
     <name>Proxy runtime</name>
@@ -169,6 +172,16 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
         <!-- third party dependencies - test -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
