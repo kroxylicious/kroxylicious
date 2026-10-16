@@ -1,0 +1,4 @@
+title: "fix rootDir references. Needs maven 3.9.2+"
+type: fixed
+issues:
+  - 4589
