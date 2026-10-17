@@ -386,7 +386,8 @@ public final class SchemaDrivenMessagePopulator implements MessagePopulator {
     private static String toSnakeCase(String pascalCaseName) {
         StringBuilder snakeCaseName = new StringBuilder();
         boolean previousWasUpperCase = true;
-        for (char c : pascalCaseName.toCharArray()) {
+        for (int i = 0; i < pascalCaseName.length(); i++) {
+            char c = pascalCaseName.charAt(i);
             if (Character.isUpperCase(c)) {
                 if (!previousWasUpperCase) {
                     snakeCaseName.append('_');
