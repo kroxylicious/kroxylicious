@@ -1,0 +1,4 @@
+title: "build(deps): bump com.azure:azure-security-keyvault-keys from 4.11.1 to 4.11.3"
+type: build
+merge_requests:
+  - 5129
