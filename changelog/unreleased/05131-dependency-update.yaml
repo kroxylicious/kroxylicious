@@ -1,0 +1,4 @@
+title: "build(deps): bump org.apache.maven.plugin-tools:maven-plugin-annotations from 3.15.2 to 3.16.0"
+type: build
+merge_requests:
+  - 5131
