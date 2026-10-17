@@ -59,4 +59,12 @@
     <Match>
         <Class name="~io\.kroxylicious\.kafka\..*" />
     </Match>
+    <!--
+        FidelityRandom manages deterministic pseudo-random seeds for Kafka protocol wire-fidelity tests.
+        Predictable random generation is intentional to guarantee reproducible test cases across runs.
+        -->
+    <Match>
+        <Class name="io.kroxylicious.fidelity.FidelityRandom" />
+        <Bug pattern="PREDICTABLE_RANDOM" />
+    </Match>
 </FindBugsFilter>
