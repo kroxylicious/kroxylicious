@@ -168,7 +168,7 @@ jobs:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: Download Operand Image Artifact
         if: steps.check_k8s.outputs.needs_minikube == 'true'
-        uses: dawidd6/action-download-artifact@d63b86af1b34672e53c440b1b83979861906bad7
+        uses: dawidd6/action-download-artifact@eab87c9830c39eff17e5a6eadb20bfb4bc880477
         with:
           name: kroxylicious-proxy
           path: /tmp/kroxylicious-operand
