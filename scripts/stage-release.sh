@@ -112,7 +112,6 @@ trap cleanup EXIT
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
-INITIAL_VERSION=$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)
 
 TEMPORARY_RELEASE_BRANCH="${WORK_BRANCH_NAME}-rel"
 git checkout -b "${TEMPORARY_RELEASE_BRANCH}" "${REPOSITORY}/${BRANCH_FROM}"
