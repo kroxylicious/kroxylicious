@@ -28,7 +28,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.ResourceLock;
@@ -193,7 +192,6 @@ class ResilienceIT extends BaseIT {
      * bound discriminates between the configured timeout and the default
      */
     @Test
-    @Disabled("Temporarily disable https://github.com/kroxylicious/kroxylicious/issues/5111")
     void shouldHonourConfiguredUpstreamConnectTimeout() {
         // Given
         assumeAddressIsBlackholed(BLACKHOLED_ADDRESS);
@@ -220,23 +218,24 @@ class ResilienceIT extends BaseIT {
         // @formatter:on
 
         try (var tester = kroxyliciousTester(config);
-                var admin = tester.admin();
                 var managementClient = tester.getManagementClient()) {
             var startedAt = System.nanoTime();
 
             // When
-            var clusterId = admin.describeCluster().clusterId();
+            try (var admin = tester.admin()) {
+                var clusterId = admin.describeCluster().clusterId();
 
-            // Then
-            assertThat(clusterId).succeedsWithin(COMPLETION_BUDGET, InstanceOfAssertFactories.STRING).isNotBlank();
-            var elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
-            assertThat(elapsed).isGreaterThanOrEqualTo(CONNECT_TIMEOUT);
-            SimpleMetricAssert.assertThat(managementClient.scrapeMetrics())
-                    .withUniqueMetric("kroxylicious_proxy_to_server_errors_total",
-                            Map.of(VIRTUAL_CLUSTER_LABEL, CONNECT_TIMEOUT_CLUSTER,
-                                    NODE_ID_LABEL, "bootstrap"))
-                    .value()
-                    .isGreaterThanOrEqualTo(1.0);
+                // Then
+                assertThat(clusterId).succeedsWithin(COMPLETION_BUDGET, InstanceOfAssertFactories.STRING).isNotBlank();
+                var elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
+                assertThat(elapsed).isGreaterThanOrEqualTo(CONNECT_TIMEOUT);
+                SimpleMetricAssert.assertThat(managementClient.scrapeMetrics())
+                        .withUniqueMetric("kroxylicious_proxy_to_server_errors_total",
+                                Map.of(VIRTUAL_CLUSTER_LABEL, CONNECT_TIMEOUT_CLUSTER,
+                                        NODE_ID_LABEL, "bootstrap"))
+                        .value()
+                        .isGreaterThanOrEqualTo(1.0);
+            }
         }
     }
 
