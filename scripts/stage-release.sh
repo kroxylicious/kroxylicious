@@ -86,18 +86,6 @@ PREPARE_DEVELOPMENT_BRANCH=""
 ORIGINAL_GH_DEFAULT_REPO=""
 ORIGINAL_WORKING_BRANCH=$(git branch --show-current)
 
-replaceInFile() {
-  local EXPRESSION=$1
-  local FILE=$2
-  ${SED} -E -i -e "${EXPRESSION}" "${FILE}"
-  git add "${FILE}"
-}
-
-updateVersionInBenchmarks() {
-  replaceInFile "s|KROXYLICIOUS_VERSION:-[^}]*|KROXYLICIOUS_VERSION:-${1}|g" \
-    kroxylicious-openmessaging-benchmarks/scripts/setup-cluster.sh
-}
-
 cleanup() {
     if [[ -n ${ORIGINAL_WORKING_BRANCH} ]]; then
         git checkout "${ORIGINAL_WORKING_BRANCH}" || true
@@ -119,41 +107,23 @@ cleanup() {
     fi
 }
 
-updateVersions() {
-  local FROM_VERSION=$1
-  local NEW_VERSION=$2
-  mvn --quiet --batch-mode versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
-
-  git add '**/*.yaml' '**/pom.xml' 'pom.xml'
-}
-
 trap cleanup EXIT
 
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
-INITIAL_VERSION=$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)
 
 TEMPORARY_RELEASE_BRANCH="${WORK_BRANCH_NAME}-rel"
 git checkout -b "${TEMPORARY_RELEASE_BRANCH}" "${REPOSITORY}/${BRANCH_FROM}"
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
-updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
+"${SCRIPT_DIR}/update-version-references.sh" -v "${RELEASE_VERSION}" -g "v${RELEASE_VERSION}"
 ${SED} -i "s|\\\${changelog.link.prefix}|${CHANGELOG_LINK_PREFIX}|g" changelog/.templates/CHANGELOG.md
 mvn --quiet logchange:release
 # logchange:release rewrites the CHANGELOG template and empties changelog/unreleased,
 # deleting the .gitkeep that keeps the directory tracked. Restore both.
 git checkout -- changelog/.templates/CHANGELOG.md changelog/unreleased/.gitkeep
 git add changelog/ CHANGELOG.md
-
-replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
-replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: v${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
-
-replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylicious/proxy:${RELEASE_VERSION}'_g" compose/kafka-compose.yaml
-
-updateVersionInBenchmarks "${RELEASE_VERSION}"
-replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${RELEASE_VERSION}_g" performance-tests/docker-compose.yaml
-replaceInFile "s_io\.kroxylicious:kroxylicious-migrations:[^ ]*_io.kroxylicious:kroxylicious-migrations:${RELEASE_VERSION}_g" kroxylicious-proxy-core/kroxylicious-migrations/README.md
 
 echo "Validating things still build"
 mvn --quiet --batch-mode clean install --activate-profiles quick
@@ -188,23 +158,7 @@ echo "Preparing for development of ${NEXT_VERSION}"
 PREPARE_DEVELOPMENT_BRANCH="${WORK_BRANCH_NAME}"
 git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
-updateVersions "${RELEASE_VERSION}" "${NEXT_VERSION}"
-
-# bump the docs for the development version
-replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${NEXT_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
-replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: ${BRANCH_FROM}_g" kroxylicious-docs/docs/_assets/attributes.adoc
-
-replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylicious/proxy:${NEXT_VERSION}'_g" compose/kafka-compose.yaml
-
-updateVersionInBenchmarks "${NEXT_VERSION}"
-replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${NEXT_VERSION}_g" performance-tests/docker-compose.yaml
-replaceInFile "s_io\.kroxylicious:kroxylicious-migrations:[^ ]*_io.kroxylicious:kroxylicious-migrations:${NEXT_VERSION}_g" kroxylicious-proxy-core/kroxylicious-migrations/README.md
-
-# bump the reference version in kroxylicious-api
-mvn --quiet --batch-mode --projects :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
-# reset kroxylicious-api to enable semver checks if they have been disabled
-mvn --quiet --batch-mode --projects :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.EnforceForMajorVersionZero" -DnewVersion="true" -DgenerateBackupPoms=false
-git add kroxylicious-api/pom.xml
+"${SCRIPT_DIR}/update-version-references.sh" -v "${NEXT_VERSION}" -g "${BRANCH_FROM}" -a "${RELEASE_VERSION}"
 
 git commit --message "Start next development version" --signoff
 

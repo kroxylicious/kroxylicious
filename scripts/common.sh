@@ -74,3 +74,10 @@ function buildPullSpec {
   IMAGE_NAME=${IMAGE_NAME:-${1}}
   echo "${IMAGE_REGISTRY}/${IMAGE_REGISTRY_ORG}/${IMAGE_NAME}:${IMAGE_TAG:-latest}"
 }
+
+replaceInFile() {
+  local EXPRESSION=$1
+  local FILE=$2
+  ${SED} -E -i -e "${EXPRESSION}" "${FILE}"
+  git add "${FILE}"
+}
