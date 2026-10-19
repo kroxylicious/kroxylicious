@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.net.SocketAddress;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
@@ -55,6 +56,7 @@ import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 import io.kroxylicious.proxy.internal.util.Metrics;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -79,6 +81,9 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final FilterAndInvoker filterAndInvoker;
     private final ClientConnectionStateMachine clientConnectionStateMachine;
     private final int ordinal;
+
+    /** The immediate peer's address, captured while the channel is active. */
+    private final SocketAddress peerAddress;
 
     /** Chains response processing to preserve ordering when filters defer work asynchronously. */
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
@@ -116,6 +121,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         this.inboundChannel = inboundChannel;
         this.clientConnectionStateMachine = clientConnectionStateMachine;
         this.ordinal = ordinal;
+        this.peerAddress = inboundChannel.remoteAddress();
     }
 
     @Override
@@ -704,6 +710,23 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public String channelDescriptor() {
             return Objects.requireNonNull(ctx).channel().toString();
+        }
+
+        @Override
+        public SocketAddress clientAddress() {
+            // Branch rather than map()/orElseGet() so the request hot path allocates no intermediate Optional.
+            Optional<ClientProxyProtocolContext> proxyProtocolContext = clientProxyProtocolContext();
+            return proxyProtocolContext.isPresent() ? proxyProtocolContext.get().sourceAddress() : peerAddress();
+        }
+
+        @Override
+        public SocketAddress peerAddress() {
+            return peerAddress;
+        }
+
+        @Override
+        public Optional<ClientProxyProtocolContext> clientProxyProtocolContext() {
+            return clientConnectionStateMachine.clientProxyProtocolContext();
         }
 
         @Override

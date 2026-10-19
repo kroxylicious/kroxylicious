@@ -60,3 +60,13 @@ When `mode` is set to `allowed`, any client that can connect directly to Kroxyli
 Only use `allowed` mode when your network topology guarantees that untrusted clients cannot reach the proxy port directly, or when source address spoofing is an acceptable risk.
 If all connections come through a PROXY protocol-capable load balancer, prefer `required` mode instead.
 ====
+
+[IMPORTANT]
+====
+As with `allowed` mode, `required` mode does not authenticate the sender of a PROXY protocol header; it guarantees only that a header is present.
+Any client that can reach the proxy listener directly can send a well-formed header with a spoofed source address and satisfy `required` mode.
+Filters see that source address as the client address, through the `FilterContext` accessors `clientAddress()` and `clientProxyProtocolContext()`.
+The client address is therefore trustworthy only when your network topology prevents untrusted clients from connecting to the proxy listener directly, so that the immediate peer is always a trusted PROXY protocol-capable load balancer.
+Filters that make authorization or audit decisions based on the client address rely on this guarantee.
+Where it does not hold, filters should treat the client address as untrusted metadata, and use the `peerAddress()` accessor when they need the address of the immediate peer.
+====

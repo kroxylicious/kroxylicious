@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.it;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -36,6 +38,8 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
+import io.kroxylicious.it.testplugins.ClientAddressRecordingFilter;
+import io.kroxylicious.it.testplugins.ClientAddressRecordingFilterFactory;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.ProxyProtocolConfig;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
@@ -47,6 +51,7 @@ import io.kroxylicious.testing.integration.client.CorrelationManager;
 import io.kroxylicious.testing.integration.client.KafkaClientHandler;
 import io.kroxylicious.testing.integration.codec.KafkaRequestEncoder;
 import io.kroxylicious.testing.integration.codec.KafkaResponseDecoder;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
@@ -55,6 +60,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /**
  * Integration tests for HaProxy PROXY protocol support.
@@ -145,6 +151,97 @@ class ProxyProtocolIT {
 
             Response response = client.getSync(request);
             assertThat(response.payload().message()).isInstanceOf(ApiVersionsResponseData.class);
+        }
+    }
+
+    @Test
+    void requiredModeShouldExposeProxySourceAddressAsClientAddress() throws Exception {
+        String recorderId = "required-with-header";
+        ClientAddressRecordingFilter.reset(recorderId);
+        var recordingFilter = new NamedFilterDefinitionBuilder("client-address-recorder", ClientAddressRecordingFilterFactory.class.getName())
+                .withConfig("recorderId", recorderId)
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> KroxyliciousConfigUtils.proxy(bootstrap)
+                .addToFilterDefinitions(recordingFilter)
+                .addToDefaultFilters(recordingFilter.name())
+                .withProxyProtocol(new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED)))) {
+
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS,
+                    ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsResponseData()));
+
+            var address = tester.getBootstrapAddress();
+            var parts = address.split(":", -1);
+            var host = parts[0];
+            var port = Integer.parseInt(parts[1]);
+
+            var correlationManager = new CorrelationManager();
+            var kafkaHandler = new KafkaClientHandler();
+            try (var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())) {
+                Channel channel = connectClient(group, host, port, correlationManager, kafkaHandler);
+
+                // Send PROXY header first
+                channel.writeAndFlush(new HAProxyMessage(
+                        HAProxyProtocolVersion.V2,
+                        HAProxyCommand.PROXY,
+                        HAProxyProxiedProtocol.TCP4,
+                        "192.168.1.100",
+                        "127.0.0.1",
+                        54321,
+                        port)).sync();
+
+                // Remove encoder after sending (PROXY header is one-shot)
+                channel.pipeline().remove(HAProxyMessageEncoder.class);
+
+                // Send ApiVersions request; its response means the filter has observed the request
+                var apiVersionsRequest = toRequestFrame(new Request(ApiKeys.API_VERSIONS,
+                        ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, "test-client", new ApiVersionsRequestData()));
+                CompletableFuture<?> apiVersionsFuture = kafkaHandler.sendRequest(apiVersionsRequest);
+                assertThat(apiVersionsFuture)
+                        .as("ApiVersions request should succeed after PROXY header")
+                        .succeedsWithin(5, TimeUnit.SECONDS);
+
+                channel.close().sync();
+            }
+
+            // The filter sees the PROXY-protocol source as the client address
+            var observation = ClientAddressRecordingFilter.observationFor(recorderId);
+            assertThat(observation).isNotNull();
+            var expectedProxySource = new InetSocketAddress(InetAddress.getByName("192.168.1.100"), 54321);
+            assertThat(observation.proxyProtocolSourceAddress()).isEqualTo(expectedProxySource);
+            assertThat(observation.clientAddress()).isEqualTo(expectedProxySource);
+            // The immediate peer is the local test client; localhost may resolve to IPv4 or IPv6, so assert loopback rather than a fixed literal
+            assertThat(observation.peerAddress())
+                    .asInstanceOf(type(InetSocketAddress.class))
+                    .matches(peer -> peer.getAddress().isLoopbackAddress(), "immediate peer is the local test client (loopback)");
+        }
+    }
+
+    @Test
+    void allowedModeShouldExposePeerAddressAsClientAddressWithoutProxyHeader() {
+        String recorderId = "allowed-without-header";
+        ClientAddressRecordingFilter.reset(recorderId);
+        var recordingFilter = new NamedFilterDefinitionBuilder("client-address-recorder", ClientAddressRecordingFilterFactory.class.getName())
+                .withConfig("recorderId", recorderId)
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> KroxyliciousConfigUtils.proxy(bootstrap)
+                .addToFilterDefinitions(recordingFilter)
+                .addToDefaultFilters(recordingFilter.name())
+                .withProxyProtocol(new ProxyProtocolConfig(ProxyProtocolMode.ALLOWED)));
+                var client = tester.simpleTestClient()) {
+
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS,
+                    ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsResponseData()));
+
+            var request = new Request(ApiKeys.API_VERSIONS, ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION,
+                    "test-client", new ApiVersionsRequestData());
+
+            client.getSync(request);
+
+            // Without a PROXY header there is no context, so the client address is the immediate peer
+            var observation = ClientAddressRecordingFilter.observationFor(recorderId);
+            assertThat(observation).isNotNull();
+            assertThat(observation.proxyProtocolSourceAddress()).isNull();
+            assertThat(observation.clientAddress()).isEqualTo(observation.peerAddress());
         }
     }
 
