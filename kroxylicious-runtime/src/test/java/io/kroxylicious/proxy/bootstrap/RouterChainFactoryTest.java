@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kafka.common.Uuid;
 import io.kroxylicious.kafka.common.message.MetadataResponseData;
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
@@ -393,6 +394,165 @@ class RouterChainFactoryTest {
             assertThatThrownBy(() -> factory.createRouter("r1", VC_NAME, UNAVAILABLE_SENDER))
                     .isInstanceOf(IllegalArgumentException.class);
         }
+    }
+
+    @Test
+    void shouldAllowRoutesTargetingDistinctClusters() {
+        // Given
+        var routes = List.of(
+                new RouteDefinition("a", 0, null, new RouteTarget("clusterA", null)),
+                new RouteDefinition("b", 1, null, new RouteTarget("clusterB", null)));
+        var rd = new RouterDefinition("r1", TestRouterFactory.class.getName(), null, routes);
+        var vc = testVc(VC_NAME, "r1");
+
+        // When
+        try (var factory = new RouterChainFactory(testPfr(), List.of(vc), List.of(rd))) {
+            // Then
+            assertThat(factory.createRouter("r1", VC_NAME, UNAVAILABLE_SENDER)).isNotNull();
+        }
+    }
+
+    @Test
+    void shouldRejectRoutesTargetingSameClusterByDefault() {
+        // Given
+        var routes = List.of(
+                new RouteDefinition("a", 0, null, new RouteTarget("shared", null)),
+                new RouteDefinition("b", 1, null, new RouteTarget("shared", null)));
+        var rd = new RouterDefinition("r1", TestRouterFactory.class.getName(), null, routes);
+        var vc = testVc(VC_NAME, "r1");
+        var pfr = testPfr();
+        var virtualClusters = List.of(vc);
+        var routerDefinitions = List.of(rd);
+
+        // When/Then
+        assertThatThrownBy(() -> new RouterChainFactory(pfr, virtualClusters, routerDefinitions))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Router 'r1'")
+                .hasMessageContaining("'a' and 'b'")
+                .hasMessageContaining("cluster 'shared'");
+    }
+
+    @Test
+    void shouldRejectRoutesTransitivelyTargetingSameCluster() {
+        // Given: one route goes direct to 'shared', the other reaches it via a nested router
+        var parentRoutes = List.of(
+                new RouteDefinition("direct", 0, null, new RouteTarget("shared", null)),
+                new RouteDefinition("nested", 1, null, new RouteTarget(null, "child")));
+        var childRoutes = List.of(
+                new RouteDefinition("x", 0, null, new RouteTarget("other", null)),
+                new RouteDefinition("y", 1, null, new RouteTarget("shared", null)));
+        var rdParent = new RouterDefinition("parent", TestRouterFactory.class.getName(), null, parentRoutes);
+        var rdChild = new RouterDefinition("child", TestRouterFactory.class.getName(), null, childRoutes);
+        var vc = testVc(VC_NAME, "parent");
+        var pfr = testPfr();
+        var virtualClusters = List.of(vc);
+        var routerDefinitions = List.of(rdParent, rdChild);
+
+        // When/Then
+        assertThatThrownBy(() -> new RouterChainFactory(pfr, virtualClusters, routerDefinitions))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Router 'parent'")
+                .hasMessageContaining("cluster 'shared'");
+    }
+
+    @Test
+    void shouldRejectDiamondTopologyByDefault() {
+        // Given: two routes of the top router both lead, via different nested routers, to the same cluster
+        var topRoutes = List.of(
+                new RouteDefinition("left", 0, null, new RouteTarget(null, "leftRouter")),
+                new RouteDefinition("right", 1, null, new RouteTarget(null, "rightRouter")));
+        var rdTop = new RouterDefinition("top", TestRouterFactory.class.getName(), null, topRoutes);
+        var rdLeft = new RouterDefinition("leftRouter", TestRouterFactory.class.getName(), null,
+                List.of(new RouteDefinition("l", 0, null, new RouteTarget(null, "bottom"))));
+        var rdRight = new RouterDefinition("rightRouter", TestRouterFactory.class.getName(), null,
+                List.of(new RouteDefinition("r", 0, null, new RouteTarget(null, "bottom"))));
+        var rdBottom = new RouterDefinition("bottom", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
+        var vc = testVc(VC_NAME, "top");
+        var pfr = testPfr();
+        var virtualClusters = List.of(vc);
+        var routerDefinitions = List.of(rdTop, rdLeft, rdRight, rdBottom);
+
+        // When/Then
+        assertThatThrownBy(() -> new RouterChainFactory(pfr, virtualClusters, routerDefinitions))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Router 'top'")
+                .hasMessageContaining("cluster 'someCluster'");
+    }
+
+    @Test
+    void shouldAllowRoutesTargetingSameClusterWhenRouterOptsIn() {
+        // Given
+        var pfr = testPfrWith(new TestRouterFactory() {
+            @Override
+            public Object initialize(RouterFactoryContext context, Object config) {
+                context.allowSharedClusterTargets();
+                return super.initialize(context, config);
+            }
+        });
+        var routes = List.of(
+                new RouteDefinition("a", 0, null, new RouteTarget("shared", null)),
+                new RouteDefinition("b", 1, null, new RouteTarget("shared", null)));
+        var rd = new RouterDefinition("r1", TestRouterFactory.class.getName(), null, routes);
+        var vc = testVc(VC_NAME, "r1");
+
+        // When
+        try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd))) {
+            // Then
+            assertThat(factory.createRouter("r1", VC_NAME, UNAVAILABLE_SENDER)).isNotNull();
+        }
+    }
+
+    @Test
+    void sharedClusterTargetOptInShouldNotExtendToNestedRouters() {
+        // Given: the parent opts in, but the child (which has its own shared targets) does not
+        var pfr = testPfrWithMultiple(
+                new TestRouterFactory() {
+                    @Override
+                    public Object initialize(RouterFactoryContext context, Object config) {
+                        context.allowSharedClusterTargets();
+                        return super.initialize(context, config);
+                    }
+                },
+                new TestRouterFactory());
+        var rdParent = new RouterDefinition("parent", "factory-0", null,
+                List.of(new RouteDefinition("toChild", 0, null, new RouteTarget(null, "child"))));
+        var rdChild = new RouterDefinition("child", "factory-1", null, List.of(
+                new RouteDefinition("a", 0, null, new RouteTarget("shared", null)),
+                new RouteDefinition("b", 1, null, new RouteTarget("shared", null))));
+        var vc = testVc(VC_NAME, "parent");
+        var virtualClusters = List.of(vc);
+        var routerDefinitions = List.of(rdParent, rdChild);
+
+        // When/Then
+        assertThatThrownBy(() -> new RouterChainFactory(pfr, virtualClusters, routerDefinitions))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Router 'child'");
+    }
+
+    @Test
+    void shouldCloseInitializedFactoryWhenRejectingSharedClusterTargets() {
+        // Given
+        var closed = new AtomicBoolean(false);
+        var pfr = testPfrWith(new TestRouterFactory() {
+            @Override
+            public void close(Object initializationData) {
+                closed.set(true);
+            }
+        });
+        var routes = List.of(
+                new RouteDefinition("a", 0, null, new RouteTarget("shared", null)),
+                new RouteDefinition("b", 1, null, new RouteTarget("shared", null)));
+        var rd = new RouterDefinition("r1", TestRouterFactory.class.getName(), null, routes);
+        var vc = testVc(VC_NAME, "r1");
+        var virtualClusters = List.of(vc);
+        var routerDefinitions = List.of(rd);
+
+        // When
+        assertThatThrownBy(() -> new RouterChainFactory(pfr, virtualClusters, routerDefinitions))
+                .isInstanceOf(IllegalConfigurationException.class);
+
+        // Then
+        assertThat(closed.get()).isTrue();
     }
 
     // -- test helpers --
