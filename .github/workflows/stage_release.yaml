@@ -94,12 +94,13 @@ jobs:
         with:
           javaVersion: '21'
           javaDistro: 'temurin'
-          server-id: sonatype-central
+          server-id: central
           server-username: SONATYPE_TOKEN_USERNAME # env variable for Sonatype username
           server-password: SONATYPE_TOKEN_PASSWORD # env variable for Sonatype password
           gpg-passphrase: MAVEN_GPG_PASSPHRASE # env variable for GPG private key passphrase
           gpg-private-key: ${{ secrets.KROXYLICIOUS_RELEASE_PRIVATE_KEY }} # Value of the GPG private key to import
           overwrite-settings: 'true'
+          mvn-server-repository-origins: central:https://central.sonatype.com
 
       - name: 'Prepare Release Environment'
         run: |
