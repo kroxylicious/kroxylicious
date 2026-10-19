@@ -66,10 +66,11 @@ jobs:
         with:
           javaVersion: '21'
           javaDistro: 'temurin'
-          server-id: sonatype-central
+          server-id: central
           server-username: SONATYPE_TOKEN_USERNAME
           server-password: SONATYPE_TOKEN_PASSWORD
           overwrite-settings: 'true'
+          mvn-server-repository-origins: central:https://central.sonatype.com
 
       - name: 'Determine project version'
         id: version
