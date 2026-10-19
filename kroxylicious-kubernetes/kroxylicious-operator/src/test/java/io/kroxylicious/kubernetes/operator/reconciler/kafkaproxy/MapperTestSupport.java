@@ -17,8 +17,12 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.source.IndexerResourceCache;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -105,6 +109,70 @@ class MapperTestSupport {
         when(clusterRefOperation.list()).thenReturn(clusterRefList);
         when(clusterRefOperation.inNamespace(any())).thenReturn(clusterRefOperation);
         return clusterRefList;
+    }
+
+    public static KubernetesResourceList<KafkaProtocolFilter> mockKafkaProtocolFilterListOperation(KubernetesClient client) {
+        MixedOperation<KafkaProtocolFilter, KubernetesResourceList<KafkaProtocolFilter>, Resource<KafkaProtocolFilter>> filterOperation = mock();
+        when(client.resources(KafkaProtocolFilter.class)).thenReturn(filterOperation);
+
+        KubernetesResourceList<KafkaProtocolFilter> filterList = mock();
+        when(filterOperation.list()).thenReturn(filterList);
+        when(filterOperation.inNamespace(any())).thenReturn(filterOperation);
+        return filterList;
+    }
+
+    public static KubernetesResourceList<KafkaProxyIngress> mockKafkaProxyIngressListOperation(KubernetesClient client) {
+        MixedOperation<KafkaProxyIngress, KubernetesResourceList<KafkaProxyIngress>, Resource<KafkaProxyIngress>> ingressOperation = mock();
+        when(client.resources(KafkaProxyIngress.class)).thenReturn(ingressOperation);
+
+        KubernetesResourceList<KafkaProxyIngress> ingressList = mock();
+        when(ingressOperation.list()).thenReturn(ingressList);
+        when(ingressOperation.inNamespace(any())).thenReturn(ingressOperation);
+        return ingressList;
+    }
+
+    public static KafkaProtocolFilter buildFilter(String name, long generation, long observedGeneration) {
+        // @formatter:off
+        return new KafkaProtocolFilterBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                    .withGeneration(generation)
+                .endMetadata()
+                .withNewStatus()
+                    .withObservedGeneration(observedGeneration)
+                .endStatus()
+                .build();
+        // @formatter:on
+    }
+
+    public static KafkaProxyIngress buildIngress(String name, String proxyName, long generation, long observedGeneration) {
+        // @formatter:off
+        return new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                    .withGeneration(generation)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewProxyRef().withName(proxyName).endProxyRef()
+                .endSpec()
+                .withNewStatus()
+                    .withObservedGeneration(observedGeneration)
+                .endStatus()
+                .build();
+        // @formatter:on
+    }
+
+    public static KafkaProxyIngress buildIngress(String name, String proxyName) {
+        // @formatter:off
+        return new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewProxyRef().withName(proxyName).endProxyRef()
+                .endSpec()
+                .build();
+        // @formatter:on
     }
 
     public static KafkaService buildKafkaService(String name, long generation, long observedGeneration) {
