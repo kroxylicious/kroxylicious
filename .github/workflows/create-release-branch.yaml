@@ -1,0 +1,123 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Create Release Branch
+
+# This workflow creates a release branch from an existing release tag and
+# opens it for development at the next SNAPSHOT version.
+#
+# It accepts a release tag (e.g. v0.25.0) and creates a branch named
+# release/v<major>.<minor> (e.g. release/v0.25), bumping all Maven POMs
+# and non-Maven version references to the next development version.
+#
+# On the kroxylicious/kroxylicious repository, only release-engineers may run this.
+# On a fork, KROXYLICIOUS_RELEASE_TOKEN is not required; GITHUB_TOKEN is used instead.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'Release tag to create the branch from (e.g. v0.25.0)'
+        required: true
+      development-version:
+        description: 'Next development version (e.g. 0.25.1-SNAPSHOT). Patch version incremented automatically if omitted.'
+        required: false
+
+jobs:
+  create-release-branch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: 'Check out repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN || github.token }}
+
+      - name: 'Check team membership'
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
+        uses: tspascoal/get-user-teams-membership@b2546c5affc730fd8e3d8483ae9ad3621938c2f9
+        id: team-membership
+        with:
+          username: ${{ github.actor }}
+          team: release-engineers
+          GITHUB_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: 'Stop workflow if user is not a release-engineer'
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
+        run: |
+          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
+          exit -1
+
+      - name: 'Compute branch name and development version'
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release-tag }}
+          INPUT_DEV_VERSION: ${{ github.event.inputs.development-version }}
+        run: |
+          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "release-tag '${RELEASE_TAG}' is not in the expected form (e.g. v0.25.0)" >&2
+            exit 1
+          fi
+
+          RELEASE_VERSION="${RELEASE_TAG#v}"
+          MAJOR=$(cut -d. -f1 <<< "${RELEASE_VERSION}")
+          MINOR=$(cut -d. -f2 <<< "${RELEASE_VERSION}")
+          PATCH=$(cut -d. -f3 <<< "${RELEASE_VERSION}")
+          BRANCH_NAME="release/v${MAJOR}.${MINOR}"
+
+          if [[ -z "${INPUT_DEV_VERSION}" ]]; then
+            NEXT_PATCH=$((PATCH + 1))
+            DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-SNAPSHOT"
+          else
+            DEV_VERSION="${INPUT_DEV_VERSION}"
+          fi
+
+          if [[ ! "${DEV_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$ ]]; then
+            echo "development-version '${DEV_VERSION}' is not in the expected form (e.g. 0.25.1-SNAPSHOT)" >&2
+            exit 1
+          fi
+
+          echo "BRANCH_NAME=${BRANCH_NAME}" >> "${GITHUB_ENV}"
+          echo "DEV_VERSION=${DEV_VERSION}" >> "${GITHUB_ENV}"
+
+      - name: 'Configure Git username/email'
+        run: |
+          git config --global user.name "${GITHUB_ACTOR}"
+          git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+
+      - name: 'Cache Maven packages'
+        uses: $/.github/actions/common/cache-maven-packages
+
+      - name: 'Set up Java'
+        uses: $/.github/actions/common/setup-java
+        with:
+          javaVersion: '21'
+          javaDistro: 'temurin'
+
+      - name: 'Create release branch'
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release-tag }}
+        run: |
+          ./scripts/open-release-branch.sh \
+            -t "${RELEASE_TAG}" \
+            -n "${DEV_VERSION}" \
+            -b "${BRANCH_NAME}"

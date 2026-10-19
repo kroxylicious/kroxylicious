@@ -110,5 +110,17 @@ This will drop the snapshot repository, delete the release notes and close PR.
 Update the private key/passphrase secrets from the
 [repository secrets](https://github.com/kroxylicious/kroxylicious/settings/secrets/actions) to whitespace.
 
+## Creating a Release Branch
 
+Run [create-release-branch](https://github.com/kroxylicious/kroxylicious/actions/workflows/create-release-branch.yaml)
+to create a release branch from an existing release tag.
+
+| Input | Description | Example |
+|---|---|---|
+| `release-tag` | The existing release tag to branch from | `v0.25.0` |
+| `development-version` | The next patch SNAPSHOT version. Omit to derive automatically (patch + 1). | `0.25.1-SNAPSHOT` |
+
+This creates a branch named `release/v<major>.<minor>` (e.g. `release/v0.25`) and opens it for
+development at the next SNAPSHOT version by updating all Maven POMs and the non-Maven version
+references (docs attributes, container image tags, benchmark defaults).
 
