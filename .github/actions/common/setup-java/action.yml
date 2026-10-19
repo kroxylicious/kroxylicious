@@ -51,6 +51,10 @@ inputs:
     description: "Overwrite existing Maven settings"
     required: false
     default: "false"
+  mvn-server-repository-origins:
+    description: "Multiline list of Maven credential origins in the format 'server-id:repository-origin'. Requires Maven 3.10+."
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -74,3 +78,4 @@ runs:
         gpg-private-key: ${{ inputs.gpg-private-key }}
         gpg-passphrase: ${{ inputs.gpg-passphrase }}
         overwrite-settings: ${{ inputs.overwrite-settings }}
+        mvn-server-repository-origins: ${{ inputs.mvn-server-repository-origins }}
