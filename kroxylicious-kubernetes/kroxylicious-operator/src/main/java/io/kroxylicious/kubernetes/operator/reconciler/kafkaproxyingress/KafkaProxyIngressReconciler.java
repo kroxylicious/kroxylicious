@@ -16,23 +16,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.openshift.api.model.Route;
-import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
-import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourceState;
-import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.eventsource.EventSourceBuilder;
+import io.kroxylicious.kubernetes.operator.eventsource.Ref;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -79,17 +78,10 @@ public class KafkaProxyIngressReconciler implements
 
     @Override
     public List<EventSource<?, KafkaProxyIngress>> prepareEventSources(EventSourceContext<KafkaProxyIngress> context) {
-        InformerEventSourceConfiguration<KafkaProxy> configuration = InformerEventSourceConfiguration.from(
-                KafkaProxy.class,
-                KafkaProxyIngress.class)
+        return List.of(EventSourceBuilder.forSecondary(context, KafkaProxy.class)
                 .withName(PROXY_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper((KafkaProxyIngress ingress) -> ResourcesUtil.localRefAsResourceId(ingress, ingress.getSpec().getProxyRef()))
-                .withSecondaryToPrimaryMapper(proxy -> ResourcesUtil.findReferrers(context,
-                        proxy,
-                        KafkaProxyIngress.class,
-                        ingress -> Optional.of(ingress.getSpec().getProxyRef())))
-                .build();
-        return List.of(new InformerEventSource<>(configuration, context));
+                .withRelationship(Ref.toSecondary(ingress -> Optional.of(ingress.getSpec().getProxyRef())))
+                .build());
     }
 
     @Override

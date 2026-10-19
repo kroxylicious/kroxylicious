@@ -394,86 +394,16 @@ public class ResourcesUtil {
      * @param <R> the type of the referents
      */
     public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner,
-                                                                                                        List<? extends LocalRef<R>> refs) {
+                                                                                                        Collection<? extends LocalRef<R>> refs) {
         return refs.stream()
                 .map(ref -> new ResourceID(ref.getName(), owner.getMetadata().getNamespace()))
                 .collect(Collectors.toSet());
     }
 
     /**
-     * Finds the (ids of) the resources which reference the given referent
-     * This is the inverse of {@link #localRefAsResourceId(HasMetadata, LocalRef)}.
-     * @param context The context
-     * @param referent The referent
-     * @param owner The type of the owner of the reference
-     * @param refAccessor A function which returns the reference from a given owner.
-     * @return The ids of reference owners which refer to the referent.
-     * @param <O> The type of the reference owner
-     * @param <R> The type of the referent
-     */
-    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
-                                                                                               R referent,
-                                                                                               Class<O> owner,
-                                                                                               Function<O, Optional<LocalRef<R>>> refAccessor) {
-        return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
-                referent,
-                owner,
-                primary -> refAccessor.apply(primary).map(lr -> ResourcesUtil.isReferent(lr, referent)).orElse(false));
-    }
-
-    /**
-     * Finds the (ids of) the resources which reference the given OwnerReference
-     * @param context The context
-     * @param hasNamespace A resource bearing the namespace we wish to search
-     * @param referent The referent OwnerReference
-     * @param owner The type of the owner of the reference
-     * @param refAccessor A function which returns the reference from a given owner.
-     * @return The ids of reference owners which refer to the referent.
-     * @param <O> The type of the reference owner
-     * @param <R> The type of the referent
-     */
-    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
-                                                                                               OwnerReference referent,
-                                                                                               HasMetadata hasNamespace,
-                                                                                               Class<O> owner,
-                                                                                               Function<O, Optional<LocalRef<R>>> refAccessor) {
-        return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
-                hasNamespace,
-                owner,
-                primary -> refAccessor.apply(primary).map(lr -> referent.getName().equals(lr.getName()) && referent.getKind().equals(lr.getKind())).orElse(false));
-    }
-
-    /**
-     * Like {@link #findReferrers(EventSourceContext, HasMetadata, Class, Function)}
-     * except for the case where the owner is able to reference multiple referents (i.e. {@code refAccessor} returns a Collection.
-     * @param context The context
-     * @param referent The potential referent
-     * @param owner The type of the owner of the reference
-     * @param refAccessor A function which returns the references from a given owner.
-     * @return The ids of reference owners which refer to the referent.
-     * @param <O> The type of the reference owner
-     * @param <R> The type of the referent
-     */
-    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrersMulti(EventSourceContext<?> context,
-                                                                                                    R referent,
-                                                                                                    Class<O> owner,
-                                                                                                    Function<O, Collection<? extends LocalRef<R>>> refAccessor) {
-        return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
-                referent,
-                owner,
-                primary -> {
-                    Collection<? extends LocalRef<R>> refs = refAccessor.apply(primary);
-                    if (refs == null) {
-                        return false;
-                    }
-                    return refs.stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent));
-                });
-    }
-
-    /**
-     * Like {@link #findReferrers(EventSourceContext, HasMetadata, Class, Function)} but resolves the referring
-     * resources from the controller's primary cache ({@link EventSourceContext#getPrimaryCache()}) rather than
-     * issuing a live {@code list} against the API server.
+     * Finds the (ids of) the resources which reference the given referent, resolved from the controller's primary
+     * cache ({@link EventSourceContext#getPrimaryCache()}) rather than issuing a live {@code list} against the API
+     * server.
      * <p>
      * This is only valid when the referrers being searched for are the reconciler's <em>primary</em> resource type
      * (i.e. {@code P} is the type the {@link EventSourceContext} is parameterised with), which is the case for all
@@ -495,8 +425,8 @@ public class ResourcesUtil {
     }
 
     /**
-     * Like {@link #findReferrers(EventSourceContext, OwnerReference, HasMetadata, Class, Function)} but resolves the
-     * referring resources from the controller's primary cache rather than issuing a live {@code list}. See
+     * Finds the (ids of) the primaries which reference the given OwnerReference, resolved from the controller's
+     * primary cache rather than issuing a live {@code list}. See
      * {@link #findKnownPrimariesOf(EventSourceContext, HasMetadata, Function)} for the rationale and preconditions.
      * @param context The event source context
      * @param referent The referent OwnerReference
@@ -517,8 +447,9 @@ public class ResourcesUtil {
     }
 
     /**
-     * Like {@link #findReferrersMulti(EventSourceContext, HasMetadata, Class, Function)} but resolves the referring
-     * resources from the controller's primary cache rather than issuing a live {@code list}. See
+     * Like {@link #findKnownPrimariesOf(EventSourceContext, HasMetadata, Function)} except for the case where a
+     * primary is able to reference multiple referents (i.e. {@code refAccessor} returns a collection), resolved
+     * from the controller's primary cache rather than issuing a live {@code list}. See
      * {@link #findKnownPrimariesOf(EventSourceContext, HasMetadata, Function)} for the rationale and preconditions.
      * @param context The event source context
      * @param referent The potential referent
@@ -529,7 +460,7 @@ public class ResourcesUtil {
      */
     public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findKnownPrimariesOfEach(EventSourceContext<P> context,
                                                                                                           R referent,
-                                                                                                          Function<P, Collection<? extends LocalRef<R>>> refAccessor) {
+                                                                                                          Function<P, ? extends Collection<? extends LocalRef<R>>> refAccessor) {
         return filteredPrimaryIdsInSameNamespace(context, referent, primary -> {
             Collection<? extends LocalRef<R>> refs = refAccessor.apply(primary);
             if (refs == null) {

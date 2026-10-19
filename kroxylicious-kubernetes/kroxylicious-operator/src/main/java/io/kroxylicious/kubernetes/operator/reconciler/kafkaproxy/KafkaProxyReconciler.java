@@ -35,7 +35,6 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import io.javaoperatorsdk.operator.OperatorException;
-import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -45,7 +44,6 @@ import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.Workflow;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.Dependent;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
-import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.CipherSuites;
@@ -73,6 +71,9 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
+import io.kroxylicious.kubernetes.operator.eventsource.EventSourceBuilder;
+import io.kroxylicious.kubernetes.operator.eventsource.Ref;
+import io.kroxylicious.kubernetes.operator.eventsource.Relationship;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.networking.ClusterIngressNetworkingModel;
@@ -654,11 +655,28 @@ public class KafkaProxyReconciler implements
 
     @Override
     public List<EventSource<?, KafkaProxy>> prepareEventSources(EventSourceContext<KafkaProxy> context) {
+        // How a VirtualKafkaCluster references a proxy; reused directly and as the tail of the transitive
+        // filter/service relationships below.
+        Relationship<KafkaProxy, VirtualKafkaCluster> vkcToProxy = Ref.toPrimary(vkc -> vkc.getSpec().getProxyRef());
         return List.of(
-                buildFilterEventSource(context),
-                buildVirtualKafkaClusterEventSource(context),
-                buildKafkaServiceEventSource(context),
-                buildKafkaProxyIngressEventSource(context));
+                // filter <- VirtualKafkaCluster.filterRefs; VirtualKafkaCluster -> proxy
+                EventSourceBuilder.forSecondary(context, KafkaProtocolFilter.class)
+                        .withName("filters")
+                        .withRelationship(Ref.toPrimaryVia(VirtualKafkaCluster.class, Ref.refersToAny(vkc -> vkc.getSpec().getFilterRefs()), vkcToProxy))
+                        .build(),
+                EventSourceBuilder.forSecondary(context, VirtualKafkaCluster.class)
+                        .withName("virtualkafkaclusters")
+                        .withRelationship(vkcToProxy)
+                        .build(),
+                // KafkaService <- VirtualKafkaCluster.targetKafkaServiceRef; VirtualKafkaCluster -> proxy
+                EventSourceBuilder.forSecondary(context, KafkaService.class)
+                        .withName("kafkaservices")
+                        .withRelationship(Ref.toPrimaryVia(VirtualKafkaCluster.class, Ref.refersTo(vkc -> vkc.getSpec().getTargetKafkaServiceRef()), vkcToProxy))
+                        .build(),
+                EventSourceBuilder.forSecondary(context, KafkaProxyIngress.class)
+                        .withName("ingresses")
+                        .withRelationship(Ref.toPrimary(ingress -> ingress.getSpec().getProxyRef()))
+                        .build());
     }
 
     private static Optional<AllowDeny<String>> buildProtocols(@Nullable Protocols protocols) {
@@ -684,37 +702,4 @@ public class KafkaProxyReconciler implements
         return new ServerOptions(clientAuth);
     }
 
-    private static InformerEventSource<VirtualKafkaCluster, KafkaProxy> buildVirtualKafkaClusterEventSource(EventSourceContext<KafkaProxy> context) {
-        InformerEventSourceConfiguration<VirtualKafkaCluster> configuration = InformerEventSourceConfiguration.from(VirtualKafkaCluster.class, KafkaProxy.class)
-                .withSecondaryToPrimaryMapper(new VirtualKafkaClusterSecondaryToKafkaProxyPrimaryMapper(context))
-                .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToVirtualKafkaClusterSecondaryMapper(context))
-                .build();
-        return new InformerEventSource<>(configuration, context);
-    }
-
-    private static InformerEventSource<KafkaProxyIngress, KafkaProxy> buildKafkaProxyIngressEventSource(EventSourceContext<KafkaProxy> context) {
-        InformerEventSourceConfiguration<KafkaProxyIngress> configuration = InformerEventSourceConfiguration.from(KafkaProxyIngress.class, KafkaProxy.class)
-                .withSecondaryToPrimaryMapper(new KafkaProxyIngressSecondaryToKafkaProxyPrimaryMapper(context))
-                .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToKafkaProxyIngressSecondaryMapper(context))
-                .build();
-        return new InformerEventSource<>(configuration, context);
-    }
-
-    private static InformerEventSource<KafkaService, KafkaProxy> buildKafkaServiceEventSource(EventSourceContext<KafkaProxy> context) {
-        InformerEventSourceConfiguration<KafkaService> configuration = InformerEventSourceConfiguration.from(KafkaService.class, KafkaProxy.class)
-                .withSecondaryToPrimaryMapper(new KafkaServiceSecondaryToKafkaProxyPrimaryMapper(context))
-                .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToKafkaServiceSecondaryMapper(context))
-                .build();
-        return new InformerEventSource<>(configuration, context);
-    }
-
-    private static InformerEventSource<KafkaProtocolFilter, KafkaProxy> buildFilterEventSource(EventSourceContext<KafkaProxy> context) {
-
-        var configuration = InformerEventSourceConfiguration.from(KafkaProtocolFilter.class, KafkaProxy.class)
-                .withSecondaryToPrimaryMapper(new KafkaProtocolFilterSecondaryToKafkaProxyPrimaryMapper(context))
-                .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToKafkaProtocolFilterSecondaryMapper(context))
-                .build();
-
-        return new InformerEventSource<>(configuration, context);
-    }
 }

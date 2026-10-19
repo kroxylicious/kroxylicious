@@ -101,6 +101,20 @@ try {
 }
 ```
 
+**Event source mapping:**
+
+Each reconciler's `prepareEventSources` registers, for every related resource type, an event source built via `io.kroxylicious.kubernetes.operator.eventsource.EventSourceBuilder`, declaring a `PrimaryToSecondaryMapper` (given the primary, find the secondaries it should watch) and a `SecondaryToPrimaryMapper` (given a changed secondary, find the primaries to reconcile). Every declarative relationship, regardless of which side holds the reference, is expressed via the `io.kroxylicious.kubernetes.operator.eventsource.Ref` DSL and passed to `EventSourceBuilder.withRelationship(...)`:
+
+- `Ref.toSecondary`/`Ref.toSecondaries` — the primary's spec holds a `LocalRef` (or collection of them) pointing at its secondaries, e.g. `VirtualKafkaCluster.spec.targetKafkaServiceRef`. The primary→secondary direction is a direct O(1) lookup; the secondary→primary direction scans the primary cache for matches.
+- `Ref.toPrimary`/`Ref.toPrimaryVia` — the secondary (perhaps transitively, through an intermediate resource) holds the reference back to the primary, e.g. `KafkaProxyIngress.spec.proxyRef`, or `KafkaProtocolFilter` reached via `VirtualKafkaCluster.spec.filterRefs`. Because an update/delete event only exposes the secondary's current state, the secondary→primary direction conservatively reconciles every primary in the namespace rather than risk missing a reference removal (see [#4017](https://github.com/kroxylicious/kroxylicious/issues/4017) for the related live-API-call pitfall this also avoids).
+
+`EventSourceBuilder.withSharedInformer(...)` opts into a cache shared across reconcilers watching the same secondary type, and `.requireFreshStatus()` drops events from Kroxylicious CR secondaries whose status hasn't caught up with their spec (skip for core Kubernetes types, which have no generation/observedGeneration semantics).
+
+A relationship still needs a bespoke mapper pair, plugged in via `EventSourceBuilder.withMappers(...)`, when it doesn't reduce to a same-namespace `LocalRef` lookup:
+- **Cross-namespace references** — resolved via a `context.getPrimaryCache().addIndexer(...)`/`byIndex(...)` lookup instead of a same-namespace scan (e.g. `StrimziKafkaSecondaryToKafkaServicePrimaryMapper`, since a `KafkaService`'s `strimziKafkaRef` can point at a `Kafka` resource in a different namespace).
+- **Owner-reference / derived-name resolution** for operator-owned resources, where the secondary isn't referenced by a `spec` ref field at all (e.g. `KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper`, which correlates owned `Service` objects via Kubernetes `ownerReferences` and conventional naming).
+- **Dynamic, interpolation-driven discovery**, where the references aren't declarative spec fields at all (e.g. `KafkaProtocolFilterReconciler` extracts Secret/ConfigMap names from its interpolated `spec.configTemplate`).
+
 ## CRD to Proxy Configuration Mapping
 
 **Transformation:**
