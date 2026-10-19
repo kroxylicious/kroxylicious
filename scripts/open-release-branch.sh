@@ -68,12 +68,20 @@ fi
 
 RELEASE_VERSION="${RELEASE_TAG#v}"
 
+# Checking out the release tag switches the working tree to the tag state,
+# which predates update-version-references.sh. Copy it (and common.sh it
+# depends on) to a temp dir so they survive the working-tree switch.
+_SCRIPT_TMPDIR=$(mktemp -d)
+trap 'rm -rf "${_SCRIPT_TMPDIR}"' EXIT
+cp "${SCRIPT_DIR}/common.sh" "${_SCRIPT_TMPDIR}/"
+cp "${SCRIPT_DIR}/update-version-references.sh" "${_SCRIPT_TMPDIR}/"
+
 echo "Creating release branch ${BRANCH_NAME} from tag ${RELEASE_TAG}"
 git fetch -q "${REPOSITORY}" "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
 git checkout -b "${BRANCH_NAME}" "${RELEASE_TAG}"
 
 echo "Setting development version to ${DEV_VERSION}"
-"${SCRIPT_DIR}/update-version-references.sh" -v "${DEV_VERSION}" -g "${BRANCH_NAME}" -a "${RELEASE_VERSION}"
+"${_SCRIPT_TMPDIR}/update-version-references.sh" -v "${DEV_VERSION}" -g "${BRANCH_NAME}" -a "${RELEASE_VERSION}"
 
 git commit --message "ci(release): open ${BRANCH_NAME} for development at ${DEV_VERSION}" --signoff
 
