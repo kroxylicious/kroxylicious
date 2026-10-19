@@ -67,7 +67,7 @@ public class AdocConverter extends StringConverter {
                 case "floating_title" -> adocNodeConverter.convertFloatingTitle(block);
                 case "thematic_break" ->
                         // 水平線を出力
-                        new StringBuilder().append("---").append("\n").toString();
+                        "---\n";
                 default -> adocNodeConverter.convertOther(transform, block);
             };
         }
