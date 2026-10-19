@@ -8,7 +8,7 @@ This document gives a detailed breakdown of the various build processes and opti
 ## Build Prerequisites
 
 - [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
-- [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - [Apache Maven®](https://maven.apache.org)
+- [`mvn`](https://maven.apache.org/index.html) (version 3.9.2 and above) - [Apache Maven®](https://maven.apache.org)
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 
 > :warning: **If you are using Podman please see [these notes](#running-integration-tests-on-podman) below**
@@ -114,7 +114,7 @@ mvn clean package -Pdist -Dquick -P-withAdditionalFilters
 Run the following to add missing license headers e.g. when adding new source files:
 
 ```shell
-mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolve-rootdir license:format
+mvn license:format
 ```
 
 ### Using SNAPSHOT Artifacts
