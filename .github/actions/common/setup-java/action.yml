@@ -69,8 +69,8 @@ runs:
         distribution: ${{ inputs.javaDistro }}
         java-version: ${{ inputs.javaVersion }}
         server-id: ${{ inputs.server-id }}
-        server-username: ${{ inputs.server-username }}
-        server-password: ${{ inputs.server-password }}
+        server-username-env-var: ${{ inputs.server-username }}
+        server-password-env-var: ${{ inputs.server-password }}
         gpg-private-key: ${{ inputs.gpg-private-key }}
         gpg-passphrase: ${{ inputs.gpg-passphrase }}
         overwrite-settings: ${{ inputs.overwrite-settings }}
