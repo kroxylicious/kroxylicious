@@ -98,14 +98,12 @@ class AdocNodeConverter {
     // content
     public String convertSectionNode(Section section) {
         String text = section.getTitle();
-        return new StringBuilder()
-                .append(String.join("", Collections.nCopies(section.getLevel() + 1, "=")))
-                .append(" ")
-                .append(text)
-                .append(LINE_SEPARATOR)
-                .append(LINE_SEPARATOR)
-                .append(section.getContent())
-                .toString();
+        return String.join("", Collections.nCopies(section.getLevel() + 1, "="))
+                + " "
+                + text
+                + LINE_SEPARATOR
+                + LINE_SEPARATOR
+                + section.getContent();
     }
 
     // Blockを 以下のフォーマットで変換する.
@@ -147,11 +145,7 @@ class AdocNodeConverter {
     // なお、元々のテキストが「行頭スペース」か「....」なのかは AST(Block)から判別不可.
     public String convertLiteralNode(Block block) {
         String text = block.getContent().toString();
-        return new StringBuilder()
-                .append(" ")
-                .append(text)
-                .append(LINE_SEPARATOR)
-                .toString();
+        return " " + text + LINE_SEPARATOR;
     }
 
     // Blockを以下のフォーマットで変換する.
@@ -230,11 +224,7 @@ class AdocNodeConverter {
             return "";
         }
         String text = block.getTitle();
-        return new StringBuilder()
-                .append(".")
-                .append(text)
-                .append(LINE_SEPARATOR)
-                .toString();
+        return "." + text + LINE_SEPARATOR;
     }
 
     // BlockのOption部分を抽出する.
@@ -287,26 +277,18 @@ class AdocNodeConverter {
         // option
         StringBuilder headerOption = new StringBuilder();
         if (table.getHeader() != null && !table.getHeader().isEmpty()) {
-            java.util.List<StringBuilder> options = new ArrayList<>();
+            java.util.List<String> options = new ArrayList<>();
             // ヘッダー指定の有無
             if (table.getAttribute(ATTR_HEADER) != null) {
-                options.add(new StringBuilder().append("options=\"header\""));
+                options.add("options=\"header\"");
             }
             // カラム幅
             if (table.getAttribute(ATTR_COLS) != null) {
-                options.add(
-                        new StringBuilder()
-                                .append("cols=\"")
-                                .append(table.getAttribute(ATTR_COLS).toString())
-                                .append("\""));
+                options.add("cols=\"" + table.getAttribute(ATTR_COLS) + "\"");
             }
             // フォーマット
             if (table.getAttribute(ATTR_FORMAT) != null) {
-                options.add(
-                        new StringBuilder()
-                                .append("format=\"")
-                                .append(table.getAttribute(ATTR_FORMAT).toString())
-                                .append("\""));
+                options.add("format=\"" + table.getAttribute(ATTR_FORMAT) + "\"");
             }
             if (!options.isEmpty()) {
                 headerOption
@@ -321,9 +303,9 @@ class AdocNodeConverter {
         boolean isCsvFormat = table.getAttribute(ATTR_FORMAT) != null
                 && table.getAttribute(ATTR_FORMAT).toString().equals("csv");
         // Header
-        StringBuilder header = new StringBuilder().append(convertRowList(table.getHeader(), isCsvFormat));
+        String header = convertRowList(table.getHeader(), isCsvFormat);
         // BODY
-        StringBuilder body = new StringBuilder().append(convertRowList(table.getBody(), isCsvFormat));
+        String body = convertRowList(table.getBody(), isCsvFormat);
 
         return title
                 .append(headerOption)
@@ -472,7 +454,7 @@ class AdocNodeConverter {
     // PhraseNodeを text + のフォーマットで変換する.
     public String convertInlineBreakNode(PhraseNode phrase) {
         String text = phrase.getText();
-        return new StringBuilder().append(text).append(" +").toString();
+        return text + " +";
     }
 
     public String convertImageNode(Block block) {
@@ -481,16 +463,14 @@ class AdocNodeConverter {
 
     public String convertFloatingTitle(Block block) {
         String title = block.getTitle();
-        return new StringBuilder()
-                .append("[")
-                .append(block.getStyle())
-                .append("]")
-                .append(LINE_SEPARATOR)
-                .append(String.join("", Collections.nCopies(block.getLevel() + 1, "=")))
-                .append(" ")
-                .append(title)
-                .append(LINE_SEPARATOR)
-                .toString();
+        return "["
+                + block.getStyle()
+                + "]"
+                + LINE_SEPARATOR
+                + String.join("", Collections.nCopies(block.getLevel() + 1, "="))
+                + " "
+                + title
+                + LINE_SEPARATOR;
     }
 
     String convertOther(String transform, Block node) {

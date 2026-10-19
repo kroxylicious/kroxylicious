@@ -119,22 +119,18 @@ public final class TestCertificateUtil {
      * Generates a PEM-encoded certificate string.
      */
     static String toPem(X509Certificate cert) throws Exception {
-        var sb = new StringBuilder();
-        sb.append("-----BEGIN CERTIFICATE-----\n");
-        sb.append(Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(cert.getEncoded()));
-        sb.append("\n-----END CERTIFICATE-----\n");
-        return sb.toString();
+        return "-----BEGIN CERTIFICATE-----\n"
+                + Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(cert.getEncoded())
+                + "\n-----END CERTIFICATE-----\n";
     }
 
     /**
      * Generates a PEM-encoded PKCS#8 private key string.
      */
     static String toPkcs8Pem(PrivateKey key) {
-        var sb = new StringBuilder();
-        sb.append("-----BEGIN PRIVATE KEY-----\n");
-        sb.append(Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(key.getEncoded()));
-        sb.append("\n-----END PRIVATE KEY-----\n");
-        return sb.toString();
+        return "-----BEGIN PRIVATE KEY-----\n"
+                + Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(key.getEncoded())
+                + "\n-----END PRIVATE KEY-----\n";
     }
 
     /**
@@ -167,11 +163,9 @@ public final class TestCertificateUtil {
         byte[] pkcs1 = new byte[pkcs1Len];
         System.arraycopy(pkcs8, pos, pkcs1, 0, pkcs1Len);
 
-        var sb = new StringBuilder();
-        sb.append("-----BEGIN RSA PRIVATE KEY-----\n");
-        sb.append(Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(pkcs1));
-        sb.append("\n-----END RSA PRIVATE KEY-----\n");
-        return sb.toString();
+        return "-----BEGIN RSA PRIVATE KEY-----\n"
+                + Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(pkcs1)
+                + "\n-----END RSA PRIVATE KEY-----\n";
     }
 
     private static int derReadLength(byte[] data, int pos) {

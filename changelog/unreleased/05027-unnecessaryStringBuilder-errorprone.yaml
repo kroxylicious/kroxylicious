@@ -1,0 +1,4 @@
+title: "fix: resolve ErrorProne UnnecessaryStringBuilder warnings"
+type: fixed
+merge_requests:
+  - 5027
