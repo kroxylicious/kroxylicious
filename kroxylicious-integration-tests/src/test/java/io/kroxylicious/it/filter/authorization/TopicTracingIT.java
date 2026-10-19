@@ -151,6 +151,9 @@ class TopicTracingIT extends AbstractTracingIT {
                 setup.createTopic(topicA);
                 Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(setup.admin(), List.of(TOPIC_A)));
                 try (var admin = clientFactory.newAdmin(adminUser, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "admin"))) {
+                    // setup and admin are separate connections and may be routed to brokers with different
+                    // metadata propagation lag, so topicA's readiness must be confirmed on both before admin acts on it
+                    Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(admin.admin(), List.of(TOPIC_A)));
                     int expandedPartitions = 2;
                     admin.createPartitions(topicA, expandedPartitions);
                     // the added partitions must be visible, not just led, before describeTopic is traced: a describe
@@ -162,6 +165,7 @@ class TopicTracingIT extends AbstractTracingIT {
                     admin.alterConfigs(ConfigResource.Type.TOPIC, topicA, new ConfigEntry(TopicConfig.COMPRESSION_TYPE_CONFIG, "zstd"));
                     var topicBId = setup.createTopic(topicB).value();
                     Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(setup.admin(), List.of(TOPIC_B)));
+                    Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(admin.admin(), List.of(TOPIC_B)));
 
                     admin.deleteTopic(topicBId);
                 }
