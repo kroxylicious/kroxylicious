@@ -8,13 +8,22 @@ package io.kroxylicious.kms.provider.thales.ciphertrust.config;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.event.Level;
+import org.slf4j.event.LoggingEvent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
+import io.github.sambarker.logsquelcher.CapturedLogs;
+import io.github.sambarker.logsquelcher.LogSquelcherExtension;
+import io.github.sambarker.logsquelcher.LoggingEventAssert;
+
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.Tls;
 
@@ -22,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
+@ExtendWith(LogSquelcherExtension.class)
 class ConfigParseTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -320,4 +330,31 @@ class ConfigParseTest {
         return MAPPER.reader().readValue(json, Config.class);
     }
 
+    @Test
+    void shouldWarnWithHTTPEndpoint(final CapturedLogs logs) {
+        //Given
+        final URI uri = URI.create("http://ctm.example.com");
+
+        //When
+        new Config(uri, new UserCredentials("user", new InlinePassword(""), null), null, null);
+
+        //Then
+        final List<LoggingEvent> events = logs.logged(Config.class);
+        LoggingEventAssert.assertThat(events)
+                .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));
+    }
+
+    @Test
+    void shouldNotWarnWithHTTPSEndpoint(final CapturedLogs logs) {
+        //Given
+        final URI uri = URI.create("https://ctm.example.com");
+
+        //When
+        new Config(uri, new UserCredentials("user", new InlinePassword(""), null), null, null);
+
+        //Then
+        final List<LoggingEvent> events = logs.logged(Config.class);
+        LoggingEventAssert.assertThat(events)
+                .noneMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));
+    }
 }

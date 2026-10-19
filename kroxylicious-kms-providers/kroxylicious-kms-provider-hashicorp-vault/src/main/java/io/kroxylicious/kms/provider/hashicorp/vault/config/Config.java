@@ -8,6 +8,9 @@ package io.kroxylicious.kms.provider.hashicorp.vault.config;
 
 import java.net.URI;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonProperty.Access;
 
@@ -42,6 +45,7 @@ public record Config(
                      @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
 
     public static final String DEFAULT_TRANSIT_ENGINE_PATH = "transit";
+    private static final Logger LOGGER = LoggerFactory.getLogger(Config.class);
 
     /**
      * Validates and normalizes the configuration components.
@@ -82,6 +86,11 @@ public record Config(
         }
         else if (transitEnginePath == null) {
             transitEnginePath = DEFAULT_TRANSIT_ENGINE_PATH;
+        }
+        if (!"https".equalsIgnoreCase(vaultUrl.getScheme())) { // vaultURL is either set directly or extracted from the transit engine URI and so cannot be null
+            LOGGER.atWarn()
+                    .addKeyValue("endpoint", vaultUrl)
+                    .log("KMS endpoint does not begin with https://, production installations should use a secure endpoint");
         }
     }
 

@@ -7,13 +7,22 @@
 package io.kroxylicious.kms.provider.azure.config.auth;
 
 import java.net.URI;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.event.Level;
+import org.slf4j.event.LoggingEvent;
+
+import io.github.sambarker.logsquelcher.CapturedLogs;
+import io.github.sambarker.logsquelcher.LogSquelcherExtension;
+import io.github.sambarker.logsquelcher.LoggingEventAssert;
 
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(LogSquelcherExtension.class)
 class Oauth2ClientCredentialsConfigTest {
 
     public static final String CLIENT_ID = "abc";
@@ -48,5 +57,39 @@ class Oauth2ClientCredentialsConfigTest {
                 new InlinePassword(CLIENT_SECRET),
                 URI.create("http://override.com/.default"), null);
         assertThat(oauth2ClientCredentials.scope()).isEqualTo(URI.create("http://override.com/.default"));
+    }
+
+    @Test
+    void shouldWarnWithHTTPEndpoint(final CapturedLogs logs) {
+        //Given
+        final URI uri = URI.create("http://login.microsoftonline.com");
+
+        //When
+        new Oauth2ClientCredentialsConfig(uri, TENANT_ID,
+                new InlinePassword(CLIENT_ID),
+                new InlinePassword(CLIENT_SECRET),
+                URI.create("http://override.com/.default"), null);
+
+        //Then
+        final List<LoggingEvent> events = logs.logged(Oauth2ClientCredentialsConfig.class);
+        LoggingEventAssert.assertThat(events)
+                .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("OAuth endpoint does not begin with https"));
+    }
+
+    @Test
+    void shouldNotWarnWithHTTPSEndpoint(final CapturedLogs logs) {
+        //Given
+        final URI uri = URI.create("https://login.microsoftonline.com");
+
+        //When
+        new Oauth2ClientCredentialsConfig(uri, TENANT_ID,
+                new InlinePassword(CLIENT_ID),
+                new InlinePassword(CLIENT_SECRET),
+                URI.create("http://override.com/.default"), null);
+
+        //Then
+        final List<LoggingEvent> events = logs.logged(Oauth2ClientCredentialsConfig.class);
+        LoggingEventAssert.assertThat(events)
+                .noneMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("OAuth endpoint does not begin with https"));
     }
 }

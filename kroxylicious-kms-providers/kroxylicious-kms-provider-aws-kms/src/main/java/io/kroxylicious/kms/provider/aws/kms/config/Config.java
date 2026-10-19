@@ -9,6 +9,9 @@ package io.kroxylicious.kms.provider.aws.kms.config;
 import java.net.URI;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -28,6 +31,8 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
                      @JsonProperty(value = "region", required = true) String region,
                      @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Config.class);
+
     /**
      * Creates the AWS KMS configuration.
      *
@@ -40,6 +45,11 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
         Objects.requireNonNull(endpointUrl);
         Objects.requireNonNull(credentials);
         Objects.requireNonNull(region);
+        if (!"https".equalsIgnoreCase(endpointUrl.getScheme())) { // string comparison protects against a null schema
+            LOGGER.atWarn()
+                    .addKeyValue("endpoint", endpointUrl)
+                    .log("KMS endpoint does not begin with https://, production installations should use a secure endpoint");
+        }
     }
 
 }
