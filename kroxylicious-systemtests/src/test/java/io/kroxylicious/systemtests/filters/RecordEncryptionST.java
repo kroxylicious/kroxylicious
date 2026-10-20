@@ -38,6 +38,7 @@ import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
+import io.kroxylicious.systemtests.resources.kms.StaticCredentialAuthKmsFacadeFactory;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
@@ -68,8 +69,9 @@ class RecordEncryptionST extends AbstractSystemTests {
     static Stream<? extends TestKmsFacade<?, ?, ?>> facadesSource() {
         // We rely on the fact that streams are lazy so the facade isn't built
         // or started until the first test needs it.
+        // Static-credential facades only. ServiceAccount-auth facades are covered by ServiceAccountAuthRecordEncryptionST.
         return TestKmsFacadeFactory.getTestKmsFacadeFactories()
-                .filter(f -> f.getClass().getName().contains("systemtests"))
+                .filter(StaticCredentialAuthKmsFacadeFactory.class::isInstance)
                 .map(TestKmsFacadeFactory::build)
                 .filter(TestKmsFacade::isAvailable)
                 .peek(TestKmsFacade::start);

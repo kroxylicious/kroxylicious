@@ -6,10 +6,12 @@
 
 package io.kroxylicious.systemtests.resources.kms.fortanix;
 
+import io.kroxylicious.systemtests.resources.kms.StaticCredentialAuthKmsFacadeFactory;
 import io.kroxylicious.testing.kms.fortanix.FortanixDsmKmsTestKmsFacadeFactory;
 
 /**
  * Wrapper Factory for FortanixDsmKmsTestKmsFacade.
  */
-public class KubeFortanixTestKmsFacadeFactory extends FortanixDsmKmsTestKmsFacadeFactory {
+public class KubeFortanixTestKmsFacadeFactory extends FortanixDsmKmsTestKmsFacadeFactory
+        implements StaticCredentialAuthKmsFacadeFactory {
 }
