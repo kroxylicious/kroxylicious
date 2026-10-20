@@ -120,6 +120,11 @@
             <artifactId>awaitility</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.github.sambarker</groupId>
+            <artifactId>logsquelcher</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

@@ -1,0 +1,4 @@
+title: "feat(kms): added warning when using an HTTP KMS endpoint"
+type: added
+issues:
+  - 4605
