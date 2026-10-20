@@ -233,6 +233,8 @@ class TopicTracingIT extends AbstractTracingIT {
                     var setupB = clientFactory.newAdmin(setupUserB, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "setup-bob"))) {
                 setupA.createTopic(topicA);
                 setupB.createTopic(topicC);
+                Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(setupA.admin(), List.of(TOPIC_A)));
+                Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(setupB.admin(), List.of(TOPIC_C)));
                 try (var nonTransactionalProducer = clientFactory.newProducer(producerUser, INTEGER_SERIALIZER, Map.of(
                         ProducerConfig.CLIENT_ID_CONFIG, "nonTransactionalProducerAlice",
                         ProducerConfig.PARTITIONER_CLASS_CONFIG, AlwaysPartition0Partitioner.class.getName()))) {
