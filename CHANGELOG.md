@@ -5,6 +5,15 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## 0.25.1
+
+* [#5166](https://github.com/kroxylicious/kroxylicious/issues/5166): security(azure-kms): fix SSRF vulnerability in Azure Key Vault KMS provider ([GHSA-5j25-p663-ww5r](https://github.com/kroxylicious/kroxylicious/security/advisories/GHSA-5j25-p663-ww5r))
+* [#5071](https://github.com/kroxylicious/kroxylicious/pull/5071): build(deps): bump netty.version from 4.2.18.Final to 4.2.19.Final
+
+### Changes, deprecations and removals
+
+* [#5166](https://github.com/kroxylicious/kroxylicious/issues/5166): Azure Key Vault KMS provider now validates the vaultName field in Encrypted Data Encryption Keys (EDEKs) to prevent Server-Side Request Forgery (SSRF) attacks.
+
 ## 0.25.0
 
 * [#3758](https://github.com/kroxylicious/kroxylicious/issues/3758): feat(operator): support dedicated ServiceAccounts for proxy pods
