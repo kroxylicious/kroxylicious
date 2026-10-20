@@ -119,7 +119,7 @@ git checkout -b "${TEMPORARY_RELEASE_BRANCH}" "${REPOSITORY}/${BRANCH_FROM}"
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 "${SCRIPT_DIR}/update-version-references.sh" -v "${RELEASE_VERSION}" -g "v${RELEASE_VERSION}"
 ${SED} -i "s|\\\${changelog.link.prefix}|${CHANGELOG_LINK_PREFIX}|g" changelog/.templates/CHANGELOG.md
-mvn --quiet logchange:release
+mvn --quiet dev.logchange:logchange-maven-plugin:release
 # logchange:release rewrites the CHANGELOG template and empties changelog/unreleased,
 # deleting the .gitkeep that keeps the directory tracked. Restore both.
 git checkout -- changelog/.templates/CHANGELOG.md changelog/unreleased/.gitkeep
