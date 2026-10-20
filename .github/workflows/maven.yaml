@@ -93,7 +93,6 @@ jobs:
           -P errorprone-fail-on-warnings
           -P errorprone-jdk-compatible
           -P qa
-          -P quick
           -P release
           -P skipContainerImageBuild
           -P skipped-tests
