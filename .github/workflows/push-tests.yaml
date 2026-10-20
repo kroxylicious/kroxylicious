@@ -28,6 +28,10 @@ jobs:
     needs: build_artifacts
     uses: $/.github/workflows/integration-tests.yaml
 
+  documentation_tests:
+    needs: build_artifacts
+    uses: $/.github/workflows/documentation-tests.yml
+
   # JOB to run change detection to decide whether run the system tests
   changes_for_system_tests:
     runs-on: ubuntu-latest
