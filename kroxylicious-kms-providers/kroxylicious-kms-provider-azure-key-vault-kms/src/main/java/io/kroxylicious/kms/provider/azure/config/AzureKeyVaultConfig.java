@@ -114,6 +114,7 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
      * @return the base URL for the vault, without a trailing slash.
      */
     public String keyVaultUrl(String vaultName) {
+        validateKeyVaultName(vaultName);
         String host = vaultName + "." + keyVaultHost;
         String portSpec = keyVaultPort() == null ? "" : ":" + keyVaultPort();
         return kvScheme() + "://" + host + portSpec;
