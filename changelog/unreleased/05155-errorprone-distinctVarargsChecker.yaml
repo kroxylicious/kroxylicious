@@ -1,4 +1,4 @@
-title: "fix: resolve ErrorProne DistinctVarargsCheck warnings by replacing Set.of() by List.of()"
+title: "fix: resolve ErrorProne DistinctVarargsChecker warnings by replacing Set.of() by List.of()"
 type: fixed
 merge_requests:
   - 5155
