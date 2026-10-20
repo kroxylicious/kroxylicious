@@ -51,7 +51,7 @@ public record Oauth2ClientCredentialsConfig(@JsonProperty(required = true) URI o
         Objects.requireNonNull(clientId, "clientId cannot be null");
         Objects.requireNonNull(clientSecret, "clientSecret cannot be null");
         Objects.requireNonNull(scope, "scope cannot be null");
-        if (!oauthEndpoint.getScheme().equalsIgnoreCase("https")) {
+        if (!"https".equalsIgnoreCase(oauthEndpoint.getScheme())) { // string comparison protects against a null schema
             LOGGER.atWarn()
                     .addKeyValue("endpoint", oauthEndpoint)
                     .log("OAuth endpoint does not begin with https://, production installations should use a secure endpoint");

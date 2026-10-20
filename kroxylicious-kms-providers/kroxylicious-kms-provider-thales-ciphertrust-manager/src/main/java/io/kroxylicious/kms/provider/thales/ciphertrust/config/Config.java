@@ -9,6 +9,9 @@ package io.kroxylicious.kms.provider.thales.ciphertrust.config;
 import java.net.URI;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -34,6 +37,8 @@ public record Config(
                      @JsonProperty(value = "userCredentials", required = false) @Nullable UserCredentials userCredentials,
                      @JsonProperty(value = "clientCredentials", required = false) @Nullable ClientCredentials clientCredentials,
                      @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Config.class);
 
     /**
      * Constructs a CipherTrust Manager KMS configuration.
@@ -62,6 +67,12 @@ public record Config(
         // Validate client certificate authentication configuration
         if (hasClientCredentials && !hasClientCertificate) {
             throw new IllegalArgumentException("clientCredentials requires a client certificate (tls.key must be configured)");
+        }
+
+        if (!"https".equalsIgnoreCase(endpointUrl.getScheme())) { // string comparison protects against a null schema
+            LOGGER.atWarn()
+                    .addKeyValue("endpointUrl", endpointUrl)
+                    .log("KMS endpoint does not begin with https://, production installations should use a secure endpoint");
         }
     }
 }
