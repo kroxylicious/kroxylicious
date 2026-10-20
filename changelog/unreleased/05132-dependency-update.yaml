@@ -1,0 +1,4 @@
+title: "build(deps): bump io.prometheus:prometheus-metrics-bom from 1.8.0 to 1.9.0"
+type: build
+merge_requests:
+  - 5132
