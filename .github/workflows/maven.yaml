@@ -83,6 +83,13 @@ jobs:
         # All profiles activated so the cache covers deps only pulled in by non-default profiles
         # (e.g. rewrite-maven-plugin, aarch64 netty natives) that later jobs in this workflow use.
         run: mvn dependency:go-offline -DexcludeArtifactIds=lifecycle-mapping -Daether.dependencyCollector.impl=bf -q -P aarch64,ci,debug,dist,errorprone-fail-on-warnings,errorprone-jdk-compatible,kubernetes-management,proxy-core,qa,quick,release,runtime-plugins,skipContainerImageBuild,skipped-tests,supplementary,systemtest,test-suites,validate-tree,withAdditionalFilters,with-profiling-libs
+      - name: 'Warm jbang-maven-plugin download-maven-plugin dependency'
+        if: steps.cache-maven.outputs.cache-hit != 'true'
+        # jbang-maven-plugin 0.0.8 hardcodes com.googlecode.maven-download-plugin:download-maven-plugin:1.6.2
+        # in its RunMojo to fetch the jbang CLI distribution; go-offline never sees it because it's resolved
+        # as a plugin at execution time, not declared as a pom dependency. Remove this step (or update the
+        # version) when bumping jbangVersion/jbang-maven-plugin past 0.0.8 in pom.xml.
+        run: mvn dependency:get -Dartifact=com.googlecode.maven-download-plugin:download-maven-plugin:1.6.2 -Dpackaging=maven-plugin -q
       - name: 'Unit test all modules'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
