@@ -45,7 +45,6 @@
         <javadoc.failOnWarnings>true</javadoc.failOnWarnings>
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
-
         <disruptor.version>4.0.0</disruptor.version>
         <freemarker.version>2.3.35</freemarker.version>
         <guava.version>33.7.2-jre</guava.version>

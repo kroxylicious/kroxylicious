@@ -80,10 +80,28 @@ jobs:
         # excludeArtifactIds=lifecycle-mapping: org.eclipse.m2e:lifecycle-mapping is an Eclipse m2e IDE
         # hack that was never published to Maven Central (see eclipse-m2e/m2e-core#1412). go-offline tries
         # to resolve every referenced plugin and fails on this phantom; command-line Maven never needs it.
-        # All profiles activated (except aarch64, which swaps in aarch64 netty natives in place of the
-        # far more common amd64 ones) so the cache covers deps only pulled in by non-default profiles
-        # (e.g. rewrite-maven-plugin) that later jobs in this workflow use.
-        run: mvn dependency:go-offline -DexcludeArtifactIds=lifecycle-mapping -Daether.dependencyCollector.impl=bf -q -P ci,debug,dist,errorprone-fail-on-warnings,errorprone-jdk-compatible,kubernetes-management,proxy-core,qa,quick,release,runtime-plugins,skipContainerImageBuild,skipped-tests,supplementary,systemtest,test-suites,validate-tree,withAdditionalFilters,with-profiling-libs
+        # Non-default profiles activated (except aarch64, which swaps in aarch64 netty natives in place
+        # of the far more common amd64 ones) so the cache covers deps those profiles pull in that later
+        # jobs in this workflow use (e.g. rewrite-maven-plugin via validate-tree). The module-group
+        # profiles (proxy-core, runtime-plugins, supplementary, kubernetes-management) are omitted: they're
+        # redundant with build-the-world, which is already active by default here.
+        run: >
+          mvn dependency:go-offline -DexcludeArtifactIds=lifecycle-mapping -Daether.dependencyCollector.impl=bf -q
+          -P ci
+          -P debug
+          -P dist
+          -P errorprone-fail-on-warnings
+          -P errorprone-jdk-compatible
+          -P qa
+          -P quick
+          -P release
+          -P skipContainerImageBuild
+          -P skipped-tests
+          -P systemtest
+          -P test-suites
+          -P validate-tree
+          -P withAdditionalFilters
+          -P with-profiling-libs
       - name: 'Warm jbang-maven-plugin download-maven-plugin dependency'
         if: steps.cache-maven.outputs.cache-hit != 'true'
         # jbang-maven-plugin 0.0.8's RunMojo hardcodes this plugin version to fetch the jbang CLI; recheck/remove when bumping past 0.0.8.
