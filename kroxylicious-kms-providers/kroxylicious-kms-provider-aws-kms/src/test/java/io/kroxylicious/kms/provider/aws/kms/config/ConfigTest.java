@@ -23,14 +23,14 @@ class ConfigTest {
 
     @Test
     void shouldWarnWithHTTPEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("http://kms.us-east-1.amazonaws.com");
         var credentials = new CredentialsConfig(null, null, null, null);
 
-        //When
+        // When
         new Config(uri, credentials, "SomeRegion", null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Config.class);
         LoggingEventAssert.assertThat(events)
                 .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));
@@ -38,14 +38,14 @@ class ConfigTest {
 
     @Test
     void shouldNotWarnWithHTTPSEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("https://kms.us-east-1.amazonaws.com");
         var credentials = new CredentialsConfig(null, null, null, null);
 
-        //When
+        // When
         new Config(uri, credentials, "SomeRegion", null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Config.class);
         LoggingEventAssert.assertThat(events)
                 .noneMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));

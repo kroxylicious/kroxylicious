@@ -23,13 +23,13 @@ class ConfigTest {
 
     @Test
     void shouldWarnWithHTTPEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("http://api.uk.smartkey.io");
 
-        //When
+        // When
         new Config(uri, null, null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Config.class);
         LoggingEventAssert.assertThat(events)
                 .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));
@@ -37,13 +37,13 @@ class ConfigTest {
 
     @Test
     void shouldNotWarnWithHTTPSEndpoint(final CapturedLogs logs) {
-        //given
+        // given
         final URI uri = URI.create("https://api.uk.smartkey.io");
 
-        //When
+        // When
         new Config(uri, null, null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Config.class);
         LoggingEventAssert.assertThat(events)
                 .noneMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));

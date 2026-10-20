@@ -24,13 +24,13 @@ import io.kroxylicious.proxy.config.secret.InlinePassword;
 class ConfigTest {
     @Test
     void shouldWarnWithTransitEngineHTTPEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("http://vault/v1/transit");
 
-        //When
+        // When
         new Config(null, null, null, uri, new InlinePassword(""), null, null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Config.class);
         LoggingEventAssert.assertThat(events)
                 .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));
@@ -38,13 +38,13 @@ class ConfigTest {
 
     @Test
     void shouldNotWarnWithTransitEngineHTTPSEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("https://vault/v1/transit");
 
-        //When
+        // When
         new Config(null, null, null, uri, new InlinePassword(""), null, null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Config.class);
         LoggingEventAssert.assertThat(events)
                 .noneMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));
@@ -52,13 +52,13 @@ class ConfigTest {
 
     @Test
     void shouldWarnWithVaultUrlHTTPEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("http://vault/v1");
 
-        //When
+        // When
         new Config(uri, null, null, null, null, new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword(""))), null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Config.class);
         LoggingEventAssert.assertThat(events)
                 .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));
@@ -66,13 +66,13 @@ class ConfigTest {
 
     @Test
     void shouldNotWarnWithVaultUrlHTTPSEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("https://vault/v1");
 
-        //when
+        // when
         new Config(uri, null, null, null, null, new VaultCredentialsConfig(new TokenCredentialsConfig(new InlinePassword(""))), null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Config.class);
         LoggingEventAssert.assertThat(events)
                 .noneMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));

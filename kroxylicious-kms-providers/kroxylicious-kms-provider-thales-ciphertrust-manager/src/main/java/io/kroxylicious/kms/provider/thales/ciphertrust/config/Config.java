@@ -71,7 +71,7 @@ public record Config(
 
         if (!"https".equalsIgnoreCase(endpointUrl.getScheme())) { // string comparison protects against a null schema
             LOGGER.atWarn()
-                    .addKeyValue("endpoint", endpointUrl)
+                    .addKeyValue("endpointUrl", endpointUrl)
                     .log("KMS endpoint does not begin with https://, production installations should use a secure endpoint");
         }
     }

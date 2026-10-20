@@ -89,7 +89,7 @@ public record Config(
         }
         if (!"https".equalsIgnoreCase(vaultUrl.getScheme())) { // vaultURL is either set directly or extracted from the transit engine URI and so cannot be null
             LOGGER.atWarn()
-                    .addKeyValue("endpoint", vaultUrl)
+                    .addKeyValue("vaultUrl", vaultUrl)
                     .log("KMS endpoint does not begin with https://, production installations should use a secure endpoint");
         }
     }

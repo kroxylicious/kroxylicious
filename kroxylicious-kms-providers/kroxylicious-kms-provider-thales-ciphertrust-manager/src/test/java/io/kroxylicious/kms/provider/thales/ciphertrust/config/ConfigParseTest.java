@@ -332,13 +332,13 @@ class ConfigParseTest {
 
     @Test
     void shouldWarnWithHTTPEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("http://ctm.example.com");
 
-        //When
+        // When
         new Config(uri, new UserCredentials("user", new InlinePassword(""), null), null, null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Config.class);
         LoggingEventAssert.assertThat(events)
                 .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));
@@ -346,13 +346,13 @@ class ConfigParseTest {
 
     @Test
     void shouldNotWarnWithHTTPSEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("https://ctm.example.com");
 
-        //When
+        // When
         new Config(uri, new UserCredentials("user", new InlinePassword(""), null), null, null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Config.class);
         LoggingEventAssert.assertThat(events)
                 .noneMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("KMS endpoint does not begin with https"));

@@ -61,16 +61,16 @@ class Oauth2ClientCredentialsConfigTest {
 
     @Test
     void shouldWarnWithHTTPEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("http://login.microsoftonline.com");
 
-        //When
+        // When
         new Oauth2ClientCredentialsConfig(uri, TENANT_ID,
                 new InlinePassword(CLIENT_ID),
                 new InlinePassword(CLIENT_SECRET),
                 URI.create("http://override.com/.default"), null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Oauth2ClientCredentialsConfig.class);
         LoggingEventAssert.assertThat(events)
                 .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("OAuth endpoint does not begin with https"));
@@ -78,16 +78,16 @@ class Oauth2ClientCredentialsConfigTest {
 
     @Test
     void shouldNotWarnWithHTTPSEndpoint(final CapturedLogs logs) {
-        //Given
+        // Given
         final URI uri = URI.create("https://login.microsoftonline.com");
 
-        //When
+        // When
         new Oauth2ClientCredentialsConfig(uri, TENANT_ID,
                 new InlinePassword(CLIENT_ID),
                 new InlinePassword(CLIENT_SECRET),
                 URI.create("http://override.com/.default"), null);
 
-        //Then
+        // Then
         final List<LoggingEvent> events = logs.logged(Oauth2ClientCredentialsConfig.class);
         LoggingEventAssert.assertThat(events)
                 .noneMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("OAuth endpoint does not begin with https"));
