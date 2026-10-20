@@ -1,0 +1,43 @@
+# This file contains the options passed to ErrorProne during the build.
+# See https://errorprone.info/docs/flags#configuration-file for the file format description.
+
+# We can't do much about generated code
+-XepDisableWarningsInGeneratedCode
+-XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka)/.*
+
+# Keep the following in alphabetical order
+-Xep:ArrayRecordComponent:ERROR
+-Xep:BadImport:ERROR
+-Xep:BooleanLiteral:ERROR
+-Xep:ByteBufferBackingArray:ERROR
+-Xep:CanonicalDuration:ERROR
+-Xep:DefaultCharset:ERROR
+-Xep:DistinctVarargsChecker:ERROR
+-Xep:EffectivelyPrivate:ERROR
+-Xep:EmptyBlockTag:ERROR
+-Xep:EqualsGetClass:ERROR
+-Xep:ExposedPrivateType:ERROR
+-Xep:FutureReturnValueIgnored:ERROR
+-Xep:ImmutableEnumChecker:ERROR
+-Xep:InvalidBlockTag:ERROR
+-Xep:InvalidInlineTag:ERROR
+-Xep:JdkObsolete:ERROR
+-Xep:LoopOverCharArray:ERROR
+-Xep:MathAbsoluteNegative:ERROR
+-Xep:MissingOverride:ERROR
+-Xep:MissingSummary:ERROR
+-Xep:MutablePublicArray:ERROR
+-Xep:OperatorPrecedence:ERROR
+-Xep:PatternMatchingInstanceof:ERROR
+-Xep:ReferenceEquality:ERROR
+-Xep:StatementSwitchToExpressionSwitch:ERROR
+-Xep:StaticAssignmentOfThrowable:ERROR
+-Xep:StringCaseLocaleUsage:ERROR
+-Xep:StringSplitter:ERROR
+-Xep:UnnecessaryLambda:ERROR
+-Xep:UnnecessaryMethodReference:ERROR
+-Xep:UnnecessaryParentheses:ERROR
+-Xep:UnnecessaryStringBuilder:ERROR
+-Xep:VoidUsed:ERROR
+
+
