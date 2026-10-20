@@ -7,8 +7,8 @@
 package io.kroxylicious.testing.integration.tester;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -147,7 +147,7 @@ class KroxyliciousClientsTest {
     void shouldCloseMultipleProducers() {
         // Given
         final ProducerRecord<String, String> record = new ProducerRecord<>("topic", "Value");
-        final Set<Producer<String, String>> clients = Set.of(kroxyliciousClients.producer(), kroxyliciousClients.producer(), kroxyliciousClients.producer());
+        final List<Producer<String, String>> clients = List.of(kroxyliciousClients.producer(), kroxyliciousClients.producer(), kroxyliciousClients.producer());
 
         // When
         kroxyliciousClients.close();
@@ -163,7 +163,7 @@ class KroxyliciousClientsTest {
     @Test
     void shouldCloseMultipleConsumers() {
         // Given
-        final Set<Consumer<String, String>> clients = Set.of(kroxyliciousClients.consumer(), kroxyliciousClients.consumer(), kroxyliciousClients.consumer());
+        final List<Consumer<String, String>> clients = List.of(kroxyliciousClients.consumer(), kroxyliciousClients.consumer(), kroxyliciousClients.consumer());
 
         // When
         kroxyliciousClients.close();
@@ -179,7 +179,7 @@ class KroxyliciousClientsTest {
     @Test
     void shouldCloseMultipleAdmins() {
         // Given
-        final Set<Admin> clients = Set.of(kroxyliciousClients.admin(), kroxyliciousClients.admin(), kroxyliciousClients.admin());
+        final List<Admin> clients = List.of(kroxyliciousClients.admin(), kroxyliciousClients.admin(), kroxyliciousClients.admin());
 
         // When
         kroxyliciousClients.close();
