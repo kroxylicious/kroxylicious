@@ -19,27 +19,6 @@ The Kroxylicious Operator is implemented using the {josdk}[Java Operator SDK].
 The Java Operator SDK exposes metrics that allow its behavior to be understood.
 These metrics are enabled by default in the Kroxylicious Operator.
 
-The operator uses the Java Operator SDK `MicrometerMetricsV2` metrics.
-Metrics are grouped by controller using the `controller_name` label in Prometheus.
-Event and reconciliation counters also include a `namespace` label.
-Metrics for individual resources are no longer collected.
-
-When upgrading from a version that uses the deprecated SDK metrics, update dashboards and alerts to use the new metric names and labels.
-For example:
-
-[cols="1,1",options="header"]
-|===
-|Previous Prometheus metric |Replacement
-|`operator_sdk_reconciliations_executions_kafkaproxyreconciler`
-|`reconciliations_active{controller_name="kafkaproxyreconciler"}`
-|`operator_sdk_reconciliations_queue_size_kafkaproxyreconciler`
-|`reconciliations_queue{controller_name="kafkaproxyreconciler"}`
-|`operator_sdk_events_received_total`
-|`events_received_total`
-|===
-
-The new metrics use `controller_name` instead of the previous resource metadata labels, such as `name`, `kind`, `group`, and `version`.
-Execution duration is reported by the `reconciliations_execution_duration_seconds_*` metric family rather than separate reconciliation and cleanup timers.
-The `kroxylicious_operator_build_info` metric is unchanged.
+For updating existing dashboards and alerts, see xref:proc-operator-updating-metrics-{context}[Updating dashboards and alerts for operator metrics].
 
 Refer to the {josdk-metrics}[Java Operator SDK metric documentation] to learn more about metrics.
