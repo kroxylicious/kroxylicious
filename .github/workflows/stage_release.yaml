@@ -119,7 +119,7 @@ jobs:
                           --force
 
       - name: 'Lint changelog entries'
-        run: mvn --batch-mode logchange:lint
+        run: mvn --batch-mode dev.logchange:logchange-maven-plugin:lint
 
       - name: 'Stage Release'
         env:
