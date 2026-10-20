@@ -12,6 +12,8 @@ import java.util.Map;
 
 import org.apache.kafka.common.record.CompressionType;
 
+import io.fabric8.kubernetes.api.model.Pod;
+
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
@@ -28,6 +30,19 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class KroxyliciousSteps {
 
     private KroxyliciousSteps() {
+    }
+
+    /**
+     * Gets the non-terminating Kroxylicious proxy pods in the given namespace (those without a deletion timestamp).
+     *
+     * @param namespace the namespace
+     * @return the proxy pods
+     */
+    public static List<Pod> getProxyPods(String namespace) {
+        return kubeClient(namespace).listPods(namespace, Constants.APP_KUBERNETES_IO_NAME_LABEL, Constants.KROXYLICIOUS_APP_NAME).stream()
+                .filter(pod -> Constants.PROXY_COMPONENT.equals(pod.getMetadata().getLabels().get(Constants.APP_KUBERNETES_IO_COMPONENT_LABEL)))
+                .filter(pod -> pod.getMetadata().getDeletionTimestamp() == null)
+                .toList();
     }
 
     /**

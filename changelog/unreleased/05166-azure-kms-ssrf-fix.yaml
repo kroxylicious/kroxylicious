@@ -1,0 +1,9 @@
+title: "security(azure-kms): fix SSRF vulnerability in Azure Key Vault KMS provider"
+type: security
+issues:
+  - 5166
+links:
+  - name: GHSA-5j25-p663-ww5r
+    url: https://github.com/kroxylicious/kroxylicious/security/advisories/GHSA-5j25-p663-ww5r
+important_notes:
+  - "Azure Key Vault KMS provider now validates the vaultName field in Encrypted Data Encryption Keys (EDEKs) to prevent Server-Side Request Forgery (SSRF) attacks."

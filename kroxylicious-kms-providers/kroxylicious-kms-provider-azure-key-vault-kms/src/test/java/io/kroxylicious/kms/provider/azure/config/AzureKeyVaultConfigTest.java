@@ -116,6 +116,40 @@ class AzureKeyVaultConfigTest {
                 .hasMessage("keyVaultScheme must not end with ://");
     }
 
+    static Stream<Arguments> keyVaultUrlRejectsInvalidVaultName() {
+        return Stream.of(
+                Arguments.argumentSet("dots (SSRF vector)", "evil.com"),
+                Arguments.argumentSet("fragment injection", "x.evil.com#"),
+                Arguments.argumentSet("too short", "ab"),
+                Arguments.argumentSet("too long", "a".repeat(25)),
+                Arguments.argumentSet("leading hyphen", "-abc"),
+                Arguments.argumentSet("trailing hyphen", "abc-"),
+                Arguments.argumentSet("consecutive hyphens", "a--b"));
+    }
+
+    @MethodSource
+    @ParameterizedTest
+    void keyVaultUrlRejectsInvalidVaultName(String vaultName) {
+        // Given
+        AzureKeyVaultConfig config = minimalConfig();
+
+        // When/Then
+        assertThatThrownBy(() -> config.keyVaultUrl(vaultName))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void keyVaultUrlConstructsExpectedUrl() {
+        // Given
+        AzureKeyVaultConfig config = new AzureKeyVaultConfig(ENTRA_IDENTITY, null, "default", "vault.azure.net", null, null, null);
+
+        // When
+        String url = config.keyVaultUrl("myvault");
+
+        // Then
+        assertThat(url).isEqualTo("https://myvault.vault.azure.net");
+    }
+
     private static AzureKeyVaultConfig minimalConfig() {
         return new AzureKeyVaultConfig(ENTRA_IDENTITY, null, "default", "localhost", null, null, null);
     }
