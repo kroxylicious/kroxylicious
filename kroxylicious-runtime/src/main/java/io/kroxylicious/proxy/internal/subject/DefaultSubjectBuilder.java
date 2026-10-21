@@ -22,6 +22,7 @@ import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
  * {@link Subject} by applying each configured {@link PrincipalAdder} to the
  * authentication context and collecting the resulting principals.
  */
+@SuppressWarnings("removal") // Subject, Principal scheduled for removal
 public class DefaultSubjectBuilder implements TransportSubjectBuilder, SaslSubjectBuilder {
     private final List<PrincipalAdder> adders;
 

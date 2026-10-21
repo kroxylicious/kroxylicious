@@ -121,7 +121,8 @@ import static org.slf4j.LoggerFactory.getLogger;
 @SuppressWarnings({
         "java:S1133",
         // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller
-        "java:S1172" })
+        "java:S1172",
+        "removal" }) // Subject scheduled for removal
 public class ClientConnectionStateMachine {
     private static final Logger LOGGER = getLogger(ClientConnectionStateMachine.class);
 

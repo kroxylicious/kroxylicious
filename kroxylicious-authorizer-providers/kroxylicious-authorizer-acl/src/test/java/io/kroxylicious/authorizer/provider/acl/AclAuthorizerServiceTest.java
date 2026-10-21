@@ -37,6 +37,7 @@ import io.kroxylicious.proxy.authentication.User;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@SuppressWarnings("removal") // Principal, Subject scheduled for removal
 class AclAuthorizerServiceTest {
 
     static Decision decision(AclAuthorizer authz,

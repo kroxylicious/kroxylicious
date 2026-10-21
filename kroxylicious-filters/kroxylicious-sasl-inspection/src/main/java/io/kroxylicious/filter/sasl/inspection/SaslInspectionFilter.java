@@ -53,6 +53,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * If client reauthentication is in-use (KIP-368), the result of the subsequent re-authentication will be announced using
  * the same mechanism.
  */
+@SuppressWarnings("removal") // Subject scheduled for removal
 class SaslInspectionFilter
         implements
         RequestFilter,

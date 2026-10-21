@@ -29,6 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 class ClientSubjectManagerTest {
 
     static List<Arguments> clientTlsContext() throws SSLPeerUnverifiedException {

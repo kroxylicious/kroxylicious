@@ -64,6 +64,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(LogSquelcherExtension.class)
+@SuppressWarnings("removal") // Subject scheduled for removal
 class AuthorizationFilterTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());

@@ -76,6 +76,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @ExtendWith(LogSquelcherExtension.class)
+@SuppressWarnings("removal") // Subject scheduled for removal
 class SaslInspectionFilterTest {
 
     public static final String SESSION_ID = "123-session-id-abc";

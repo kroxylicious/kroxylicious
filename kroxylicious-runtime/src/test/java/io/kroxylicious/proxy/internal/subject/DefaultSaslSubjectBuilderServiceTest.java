@@ -29,6 +29,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 class DefaultSaslSubjectBuilderServiceTest {
 
     private static YAMLMapper mapper = new YAMLMapper();

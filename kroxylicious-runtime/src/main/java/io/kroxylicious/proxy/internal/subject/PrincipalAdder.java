@@ -22,6 +22,7 @@ import io.kroxylicious.proxy.authentication.PrincipalFactory;
  * @param rules the mapping rules tried in order; the first that matches a name determines its mapping.
  * @param factory creates a principal from each mapped name.
  */
+@SuppressWarnings("removal") // Principal scheduled for removal
 public record PrincipalAdder(
                              Function<Object, Stream<String>> extractor,
                              List<MappingRule> rules,

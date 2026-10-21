@@ -21,6 +21,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param clientTlsContext client TLS context - will be null if the channel is not TLS.
  * @param clientSaslContext client SASL context - will be null if channel has not negotiated SASL.
  */
+@SuppressWarnings("removal") // Subject scheduled for removal
 public record MapperContext(Subject authenticatedSubject, @Nullable ClientTlsContext clientTlsContext, @Nullable ClientSaslContext clientSaslContext) {
     /**
      * Validates the mapper context.

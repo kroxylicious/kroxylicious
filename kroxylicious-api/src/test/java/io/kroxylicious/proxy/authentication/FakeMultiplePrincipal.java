@@ -6,4 +6,5 @@
 
 package io.kroxylicious.proxy.authentication;
 
+@SuppressWarnings("removal") // Principal scheduled for removal
 public record FakeMultiplePrincipal(String name) implements Principal {}

@@ -33,6 +33,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <p>Call {@link #reset()} in {@code @BeforeEach} / {@code @AfterEach} to clear state between tests.</p>
  */
 @Plugin(configType = ContextCapturingRouterFactory.Config.class)
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject API
 public class ContextCapturingRouterFactory
         implements RouterFactory<ContextCapturingRouterFactory.Config, ContextCapturingRouterFactory.Config> {
 

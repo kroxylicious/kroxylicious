@@ -69,6 +69,7 @@ import static org.slf4j.event.Level.WARN;
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
  * that applies a single {@link Filter}.
  */
+@SuppressWarnings("removal") // Subject scheduled for removal
 public class FilterHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);

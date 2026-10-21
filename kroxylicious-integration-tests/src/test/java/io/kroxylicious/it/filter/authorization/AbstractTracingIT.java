@@ -71,6 +71,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 3. trace the result of every high-level client operation, capturing result values or exceptions
  * 4. compare the traces, expecting the behaviour to be identical (except for data like timestamps, unique ids etc)
  */
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 public abstract class AbstractTracingIT extends AuthzIT {
 
     /**

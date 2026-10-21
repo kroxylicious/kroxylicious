@@ -23,6 +23,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * authenticated subject.
  */
 @Plugin(configType = PrincipalEntityNameMapperService.Config.class)
+@SuppressWarnings("removal") // Principal scheduled for removal
 public class PrincipalEntityNameMapperService implements EntityNameMapperService<PrincipalEntityNameMapperService.Config> {
     private static final Config DEFAULT_CONFIG = new Config(User.class, "-");
 

@@ -51,6 +51,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * Transit engine REST API, leaving subclasses responsible for the lifecycle of, and connection
  * details for, the underlying Vault instance.
  */
+@SuppressWarnings("removal")
+// Suppress removal warnings (added for consistency with other test files)
 public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config, WrappingKey, VaultEdek> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVaultTestKmsFacade.class);

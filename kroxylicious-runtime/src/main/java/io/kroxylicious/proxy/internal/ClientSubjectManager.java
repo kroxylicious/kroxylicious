@@ -32,6 +32,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * certificates and SASL mechanism used to establish it. Acts as the {@link ClientTlsContext},
  * {@link ClientSaslContext} and {@link TransportSubjectBuilder.Context} for the connection.
  */
+@SuppressWarnings("removal") // Subject scheduled for removal
 public class ClientSubjectManager implements
         ClientSaslContext,
         ClientTlsContext,

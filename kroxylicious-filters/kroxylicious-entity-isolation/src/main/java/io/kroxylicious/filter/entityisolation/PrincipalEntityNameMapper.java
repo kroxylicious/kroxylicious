@@ -28,6 +28,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <br/>
  * It is an error if a channel does not have an authenticated subject
  */
+@SuppressWarnings("removal") // Principal, SingularPrincipals scheduled for removal
 class PrincipalEntityNameMapper implements EntityNameMapper {
     private final Class<? extends Principal> uniquePrincipalType;
     private final String separator;

@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@link WrappingKey} with a higher version number.
  */
 @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
+@SuppressWarnings("removal")
+// Suppress removal warnings (added for consistency with other test files)
 class VaultKmsRotationIT {
 
     private static final String VAULT_TOKEN = "token";

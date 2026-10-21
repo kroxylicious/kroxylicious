@@ -29,6 +29,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@SuppressWarnings("removal") // Principal, Subject scheduled for removal
 class AclAuthorizerTest {
 
     @Test

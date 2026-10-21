@@ -32,6 +32,8 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@SuppressWarnings("removal")
+// Suppress removal warnings (added for consistency with other test files)
 class VaultKmsServiceTest {
     private VaultKmsService vaultKmsService;
 
