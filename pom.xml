@@ -647,6 +647,11 @@
                 <version>${logsquelcher.version}</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>javax.inject</groupId>
+                <artifactId>javax.inject</artifactId>
+                <version>1</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -1543,8 +1548,7 @@
                                 <arg>-XDaddTypeAnnotationsToSymbol=true</arg><!-- Needed for JDK 21: https://github.com/google/error-prone/issues/5426 -->
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
-                                <!-- The following <arg> cannot be split over multiple lines :-( -->
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka)/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR -Xep:BadImport:ERROR -Xep:EmptyBlockTag:ERROR -Xep:UnnecessaryParentheses:ERROR -Xep:InvalidBlockTag:ERROR -Xep:MissingSummary:ERROR -Xep:VoidUsed:ERROR -Xep:ReferenceEquality:ERROR -Xep:DefaultCharset:ERROR -Xep:EqualsGetClass:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:InvalidInlineTag:ERROR -Xep:PatternMatchingInstanceof:ERROR -Xep:FutureReturnValueIgnored:ERROR -Xep:JdkObsolete:ERROR -Xep:CanonicalDuration:ERROR -Xep:BooleanLiteral:ERROR -Xep:StringCaseLocaleUsage:ERROR -Xep:StringSplitter:ERROR -Xep:UnnecessaryLambda:ERROR -Xep:ExposedPrivateType:ERROR -Xep:UnnecessaryStringBuilder:ERROR -Xep:LoopOverCharArray:ERROR -Xep:DistinctVarargsChecker:ERROR</arg>
+                                <arg>-Xplugin:ErrorProne @${rootdir}/etc/errorprone.opts</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
