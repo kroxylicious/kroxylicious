@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Ensures that fidelity tests explore different values on each CI run by default while remaining
  * fully reproducible. A base seed is selected once per test run, either from the system property
- * {@code fidelity.seed} (or environment variable {@code FIDELITY_SEED}), or generated randomly.
+ * {@code fidelity.seed}, or generated randomly.
  * Each test case's seed is derived deterministically from the base seed and a stable case identifier
  * (message name, direction, version, and optional nullable field name), making individual test
  * reproducibility completely independent of test execution order.
@@ -35,11 +35,6 @@ public final class FidelityRandom {
      * System property name to override the base seed.
      */
     public static final String SEED_PROPERTY = "fidelity.seed";
-
-    /**
-     * Environment variable name to override the base seed.
-     */
-    public static final String SEED_ENV_VAR = "FIDELITY_SEED";
 
     private static final Object LOCK = new Object();
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -67,9 +62,6 @@ public final class FidelityRandom {
 
     private static long initializeBaseSeed() {
         String prop = System.getProperty(SEED_PROPERTY);
-        if (prop == null || prop.isBlank()) {
-            prop = System.getenv(SEED_ENV_VAR);
-        }
         long seed;
         if (prop != null && !prop.isBlank()) {
             seed = parseSeed(prop);

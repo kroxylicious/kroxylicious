@@ -13,7 +13,10 @@ import org.apache.kafka.common.message.HeartbeatResponseData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.ClearSystemProperty;
+import org.junitpioneer.jupiter.SetSystemProperty;
 
 import io.kroxylicious.fidelity.populate.NullableFieldEnumerator;
 
@@ -21,31 +24,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class FidelityRandomTest {
 
+    @BeforeEach
     @AfterEach
-    void tearDown() {
-        System.clearProperty(FidelityRandom.SEED_PROPERTY);
+    void resetBaseSeed() {
         FidelityRandom.resetBaseSeedForTesting();
     }
 
     @Test
+    @ClearSystemProperty(key = FidelityRandom.SEED_PROPERTY)
     void defaultRunPicksNonNullSeed() {
         long seed = FidelityRandom.baseSeed();
         assertThat(FidelityRandom.baseSeed()).isEqualTo(seed);
     }
 
     @Test
+    @SetSystemProperty(key = FidelityRandom.SEED_PROPERTY, value = "987654321")
     void systemPropertyOverridesBaseSeedDecimal() {
-        System.setProperty(FidelityRandom.SEED_PROPERTY, "987654321");
-        FidelityRandom.resetBaseSeedForTesting();
-
         assertThat(FidelityRandom.baseSeed()).isEqualTo(987654321L);
     }
 
     @Test
+    @SetSystemProperty(key = FidelityRandom.SEED_PROPERTY, value = "0x1234abcd")
     void systemPropertyOverridesBaseSeedHex() {
-        System.setProperty(FidelityRandom.SEED_PROPERTY, "0x1234abcd");
-        FidelityRandom.resetBaseSeedForTesting();
-
         assertThat(FidelityRandom.baseSeed()).isEqualTo(0x1234abcdL);
     }
 
