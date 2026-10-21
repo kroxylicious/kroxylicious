@@ -68,7 +68,7 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     @Parameter(required = false)
     private boolean skipOutputIfSourceExists;
 
-    @SuppressWarnings("java:S3306") // what point using constructor injection for buildContext when we have all the @Parameter's above which must be field injected?
+    @SuppressWarnings("java:S6813") // what point using constructor injection for buildContext when we have all the @Parameter's above which must be field injected?
     @Inject
     private BuildContext buildContext;
 
