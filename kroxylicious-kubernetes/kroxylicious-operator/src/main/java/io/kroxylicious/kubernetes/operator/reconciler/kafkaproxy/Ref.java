@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -38,12 +39,17 @@ final class Ref {
     /**
      * A direct relationship: the secondary references the proxy through a single {@link LocalRef} field.
      *
-     * @param proxyRef extracts the secondary's reference to its proxy
+     * @param proxyRefAccessor extracts the secondary's reference to its proxy
      * @param <S> the type of the secondary resource
-     * @return a relationship matching secondaries whose {@code proxyRef} names the proxy
+     * @return a relationship matching secondaries whose {@code proxyRefAccessor} names the proxy
      */
-    static <S extends HasMetadata> ProxyRelationship<S> direct(Function<S, ? extends LocalRef<KafkaProxy>> proxyRef) {
-        return (context, proxy) -> secondary -> ResourcesUtil.isReferent(proxyRef.apply(secondary), proxy);
+    static <S extends HasMetadata> ProxyRelationship<S> direct(Function<S, ? extends LocalRef<KafkaProxy>> proxyRefAccessor) {
+        return (context, proxy) -> {
+            // Use braces for outer lambda to about a double `->`
+            return secondary -> Optional.ofNullable(proxyRefAccessor.apply(secondary))
+                    .map(proxyRef -> ResourcesUtil.isReferent(proxyRef, proxy))
+                    .orElse(false);
+        };
     }
 
     /**
@@ -75,27 +81,31 @@ final class Ref {
      * A predicate testing whether {@code owner} references {@code referent} through a single {@link LocalRef} field.
      * Useful as the {@code intermediateRefersToSecondary} argument to {@link #via}.
      *
-     * @param ref extracts the owner's reference
+     * @param refAccessor extracts the owner's reference
      * @param <O> the type of the referring resource
      * @param <R> the type of the referent resource
      * @return a predicate matching owners whose reference names the referent
      */
-    static <O, R extends HasMetadata> BiPredicate<O, R> refersTo(Function<O, ? extends LocalRef<?>> ref) {
-        return (owner, referent) -> ResourcesUtil.isReferent(ref.apply(owner), referent);
+    static <O, R extends HasMetadata> BiPredicate<O, R> refersTo(Function<O, ? extends LocalRef<?>> refAccessor) {
+        return (owner, referent) -> Optional.ofNullable(refAccessor.apply(owner))
+                .map(localRef -> ResourcesUtil.isReferent(localRef, referent))
+                .orElse(false);
     }
 
     /**
      * A predicate testing whether {@code owner} references {@code referent} through any of a collection of
      * {@link LocalRef} fields. Useful as the {@code intermediateRefersToSecondary} argument to {@link #via}.
      *
-     * @param refs extracts the owner's references (may return {@code null})
+     * @param refsAccessor extracts the owner's references (may return {@code null})
      * @param <O> the type of the referring resource
      * @param <R> the type of the referent resource
      * @return a predicate matching owners any of whose references names the referent
      */
-    static <O, R extends HasMetadata> BiPredicate<O, R> refersToAny(Function<O, Collection<? extends LocalRef<?>>> refs) {
-        return (owner, referent) -> Optional.ofNullable(refs.apply(owner)).orElse(List.of())
+    static <O, R extends HasMetadata> BiPredicate<O, R> refersToAny(Function<O, Collection<? extends LocalRef<?>>> refsAccessor) {
+        return (owner, referent) -> Optional.ofNullable(refsAccessor.apply(owner))
+                .orElse(List.of())
                 .stream()
-                .anyMatch(ref -> ResourcesUtil.isReferent(ref, referent));
+                .filter(Objects::nonNull)
+                .anyMatch(localRef -> ResourcesUtil.isReferent(localRef, referent));
     }
 }
