@@ -1,0 +1,4 @@
+title: "build(deps): bump com.github.spotbugs:spotbugs-annotations from 4.10.4 to 4.10.5"
+type: build
+merge_requests:
+  - 5152
