@@ -23,7 +23,6 @@ jobs:
   # JOB to run change detection
   changes:
     runs-on: ubuntu-latest
-    if: github.event_name != 'merge_group'
     permissions:
       pull-requests: read
     outputs:
@@ -52,7 +51,6 @@ jobs:
               - '!kroxylicious-wire-fidelity-tests/**'
 
   set_variables:
-    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}
@@ -100,4 +98,4 @@ jobs:
       testFortanixKMS: ${{ contains(github.event.pull_request.labels.*.name, 'kms/fortanix') }}
       # Merge queue items trust the system tests already run against the PR branch;
       # re-running the full suite per queue item would just duplicate that coverage.
-      skipSystemTestRun: ${{ github.event_name == 'merge_group' || needs.changes.outputs.systemtest == 'false' }}
+      skipSystemTestRun: ${{ needs.changes.outputs.systemtest == 'false' }}
