@@ -5,11 +5,8 @@
  */
 package io.kroxylicious.krpccodegen.maven;
 
-import javax.inject.Inject;
-
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
-import org.codehaus.plexus.build.BuildContext;
 
 import io.kroxylicious.krpccodegen.main.KrpcGenerator;
 
@@ -24,11 +21,9 @@ public class KrpcSingleGeneratorMojo extends AbstractKrpcGeneratorMojo {
 
     /**
      * Constructs a single-generator.
-     * @param buildContext The build context
      */
-    @Inject
-    public KrpcSingleGeneratorMojo(BuildContext buildContext) {
-        super(buildContext);
+    public KrpcSingleGeneratorMojo() {
+        super();
     }
 
     @Override

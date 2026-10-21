@@ -10,6 +10,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
+import javax.inject.Inject;
+
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -66,11 +68,11 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     @Parameter(required = false)
     private boolean skipOutputIfSourceExists;
 
-    private final BuildContext buildContext;
+    @Inject
+    private BuildContext buildContext;
 
-    AbstractKrpcGeneratorMojo(BuildContext buildContext) {
+    AbstractKrpcGeneratorMojo() {
         super();
-        this.buildContext = buildContext;
     }
 
     @Override
