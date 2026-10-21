@@ -106,6 +106,8 @@ import static org.awaitility.Awaitility.await;
  */
 @ExtendWith(KafkaClusterExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 public abstract class AuthzIT extends BaseIT {
 
     static final Logger LOG = LoggerFactory.getLogger(AuthzIT.class);

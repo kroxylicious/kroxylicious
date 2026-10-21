@@ -22,6 +22,8 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject, Principal, and User APIs
 public class ConstantSaslFilter implements RequestFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConstantSaslFilter.class);

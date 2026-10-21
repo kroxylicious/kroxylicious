@@ -54,6 +54,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 

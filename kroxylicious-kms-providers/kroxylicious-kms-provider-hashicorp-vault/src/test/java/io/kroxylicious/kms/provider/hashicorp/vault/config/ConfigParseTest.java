@@ -24,6 +24,8 @@ import io.kroxylicious.proxy.config.tls.Tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@SuppressWarnings("removal")
+// Suppress removal warnings (added for consistency with other test files)
 class ConfigParseTest {
     private static final Logger LOG = LoggerFactory.getLogger(ConfigParseTest.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();

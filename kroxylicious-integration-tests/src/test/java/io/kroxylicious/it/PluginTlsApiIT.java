@@ -52,6 +52,8 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kro
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 class PluginTlsApiIT extends AbstractTlsIT {
 
     // Injected once by KafkaClusterExtension - shared across all tests

@@ -66,6 +66,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject API
 class RoutingHandlerTest {
 
     private static final int CORRELATION_ID = 42;

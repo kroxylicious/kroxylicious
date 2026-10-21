@@ -43,6 +43,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject, Principal, and User APIs
 class ConstantSaslIT {
 
     private static void doAThing(KafkaCluster cluster,

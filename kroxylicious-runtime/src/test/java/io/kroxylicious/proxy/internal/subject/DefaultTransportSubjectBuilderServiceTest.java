@@ -32,6 +32,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 class DefaultTransportSubjectBuilderServiceTest {
 
     private static final YAMLMapper mapper = new YAMLMapper();

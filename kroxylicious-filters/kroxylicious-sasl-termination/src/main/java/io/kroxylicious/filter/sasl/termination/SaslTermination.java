@@ -60,6 +60,7 @@ import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModul
  * </p>
  */
 @Plugin(configType = SaslTerminationConfig.class)
+@SuppressWarnings("removal") // Subject scheduled for removal
 public class SaslTermination implements FilterFactory<SaslTerminationConfig, SaslTermination.SaslTerminationContext> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslTermination.class);

@@ -67,6 +67,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject API
 class MultiTenantIT extends BaseMultiTenantIT {
 
     private static final String TOPIC_1 = "my-test-topic";

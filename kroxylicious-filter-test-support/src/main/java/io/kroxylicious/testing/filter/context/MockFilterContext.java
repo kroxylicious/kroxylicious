@@ -54,6 +54,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Re-implementing the FilterContext using Mockito for every filter test increased the likelihood
  * of mistakes being introduced. It was also very verbose since we use numerous classes to provide a typesafe API.
  */
+@SuppressWarnings("removal") // Subject scheduled for removal
 public class MockFilterContext implements FilterContext {
 
     /** Channel descriptor used unless overridden on the builder. */

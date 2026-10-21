@@ -21,6 +21,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@SuppressWarnings("removal") // Principal scheduled for removal
 class PrincipalEntityNameMapperServiceTest {
 
     private static Stream<Arguments> configs() {

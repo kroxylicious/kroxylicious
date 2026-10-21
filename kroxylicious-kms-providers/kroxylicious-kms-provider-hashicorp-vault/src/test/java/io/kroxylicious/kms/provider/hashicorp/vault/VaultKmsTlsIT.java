@@ -37,6 +37,8 @@ import static org.assertj.core.api.Assumptions.assumeThat;
  * Integration tests for HashiCorp Vault with TLS, checking that we can make
  * API calls with TLS enabled on the server.
  */
+@SuppressWarnings("removal")
+// Suppress removal warnings (added for consistency with other test files)
 class VaultKmsTlsIT {
 
     private static final String VAULT_TOKEN = "token";

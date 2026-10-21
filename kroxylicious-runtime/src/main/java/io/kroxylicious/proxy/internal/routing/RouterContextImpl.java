@@ -25,6 +25,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Per-request implementation of {@link RouterContext}. Created by
  * {@link RoutingHandler} for each incoming request at any routing level.
  */
+@SuppressWarnings("removal") // Subject scheduled for removal
 class RouterContextImpl implements RouterContext {
 
     private final int clientCorrelationId;

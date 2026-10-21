@@ -39,6 +39,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 @Plugin(configType = Config.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.SaslInspection", since = "0.19.0")
+@SuppressWarnings("removal") // Subject scheduled for removal
 public class SaslInspection implements FilterFactory<Config, Void> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslInspection.class);

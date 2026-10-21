@@ -53,6 +53,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 @JsonPropertyOrder({ "management", "clusterDefinitions", "filterDefinitions", "defaultFilters", "routerDefinitions", "virtualClusters", "micrometer", "useIoUring",
         "development", "network", "proxyProtocol" })
+@SuppressWarnings("removal") // targetCluster() scheduled for removal
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<ClusterDefinition> clusterDefinitions,

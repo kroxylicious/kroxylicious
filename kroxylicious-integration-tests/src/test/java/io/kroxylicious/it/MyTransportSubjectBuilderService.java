@@ -23,6 +23,8 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @Plugin(configType = MyTransportSubjectBuilderService.Config.class)
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 public class MyTransportSubjectBuilderService implements TransportSubjectBuilderService<MyTransportSubjectBuilderService.Config> {
 
     public record Config(int delayMs, boolean completeSuccessfully) {}

@@ -67,6 +67,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("removal") // Subject scheduled for removal
 class OauthBearerValidationFilterTest {
 
     public static final String AUTHORIZED_ID = "authorized_id";

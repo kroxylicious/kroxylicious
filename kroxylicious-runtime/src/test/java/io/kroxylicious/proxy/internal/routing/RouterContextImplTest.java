@@ -34,6 +34,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject API
 class RouterContextImplTest {
 
     private static final String DEFAULT_ROUTE = "default";
