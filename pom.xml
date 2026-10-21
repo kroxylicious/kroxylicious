@@ -88,6 +88,7 @@
         <awaitility.version>4.3.0</awaitility.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <azure.security.keyvault.keys.version>4.11.3</azure.security.keyvault.keys.version>
+        <azure.identity.version>1.16.2</azure.identity.version>
         <lowkey.version>7.3.112</lowkey.version>
         <bouncycastle.version>1.86</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.2</netty-leak-detector-junit-extension.version>
@@ -522,6 +523,12 @@
                 <groupId>com.azure</groupId>
                 <artifactId>azure-security-keyvault-keys</artifactId>
                 <version>${azure.security.keyvault.keys.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-identity</artifactId>
+                <version>${azure.identity.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>

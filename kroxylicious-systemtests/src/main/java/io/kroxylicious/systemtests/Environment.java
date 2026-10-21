@@ -56,6 +56,10 @@ public class Environment {
     private static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV = "AWS_KROXYLICIOUS_ACCESS_KEY_ID";
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV = "AWS_KROXYLICIOUS_SECRET_ACCESS_KEY";
     private static final String AWS_REGION_ENV = "AWS_REGION";
+    private static final String AZURE_TENANT_ID_ENV = "AZURE_TENANT_ID";
+    private static final String AZURE_CLIENT_ID_ENV = "AZURE_CLIENT_ID";
+    private static final String AZURE_CLIENT_SECRET_ENV = "AZURE_CLIENT_SECRET";
+    private static final String AZURE_KEY_VAULT_NAME_ENV = "AZURE_KEY_VAULT_NAME";
     private static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE";
     private static final String TEST_CLIENTS_IMAGE_ENV = "TEST_CLIENTS_IMAGE";
     private static final String TEST_CLIENTS_OAUTH_IMAGE_ENV = "TEST_CLIENTS_OAUTH_IMAGE";
@@ -112,6 +116,7 @@ public class Environment {
     public static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT = AWS_ACCESS_KEY_ID_DEFAULT;
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT = AWS_SECRET_ACCESS_KEY_DEFAULT;
     public static final String AWS_REGION_DEFAULT = "us-east-2";
+    private static final String AZURE_KEY_VAULT_NAME_DEFAULT = "kroxylicious-key-vault";
     private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:0.14.0-kafka-" + KAFKA_VERSION_DEFAULT;
     /**
      * A build of {@link #TEST_CLIENTS_IMAGE_DEFAULT} with jose4j added to the classpath, built by the
@@ -191,6 +196,11 @@ public class Environment {
             AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT);
 
     public static final String AWS_REGION = ENVIRONMENT_VARIABLES.getOrDefault(AWS_REGION_ENV, AWS_REGION_DEFAULT);
+
+    public static final String AZURE_TENANT_ID = ENVIRONMENT_VARIABLES.getOrDefault(AZURE_TENANT_ID_ENV, "");
+    public static final String AZURE_CLIENT_ID = ENVIRONMENT_VARIABLES.getOrDefault(AZURE_CLIENT_ID_ENV, "");
+    public static final String AZURE_CLIENT_SECRET = ENVIRONMENT_VARIABLES.getOrDefault(AZURE_CLIENT_SECRET_ENV, "");
+    public static final String AZURE_KEY_VAULT_NAME = ENVIRONMENT_VARIABLES.getOrDefault(AZURE_KEY_VAULT_NAME_ENV, AZURE_KEY_VAULT_NAME_DEFAULT);
 
     public static final String KROXYLICIOUS_OPERATOR_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_IMAGE_ENV, KROXYLICIOUS_OPERATOR_IMAGE_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_ORG = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_ORG_ENV, KROXYLICIOUS_OPERATOR_ORG_DEFAULT);
