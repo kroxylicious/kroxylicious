@@ -9,7 +9,6 @@ package io.kroxylicious.it.filter.authorization;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +21,6 @@ import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -354,8 +352,7 @@ class GroupTracingIT extends AbstractTracingIT {
     static class TransactionalProg implements Prog {
 
         @Override
-        @SuppressWarnings("java:S2925") // Thread.sleep
-        public void run(ClientFactory clientFactory) throws InterruptedException {
+        public void run(ClientFactory clientFactory) {
             String topicA = TOPIC;
             TopicPartition topicAPartition0 = new TopicPartition(topicA, 0);
 
@@ -384,20 +381,7 @@ class GroupTracingIT extends AbstractTracingIT {
                             ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1))) {
 
                         consumer.subscribe(topicA);
-                        ConsumerRecords<String, String> records;
-                        Instant start = Instant.now();
-                        while (true) {
-                            if (Instant.now().minusSeconds(10).isAfter(start)) {
-                                throw new RuntimeException("timed out waiting for records");
-                            }
-                            records = consumer.poll().value();
-                            List<ConsumerRecord<String, String>> records1 = records.records(topicAPartition0);
-                            if (!records1.isEmpty()
-                                    && records1.get(records1.size() - 1).offset() >= sent) {
-                                break;
-                            }
-                            Thread.sleep(100);
-                        }
+                        ConsumerRecords<String, String> records = consumer.pollUntil(receivedAtLeastUpTo(topicAPartition0, sent)).value();
 
                         var offsets = records.nextOffsets();
                         assertThat(offsets).isNotEmpty();

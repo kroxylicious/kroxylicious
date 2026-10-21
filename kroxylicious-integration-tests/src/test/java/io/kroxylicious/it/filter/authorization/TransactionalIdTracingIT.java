@@ -9,7 +9,6 @@ package io.kroxylicious.it.filter.authorization;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +20,6 @@ import org.apache.kafka.clients.admin.TransactionDescription;
 import org.apache.kafka.clients.admin.TransactionListing;
 import org.apache.kafka.clients.admin.TransactionState;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.Partitioner;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -149,7 +147,6 @@ class TransactionalIdTracingIT extends AbstractTracingIT {
         }
 
         @Override
-        @SuppressWarnings("java:S2925") // Thread.sleep
         public void run(ClientFactory clientFactory) {
             String topicA = TOPIC_A;
             String setupUser = actorName;
@@ -206,7 +203,6 @@ class TransactionalIdTracingIT extends AbstractTracingIT {
         }
 
         @Override
-        @SuppressWarnings("java:S2925") // Thread.sleep
         public void run(ClientFactory clientFactory) {
             String topicA = TOPIC_A;
 
@@ -248,8 +244,7 @@ class TransactionalIdTracingIT extends AbstractTracingIT {
     static class TransactionalProg implements Prog {
 
         @Override
-        @SuppressWarnings("java:S2925") // Thread.sleep
-        public void run(ClientFactory clientFactory) throws InterruptedException {
+        public void run(ClientFactory clientFactory) {
             String topicA = TOPIC_A;
             TopicPartition topicAPartition0 = new TopicPartition(topicA, 0);
 
@@ -289,20 +284,7 @@ class TransactionalIdTracingIT extends AbstractTracingIT {
                             ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1))) {
 
                         consumer2.subscribe(TOPIC_A);
-                        ConsumerRecords<String, Integer> records;
-                        Instant start = Instant.now();
-                        while (true) {
-                            if (Instant.now().minusSeconds(10).isAfter(start)) {
-                                throw new RuntimeException("timed out waiting for records");
-                            }
-                            records = consumer2.poll().value();
-                            List<ConsumerRecord<String, Integer>> records1 = records.records(topicAPartition0);
-                            if (!records1.isEmpty()
-                                    && records1.get(records1.size() - 1).offset() >= sent) {
-                                break;
-                            }
-                            Thread.sleep(100);
-                        }
+                        ConsumerRecords<String, Integer> records = consumer2.pollUntil(receivedAtLeastUpTo(topicAPartition0, sent)).value();
 
                         var offsets = records.nextOffsets();
                         assertThat(offsets).isNotEmpty();
