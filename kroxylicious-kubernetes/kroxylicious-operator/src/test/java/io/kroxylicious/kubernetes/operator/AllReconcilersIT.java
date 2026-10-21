@@ -104,7 +104,7 @@ class AllReconcilersIT {
     private static final String CLUSTER_FOO_SERVICE = "foo-service";
     private static final String CLUSTER_FOO_FILTER = "foo-filter";
     private static final String STRIMZI_TLS_LISTENER = "tls";
-    private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
+    private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(90));
 
     // the initial operator image pull can take a long time and interfere with the tests
     // KafkaServiceReconciler conditionally creates a Strimzi Kafka informer when it detects the
