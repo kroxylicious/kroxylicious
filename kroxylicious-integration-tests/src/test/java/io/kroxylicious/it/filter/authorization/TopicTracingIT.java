@@ -9,7 +9,6 @@ package io.kroxylicious.it.filter.authorization;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -22,7 +21,6 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.GroupProtocol;
 import org.apache.kafka.clients.producer.Partitioner;
@@ -253,7 +251,7 @@ class TopicTracingIT extends AbstractTracingIT {
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
                         ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1))) {
                     groupedConsumer.subscribe(Pattern.compile(".*"));
-                    Outcome<ConsumerRecords<String, Integer>> poll = groupedConsumer.poll();
+                    Outcome<ConsumerRecords<String, Integer>> poll = groupedConsumer.pollUntilRecords();
                     Set<TopicPartition> partitions = poll.value().partitions();
                     assertThat(partitions).containsExactly(topicAPartition0);
                     assertThat(poll.value()).singleElement().satisfies(record -> {
@@ -267,8 +265,7 @@ class TopicTracingIT extends AbstractTracingIT {
     static class TransactionalProg implements Prog {
 
         @Override
-        @SuppressWarnings("java:S2925") // Thread.sleep
-        public void run(ClientFactory clientFactory) throws InterruptedException {
+        public void run(ClientFactory clientFactory) {
             String topicA = TOPIC_A;
             TopicPartition topicAPartition0 = new TopicPartition(topicA, 0);
             TopicPartition topicAPartition1 = new TopicPartition(topicA, 1);
@@ -322,20 +319,7 @@ class TopicTracingIT extends AbstractTracingIT {
                             ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1))) {
 
                         consumer2.subscribe(TOPIC_A);
-                        ConsumerRecords<String, Integer> records;
-                        Instant start = Instant.now();
-                        while (true) {
-                            if (Instant.now().minusSeconds(10).isAfter(start)) {
-                                throw new RuntimeException("timed out waiting for records");
-                            }
-                            records = consumer2.poll().value();
-                            List<ConsumerRecord<String, Integer>> records1 = records.records(topicAPartition0);
-                            if (!records1.isEmpty()
-                                    && records1.get(records1.size() - 1).offset() >= sent) {
-                                break;
-                            }
-                            Thread.sleep(100);
-                        }
+                        ConsumerRecords<String, Integer> records = consumer2.pollUntil(receivedAtLeastUpTo(topicAPartition0, sent)).value();
 
                         var offsets = records.nextOffsets();
                         assertThat(offsets).isNotEmpty();
