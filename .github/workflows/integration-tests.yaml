@@ -21,6 +21,7 @@ on:
 
 jobs:
   discover_integration_test_chunks:
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       test_chunks: ${{ steps.discover.outputs.test_chunks }}
@@ -89,6 +90,7 @@ jobs:
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_OUTPUT"
 
   run_integration_tests:
+    if: github.event_name != 'merge_group'
     needs: [get_kroxylicious_image, discover_integration_test_chunks]
     runs-on: ubuntu-latest
     strategy:

@@ -21,11 +21,13 @@ on:
 
 jobs:
   build_kroxylicious_images:
+    if: github.event_name != 'merge_group'
     uses: $/.github/workflows/build-kroxylicious-container-images.yaml
     with:
       output-tarballs: true
 
   build_artifacts:
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
