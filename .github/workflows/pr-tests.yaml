@@ -40,7 +40,7 @@ jobs:
     needs: build_artifacts
     uses: $/.github/workflows/system-tests-pr.yaml
 
-  test_gate:
+  pr_test_gate:
     runs-on: ubuntu-latest
     name: All Checks Passed
     needs: [ integration_test_pr, system_tests_pr ]
