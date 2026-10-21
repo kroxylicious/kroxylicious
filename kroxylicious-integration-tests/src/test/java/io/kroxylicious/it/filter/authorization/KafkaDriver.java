@@ -58,6 +58,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * This is useful for testing RPCs which the high-level Kafka client cannot easily pinpoint. We
  * want to put the broker in a state where the RPC under test can succeed (if authorized).
  */
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated KafkaApiMessageConverter API
 class KafkaDriver {
     public static final String JOIN_GROUP_PROTOCOL_NAME = "proto";
     private final BaseClusterFixture cluster;

@@ -39,6 +39,8 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
  * This is only used for integration testing and
  * is <strong>NOT INTENDED FOR USE IN PRODUCTION.</strong>
  */
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 public class SaslPlainTerminationFilter
         implements RequestFilter {
 

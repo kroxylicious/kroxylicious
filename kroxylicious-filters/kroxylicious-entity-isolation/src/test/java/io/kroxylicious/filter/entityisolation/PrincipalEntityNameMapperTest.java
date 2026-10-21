@@ -32,6 +32,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("removal") // Subject scheduled for removal
 class PrincipalEntityNameMapperTest {
     private static final String BOB_PRINCIPAL_NAME = "bob";
     private static final String ALICE_PRINCIPAL_NAME = "alice";

@@ -72,6 +72,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 class RoutingContextContractIT {
 
     private static final Features ROUTING_ENABLED = Features.builder().enable(Feature.ROUTING).build();

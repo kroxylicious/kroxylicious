@@ -46,6 +46,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("removal") // Subject scheduled for removal
 class EntityIsolationFilterTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 

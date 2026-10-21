@@ -6,5 +6,6 @@
 
 package io.kroxylicious.proxy.authentication;
 
+@SuppressWarnings("removal") // Principal, Unique scheduled for removal
 @Unique
 public record FakeUniquePrincipal(String name) implements Principal {}

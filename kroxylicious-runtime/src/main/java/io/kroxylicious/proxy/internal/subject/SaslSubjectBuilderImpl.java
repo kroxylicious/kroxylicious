@@ -19,6 +19,7 @@ import io.kroxylicious.proxy.authentication.User;
  * A {@link SaslSubjectBuilder} that builds a {@link Subject} containing a single
  * {@link User} principal named after the SASL authorization id.
  */
+@SuppressWarnings("removal") // Subject scheduled for removal
 public class SaslSubjectBuilderImpl implements SaslSubjectBuilder {
 
     /**

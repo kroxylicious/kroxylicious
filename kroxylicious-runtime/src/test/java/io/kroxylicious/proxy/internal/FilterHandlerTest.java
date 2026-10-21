@@ -87,6 +87,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 class FilterHandlerTest extends FilterHarness {
 
     private static final int ARBITRARY_TAG = 500;

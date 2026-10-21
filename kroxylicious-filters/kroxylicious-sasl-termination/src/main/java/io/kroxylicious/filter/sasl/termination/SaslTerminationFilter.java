@@ -68,6 +68,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * During authentication, the mechanism-specific transition logic is provided by a
  * {@link MechanismStateMachine}.</p>
  */
+@SuppressWarnings("removal") // Subject scheduled for removal
 class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslTerminationFilter.class);

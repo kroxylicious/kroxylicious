@@ -38,6 +38,8 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
  * and unit tests showing that we set up our implications in the resources. But it is nice to have further confidence
  * they are plugged together correctly without having to test it via an RPC authorization.
  */
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 public class AclImplicationIT {
 
     public static final String ALICE = "alice";

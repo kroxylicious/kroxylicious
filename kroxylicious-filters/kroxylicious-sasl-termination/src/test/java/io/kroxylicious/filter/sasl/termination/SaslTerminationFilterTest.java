@@ -65,6 +65,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("removal") // Subject scheduled for removal
 class SaslTerminationFilterTest {
 
     private static final Instant FIXED_INSTANT = Instant.parse("2026-01-01T00:00:00Z");

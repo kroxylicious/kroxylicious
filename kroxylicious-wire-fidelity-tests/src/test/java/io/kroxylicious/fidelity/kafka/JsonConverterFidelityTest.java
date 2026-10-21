@@ -25,6 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * between {@code org.apache.kafka.common.message.ApiMessageType} and its vendored equivalent, at
  * every version supported by both.
  */
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated KafkaApiMessageConverter API
 class JsonConverterFidelityTest {
 
     record TypePair(org.apache.kafka.common.message.ApiMessageType kafkaType, io.kroxylicious.kafka.common.message.ApiMessageType vendoredType) {}

@@ -19,6 +19,8 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@SuppressWarnings("removal")
+// Suppress removal warnings for deprecated Subject and User APIs
 class SaslSubjectBuilderImplTest {
 
     @Test

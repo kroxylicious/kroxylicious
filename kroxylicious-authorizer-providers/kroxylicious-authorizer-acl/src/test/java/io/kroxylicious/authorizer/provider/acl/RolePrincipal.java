@@ -8,4 +8,5 @@ package io.kroxylicious.authorizer.provider.acl;
 
 import io.kroxylicious.proxy.authentication.Principal;
 
+@SuppressWarnings("removal") // Principal scheduled for removal
 record RolePrincipal(String name) implements Principal {}

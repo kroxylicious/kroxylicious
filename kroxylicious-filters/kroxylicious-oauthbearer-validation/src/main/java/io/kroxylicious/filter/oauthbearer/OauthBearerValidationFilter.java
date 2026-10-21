@@ -62,6 +62,7 @@ import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModul
  * If the token is not validated, then the request is short-circuited.
  * It reduces resource consumption on the cluster when a client sends too many invalid SASL requests.
  */
+@SuppressWarnings("removal") // Subject scheduled for removal
 public class OauthBearerValidationFilter
         implements SaslHandshakeRequestFilter, SaslAuthenticateRequestFilter,
         SaslAuthenticateResponseFilter {
