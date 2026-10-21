@@ -199,4 +199,12 @@ public final class Constants {
      * Kroxylicious annotations
      */
     public static final String CHECKSUM_ANNOTATION = "kroxylicious.io/referent-checksum";
+
+    /*
+     * Azure Key Vault. Fixed for any standard public-cloud Azure tenant; these only ever change for a
+     * sovereign cloud, so they are constants rather than environment variables.
+     */
+    public static final String AZURE_KEY_VAULT_HOST = "vault.azure.net";
+    public static final String AZURE_OAUTH_ENDPOINT = "https://login.microsoftonline.com";
+    public static final String AZURE_KEY_VAULT_SCOPE = "https://vault.azure.net/.default";
 }

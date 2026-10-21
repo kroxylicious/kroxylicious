@@ -16,6 +16,7 @@ import com.azure.core.credential.BasicAuthenticationCredential;
 import com.azure.core.exception.ResourceNotFoundException;
 import com.azure.core.http.HttpClient;
 import com.azure.core.util.polling.SyncPoller;
+import com.azure.identity.ClientSecretCredentialBuilder;
 import com.azure.security.keyvault.keys.KeyClient;
 import com.azure.security.keyvault.keys.KeyClientBuilder;
 import com.azure.security.keyvault.keys.models.CreateKeyOptions;
@@ -92,6 +93,26 @@ public abstract class AbstractAzureKeyVaultKmsTestKmsFacade implements TestKmsFa
             keyClient = new KeyClientBuilder().credential(new BasicAuthenticationCredential("abc", "def"))
                     .httpClient(createHttpClient(endpointAuthority, defaultVaultAuthority)).vaultUrl(vaultBaseUrl)
                     .disableChallengeResourceVerification().buildClient();
+        }
+
+        /**
+         * Creates the KEK manager for a real (cloud) Azure Key Vault, authenticating via OAuth 2.0
+         * client-credentials.
+         *
+         * @param tenantId Microsoft Entra tenant id
+         * @param clientId service principal client id
+         * @param clientSecret service principal client secret
+         * @param vaultBaseUrl base URL of the vault, e.g. {@code https://my-key-vault.vault.azure.net}
+         */
+        public AzureKmsTestKekManager(String tenantId, String clientId, String clientSecret, String vaultBaseUrl) {
+            keyClient = new KeyClientBuilder()
+                    .credential(new ClientSecretCredentialBuilder()
+                            .tenantId(tenantId)
+                            .clientId(clientId)
+                            .clientSecret(clientSecret)
+                            .build())
+                    .vaultUrl(vaultBaseUrl)
+                    .buildClient();
         }
 
         @Override
