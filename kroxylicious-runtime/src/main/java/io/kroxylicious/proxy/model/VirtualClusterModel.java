@@ -869,11 +869,12 @@ public class VirtualClusterModel implements AutoCloseable {
                     final Optional<Boolean> validationResult = TlsUtil.validateCertificateKeyPair(tlsConfiguration.key());
                     final boolean validated = validationResult.orElse(false);
                     if (!validated) {
+                        final String reason = validationResult.isPresent() ? "are mismatched" : "could not be validated";
                         if (currentContext.isPresent()) {
                             LOGGER.atWarn()
                                     .addKeyValue("virtualCluster", virtualCluster.getClusterName())
                                     .addKeyValue("name", name())
-                                    .log("Certificate-key pair could not be validated (this may be a transient condition), retaining the previous TLS configuration");
+                                    .log("Certificate-key pair " + reason + " (this may be a transient condition), retaining the previous TLS configuration");
                             return currentContext.get();
                         }
                         else {

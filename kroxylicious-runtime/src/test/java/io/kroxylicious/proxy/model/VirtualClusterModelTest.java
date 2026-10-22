@@ -567,7 +567,7 @@ class VirtualClusterModelTest {
     }
 
     @Test
-    void fullRotationKeyThenCert() throws Exception {
+    void fullRotationKeyThenCert(final CapturedLogs logs) throws Exception {
         // Given
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
         final VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
@@ -591,6 +591,9 @@ class VirtualClusterModelTest {
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
                     assertThat(model.gateways().get("wibbleGW").getDownstreamSslContext()).contains(startingSSLContext);
+                    final List<LoggingEvent> events = logs.logged(VirtualClusterModel.class); // extract cluster model logs
+                    LoggingEventAssert.assertThat(events)
+                            .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("Certificate-key pair are mismatched"));
                 });
 
         Files.writeString(certFile, rotated.certificatePem(), StandardOpenOption.TRUNCATE_EXISTING);
@@ -630,6 +633,8 @@ class VirtualClusterModelTest {
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
                     final List<LoggingEvent> events = logs.logged(VirtualClusterModel.class); // extract cluster model logs
+                    LoggingEventAssert.assertThat(events)
+                            .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("Certificate-key pair could not be validated"));
                     LoggingEventAssert.assertThat(events)
                             .anyMatch(event -> event.getLevel().equals(Level.WARN) && event.getMessage().contains("retaining the previous TLS configuration"));
                 });
