@@ -555,6 +555,26 @@ public class ResourcesUtil {
         }
     }
 
+    // The Kroxylicious custom resource types for which isStatusFresh(HasMetadata) is defined; any other type throws.
+    private static final Set<Class<? extends HasMetadata>> STATUS_BEARING_TYPES = Set.of(
+            KafkaProtocolFilter.class,
+            KafkaService.class,
+            VirtualKafkaCluster.class,
+            KafkaProxyIngress.class,
+            KafkaProxy.class);
+
+    /**
+     * Tests whether resources of the given type carry a {@code status.observedGeneration} that
+     * {@link #isStatusFresh(HasMetadata)} can evaluate. False for core Kubernetes types (Secret, ConfigMap,
+     * Service) and third-party CRDs, for which {@link #isStatusFresh(HasMetadata)} throws.
+     *
+     * @param type the resource type
+     * @return true if {@link #isStatusFresh(HasMetadata)} accepts instances of {@code type}
+     */
+    public static boolean hasObservedGeneration(Class<? extends HasMetadata> type) {
+        return STATUS_BEARING_TYPES.contains(type);
+    }
+
     /**
      * Checks that the status contains a fresh ResolvedRefs=false condition. Fresh means that the
      * observedGeneration of the condition is equal to the metadata.generation of the resource.

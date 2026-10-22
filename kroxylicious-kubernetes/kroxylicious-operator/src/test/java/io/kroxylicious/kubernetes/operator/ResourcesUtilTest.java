@@ -545,6 +545,24 @@ class ResourcesUtilTest {
         assertThat(ResourcesUtil.isStatusFresh(service)).isEqualTo(isReconciled);
     }
 
+    public static Stream<Arguments> hasObservedGeneration() {
+        return Stream.of(
+                argumentSet("KafkaProtocolFilter", KafkaProtocolFilter.class, true),
+                argumentSet("KafkaService", KafkaService.class, true),
+                argumentSet("VirtualKafkaCluster", VirtualKafkaCluster.class, true),
+                argumentSet("KafkaProxyIngress", KafkaProxyIngress.class, true),
+                argumentSet("KafkaProxy", KafkaProxy.class, true),
+                argumentSet("Secret", Secret.class, false),
+                argumentSet("ConfigMap", ConfigMap.class, false),
+                argumentSet("strimzi Kafka", Kafka.class, false));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void hasObservedGeneration(Class<? extends HasMetadata> type, boolean expected) {
+        assertThat(ResourcesUtil.hasObservedGeneration(type)).isEqualTo(expected);
+    }
+
     private <T extends HasMetadata> EventSourceContext<?> prepareMockContextToProduceList(List<T> build, Class<T> clazz) {
         KubernetesResourceList<T> mock = mock();
         when(mock.getItems()).thenReturn(build);

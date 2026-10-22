@@ -81,6 +81,9 @@ public class KafkaProxyIngressReconciler implements
         return List.of(EventSourceBuilder.forSecondary(context, KafkaProxy.class)
                 .withName(PROXY_EVENT_SOURCE_NAME)
                 .withRelationship(Ref.toSecondary(ingress -> Optional.of(ingress.getSpec().getProxyRef())))
+                // reconcile on every proxy change regardless of the proxy's own reconcile state
+                // (KPI consumes no reconciled proxy state, so a guard would add latency, and is not needed for correctness)
+                .withoutFreshStatus()
                 .build());
     }
 

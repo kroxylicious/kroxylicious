@@ -16,15 +16,10 @@ import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
-import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findAllKnownPrimariesInNamespace;
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
- * Maps any secondary resource event to all primaries of type {@code P} in the same namespace, ignoring events
- * from secondaries whose status has not yet caught up with their spec.
+ * Maps any secondary resource event to all primaries of type {@code P} in the same namespace.
  * <p>
  * This is the safe fallback for the "secondary holds the reference" relationship family
  * ({@link Ref#toPrimary}/{@link Ref#toPrimaryVia}): the secondary does not identify a single primary in a way
@@ -47,17 +42,9 @@ class AllPrimariesInNamespaceMapper<P extends HasMetadata> implements SecondaryT
 
     @Override
     public Set<ResourceID> toPrimaryResourceIDs(HasMetadata secondary) {
-        // we do not want to trigger reconciliation of any primary if the secondary has not been reconciled
-        if (!ResourcesUtil.isStatusFresh(secondary)) {
-            LOGGER.atDebug()
-                    .addKeyValue("kind", HasMetadata.getKind(secondary.getClass()))
-                    .addKeyValue("name", name(secondary))
-                    .addKeyValue("namespace", namespace(secondary))
-                    .log("Ignoring event from secondary with stale status");
-            return Set.of();
-        }
         // the secondary does not identify a single primary, so reconcile every primary in its namespace; this
-        // also ensures a previously-referenced primary is updated when a reference is removed (see e.g. #4017)
+        // also ensures a previously-referenced primary is updated when a reference is removed (see e.g. #4017).
+        // Stale-status secondaries are filtered upstream by EventSourceBuilder's freshness guard.
         Set<ResourceID> primaryIds = findAllKnownPrimariesInNamespace(context, secondary);
         LOGGER.atDebug()
                 .addKeyValue("kind", HasMetadata.getKind(secondary.getClass()))

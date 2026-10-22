@@ -87,22 +87,23 @@ class RefTest {
         }
 
         @Test
-        void secondaryToPrimaryMapsFreshSecondaryToAllPrimariesInNamespace() {
+        void secondaryToPrimaryMapsSecondaryToAllPrimariesInNamespace() {
             // Given
             KafkaProxy proxy1 = MapperTestSupport.buildProxy("proxy1");
             KafkaProxy proxy2 = MapperTestSupport.buildProxy("proxy2");
             EventSourceContext<KafkaProxy> context = MapperTestSupport.mockContextContaining(proxy1, proxy2);
-            VirtualKafkaCluster freshCluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(proxy1, "cluster", 1L, 1L).build();
+            VirtualKafkaCluster cluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(proxy1, "cluster", 1L, 1L).build();
 
             // When
-            Set<ResourceID> primaryIds = VKC_TO_PROXY.secondaryToPrimary(context).toPrimaryResourceIDs(freshCluster);
+            Set<ResourceID> primaryIds = VKC_TO_PROXY.secondaryToPrimary(context).toPrimaryResourceIDs(cluster);
 
             // Then
             assertThat(primaryIds).containsExactlyInAnyOrder(ResourceID.fromResource(proxy1), ResourceID.fromResource(proxy2));
         }
 
         @Test
-        void secondaryToPrimaryIgnoresSecondaryWithStaleStatus() {
+        void secondaryToPrimaryDoesNotFilterStaleStatus() {
+            // the freshness guard lives in EventSourceBuilder, not in Ref; see EventSourceBuilderTest
             // Given
             KafkaProxy proxy = MapperTestSupport.buildProxy("proxy");
             EventSourceContext<KafkaProxy> context = MapperTestSupport.mockContextContaining(proxy);
@@ -112,7 +113,7 @@ class RefTest {
             Set<ResourceID> primaryIds = VKC_TO_PROXY.secondaryToPrimary(context).toPrimaryResourceIDs(staleCluster);
 
             // Then
-            assertThat(primaryIds).isEmpty();
+            assertThat(primaryIds).containsExactly(ResourceID.fromResource(proxy));
         }
 
         @Test

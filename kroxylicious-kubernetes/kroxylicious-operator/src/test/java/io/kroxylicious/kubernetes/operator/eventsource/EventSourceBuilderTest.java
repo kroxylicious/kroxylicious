@@ -35,8 +35,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * Exercises {@link EventSourceBuilder} directly: validation, the choice between a dedicated and a shared
- * informer, and the {@link EventSourceBuilder#requireFreshStatus()} decorator. {@link Ref}'s declarative
- * factories are covered separately by {@link RefTest}.
+ * informer, the freshness guard applied automatically to status-bearing secondaries, and its
+ * {@link EventSourceBuilder#withoutFreshStatus()} opt-out. {@link Ref}'s declarative factories are covered
+ * separately by {@link RefTest}.
  */
 class EventSourceBuilderTest {
 
@@ -126,9 +127,9 @@ class EventSourceBuilderTest {
     }
 
     @Test
-    void requireFreshStatusDropsEventsFromSecondariesWithStaleStatus() {
+    void dropsEventsFromStatusBearingSecondariesWithStaleStatus() {
         // Given
-        SharedInformerEventSource<KafkaService, VirtualKafkaCluster> eventSource = buildSharedEventSourceAlwaysMatchingAPrimary();
+        SharedInformerEventSource<KafkaService, VirtualKafkaCluster> eventSource = buildSharedEventSourceAlwaysMatchingAPrimary(false);
         EventHandler eventHandler = mock();
         eventSource.setEventHandler(eventHandler);
         KafkaService staleService = MapperTestSupport.buildKafkaService("svc", 2L, 1L);
@@ -141,9 +142,9 @@ class EventSourceBuilderTest {
     }
 
     @Test
-    void requireFreshStatusPropagatesEventsFromSecondariesWithFreshStatus() {
+    void propagatesEventsFromStatusBearingSecondariesWithFreshStatus() {
         // Given
-        SharedInformerEventSource<KafkaService, VirtualKafkaCluster> eventSource = buildSharedEventSourceAlwaysMatchingAPrimary();
+        SharedInformerEventSource<KafkaService, VirtualKafkaCluster> eventSource = buildSharedEventSourceAlwaysMatchingAPrimary(false);
         EventHandler eventHandler = mock();
         eventSource.setEventHandler(eventHandler);
         KafkaService freshService = MapperTestSupport.buildKafkaService("svc", 1L, 1L);
@@ -155,8 +156,23 @@ class EventSourceBuilderTest {
         verify(eventHandler).handleEvent(any());
     }
 
+    @Test
+    void withoutFreshStatusPropagatesEventsFromStatusBearingSecondariesWithStaleStatus() {
+        // Given
+        SharedInformerEventSource<KafkaService, VirtualKafkaCluster> eventSource = buildSharedEventSourceAlwaysMatchingAPrimary(true);
+        EventHandler eventHandler = mock();
+        eventSource.setEventHandler(eventHandler);
+        KafkaService staleService = MapperTestSupport.buildKafkaService("svc", 2L, 1L);
+
+        // When
+        eventSource.onAdd(staleService);
+
+        // Then
+        verify(eventHandler).handleEvent(any());
+    }
+
     @SuppressWarnings("unchecked")
-    private static SharedInformerEventSource<KafkaService, VirtualKafkaCluster> buildSharedEventSourceAlwaysMatchingAPrimary() {
+    private static SharedInformerEventSource<KafkaService, VirtualKafkaCluster> buildSharedEventSourceAlwaysMatchingAPrimary(boolean withoutFreshStatus) {
         EventSourceContext<VirtualKafkaCluster> context = mock();
         SharedInformerManager sharedInformerManager = mock();
         SharedIndexInformer<KafkaService> informer = mock();
@@ -164,12 +180,13 @@ class EventSourceBuilderTest {
         when(sharedInformerManager.effectiveNamespaces()).thenReturn(Set.of());
         SecondaryToPrimaryMapper<KafkaService> alwaysMatchesAPrimary = secondary -> Set.of(new ResourceID("cluster", "ns"));
 
-        EventSource<KafkaService, VirtualKafkaCluster> eventSource = EventSourceBuilder.forSecondary(context, KafkaService.class)
+        var builder = EventSourceBuilder.forSecondary(context, KafkaService.class)
                 .withName("services")
                 .withSharedInformer(sharedInformerManager)
-                .withMappers(NO_SECONDARIES, alwaysMatchesAPrimary)
-                .requireFreshStatus()
-                .build();
-        return (SharedInformerEventSource<KafkaService, VirtualKafkaCluster>) eventSource;
+                .withMappers(NO_SECONDARIES, alwaysMatchesAPrimary);
+        if (withoutFreshStatus) {
+            builder.withoutFreshStatus();
+        }
+        return (SharedInformerEventSource<KafkaService, VirtualKafkaCluster>) builder.build();
     }
 }

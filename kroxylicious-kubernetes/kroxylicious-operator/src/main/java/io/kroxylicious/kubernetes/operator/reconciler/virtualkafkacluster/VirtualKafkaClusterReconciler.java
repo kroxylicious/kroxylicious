@@ -404,6 +404,9 @@ public final class VirtualKafkaClusterReconciler implements
                 EventSourceBuilder.forSecondary(context, KafkaProxy.class)
                         .withName(PROXY_EVENT_SOURCE_NAME)
                         .withRelationship(Ref.toSecondary(cluster -> Optional.of(cluster.getSpec().getProxyRef())))
+                        // reconcile on every proxy change regardless of the proxy's own reconcile state
+                        // (VKC consumes no reconciled proxy state, so a guard would add latency, and is not needed for correctness)
+                        .withoutFreshStatus()
                         .build(),
                 EventSourceBuilder.forSecondary(context, ConfigMap.class)
                         .withName(PROXY_CONFIG_STATE_SOURCE_NAME)
@@ -413,18 +416,15 @@ public final class VirtualKafkaClusterReconciler implements
                 EventSourceBuilder.forSecondary(context, KafkaService.class)
                         .withName(SERVICES_EVENT_SOURCE_NAME)
                         .withRelationship(Ref.toSecondary(cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef())))
-                        .requireFreshStatus()
                         .build(),
                 EventSourceBuilder.forSecondary(context, KafkaProxyIngress.class)
                         .withName(INGRESSES_EVENT_SOURCE_NAME)
                         .withRelationship(Ref.toSecondaries(VirtualKafkaClusterReconciler::ingressRefs))
-                        .requireFreshStatus()
                         .build(),
                 EventSourceBuilder.forSecondary(context, KafkaProtocolFilter.class)
                         .withName(FILTERS_EVENT_SOURCE_NAME)
                         .withRelationship(Ref.toSecondaries(cluster -> Optional.ofNullable(cluster.getSpec())
                                 .map(VirtualKafkaClusterSpec::getFilterRefs).orElse(List.of())))
-                        .requireFreshStatus()
                         .build(),
                 EventSourceBuilder.forSecondary(context, Service.class)
                         .withName(KUBERNETES_SERVICES_EVENT_SOURCE_NAME)

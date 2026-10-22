@@ -9,6 +9,9 @@ package io.kroxylicious.kubernetes.operator.eventsource;
 import java.util.Objects;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
@@ -34,11 +37,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public final class EventSourceBuilder<P extends HasMetadata, S extends HasMetadata> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(EventSourceBuilder.class);
+
     private final EventSourceContext<P> context;
     private final Class<S> secondaryType;
     private @Nullable String name;
     private @Nullable SharedInformerManager sharedInformerManager;
-    private boolean requireFreshStatus;
+    private boolean skipFreshStatus;
     private @Nullable PrimaryToSecondaryMapper<P> primaryToSecondaryMapper;
     private @Nullable SecondaryToPrimaryMapper<S> secondaryToPrimaryMapper;
 
@@ -116,16 +121,16 @@ public final class EventSourceBuilder<P extends HasMetadata, S extends HasMetada
     }
 
     /**
-     * Ignores events from secondaries whose {@code status.observedGeneration} has not caught up with their
-     * {@code metadata.generation}. Only meaningful for Kroxylicious custom resource secondaries with a status;
-     * skip for core Kubernetes types (Secret, ConfigMap, Service), which have no generation/observedGeneration
-     * semantics. A harmless no-op when combined with a {@link Ref#toPrimary}/{@link Ref#toPrimaryVia} relationship,
-     * which already applies this check unconditionally.
+     * Opts out of the freshness guard that {@link #build()} otherwise applies automatically to secondaries of a
+     * status-bearing Kroxylicious custom resource type (see {@link ResourcesUtil#hasObservedGeneration(Class)}).
+     * Needed where a primary must be reconciled on every change to such a secondary regardless of whether the
+     * secondary's own controller has caught up (e.g. a reconciler watching {@code KafkaProxy} as a secondary).
+     * A no-op for core Kubernetes types, which are never guarded.
      *
      * @return this builder
      */
-    public EventSourceBuilder<P, S> requireFreshStatus() {
-        this.requireFreshStatus = true;
+    public EventSourceBuilder<P, S> withoutFreshStatus() {
+        this.skipFreshStatus = true;
         return this;
     }
 
@@ -145,7 +150,10 @@ public final class EventSourceBuilder<P extends HasMetadata, S extends HasMetada
         if (primaryToSecondaryMapper == null || secondaryToPrimaryMapper == null) {
             throw new IllegalStateException("exactly one of withRelationship(...) or withMappers(...) must be called");
         }
-        SecondaryToPrimaryMapper<S> s2p = requireFreshStatus ? withFreshnessGuard(secondaryToPrimaryMapper) : secondaryToPrimaryMapper;
+        // Guard status-bearing CRD secondaries unless the caller opted out: don't reconcile a primary off a
+        // secondary whose own controller hasn't caught up. Core Kubernetes types have no such status.
+        boolean applyFreshnessGuard = ResourcesUtil.hasObservedGeneration(secondaryType) && !skipFreshStatus;
+        SecondaryToPrimaryMapper<S> s2p = applyFreshnessGuard ? withFreshnessGuard(secondaryToPrimaryMapper) : secondaryToPrimaryMapper;
 
         if (sharedInformerManager != null) {
             var informer = sharedInformerManager.getOrCreateInformer(secondaryType);
@@ -160,7 +168,17 @@ public final class EventSourceBuilder<P extends HasMetadata, S extends HasMetada
     }
 
     private SecondaryToPrimaryMapper<S> withFreshnessGuard(SecondaryToPrimaryMapper<S> delegate) {
-        return secondary -> ResourcesUtil.isStatusFresh(secondary) ? delegate.toPrimaryResourceIDs(secondary) : Set.of();
+        return secondary -> {
+            if (ResourcesUtil.isStatusFresh(secondary)) {
+                return delegate.toPrimaryResourceIDs(secondary);
+            }
+            LOGGER.atDebug()
+                    .addKeyValue("kind", HasMetadata.getKind(secondaryType))
+                    .addKeyValue("name", ResourcesUtil.name(secondary))
+                    .addKeyValue("namespace", ResourcesUtil.namespace(secondary))
+                    .log("Ignoring event from secondary with stale status");
+            return Set.of();
+        };
     }
 
     private void requireMappersNotYetSet() {
