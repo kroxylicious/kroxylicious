@@ -526,42 +526,37 @@ public class ResourcesUtil {
         return ref.getKind().toLowerCase(Locale.ROOT) + groupString + "/" + name;
     }
 
+    // Map from Kind to functions on CRs of the corresponding type returning the status' observed generation.
+    private static final Map<String, Function<HasMetadata, Long>> OBSERVED_GENERATION_ACCESSORS = Map.of(
+            "KafkaProtocolFilter",
+            (HasMetadata r) -> r instanceof KafkaProtocolFilter i ? Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getObservedGeneration).orElse(null)
+                    : null,
+            "KafkaService",
+            (HasMetadata r) -> r instanceof KafkaService i ? Optional.ofNullable(i.getStatus()).map(KafkaServiceStatus::getObservedGeneration).orElse(null) : null,
+            "VirtualKafkaCluster",
+            (HasMetadata r) -> r instanceof VirtualKafkaCluster c ? Optional.ofNullable(c.getStatus()).map(VirtualKafkaClusterStatus::getObservedGeneration).orElse(null)
+                    : null,
+            "KafkaProxyIngress",
+            (HasMetadata r) -> r instanceof KafkaProxyIngress i ? Optional.ofNullable(i.getStatus()).map(KafkaProxyIngressStatus::getObservedGeneration).orElse(null)
+                    : null,
+            "KafkaProxy",
+            (HasMetadata r) -> r instanceof KafkaProxy i ? Optional.ofNullable(i.getStatus()).map(KafkaProxyStatus::getObservedGeneration).orElse(null) : null);
+
     /**
      * Checks that the status observedGeneration is equal to the metadata generation. Indicating
      * that the current {@code spec} of the resource has been reconciled.
      * @param hasMetadata hasMetadata
-     * @throws IllegalStateException if hasMetadata is not a CustomResource type owned by the Kroxylicious Operator
+     * @throws IllegalStateException if hasMetadata is not one of the supported kinds.
      * @return true if status observedGeneration is equal to the metadata generation
      */
     public static boolean isStatusFresh(HasMetadata hasMetadata) {
         Objects.requireNonNull(hasMetadata);
-        if (hasMetadata instanceof KafkaProtocolFilter filter) {
-            return isStatusFresh(filter, i -> Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getObservedGeneration).orElse(null));
-        }
-        else if (hasMetadata instanceof KafkaService service) {
-            return isStatusFresh(service, i -> Optional.ofNullable(i.getStatus()).map(KafkaServiceStatus::getObservedGeneration).orElse(null));
-        }
-        else if (hasMetadata instanceof VirtualKafkaCluster cluster) {
-            return isStatusFresh(cluster, c -> Optional.ofNullable(c.getStatus()).map(VirtualKafkaClusterStatus::getObservedGeneration).orElse(null));
-        }
-        else if (hasMetadata instanceof KafkaProxyIngress ingress) {
-            return isStatusFresh(ingress, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyIngressStatus::getObservedGeneration).orElse(null));
-        }
-        else if (hasMetadata instanceof KafkaProxy kafkaProxy) {
-            return isStatusFresh(kafkaProxy, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyStatus::getObservedGeneration).orElse(null));
-        }
-        else {
+        Function<HasMetadata, Long> observedGeneratorAccessor = OBSERVED_GENERATION_ACCESSORS.get(hasMetadata.getKind());
+        if (observedGeneratorAccessor == null) {
             throw new IllegalArgumentException("Unknown resource type: " + hasMetadata.getClass().getName());
         }
+        return isStatusFresh(hasMetadata, observedGeneratorAccessor);
     }
-
-    // The Kroxylicious custom resource types for which isStatusFresh(HasMetadata) is defined; any other type throws.
-    private static final Set<Class<? extends HasMetadata>> STATUS_BEARING_TYPES = Set.of(
-            KafkaProtocolFilter.class,
-            KafkaService.class,
-            VirtualKafkaCluster.class,
-            KafkaProxyIngress.class,
-            KafkaProxy.class);
 
     /**
      * Tests whether resources of the given type carry a {@code status.observedGeneration} that
@@ -572,7 +567,7 @@ public class ResourcesUtil {
      * @return true if {@link #isStatusFresh(HasMetadata)} accepts instances of {@code type}
      */
     public static boolean hasObservedGeneration(Class<? extends HasMetadata> type) {
-        return STATUS_BEARING_TYPES.contains(type);
+        return OBSERVED_GENERATION_ACCESSORS.containsKey(HasMetadata.getKind(type));
     }
 
     /**
