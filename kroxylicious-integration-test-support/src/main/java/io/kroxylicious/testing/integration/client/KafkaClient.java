@@ -9,7 +9,9 @@ package io.kroxylicious.testing.integration.client;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -229,7 +231,9 @@ public final class KafkaClient implements AutoCloseable {
      * @return one or more server certificates
      */
     public List<X509Certificate> getServerCertificateChain() {
-        return certificateHandler.certificates;
+        synchronized (certificateHandler.certificates) {
+            return List.copyOf(certificateHandler.certificates);
+        }
     }
 
     @Override
@@ -305,17 +309,19 @@ public final class KafkaClient implements AutoCloseable {
 
     // handler to allow server certificates to be inspected
     private static class CertificateHandler extends ChannelInboundHandlerAdapter {
-        final List<X509Certificate> certificates = new ArrayList<>();
+        final List<X509Certificate> certificates = Collections.synchronizedList(new ArrayList<>());
 
         @Override
         public void userEventTriggered(final ChannelHandlerContext ctx, final Object evt) throws Exception {
             if (evt instanceof SslHandshakeCompletionEvent handshake && handshake.isSuccess()) {
                 final SslHandler sslHandler = ctx.pipeline().get(SslHandler.class);
-                final SSLSession session = sslHandler.engine().getSession();
-                Arrays.stream(session.getPeerCertificates())
-                        .filter(X509Certificate.class::isInstance)
-                        .map(X509Certificate.class::cast)
-                        .forEach(certificates::add);
+                if (Objects.nonNull(sslHandler)) { // ensure there is a SslHandler to work with
+                    final SSLSession session = sslHandler.engine().getSession();
+                    Arrays.stream(session.getPeerCertificates())
+                            .filter(X509Certificate.class::isInstance)
+                            .map(X509Certificate.class::cast)
+                            .forEach(certificates::add);
+                }
             }
         }
     }

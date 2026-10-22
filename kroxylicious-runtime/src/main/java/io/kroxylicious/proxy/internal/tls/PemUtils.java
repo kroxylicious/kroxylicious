@@ -50,7 +50,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 // Duplicated from kroxylicious-kms-tls-support (io.kroxylicious.testing.kms.tls.PemUtils); sharing via a common module is deferred to a follow-up PR.
@@ -67,7 +68,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <li>Encrypted keys are NOT supported - use JKS/PKCS12 keystore format for encrypted keys</li>
  * </ul>
  */
-@SuppressWarnings({ "java:S6035", "java:S5855", "java:S8786", "java:S5998" }) // These concern the formation of the REs As code is forked from Netty, I'm opting to keep the code as is.
+@SuppressWarnings({ "java:S6035", "java:S5855", "java:S8786", "java:S5998", "java:S125" }) // These concern the formation of the REs As code is forked from Netty, I'm opting to keep the code as is.
 final class PemUtils {
 
     private static final Pattern CERT_HEADER = Pattern.compile(
@@ -93,8 +94,7 @@ final class PemUtils {
      * @return the parsed PrivateKey
      * @throws IOException if the key cannot be parsed or is encrypted
      */
-    @NonNull
-    static PrivateKey parsePrivateKey(@NonNull byte[] pemKeyBytes, @Nullable char[] password) throws IOException {
+    static PrivateKey parsePrivateKey(byte[] pemKeyBytes, @Nullable char[] password) throws IOException {
         if (password != null) {
             throw new IOException(
                     "Encrypted private keys are not supported by this PEM parser. " +
@@ -161,7 +161,8 @@ final class PemUtils {
      * PKCS#8 format is: SEQUENCE { version, algorithm, privateKey }
      * where privateKey is the PKCS#1 RSAPrivateKey wrapped as an OCTET STRING.
      */
-    private static byte[] convertPKCS1ToPKCS8(byte[] pkcs1Bytes) throws IOException {
+    @VisibleForTesting
+    static byte[] convertPKCS1ToPKCS8(byte[] pkcs1Bytes) throws IOException {
         // PKCS#8 wrapper for RSA:
         // SEQUENCE {
         // INTEGER 0 (version)
@@ -170,13 +171,20 @@ final class PemUtils {
         // }
 
         int pkcs1Length = pkcs1Bytes.length;
-        int totalLength = pkcs1Length + 22; // Fixed overhead for RSA wrapper
+        // Overhead is 19 fixed bytes (3 version INTEGER + 15 rsaEncryption SEQUENCE + 1 OCTET STRING tag)
+        // plus the OCTET STRING length field, which is 1, 2, or 3 bytes depending on pkcs1Length.
+        int octetStringLengthFieldSize = pkcs1Length < 128 ? 1 : pkcs1Length < 256 ? 2 : 3;
+        int totalLength = pkcs1Length + 19 + octetStringLengthFieldSize;
 
         ByteArrayOutputStream out = new ByteArrayOutputStream(totalLength + 4);
 
         // Outer SEQUENCE tag and length
         out.write(0x30); // SEQUENCE tag
         if (totalLength < 128) {
+            out.write(totalLength);
+        }
+        else if (totalLength < 256) {
+            out.write(0x81); // Long form: 1 length byte
             out.write(totalLength);
         }
         else {
@@ -222,8 +230,7 @@ final class PemUtils {
      * @return array of parsed X509Certificates
      * @throws IOException if the certificates cannot be parsed
      */
-    @NonNull
-    static X509Certificate[] parseCertificateChain(@NonNull byte[] pemBytes) throws IOException {
+    static X509Certificate[] parseCertificateChain(byte[] pemBytes) throws IOException {
         byte[][] certBytes = readCertificates(new ByteArrayInputStream(pemBytes));
 
         CertificateFactory cf;
@@ -297,6 +304,10 @@ final class PemUtils {
             throw new IOException(
                     "could not find a PKCS #8 private key in input stream " +
                             "(see https://netty.io/wiki/sslcontextbuilder-and-private-key.html for more information)");
+        }
+        if (m.group(0).contains("BEGIN ENCRYPTED PRIVATE KEY")) {
+            throw new IOException(
+                    "Encrypted private keys are not supported by this PEM parser. Use a keystore format (JKS/PKCS12) for encrypted keys, or convert to unencrypted PKCS#8: openssl pkcs8 -topk8 -nocrypt -in encrypted.pem -out unencrypted.pem");
         }
 
         m.usePattern(BODY);
