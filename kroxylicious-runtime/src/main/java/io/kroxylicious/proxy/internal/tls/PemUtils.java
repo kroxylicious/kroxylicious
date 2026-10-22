@@ -173,7 +173,18 @@ final class PemUtils {
         int pkcs1Length = pkcs1Bytes.length;
         // Overhead is 19 fixed bytes (3 version INTEGER + 15 rsaEncryption SEQUENCE + 1 OCTET STRING tag)
         // plus the OCTET STRING length field, which is 1, 2, or 3 bytes depending on pkcs1Length.
-        int octetStringLengthFieldSize = pkcs1Length < 128 ? 1 : pkcs1Length < 256 ? 2 : 3;
+        int octetStringLengthFieldSize;
+        if (pkcs1Length < 128) {
+            octetStringLengthFieldSize = 1;
+        }
+        else {
+            if (pkcs1Length < 256) {
+                octetStringLengthFieldSize = 2;
+            }
+            else {
+                octetStringLengthFieldSize = 3;
+            }
+        }
         int totalLength = pkcs1Length + 19 + octetStringLengthFieldSize;
 
         ByteArrayOutputStream out = new ByteArrayOutputStream(totalLength + 4);
