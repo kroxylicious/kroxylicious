@@ -38,6 +38,11 @@ jobs:
     needs: build_artifacts
     uses: $/.github/workflows/integration-tests.yaml
 
+  documentation_tests:
+    if: github.event_name != 'merge_group'
+    needs: build_artifacts
+    uses: $/.github/workflows/documentation-tests.yml
+
   system_tests_pr:
     if: github.event_name != 'merge_group'
     needs: build_artifacts
@@ -46,7 +51,7 @@ jobs:
   pr_test_gate:
     runs-on: ubuntu-latest
     name: All Checks Passed
-    needs: [ integration_test_pr, system_tests_pr ]
+    needs: [ integration_test_pr, documentation_tests, system_tests_pr ]
     if: always()
     permissions:
       actions: read
