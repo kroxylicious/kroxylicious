@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
  * the client if the request version suggests that the client may not recognize the new error code.
  *
  * Do not add exceptions that occur only on the client or only on the server here.
- *
  */
 public enum Errors {
     UNKNOWN_SERVER_ERROR(-1, "The server experienced an unexpected error when processing the request."),
