@@ -22,6 +22,11 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
 
+/**
+ * Bespoke because the Strimzi CA cert Secret may live in a different namespace than the {@code KafkaService},
+ * needing a primary-cache indexer rather than a same-namespace {@code Ref} lookup. Plugged into the
+ * {@code KafkaService} reconciler's event sources via {@code EventSourceBuilder.withMappers(...)}.
+ */
 class StrimziCaCertificateSecondaryToKafkaServicePrimaryMapper implements SecondaryToPrimaryMapper<Secret> {
     private static final String STRIMZI_CA_CERTIFICATE_REF_INDEX = "strimziCaCertificateRef";
 

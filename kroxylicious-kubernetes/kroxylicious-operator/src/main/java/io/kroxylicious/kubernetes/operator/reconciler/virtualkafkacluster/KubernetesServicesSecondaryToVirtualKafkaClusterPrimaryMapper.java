@@ -18,6 +18,11 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
+/**
+ * Bespoke because owned {@code Service}s are correlated via Kubernetes {@code ownerReferences}, not a {@code spec}
+ * ref field, so this isn't expressible via {@code Ref}. Plugged into the {@code VirtualKafkaCluster} reconciler's
+ * event sources via {@code EventSourceBuilder.withMappers(...)}.
+ */
 class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper implements SecondaryToPrimaryMapper<Service> {
     private final EventSourceContext<VirtualKafkaCluster> context;
 
