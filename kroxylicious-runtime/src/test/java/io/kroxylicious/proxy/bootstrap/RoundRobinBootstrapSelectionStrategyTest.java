@@ -125,7 +125,7 @@ class RoundRobinBootstrapSelectionStrategyTest {
         // Given
         var strategy = new RoundRobinBootstrapSelectionStrategy();
         var same = new RoundRobinBootstrapSelectionStrategy();
-        var different = new RandomBootstrapSelectionStrategy();
+        BootstrapSelectionStrategy different = new RandomBootstrapSelectionStrategy();
 
         // When/Then
         // noinspection EqualsWithItself
