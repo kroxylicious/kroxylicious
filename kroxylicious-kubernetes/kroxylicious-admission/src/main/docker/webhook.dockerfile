@@ -93,6 +93,7 @@ ARG JAVA_VERSION=21
 
 ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
+COPY --from=builder /mnt/rootfs /
 COPY target/kroxylicious-admission-${KROXYLICIOUS_VERSION}-app/kroxylicious-admission-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious-webhook
 
 USER ${CONTAINER_USER_UID}
