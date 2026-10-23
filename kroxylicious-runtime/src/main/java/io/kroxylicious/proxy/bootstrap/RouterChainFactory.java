@@ -6,6 +6,8 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.RouteDefinition;
@@ -228,15 +231,72 @@ public class RouterChainFactory implements AutoCloseable {
                 .map(RouteDefinition::name)
                 .collect(Collectors.toUnmodifiableSet());
         var cacheHolder = new TopologyCacheHolder();
-        RouterFactoryContext context = createContext(vcName, routerName, routeNames, cacheHolder);
+        RouterFactoryContextImpl context = createContext(vcName, routerName, routeNames, cacheHolder);
         Wrapper wrapper = new Wrapper(context, rd, factory, cacheHolder);
         initialized.put(key, wrapper);
+        if (!context.sharedClusterTargetsAllowed()) {
+            rejectSharedClusterTargets(rd, routersByName);
+        }
 
         for (RouteDefinition route : rd.routes()) {
             if (route.router() != null) {
                 initializeRouterGraph(vcName, route.router(), routersByName, pluginFactory);
             }
         }
+    }
+
+    /**
+     * Rejects a router whose routes resolve, directly or transitively via nested routers,
+     * to the same target cluster. Called only for routers that did not opt in via
+     * {@link RouterFactoryContext#allowSharedClusterTargets()} during initialisation.
+     *
+     * @throws IllegalConfigurationException if two or more routes reach the same cluster
+     */
+    private static void rejectSharedClusterTargets(RouterDefinition rd,
+                                                   Map<String, RouterDefinition> routersByName) {
+        Map<String, Set<String>> clustersByRouter = new HashMap<>();
+        Map<String, String> routeByCluster = new HashMap<>();
+        for (RouteDefinition route : rd.routes()) {
+            for (String cluster : reachableClusters(route, routersByName, clustersByRouter, new HashSet<>())) {
+                String previous = routeByCluster.putIfAbsent(cluster, route.name());
+                if (previous != null) {
+                    throw new IllegalConfigurationException(
+                            "Router '" + rd.name() + "' has routes '" + previous + "' and '" + route.name()
+                                    + "' which both target cluster '" + cluster
+                                    + "'; the router's type '" + rd.type()
+                                    + "' does not support routes sharing a target cluster");
+                }
+            }
+        }
+    }
+
+    private static Set<String> reachableClusters(RouteDefinition route,
+                                                 Map<String, RouterDefinition> routersByName,
+                                                 Map<String, Set<String>> clustersByRouter,
+                                                 Set<String> path) {
+        if (route.cluster() != null) {
+            return Set.of(route.cluster());
+        }
+        String routerName = route.router();
+        if (routerName == null) {
+            return Set.of();
+        }
+        Set<String> cached = clustersByRouter.get(routerName);
+        if (cached != null) {
+            return cached;
+        }
+        RouterDefinition nested = routersByName.get(routerName);
+        // dangling references and cycles are rejected by config validation; guard against them anyway
+        if (nested == null || !path.add(routerName)) {
+            return Set.of();
+        }
+        Set<String> clusters = new HashSet<>();
+        for (RouteDefinition nestedRoute : nested.routes()) {
+            clusters.addAll(reachableClusters(nestedRoute, routersByName, clustersByRouter, path));
+        }
+        path.remove(routerName);
+        clustersByRouter.put(routerName, clusters);
+        return clusters;
     }
 
     /**
@@ -280,48 +340,73 @@ public class RouterChainFactory implements AutoCloseable {
         return wrapper == null ? Optional.empty() : wrapper.existingTopologyCache();
     }
 
-    private RouterFactoryContext createContext(String vcName, String routerName, Set<String> routeNames, TopologyCacheHolder cacheHolder) {
-        return new RouterFactoryContext() {
-            @Override
-            public String virtualClusterName() {
-                return vcName;
-            }
+    private RouterFactoryContextImpl createContext(String vcName, String routerName, Set<String> routeNames, TopologyCacheHolder cacheHolder) {
+        return new RouterFactoryContextImpl(vcName, routerName, routeNames, cacheHolder);
+    }
 
-            @Override
-            public String routerName() {
-                return routerName;
-            }
+    /**
+     * The shared, {@link RouterFactory#initialize}-time context for one router level. Records
+     * whether the router opted in to shared cluster targets so the runtime can validate the
+     * router's routes once initialisation completes.
+     */
+    private final class RouterFactoryContextImpl implements RouterFactoryContext {
 
-            @Override
-            public <P> P pluginInstance(Class<P> pluginClass,
-                                        String implementationName) {
-                return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
-            }
+        private final String vcName;
+        private final String routerName;
+        private final Set<String> routeNames;
+        private final TopologyCacheHolder cacheHolder;
+        private boolean sharedClusterTargetsAllowed;
 
-            @Override
-            public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
-                return pfr.pluginFactory(pluginClass).registeredInstanceNames();
-            }
+        private RouterFactoryContextImpl(String vcName, String routerName, Set<String> routeNames, TopologyCacheHolder cacheHolder) {
+            this.vcName = vcName;
+            this.routerName = routerName;
+            this.routeNames = routeNames;
+            this.cacheHolder = cacheHolder;
+        }
 
-            @Override
-            public Set<String> routeNames() {
-                return routeNames;
-            }
+        @Override
+        public String virtualClusterName() {
+            return vcName;
+        }
 
-            @Override
-            public TopologyService topologyService() {
-                // This is the shared, RouterFactory#initialize-time context (createRouter builds
-                // its own per-call context in Wrapper.create) - per topologyService()'s contract,
-                // the instance returned here must not be stored or used for discovery, only to
-                // trigger cache creation as an opt-in side effect.
-                return new TopologyServiceImpl(cacheHolder.getOrCreate(), RequestSender.unavailable());
-            }
+        @Override
+        public String routerName() {
+            return routerName;
+        }
 
-            @Override
-            public void allowSharedClusterTargets() {
-                // no-op: shared-cluster-target validation is not yet enforced by the runtime
-            }
-        };
+        @Override
+        public <P> P pluginInstance(Class<P> pluginClass,
+                                    String implementationName) {
+            return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
+        }
+
+        @Override
+        public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
+            return pfr.pluginFactory(pluginClass).registeredInstanceNames();
+        }
+
+        @Override
+        public Set<String> routeNames() {
+            return routeNames;
+        }
+
+        @Override
+        public TopologyService topologyService() {
+            // This is the shared, RouterFactory#initialize-time context (createRouter builds
+            // its own per-call context in Wrapper.create) - per topologyService()'s contract,
+            // the instance returned here must not be stored or used for discovery, only to
+            // trigger cache creation as an opt-in side effect.
+            return new TopologyServiceImpl(cacheHolder.getOrCreate(), RequestSender.unavailable());
+        }
+
+        @Override
+        public void allowSharedClusterTargets() {
+            sharedClusterTargetsAllowed = true;
+        }
+
+        private boolean sharedClusterTargetsAllowed() {
+            return sharedClusterTargetsAllowed;
+        }
     }
 
     @Override
