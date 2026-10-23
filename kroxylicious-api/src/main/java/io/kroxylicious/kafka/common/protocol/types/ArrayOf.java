@@ -17,8 +17,11 @@
 package io.kroxylicious.kafka.common.protocol.types;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
+import io.kroxylicious.kafka.common.protocol.MessageUtil;
 import io.kroxylicious.kafka.common.protocol.types.Type.DocumentedType;
 
 /**
@@ -76,10 +79,13 @@ public class ArrayOf extends DocumentedType {
 
         if (size > buffer.remaining())
             throw new SchemaException("Error reading array of size " + size + ", only " + buffer.remaining() + " bytes available");
-        Object[] objs = new Object[size];
+        if (size > MessageUtil.MAX_ARRAY_LENGTH)
+            throw new SchemaException("Error reading array of size " + size + ", which exceeds the maximum allowed size of " + MessageUtil.MAX_ARRAY_LENGTH);
+
+        List<Object> values = new ArrayList<>(Math.min(size, MessageUtil.MAX_PREALLOCATED_ARRAY_CAPACITY));
         for (int i = 0; i < size; i++)
-            objs[i] = type.read(buffer);
-        return objs;
+            values.add(type.read(buffer));
+        return values.toArray();
     }
 
     @Override
