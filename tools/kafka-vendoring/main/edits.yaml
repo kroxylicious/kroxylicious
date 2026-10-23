@@ -25,6 +25,9 @@
 #     dropped and whose bare uses get replaced with the qualified Outer.Inner form. Works around an
 #     OpenRewrite ChangePackage limitation where a nested-class import gets stripped as "redundant"
 #     once its enclosing type ends up in the same package as the importing file (see test/edits.yaml).
+#   replaceText: list of {old, new} pairs for literal string substitution; applied before OpenRewrite
+#     so use the original org.apache.kafka namespace in `old` when the text would survive relocation
+#     unchanged (e.g. inside {@code} tags that ChangePackage does not rewrite).
 
 - file: org/apache/kafka/common/record/internal/CompressionType.java
   removeBlocks:
@@ -100,3 +103,16 @@
   removeBlocks:
     - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
       label: UnalignedMemoryRecords.writeTo
+
+# ChangePackage does not rewrite plain text or {@code} blocks in Javadoc, so these two comments
+# contain the original org.apache.kafka namespace after relocation. Replace them explicitly here
+# (before OpenRewrite runs) so the committed vendored text stays consistent with the relocated names.
+- file: org/apache/kafka/common/record/internal/MutableRecordBatch.java
+  replaceText:
+    - old: "{@code org.apache.kafka.common.record.internal.Record}"
+      new: "{@code io.kroxylicious.kafka.common.record.internal.Record}"
+
+- file: org/apache/kafka/common/utils/ImplicitLinkedHashMultiCollection.java
+  replaceText:
+    - old: "See org.apache.kafka.common.utils.ImplicitLinkedHashCollection for implementation details."
+      new: "See io.kroxylicious.kafka.common.utils.ImplicitLinkedHashCollection for implementation details."
