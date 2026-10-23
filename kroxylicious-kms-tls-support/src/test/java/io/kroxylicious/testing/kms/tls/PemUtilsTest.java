@@ -31,8 +31,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -229,7 +232,84 @@ class PemUtilsTest {
 
         // When/Then - fails because the encrypted key can't be parsed as unencrypted
         assertThatThrownBy(() -> PemUtils.parsePrivateKey(encryptedKey, null))
-                .isInstanceOf(IOException.class);
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Encrypted private keys are not supported")
+                .hasMessageContaining("JKS/PKCS12")
+                .hasMessageContaining("openssl pkcs8 -topk8 -nocrypt");
+    }
+
+    // The PKCS#1 to PKCS#8 wrapper computes the DER length fields itself, so the lengths it declares must match the bytes it
+    // emits at every size boundary where a DER length field grows (short form, one-byte long form, two-byte long form), and
+    // each length must use the minimal DER encoding. A real RSA key can't exercise the small cases as the JDK won't generate
+    // keys below 512 bits (whose PKCS#1 body already exceeds 256 bytes), so the wrapper is driven directly with synthetic
+    // bodies sized to straddle each boundary.
+    @ParameterizedTest
+    @ValueSource(ints = { 1, 126, 127, 128, 129, 254, 255, 256, 257, 1193 })
+    void convertPKCS1ToPKCS8DeclaresConsistentDerLengths(int pkcs1Length) throws Exception {
+        // Given
+        byte[] pkcs1 = new byte[pkcs1Length];
+        Arrays.fill(pkcs1, (byte) 0x2A);
+
+        // When
+        byte[] pkcs8 = PemUtils.convertPKCS1ToPKCS8(pkcs1);
+
+        // Then
+        Tlv outer = readTlv(pkcs8, 0);
+        Tlv version = readTlv(pkcs8, outer.contentStart());
+        Tlv algorithm = readTlv(pkcs8, version.contentStart() + version.declaredLength());
+        Tlv privateKey = readTlv(pkcs8, algorithm.contentStart() + algorithm.declaredLength());
+
+        assertThat(outer.tag()).isEqualTo(0x30); // SEQUENCE
+        assertThat(outer.declaredLength())
+                .describedAs("outer SEQUENCE must declare a length matching the bytes that follow it")
+                .isEqualTo(pkcs8.length - outer.contentStart());
+        assertThat(outer.lengthFieldBytes())
+                .describedAs("outer SEQUENCE length must use the minimal DER length encoding")
+                .isEqualTo(minimalLengthFieldBytes(outer.declaredLength()));
+        assertThat(privateKey.tag()).isEqualTo(0x04); // OCTET STRING
+        assertThat(privateKey.declaredLength())
+                .describedAs("OCTET STRING must declare the PKCS#1 body length")
+                .isEqualTo(pkcs1Length);
+        assertThat(privateKey.lengthFieldBytes())
+                .describedAs("OCTET STRING length must use the minimal DER length encoding")
+                .isEqualTo(minimalLengthFieldBytes(privateKey.declaredLength()));
+        assertThat(privateKey.contentStart() + privateKey.declaredLength())
+                .describedAs("OCTET STRING contents must end exactly at the end of the output")
+                .isEqualTo(pkcs8.length);
+    }
+
+    private record Tlv(int tag, int declaredLength, int contentStart, int lengthFieldBytes) {}
+
+    // Decodes a DER tag-length-value header at the given offset, supporting the short form and the one- and two-byte long forms.
+    private static Tlv readTlv(byte[] der, int offset) {
+        int tag = der[offset] & 0xff;
+        int lengthByte = der[offset + 1] & 0xff;
+        int declaredLength;
+        int lengthFieldBytes;
+        if (lengthByte < 0x80) {
+            declaredLength = lengthByte;
+            lengthFieldBytes = 1;
+        }
+        else {
+            int numBytes = lengthByte & 0x7f;
+            declaredLength = 0;
+            for (int i = 0; i < numBytes; i++) {
+                declaredLength = (declaredLength << 8) | (der[offset + 2 + i] & 0xff);
+            }
+            lengthFieldBytes = 1 + numBytes;
+        }
+        return new Tlv(tag, declaredLength, offset + 1 + lengthFieldBytes, lengthFieldBytes);
+    }
+
+    // The minimal number of DER length-field bytes for a given content length (short form, then 0x81/0x82 long forms).
+    private static int minimalLengthFieldBytes(int length) {
+        if (length < 128) {
+            return 1;
+        }
+        if (length < 256) {
+            return 2;
+        }
+        return length < 65536 ? 3 : 4;
     }
 
     @Test
