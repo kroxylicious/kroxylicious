@@ -859,7 +859,7 @@
                     <artifactId>maven-failsafe-plugin</artifactId>
                     <version>${maven.failsafe.version}</version>
                     <configuration>
-                        <skipTests>${skipITs}</skipTests>
+                        <skipITs>${skipITs}</skipITs>
                         <failIfNoTests>false</failIfNoTests>
                         <environmentVariables>
                             <!-- https://github.com/containers/podman/issues/7927#issuecomment-731525556 - required for testcontainers/podman support -->
