@@ -92,10 +92,9 @@ ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER_UID=185
 ARG JAVA_VERSION=21
 
-COPY --from=builder /mnt/rootfs /
-
 ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
+COPY --from=builder /mnt/rootfs /
 COPY target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious
 
 USER ${CONTAINER_USER_UID}
