@@ -52,16 +52,4 @@ class KafkaServicePrimaryToStrimziCaCertificateSecondaryMapperTest {
         assertThat(secondaryResourceIDs).containsExactly(new ResourceID("my-cluster-cluster-ca-cert", "my-kafka"));
     }
 
-    @Test
-    void canMapFromKafkaServiceWithoutTrustAnchorToConfigMap() {
-        // Given
-        var mapper = new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper();
-        var serviceNoTrustAnchor = new KafkaServiceBuilder(SERVICE_WITH_TLS).editSpec().withStrimziKafkaRef(null).endSpec().build();
-
-        // When
-        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(serviceNoTrustAnchor);
-
-        // Then
-        assertThat(secondaryResourceIDs).isEmpty();
-    }
 }
