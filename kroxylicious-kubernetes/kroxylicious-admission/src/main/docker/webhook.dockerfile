@@ -4,7 +4,15 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1788166357@sha256:7fbeae18dc9476399f565e68255f602a3374ea8614ba3d14843565131a13ff93
+#####
+# Stage 1: Establish clean ubi9-micro rootfs with its own RPM database
+#####
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1791895366@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS base
+
+#####
+# Stage 2: Install runtime dependencies into the ubi9-micro rootfs using dnf --installroot
+#####
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1788166357@sha256:7fbeae18dc9476399f565e68255f602a3374ea8614ba3d14843565131a13ff93 AS builder
 
 ARG TARGETOS=linux
 ARG TARGETARCH
@@ -14,18 +22,52 @@ ARG CONTAINER_USER=kroxylicious
 ARG CONTAINER_USER_UID=185
 
 USER root
-WORKDIR /opt/kroxylicious-webhook
 
-# Download Tini
+# Copy the ubi9-micro rootfs (including its RPM database) as the install root
+COPY --from=base / /mnt/rootfs/
+
+RUN microdnf install \
+        --installroot /mnt/rootfs \
+        --noplugins \
+        --config /etc/dnf/dnf.conf \
+        --setopt=cachedir=/var/cache/microdnf \
+        --setopt=reposdir=/etc/yum.repos.d \
+        --setopt=varsdir=/etc/dnf \
+        --setopt=install_weak_deps=0 \
+        --setopt=tsflags=nodocs \
+        --releasever 9 \
+        -y \
+        java-${JAVA_VERSION}-openjdk-headless \
+        openssl \
+        shadow-utils \
+    && if [[ -n "${CONTAINER_USER}" && "${CONTAINER_USER}" != "root" ]] ; then groupadd -r -g "${CONTAINER_USER_UID}" "${CONTAINER_USER}" && useradd -m -r -u "${CONTAINER_USER_UID}" -g "${CONTAINER_USER}" "${CONTAINER_USER}"; fi \
+    && microdnf remove  \
+        --installroot /mnt/rootfs \
+        --noplugins \
+        --config /etc/dnf/dnf.conf \
+        --setopt=cachedir=/var/cache/microdnf \
+        --setopt=reposdir=/etc/yum.repos.d \
+        --setopt=varsdir=/etc/dnf \
+        -y shadow-utils \
+    && microdnf \
+        --installroot /mnt/rootfs \
+        --noplugins \
+        --config /etc/dnf/dnf.conf \
+        --setopt=cachedir=/var/cache/microdnf \
+        --setopt=reposdir=/etc/yum.repos.d \
+        --setopt=varsdir=/etc/dnf \
+        clean all
+
+# Download Tini directly into the rootfs
 ARG TINI_VERSION=v0.19.0
 ARG TINI_SHA256_AMD64=93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c
 ARG TINI_SHA256_ARM64=07952557df20bfd2a95f9bef198b445e006171969499a1d361bd9e6f8e5e0e81
 ARG TINI_SHA256_PPC64LE=3f658420974768e40810001a038c29d003728c5fe86da211cff5059e48cfdfde
 ARG TINI_SHA256_S390X=931b70a182af879ca249ae9de87ef68423121b38d235c78997fafc680ceab32d
-ARG TINI_DEST=/usr/bin/tini
+ARG TINI_DEST=/mnt/rootfs/usr/bin/tini
 
 RUN set -ex; \
-    mkdir -p /opt/tini/bin/; \
+    mkdir -p /mnt/rootfs/opt/tini/bin/; \
     if [[ "${TARGETOS}/${TARGETARCH}" = "linux/ppc64le" ]]; then \
         curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-ppc64le -o ${TINI_DEST}; \
         echo "${TINI_SHA256_PPC64LE} *${TINI_DEST}" | sha256sum -c; \
@@ -39,19 +81,20 @@ RUN set -ex; \
         curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini -o ${TINI_DEST}; \
         echo "${TINI_SHA256_AMD64} *${TINI_DEST}" | sha256sum -c; \
     fi; \
-    chmod +x ${TINI_DEST}
+    chmod +x ${TINI_DEST} \
 
-RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y \
-                java-${JAVA_VERSION}-openjdk-headless \
-                openssl \
-                shadow-utils \
-    && if [[ -n "${CONTAINER_USER}" && "${CONTAINER_USER}" != "root" ]] ; then groupadd -r -g "${CONTAINER_USER_UID}" "${CONTAINER_USER}" && useradd -m -r -u "${CONTAINER_USER_UID}" -g "${CONTAINER_USER}" "${CONTAINER_USER}"; fi \
-    && microdnf remove -y shadow-utils \
-    && microdnf clean all
+#####
+# Stage 3: Build the final container image on ubi9-micro base
+#####
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1791895366@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6
+
+ARG KROXYLICIOUS_VERSION
+ARG CONTAINER_USER_UID=185
+ARG JAVA_VERSION=21
 
 ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
-COPY target/kroxylicious-admission-${KROXYLICIOUS_VERSION}-app/kroxylicious-admission-${KROXYLICIOUS_VERSION}/ .
+COPY target/kroxylicious-admission-${KROXYLICIOUS_VERSION}-app/kroxylicious-admission-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious-webhook
 
 USER ${CONTAINER_USER_UID}
 
