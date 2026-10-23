@@ -99,7 +99,7 @@ COPY target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROX
 
 USER ${CONTAINER_USER_UID}
 
-ENTRYPOINT ["usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]
+ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]
 
 LABEL url="https://kroxylicious.io/"
 LABEL vendor="The Kroxylicious Project"
