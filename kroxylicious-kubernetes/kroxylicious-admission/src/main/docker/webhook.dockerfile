@@ -17,7 +17,6 @@ FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1788166357@sha256:7fbeae18d
 ARG TARGETOS=linux
 ARG TARGETARCH
 ARG JAVA_VERSION=21
-ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER=kroxylicious
 ARG CONTAINER_USER_UID=185
 
@@ -81,7 +80,7 @@ RUN set -ex; \
         curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini -o ${TINI_DEST}; \
         echo "${TINI_SHA256_AMD64} *${TINI_DEST}" | sha256sum -c; \
     fi; \
-    chmod +x ${TINI_DEST} \
+    chmod +x ${TINI_DEST}
 
 #####
 # Stage 3: Build the final container image on ubi9-micro base
