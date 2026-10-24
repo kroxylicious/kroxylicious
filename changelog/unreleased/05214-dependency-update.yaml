@@ -1,0 +1,4 @@
+title: "build(deps): bump tools.profiler:async-profiler from 4.5 to 4.6"
+type: build
+merge_requests:
+  - 5214
