@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.util.concurrent.EventExecutor;
 
 import io.kroxylicious.kafka.common.errors.ApiException;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
@@ -375,17 +376,17 @@ public class RoutingHandler extends ChannelDuplexHandler {
         if (frame instanceof InternalRequestFrame<?> oobFrame) {
             if (requestSource instanceof VirtualClusterRequestSource(ClientConnectionStateMachine ccsm)) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
-                invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                invokeRouter(ctx, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
                         (result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
             }
             else {
-                invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                invokeRouter(ctx, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
                         (result, error) -> handleNestedOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId));
             }
         }
         else {
             long seq = sequence;
-            invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+            invokeRouter(ctx, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
                     (result, error) -> handleCompletion(ctx, frame, result, error, apiKey, apiVersion, correlationId, seq));
         }
     }
@@ -396,8 +397,13 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * {@link io.kroxylicious.proxy.router.RouterContext}'s documented contract, the runtime must
      * close the connection rather than let the exception escape to the pipeline's generic error
      * handler, which only logs and leaves the connection (and any pending OOB promise) hanging.
+     * <p>
+     * Completion is dispatched onto the channel's event loop, because the router may complete its
+     * stage on any thread while {@link ResponseSequencer} and the {@link ClientConnectionStateMachine}
+     * are loop-confined.
      */
-    private void invokeRouter(ApiKeys apiKey,
+    private void invokeRouter(ChannelHandlerContext ctx,
+                              ApiKeys apiKey,
                               short apiVersion,
                               RequestHeaderData header,
                               ApiMessage body,
@@ -415,7 +421,18 @@ public class RoutingHandler extends ChannelDuplexHandler {
             completion.accept(null, new NullPointerException("Router.onRequest(...) returned a null CompletionStage"));
             return;
         }
-        stage.whenComplete(completion);
+        // Run the completion on the event loop: inline if already there, otherwise queue it.
+        // Hand-written rather than NettyFilterDispatchExecutor.completeOnFilterDispatchThread,
+        // which allocates a future on every request.
+        EventExecutor executor = ctx.executor();
+        stage.whenComplete((result, error) -> {
+            if (executor.inEventLoop()) {
+                completion.accept(result, error);
+            }
+            else {
+                executor.execute(() -> completion.accept(result, error));
+            }
+        });
     }
 
     // --- OOB completion (top-level only) ---

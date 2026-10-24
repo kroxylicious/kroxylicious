@@ -83,6 +83,9 @@ public interface Router {
      * thread. Router implementations do not need to synchronise access
      * to their own state.</p>
      *
+     * <p>The stage returned by this method may be completed on any thread;
+     * the runtime handles the outcome on the event loop.</p>
+     *
      * @param apiKey the API key identifying the request type
      * @param apiVersion the API version of the request
      * @param header the request header
