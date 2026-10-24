@@ -6,8 +6,11 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +41,8 @@ class HaProxyContextTest {
         var context = HaProxyContext.from(msg);
 
         // Then
+        assertThat(context.command()).isEqualTo(HAProxyCommand.PROXY);
+        assertThat(context.proxiedProtocol()).isEqualTo(HAProxyProxiedProtocol.TCP4);
         assertThat(context.sourceAddress()).isEqualTo("192.168.1.100");
         assertThat(context.destinationAddress()).isEqualTo("10.0.0.1");
         assertThat(context.sourcePort()).isEqualTo(54321);
@@ -93,5 +98,118 @@ class HaProxyContextTest {
 
         // Then — TLV content is a deep copy, safe after release
         assertThat(context.tlvs()).containsEntry("PP2_TYPE_AUTHORITY", authorityBytes);
+    }
+
+    @Test
+    void shouldExposeTcp4HeaderAsPublicContext() throws Exception {
+        // Given
+        var msg = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4, "192.168.1.100", "10.0.0.1", 54321, 9092);
+        var expectedSource = new InetSocketAddress(InetAddress.getByName("192.168.1.100"), 54321);
+        var expectedDestination = new InetSocketAddress(InetAddress.getByName("10.0.0.1"), 9092);
+
+        // When
+        var publicContext = HaProxyContext.from(msg).toClientProxyProtocolContext();
+        msg.release();
+
+        // Then
+        assertThat(publicContext).hasValueSatisfying(c -> {
+            assertThat(c.sourceAddress()).isEqualTo(expectedSource);
+            assertThat(c.destinationAddress()).isEqualTo(expectedDestination);
+        });
+    }
+
+    @Test
+    void shouldExposeTcp6HeaderAsPublicContext() throws Exception {
+        // Given
+        var msg = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP6, "2001:db8::1", "2001:db8::2", 54321, 9092);
+        var expectedSource = new InetSocketAddress(InetAddress.getByName("2001:db8::1"), 54321);
+        var expectedDestination = new InetSocketAddress(InetAddress.getByName("2001:db8::2"), 9092);
+
+        // When
+        var publicContext = HaProxyContext.from(msg).toClientProxyProtocolContext();
+        msg.release();
+
+        // Then
+        assertThat(publicContext).hasValueSatisfying(c -> {
+            assertThat(c.sourceAddress()).isEqualTo(expectedSource);
+            assertThat(c.destinationAddress()).isEqualTo(expectedDestination);
+        });
+    }
+
+    @Test
+    void shouldNotExposeLocalCommandAsPublicContext() {
+        // Given
+        var msg = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.LOCAL, HAProxyProxiedProtocol.TCP4, "192.168.1.100", "10.0.0.1", 54321, 9092);
+
+        // When
+        var publicContext = HaProxyContext.from(msg).toClientProxyProtocolContext();
+        msg.release();
+
+        // Then
+        assertThat(publicContext).isEmpty();
+    }
+
+    @Test
+    void shouldNotExposeUnknownHeaderAsPublicContext() {
+        // Given
+        var msg = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.UNKNOWN, null, null, 0, 0);
+
+        // When
+        var publicContext = HaProxyContext.from(msg).toClientProxyProtocolContext();
+        msg.release();
+
+        // Then
+        assertThat(publicContext).isEmpty();
+    }
+
+    @Test
+    void shouldNotExposeUdp4HeaderAsPublicContext() {
+        // Given
+        var msg = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.UDP4, "192.168.1.100", "10.0.0.1", 54321, 9092);
+
+        // When
+        var publicContext = HaProxyContext.from(msg).toClientProxyProtocolContext();
+        msg.release();
+
+        // Then
+        assertThat(publicContext).isEmpty();
+    }
+
+    @Test
+    void shouldNotExposeUnixStreamHeaderAsPublicContext() {
+        // Given
+        var msg = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.UNIX_STREAM, "/run/haproxy/src.sock",
+                "/run/haproxy/dst.sock", 0, 0);
+
+        // When
+        var publicContext = HaProxyContext.from(msg).toClientProxyProtocolContext();
+        msg.release();
+
+        // Then
+        assertThat(publicContext).isEmpty();
+    }
+
+    @Test
+    void shouldNotExposeTcp4HeaderWithNullAddressAsPublicContext() {
+        // Given
+        var context = new HaProxyContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4, null, "10.0.0.1", 54321, 9092, Map.of());
+
+        // When
+        var publicContext = context.toClientProxyProtocolContext();
+
+        // Then
+        assertThat(publicContext).isEmpty();
+    }
+
+    @Test
+    void shouldNotExposeTcp4HeaderWithNonIpLiteralAddressAsPublicContext() {
+        // Given
+        var context = new HaProxyContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4, "not-an-ip.example", "10.0.0.1", 54321, 9092, Map.of());
+
+        // When
+        var publicContext = context.toClientProxyProtocolContext();
+
+        // Then
+        assertThat(publicContext).isEmpty();
     }
 }

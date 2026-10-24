@@ -6,6 +6,8 @@
 
 package io.kroxylicious.testing.filter.context;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.security.cert.X509Certificate;
 import java.util.Collection;
 import java.util.List;
@@ -39,6 +41,7 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -59,6 +62,8 @@ public class MockFilterContext implements FilterContext {
 
     /** Channel descriptor used unless overridden on the builder. */
     public static final String DEFAULT_CHANNEL_DESCRIPTOR = "channelDescriptor";
+    /** Peer address used unless overridden on the builder. */
+    public static final SocketAddress DEFAULT_PEER_ADDRESS = new InetSocketAddress("192.0.2.1", 12345);
     /** Session id used unless overridden on the builder. */
     public static final String DEFAULT_SESSION_ID = "sessionId";
     /** SNI hostname used unless overridden on the builder. */
@@ -76,6 +81,9 @@ public class MockFilterContext implements FilterContext {
     private final ApiMessage message;
     private final Map<Uuid, String> topicNames;
     private final String channelDescriptor;
+    private final SocketAddress peerAddress;
+    @Nullable
+    private final ClientProxyProtocolContext clientProxyProtocolContext;
     private final String sessionId;
     @Nullable
     private final String sniHostname;
@@ -96,6 +104,8 @@ public class MockFilterContext implements FilterContext {
                               Map<Uuid, String> topicNames,
                               Map<Uuid, TopicNameMappingException> topicNameFailures,
                               String channelDescriptor,
+                              SocketAddress peerAddress,
+                              @Nullable ClientProxyProtocolContext clientProxyProtocolContext,
                               String sessionId,
                               @Nullable String sniHostname,
                               String virtualClusterName,
@@ -109,6 +119,7 @@ public class MockFilterContext implements FilterContext {
         Objects.requireNonNull(topicNames, "topicNames must not be null");
         Objects.requireNonNull(topicNameFailures, "topicNameFailures must not be null");
         Objects.requireNonNull(channelDescriptor, "channelDescriptor must not be null");
+        Objects.requireNonNull(peerAddress, "peerAddress must not be null");
         Objects.requireNonNull(sessionId, "sessionId must not be null");
         Objects.requireNonNull(virtualClusterName, "virtualClusterName must not be null");
         Objects.requireNonNull(authenticatedSubject, "authenticatedSubject must not be null");
@@ -117,6 +128,8 @@ public class MockFilterContext implements FilterContext {
         this.topicNames = topicNames;
         this.topicNameFailures = topicNameFailures;
         this.channelDescriptor = channelDescriptor;
+        this.peerAddress = peerAddress;
+        this.clientProxyProtocolContext = clientProxyProtocolContext;
         this.sessionId = sessionId;
         this.sniHostname = sniHostname;
         this.virtualClusterName = virtualClusterName;
@@ -145,6 +158,9 @@ public class MockFilterContext implements FilterContext {
         private final Map<Uuid, String> topicNames = Maps.newHashMap();
         private final Map<Uuid, TopicNameMappingException> topicNameFailures = Maps.newHashMap();
         private String channelDescriptor = DEFAULT_CHANNEL_DESCRIPTOR;
+        private SocketAddress peerAddress = DEFAULT_PEER_ADDRESS;
+        @Nullable
+        private ClientProxyProtocolContext clientProxyProtocolContext = null;
         private String sessionId = DEFAULT_SESSION_ID;
         private @Nullable String sniHostname = DEFAULT_SNI_HOSTNAME;
         private String virtualClusterName = DEFAULT_VIRTUAL_CLUSTER_NAME;
@@ -179,6 +195,8 @@ public class MockFilterContext implements FilterContext {
                     topicNames,
                     topicNameFailures,
                     channelDescriptor,
+                    peerAddress,
+                    clientProxyProtocolContext,
                     sessionId,
                     sniHostname,
                     virtualClusterName,
@@ -266,6 +284,43 @@ public class MockFilterContext implements FilterContext {
         public MockFilterContextBuilder withVirtualClusterName(String virtualClusterName) {
             Objects.requireNonNull(virtualClusterName);
             this.virtualClusterName = virtualClusterName;
+            return this;
+        }
+
+        /**
+         * Configures the peer address reported by {@link FilterContext#peerAddress()}. With no PROXY protocol
+         * context configured, this is also the address returned by {@link FilterContext#clientAddress()}.
+         *
+         * @param peerAddress the peer address
+         * @return this builder
+         */
+        public MockFilterContextBuilder withPeerAddress(SocketAddress peerAddress) {
+            this.peerAddress = Objects.requireNonNull(peerAddress);
+            return this;
+        }
+
+        /**
+         * Configures the PROXY protocol context reported by {@link FilterContext#clientProxyProtocolContext()}.
+         *
+         * @param sourceAddress the original client source address
+         * @param destinationAddress the destination address the client connected to
+         * @return this builder
+         */
+        public MockFilterContextBuilder withClientProxyProtocolContext(SocketAddress sourceAddress, SocketAddress destinationAddress) {
+            Objects.requireNonNull(sourceAddress);
+            Objects.requireNonNull(destinationAddress);
+            this.clientProxyProtocolContext = new MockClientProxyProtocolContext(sourceAddress, destinationAddress);
+            return this;
+        }
+
+        /**
+         * Configures the PROXY protocol context reported by {@link FilterContext#clientProxyProtocolContext()}.
+         *
+         * @param clientProxyProtocolContext the PROXY protocol context, may be null
+         * @return this builder
+         */
+        public MockFilterContextBuilder withClientProxyProtocolContext(@Nullable ClientProxyProtocolContext clientProxyProtocolContext) {
+            this.clientProxyProtocolContext = clientProxyProtocolContext;
             return this;
         }
 
@@ -402,9 +457,27 @@ public class MockFilterContext implements FilterContext {
 
     private record MockClientSaslContext(String mechanismName, String authorizationId) implements ClientSaslContext {}
 
+    private record MockClientProxyProtocolContext(SocketAddress sourceAddress, SocketAddress destinationAddress)
+            implements ClientProxyProtocolContext {}
+
     @Override
     public String channelDescriptor() {
         return channelDescriptor;
+    }
+
+    @Override
+    public SocketAddress clientAddress() {
+        return clientProxyProtocolContext == null ? peerAddress : clientProxyProtocolContext.sourceAddress();
+    }
+
+    @Override
+    public SocketAddress peerAddress() {
+        return peerAddress;
+    }
+
+    @Override
+    public Optional<ClientProxyProtocolContext> clientProxyProtocolContext() {
+        return Optional.ofNullable(clientProxyProtocolContext);
     }
 
     @Override
