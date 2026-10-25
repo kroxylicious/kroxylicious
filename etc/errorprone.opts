@@ -35,6 +35,7 @@
 -Xep:StringCaseLocaleUsage:ERROR
 -Xep:StringSplitter:ERROR
 -Xep:TimeInStaticInitializer:ERROR
+-Xep:UnnecessaryAssignment:ERROR
 -Xep:UnnecessaryLambda:ERROR
 -Xep:UnnecessaryMethodReference:ERROR
 -Xep:UnnecessaryParentheses:ERROR

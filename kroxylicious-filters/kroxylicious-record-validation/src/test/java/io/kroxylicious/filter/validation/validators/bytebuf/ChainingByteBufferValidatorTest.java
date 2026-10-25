@@ -26,7 +26,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -39,12 +38,12 @@ class ChainingByteBufferValidatorTest {
     private static final Result FAIL_RESULT = new Result(false, "mocked fail");
 
     @Mock
-    private final Record kafkaRecord = mock(Record.class);
+    private Record kafkaRecord;
 
     @Mock
-    private BytebufValidator validator1 = mock(BytebufValidator.class);
+    private BytebufValidator validator1;
     @Mock
-    private BytebufValidator validator2 = mock(BytebufValidator.class);
+    private BytebufValidator validator2;
 
     @Captor
     private ArgumentCaptor<ByteBuffer> byteBufferCaptor;
