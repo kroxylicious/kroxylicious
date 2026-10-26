@@ -9,7 +9,6 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -22,7 +21,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.ListGroupsOptions;
@@ -408,13 +406,6 @@ class MultiTenantIT extends BaseMultiTenantIT {
         var describeFuture = admin.describeConsumerGroups(expectedAbsent).all();
         assertThatThrownBy(describeFuture::get)
                 .hasRootCauseInstanceOf(GroupIdNotFoundException.class);
-    }
-
-    @NonNull
-    private Map<String, ConsumerGroupDescription> retainKeySubset(Map<String, ConsumerGroupDescription> groups, Set<String> retainedKeys) {
-        var copy = new HashMap<>(groups);
-        copy.keySet().retainAll(retainedKeys);
-        return copy;
     }
 
     private void runConsumerInOrderToCreateGroup(KroxyliciousTester tester, String virtualCluster, String groupId, NewTopic topic, ConsumerStyle consumerStyle,

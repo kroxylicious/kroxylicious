@@ -16,7 +16,6 @@ import java.util.stream.Stream;
 import io.kroxylicious.proxy.authentication.PrincipalFactory;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilderService;
-import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
@@ -116,13 +115,6 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
                             Stream.of(SASL_AUTHORIZED_ID).map(s -> '\'' + s + '\'')
                                     .collect(Collectors.joining(", "))));
         };
-    }
-
-    @NonNull
-    private static Function<Object, Stream<String>> getContextStreamFunction(TlsCertificateExtractor extractor) {
-        return context -> ((TransportSubjectBuilder.Context) context).clientTlsContext().stream()
-                .flatMap(clientCertificate -> clientCertificate.clientCertificate().stream())
-                .flatMap(extractor);
     }
 
     @Override
