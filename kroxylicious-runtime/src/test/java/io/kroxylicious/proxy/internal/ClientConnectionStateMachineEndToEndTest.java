@@ -79,7 +79,6 @@ import static org.apache.kafka.common.security.plain.internals.PlainSaslServer.P
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -532,12 +531,6 @@ class ClientConnectionStateMachineEndToEndTest {
     private void newOutboundChannel() {
         this.outboundChannel = new EmbeddedChannel();
         outboundChannel.closeFuture().addListener(future -> outboundClosed.set(true));
-        ChannelHandlerContext outboundCtx = mock(ChannelHandlerContext.class);
-        when(outboundCtx.channel()).thenReturn(outboundChannel);
-        when(outboundCtx.pipeline()).thenReturn(outboundChannel.pipeline());
-        when(outboundCtx.voidPromise()).thenAnswer(in -> outboundChannel.voidPromise());
-        when(outboundCtx.newFailedFuture(any())).thenAnswer(in -> outboundChannel.newFailedFuture(in.getArgument(0)));
-        when(outboundCtx.newSucceededFuture()).thenAnswer(in -> outboundChannel.newSucceededFuture());
     }
 
     // transitions from each state

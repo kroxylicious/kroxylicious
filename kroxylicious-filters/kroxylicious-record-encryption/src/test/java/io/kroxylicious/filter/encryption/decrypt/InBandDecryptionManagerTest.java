@@ -796,7 +796,7 @@ class InBandDecryptionManagerTest {
         var spyKms = spy(kms);
 
         var encryptionManager = createEncryptionManager(kms, 500_000);
-        var decryptionManager = createDecryptionManager(kms);
+        var decryptionManager = createDecryptionManager(spyKms);
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };
