@@ -12,7 +12,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Configuration for a single {@code map} entry of a principal adder, defining one mapping rule.
- * Exactly one of {@code replaceMatch} and {@code else} must be given.
+ * Exactly one of {@code replaceMatch} and {@code "else"} must be given.
  *
  * @param replaceMatch a sed-like replacement expression, see {@link ReplaceMatchMappingRule}.
  * @param else_ a fallback mapping, either {@code identity} or {@code anonymous}.
@@ -20,7 +20,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public record Map(@Nullable String replaceMatch,
                   @JsonProperty("else") @Nullable String else_) {
     /**
-     * Validates that exactly one of {@code replaceMatch} and {@code else} is given and is well-formed.
+     * Validates that exactly one of {@code replaceMatch} and {@code "else"} is given and is well-formed.
      */
     public Map {
         if (replaceMatch != null) {
