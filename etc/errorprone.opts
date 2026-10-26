@@ -26,6 +26,7 @@
 -Xep:MathAbsoluteNegative:ERROR
 -Xep:MissingOverride:ERROR
 -Xep:MissingSummary:ERROR
+-Xep:MockNotUsedInProduction:ERROR
 -Xep:MutablePublicArray:ERROR
 -Xep:OperatorPrecedence:ERROR
 -Xep:PatternMatchingInstanceof:ERROR
