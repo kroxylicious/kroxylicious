@@ -129,6 +129,32 @@ jobs:
           mkdir -p "$HOME/.m2/repository"
           cd "$HOME/.m2/repository"
           tar xzf /tmp/kroxylicious-artifacts/maven-repo.tar.gz
+      - name: 'Resolve strimzi test-clients base image name'
+        id: base-image
+        working-directory: kroxylicious-test-images
+        run: |
+          IMAGE=$(mvn --quiet --batch-mode help:evaluate \
+            -Dexpression=strimzi.test.clients.base.image -DforceStdout)
+          echo "name=$IMAGE" >> $GITHUB_OUTPUT
+      - name: 'Cache strimzi test-clients base image'
+        id: cache-base-image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/base-images/strimzi-test-clients.tar
+          key: base-image-${{ hashFiles('kroxylicious-test-images/pom.xml') }}
+      - name: 'Pull strimzi test-clients base image'
+        if: steps.cache-base-image.outputs.cache-hit != 'true'
+        run: |
+          IMAGE="${{ steps.base-image.outputs.name }}"
+          for i in 1 2 3; do
+            docker pull "$IMAGE" && break
+            [ "$i" -lt 3 ] && sleep 30
+          done
+          mkdir -p /tmp/base-images
+          docker save "$IMAGE" -o /tmp/base-images/strimzi-test-clients.tar
+      - name: 'Load strimzi test-clients base image'
+        if: steps.cache-base-image.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/base-images/strimzi-test-clients.tar
       - name: 'Build OAuth test-clients image'
         working-directory: kroxylicious-test-images
         run: mvn --batch-mode --quiet --activate-profiles dist -DskipTests package
