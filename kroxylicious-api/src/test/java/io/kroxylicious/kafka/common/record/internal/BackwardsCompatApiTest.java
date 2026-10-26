@@ -23,8 +23,15 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.kafka.common.compress.Compression;
 import io.kroxylicious.kafka.common.record.TimestampType;
 import io.kroxylicious.kafka.common.utils.BufferSupplier;
+import io.kroxylicious.kafka.common.utils.CloseableIterator;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for backwards-compatible API overloads retained for binary compatibility with callers
@@ -82,5 +89,41 @@ public class BackwardsCompatApiTest {
 
         // Then
         assertEquals(result1Arg, result0Arg);
+    }
+
+    @Test
+    public void defaultStreamingIteratorDelegatesToSingleArg() {
+        // Given
+        @SuppressWarnings("unchecked")
+        CloseableIterator<Record> sentinel = mock(CloseableIterator.class);
+        BufferSupplier supplier = BufferSupplier.NO_CACHING;
+        RecordBatch batch = mock(RecordBatch.class);
+        when(batch.streamingIterator(supplier)).thenReturn(sentinel);
+        when(batch.streamingIterator(any(), anyInt())).thenCallRealMethod();
+
+        // When
+        CloseableIterator<Record> result = batch.streamingIterator(supplier, Records.SOFT_MAX_ARRAY_LENGTH);
+
+        // Then
+        assertThat(result).isSameAs(sentinel);
+        verify(batch).streamingIterator(supplier);
+    }
+
+    @Test
+    public void defaultSkipKeyValueIteratorDelegatesToSingleArg() {
+        // Given
+        @SuppressWarnings("unchecked")
+        CloseableIterator<Record> sentinel = mock(CloseableIterator.class);
+        BufferSupplier supplier = BufferSupplier.NO_CACHING;
+        MutableRecordBatch batch = mock(MutableRecordBatch.class);
+        when(batch.skipKeyValueIterator(supplier)).thenReturn(sentinel);
+        when(batch.skipKeyValueIterator(any(), anyInt())).thenCallRealMethod();
+
+        // When
+        CloseableIterator<Record> result = batch.skipKeyValueIterator(supplier, Records.SOFT_MAX_ARRAY_LENGTH);
+
+        // Then
+        assertThat(result).isSameAs(sentinel);
+        verify(batch).skipKeyValueIterator(supplier);
     }
 }
