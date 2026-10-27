@@ -47,7 +47,6 @@ class RemoveCompressionTypeLevelValidatorRecipeTest implements RewriteTest {
                         """
                                 package org.apache.kafka.common.compress;
 
-
                                 public enum CompressionType {
                                     NONE,
                                     GZIP,
@@ -66,7 +65,6 @@ class RemoveCompressionTypeLevelValidatorRecipeTest implements RewriteTest {
                 java(
                         """
                                 package org.apache.kafka.common.compress;
-
 
                                 public enum CompressionType {
                                     NONE,
@@ -87,7 +85,6 @@ class RemoveCompressionTypeLevelValidatorRecipeTest implements RewriteTest {
                                 """,
                         """
                                 package org.apache.kafka.common.compress;
-
 
                                 public enum CompressionType {
                                     NONE,
@@ -122,7 +119,6 @@ class RemoveCompressionTypeLevelValidatorRecipeTest implements RewriteTest {
                                 """,
                         """
                                 package org.apache.kafka.common.compress;
-
 
                                 public enum CompressionType {
                                     NONE,
