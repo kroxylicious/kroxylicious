@@ -28,28 +28,24 @@ public class RemoveCompressionTypeLevelValidatorRecipe extends Recipe {
     /**
      * Create an instance of the recipe.
      */
-    @SuppressWarnings("java:S6206") // Boilerplate required by OpenRewrite Recipe pattern
     public RemoveCompressionTypeLevelValidatorRecipe() {
         super();
     }
 
     @Override
     @NonNull
-    @SuppressWarnings("java:S6206") // Boilerplate required by OpenRewrite Recipe pattern
     public String getDisplayName() {
         return "Remove CompressionType.levelValidator";
     }
 
     @Override
     @NonNull
-    @SuppressWarnings("java:S6206") // Boilerplate required by OpenRewrite Recipe pattern
     public String getDescription() {
         return "Removes the levelValidator() method and its enum-constant overrides from CompressionType.";
     }
 
     @Override
     @NonNull
-    @SuppressWarnings("java:S6206") // Boilerplate required by OpenRewrite Recipe pattern
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         return Preconditions.check(
                 new FindSourceFiles("**/CompressionType.java"),
