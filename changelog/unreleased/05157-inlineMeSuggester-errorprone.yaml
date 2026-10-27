@@ -1,0 +1,4 @@
+title: "fix: resolve ErrorProne InlineMeSuggester warnings"
+type: fixed
+merge_requests:
+  - 5157

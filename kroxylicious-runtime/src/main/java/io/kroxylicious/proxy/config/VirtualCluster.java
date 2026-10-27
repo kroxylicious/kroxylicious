@@ -120,6 +120,8 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * @deprecated targetCluster is deprecated, use constructor that accepts routeTarget instead
      */
     @Deprecated(since = "0.22.0", forRemoval = true)
+    // Inlining would only expose callers to the canonical constructor's deprecated parameters; this constructor is due for removal instead.
+    @SuppressWarnings("InlineMeSuggester")
     public VirtualCluster(String name,
                           TargetCluster targetCluster,
                           List<VirtualClusterGateway> gateways,
