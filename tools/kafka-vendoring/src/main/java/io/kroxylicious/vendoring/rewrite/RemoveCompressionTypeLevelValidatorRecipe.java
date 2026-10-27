@@ -48,9 +48,8 @@ public class RemoveCompressionTypeLevelValidatorRecipe extends Recipe {
     @NonNull
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         return Preconditions.check(
-            new FindSourceFiles("**/CompressionType.java"),
-            new LevelValidatorVisitor()
-        );
+                new FindSourceFiles("**/CompressionType.java"),
+                new LevelValidatorVisitor());
     }
 
     @NullMarked
@@ -58,8 +57,8 @@ public class RemoveCompressionTypeLevelValidatorRecipe extends Recipe {
 
         @Override
         public @Nullable J.MethodDeclaration visitMethodDeclaration(
-            @NonNull J.MethodDeclaration methodDeclaration,
-            @NonNull ExecutionContext ctx) {
+                                                                    @NonNull J.MethodDeclaration methodDeclaration,
+                                                                    @NonNull ExecutionContext ctx) {
 
             if ("levelValidator".equals(methodDeclaration.getSimpleName())) {
                 return null;
@@ -69,8 +68,8 @@ public class RemoveCompressionTypeLevelValidatorRecipe extends Recipe {
 
         @Override
         public @NonNull J.CompilationUnit visitCompilationUnit(
-            @NonNull J.CompilationUnit cu,
-            @NonNull ExecutionContext ctx) {
+                                                               @NonNull J.CompilationUnit cu,
+                                                               @NonNull ExecutionContext ctx) {
             J.CompilationUnit c = (J.CompilationUnit) super.visitCompilationUnit(cu, ctx);
             doAfterVisit(new RemoveUnusedImports().getVisitor());
             return c;
