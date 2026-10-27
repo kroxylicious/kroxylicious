@@ -116,6 +116,9 @@ public class MemoryRecords extends AbstractRecords {
     /**
      * Filter the records into the provided ByteBuffer.
      *
+     * Note: This method is also used to convert the first timestamp of the batch (which is usually the timestamp of the first record)
+     * to the delete horizon of the tombstones or txn markers which are present in the batch.
+     *
      * @param filter                      The filter function
      * @param destinationBuffer           The byte buffer to write the filtered records to
      * @param decompressionBufferSupplier The supplier of ByteBuffer(s) used for decompression if supported. For small
@@ -126,18 +129,9 @@ public class MemoryRecords extends AbstractRecords {
      * @return A FilterResult with a summary of the output (for metrics) and potentially an overflow buffer
      */
     public FilterResult filterTo(RecordFilter filter, ByteBuffer destinationBuffer, BufferSupplier decompressionBufferSupplier) {
-        return filterTo(batches(), filter, destinationBuffer, decompressionBufferSupplier);
-    }
-
-    /**
-     * Note: This method is also used to convert the first timestamp of the batch (which is usually the timestamp of the first record)
-     * to the delete horizon of the tombstones or txn markers which are present in the batch.
-     */
-    private static FilterResult filterTo(Iterable<MutableRecordBatch> batches, RecordFilter filter,
-                                         ByteBuffer destinationBuffer, BufferSupplier decompressionBufferSupplier) {
         FilterResult filterResult = new FilterResult(destinationBuffer);
         ByteBufferOutputStream bufferOutputStream = new ByteBufferOutputStream(destinationBuffer);
-        for (MutableRecordBatch batch : batches) {
+        for (MutableRecordBatch batch : batches()) {
             final BatchRetentionResult batchRetentionResult = filter.checkBatchRetention(batch);
             final boolean containsMarkerForEmptyTxn = batchRetentionResult.containsMarkerForEmptyTxn;
             final BatchRetention batchRetention = batchRetentionResult.batchRetention;

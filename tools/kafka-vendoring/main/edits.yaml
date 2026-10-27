@@ -25,6 +25,9 @@
 #     dropped and whose bare uses get replaced with the qualified Outer.Inner form. Works around an
 #     OpenRewrite ChangePackage limitation where a nested-class import gets stripped as "redundant"
 #     once its enclosing type ends up in the same package as the importing file (see test/edits.yaml).
+#   replaceText: list of {old, new} pairs for literal string substitution; applied before OpenRewrite
+#     so use the original org.apache.kafka namespace in `old` when the text would survive relocation
+#     unchanged (e.g. inside {@code} tags that ChangePackage does not rewrite).
 
 - file: org/apache/kafka/common/record/internal/CompressionType.java
   removeBlocks:
@@ -52,6 +55,16 @@
   removeBlocks:
     - signature: 'static class DefaultFileChannelRecordBatch extends FileLogInputStream'
       label: DefaultRecordBatch.DefaultFileChannelRecordBatch
+
+- file: org/apache/kafka/common/record/internal/DefaultRecord.java
+  replaceText:
+    # Kafka 4.3.2 added maxRecordBodySize to these stream-reading factory methods, removing the 5-arg
+    # overloads. Re-add them as compatibility shims (without deprecation on the 0.24.x backport line;
+    # japicmp flags @Deprecated additions as MINOR which is incompatible with a patch release).
+    - old: "    /**\n     * Decode a record from the (decompressed) stream, rejecting any record whose declared body size"
+      new: "    public static DefaultRecord readFrom(InputStream input,\n                                         long baseOffset,\n                                         long baseTimestamp,\n                                         int baseSequence,\n                                         Long logAppendTime) throws IOException {\n        return readFrom(input, baseOffset, baseTimestamp, baseSequence, logAppendTime, Records.SOFT_MAX_ARRAY_LENGTH);\n    }\n\n    /**\n     * Decode a record from the (decompressed) stream, rejecting any record whose declared body size"
+    - old: "    /**\n     * Skip-decode a record from the (decompressed) stream, rejecting any record whose declared body"
+      new: "    public static PartialDefaultRecord readPartiallyFrom(InputStream input,\n                                                         long baseOffset,\n                                                         long baseTimestamp,\n                                                         int baseSequence,\n                                                         Long logAppendTime) throws IOException {\n        return readPartiallyFrom(input, baseOffset, baseTimestamp, baseSequence, logAppendTime, Records.SOFT_MAX_ARRAY_LENGTH);\n    }\n\n    /**\n     * Skip-decode a record from the (decompressed) stream, rejecting any record whose declared body"
 
 - file: org/apache/kafka/common/record/internal/AbstractLegacyRecordBatch.java
   removeBlocks:
@@ -95,8 +108,55 @@
   removeBlocks:
     - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
       label: MemoryRecords.writeTo
+  replaceText:
+    # Kafka 4.3.2 replaced the 3-arg filterTo with a 4-arg version (adding maxRecordBodySize).
+    # Revert to the 3-arg signature on the 0.24.x backport line: japicmp flags new parameters as
+    # MINOR which is incompatible with a patch release. The security guard uses SOFT_MAX_ARRAY_LENGTH.
+    - old: "     * @param maxRecordBodySize           The maximum declared (decompressed) body size of a single record; a record\n     *                                    exceeding it is rejected with an {@link org.apache.kafka.common.InvalidRecordException}\n     *                                    before its body is allocated. Pass {@link Records#SOFT_MAX_ARRAY_LENGTH} for\n     *                                    no limit beyond the array-length ceiling.\n     * @return A FilterResult with a summary of the output (for metrics) and potentially an overflow buffer"
+      new: "     * @return A FilterResult with a summary of the output (for metrics) and potentially an overflow buffer"
+    - old: "    public FilterResult filterTo(RecordFilter filter, ByteBuffer destinationBuffer, BufferSupplier decompressionBufferSupplier,\n                                 int maxRecordBodySize) {"
+      new: "    public FilterResult filterTo(RecordFilter filter, ByteBuffer destinationBuffer, BufferSupplier decompressionBufferSupplier) {"
+    - old: "filterBatch(batch, decompressionBufferSupplier, filterResult,\n                    filter, maxRecordBodySize)"
+      new: "filterBatch(batch, decompressionBufferSupplier, filterResult,\n                    filter)"
+    - old: "    private static BatchFilterResult filterBatch(RecordBatch batch,\n                                                 BufferSupplier decompressionBufferSupplier,\n                                                 FilterResult filterResult,\n                                                 RecordFilter filter,\n                                                 int maxRecordBodySize) {"
+      new: "    private static BatchFilterResult filterBatch(RecordBatch batch,\n                                                 BufferSupplier decompressionBufferSupplier,\n                                                 FilterResult filterResult,\n                                                 RecordFilter filter) {"
+    - old: "batch.streamingIterator(decompressionBufferSupplier, maxRecordBodySize)"
+      new: "batch.streamingIterator(decompressionBufferSupplier)"
 
 - file: org/apache/kafka/common/record/internal/UnalignedMemoryRecords.java
   removeBlocks:
     - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
       label: UnalignedMemoryRecords.writeTo
+
+- file: org/apache/kafka/common/record/internal/RecordBatch.java
+  removeBlocks:
+    # Kafka 4.3.2 added streamingIterator(BufferSupplier, int) as an abstract interface method.
+    # Remove it entirely on the 0.24.x backport line: adding an abstract method to an interface is a
+    # MINOR change (japicmp) which is incompatible with a patch release. We use the 1-arg overload.
+    - signature: 'CloseableIterator<Record>\s+streamingIterator\s*\(\s*BufferSupplier\s+decompressionBufferSupplier\s*,\s*int\s+maxRecordBodySize\s*\)'
+      label: RecordBatch.streamingIterator(BufferSupplier, int)
+  replaceText:
+    # Kafka 4.3.2 replaced offsetOfMaxTimestamp() with offsetOfMaxTimestamp(int maxRecordBodySize).
+    # Restore the 0-arg signature in place (removing the maxRecordBodySize parameter and its Javadoc).
+    - old: "     * @param maxRecordBodySize The maximum declared (decompressed) body size of a single record; a compressed record\n     *                          exceeding it is rejected with an InvalidRecordException before its body is allocated.\n     *                          Pass {@link Records#SOFT_MAX_ARRAY_LENGTH} for no limit beyond the array-length ceiling.\n     * @return offset of max timestamp"
+      new: "     * @return offset of max timestamp"
+    - old: "    default Optional<Long> offsetOfMaxTimestamp(int maxRecordBodySize) {"
+      new: "    default Optional<Long> offsetOfMaxTimestamp() {"
+    - old: "streamingIterator(BufferSupplier.create(), maxRecordBodySize)"
+      new: "streamingIterator(BufferSupplier.create())"
+
+- file: org/apache/kafka/common/record/internal/MutableRecordBatch.java
+  removeBlocks:
+    # Kafka 4.3.2 added skipKeyValueIterator(BufferSupplier, int) as an abstract interface method.
+    # Remove it entirely on the 0.24.x backport line: adding an abstract method to an interface is a
+    # MINOR change (japicmp) which is incompatible with a patch release. We use the 1-arg overload.
+    - signature: 'CloseableIterator<Record>\s+skipKeyValueIterator\s*\(\s*BufferSupplier\s+bufferSupplier\s*,\s*int\s+maxRecordBodySize\s*\)'
+      label: MutableRecordBatch.skipKeyValueIterator(BufferSupplier, int)
+  replaceText:
+    - old: "{@code org.apache.kafka.common.record.internal.Record}"
+      new: "{@code io.kroxylicious.kafka.common.record.internal.Record}"
+
+- file: org/apache/kafka/common/utils/ImplicitLinkedHashMultiCollection.java
+  replaceText:
+    - old: "See org.apache.kafka.common.utils.ImplicitLinkedHashCollection for implementation details."
+      new: "See io.kroxylicious.kafka.common.utils.ImplicitLinkedHashCollection for implementation details."

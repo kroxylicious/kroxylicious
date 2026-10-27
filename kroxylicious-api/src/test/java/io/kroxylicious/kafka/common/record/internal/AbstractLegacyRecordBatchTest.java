@@ -16,6 +16,9 @@
  */
 package io.kroxylicious.kafka.common.record.internal;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -24,6 +27,8 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.kafka.common.InvalidRecordException;
 import io.kroxylicious.kafka.common.compress.Compression;
 import io.kroxylicious.kafka.common.record.TimestampType;
+import io.kroxylicious.kafka.common.utils.BufferSupplier;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.kafka.common.utils.Utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -250,6 +255,47 @@ public class AbstractLegacyRecordBatchTest {
         catch (IllegalArgumentException e) {
             assertEquals("ZStandard compression is not supported for magic 1", e.getMessage());
         }
+    }
+
+    /**
+     * A compressed legacy (v0/v1) wrapper whose decompressed payload declares a single inner record
+     * with a forged size and no payload bytes. The deep-decode path must reject the declared size
+     * before allocating it.
+     */
+    private static AbstractLegacyRecordBatch.ByteBufferLegacyRecordBatch poisonedCompressedLegacyBatch(byte magic, int forgedInnerSize) throws IOException {
+        ByteBufferOutputStream innerOut = new ByteBufferOutputStream(64);
+        try (DataOutputStream compressed = new DataOutputStream(
+                Compression.gzip().build().wrapForOutput(innerOut, magic))) {
+            compressed.writeLong(0L); // inner offset
+            compressed.writeInt(forgedInnerSize); // forged inner record size, no payload follows
+        }
+        ByteBuffer inner = innerOut.buffer();
+        inner.flip();
+        byte[] compressedBytes = new byte[inner.remaining()];
+        inner.get(compressedBytes);
+
+        LegacyRecord wrapper = LegacyRecord.create(magic, 1L, null, compressedBytes,
+                CompressionType.GZIP, TimestampType.CREATE_TIME);
+        ByteBuffer buffer = ByteBuffer.allocate(Records.LOG_OVERHEAD + wrapper.sizeInBytes());
+        AbstractLegacyRecordBatch.writeHeader(buffer, 0L, wrapper.sizeInBytes());
+        buffer.put(wrapper.buffer().duplicate());
+        buffer.flip();
+        return new AbstractLegacyRecordBatch.ByteBufferLegacyRecordBatch(buffer);
+    }
+
+    // The compressed deep-decode path constructs its inner stream with maxMessageSize =
+    // Integer.MAX_VALUE, so only the per-record guard stands between a forged inner size and
+    // ByteBuffer.allocate. SOFT_MAX_ARRAY_LENGTH + 1 pins the default (array-length) threshold
+    // without attempting a ~2 GiB allocation.
+    @Test
+    public void testCompressedDeepDecodeRejectsForgedInnerSizeExceedingArrayLengthLimit() throws IOException {
+        AbstractLegacyRecordBatch.ByteBufferLegacyRecordBatch batch = poisonedCompressedLegacyBatch(
+                RecordBatch.MAGIC_VALUE_V1, Records.SOFT_MAX_ARRAY_LENGTH + 1);
+        // the deep iterator decodes eagerly in its constructor
+        InvalidRecordException ex = assertThrows(InvalidRecordException.class,
+                () -> batch.streamingIterator(BufferSupplier.NO_CACHING));
+        assertTrue(ex.getMessage().contains("exceeds the configured maximum record size"),
+                "expected the pre-allocation record-size guard, got: " + ex.getMessage());
     }
 
 }

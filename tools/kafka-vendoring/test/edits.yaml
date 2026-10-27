@@ -62,11 +62,38 @@
 - file: org/apache/kafka/common/record/internal/AbstractLegacyRecordBatchTest.java
   qualifyNestedImports:
     - org.apache.kafka.common.record.internal.AbstractLegacyRecordBatch.ByteBufferLegacyRecordBatch
+  stripImports:
+    # CloseableIterator is only used by the removed test below; drop it to avoid an impsort error.
+    - org.apache.kafka.common.utils.CloseableIterator
+  removeBlocks:
+    # Test exercises the 2-arg streamingIterator(BufferSupplier, int) which is not present on the
+    # 0.24.x backport line (adding an abstract interface method is a MINOR japicmp change).
+    - signature: 'public\s+void\s+testCompressedDeepDecodeEnforcesConfiguredMaxRecordBodySize\s*\(\s*\)'
+      label: AbstractLegacyRecordBatchTest.testCompressedDeepDecodeEnforcesConfiguredMaxRecordBodySize
+
+- file: org/apache/kafka/common/record/internal/DefaultRecordBatchTest.java
+  stripImports:
+    # Optional is only used by the removed tests below; drop it to avoid an impsort error.
+    - java.util.Optional
+  removeBlocks:
+    # These three members test the 2-arg streamingIterator/skipKeyValueIterator and 1-arg
+    # offsetOfMaxTimestamp(int) which are not present on the 0.24.x backport line.
+    - signature: 'public\s+void\s+testCompressedIteratorsEnforceConfiguredMaxRecordBodySize\s*\(\s*\)'
+      label: DefaultRecordBatchTest.testCompressedIteratorsEnforceConfiguredMaxRecordBodySize
+    - signature: 'public\s+void\s+testOffsetOfMaxTimestampEnforcesConfiguredMaxRecordBodySize\s*\(\s*\)'
+      label: DefaultRecordBatchTest.testOffsetOfMaxTimestampEnforcesConfiguredMaxRecordBodySize
+    - signature: 'private\s+static\s+DefaultRecordBatch\s+recordBatchWithValueSize\s*\(\s*int\s+valueSize\s*\)'
+      label: DefaultRecordBatchTest.recordBatchWithValueSize
 
 - file: org/apache/kafka/common/record/internal/MemoryRecordsTest.java
   qualifyNestedImports:
     - org.apache.kafka.common.record.internal.MemoryRecords.RecordFilter
     - org.apache.kafka.common.record.internal.MemoryRecords.RecordFilter.BatchRetention
+  replaceText:
+    # Kafka 4.3.2 uses the 4-arg filterTo. Remove the trailing maxRecordBodySize argument
+    # to match the 3-arg signature restored on the 0.24.x backport line.
+    - old: ", Records.SOFT_MAX_ARRAY_LENGTH)"
+      new: ")"
 
 - file: org/apache/kafka/common/utils/ImplicitLinkedHashMultiCollectionTest.java
   qualifyNestedImports:

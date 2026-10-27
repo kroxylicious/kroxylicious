@@ -16,6 +16,7 @@
  */
 package io.kroxylicious.kafka.common.record.internal;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -38,6 +39,8 @@ import io.kroxylicious.kafka.common.header.Header;
 import io.kroxylicious.kafka.common.header.internals.RecordHeader;
 import io.kroxylicious.kafka.common.record.TimestampType;
 import io.kroxylicious.kafka.common.utils.BufferSupplier;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
+import io.kroxylicious.kafka.common.utils.ByteUtils;
 import io.kroxylicious.kafka.common.utils.ChunkedBytesStream;
 import io.kroxylicious.kafka.common.utils.CloseableIterator;
 import io.kroxylicious.kafka.common.utils.Utils;
@@ -562,6 +565,51 @@ public class DefaultRecordBatchTest {
     public void testDecrementSequence() {
         assertEquals(0, DefaultRecordBatch.decrementSequence(5, 5));
         assertEquals(Integer.MAX_VALUE, DefaultRecordBatch.decrementSequence(0, 1));
+    }
+
+    // =============================================================================================
+    // Per-record decompressed-body-size guard: the compressed iterators reject a record whose
+    // declared (decompressed) body exceeds the given limit — Records.SOFT_MAX_ARRAY_LENGTH for the
+    // limit-less overloads — with InvalidRecordException, before allocating the body buffer.
+    // =============================================================================================
+
+    /**
+     * A compressed V2 batch whose records section declares a single record with a forged body size
+     * and no body bytes; the guard must fire on the declared size before any allocation is attempted.
+     */
+    private static DefaultRecordBatch poisonedCompressedV2Batch(Compression compression, int forgedBodySize) throws IOException {
+        ByteBufferOutputStream payloadOut = new ByteBufferOutputStream(64);
+        try (DataOutputStream compressed = new DataOutputStream(
+                compression.wrapForOutput(payloadOut, RecordBatch.MAGIC_VALUE_V2))) {
+            ByteUtils.writeVarint(forgedBodySize, compressed);
+        }
+        ByteBuffer payload = payloadOut.buffer();
+        payload.flip();
+
+        int sizeInBytes = DefaultRecordBatch.RECORD_BATCH_OVERHEAD + payload.remaining();
+        ByteBuffer buffer = ByteBuffer.allocate(sizeInBytes);
+        buffer.position(DefaultRecordBatch.RECORD_BATCH_OVERHEAD);
+        buffer.put(payload);
+        buffer.position(0);
+        DefaultRecordBatch.writeHeader(buffer, 0L, 0, sizeInBytes, RecordBatch.MAGIC_VALUE_V2,
+                compression.type(), TimestampType.CREATE_TIME, 0L, 0L, RecordBatch.NO_PRODUCER_ID,
+                RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false, false, 0, 1);
+        buffer.position(0);
+        return new DefaultRecordBatch(buffer);
+    }
+
+    // A forged body size above the array-length ceiling is rejected by the limit-less iterator
+    // (which applies Records.SOFT_MAX_ARRAY_LENGTH) instead of reaching ByteBuffer.allocate and
+    // raising OutOfMemoryError. SOFT_MAX_ARRAY_LENGTH + 1 pins the exact threshold without
+    // attempting a ~2 GiB allocation.
+    @Test
+    public void testStreamingIteratorRejectsForgedBodySizeExceedingArrayLengthLimit() throws IOException {
+        DefaultRecordBatch poison = poisonedCompressedV2Batch(Compression.gzip().build(), Records.SOFT_MAX_ARRAY_LENGTH + 1);
+        try (CloseableIterator<Record> iterator = poison.streamingIterator(BufferSupplier.NO_CACHING)) {
+            InvalidRecordException ex = assertThrows(InvalidRecordException.class, iterator::next);
+            assertTrue(ex.getMessage().contains("exceeds the configured maximum record size"),
+                    "expected the pre-allocation record-size guard, got: " + ex.getMessage());
+        }
     }
 
     private static DefaultRecordBatch recordsWithInvalidRecordCount(Byte magicValue, long timestamp,
