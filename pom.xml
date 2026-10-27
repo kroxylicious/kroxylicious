@@ -48,12 +48,12 @@
         <freemarker.version>2.3.35</freemarker.version>
         <guava.version>33.7.2-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
-        <jackson.version>2.22.3</jackson.version>
+        <jackson.version>2.22.4</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.4</junit.version>
-        <kafka.version>4.3.1</kafka.version>
-        <kafka.message-spec.version>4.3.0</kafka.message-spec.version>
         <zstd-jni.version>1.5.7-24</zstd-jni.version>
+        <kafka.version>4.3.2</kafka.version>
+        <kafka.message-spec.version>4.3.2</kafka.message-spec.version>
         <lz4-java.version>1.12.0</lz4-java.version>
         <snappy-java.version>1.1.10.12</snappy-java.version>
         <kroxy.extension.version>0.16.0</kroxy.extension.version>
@@ -100,7 +100,7 @@
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
         <logsquelcher.version>0.2.2</logsquelcher.version>
         <async-profiler.version>4.5</async-profiler.version>
-        <json-unit-assertj.version>6.2.0</json-unit-assertj.version>
+        <json-unit-assertj.version>6.3.0</json-unit-assertj.version>
 
         <!-- Error Prone -->
         <errorprone.version>2.50.0</errorprone.version>
@@ -636,7 +636,7 @@
             <dependency>
                 <groupId>org.threeten</groupId>
                 <artifactId>threeten-extra</artifactId>
-                <version>1.10.0</version>
+                <version>1.11.0</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -1030,7 +1030,7 @@
                 <plugin>
                     <groupId>com.github.siom79.japicmp</groupId>
                     <artifactId>japicmp-maven-plugin</artifactId>
-                    <version>0.26.2</version>
+                    <version>0.26.5</version>
                 </plugin>
 
                 <plugin>

@@ -1,0 +1,59 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// assembly-operator-monitoring.adoc
+
+[id='proc-operator-updating-metrics-{context}']
+= Updating dashboards and alerts for operator metrics
+
+[role="_abstract"]
+Update Prometheus dashboards and alerts when upgrading from a Kroxylicious Operator version that uses the deprecated Java Operator SDK metrics to a version that uses `MicrometerMetricsV2`.
+
+.Prerequisites
+
+* Prometheus is configured to ingest metrics from the upgraded Kroxylicious Operator.
+* You have access to the dashboard queries and alerting rules that use operator metrics.
+
+.Procedure
+
+. Replace references to the previous metric names in dashboard queries and alerting rules.
+For example:
++
+[cols="1,1",options="header"]
+|===
+|Previous Prometheus metric |Replacement
+|`operator_sdk_reconciliations_executions_kafkaproxyreconciler`
+|`reconciliations_active{controller_name="kafkaproxyreconciler"}`
+|`operator_sdk_reconciliations_queue_size_kafkaproxyreconciler`
+|`reconciliations_queue{controller_name="kafkaproxyreconciler"}`
+|`operator_sdk_events_received_total`
+|`events_received_total`
+|===
+
+. Update label selectors and aggregations to use `controller_name` instead of the previous resource metadata labels, such as `name`, `kind`, `group`, and `version`.
+Metrics are grouped by controller; metrics for individual resources are no longer collected.
+Event and reconciliation counters also include a `namespace` label.
+
+. Update duration queries to use the `reconciliations_execution_duration_seconds_*` metric family instead of the separate reconciliation and cleanup timers.
+Queries for `kroxylicious_operator_build_info` do not require changes.
+
+. Run the updated queries against Prometheus and verify that the expected controller metrics are returned.
+For example, query the Kafka proxy reconciler queue size:
++
+[source]
+----
+reconciliations_queue{controller_name="kafkaproxyreconciler"}
+----
++
+Check that dashboards display the expected series and that alerting rules evaluate without errors.
+
+.Additional resources
+
+* {josdk-metrics}[Java Operator SDK metric documentation]

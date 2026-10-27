@@ -8,7 +8,6 @@ package io.kroxylicious.kubernetes.operator;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -24,7 +23,7 @@ import com.sun.net.httpserver.HttpServer;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.Operator;
-import io.javaoperatorsdk.operator.monitoring.micrometer.MicrometerMetrics;
+import io.javaoperatorsdk.operator.monitoring.micrometer.MicrometerMetricsV2;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
@@ -105,9 +104,10 @@ public class OperatorMain {
         Objects.requireNonNull(controllerConfigurer);
 
         configurePrometheusMetrics(managementServer);
-        // o.withMetrics is invoked multiple times so can cause issues with enabling metrics.
+        // Configuration overrides may be evaluated repeatedly; retain the metrics' controller state.
+        var metrics = enablePrometheusMetrics();
         operator = new Operator(o -> {
-            o.withMetrics(enablePrometheusMetrics());
+            o.withMetrics(metrics);
             if (kubeClient != null) {
                 o.withKubernetesClient(kubeClient);
             }
@@ -141,7 +141,7 @@ public class OperatorMain {
      * Starts the operator instance and returns once that has completed successfully.
      */
     void start() {
-        operator.installShutdownHook(Duration.ofSeconds(10));
+        operator.installShutdownHook();
 
         // Create SharedInformerManager to share informer caches across reconcilers
         // This reduces memory usage by preventing duplicate caches for the same resource types
@@ -212,10 +212,9 @@ public class OperatorMain {
         LOGGER.atInfo().log("Operator stopped");
     }
 
-    private MicrometerMetrics enablePrometheusMetrics() {
-        return MicrometerMetrics.newPerResourceCollectingMicrometerMetricsBuilder(Metrics.globalRegistry)
-                .withCleanUpDelayInSeconds(35)
-                .withCleaningThreadNumber(1)
+    private MicrometerMetricsV2 enablePrometheusMetrics() {
+        return MicrometerMetricsV2.newBuilder(Metrics.globalRegistry)
+                .withNamespaceAsTag()
                 .build();
     }
 

@@ -12,7 +12,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.kafka.common.message.FetchRequestData;
@@ -25,7 +24,6 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
-import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.topology.VirtualNode;
 
@@ -39,9 +37,6 @@ import static org.mockito.Mockito.mock;
 class RouterContextImplTest {
 
     private static final String DEFAULT_ROUTE = "default";
-
-    @Mock
-    private Router router;
 
     private DecodedRequestFrame<?> clientFrame;
     private NodeIdMapping nodeIdMapping;

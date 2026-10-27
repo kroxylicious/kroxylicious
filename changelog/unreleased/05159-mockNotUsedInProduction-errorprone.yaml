@@ -1,0 +1,4 @@
+title: "fix: resolve ErrorProne MockNotUsedInProduction warnings"
+type: fixed
+merge_requests:
+  - 5159

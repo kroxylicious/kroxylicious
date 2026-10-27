@@ -21,7 +21,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 
 class ConditionAssertTest {
 
-    public static final Instant BASE_TIME = Instant.now();
+    public static final Instant BASE_TIME = Instant.EPOCH;
     public static final long BASE_GENERATION = 9871345L;
     public static final String READY_MESSAGE = "Lets rock and roll";
     public static final String READY_REASON = "AllGoodBro";

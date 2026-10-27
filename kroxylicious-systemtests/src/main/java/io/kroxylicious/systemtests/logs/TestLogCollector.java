@@ -97,16 +97,13 @@ public class TestLogCollector {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestLogCollector.class);
     private static final Object SINGLETON_LOCK = new Object();
 
-    private static final String CURRENT_DATE_TIME;
+    // All logs from this test run must share one timestamped directory.
+    @SuppressWarnings("TimeInStaticInitializer")
+    private static final String CURRENT_DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")
+            .withZone(ZoneId.of("GMT"))
+            .format(LocalDateTime.now());
     private final LogCollector logCollector;
     private static TestLogCollector instance;
-
-    static {
-        // Get current date to create a unique folder
-        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss");
-        dateTimeFormatter = dateTimeFormatter.withZone(ZoneId.of("GMT"));
-        CURRENT_DATE_TIME = dateTimeFormatter.format(LocalDateTime.now());
-    }
 
     /**
      * TestLogCollector's constructor

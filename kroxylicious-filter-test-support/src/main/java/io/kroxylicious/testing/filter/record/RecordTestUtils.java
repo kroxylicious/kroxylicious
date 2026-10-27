@@ -23,6 +23,7 @@ import io.kroxylicious.kafka.common.record.internal.MemoryRecordsBuilder;
 import io.kroxylicious.kafka.common.record.internal.MutableRecordBatch;
 import io.kroxylicious.kafka.common.record.internal.Record;
 import io.kroxylicious.kafka.common.record.internal.RecordBatch;
+import io.kroxylicious.kafka.common.record.internal.Records;
 import io.kroxylicious.kafka.common.utils.BufferSupplier;
 import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 
@@ -601,7 +602,7 @@ public class RecordTestUtils {
                     return false;
                 }
             };
-            records.filterTo(recordFilter, output, BufferSupplier.NO_CACHING);
+            records.filterTo(recordFilter, output, BufferSupplier.NO_CACHING, Records.SOFT_MAX_ARRAY_LENGTH);
 
             output.flip();
             return MemoryRecords.readableRecords(output);

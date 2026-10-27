@@ -31,7 +31,6 @@ import io.kroxylicious.kafka.common.utils.ByteUtils;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
-import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
@@ -180,8 +179,6 @@ class SerializedFormTest {
         DekPair dekPair = new DekPair(HexFormat.of().parseHex(edekHex), DestroyableRawSecretKey.takeOwnershipOf(HexFormat.of().parseHex("0dec"), "foo"));
         doReturn(CompletableFuture.completedFuture(dekPair)).when(kms).generateDekPair(kekId);
         doReturn(new ByteArraySerde()).when(kms).edekSerde();
-        KmsService<Object, byte[], byte[]> kmsService = mock(KmsService.class);
-        doReturn(kms).when(kmsService).buildKms();
         var dm = new DekManager<>(kms, 1);
 
         var dek = dm.generateDek(kekId, cm).toCompletableFuture().join();
