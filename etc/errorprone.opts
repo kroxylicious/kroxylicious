@@ -19,6 +19,7 @@
 -Xep:ExposedPrivateType:ERROR
 -Xep:FutureReturnValueIgnored:ERROR
 -Xep:ImmutableEnumChecker:ERROR
+-Xep:InlineMeSuggester:ERROR
 -Xep:InvalidBlockTag:ERROR
 -Xep:InvalidInlineTag:ERROR
 -Xep:JdkObsolete:ERROR

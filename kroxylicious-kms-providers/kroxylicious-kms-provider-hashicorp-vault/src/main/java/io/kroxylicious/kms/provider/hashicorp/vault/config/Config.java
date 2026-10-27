@@ -139,6 +139,8 @@ public record Config(
      * @param tls                   TLS configuration.
      */
     @Deprecated(since = "0.25.0", forRemoval = true)
+    // Inlining would only expose callers to the canonical constructor's deprecated parameters; this constructor is due for removal instead.
+    @SuppressWarnings("InlineMeSuggester")
     public Config(URI vaultTransitEngineUrl, PasswordProvider vaultToken, @Nullable Tls tls) {
         this(null, null, null, vaultTransitEngineUrl, vaultToken, null, tls);
     }
