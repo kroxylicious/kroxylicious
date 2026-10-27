@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
 
@@ -66,11 +66,15 @@ jobs:
           # ErrorProne automatically activates on JDK 17+ (errorprone-jdk-compatible profile).
           # All quality checks run: formatting, licensing, checkstyle, spotbugs, dependency analysis, enforcer, errorprone.
           # Other workflows skip QA to avoid duplication.
+          # Run japicmp here so API compatibility breaks are caught on PRs, not just in the merge queue.
+          # Skip it only when the reference release is not yet published (nothing to compare against).
+          REFERENCE_RELEASE=$(mvn --batch-mode --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
+          REFERENCE_RELEASE_UNPUBLISHED=$(mvn --batch-mode --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)
           mvn --batch-mode \
             --activate-profiles build-the-world,ci,qa \
             --threads 1.5C \
             -DskipTests \
-            -Djapicmp.skip=true \
+            -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} \
             verify
       - name: 'Validate POM metadata for Central Portal'
         if: github.event_name != 'merge_group'

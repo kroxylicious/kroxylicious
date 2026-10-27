@@ -1,0 +1,4 @@
+title: "build(deps-dev): bump net.javacrumbs.json-unit:json-unit-assertj from 6.2.0 to 6.3.0"
+type: build
+merge_requests:
+  - 5207

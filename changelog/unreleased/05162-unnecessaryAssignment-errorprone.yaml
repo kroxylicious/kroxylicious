@@ -1,0 +1,4 @@
+title: "fix: resolve ErrorProne UnnecessaryAssignment warnings"
+type: fixed
+merge_requests:
+  - 5162

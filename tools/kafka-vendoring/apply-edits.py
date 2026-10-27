@@ -141,6 +141,13 @@ def qualify_nested_import(text, qualified_name):
     text=import_line_re.sub('', text)
     return re.sub(r'(?<!\.)\b%s\b' % re.escape(simple_name), type_path, text)
 
+def replace_text(text, sub, path):
+    """Literal string substitution. Fails loudly if the old string is not found."""
+    old, new = sub['old'], sub['new']
+    if old not in text:
+        raise SystemExit("SURGERY MISS: replaceText %r not found in %s" % (old, path))
+    return text.replace(old, new)
+
 def apply_edit(root, entry):
     path = Path(root) / entry['file']
 
@@ -153,6 +160,9 @@ def apply_edit(root, entry):
         for block in entry.get('removeBlocks', []):
             for _ in range(block.get('count', 1)):
                 text = remove_block(text, block['signature'], block['label'])
+
+        for sub in entry.get('replaceText', []):
+            text = replace_text(text, sub, path)
 
         if 'preserveBlocks' in entry:
             text = preserve_blocks(text, entry['preserveBlocks'])
