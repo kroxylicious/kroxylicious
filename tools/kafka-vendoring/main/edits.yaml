@@ -25,6 +25,9 @@
 #     dropped and whose bare uses get replaced with the qualified Outer.Inner form. Works around an
 #     OpenRewrite ChangePackage limitation where a nested-class import gets stripped as "redundant"
 #     once its enclosing type ends up in the same package as the importing file (see test/edits.yaml).
+#   replaceText: list of {old, new} pairs for literal string substitution; applied before OpenRewrite
+#     so use the original org.apache.kafka namespace in `old` when the text would survive relocation
+#     unchanged (e.g. inside {@code} tags that ChangePackage does not rewrite).
 
 - file: org/apache/kafka/common/record/internal/CompressionType.java
   removeBlocks:
@@ -52,6 +55,15 @@
   removeBlocks:
     - signature: 'static class DefaultFileChannelRecordBatch extends FileLogInputStream'
       label: DefaultRecordBatch.DefaultFileChannelRecordBatch
+
+- file: org/apache/kafka/common/record/internal/DefaultRecord.java
+  replaceText:
+    # Kafka 4.3.2 added maxRecordBodySize to these stream-reading factory methods, removing the 5-arg
+    # overloads. Re-add them as deprecated shims (as with filterTo) to keep 0.25.x callers linking.
+    - old: "    /**\n     * Decode a record from the (decompressed) stream, rejecting any record whose declared body size"
+      new: "    /**\n     * @deprecated Use {@link #readFrom(InputStream, long, long, int, Long, int)} passing\n     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.\n     */\n    @Deprecated(since = \"0.25.0\", forRemoval = true)\n    public static DefaultRecord readFrom(InputStream input,\n                                         long baseOffset,\n                                         long baseTimestamp,\n                                         int baseSequence,\n                                         Long logAppendTime) throws IOException {\n        return readFrom(input, baseOffset, baseTimestamp, baseSequence, logAppendTime, Records.SOFT_MAX_ARRAY_LENGTH);\n    }\n\n    /**\n     * Decode a record from the (decompressed) stream, rejecting any record whose declared body size"
+    - old: "    /**\n     * Skip-decode a record from the (decompressed) stream, rejecting any record whose declared body"
+      new: "    /**\n     * @deprecated Use {@link #readPartiallyFrom(InputStream, long, long, int, Long, int)} passing\n     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.\n     */\n    @Deprecated(since = \"0.25.0\", forRemoval = true)\n    public static PartialDefaultRecord readPartiallyFrom(InputStream input,\n                                                         long baseOffset,\n                                                         long baseTimestamp,\n                                                         int baseSequence,\n                                                         Long logAppendTime) throws IOException {\n        return readPartiallyFrom(input, baseOffset, baseTimestamp, baseSequence, logAppendTime, Records.SOFT_MAX_ARRAY_LENGTH);\n    }\n\n    /**\n     * Skip-decode a record from the (decompressed) stream, rejecting any record whose declared body"
 
 - file: org/apache/kafka/common/record/internal/AbstractLegacyRecordBatch.java
   removeBlocks:
@@ -95,8 +107,41 @@
   removeBlocks:
     - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
       label: MemoryRecords.writeTo
+  replaceText:
+    # The 3-arg filterTo was removed in Kafka 4.3.2. Add it back as a deprecated compatibility
+    # overload so callers compiled against 0.24.x continue to link on the 0.24.x backport line.
+    - old: "    /**\n     * Filter the records into the provided ByteBuffer."
+      new: "    /**\n     * @deprecated Use {@link #filterTo(RecordFilter, ByteBuffer, BufferSupplier, int)} passing\n     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.\n     */\n    @Deprecated(since = \"0.25.0\", forRemoval = true)\n    public FilterResult filterTo(RecordFilter filter, ByteBuffer destinationBuffer, BufferSupplier decompressionBufferSupplier) {\n        return filterTo(filter, destinationBuffer, decompressionBufferSupplier, Records.SOFT_MAX_ARRAY_LENGTH);\n    }\n\n    /**\n     * Filter the records into the provided ByteBuffer."
 
 - file: org/apache/kafka/common/record/internal/UnalignedMemoryRecords.java
   removeBlocks:
     - signature: 'public\s+int\s+writeTo\s*\(\s*TransferableChannel\s+channel\s*,\s*int\s+position\s*,\s*int\s+length\s*\)'
       label: UnalignedMemoryRecords.writeTo
+
+# ChangePackage does not rewrite plain text or {@code} blocks in Javadoc, so these two comments
+# contain the original org.apache.kafka namespace after relocation. Replace them explicitly here
+# (before OpenRewrite runs) so the committed vendored text stays consistent with the relocated names.
+- file: org/apache/kafka/common/record/internal/RecordBatch.java
+  replaceText:
+    # Kafka 4.3.2 added streamingIterator(BufferSupplier, int) as an abstract interface method.
+    # Make it a default to preserve binary compatibility for existing implementors on the 0.24.x line.
+    - old: "    CloseableIterator<Record> streamingIterator(BufferSupplier decompressionBufferSupplier, int maxRecordBodySize);"
+      new: "    default CloseableIterator<Record> streamingIterator(BufferSupplier decompressionBufferSupplier, int maxRecordBodySize) {\n        return streamingIterator(decompressionBufferSupplier);\n    }"
+    # Kafka 4.3.2 replaced offsetOfMaxTimestamp() with offsetOfMaxTimestamp(int maxRecordBodySize).
+    # Re-add the 0-arg overload as deprecated to preserve binary compatibility on the 0.24.x line.
+    - old: "    default Optional<Long> offsetOfMaxTimestamp(int maxRecordBodySize) {"
+      new: "    /**\n     * @deprecated Use {@link #offsetOfMaxTimestamp(int)} passing\n     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.\n     */\n    @Deprecated(since = \"0.25.0\", forRemoval = true)\n    default Optional<Long> offsetOfMaxTimestamp() {\n        return offsetOfMaxTimestamp(Records.SOFT_MAX_ARRAY_LENGTH);\n    }\n\n    default Optional<Long> offsetOfMaxTimestamp(int maxRecordBodySize) {"
+
+- file: org/apache/kafka/common/record/internal/MutableRecordBatch.java
+  replaceText:
+    - old: "{@code org.apache.kafka.common.record.internal.Record}"
+      new: "{@code io.kroxylicious.kafka.common.record.internal.Record}"
+    # Kafka 4.3.2 added skipKeyValueIterator(BufferSupplier, int) as an abstract interface method.
+    # Make it a default to preserve binary compatibility for existing implementors on the 0.24.x line.
+    - old: "    CloseableIterator<Record> skipKeyValueIterator(BufferSupplier bufferSupplier, int maxRecordBodySize);"
+      new: "    default CloseableIterator<Record> skipKeyValueIterator(BufferSupplier bufferSupplier, int maxRecordBodySize) {\n        return skipKeyValueIterator(bufferSupplier);\n    }"
+
+- file: org/apache/kafka/common/utils/ImplicitLinkedHashMultiCollection.java
+  replaceText:
+    - old: "See org.apache.kafka.common.utils.ImplicitLinkedHashCollection for implementation details."
+      new: "See io.kroxylicious.kafka.common.utils.ImplicitLinkedHashCollection for implementation details."
