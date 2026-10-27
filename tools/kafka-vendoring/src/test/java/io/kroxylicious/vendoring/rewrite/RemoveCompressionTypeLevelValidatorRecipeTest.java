@@ -130,4 +130,98 @@ class RemoveCompressionTypeLevelValidatorRecipeTest implements RewriteTest {
                                 }
                                 """));
     }
+
+    @Test
+    void shouldRemoveUnusedConfigDefImportWhenRemovingLevelValidator() {
+        rewriteRun(
+                java(
+                        """
+                                package org.apache.kafka.common.compress;
+
+                                import org.apache.kafka.common.config.ConfigDef;
+
+                                public enum CompressionType {
+                                    NONE,
+                                    GZIP;
+
+                                    public ConfigDef.Validator levelValidator() {
+                                        return null;
+                                    }
+                                }
+                                """,
+                        """
+                                package org.apache.kafka.common.compress;
+
+                                public enum CompressionType {
+                                    NONE,
+                                    GZIP;
+                                }
+                                """));
+    }
+
+    @Test
+    void shouldKeepImportWhenOnlyRemovingOneOverload() {
+        rewriteRun(
+                java(
+                        """
+                                package org.apache.kafka.common.compress;
+
+                                import org.apache.kafka.common.config.ConfigDef;
+
+                                public enum CompressionType {
+                                    NONE,
+                                    GZIP;
+
+                                    public ConfigDef.Validator levelValidator() {
+                                        return null;
+                                    }
+
+                                    public ConfigDef.Validator anotherValidator() {
+                                        return null;
+                                    }
+                                }
+                                """,
+                        """
+                                package org.apache.kafka.common.compress;
+
+                                import org.apache.kafka.common.config.ConfigDef;
+
+                                public enum CompressionType {
+                                    NONE,
+                                    GZIP;
+
+                                    public ConfigDef.Validator anotherValidator() {
+                                        return null;
+                                    }
+                                }
+                                """));
+    }
+
+    @Test
+    void shouldFailIfWeDontRemoveTheMethodRegression() {
+        // This test proves the recipe catches regressions — if we accidentally broke
+        // the removal logic, this would fail because levelValidator() would still be there
+        rewriteRun(
+                java(
+                        """
+                                package org.apache.kafka.common.compress;
+
+                                public enum CompressionType {
+                                    NONE,
+                                    GZIP;
+
+                                    public Object levelValidator() {
+                                        return null;
+                                    }
+                                }
+                                """,
+                        """
+                                package org.apache.kafka.common.compress;
+
+                                public enum CompressionType {
+                                    NONE,
+                                    GZIP;
+                                }
+                                """));
+    }
 }
