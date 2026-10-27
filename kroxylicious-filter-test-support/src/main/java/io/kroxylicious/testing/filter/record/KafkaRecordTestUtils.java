@@ -23,6 +23,7 @@ import org.apache.kafka.common.record.internal.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.internal.MutableRecordBatch;
 import org.apache.kafka.common.record.internal.Record;
 import org.apache.kafka.common.record.internal.RecordBatch;
+import org.apache.kafka.common.record.internal.Records;
 import org.apache.kafka.common.utils.BufferSupplier;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
@@ -601,7 +602,7 @@ public class KafkaRecordTestUtils {
                     return false;
                 }
             };
-            records.filterTo(recordFilter, output, BufferSupplier.NO_CACHING);
+            records.filterTo(recordFilter, output, BufferSupplier.NO_CACHING, Records.SOFT_MAX_ARRAY_LENGTH);
 
             output.flip();
             return MemoryRecords.readableRecords(output);

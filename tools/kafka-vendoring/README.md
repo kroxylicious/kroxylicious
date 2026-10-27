@@ -34,8 +34,8 @@ vendored/forked tree deterministically.
 
 | | |
 |---|---|
-| Kafka tag | `4.3.0` (property `kafka.message-spec.version` in the root `pom.xml`) |
-| Commit | `a9ce3221537b8653448750697915607dc7936cf3` |
+| Kafka tag | `4.3.2` (property `kafka.message-spec.version` in the root `pom.xml`) |
+| Commit | `9c0eb1a7d8ab3bdfa44cffc169341351ec5ed9c2` |
 
 The spec/source version is deliberately **decoupled** from `kafka.version` (the
 `kafka-clients` we depend on, currently `4.2.0`): the vendored/generated protocol
