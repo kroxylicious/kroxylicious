@@ -39,6 +39,7 @@
 -Xep:StringCaseLocaleUsage:ERROR
 -Xep:StringSplitter:ERROR
 -Xep:TimeInStaticInitializer:ERROR
+-Xep:TypeParameterUnusedInFormals:ERROR
 -Xep:UnnecessaryAssignment:ERROR
 -Xep:UnnecessaryLambda:ERROR
 -Xep:UnnecessaryMethodReference:ERROR

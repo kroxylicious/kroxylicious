@@ -1,0 +1,4 @@
+title: "fix: resolve ErrorProne TypeParameterUnusedInFormals warnings"
+type: fixed
+issues:
+  - 5161
