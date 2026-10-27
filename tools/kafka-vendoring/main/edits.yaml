@@ -56,6 +56,15 @@
     - signature: 'static class DefaultFileChannelRecordBatch extends FileLogInputStream'
       label: DefaultRecordBatch.DefaultFileChannelRecordBatch
 
+- file: org/apache/kafka/common/record/internal/DefaultRecord.java
+  replaceText:
+    # Kafka 4.3.2 added maxRecordBodySize to these stream-reading factory methods, removing the 5-arg
+    # overloads. Re-add them as deprecated shims (as with filterTo) to keep 0.25.x callers linking.
+    - old: "    /**\n     * Decode a record from the (decompressed) stream, rejecting any record whose declared body size"
+      new: "    /**\n     * @deprecated Use {@link #readFrom(InputStream, long, long, int, Long, int)} passing\n     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.\n     */\n    @Deprecated(since = \"0.25.0\", forRemoval = true)\n    public static DefaultRecord readFrom(InputStream input,\n                                         long baseOffset,\n                                         long baseTimestamp,\n                                         int baseSequence,\n                                         Long logAppendTime) throws IOException {\n        return readFrom(input, baseOffset, baseTimestamp, baseSequence, logAppendTime, Records.SOFT_MAX_ARRAY_LENGTH);\n    }\n\n    /**\n     * Decode a record from the (decompressed) stream, rejecting any record whose declared body size"
+    - old: "    /**\n     * Skip-decode a record from the (decompressed) stream, rejecting any record whose declared body"
+      new: "    /**\n     * @deprecated Use {@link #readPartiallyFrom(InputStream, long, long, int, Long, int)} passing\n     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.\n     */\n    @Deprecated(since = \"0.25.0\", forRemoval = true)\n    public static PartialDefaultRecord readPartiallyFrom(InputStream input,\n                                                         long baseOffset,\n                                                         long baseTimestamp,\n                                                         int baseSequence,\n                                                         Long logAppendTime) throws IOException {\n        return readPartiallyFrom(input, baseOffset, baseTimestamp, baseSequence, logAppendTime, Records.SOFT_MAX_ARRAY_LENGTH);\n    }\n\n    /**\n     * Skip-decode a record from the (decompressed) stream, rejecting any record whose declared body"
+
 - file: org/apache/kafka/common/record/internal/AbstractLegacyRecordBatch.java
   removeBlocks:
     - signature: 'static class LegacyFileChannelRecordBatch extends FileLogInputStream'

@@ -16,13 +16,17 @@
  */
 package io.kroxylicious.kafka.common.record.internal;
 
+import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kafka.common.compress.Compression;
+import io.kroxylicious.kafka.common.header.Header;
 import io.kroxylicious.kafka.common.record.TimestampType;
 import io.kroxylicious.kafka.common.utils.BufferSupplier;
+import io.kroxylicious.kafka.common.utils.ByteBufferInputStream;
+import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.kafka.common.utils.CloseableIterator;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -125,5 +129,57 @@ public class BackwardsCompatApiTest {
         // Then
         assertThat(result).isSameAs(sentinel);
         verify(batch).skipKeyValueIterator(supplier);
+    }
+
+    @Test
+    public void deprecatedReadFromStreamProducesEquivalentResult() throws Exception {
+        // Given
+        ByteBuffer serialized = serializeRecord();
+        long baseOffset = 37L;
+        long baseTimestamp = 123L;
+
+        // When
+        DefaultRecord result5;
+        try (ByteBufferInputStream in = new ByteBufferInputStream(serialized.duplicate())) {
+            result5 = DefaultRecord.readFrom(in, baseOffset, baseTimestamp, RecordBatch.NO_SEQUENCE, null);
+        }
+        DefaultRecord result6;
+        try (ByteBufferInputStream in = new ByteBufferInputStream(serialized.duplicate())) {
+            result6 = DefaultRecord.readFrom(in, baseOffset, baseTimestamp, RecordBatch.NO_SEQUENCE, null, Records.SOFT_MAX_ARRAY_LENGTH);
+        }
+
+        // Then
+        assertEquals(result6, result5);
+    }
+
+    @Test
+    public void deprecatedReadPartiallyFromStreamProducesEquivalentResult() throws Exception {
+        // Given
+        ByteBuffer serialized = serializeRecord();
+        long baseOffset = 37L;
+        long baseTimestamp = 123L;
+
+        // When
+        PartialDefaultRecord result5;
+        try (ByteBufferInputStream in = new ByteBufferInputStream(serialized.duplicate())) {
+            result5 = DefaultRecord.readPartiallyFrom(in, baseOffset, baseTimestamp, RecordBatch.NO_SEQUENCE, null);
+        }
+        PartialDefaultRecord result6;
+        try (ByteBufferInputStream in = new ByteBufferInputStream(serialized.duplicate())) {
+            result6 = DefaultRecord.readPartiallyFrom(in, baseOffset, baseTimestamp, RecordBatch.NO_SEQUENCE, null, Records.SOFT_MAX_ARRAY_LENGTH);
+        }
+
+        // Then
+        assertEquals(result6, result5);
+    }
+
+    private static ByteBuffer serializeRecord() throws java.io.IOException {
+        ByteBuffer key = ByteBuffer.wrap("key".getBytes());
+        ByteBuffer value = ByteBuffer.wrap("value".getBytes());
+        ByteBufferOutputStream out = new ByteBufferOutputStream(1024);
+        DefaultRecord.writeTo(new DataOutputStream(out), 10, 323L, key, value, new Header[0]);
+        ByteBuffer buffer = out.buffer();
+        buffer.flip();
+        return buffer;
     }
 }

@@ -283,6 +283,20 @@ public class DefaultRecord implements Record {
     }
 
     /**
+     * @deprecated Use {@link #readFrom(InputStream, long, long, int, Long, int)} passing
+     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.
+     */
+    @Deprecated(since = "0.25.0", forRemoval = true)
+    public static DefaultRecord readFrom(InputStream input,
+                                         long baseOffset,
+                                         long baseTimestamp,
+                                         int baseSequence,
+                                         Long logAppendTime)
+            throws IOException {
+        return readFrom(input, baseOffset, baseTimestamp, baseSequence, logAppendTime, Records.SOFT_MAX_ARRAY_LENGTH);
+    }
+
+    /**
      * Decode a record from the (decompressed) stream, rejecting any record whose declared body size
      * exceeds {@code maxRecordBodySize} before allocating the body buffer. Callers that do not
      * enforce a configured limit pass {@link Records#SOFT_MAX_ARRAY_LENGTH}, effectively the
@@ -378,6 +392,20 @@ public class DefaultRecord implements Record {
         catch (BufferUnderflowException | IllegalArgumentException e) {
             throw new InvalidRecordException("Found invalid record structure", e);
         }
+    }
+
+    /**
+     * @deprecated Use {@link #readPartiallyFrom(InputStream, long, long, int, Long, int)} passing
+     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.
+     */
+    @Deprecated(since = "0.25.0", forRemoval = true)
+    public static PartialDefaultRecord readPartiallyFrom(InputStream input,
+                                                         long baseOffset,
+                                                         long baseTimestamp,
+                                                         int baseSequence,
+                                                         Long logAppendTime)
+            throws IOException {
+        return readPartiallyFrom(input, baseOffset, baseTimestamp, baseSequence, logAppendTime, Records.SOFT_MAX_ARRAY_LENGTH);
     }
 
     /**
