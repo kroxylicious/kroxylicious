@@ -22,6 +22,7 @@
 -Xep:ImmutableEnumChecker:ERROR
 -Xep:InvalidBlockTag:ERROR
 -Xep:InvalidInlineTag:ERROR
+-Xep:InvalidParam:ERROR
 -Xep:JdkObsolete:ERROR
 -Xep:LoopOverCharArray:ERROR
 -Xep:MathAbsoluteNegative:ERROR
