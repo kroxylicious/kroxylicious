@@ -42,7 +42,7 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.eventsource.EventSourceBuilder;
-import io.kroxylicious.kubernetes.operator.eventsource.Ref;
+import io.kroxylicious.kubernetes.operator.eventsource.ReferenceDependency;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -66,14 +66,19 @@ public final class KafkaServiceReconciler implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconciler.class);
 
-    /** Event source name for TLS certificate Secret informer. */
-    public static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
-    /** Event source name for trust anchor ConfigMap informer. */
-    public static final String CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "configmapsTrustAnchorRef";
+    /** Every a primary depends on a {@code Secret} containing certificates via {@code spec.tls.certificateRef} */
+    static final ReferenceDependency<KafkaService, Secret> SECRET_CERTIFICATES_DEPENDENCY = ReferenceDependency.each(KafkaService.class)
+            .dependsOn(Secret.class, "certificateRef", KafkaServiceReconciler::certificateRef);
+    /** Every a primary may depend on a {@code ConfigMap} containing a trust store via {@code spec.tls.trustAnchorRef} */
+    static final ReferenceDependency<KafkaService, ConfigMap> CONFIG_MAP_TRUST_ANCHOR_DEPENDENCY = ReferenceDependency.each(KafkaService.class)
+            .dependsOn(ConfigMap.class, "configMapTrustAnchorRef", KafkaServiceReconciler::configMapTrustAnchorRef);
+    /** Every a primary may depend on a {@code Secret} containing a trust store via {@code spec.tls.trustAnchorRef} */
+    static final ReferenceDependency<KafkaService, Secret> SECRET_TRUST_ANCHOR_REF = ReferenceDependency.each(KafkaService.class)
+            .dependsOn(Secret.class, "secretTrustAnchorRef", KafkaServiceReconciler::secretTrustAnchorRef);
+
     /** Event source name for Strimzi CA certificate Secret informer. */
     public static final String SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsStrimziTrustAnchorRef";
-    /** Event source name for trust anchor Secret informer. */
-    public static final String SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsTrustAnchorRef";
+
     /** Event source name for Strimzi Kafka resource informer. */
     public static final String STRIMZI_KAFKA_EVENT_SOURCE_NAME = "kafkas";
 
@@ -109,20 +114,17 @@ public final class KafkaServiceReconciler implements
     public List<EventSource<?, KafkaService>> prepareEventSources(EventSourceContext<KafkaService> context) {
         List<EventSource<?, KafkaService>> eventSources = new ArrayList<>();
 
-        eventSources.add(EventSourceBuilder.forSecondary(context, Secret.class)
-                .withName(SECRETS_EVENT_SOURCE_NAME)
+        eventSources.add(SECRET_CERTIFICATES_DEPENDENCY
+                .eventSourceBuilder(context)
                 .withSharedInformer(sharedInformerManager)
-                .withRelationship(Ref.toSecondary(KafkaServiceReconciler::certificateRef))
                 .build());
-        eventSources.add(EventSourceBuilder.forSecondary(context, ConfigMap.class)
-                .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+        eventSources.add(CONFIG_MAP_TRUST_ANCHOR_DEPENDENCY
+                .eventSourceBuilder(context)
                 .withSharedInformer(sharedInformerManager)
-                .withRelationship(Ref.toSecondary(KafkaServiceReconciler::configMapTrustAnchorRef))
                 .build());
-        eventSources.add(EventSourceBuilder.forSecondary(context, Secret.class)
-                .withName(SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+        eventSources.add(SECRET_TRUST_ANCHOR_REF
+                .eventSourceBuilder(context)
                 .withSharedInformer(sharedInformerManager)
-                .withRelationship(Ref.toSecondary(KafkaServiceReconciler::secretTrustAnchorRef))
                 .build());
 
         if (context.getClient().supports(Kafka.class)) {
@@ -265,8 +267,8 @@ public final class KafkaServiceReconciler implements
 
         String eventSourceName = trustAnchorRef.getRef().getKind() != null &&
                 Objects.equals(trustAnchorRef.getRef().getKind(), "Secret")
-                        ? SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME
-                        : CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME;
+                        ? SECRET_TRUST_ANCHOR_REF.eventSourceName()
+                        : CONFIG_MAP_TRUST_ANCHOR_DEPENDENCY.eventSourceName();
 
         ResourceCheckResult<KafkaService> result = ResourcesUtil.checkTrustAnchorRef(
                 service, context, eventSourceName, trustAnchorRef,
@@ -334,7 +336,7 @@ public final class KafkaServiceReconciler implements
 
         ResourceCheckResult<KafkaService> result = ResourcesUtil.checkCertRef(
                 service, certRefOpt.get(), SPEC_TLS_CERTIFICATE_REF,
-                statusFactory, context, SECRETS_EVENT_SOURCE_NAME);
+                statusFactory, context, SECRET_CERTIFICATES_DEPENDENCY.eventSourceName());
 
         return result.resource() != null
                 ? ValidationResult.failure(result.resource())

@@ -24,14 +24,14 @@ import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.ProxyRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
-import io.kroxylicious.kubernetes.operator.eventsource.EventSourceBuilder;
-import io.kroxylicious.kubernetes.operator.eventsource.Ref;
+import io.kroxylicious.kubernetes.operator.eventsource.ReferenceDependency;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -53,8 +53,11 @@ public class KafkaProxyIngressReconciler implements
         Reconciler<KafkaProxyIngress> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyIngressReconciler.class);
-    /** Event source name for the KafkaProxy informer. */
-    public static final String PROXY_EVENT_SOURCE_NAME = "proxy";
+
+    /** Every a primary depends on its proxy via {@code spec.proxyRef} */
+    static final ReferenceDependency<KafkaProxyIngress, KafkaProxy> PROXY_DEPENDENCY = ReferenceDependency.each(KafkaProxyIngress.class)
+            .dependsOn(KafkaProxy.class, "proxy", KafkaProxyIngressReconciler::ingressToProxy);
+
     private final KafkaProxyIngressStatusFactory statusFactory;
 
     /**
@@ -78,13 +81,17 @@ public class KafkaProxyIngressReconciler implements
 
     @Override
     public List<EventSource<?, KafkaProxyIngress>> prepareEventSources(EventSourceContext<KafkaProxyIngress> context) {
-        return List.of(EventSourceBuilder.forSecondary(context, KafkaProxy.class)
-                .withName(PROXY_EVENT_SOURCE_NAME)
-                .withRelationship(Ref.toSecondary(ingress -> Optional.of(ingress.getSpec().getProxyRef())))
-                // reconcile on every proxy change regardless of the proxy's own reconcile state
-                // (KPI consumes no reconciled proxy state, so a guard would add latency, and is not needed for correctness)
-                .withoutFreshStatus()
-                .build());
+        return List.of(
+                PROXY_DEPENDENCY
+                        .eventSourceBuilder(context)
+                        // reconcile on every proxy change regardless of the proxy's own reconcile state
+                        // (KPI consumes no reconciled proxy state, so a guard would add latency, and is not needed for correctness)
+                        .withoutFreshStatus()
+                        .build());
+    }
+
+    public static Optional<ProxyRef> ingressToProxy(KafkaProxyIngress ingress) {
+        return Optional.of(ingress.getSpec().getProxyRef());
     }
 
     @Override
@@ -93,7 +100,7 @@ public class KafkaProxyIngressReconciler implements
                                                       Context<KafkaProxyIngress> context)
             throws Exception {
 
-        var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
+        var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_DEPENDENCY.eventSourceName());
         LOGGER.atDebug()
                 .addKeyValue("to", proxyOpt)
                 .log("Resolved spec.proxyRef.name");

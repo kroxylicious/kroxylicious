@@ -48,8 +48,11 @@ import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.CipherSuites;
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.FilterRef;
+import io.kroxylicious.kubernetes.api.common.KafkaServiceRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.Protocols;
+import io.kroxylicious.kubernetes.api.common.ProxyRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterSpec;
@@ -71,9 +74,7 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
-import io.kroxylicious.kubernetes.operator.eventsource.EventSourceBuilder;
-import io.kroxylicious.kubernetes.operator.eventsource.Ref;
-import io.kroxylicious.kubernetes.operator.eventsource.Relationship;
+import io.kroxylicious.kubernetes.operator.eventsource.ReferenceDependency;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.networking.ClusterIngressNetworkingModel;
@@ -153,9 +154,29 @@ public class KafkaProxyReconciler implements
     static final String CONFIG_DEP = "config";
     static final String DEPLOYMENT_DEP = "deployment";
     static final String CLUSTERS_DEP = "clusters";
+    static final String ROUTES_DEP = "routes";
+
+    /** Every a primary depends on the {@code VirtualKafkaClusters} referring to it via their {@code spec.proxyRef} */
+    private static final ReferenceDependency<KafkaProxy, VirtualKafkaCluster> VKC_DEPENDENCY = ReferenceDependency.each(KafkaProxy.class)
+            .dependsOnReferrer(VirtualKafkaCluster.class, "virtualKafkaCluster", KafkaProxyReconciler::clusterToProxy);
+    /**
+     * Every a primary depends on the {@code KafkaServices} referred to (via {@code spec.targetKafkaServiceRef})
+     * by the {@code VirtualKafkaClusters} referring to the proxy via their {@code spec.proxyRef}.
+     */
+    private static final ReferenceDependency<KafkaProxy, KafkaService> KAFKA_SERVICE_DEPENDENCY = VKC_DEPENDENCY
+            .dependsOn(KafkaService.class, "kafkaService", KafkaProxyReconciler::clusterToKafkaService);
+    /**
+     * Every a primary depends on the {@code KafkaProtocolFilters} referred to (via {@code spec.filterRefs})
+     * by the {@code VirtualKafkaClusters} referring to the proxy via their {@code spec.proxyRef}.
+     */
+    private static final ReferenceDependency<KafkaProxy, KafkaProtocolFilter> FILTERS_DEPENDENCY = VKC_DEPENDENCY
+            .dependsOnEach(KafkaProtocolFilter.class, "filters", KafkaProxyReconciler::clusterToProtocolFilters);
+    /** Every a primary depends on the {@code KafkaProxyIngresses} referring to it via their {@code spec.proxyRef} */
+    private static final ReferenceDependency<KafkaProxy, KafkaProxyIngress> INGRESS_DEPENDENCY = ReferenceDependency.each(KafkaProxy.class)
+            .dependsOnReferrer(KafkaProxyIngress.class, "ingress", KafkaProxyReconciler::ingressToProxy);
+
     private static final String SECRET_PLURAL = "secrets";
     private static final String CONFIGMAP_PLURAL = "configmaps";
-    static final String ROUTES_DEP = "routes";
     private static final Path MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/");
     private static final Path TARGET_CLUSTER_MOUNTS_BASE = MOUNTS_BASE_DIR.resolve("target-cluster");
     private static final Path CLIENT_CERTS_BASE_DIR = TARGET_CLUSTER_MOUNTS_BASE.resolve("client-certs");
@@ -655,28 +676,31 @@ public class KafkaProxyReconciler implements
 
     @Override
     public List<EventSource<?, KafkaProxy>> prepareEventSources(EventSourceContext<KafkaProxy> context) {
-        // How a VirtualKafkaCluster references a proxy; reused directly and as the tail of the transitive
-        // filter/service relationships below.
-        Relationship<KafkaProxy, VirtualKafkaCluster> vkcToProxy = Ref.toPrimary(vkc -> vkc.getSpec().getProxyRef());
         return List.of(
-                // filter <- VirtualKafkaCluster.filterRefs; VirtualKafkaCluster -> proxy
-                EventSourceBuilder.forSecondary(context, KafkaProtocolFilter.class)
-                        .withName("filters")
-                        .withRelationship(Ref.toPrimaryVia(VirtualKafkaCluster.class, Ref.refersToAny(vkc -> vkc.getSpec().getFilterRefs()), vkcToProxy))
+                VKC_DEPENDENCY.eventSourceBuilder(context)
                         .build(),
-                EventSourceBuilder.forSecondary(context, VirtualKafkaCluster.class)
-                        .withName("virtualkafkaclusters")
-                        .withRelationship(vkcToProxy)
+                FILTERS_DEPENDENCY.eventSourceBuilder(context)
                         .build(),
-                // KafkaService <- VirtualKafkaCluster.targetKafkaServiceRef; VirtualKafkaCluster -> proxy
-                EventSourceBuilder.forSecondary(context, KafkaService.class)
-                        .withName("kafkaservices")
-                        .withRelationship(Ref.toPrimaryVia(VirtualKafkaCluster.class, Ref.refersTo(vkc -> vkc.getSpec().getTargetKafkaServiceRef()), vkcToProxy))
+                KAFKA_SERVICE_DEPENDENCY.eventSourceBuilder(context)
                         .build(),
-                EventSourceBuilder.forSecondary(context, KafkaProxyIngress.class)
-                        .withName("ingresses")
-                        .withRelationship(Ref.toPrimary(ingress -> ingress.getSpec().getProxyRef()))
+                INGRESS_DEPENDENCY.eventSourceBuilder(context)
                         .build());
+    }
+
+    private static Optional<ProxyRef> ingressToProxy(KafkaProxyIngress ingress) {
+        return Optional.ofNullable(ingress.getSpec().getProxyRef());
+    }
+
+    private static Optional<ProxyRef> clusterToProxy(VirtualKafkaCluster vkc) {
+        return Optional.ofNullable(vkc.getSpec().getProxyRef());
+    }
+
+    private static Optional<KafkaServiceRef> clusterToKafkaService(VirtualKafkaCluster vkc) {
+        return Optional.ofNullable(vkc.getSpec().getTargetKafkaServiceRef());
+    }
+
+    private static List<FilterRef> clusterToProtocolFilters(VirtualKafkaCluster vkc) {
+        return vkc.getSpec().getFilterRefs();
     }
 
     private static Optional<AllowDeny<String>> buildProtocols(@Nullable Protocols protocols) {

@@ -25,7 +25,7 @@ import io.kroxylicious.kubernetes.operator.model.networking.TcpClusterIPClusterI
 
 /**
  * Bespoke because the owned {@code Service} names are derived from the cluster/ingress names by convention, not
- * read from a {@code spec} ref field, so they aren't expressible via {@code Ref}. Plugged into the
+ * read from a {@code spec} ref field. Plugged into the
  * {@code VirtualKafkaCluster} reconciler's event sources via {@code EventSourceBuilder.withMappers(...)}.
  */
 class VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapper implements PrimaryToSecondaryMapper<VirtualKafkaCluster> {

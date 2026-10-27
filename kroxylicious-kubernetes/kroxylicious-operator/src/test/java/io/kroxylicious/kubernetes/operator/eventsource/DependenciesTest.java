@@ -9,18 +9,16 @@ package io.kroxylicious.kubernetes.operator.eventsource;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BiPredicate;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
+import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
-import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -30,23 +28,117 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Exercises {@link Ref}'s factories end to end, through the {@link Relationship} they return, covering both
- * reference directions: {@link Ref#toPrimary}/{@link Ref#toPrimaryVia} (the secondary, perhaps transitively,
- * holds the pointer back to the primary &mdash; e.g. {@code KafkaProxyReconciler}) and
- * {@link Ref#toSecondary}/{@link Ref#toSecondaries} (the primary holds the pointer to its secondaries &mdash;
- * e.g. {@code VirtualKafkaClusterReconciler}).
+ * Exercises {@link ReferenceDependency} end to end, through the {@link Dependency} they
+ * produce, covering every hop shape a reconciler needs:
+ * <ul>
+ *     <li>a single hop, either direction ({@link ReferenceDependency#dependsOn} or {@link ReferenceDependency#dependsOnReferrer})</li>
+ *     <li>a pure forward chain of hops (every hop owned by the near-to-far side)</li>
+ *     <li>a chain that changes direction mid-path at a hub resource, via {@link ReferenceDependency#dependsOnReferrer}</li>
+ *     <li>a pure backward chain (every hop owned by the far-to-near side) &mdash; the shape {@code Ref} couldn't
+ *     express, motivating this DSL</li>
+ *     <li>the event source name derived from a path's shape ({@link ReferenceDependency#eventSourceName()})</li>
+ * </ul>
  */
-class RefTest {
+class DependenciesTest {
 
     @Nested
-    class ToPrimary {
+    class SingleHopOwnedByPrimary {
 
-        private static final Relationship<KafkaProxy, VirtualKafkaCluster> VKC_TO_PROXY = Ref.toPrimary(vkc -> vkc.getSpec().getProxyRef());
+        private static final Dependency<VirtualKafkaCluster, KafkaService> VKC_TO_SERVICE = ReferenceDependency.each(VirtualKafkaCluster.class)
+                .dependsOn(KafkaService.class, "kafkaService", cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef()));
+
+        @Test
+        void primaryToSecondaryComputesResourceIdDirectlyWithoutScanning() {
+            // Given
+            EventSourceContext<VirtualKafkaCluster> context = mock();
+            KafkaService service = MapperTestSupport.buildKafkaService("service", 1L, 1L);
+            VirtualKafkaCluster cluster = MapperTestSupport.buildVirtualKafkaCluster(MapperTestSupport.buildProxy("proxy"), "cluster", service);
+
+            // When
+            Set<ResourceID> secondaryIds = VKC_TO_SERVICE.primaryToSecondary(context, KafkaService.class).toSecondaryResourceIDs(cluster);
+
+            // Then
+            assertThat(secondaryIds).containsExactly(new ResourceID("service", null));
+        }
+
+        @Test
+        void secondaryToPrimaryFindsReferencingPrimaryViaCache() {
+            // Given
+            KafkaService service = MapperTestSupport.buildKafkaService("service", 1L, 1L);
+            VirtualKafkaCluster referencingCluster = MapperTestSupport.buildVirtualKafkaCluster(MapperTestSupport.buildProxy("proxy"), "cluster", service);
+            VirtualKafkaCluster otherCluster = MapperTestSupport
+                    .buildVirtualKafkaCluster(MapperTestSupport.buildProxy("proxy"), "othercluster",
+                            MapperTestSupport.buildKafkaService("otherservice", 1L, 1L));
+            EventSourceContext<VirtualKafkaCluster> context = MapperTestSupport.mockContextContaining(referencingCluster, otherCluster);
+
+            // When
+            Set<ResourceID> primaryIds = VKC_TO_SERVICE.secondaryToPrimary(context).toPrimaryResourceIDs(service);
+
+            // Then
+            assertThat(primaryIds).containsExactly(ResourceID.fromResource(referencingCluster));
+        }
+    }
+
+    @Nested
+    class SingleHopOwnedByPrimaryCollection {
+
+        private static final Dependency<VirtualKafkaCluster, KafkaProtocolFilter> VKC_TO_FILTERS = ReferenceDependency.each(VirtualKafkaCluster.class)
+                .dependsOnEach(KafkaProtocolFilter.class, "filters",
+                        cluster -> Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getFilterRefs).orElse(List.of()));
+
+        @Test
+        void primaryToSecondaryComputesResourceIdsDirectlyForEachRef() {
+            // Given
+            EventSourceContext<VirtualKafkaCluster> context = mock();
+            VirtualKafkaCluster cluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(MapperTestSupport.buildProxy("proxy"), "cluster", 1L, 1L)
+                    .editOrNewSpec().addNewFilterRef().withName("filter1").endFilterRef().addNewFilterRef().withName("filter2").endFilterRef().endSpec().build();
+
+            // When
+            Set<ResourceID> secondaryIds = VKC_TO_FILTERS.primaryToSecondary(context, KafkaProtocolFilter.class).toSecondaryResourceIDs(cluster);
+
+            // Then
+            assertThat(secondaryIds).containsExactlyInAnyOrder(new ResourceID("filter1", null), new ResourceID("filter2", null));
+        }
+
+        @Test
+        void primaryToSecondaryIsEmptyWhenNoRefs() {
+            // Given
+            EventSourceContext<VirtualKafkaCluster> context = mock();
+            VirtualKafkaCluster cluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(MapperTestSupport.buildProxy("proxy"), "cluster", 1L, 1L).build();
+
+            // When
+            Set<ResourceID> secondaryIds = VKC_TO_FILTERS.primaryToSecondary(context, KafkaProtocolFilter.class).toSecondaryResourceIDs(cluster);
+
+            // Then
+            assertThat(secondaryIds).isEmpty();
+        }
+
+        @Test
+        void secondaryToPrimaryFindsReferencingPrimaryViaCache() {
+            // Given
+            KafkaProtocolFilter filter = MapperTestSupport.buildFilter("filter", 1L, 1L);
+            VirtualKafkaCluster referencingCluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(MapperTestSupport.buildProxy("proxy"), "cluster", 1L, 1L)
+                    .editOrNewSpec().addNewFilterRef().withName("filter").endFilterRef().endSpec().build();
+            VirtualKafkaCluster otherCluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(MapperTestSupport.buildProxy("proxy"), "othercluster", 1L, 1L).build();
+            EventSourceContext<VirtualKafkaCluster> context = MapperTestSupport.mockContextContaining(referencingCluster, otherCluster);
+
+            // When
+            Set<ResourceID> primaryIds = VKC_TO_FILTERS.secondaryToPrimary(context).toPrimaryResourceIDs(filter);
+
+            // Then
+            assertThat(primaryIds).containsExactly(ResourceID.fromResource(referencingCluster));
+        }
+    }
+
+    @Nested
+    class SingleHopOwnedBySecondary {
+
+        private static final Dependency<KafkaProxy, VirtualKafkaCluster> PROXY_TO_VKC = ReferenceDependency.each(KafkaProxy.class)
+                .dependsOnReferrer(VirtualKafkaCluster.class, "proxy", vkc -> Optional.ofNullable(vkc.getSpec().getProxyRef()));
 
         @Test
         void primaryToSecondaryIsNullSafeWhenSecondaryHasNoRef() {
@@ -60,7 +152,7 @@ class RefTest {
             KafkaProxy proxy = MapperTestSupport.buildProxy("proxy");
 
             // When
-            Set<ResourceID> secondaryIds = VKC_TO_PROXY.primaryToSecondary(context, VirtualKafkaCluster.class).toSecondaryResourceIDs(proxy);
+            Set<ResourceID> secondaryIds = PROXY_TO_VKC.primaryToSecondary(context, VirtualKafkaCluster.class).toSecondaryResourceIDs(proxy);
 
             // Then
             assertThat(secondaryIds).isEmpty();
@@ -80,7 +172,7 @@ class RefTest {
             when(clusterList.getItems()).thenReturn(List.of(cluster, clusterForAnotherProxy));
 
             // When
-            Set<ResourceID> secondaryIds = VKC_TO_PROXY.primaryToSecondary(context, VirtualKafkaCluster.class).toSecondaryResourceIDs(proxy);
+            Set<ResourceID> secondaryIds = PROXY_TO_VKC.primaryToSecondary(context, VirtualKafkaCluster.class).toSecondaryResourceIDs(proxy);
 
             // Then
             assertThat(secondaryIds).containsExactly(ResourceID.fromResource(cluster));
@@ -95,7 +187,7 @@ class RefTest {
             VirtualKafkaCluster cluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(proxy1, "cluster", 1L, 1L).build();
 
             // When
-            Set<ResourceID> primaryIds = VKC_TO_PROXY.secondaryToPrimary(context).toPrimaryResourceIDs(cluster);
+            Set<ResourceID> primaryIds = PROXY_TO_VKC.secondaryToPrimary(context).toPrimaryResourceIDs(cluster);
 
             // Then
             assertThat(primaryIds).containsExactlyInAnyOrder(ResourceID.fromResource(proxy1), ResourceID.fromResource(proxy2));
@@ -103,14 +195,14 @@ class RefTest {
 
         @Test
         void secondaryToPrimaryDoesNotFilterStaleStatus() {
-            // the freshness guard lives in EventSourceBuilder, not in Ref; see EventSourceBuilderTest
+            // the freshness guard lives in EventSourceBuilder, not here; see EventSourceBuilderTest
             // Given
             KafkaProxy proxy = MapperTestSupport.buildProxy("proxy");
             EventSourceContext<KafkaProxy> context = MapperTestSupport.mockContextContaining(proxy);
             VirtualKafkaCluster staleCluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(proxy, "cluster", 2L, 1L).build();
 
             // When
-            Set<ResourceID> primaryIds = VKC_TO_PROXY.secondaryToPrimary(context).toPrimaryResourceIDs(staleCluster);
+            Set<ResourceID> primaryIds = PROXY_TO_VKC.secondaryToPrimary(context).toPrimaryResourceIDs(staleCluster);
 
             // Then
             assertThat(primaryIds).containsExactly(ResourceID.fromResource(proxy));
@@ -126,21 +218,29 @@ class RefTest {
             VirtualKafkaCluster freshCluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(proxy, "cluster", 1L, 1L).build();
 
             // When
-            Set<ResourceID> primaryIds = VKC_TO_PROXY.secondaryToPrimary(context).toPrimaryResourceIDs(freshCluster);
+            Set<ResourceID> primaryIds = PROXY_TO_VKC.secondaryToPrimary(context).toPrimaryResourceIDs(freshCluster);
 
             // Then
             assertThat(primaryIds).containsExactly(ResourceID.fromResource(proxy));
         }
     }
 
+    /**
+     * The hub shape: {@code VirtualKafkaCluster} owns a ref to the proxy, and separately owns refs to
+     * filters/services. Walking from {@code KafkaProxy}, {@link ReferenceDependency#dependsOnReferrer} reaches the hub
+     * ({@code VirtualKafkaCluster}) in one hop; {@link ReferenceDependency#dependsOn}/{@link ReferenceDependency#dependsOnEach} then
+     * continue forward from there to each of its other referents &mdash; no path splicing or whole-path
+     * reversal needed.
+     */
     @Nested
-    class ToPrimaryVia {
+    class HubReachedByBackwardHop {
 
-        private static final Relationship<KafkaProxy, VirtualKafkaCluster> VKC_TO_PROXY = Ref.toPrimary(vkc -> vkc.getSpec().getProxyRef());
-        private static final Relationship<KafkaProxy, KafkaProtocolFilter> FILTER_TO_PROXY = Ref.toPrimaryVia(VirtualKafkaCluster.class,
-                Ref.refersToAny(vkc -> vkc.getSpec().getFilterRefs()), VKC_TO_PROXY);
-        private static final Relationship<KafkaProxy, KafkaService> SERVICE_TO_PROXY = Ref.toPrimaryVia(VirtualKafkaCluster.class,
-                Ref.refersTo(vkc -> vkc.getSpec().getTargetKafkaServiceRef()), VKC_TO_PROXY);
+        private static final ReferenceDependency<KafkaProxy, VirtualKafkaCluster> PROXY_TO_VKC = ReferenceDependency.each(KafkaProxy.class)
+                .dependsOnReferrer(VirtualKafkaCluster.class, "proxy", vkc -> Optional.ofNullable(vkc.getSpec().getProxyRef()));
+        private static final Dependency<KafkaProxy, KafkaProtocolFilter> FILTER_TO_PROXY = PROXY_TO_VKC
+                .dependsOnEach(KafkaProtocolFilter.class, "filters", vkc -> vkc.getSpec().getFilterRefs());
+        private static final Dependency<KafkaProxy, KafkaService> SERVICE_TO_PROXY = PROXY_TO_VKC
+                .dependsOn(KafkaService.class, "kafkaService", vkc -> Optional.ofNullable(vkc.getSpec().getTargetKafkaServiceRef()));
 
         @Test
         void primaryToSecondaryIsNullSafeWhenIntermediateHasNoRelevantRef() {
@@ -270,137 +370,68 @@ class RefTest {
         }
 
         @Test
-        void throwsWhenIntermediateToPrimaryNotBuiltViaRef() {
+        void secondaryToPrimaryFallsBackToAllPrimariesInNamespace() {
+            // The proxy->VirtualKafkaCluster hop was traversed backward (VirtualKafkaCluster owns the ref, not
+            // the proxy), so this isn't a pure forward chain: changing a filter reconciles every known proxy in
+            // its namespace, not just the ones currently referencing it.
             // Given
-            Relationship<KafkaProxy, VirtualKafkaCluster> notBuiltViaRef = new Relationship<>() {
-                @Override
-                public PrimaryToSecondaryMapper<KafkaProxy> primaryToSecondary(EventSourceContext<KafkaProxy> context, Class<VirtualKafkaCluster> secondaryType) {
-                    throw new UnsupportedOperationException();
-                }
-
-                @Override
-                public SecondaryToPrimaryMapper<VirtualKafkaCluster> secondaryToPrimary(EventSourceContext<KafkaProxy> context) {
-                    throw new UnsupportedOperationException();
-                }
-            };
-            BiPredicate<VirtualKafkaCluster, HasMetadata> intermediateRefersToSecondary = Ref.refersToAny(vkc -> vkc.getSpec().getFilterRefs());
-
-            // When / Then
-            assertThatThrownBy(() -> Ref.toPrimaryVia(VirtualKafkaCluster.class, intermediateRefersToSecondary, notBuiltViaRef))
-                    .isInstanceOf(IllegalArgumentException.class);
-        }
-    }
-
-    @Nested
-    class ToSecondary {
-
-        private static final Relationship<VirtualKafkaCluster, KafkaService> VKC_TO_SERVICE = Ref
-                .toSecondary(cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef()));
-
-        @Test
-        void primaryToSecondaryComputesResourceIdDirectlyWithoutScanning() {
-            // Given
-            EventSourceContext<VirtualKafkaCluster> context = mock();
-            KafkaService service = MapperTestSupport.buildKafkaService("service", 1L, 1L);
-            VirtualKafkaCluster cluster = MapperTestSupport.buildVirtualKafkaCluster(MapperTestSupport.buildProxy("proxy"), "cluster", service);
-
-            // When
-            Set<ResourceID> secondaryIds = VKC_TO_SERVICE.primaryToSecondary(context, KafkaService.class).toSecondaryResourceIDs(cluster);
-
-            // Then
-            assertThat(secondaryIds).containsExactly(new ResourceID("service", null));
-        }
-
-        @Test
-        void secondaryToPrimaryFindsReferencingPrimaryViaCache() {
-            // Given
-            KafkaService service = MapperTestSupport.buildKafkaService("service", 1L, 1L);
-            VirtualKafkaCluster referencingCluster = MapperTestSupport.buildVirtualKafkaCluster(MapperTestSupport.buildProxy("proxy"), "cluster", service);
-            VirtualKafkaCluster otherCluster = MapperTestSupport.buildVirtualKafkaCluster(MapperTestSupport.buildProxy("proxy"), "othercluster",
-                    MapperTestSupport.buildKafkaService("otherservice", 1L, 1L));
-            EventSourceContext<VirtualKafkaCluster> context = MapperTestSupport.mockContextContaining(referencingCluster, otherCluster);
-
-            // When
-            Set<ResourceID> primaryIds = VKC_TO_SERVICE.secondaryToPrimary(context).toPrimaryResourceIDs(service);
-
-            // Then
-            assertThat(primaryIds).containsExactly(ResourceID.fromResource(referencingCluster));
-        }
-    }
-
-    @Nested
-    class ToSecondaries {
-
-        private static final Relationship<VirtualKafkaCluster, KafkaProtocolFilter> VKC_TO_FILTERS = Ref.toSecondaries(
-                cluster -> Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getFilterRefs).orElse(List.of()));
-
-        @Test
-        void primaryToSecondaryComputesResourceIdsDirectlyForEachRef() {
-            // Given
-            EventSourceContext<VirtualKafkaCluster> context = mock();
-            VirtualKafkaCluster cluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(MapperTestSupport.buildProxy("proxy"), "cluster", 1L, 1L)
-                    .editOrNewSpec().addNewFilterRef().withName("filter1").endFilterRef().addNewFilterRef().withName("filter2").endFilterRef().endSpec().build();
-
-            // When
-            Set<ResourceID> secondaryIds = VKC_TO_FILTERS.primaryToSecondary(context, KafkaProtocolFilter.class).toSecondaryResourceIDs(cluster);
-
-            // Then
-            assertThat(secondaryIds).containsExactlyInAnyOrder(new ResourceID("filter1", null), new ResourceID("filter2", null));
-        }
-
-        @Test
-        void primaryToSecondaryIsEmptyWhenNoRefs() {
-            // Given
-            EventSourceContext<VirtualKafkaCluster> context = mock();
-            VirtualKafkaCluster cluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(MapperTestSupport.buildProxy("proxy"), "cluster", 1L, 1L).build();
-
-            // When
-            Set<ResourceID> secondaryIds = VKC_TO_FILTERS.primaryToSecondary(context, KafkaProtocolFilter.class).toSecondaryResourceIDs(cluster);
-
-            // Then
-            assertThat(secondaryIds).isEmpty();
-        }
-
-        @Test
-        void secondaryToPrimaryFindsReferencingPrimaryViaCache() {
-            // Given
+            KafkaProxy proxy1 = MapperTestSupport.buildProxy("proxy1");
+            KafkaProxy proxy2 = MapperTestSupport.buildProxy("proxy2");
+            EventSourceContext<KafkaProxy> context = MapperTestSupport.mockContextContaining(proxy1, proxy2);
             KafkaProtocolFilter filter = MapperTestSupport.buildFilter("filter", 1L, 1L);
-            VirtualKafkaCluster referencingCluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(MapperTestSupport.buildProxy("proxy"), "cluster", 1L, 1L)
-                    .editOrNewSpec().addNewFilterRef().withName("filter").endFilterRef().endSpec().build();
-            VirtualKafkaCluster otherCluster = MapperTestSupport.baseVirtualKafkaClusterBuilder(MapperTestSupport.buildProxy("proxy"), "othercluster", 1L, 1L).build();
-            EventSourceContext<VirtualKafkaCluster> context = MapperTestSupport.mockContextContaining(referencingCluster, otherCluster);
 
             // When
-            Set<ResourceID> primaryIds = VKC_TO_FILTERS.secondaryToPrimary(context).toPrimaryResourceIDs(filter);
+            Set<ResourceID> primaryIds = FILTER_TO_PROXY.secondaryToPrimary(context).toPrimaryResourceIDs(filter);
 
             // Then
-            assertThat(primaryIds).containsExactly(ResourceID.fromResource(referencingCluster));
+            assertThat(primaryIds).containsExactlyInAnyOrder(ResourceID.fromResource(proxy1), ResourceID.fromResource(proxy2));
         }
     }
 
     @Nested
-    class RefersToPredicates {
+    class EventSourceNameDerivation {
 
         @Test
-        void refersToIsNullSafeWhenRefMissing() {
+        void singleForwardHopNamesAfterStartTypeAndLabel() {
             // Given
-            VirtualKafkaCluster clusterWithoutServiceRef = new VirtualKafkaClusterBuilder()
-                    .withNewSpec().withNewProxyRef().withName("test-proxy").endProxyRef().endSpec().build();
-            var predicate = Ref.<VirtualKafkaCluster, KafkaService> refersTo(vkc -> vkc.getSpec().getTargetKafkaServiceRef());
+            ReferenceDependency<VirtualKafkaCluster, KafkaProxy> referenceDependency = ReferenceDependency.each(VirtualKafkaCluster.class)
+                    .dependsOn(KafkaProxy.class, "proxy", vkc -> Optional.ofNullable(vkc.getSpec().getProxyRef()));
 
-            // When / Then
-            assertThat(predicate.test(clusterWithoutServiceRef, MapperTestSupport.buildKafkaService("svc", 1L, 1L))).isFalse();
+            // When
+            String name = referenceDependency.eventSourceName();
+
+            // Then
+            assertThat(name).isEqualTo("VirtualKafkaCluster->proxy");
         }
 
         @Test
-        void refersToAnyIsNullSafeWhenRefsMissing() {
+        void backwardHopThenForwardHopMixDirectionArrows() {
             // Given
-            VirtualKafkaCluster clusterWithoutFilterRefs = new VirtualKafkaClusterBuilder()
-                    .withNewSpec().withNewProxyRef().withName("test-proxy").endProxyRef().endSpec().build();
-            var predicate = Ref.<VirtualKafkaCluster, KafkaProtocolFilter> refersToAny(vkc -> vkc.getSpec().getFilterRefs());
+            ReferenceDependency<KafkaProxy, KafkaProtocolFilter> referenceDependency = ReferenceDependency.each(KafkaProxy.class)
+                    .dependsOnReferrer(VirtualKafkaCluster.class, "proxy", vkc -> Optional.ofNullable(vkc.getSpec().getProxyRef()))
+                    .dependsOnEach(KafkaProtocolFilter.class, "filters", vkc -> vkc.getSpec().getFilterRefs());
 
-            // When / Then
-            assertThat(predicate.test(clusterWithoutFilterRefs, MapperTestSupport.buildFilter("filter", 1L, 1L))).isFalse();
+            // When
+            String name = referenceDependency.eventSourceName();
+
+            // Then
+            assertThat(name).isEqualTo("KafkaProxy<-proxy->filters");
+        }
+
+        @Test
+        void eventSourceBuilderDefaultsNameToTheDerivedEventSourceName() {
+            // Given
+            EventSourceContext<VirtualKafkaCluster> context = mock();
+            when(context.getPrimaryResourceClass()).thenReturn(VirtualKafkaCluster.class);
+            ReferenceDependency<VirtualKafkaCluster, KafkaProxy> referenceDependency = ReferenceDependency.each(VirtualKafkaCluster.class)
+                    .dependsOn(KafkaProxy.class, "proxy", vkc -> Optional.ofNullable(vkc.getSpec().getProxyRef()));
+
+            // When
+            EventSource<KafkaProxy, VirtualKafkaCluster> eventSource = referenceDependency.eventSourceBuilder(context).build();
+
+            // Then
+            assertThat(eventSource).isNotNull();
         }
     }
+
 }
