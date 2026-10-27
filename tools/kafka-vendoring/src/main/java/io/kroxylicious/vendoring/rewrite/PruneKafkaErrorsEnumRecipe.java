@@ -40,28 +40,24 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
     /**
      * Create an instance of the recipe.
      */
-    @SuppressWarnings("java:S6206") // Boilerplate required by OpenRewrite Recipe pattern
     public PruneKafkaErrorsEnumRecipe() {
         super();
     }
 
     @Override
     @NonNull
-    @SuppressWarnings("java:S6206") // Boilerplate required by OpenRewrite Recipe pattern
     public String getDisplayName() {
         return "Prune exception references from vendored Kafka Errors enum";
     }
 
     @Override
     @NonNull
-    @SuppressWarnings("java:S6206") // Boilerplate required by OpenRewrite Recipe pattern
     public String getDescription() {
         return "Strips client exception builders, fields, methods, and imports from Kafka Errors enum.";
     }
 
     @Override
     @NonNull
-    @SuppressWarnings("java:S6206") // Boilerplate required by OpenRewrite Recipe pattern
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         return Preconditions.check(new FindSourceFiles("**/Errors.java"), new ErrorsEnumVisitor());
     }
