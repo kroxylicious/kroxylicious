@@ -1,0 +1,4 @@
+title: "fix: resolve ErrorProne EqualsIncompatibleType warnings by declaring different as the shared interface type BootstrapSelectionStrategy instead of var "
+type: fixed
+issues:
+  - 5156
