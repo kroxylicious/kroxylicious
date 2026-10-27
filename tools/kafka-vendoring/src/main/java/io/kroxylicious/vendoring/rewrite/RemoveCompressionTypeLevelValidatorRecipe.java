@@ -10,7 +10,6 @@ import org.jspecify.annotations.NullMarked;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.FindSourceFiles;
 import org.openrewrite.Preconditions;
-import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.JavaVisitor;
 import org.openrewrite.java.RemoveUnusedImports;
@@ -23,25 +22,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Removes the levelValidator() method from Kafka's CompressionType enum.
  * This is a config-machinery method unneeded by Kroxylicious.
  */
-public class RemoveCompressionTypeLevelValidatorRecipe extends Recipe {
+public class RemoveCompressionTypeLevelValidatorRecipe extends BaseVendoringRecipe {
 
     /**
      * Create an instance of the recipe.
      */
     public RemoveCompressionTypeLevelValidatorRecipe() {
-        super();
-    }
-
-    @Override
-    @NonNull
-    public String getDisplayName() {
-        return "Remove CompressionType.levelValidator";
-    }
-
-    @Override
-    @NonNull
-    public String getDescription() {
-        return "Removes the levelValidator() method and its enum-constant overrides from CompressionType.";
+        super("Remove CompressionType.levelValidator", "Removes the levelValidator() method and its enum-constant overrides from CompressionType.");
     }
 
     @Override
