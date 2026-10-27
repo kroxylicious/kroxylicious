@@ -282,11 +282,6 @@ public class DefaultRecord implements Record {
         return result;
     }
 
-    /**
-     * @deprecated Use {@link #readFrom(InputStream, long, long, int, Long, int)} passing
-     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.
-     */
-    @Deprecated(since = "0.25.0", forRemoval = true)
     public static DefaultRecord readFrom(InputStream input,
                                          long baseOffset,
                                          long baseTimestamp,
@@ -394,11 +389,6 @@ public class DefaultRecord implements Record {
         }
     }
 
-    /**
-     * @deprecated Use {@link #readPartiallyFrom(InputStream, long, long, int, Long, int)} passing
-     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.
-     */
-    @Deprecated(since = "0.25.0", forRemoval = true)
     public static PartialDefaultRecord readPartiallyFrom(InputStream input,
                                                          long baseOffset,
                                                          long baseTimestamp,

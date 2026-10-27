@@ -273,12 +273,6 @@ public abstract class AbstractLegacyRecordBatch extends AbstractRecordBatch impl
         return iterator(bufferSupplier);
     }
 
-    @Override
-    public CloseableIterator<Record> streamingIterator(BufferSupplier bufferSupplier, int maxRecordBodySize) {
-        // the older message format versions do not support streaming, so we return the normal iterator
-        return iterator(bufferSupplier, maxRecordBodySize);
-    }
-
     static void writeHeader(ByteBuffer buffer, long offset, int size) {
         buffer.putLong(offset);
         buffer.putInt(size);
@@ -544,12 +538,6 @@ public abstract class AbstractLegacyRecordBatch extends AbstractRecordBatch impl
         @Override
         public CloseableIterator<Record> skipKeyValueIterator(BufferSupplier bufferSupplier) {
             return CloseableIterator.wrap(iterator(bufferSupplier));
-        }
-
-        @Override
-        public CloseableIterator<Record> skipKeyValueIterator(BufferSupplier bufferSupplier, int maxRecordBodySize) {
-            // legacy batches cannot cheaply skip the record body, so this is a full decode
-            return CloseableIterator.wrap(iterator(bufferSupplier, maxRecordBodySize));
         }
 
         @Override

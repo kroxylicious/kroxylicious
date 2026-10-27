@@ -29,7 +29,6 @@ import io.kroxylicious.kafka.common.compress.Compression;
 import io.kroxylicious.kafka.common.record.TimestampType;
 import io.kroxylicious.kafka.common.utils.BufferSupplier;
 import io.kroxylicious.kafka.common.utils.ByteBufferOutputStream;
-import io.kroxylicious.kafka.common.utils.CloseableIterator;
 import io.kroxylicious.kafka.common.utils.Utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -297,24 +296,6 @@ public class AbstractLegacyRecordBatchTest {
                 () -> batch.streamingIterator(BufferSupplier.NO_CACHING));
         assertTrue(ex.getMessage().contains("exceeds the configured maximum record size"),
                 "expected the pre-allocation record-size guard, got: " + ex.getMessage());
-    }
-
-    // A genuine compressed legacy record whose inner size exceeds the configured limit is rejected
-    // before allocation, while a generous limit decodes it.
-    @Test
-    public void testCompressedDeepDecodeEnforcesConfiguredMaxRecordBodySize() {
-        MemoryRecords records = MemoryRecords.withRecords(RecordBatch.MAGIC_VALUE_V1, 0L,
-                Compression.gzip().build(), TimestampType.CREATE_TIME,
-                new SimpleRecord(1L, "key".getBytes(), new byte[1000]));
-        AbstractLegacyRecordBatch.ByteBufferLegacyRecordBatch batch = new AbstractLegacyRecordBatch.ByteBufferLegacyRecordBatch(records.buffer());
-
-        try (CloseableIterator<Record> iterator = batch.streamingIterator(BufferSupplier.NO_CACHING, 10_000)) {
-            assertTrue(iterator.hasNext());
-        }
-        InvalidRecordException ex = assertThrows(InvalidRecordException.class,
-                () -> batch.streamingIterator(BufferSupplier.NO_CACHING, 100));
-        assertTrue(ex.getMessage().contains("exceeds the configured maximum record size"),
-                "expected the configured-maximum guard, got: " + ex.getMessage());
     }
 
 }

@@ -9,4 +9,3 @@ common/protocol/
 common/protocol/ErrorsTest.java
 common/record/
 common/record/internal/
-common/record/internal/BackwardsCompatApiTest.java

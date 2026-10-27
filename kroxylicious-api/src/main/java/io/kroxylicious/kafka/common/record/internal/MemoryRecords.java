@@ -114,15 +114,6 @@ public class MemoryRecords extends AbstractRecords {
     }
 
     /**
-     * @deprecated Use {@link #filterTo(RecordFilter, ByteBuffer, BufferSupplier, int)} passing
-     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.
-     */
-    @Deprecated(since = "0.25.0", forRemoval = true)
-    public FilterResult filterTo(RecordFilter filter, ByteBuffer destinationBuffer, BufferSupplier decompressionBufferSupplier) {
-        return filterTo(filter, destinationBuffer, decompressionBufferSupplier, Records.SOFT_MAX_ARRAY_LENGTH);
-    }
-
-    /**
      * Filter the records into the provided ByteBuffer.
      *
      * Note: This method is also used to convert the first timestamp of the batch (which is usually the timestamp of the first record)
@@ -135,14 +126,9 @@ public class MemoryRecords extends AbstractRecords {
      *                                    dominate the cost of decompressing and iterating over the records in the
      *                                    batch. As such, a supplier that reuses buffers will have a significant
      *                                    performance impact.
-     * @param maxRecordBodySize           The maximum declared (decompressed) body size of a single record; a record
-     *                                    exceeding it is rejected with an {@link io.kroxylicious.kafka.common.InvalidRecordException}
-     *                                    before its body is allocated. Pass {@link Records#SOFT_MAX_ARRAY_LENGTH} for
-     *                                    no limit beyond the array-length ceiling.
      * @return A FilterResult with a summary of the output (for metrics) and potentially an overflow buffer
      */
-    public FilterResult filterTo(RecordFilter filter, ByteBuffer destinationBuffer, BufferSupplier decompressionBufferSupplier,
-                                 int maxRecordBodySize) {
+    public FilterResult filterTo(RecordFilter filter, ByteBuffer destinationBuffer, BufferSupplier decompressionBufferSupplier) {
         FilterResult filterResult = new FilterResult(destinationBuffer);
         ByteBufferOutputStream bufferOutputStream = new ByteBufferOutputStream(destinationBuffer);
         for (MutableRecordBatch batch : batches()) {
@@ -156,7 +142,7 @@ public class MemoryRecords extends AbstractRecords {
                 continue;
 
             final BatchFilterResult iterationResult = filterBatch(batch, decompressionBufferSupplier, filterResult,
-                    filter, maxRecordBodySize);
+                    filter);
             List<Record> retainedRecords = iterationResult.retainedRecords;
             boolean containsTombstones = iterationResult.containsTombstones;
             boolean writeOriginalBatch = iterationResult.writeOriginalBatch;
@@ -215,9 +201,8 @@ public class MemoryRecords extends AbstractRecords {
     private static BatchFilterResult filterBatch(RecordBatch batch,
                                                  BufferSupplier decompressionBufferSupplier,
                                                  FilterResult filterResult,
-                                                 RecordFilter filter,
-                                                 int maxRecordBodySize) {
-        try (final CloseableIterator<Record> iterator = batch.streamingIterator(decompressionBufferSupplier, maxRecordBodySize)) {
+                                                 RecordFilter filter) {
+        try (final CloseableIterator<Record> iterator = batch.streamingIterator(decompressionBufferSupplier)) {
             long maxOffset = -1;
             boolean containsTombstones = false;
             // Convert records with old record versions

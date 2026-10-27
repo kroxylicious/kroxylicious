@@ -22,7 +22,6 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Stream;
 
@@ -611,52 +610,6 @@ public class DefaultRecordBatchTest {
             assertTrue(ex.getMessage().contains("exceeds the configured maximum record size"),
                     "expected the pre-allocation record-size guard, got: " + ex.getMessage());
         }
-    }
-
-    // A genuine record whose decompressed body exceeds the configured limit is rejected before
-    // allocation, while a generous limit accepts it — on both compressed iterator variants.
-    @Test
-    public void testCompressedIteratorsEnforceConfiguredMaxRecordBodySize() {
-        DefaultRecordBatch batch = recordBatchWithValueSize(1000);
-
-        try (CloseableIterator<Record> iterator = batch.streamingIterator(BufferSupplier.NO_CACHING, 10_000)) {
-            assertNotNull(iterator.next());
-        }
-        try (CloseableIterator<Record> iterator = batch.streamingIterator(BufferSupplier.NO_CACHING, 100)) {
-            InvalidRecordException ex = assertThrows(InvalidRecordException.class, iterator::next);
-            assertTrue(ex.getMessage().contains("exceeds the configured maximum record size"),
-                    "expected the configured-maximum guard, got: " + ex.getMessage());
-        }
-
-        try (CloseableIterator<Record> iterator = batch.skipKeyValueIterator(BufferSupplier.NO_CACHING, 10_000)) {
-            assertNotNull(iterator.next());
-        }
-        try (CloseableIterator<Record> iterator = batch.skipKeyValueIterator(BufferSupplier.NO_CACHING, 100)) {
-            InvalidRecordException ex = assertThrows(InvalidRecordException.class, iterator::next);
-            assertTrue(ex.getMessage().contains("exceeds the configured maximum record size"),
-                    "expected the configured-maximum guard, got: " + ex.getMessage());
-        }
-    }
-
-    // offsetOfMaxTimestamp decompresses the batch on the broker when it resolves ListOffsets MAX_TIMESTAMP to an
-    // exact offset, so it honours the same per-record limit as the compressed iterators.
-    @Test
-    public void testOffsetOfMaxTimestampEnforcesConfiguredMaxRecordBodySize() {
-        DefaultRecordBatch batch = recordBatchWithValueSize(1000);
-
-        assertEquals(Optional.of(0L), batch.offsetOfMaxTimestamp(10_000));
-
-        InvalidRecordException ex = assertThrows(InvalidRecordException.class, () -> batch.offsetOfMaxTimestamp(100));
-        assertTrue(ex.getMessage().contains("exceeds the configured maximum record size"),
-                "expected the configured-maximum guard, got: " + ex.getMessage());
-    }
-
-    private static DefaultRecordBatch recordBatchWithValueSize(int valueSize) {
-        ByteBuffer buf = ByteBuffer.allocate(2048);
-        MemoryRecordsBuilder builder = MemoryRecords.builder(buf, RecordBatch.MAGIC_VALUE_V2,
-                Compression.gzip().build(), TimestampType.CREATE_TIME, 0L);
-        builder.appendWithOffset(0, 12L, "key".getBytes(), new byte[valueSize]);
-        return new DefaultRecordBatch(builder.build().buffer());
     }
 
     private static DefaultRecordBatch recordsWithInvalidRecordCount(Byte magicValue, long timestamp,

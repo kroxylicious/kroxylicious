@@ -343,11 +343,6 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
 
     @Override
     public CloseableIterator<Record> skipKeyValueIterator(BufferSupplier bufferSupplier) {
-        return skipKeyValueIterator(bufferSupplier, Records.SOFT_MAX_ARRAY_LENGTH);
-    }
-
-    @Override
-    public CloseableIterator<Record> skipKeyValueIterator(BufferSupplier bufferSupplier, int maxRecordBodySize) {
         if (count() == 0) {
             return CloseableIterator.wrap(Collections.emptyIterator());
         }
@@ -362,18 +357,13 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
 
         // we define this to be a closable iterator so that caller (i.e. the log validator) needs to close it
         // while we can save memory footprint of not decompressing the full record set ahead of time
-        return compressedIterator(bufferSupplier, true, maxRecordBodySize);
+        return compressedIterator(bufferSupplier, true, Records.SOFT_MAX_ARRAY_LENGTH);
     }
 
     @Override
     public CloseableIterator<Record> streamingIterator(BufferSupplier bufferSupplier) {
-        return streamingIterator(bufferSupplier, Records.SOFT_MAX_ARRAY_LENGTH);
-    }
-
-    @Override
-    public CloseableIterator<Record> streamingIterator(BufferSupplier bufferSupplier, int maxRecordBodySize) {
         if (isCompressed())
-            return compressedIterator(bufferSupplier, false, maxRecordBodySize);
+            return compressedIterator(bufferSupplier, false, Records.SOFT_MAX_ARRAY_LENGTH);
         else
             return uncompressedIterator();
     }
