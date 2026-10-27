@@ -16,6 +16,7 @@
 -Xep:EffectivelyPrivate:ERROR
 -Xep:EmptyBlockTag:ERROR
 -Xep:EqualsGetClass:ERROR
+-Xep:EqualsIncompatibleType:ERROR
 -Xep:ExposedPrivateType:ERROR
 -Xep:FutureReturnValueIgnored:ERROR
 -Xep:ImmutableEnumChecker:ERROR
