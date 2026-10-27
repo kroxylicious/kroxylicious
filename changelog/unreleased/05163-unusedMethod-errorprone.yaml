@@ -1,0 +1,4 @@
+title: "fix: resolve ErrorProne UnusedMethod warnings"
+type: fixed
+issues:
+  - 5163

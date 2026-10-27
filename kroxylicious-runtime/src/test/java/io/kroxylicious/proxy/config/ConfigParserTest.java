@@ -1457,6 +1457,7 @@ class ConfigParserTest {
     private record NonSerializableConfig(String id) {
         @Override
         @JsonGetter
+        @SuppressWarnings("UnusedMethod") // invoked reflectively by Jackson during serialization
         public String id() {
             throw new UnsupportedOperationException("boom. haha fooled you jackson");
         }
