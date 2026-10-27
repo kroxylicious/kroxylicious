@@ -282,13 +282,43 @@ public class DefaultRecord implements Record {
         return result;
     }
 
+    /**
+     * @deprecated Use {@link #readFrom(InputStream, long, long, int, Long, int)} passing
+     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.
+     */
+    @Deprecated(since = "0.25.0", forRemoval = true)
     public static DefaultRecord readFrom(InputStream input,
                                          long baseOffset,
                                          long baseTimestamp,
                                          int baseSequence,
                                          Long logAppendTime)
             throws IOException {
+        return readFrom(input, baseOffset, baseTimestamp, baseSequence, logAppendTime, Records.SOFT_MAX_ARRAY_LENGTH);
+    }
+
+    /**
+     * Decode a record from the (decompressed) stream, rejecting any record whose declared body size
+     * exceeds {@code maxRecordBodySize} before allocating the body buffer. Callers that do not
+     * enforce a configured limit pass {@link Records#SOFT_MAX_ARRAY_LENGTH}, effectively the
+     * array-length allocation limit.
+     */
+    public static DefaultRecord readFrom(InputStream input,
+                                         long baseOffset,
+                                         long baseTimestamp,
+                                         int baseSequence,
+                                         Long logAppendTime,
+                                         int maxRecordBodySize)
+            throws IOException {
         int sizeOfBodyInBytes = ByteUtils.readVarint(input);
+        if (sizeOfBodyInBytes < 0)
+            throw new InvalidRecordException("Invalid record size: " + sizeOfBodyInBytes + " is negative.");
+        // Reject, before allocating, any record whose declared (decompressed) body exceeds the
+        // configured per-record maximum. maxRecordBodySize never exceeds SOFT_MAX_ARRAY_LENGTH (the
+        // default here, and the config's upper bound), so this also stops an adversarial size from
+        // reaching ByteBuffer.allocate and raising OutOfMemoryError.
+        if (sizeOfBodyInBytes > maxRecordBodySize)
+            throw new InvalidRecordException("Invalid record size: " + sizeOfBodyInBytes +
+                    " exceeds the configured maximum record size of " + maxRecordBodySize + ".");
         ByteBuffer recordBuffer = ByteBuffer.allocate(sizeOfBodyInBytes);
         int bytesRead = Utils.readFully(input, recordBuffer);
         if (bytesRead != sizeOfBodyInBytes)
@@ -364,13 +394,41 @@ public class DefaultRecord implements Record {
         }
     }
 
+    /**
+     * @deprecated Use {@link #readPartiallyFrom(InputStream, long, long, int, Long, int)} passing
+     *             {@link Records#SOFT_MAX_ARRAY_LENGTH} for equivalent behaviour with no effective limit.
+     */
+    @Deprecated(since = "0.25.0", forRemoval = true)
     public static PartialDefaultRecord readPartiallyFrom(InputStream input,
                                                          long baseOffset,
                                                          long baseTimestamp,
                                                          int baseSequence,
                                                          Long logAppendTime)
             throws IOException {
+        return readPartiallyFrom(input, baseOffset, baseTimestamp, baseSequence, logAppendTime, Records.SOFT_MAX_ARRAY_LENGTH);
+    }
+
+    /**
+     * Skip-decode a record from the (decompressed) stream, rejecting any record whose declared body
+     * size exceeds {@code maxRecordBodySize}. See
+     * {@link #readFrom(InputStream, long, long, int, Long, int)}.
+     */
+    public static PartialDefaultRecord readPartiallyFrom(InputStream input,
+                                                         long baseOffset,
+                                                         long baseTimestamp,
+                                                         int baseSequence,
+                                                         Long logAppendTime,
+                                                         int maxRecordBodySize)
+            throws IOException {
         int sizeOfBodyInBytes = ByteUtils.readVarint(input);
+        if (sizeOfBodyInBytes < 0)
+            throw new InvalidRecordException("Invalid record size: " + sizeOfBodyInBytes + " is negative.");
+        // Reject records whose declared (decompressed) body exceeds the configured per-record
+        // maximum; as in readFrom, this doubles as the array-length allocation guard because
+        // maxRecordBodySize never exceeds SOFT_MAX_ARRAY_LENGTH.
+        if (sizeOfBodyInBytes > maxRecordBodySize)
+            throw new InvalidRecordException("Invalid record size: " + sizeOfBodyInBytes +
+                    " exceeds the configured maximum record size of " + maxRecordBodySize + ".");
         int totalSizeInBytes = ByteUtils.sizeOfVarint(sizeOfBodyInBytes) + sizeOfBodyInBytes;
 
         return readPartiallyFrom(input, totalSizeInBytes, baseOffset, baseTimestamp,
