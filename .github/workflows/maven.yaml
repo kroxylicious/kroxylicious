@@ -118,7 +118,7 @@ jobs:
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
           # On PRs, skip QA checks (already run in lint.yaml). On push to main, run QA checks.
           QA_OPTS="${{ github.event_name == 'pull_request' && '--activate-profiles !qa -Derrorprone.skip=true' || '' }}"
-          mvn --batch-mode \
+          mvn --threads 1C --batch-mode \
             --activate-profiles ci \
             ${QA_OPTS} \
             -DskipITs \
