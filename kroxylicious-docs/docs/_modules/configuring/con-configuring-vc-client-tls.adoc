@@ -21,7 +21,7 @@ Depending on your certificate format, apply one of the following examples.
 
 * For mutual TLS, use the `trust` properties to configure the virtual cluster gateway to use TLS client authentication.
 
-* If required, you can restrict the TLS protocols and cipher suites that are used to form the TLS connection.
+* If required, you can restrict the TLS protocols, cipher suites and named groups that are used to form the TLS connection.
 
 Examples below illustrate how these steps may be done.
 
@@ -129,7 +129,7 @@ If neither list is specified, the virtual cluster uses the default TLS protocols
 When the client connects, it negotiates the highest mutually acceptable TLS protocol with the virtual cluster.
 If the two have no protocols in common, the connection fails.
 
-The names of the TLS protocols are defined by {java-17-specs}/security/standard-names.html#sslcontext-algorithms[Java specification].
+The names of the TLS protocols are defined by {java-21-specs}/security/standard-names.html#sslcontext-algorithms[Java specification].
 
 .Example restricting TLS protocols using an allow list
 
@@ -183,7 +183,7 @@ If neither list is specified, the virtual cluster uses the default cipher suites
 When the client connects, it negotiates the most preferred mutually acceptable cipher suite with the virtual cluster. 
 If the two have no cipher suites in common, the connection fails.
 
-The names of the cipher suite are defined by {java-17-specs}/security/standard-names.html#jsse-cipher-suite-names[Java specification].
+The names of the cipher suite are defined by {java-21-specs}/security/standard-names.html#jsse-cipher-suite-names[Java specification].
 
 .Example restricting cipher suites using an allow list
 
@@ -227,3 +227,62 @@ where:
 
 * `cipherSuites` configures the cipher suites.
 ** `denied` lists the disallowed cipher suites.
+
+
+You can restrict the TLS named groups by specifying either an allow list of named groups to be enabled, in preference
+order, or a deny list of named groups to be disallowed from the platform's default.
+A deny list without an allow list removes the specified groups from the platform's default named groups.
+As these defaults are not exposed by every platform provider or version, a configuration is rejected at startup where
+the defaults are unavailable. If this happens then an allow list will need to be specified.
+If both an allow and a deny list are specified, the resulting list of named groups includes only those groups from the
+allow list that are not in the deny list.
+If neither list is specified, the virtual cluster uses the default named groups (and preference order) provided by the platform.
+
+When the client connects, it negotiates the most preferred mutually acceptable named group with the virtual cluster.
+If the two have no named groups in common, the connection fails.
+
+The names of the named groups are defined by {java-21-specs}/security/standard-names.html#named-groups[Java specification].
+
+.Example restricting named groups using an allow list
+
+[source,yaml]
+----
+virtualClusters:
+  - name: my-cluster-proxy
+    # ...
+    gateways:
+    - name: mygateway
+      # ...
+      tls:
+        # ...
+        namedGroups:
+          allowed:
+          - x25519
+          - secp256r1
+----
+where:
+
+* `namedGroups` configures the named groups.
+** `allowed` lists the named groups which are permitted in preference order.
+
+.Example restricting named groups using a deny list
+
+[source,yaml]
+----
+virtualClusters:
+  - name: my-cluster-proxy
+    # ...
+    gateways:
+    - name: mygateway
+      # ...
+      tls:
+        # ...
+        namedGroups:
+          denied:
+          - secp384r1
+          - ffdhe3072
+----
+where:
+
+* `namedGroups` configures the named groups.
+** `denied` lists the disallowed named groups.

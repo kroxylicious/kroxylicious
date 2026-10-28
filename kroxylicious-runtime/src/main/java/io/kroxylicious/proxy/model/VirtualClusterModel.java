@@ -58,6 +58,7 @@ import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RoutingModel;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
+import io.kroxylicious.proxy.internal.tls.KafkaProxyDelegatingSslContext;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.internal.tls.SslContextBuildException;
@@ -312,7 +313,13 @@ public class VirtualClusterModel implements AutoCloseable {
         var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
                 .map(AllowDeny::denied).orElse(Collections.emptySet()))
                 .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
-        return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
+        var namedGroupsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.namedGroups())
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(groups -> " (Allowed Groups: " + groups + ")").orElse("");
+        var namedGroupsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.namedGroups())
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(groups -> " (Denied Groups: " + groups + ")").orElse("");
+        return tls + cipherSuitesAllowed + cipherSuitesDenied + namedGroupsAllowed + namedGroupsDenied + protocolsAllowed + protocolsDenied;
     }
 
     /**
@@ -780,6 +787,18 @@ public class VirtualClusterModel implements AutoCloseable {
                                     .formatted(virtualCluster.getClusterName(), name(),
                                             StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)));
                 }
+                var contextId = "Virtual cluster '%s', gateway '%s'".formatted(virtualCluster.getClusterName(), name());
+                if (Objects.nonNull(tlsConfiguration.namedGroups())) {
+                    // validate before building the context, so a misconfiguration fails fast rather than after the cost of building
+                    try {
+                        tlsConfiguration.validateNamedGroups();
+                    }
+                    catch (IllegalStateException e) {
+                        throw new IllegalConfigurationException(
+                                "%s: %s See %s for details.".formatted(contextId, e.getMessage(),
+                                        StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)));
+                    }
+                }
                 try {
                     var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
                             .orElseThrow();
@@ -787,7 +806,13 @@ public class VirtualClusterModel implements AutoCloseable {
                     configureCipherSuites(sslContextBuilder, tlsConfiguration);
                     configureEnabledProtocols(sslContextBuilder, tlsConfiguration);
 
-                    return configureTrustProvider(tlsConfiguration).apply(sslContextBuilder).build();
+                    var sslContext = configureTrustProvider(tlsConfiguration).apply(sslContextBuilder).build();
+
+                    if (Objects.nonNull(tlsConfiguration.namedGroups())) {
+                        sslContext = new KafkaProxyDelegatingSslContext(sslContext, contextId).setNamedGroups(tlsConfiguration);
+                    }
+
+                    return sslContext;
                 }
                 catch (SSLException e) {
                     throw new UncheckedIOException(e);

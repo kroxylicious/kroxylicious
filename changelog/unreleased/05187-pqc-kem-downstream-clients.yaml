@@ -1,0 +1,11 @@
+title: "feat(pqc-kem): PQC key exchange for downstream client connections"
+type: added
+issues:
+  - 5187
+links:
+  - name: "Design proposal 144: PQC support"
+    url: https://github.com/kroxylicious/design/blob/main/proposals/144-pqc-support.md
+important_notes:
+  - "Support for the PQC algorithms is provided by the JDK and varies by provider and version prior to Java 27."
+  - "A gateway's downstream TLS can now set a 'namedGroups' attribute with 'allowed' and 'denied' lists, where the order of 'allowed' sets the key exchange preference."
+  - "A 'denied' list given without an 'allowed' list prunes the JDK's default named groups. As those defaults aren't exposed by every JDK provider or version, such a configuration is rejected at startup where they're unavailable, so an 'allowed' list should be specified in that case."

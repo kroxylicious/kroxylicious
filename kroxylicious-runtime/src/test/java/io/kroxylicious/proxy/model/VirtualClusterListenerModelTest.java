@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.netty.buffer.ByteBufAllocator;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -49,7 +51,9 @@ import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 class VirtualClusterListenerModelTest {
@@ -323,6 +327,63 @@ class VirtualClusterListenerModelTest {
                                     assertThat(sslContext.isServer()).isTrue();
                                     assertThat(sslContext.newEngine(ByteBufAllocator.DEFAULT)).satisfies(sslEngineAssertions);
                                 }));
+    }
+
+    static Stream<Arguments> namedGroupRestrictions() {
+        return Stream.of(
+                argumentSet("allowed applied in configured order",
+                        List.of("secp256r1", "x25519", "secp384r1"), null,
+                        List.of("secp256r1", "x25519", "secp384r1")),
+                argumentSet("deny first",
+                        List.of("x25519", "secp256r1", "secp384r1"), Set.of("x25519"),
+                        List.of("secp256r1", "secp384r1")),
+                argumentSet("deny middle",
+                        List.of("secp256r1", "x25519", "secp384r1"), Set.of("x25519"),
+                        List.of("secp256r1", "secp384r1")),
+                argumentSet("deny last",
+                        List.of("secp256r1", "secp384r1", "x25519"), Set.of("x25519"),
+                        List.of("secp256r1", "secp384r1")),
+                argumentSet("deny first and middle case-insensitively, without matching the longer 'X25519MLKEM768'",
+                        List.of("x25519", "X25519MLKEM768", "secp256r1", "secp384r1"), Set.of("X25519", "secp256r1"),
+                        List.of("X25519MLKEM768", "secp384r1")),
+                argumentSet("deny everything leaves no groups",
+                        List.of("x25519"), Set.of("x25519"),
+                        List.of()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("namedGroupRestrictions")
+    void shouldApplyDownstreamNamedGroupRestriction(List<String> allowed, Set<String> denied, List<String> expected) {
+        // Given
+        var tls = Optional.of(new Tls(keyPair, new InsecureTls(false), null, null, null, new AllowDeny<>(allowed, denied)));
+        var nodeIdentificationStrategy = createTestNodeIdentificationStrategy();
+
+        // When
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), nodeIdentificationStrategy, tls, "default");
+
+        // Then
+        assertThat(listener.getDownstreamSslContext())
+                .isPresent()
+                .hasValueSatisfying(sslContext -> assertThat(sslContext.newEngine(ByteBufAllocator.DEFAULT).getSSLParameters().getNamedGroups())
+                        .containsExactlyElementsOf(expected));
+    }
+
+    @Test
+    void shouldFailFastWhenOnlyDeniedNamedGroupsAndJdkExposesNoDefaults() {
+        // Given
+        var tls = Optional.of(new Tls(keyPair, new InsecureTls(false), null, null, null, new AllowDeny<>(null, Set.of("x25519"))));
+        var nodeIdentificationStrategy = createTestNodeIdentificationStrategy();
+        var sslContextWithoutDefaultNamedGroups = mock(SSLContext.class);
+        when(sslContextWithoutDefaultNamedGroups.getDefaultSSLParameters()).thenReturn(new SSLParameters());
+
+        try (var mocked = mockStatic(SSLContext.class, CALLS_REAL_METHODS)) {
+            mocked.when(SSLContext::getDefault).thenReturn(sslContextWithoutDefaultNamedGroups);
+
+            // When / Then
+            assertThatThrownBy(() -> new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), nodeIdentificationStrategy, tls, "default"))
+                    .isInstanceOf(IllegalConfigurationException.class)
+                    .hasMessageContaining("does not expose its default named groups");
+        }
     }
 
     static Stream<Arguments> downstreamListenerThatRequiresSniEnforcesTlsWithKey() {
