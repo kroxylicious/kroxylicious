@@ -96,7 +96,7 @@ ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
 COPY --from=builder ${ROOTFS} /
 
-WORKDIR /opt/kroxylicious
+WORKDIR /opt/kroxylicious-webhook
 COPY target/kroxylicious-admission-${KROXYLICIOUS_VERSION}-app/kroxylicious-admission-${KROXYLICIOUS_VERSION}/ .
 
 USER ${CONTAINER_USER_UID}

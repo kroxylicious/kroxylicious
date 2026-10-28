@@ -97,7 +97,7 @@ ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
 COPY --from=builder ${ROOTFS} /
 
-WORKDIR /opt/kroxylicious
+WORKDIR /opt/kroxylicious-operator
 COPY target/kroxylicious-operator-${KROXYLICIOUS_VERSION}-app/kroxylicious-operator-${KROXYLICIOUS_VERSION}/ .
 
 USER ${CONTAINER_USER_UID}
