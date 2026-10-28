@@ -15,6 +15,8 @@ import java.util.Random;
 
 import org.apache.kafka.common.protocol.types.BoundField;
 
+import io.kroxylicious.proxy.tag.ThreadSafe;
+
 /**
  * Manages the random seed for fidelity test suites.
  * <p>
@@ -25,6 +27,7 @@ import org.apache.kafka.common.protocol.types.BoundField;
  * (message name, direction, version, and optional nullable field name), making individual test
  * reproducibility completely independent of test execution order.
  */
+@ThreadSafe
 public final class FidelityRandom {
 
     /**
@@ -42,6 +45,8 @@ public final class FidelityRandom {
 
     /**
      * Returns the base seed for this test run, initializing it on first access if not yet set.
+     *
+     * <p>This method is thread-safe; initialization occurs exactly once regardless of concurrent calls.
      *
      * @return the effective base seed
      */
