@@ -40,6 +40,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.platform.commons.function.Try;
 import org.junit.platform.commons.util.ReflectionUtils;
 
+import io.netty.handler.ssl.DelegatingSslContext;
+import io.netty.handler.ssl.SslContext;
+
 import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.secret.FilePassword;
@@ -49,6 +52,7 @@ import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.TlsBuilder;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.client.KafkaClient;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
@@ -439,6 +443,64 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, "TLSv1.2, TLSv1.3"))) {
             // do some work to ensure connection is opened
             performClusterOperation(admin);
+        }
+    }
+
+    // Note : when https://github.com/kroxylicious/kroxylicious/pull/4939 is merged I will update the tests to use the custom SSL handshake logic in that PR to test
+    // the negotiated KEM rather than just the connection status
+    @Test
+    void downstream_SuccessfulTlsWithNamedGroupsAllowed() {
+        // the gateway allows a single named group that a default client offers, so a real key exchange completes
+        AllowDeny<String> namedGroups = new AllowDeny<>(List.of("secp256r1"), null);
+        var builder = downstreamTlsBuilder(cluster, tls -> tls.withNamedGroups(namedGroups));
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            performClusterOperation(admin);
+        }
+    }
+
+    @Test
+    void downstream_UnsuccessfulTlsWithNamedGroupsAllowed() {
+        // the gateway allows a single named group
+        AllowDeny<String> namedGroups = new AllowDeny<>(List.of("secp256r1"), null);
+        var builder = downstreamTlsBuilder(cluster, tls -> tls.withNamedGroups(namedGroups));
+
+        try (var ignored = kroxyliciousTester(builder);
+                // the client offers only a group the gateway does not allow, so there is no common group and the handshake is aborted
+                var client = new KafkaClient(PROXY_ADDRESS.host(), PROXY_ADDRESS.port(), clientSslContextOffering("secp384r1"))) {
+            assertThat(client.get(apiVersionsRequest())).failsWithin(Duration.ofSeconds(10));
+        }
+    }
+
+    @Test
+    void downstream_SuccessfulTlsWithNamedGroupsDenied() {
+        // the gateway allows two groups but denies one, leaving secp384r1 usable, which a default client offers
+        AllowDeny<String> namedGroups = new AllowDeny<>(List.of("secp256r1", "secp384r1"), Set.of("secp256r1"));
+        var builder = downstreamTlsBuilder(cluster, tls -> tls.withNamedGroups(namedGroups));
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            performClusterOperation(admin);
+        }
+    }
+
+    @Test
+    void downstream_UnsuccessfulTlsWithNamedGroupsDenied() {
+        // the gateway allows two groups but denies secp256r1
+        AllowDeny<String> namedGroups = new AllowDeny<>(List.of("secp256r1", "secp384r1"), Set.of("secp256r1"));
+        var builder = downstreamTlsBuilder(cluster, tls -> tls.withNamedGroups(namedGroups));
+
+        try (var ignored = kroxyliciousTester(builder);
+                // the client offers only the denied group, so there is no common group and the handshake is aborted
+                var client = new KafkaClient(PROXY_ADDRESS.host(), PROXY_ADDRESS.port(), clientSslContextOffering("secp256r1"))) {
+            assertThat(client.get(apiVersionsRequest())).failsWithin(Duration.ofSeconds(10));
         }
     }
 
@@ -903,6 +965,26 @@ class TlsIT extends AbstractTlsIT {
                 .withCauseInstanceOf(TimeoutException.class)
                 .havingCause()
                 .withMessageStartingWith("Timed out waiting for a node assignment.");
+    }
+
+    private static Request apiVersionsRequest() {
+        return new Request(ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.latestVersion(), null, new ApiVersionsRequestData());
+    }
+
+    /**
+     * A trust-all client TLS context that restricts the key exchange named groups the client offers in its ClientHello.
+     * Kafka exposes no native client configuration for named groups, so this lets a real handshake drive the proxy's
+     * server-side named group enforcement with a client of known capability.
+     */
+    private static SslContext clientSslContextOffering(String... namedGroups) {
+        return new DelegatingSslContext(KafkaClient.TRUST_ALL_CLIENT_SSL_CONTEXT) {
+            @Override
+            protected void initEngine(SSLEngine engine) {
+                var params = engine.getSSLParameters();
+                params.setNamedGroups(namedGroups);
+                engine.setSSLParameters(params);
+            }
+        };
     }
 
 }
