@@ -110,14 +110,17 @@ public final class ReferenceDependency<P extends HasMetadata, S extends HasMetad
      * @return Gets the default name of the event source returned from {@link #eventSourceBuilder(EventSourceContext)}.
      */
     public String eventSourceName() {
-        if (this.name == null) {
-            StringBuilder name = new StringBuilder(leftType.getSimpleName());
-            for (Hop hop : hops) {
-                name.append(hop.leftIsOwner() ? "->" : "<-").append(hop.label());
+        String result = this.name;
+        if (result == null) {
+            // There's a benign data race here, which avoids needing synchronized at the expense of possible
+            // redundant computation.
+            StringBuilder builder = new StringBuilder(this.leftType.getSimpleName());
+            for (Hop hop : this.hops) {
+                builder.append(hop.leftIsOwner() ? "->" : "<-").append(hop.label());
             }
-            this.name = name.toString();
+            this.name = result = builder.toString();
         }
-        return this.name;
+        return result;
     }
 
     /**

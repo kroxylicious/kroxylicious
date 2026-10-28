@@ -41,9 +41,9 @@ public class StaticDependency<P extends HasMetadata, S extends HasMetadata> impl
      * @param secondaryType The class of the cluster-scoped secondary resource
      * @param resourceName The name of the cluster-scoped secondary resource
      * @return The dependency
-     * @param <S> The type of the cluster-scoped secondary resource
+     * @param <R> The type of the cluster-scoped secondary resource
      */
-    public <S extends HasMetadata> StaticDependency<P, S> dependsOnClusterResource(Class<S> secondaryType, String resourceName) {
+    public <R extends HasMetadata> StaticDependency<P, R> dependsOnClusterResource(Class<R> secondaryType, String resourceName) {
         return new StaticDependency<>(this.primaryClass, secondaryType, resourceName);
     }
 

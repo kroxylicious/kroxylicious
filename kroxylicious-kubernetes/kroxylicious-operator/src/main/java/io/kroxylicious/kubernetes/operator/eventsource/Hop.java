@@ -131,7 +131,7 @@ final class Hop {
     private static Stream<HasMetadata> scan(EventSourceContext<?> context, HasMetadata inNamespaceOf, Class<? extends HasMetadata> type,
                                             Predicate<HasMetadata> predicate) {
         return ResourcesUtil.resourcesInSameNamespace(context, inNamespaceOf, type)
-                .map(found -> (HasMetadata) found)
+                .map(HasMetadata.class::cast)
                 .filter(predicate);
     }
 }
