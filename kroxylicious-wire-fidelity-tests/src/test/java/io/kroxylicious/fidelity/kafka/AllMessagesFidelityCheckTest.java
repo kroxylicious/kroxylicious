@@ -6,16 +6,15 @@
 
 package io.kroxylicious.fidelity.kafka;
 
-import java.util.Random;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.fidelity.AllMessages;
 import io.kroxylicious.fidelity.FidelityCheck;
+import io.kroxylicious.fidelity.FidelityRandom;
 import io.kroxylicious.fidelity.ReadResult;
 import io.kroxylicious.fidelity.populate.PopulationResult;
 import io.kroxylicious.fidelity.populate.SchemaDrivenMessagePopulator;
@@ -25,13 +24,6 @@ import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AllMessagesFidelityCheckTest {
-
-    private SchemaDrivenMessagePopulator validScalarMessagePopulator;
-
-    @BeforeEach
-    void setUp() {
-        validScalarMessagePopulator = new SchemaDrivenMessagePopulator(new ValidScalarStrategy(new Random(42L)));
-    }
 
     @ParameterizedTest
     @MethodSource("allMessageVersions")
@@ -73,7 +65,9 @@ class AllMessagesFidelityCheckTest {
     void kroxyliciousShouldReadValidPopulatedKafkaSerialisedMessage(short version, ApiMessage kroxyliciousMessage,
                                                                     org.apache.kafka.common.protocol.ApiMessage kafkaMessage) {
         // Given
-        PopulationResult populated = validScalarMessagePopulator.populate(kafkaMessage, version);
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(
+                new ValidScalarStrategy(FidelityRandom.randomFor(kafkaMessage, version)));
+        PopulationResult populated = populator.populate(kafkaMessage, version);
 
         // When
         ReadResult<?> result = FidelityCheck.kroxyliciousReads(
@@ -93,7 +87,9 @@ class AllMessagesFidelityCheckTest {
     void kafkaShouldReadValidPopulatedKroxyliciousSerialisedMessage(short version,
                                                                     ApiMessage kroxyliciousMessage, org.apache.kafka.common.protocol.ApiMessage kafkaMessage) {
         // Given
-        PopulationResult populated = validScalarMessagePopulator.populate(kroxyliciousMessage, version);
+        SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(
+                new ValidScalarStrategy(FidelityRandom.randomFor(kroxyliciousMessage, version)));
+        PopulationResult populated = populator.populate(kroxyliciousMessage, version);
 
         // When
         ReadResult<?> result = FidelityCheck.kafkaReads(

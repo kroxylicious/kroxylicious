@@ -7,7 +7,6 @@
 package io.kroxylicious.fidelity.kafka;
 
 import java.util.List;
-import java.util.Random;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.protocol.types.BoundField;
@@ -17,6 +16,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.fidelity.AllMessages;
 import io.kroxylicious.fidelity.FidelityCheck;
+import io.kroxylicious.fidelity.FidelityRandom;
 import io.kroxylicious.fidelity.ReadResult;
 import io.kroxylicious.fidelity.populate.NullFieldStrategy;
 import io.kroxylicious.fidelity.populate.NullableFieldEnumerator;
@@ -40,7 +40,7 @@ class NullableFieldFidelityTest {
                                                                      org.apache.kafka.common.protocol.ApiMessage kafkaMessage, BoundField nullableField) {
         // Given
         SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(
-                new NullFieldStrategy(nullableField, new ValidScalarStrategy(new Random(42L))));
+                new NullFieldStrategy(nullableField, new ValidScalarStrategy(FidelityRandom.randomFor(kafkaMessage, version, nullableField))));
         PopulationResult populated = populator.populate(kafkaMessage, version);
 
         // When
@@ -62,7 +62,7 @@ class NullableFieldFidelityTest {
                                                                      org.apache.kafka.common.protocol.ApiMessage kafkaMessage, BoundField nullableField) {
         // Given
         SchemaDrivenMessagePopulator populator = new SchemaDrivenMessagePopulator(
-                new NullFieldStrategy(nullableField, new ValidScalarStrategy(new Random(42L))));
+                new NullFieldStrategy(nullableField, new ValidScalarStrategy(FidelityRandom.randomFor(kroxyliciousMessage, version, nullableField))));
         PopulationResult populated = populator.populate(kroxyliciousMessage, version);
 
         // When
