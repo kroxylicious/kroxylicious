@@ -14,8 +14,6 @@ import java.util.Objects;
 import java.util.Random;
 
 import org.apache.kafka.common.protocol.types.BoundField;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Manages the random seed for fidelity test suites.
@@ -28,8 +26,6 @@ import org.slf4j.LoggerFactory;
  * reproducibility completely independent of test execution order.
  */
 public final class FidelityRandom {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(FidelityRandom.class);
 
     /**
      * System property name to override the base seed.
@@ -60,6 +56,7 @@ public final class FidelityRandom {
         return effectiveBaseSeed;
     }
 
+    @SuppressWarnings("java:S106")
     private static long initializeBaseSeed() {
         String prop = System.getProperty(SEED_PROPERTY);
         long seed;
@@ -69,7 +66,9 @@ public final class FidelityRandom {
         else {
             seed = SECURE_RANDOM.nextLong();
         }
-        LOGGER.atInfo().addKeyValue("seed", seed).log("Fidelity tests effective base seed");
+        // CHECKSTYLE:OFF
+        System.out.println("Fidelity tests randomized with seed " + seed + ". To reproduce, use -D" + SEED_PROPERTY + "=" + seed);
+        // CHECKSTYLE:ON
         return seed;
     }
 
