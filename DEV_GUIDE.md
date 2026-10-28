@@ -542,7 +542,8 @@ We use GitHub Actions for our build and release workflows. See [.github/AUTOMATI
 about working with the actions.
 
 ### Merge queues
-Currently, our CI uses merge queues. With that we don't need to manually update our PR before merging, it will be added to the queue and merged when ready.
+Currently, our CI uses merge queues. With that we don't need to manually update our PR before merging, a Committer will add it to the queue, 
+and it will be merged when ready.
 
 A pull request can be removed from the merge queue if it no longer meets merge requirements or if a queue check fails.
 
@@ -550,7 +551,7 @@ There are a number of reasons a pull request can be removed from a merge queue:
 
 * Configured CI service is reporting test failures for a merge group
 * Timed out awaiting a successful CI result based off the configured timeout setting
-* User requesting a removal via the API or merge queue interface
+* Committer requesting a removal via the API or merge queue interface
 * Branch protection failure that could not automatically be resolved
 
 If you want to see how merge queues work, see [Merge Queues](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request-with-a-merge-queue).
