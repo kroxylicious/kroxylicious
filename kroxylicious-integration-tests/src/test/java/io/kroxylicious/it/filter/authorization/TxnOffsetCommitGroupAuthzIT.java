@@ -249,6 +249,7 @@ class TxnOffsetCommitGroupAuthzIT extends AuthzIT {
             kafkaDriver.findCoordinator(CoordinatorType.GROUP, group);
             producerIdAndEpoch = kafkaDriver.initProducerId(transactionalId);
             memberIdAndGeneration = kafkaDriver.joinGroup("consumer", group, groupInstanceId);
+            kafkaDriver.syncGroup(group, groupInstanceId, "consumer", memberIdAndGeneration.generationId(), memberIdAndGeneration.memberId());
             Map<String, Collection<Integer>> partitionsToAdd = ALL_TOPIC_NAMES_IN_TEST.stream().collect(Collectors.toMap(n -> n, n -> List.of(0)));
             kafkaDriver.addPartitionsToTransaction(transactionalId, producerIdAndEpoch, partitionsToAdd);
             kafkaDriver.addOffsetsToTxn(transactionalId, producerIdAndEpoch, group);
