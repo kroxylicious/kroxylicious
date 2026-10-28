@@ -1,0 +1,4 @@
+title: "Use per-run random seed for fidelity tests overridable via system property"
+type: changed
+issues:
+  - 4920
