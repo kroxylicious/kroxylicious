@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ class HaProxyProtocolDetectionHandlerTest {
 
     // Minimal valid PROXY v2 header: 12-byte sig + version/command + family + length + addresses
     private static final byte[] PROXY_V2_TCP4_HEADER = buildProxyV2Tcp4Header("192.168.1.100", 54321, "10.0.0.1", 9092);
+
+    // PROXY protocol v1 text header
+    private static final byte[] PROXY_V1_TCP4_HEADER = "PROXY TCP4 192.168.1.100 10.0.0.1 54321 9092\r\n".getBytes(StandardCharsets.UTF_8);
 
     // ---- REQUIRED mode ----
 
@@ -81,6 +85,20 @@ class HaProxyProtocolDetectionHandlerTest {
     }
 
     @Test
+    void allowedModeShouldSetClientProxyProtocolContextWhenProxyV2Detected() {
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.ALLOWED, kafkaSession);
+        var channel = new EmbeddedChannel(handler);
+
+        channel.writeInbound(Unpooled.wrappedBuffer(PROXY_V2_TCP4_HEADER));
+
+        assertThat(kafkaSession.clientProxyProtocolContext()).hasValueSatisfying(context -> {
+            assertThat(context.sourceAddress()).isEqualTo(new InetSocketAddress("192.168.1.100", 54321));
+            assertThat(context.destinationAddress()).isEqualTo(new InetSocketAddress("10.0.0.1", 9092));
+        });
+    }
+
+    @Test
     void allowedModeShouldPassThroughWhenNonProxyBytesReceived() {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.ALLOWED, kafkaSession);
@@ -116,6 +134,7 @@ class HaProxyProtocolDetectionHandlerTest {
         channel.writeInbound(Unpooled.wrappedBuffer("kafka bytes here".getBytes(StandardCharsets.UTF_8)));
 
         assertThat(kafkaSession.haProxyContext()).isNull();
+        assertThat(kafkaSession.clientProxyProtocolContext()).isEmpty();
     }
 
     @Test
@@ -140,15 +159,27 @@ class HaProxyProtocolDetectionHandlerTest {
         var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.ALLOWED, kafkaSession);
         var channel = new EmbeddedChannel(handler);
 
-        // PROXY v1 text header
-        String v1Header = "PROXY TCP4 192.168.1.100 10.0.0.1 54321 9092\r\n";
-        channel.writeInbound(Unpooled.wrappedBuffer(v1Header.getBytes(StandardCharsets.UTF_8)));
+        channel.writeInbound(Unpooled.wrappedBuffer(PROXY_V1_TCP4_HEADER));
 
         // Should have detected PROXY header (decoder auto-removes after decoding)
         assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
         // HaProxyMessageHandler consumes the message and stores context in session
         assertThat(kafkaSession.haProxyContext()).isNotNull();
+    }
+
+    @Test
+    void allowedModeShouldSetClientProxyProtocolContextWhenProxyV1Detected() {
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.ALLOWED, kafkaSession);
+        var channel = new EmbeddedChannel(handler);
+
+        channel.writeInbound(Unpooled.wrappedBuffer(PROXY_V1_TCP4_HEADER));
+
+        assertThat(kafkaSession.clientProxyProtocolContext()).hasValueSatisfying(context -> {
+            assertThat(context.sourceAddress()).isEqualTo(new InetSocketAddress("192.168.1.100", 54321));
+            assertThat(context.destinationAddress()).isEqualTo(new InetSocketAddress("10.0.0.1", 9092));
+        });
     }
 
     // ---- NEEDS_MORE_DATA handling ----

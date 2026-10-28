@@ -6,15 +6,25 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.net.InetSocketAddress;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
+
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class KafkaSessionTest {
 
     private static final String SESSION_ID = "testSession";
+    private static final HaProxyContext TCP4_HA_PROXY_CONTEXT = new HaProxyContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+            "192.0.2.1", "192.0.2.2", 12345, 9092, Map.of());
 
     @ParameterizedTest
     @EnumSource(KafkaSessionState.class)
@@ -130,5 +140,32 @@ class KafkaSessionTest {
         // When
         // Then
         assertThat(a).doesNotHaveSameHashCodeAs(b);
+    }
+
+    @Test
+    void shouldHaveNoProxyProtocolContextInitially() {
+        // Given
+        KafkaSession kafkaSession = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+
+        // When
+        // Then
+        assertThat(kafkaSession.haProxyContext()).isNull();
+        assertThat(kafkaSession.clientProxyProtocolContext()).isEmpty();
+    }
+
+    @Test
+    void shouldHaveProxyProtocolContextOnceSet() {
+        // Given
+        KafkaSession kafkaSession = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+
+        // When
+        kafkaSession.setHaProxyContext(TCP4_HA_PROXY_CONTEXT);
+
+        // Then
+        assertThat(kafkaSession.haProxyContext()).isEqualTo(TCP4_HA_PROXY_CONTEXT);
+        assertThat(kafkaSession.clientProxyProtocolContext()).hasValueSatisfying(context -> {
+            assertThat(context.sourceAddress()).isEqualTo(new InetSocketAddress("192.0.2.1", 12345));
+            assertThat(context.destinationAddress()).isEqualTo(new InetSocketAddress("192.0.2.2", 9092));
+        });
     }
 }

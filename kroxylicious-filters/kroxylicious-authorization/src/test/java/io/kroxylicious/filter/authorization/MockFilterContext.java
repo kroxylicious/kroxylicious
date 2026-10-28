@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.authorization;
 
+import java.net.SocketAddress;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,7 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -47,6 +49,24 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
     @NonNull
     @Override
     public String channelDescriptor() {
+        throw new UnsupportedOperationException();
+    }
+
+    @NonNull
+    @Override
+    public SocketAddress clientAddress() {
+        throw new UnsupportedOperationException();
+    }
+
+    @NonNull
+    @Override
+    public SocketAddress peerAddress() {
+        throw new UnsupportedOperationException();
+    }
+
+    @NonNull
+    @Override
+    public Optional<ClientProxyProtocolContext> clientProxyProtocolContext() {
         throw new UnsupportedOperationException();
     }
 
