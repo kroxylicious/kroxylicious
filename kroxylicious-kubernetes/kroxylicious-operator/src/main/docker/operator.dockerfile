@@ -20,14 +20,15 @@ ARG TARGETARCH
 ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER=kroxylicious
 ARG CONTAINER_USER_UID=185
+ENV ROOTFS=/mnt/rootfs
 
 USER root
 
 # Copy the ubi9-micro rootfs (including its RPM database) as the install root
-COPY --from=base / /mnt/rootfs/
+COPY --from=base / ${ROOTFS}
 
 RUN microdnf install \
-        --installroot /mnt/rootfs \
+        --installroot ${ROOTFS} \
         --noplugins \
         --config /etc/dnf/dnf.conf \
         --setopt=cachedir=/var/cache/microdnf \
@@ -42,7 +43,7 @@ RUN microdnf install \
         shadow-utils \
     && if [[ -n "${CONTAINER_USER}" && "${CONTAINER_USER}" != "root" ]] ; then groupadd -r -g "${CONTAINER_USER_UID}" "${CONTAINER_USER}" && useradd -m -r -u "${CONTAINER_USER_UID}" -g "${CONTAINER_USER}" "${CONTAINER_USER}"; fi \
     && microdnf remove  \
-        --installroot /mnt/rootfs \
+        --installroot ${ROOTFS} \
         --noplugins \
         --config /etc/dnf/dnf.conf \
         --setopt=cachedir=/var/cache/microdnf \
@@ -50,7 +51,7 @@ RUN microdnf install \
         --setopt=varsdir=/etc/dnf \
         -y shadow-utils \
     && microdnf \
-        --installroot /mnt/rootfs \
+        --installroot ${ROOTFS} \
         --noplugins \
         --config /etc/dnf/dnf.conf \
         --setopt=cachedir=/var/cache/microdnf \
@@ -64,10 +65,9 @@ ARG TINI_SHA256_AMD64=93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a811
 ARG TINI_SHA256_ARM64=07952557df20bfd2a95f9bef198b445e006171969499a1d361bd9e6f8e5e0e81
 ARG TINI_SHA256_PPC64LE=3f658420974768e40810001a038c29d003728c5fe86da211cff5059e48cfdfde
 ARG TINI_SHA256_S390X=931b70a182af879ca249ae9de87ef68423121b38d235c78997fafc680ceab32d
-ARG TINI_DEST=/mnt/rootfs/usr/bin/tini
+ARG TINI_DEST=${ROOTFS}/usr/bin/tini
 
 RUN set -ex; \
-    mkdir -p /mnt/rootfs/opt/tini/bin/; \
     if [[ "${TARGETOS}/${TARGETARCH}" = "linux/ppc64le" ]]; then \
         curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-ppc64le -o ${TINI_DEST}; \
         echo "${TINI_SHA256_PPC64LE} *${TINI_DEST}" | sha256sum -c; \
@@ -92,10 +92,13 @@ ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER_UID=185
 ARG JAVA_VERSION=21
 
+ENV ROOTFS=/mnt/rootfs
 ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
-COPY --from=builder /mnt/rootfs /
-COPY target/kroxylicious-operator-${KROXYLICIOUS_VERSION}-app/kroxylicious-operator-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious-operator
+COPY --from=builder ${ROOTFS} /
+
+WORKDIR /opt/kroxylicious
+COPY target/kroxylicious-operator-${KROXYLICIOUS_VERSION}-app/kroxylicious-operator-${KROXYLICIOUS_VERSION}/ .
 
 USER ${CONTAINER_USER_UID}
 
