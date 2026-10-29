@@ -38,6 +38,7 @@ public class KafkaProxyDelegatingSslContext extends DelegatingSslContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyDelegatingSslContext.class);
 
     private final String id;
+    @SuppressWarnings("java:S3077") // volatile reference: write-once/read-once, need visibility not atomicity
     @Nullable
     private volatile AllowDeny<String> namedGroupConfig = null;
 

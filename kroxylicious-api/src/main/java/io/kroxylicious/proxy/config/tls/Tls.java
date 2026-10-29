@@ -104,8 +104,8 @@ public record Tls(@Nullable KeyProvider key,
      * @throws IllegalStateException if the configuration cannot be satisfied by the running JDK.
      */
     public void validateNamedGroups() throws IllegalStateException {
-        final var hasAllowed = Optional.ofNullable(namedGroups).map(AllowDeny::allowed).map(allowed -> !allowed.isEmpty()).orElse(false);
-        final var hasDenied = Optional.ofNullable(namedGroups).map(AllowDeny::denied).map(denied -> !denied.isEmpty()).orElse(false);
+        final boolean hasAllowed = Optional.ofNullable(namedGroups).map(AllowDeny::allowed).map(allowed -> !allowed.isEmpty()).orElse(false);
+        final boolean hasDenied = Optional.ofNullable(namedGroups).map(AllowDeny::denied).map(denied -> !denied.isEmpty()).orElse(false);
         if (hasDenied && !hasAllowed) {
             try {
                 final var defaultNames = SSLContext.getDefault().getDefaultSSLParameters().getNamedGroups();
