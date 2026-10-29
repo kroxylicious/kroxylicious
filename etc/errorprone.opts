@@ -18,6 +18,7 @@
 -Xep:EqualsGetClass:ERROR
 -Xep:ExposedPrivateType:ERROR
 -Xep:FutureReturnValueIgnored:ERROR
+-Xep:GetClassOnEnum:ERROR
 -Xep:ImmutableEnumChecker:ERROR
 -Xep:InvalidBlockTag:ERROR
 -Xep:InvalidInlineTag:ERROR
