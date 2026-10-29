@@ -14,7 +14,9 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Service;
 
 /**
- * An unsynchronized
+ * An unsynchronized builder (similar to {@link StringBuilder}) for Kubernetes names which
+ * honours the various length constraints imposed for different kinds.
+ * This does not validate the syntax
  */
 public class NameBuilder {
 
