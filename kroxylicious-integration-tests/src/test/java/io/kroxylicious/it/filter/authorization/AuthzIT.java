@@ -525,7 +525,7 @@ public abstract class AuthzIT extends BaseIT {
                 Request request = requests.get(user);
                 S r;
                 do {
-                    r = sendRequestAndGetResponse(baseTestCluster, user, request, client);
+                    r = (S) sendRequestAndGetResponse(baseTestCluster, user, request, client);
                 } while (scenario.needsRetry(r));
                 responsesByUser.put(user, r);
             }
@@ -536,7 +536,7 @@ public abstract class AuthzIT extends BaseIT {
         }
     }
 
-    private <S extends ApiMessage> S sendRequestAndGetResponse(BaseClusterFixture baseTestCluster, String user, Request request, KafkaClient client) {
+    private ApiMessage sendRequestAndGetResponse(BaseClusterFixture baseTestCluster, String user, Request request, KafkaClient client) {
         LOG.atDebug().setMessage("{} {}{} >> {}")
                 .addArgument(user)
                 .addArgument(request.apiKeys())
@@ -546,7 +546,7 @@ public abstract class AuthzIT extends BaseIT {
                 .log();
         Response resp = client.getSync(request);
 
-        S responseMessage = (S) resp.payload().message();
+        ApiMessage responseMessage = resp.payload().message();
         LOG.atDebug().setMessage("{} {}{} << {}")
                 .addArgument(user)
                 .addArgument(request.apiKeys())
