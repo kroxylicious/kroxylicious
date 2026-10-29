@@ -328,7 +328,10 @@ public class FilterHandler extends ChannelDuplexHandler {
                                                                                  CompletableFuture<ResponseFilterResult> future) {
         return future.thenApply(FilterHandler::validateFilterResultNonNull)
                 .thenApply(fr -> handleResponseFilterResult(decodedFrame, fr, promise))
-                .exceptionally(t -> handleFilteringException(t, decodedFrame));
+                .exceptionally(t -> {
+                    handleFilteringException(t, decodedFrame);
+                    return null;
+                });
     }
 
     /**
@@ -393,7 +396,10 @@ public class FilterHandler extends ChannelDuplexHandler {
                                                                                CompletableFuture<RequestFilterResult> future) {
         return future.thenApply(FilterHandler::validateFilterResultNonNull)
                 .thenApply(fr -> handleRequestFilterResult(decodedFrame, fr))
-                .exceptionally(t -> handleFilteringException(t, decodedFrame));
+                .exceptionally(t -> {
+                    handleFilteringException(t, decodedFrame);
+                    return null;
+                });
     }
 
     private ResponseFilterResult handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame,
@@ -446,8 +452,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         return requestFilterResult;
     }
 
-    @Nullable
-    private <F extends FilterResult> F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
+    private void handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
         if (LOGGER.isWarnEnabled()) {
             var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
             log(WARN)
@@ -460,7 +465,6 @@ public class FilterHandler extends ChannelDuplexHandler {
                             : "filter ended exceptionally, closing connection, increase log level to DEBUG for stacktrace");
         }
         closeConnection();
-        return null;
     }
 
     private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
