@@ -66,7 +66,7 @@ public class NameBuilder {
             return forRfc1035LabelName();
         }
         else if (Namespace.class.isAssignableFrom(resourceType)
-                    || Node.class.isAssignableFrom(resourceType)) {
+                || Node.class.isAssignableFrom(resourceType)) {
             return forRfc1123LabelName();
         }
         else {
@@ -102,7 +102,7 @@ public class NameBuilder {
     public NameBuilder appendNameOf(HasMetadata resource) {
         Optional.ofNullable(resource.getMetadata())
                 .map(ObjectMeta::getName)
-                .map(this::append);
+                .ifPresent(this::append);
         return this;
     }
 
@@ -141,7 +141,7 @@ public class NameBuilder {
         char[] chars = new char[s.length()];
         for (int i = 0; i < s.length(); i++) {
             char b = s.charAt(i);
-            chars[i] = alphanums.charAt(((int) b) % alphanums.length());
+            chars[i] = alphanums.charAt(b % alphanums.length());
         }
         return new String(chars, 0, s.length());
     }
