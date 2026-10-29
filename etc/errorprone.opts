@@ -14,6 +14,7 @@
 -Xep:ByteBufferBackingArray:ERROR
 -Xep:CanonicalDuration:ERROR
 -Xep:ClassCanBeStatic:ERROR
+-Xep:CollectionUndefinedEquality:ERROR
 -Xep:DefaultCharset:ERROR
 -Xep:DistinctVarargsChecker:ERROR
 -Xep:EffectivelyPrivate:ERROR
