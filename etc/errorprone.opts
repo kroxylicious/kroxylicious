@@ -18,6 +18,7 @@
 -Xep:DefaultCharset:ERROR
 -Xep:DirectInvocationOnMock:ERROR
 -Xep:DistinctVarargsChecker:ERROR
+-Xep:DuplicateAssertion:ERROR
 -Xep:EffectivelyPrivate:ERROR
 -Xep:EmptyBlockTag:ERROR
 -Xep:EqualsGetClass:ERROR
