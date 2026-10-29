@@ -23,6 +23,9 @@ ENV ROOTFS=/mnt/rootfs
 
 USER root
 
+# Install shadow-utils on the builder so groupadd/useradd are available
+RUN microdnf install -y --nodocs shadow-utils
+
 # Copy the ubi9-micro rootfs (including its RPM database) as the install root
 COPY --from=base / ${ROOTFS}
 
@@ -39,16 +42,7 @@ RUN microdnf install \
         -y \
         java-${JAVA_VERSION}-openjdk-headless \
         openssl \
-        shadow-utils \
-    && if [[ -n "${CONTAINER_USER}" && "${CONTAINER_USER}" != "root" ]] ; then groupadd -r -g "${CONTAINER_USER_UID}" "${CONTAINER_USER}" && useradd -m -r -u "${CONTAINER_USER_UID}" -g "${CONTAINER_USER}" "${CONTAINER_USER}"; fi \
-    && microdnf remove  \
-        --installroot ${ROOTFS} \
-        --noplugins \
-        --config /etc/dnf/dnf.conf \
-        --setopt=cachedir=/var/cache/microdnf \
-        --setopt=reposdir=/etc/yum.repos.d \
-        --setopt=varsdir=/etc/dnf \
-        -y shadow-utils \
+    && if [[ -n "${CONTAINER_USER}" && "${CONTAINER_USER}" != "root" ]] ; then groupadd --root ${ROOTFS} -r -g "${CONTAINER_USER_UID}" "${CONTAINER_USER}" && useradd --root ${ROOTFS} -m -r -u "${CONTAINER_USER_UID}" -g "${CONTAINER_USER}" "${CONTAINER_USER}"; fi \
     && microdnf \
         --installroot ${ROOTFS}\
         --noplugins \
