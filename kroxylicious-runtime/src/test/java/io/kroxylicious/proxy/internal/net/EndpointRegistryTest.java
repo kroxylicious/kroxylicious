@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -69,6 +70,8 @@ class EndpointRegistryTest {
     private final TestNetworkBindingOperationProcessor bindingOperationProcessor = new TestNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final Map<Endpoint, Channel> acceptorChannels = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<EndpointGateway, AddressingSpec> addressingSpecs = new HashMap<>();
+    private final Map<EndpointGateway, BindingSpec> bindingSpecs = new HashMap<>();
     @Mock(strictness = LENIENT)
     private EndpointGateway virtualClusterModel1;
     @Mock(strictness = LENIENT)
@@ -312,7 +315,7 @@ class EndpointRegistryTest {
                 createTestDefaultNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker1OsPort))));
 
         // Then — the binding spec learns the actual OS-assigned port for the bootstrap and each broker
-        var bindingSpec = virtualClusterModel1.bindingSpec();
+        var bindingSpec = bindingSpecs.get(virtualClusterModel1);
         verify(bindingSpec).registerBoundBootstrapPort(bootstrapOsPort);
         verify(bindingSpec).registerBoundPort(0, broker0OsPort);
         verify(bindingSpec).registerBoundPort(1, broker1OsPort);
@@ -532,7 +535,7 @@ class EndpointRegistryTest {
         verifyBindRequests(createTestDefaultNetworkBindRequest(downstreamBootstrap.port(), true));
         assertThat(f.isDone()).isTrue();
 
-        when(virtualClusterModel1.addressingSpec().identify(resolveAddress.port(), resolveAddress.host())).thenReturn(new AddressingSpec.Target.Bootstrap());
+        when(addressingSpecs.get(virtualClusterModel1).identify(resolveAddress.port(), resolveAddress.host())).thenReturn(new AddressingSpec.Target.Bootstrap());
         var childChannel = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(resolveAddress.port(), true)));
         var binding = endpointRegistry.resolve(childChannel, resolveAddress.host()).toCompletableFuture().get();
         assertThat(binding).isEqualTo(new BootstrapEndpointBinding(virtualClusterModel1));
@@ -546,7 +549,7 @@ class EndpointRegistryTest {
         verifyBindRequests(createTestDefaultNetworkBindRequest(SNI_DOWNSTREAM_BOOTSTRAP.port(), true));
         assertThat(regf).isCompleted();
 
-        when(virtualClusterModel1.addressingSpec().identify(SNI_DOWNSTREAM_BOOTSTRAP.port(), SNI_DOWNSTREAM_BROKER_0.host()))
+        when(addressingSpecs.get(virtualClusterModel1).identify(SNI_DOWNSTREAM_BOOTSTRAP.port(), SNI_DOWNSTREAM_BROKER_0.host()))
                 .thenReturn(new AddressingSpec.Target.Node(0));
 
         var childChannel = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(SNI_DOWNSTREAM_BOOTSTRAP.port(), true)));
@@ -584,7 +587,7 @@ class EndpointRegistryTest {
         verifyBindRequests();
         assertThat(recf).isCompleted();
 
-        when(virtualClusterModel1.addressingSpec().identify(SNI_DOWNSTREAM_BOOTSTRAP.port(), SNI_DOWNSTREAM_BROKER_0.host()))
+        when(addressingSpecs.get(virtualClusterModel1).identify(SNI_DOWNSTREAM_BOOTSTRAP.port(), SNI_DOWNSTREAM_BROKER_0.host()))
                 .thenReturn(new AddressingSpec.Target.Node(0));
         var childChannel0 = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(SNI_DOWNSTREAM_BOOTSTRAP.port(), true)));
         var brokerBinding = endpointRegistry.resolve(childChannel0, SNI_DOWNSTREAM_BROKER_0.host()).toCompletableFuture()
@@ -592,7 +595,7 @@ class EndpointRegistryTest {
         assertThat(brokerBinding).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0));
 
         // Now try to resolve another broker address that matches the pattern, but isn't resolved.
-        when(virtualClusterModel1.addressingSpec().identify(SNI_DOWNSTREAM_BOOTSTRAP.port(), SNI_DOWNSTREAM_BROKER_1.host()))
+        when(addressingSpecs.get(virtualClusterModel1).identify(SNI_DOWNSTREAM_BOOTSTRAP.port(), SNI_DOWNSTREAM_BROKER_1.host()))
                 .thenReturn(new AddressingSpec.Target.Node(1));
         var childChannel1 = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(SNI_DOWNSTREAM_BOOTSTRAP.port(), true)));
         var sniMatchBinding = endpointRegistry.resolve(childChannel1, SNI_DOWNSTREAM_BROKER_1.host())
@@ -663,7 +666,7 @@ class EndpointRegistryTest {
         assertThat(recf.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
-        when(virtualClusterModel1.addressingSpec().identify(DOWNSTREAM_BROKER_0.port(), null)).thenReturn(new AddressingSpec.Target.Node(0));
+        when(addressingSpecs.get(virtualClusterModel1).identify(DOWNSTREAM_BROKER_0.port(), null)).thenReturn(new AddressingSpec.Target.Node(0));
         var binding = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_0.port()), null).toCompletableFuture().get();
         assertThat(binding).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0));
     }
@@ -679,7 +682,7 @@ class EndpointRegistryTest {
         assertThat(regf).isCompleted();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
-        when(virtualClusterModel1.addressingSpec().identify(DOWNSTREAM_BROKER_0.port(), null)).thenReturn(new AddressingSpec.Target.Node(0));
+        when(addressingSpecs.get(virtualClusterModel1).identify(DOWNSTREAM_BROKER_0.port(), null)).thenReturn(new AddressingSpec.Target.Node(0));
         var binding = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_0.port()), null).toCompletableFuture().get();
         assertThat(binding).isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 0));
     }
@@ -729,7 +732,7 @@ class EndpointRegistryTest {
         assertThat(recf1.isDone()).isTrue();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
-        when(virtualClusterModel1.addressingSpec().identify(DOWNSTREAM_BROKER_0.port(), null)).thenReturn(new AddressingSpec.Target.Node(0));
+        when(addressingSpecs.get(virtualClusterModel1).identify(DOWNSTREAM_BROKER_0.port(), null)).thenReturn(new AddressingSpec.Target.Node(0));
         var resolvedBindingBeforeChange = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_0.port()), null).toCompletableFuture().get();
         assertThat(resolvedBindingBeforeChange).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0));
 
@@ -756,8 +759,8 @@ class EndpointRegistryTest {
                 createTestDefaultNetworkBindRequest(DOWNSTREAM_BROKER_1.port(), false));
         assertThat(regf).isDone();
 
-        when(virtualClusterModel1.addressingSpec().identify(DOWNSTREAM_BROKER_0.port(), null)).thenReturn(new AddressingSpec.Target.Node(0));
-        when(virtualClusterModel1.addressingSpec().identify(DOWNSTREAM_BROKER_1.port(), null)).thenReturn(new AddressingSpec.Target.Node(1));
+        when(addressingSpecs.get(virtualClusterModel1).identify(DOWNSTREAM_BROKER_0.port(), null)).thenReturn(new AddressingSpec.Target.Node(0));
+        when(addressingSpecs.get(virtualClusterModel1).identify(DOWNSTREAM_BROKER_1.port(), null)).thenReturn(new AddressingSpec.Target.Node(1));
 
         var resolveBroker0BeforeReconcile = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_0.port()), null).toCompletableFuture().get();
         assertThat(resolveBroker0BeforeReconcile)
@@ -1130,6 +1133,7 @@ class EndpointRegistryTest {
         lenient().when(bindingSpec.getSharedPorts()).thenReturn(Set.of());
         lenient().when(bindingSpec.requiresServerNameIndication()).thenReturn(sni);
         lenient().when(gateway.bindingSpec()).thenReturn(bindingSpec);
+        bindingSpecs.put(gateway, bindingSpec);
 
         var addressingSpec = mock(AddressingSpec.class);
         lenient().when(addressingSpec.identify(anyInt(), any())).thenReturn(new AddressingSpec.Target.NotRecognised());
@@ -1142,6 +1146,7 @@ class EndpointRegistryTest {
             lenient().when(addressingSpec.identify(eq(downstreamBootstrap.port()), any())).thenReturn(new AddressingSpec.Target.Bootstrap());
         }
         lenient().when(gateway.addressingSpec()).thenReturn(addressingSpec);
+        addressingSpecs.put(gateway, addressingSpec);
     }
 
     private void verifyVirtualClusterRegisterFuture(int expectedPort, boolean expectedTls, CompletableFuture<Endpoint> future) throws Exception {

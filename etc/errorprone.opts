@@ -16,6 +16,7 @@
 -Xep:ClassCanBeStatic:ERROR
 -Xep:CollectionUndefinedEquality:ERROR
 -Xep:DefaultCharset:ERROR
+-Xep:DirectInvocationOnMock:ERROR
 -Xep:DistinctVarargsChecker:ERROR
 -Xep:EffectivelyPrivate:ERROR
 -Xep:EmptyBlockTag:ERROR
