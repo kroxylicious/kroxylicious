@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -27,6 +28,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.ConfigResource;
+import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.apache.kafka.common.message.DescribeAclsRequestData;
 import org.apache.kafka.common.message.DescribeAclsResponseData;
 import org.apache.kafka.common.message.ListTransactionsRequestData;
@@ -492,8 +494,16 @@ class KroxyliciousTestersTest {
                 .succeedsWithin(Duration.ofSeconds(10));
     }
 
-    private static void removeShareGroup(Admin admin, String groupName) {
-        assertThat(admin.deleteConsumerGroups(List.of(groupName)).all())
+    static void removeShareGroup(Admin admin, String groupName) {
+        // A failed first poll can leave no group to delete; preserve the consumption failure.
+        var deletion = admin.deleteConsumerGroups(List.of(groupName)).all().toCompletionStage()
+                .exceptionally(exception -> {
+                    if (exception instanceof GroupIdNotFoundException) {
+                        return null;
+                    }
+                    throw new CompletionException(exception);
+                });
+        assertThat(deletion.toCompletableFuture())
                 .succeedsWithin(Duration.ofSeconds(10));
     }
 }
