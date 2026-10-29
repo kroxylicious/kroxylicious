@@ -117,6 +117,49 @@ class RouteClusterIngressNetworkingModelTest {
     }
 
     @Test
+    void bootstrapServiceNameHashesWhenCombinedNameExceedsLimit() {
+        // Given
+        VirtualKafkaCluster longNamedCluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("a".repeat(40)).endMetadata().build();
+        String longIngressName = "b".repeat(40);
+
+        // When
+        String name = RouteClusterIngressNetworkingModel.bootstrapServiceName(longNamedCluster, longIngressName);
+
+        // Then
+        assertThat(name).hasSizeLessThanOrEqualTo(63);
+    }
+
+    @Test
+    void routeNamesHashWhenClusterNameExceedsLimit() {
+        // Given
+        VirtualKafkaCluster longNamedCluster = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                .withName("a".repeat(250))
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .addNewIngress()
+                .withNewIngressRef()
+                .withName(INGRESS_NAME)
+                .endIngressRef()
+                .withTls(TLS)
+                .endIngress()
+                .endSpec()
+                .build();
+        ClusterIngressNetworkingModel instance = new RouteClusterIngressNetworkingModel(PROXY, longNamedCluster, INGRESS, ROUTE, List.of(NODE_ID_RANGE), TLS, 5,
+                List.of());
+
+        // When
+        List<RouteBuilder> routeBuilders = instance.routes().toList();
+
+        // Then
+        assertThat(routeBuilders).isNotEmpty().allSatisfy(routeBuild -> {
+            Route route = routeBuild.build();
+            assertThat(route.getMetadata().getName()).hasSizeLessThanOrEqualTo(253);
+        });
+    }
+
+    @Test
     void gatewayConfigWithUnresolvedHost() {
         // given
         int sharedSniPort = 5;

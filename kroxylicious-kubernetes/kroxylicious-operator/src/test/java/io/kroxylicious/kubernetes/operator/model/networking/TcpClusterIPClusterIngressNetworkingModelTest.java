@@ -88,6 +88,19 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
     public static final NodeIdRanges NODE_ID_RANGE = createNodeIdRange("a", 1L, 3L);
 
     @Test
+    void bootstrapServiceNameHashesWhenCombinedNameExceedsLimit() {
+        // Given
+        VirtualKafkaCluster longNamedCluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("a".repeat(40)).endMetadata().build();
+        String longIngressName = "b".repeat(40);
+
+        // When
+        String name = TcpClusterIPClusterIngressNetworkingModel.bootstrapServiceName(longNamedCluster, longIngressName);
+
+        // Then
+        assertThat(name).hasSizeLessThanOrEqualTo(63);
+    }
+
+    @Test
     void numIdentifyingPortsRequiredSingleRange() {
         // 3 ports for the nodeId range + 1 for bootstrap
         int numIdentifyingPortsRequired = TcpClusterIPClusterIngressNetworkingModel.numIdentifyingPortsRequired(List.of(NODE_ID_RANGE));

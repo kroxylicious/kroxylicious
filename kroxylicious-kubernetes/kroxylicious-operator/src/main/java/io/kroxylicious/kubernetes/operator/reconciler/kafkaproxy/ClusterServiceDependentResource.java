@@ -19,6 +19,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.NameBuilder;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
@@ -48,7 +49,7 @@ public class ClusterServiceDependentResource
      */
     static String serviceName(VirtualKafkaCluster cluster) {
         Objects.requireNonNull(cluster);
-        return ResourcesUtil.name(cluster);
+        return NameBuilder.forResource(Service.class).appendNameOf(cluster).toString();
     }
 
     @Override

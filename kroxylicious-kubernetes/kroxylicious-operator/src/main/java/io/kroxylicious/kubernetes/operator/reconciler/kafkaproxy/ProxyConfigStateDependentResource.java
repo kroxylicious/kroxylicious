@@ -19,6 +19,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.NameBuilder;
 import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
@@ -50,7 +51,7 @@ public class ProxyConfigStateDependentResource
      * @return The {@code metadata.name} of the desired ConfigMap {@code Secret}.
      */
     static String configMapName(KafkaProxy primary) {
-        return ResourcesUtil.name(primary) + CONFIG_STATE_CONFIG_MAP_SUFFIX;
+        return NameBuilder.forResource(ConfigMap.class).appendNameOf(primary).append(CONFIG_STATE_CONFIG_MAP_SUFFIX).toString();
     }
 
     @Override

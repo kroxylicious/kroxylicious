@@ -128,6 +128,56 @@ class ProxyNetworkingModelTest {
                 .collect(Collectors.toMap(s -> s.getMetadata().getName(), s -> s));
     }
 
+    @Test
+    void sharedLoadBalancerServiceNameHashesWhenIngressNameExceedsLimit() {
+        // Given
+        String longIngressName = "a".repeat(80);
+        KafkaProxyIngress longNamedIngress = new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                .withName(longIngressName)
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .withNewLoadBalancer()
+                .withBootstrapAddress("bootstrap.kafka")
+                .withAdvertisedBrokerAddressPattern("$(nodeId).kafka")
+                .endLoadBalancer()
+                .endSpec()
+                .build();
+        Ingresses clusterIngress = new IngressesBuilder()
+                .withTls(TLS)
+                .withNewIngressRef()
+                .withName(longIngressName)
+                .endIngressRef()
+                .build();
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                .withName(CLUSTER_NAME)
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .withIngresses(clusterIngress)
+                .endSpec()
+                .build();
+        ClusterResolutionResult resolution = new ClusterResolutionResult(
+                cluster,
+                ResolutionResult.resolved(cluster, PROXY),
+                List.of(),
+                ResolutionResult.resolved(cluster, KAFKA_SERVICE),
+                List.of(new IngressResolutionResult(
+                        ResolutionResult.resolved(cluster, longNamedIngress),
+                        ResolutionResult.resolved(longNamedIngress, PROXY),
+                        clusterIngress)));
+        ProxyResolutionResult proxyResolution = new ProxyResolutionResult(Set.of(resolution));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, proxyResolution, List.of());
+
+        // When
+        var services = networkingModel.services(PROXY, c -> true).toList();
+
+        // Then
+        assertThat(services).isNotEmpty().allSatisfy(service -> assertThat(service.getMetadata().getName()).hasSizeLessThanOrEqualTo(63));
+    }
+
     // --- nodePort emission cases ---
 
     @Test

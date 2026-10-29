@@ -17,6 +17,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.operator.NameBuilder;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -48,7 +49,7 @@ public class ProxyConfigDependentResource extends CRUDKubernetesDependentResourc
      * @return The {@code metadata.name} of the desired ConfigMap {@code Secret}.
      */
     static String configMapName(KafkaProxy primary) {
-        return ResourcesUtil.name(primary) + PROXY_CONFIG_CONFIG_MAP_SUFFIX;
+        return NameBuilder.forResource(ConfigMap.class).appendNameOf(primary).append(PROXY_CONFIG_CONFIG_MAP_SUFFIX).toString();
     }
 
     @Override

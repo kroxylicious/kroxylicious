@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.openshift.api.model.RouteBuilder;
@@ -26,6 +27,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.NameBuilder;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
@@ -95,7 +97,13 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     private String suffixedServiceName(String suffix) {
-        return name(cluster) + "-" + name(ingress) + "-" + suffix;
+        return NameBuilder.forResource(Service.class)
+                .appendNameOf(cluster)
+                .append('-')
+                .appendNameOf(ingress)
+                .append('-')
+                .append(suffix)
+                .toString();
     }
 
     private ServiceBuilder createService(ObjectMetaBuilder metadataBuilder) {

@@ -41,6 +41,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.ProxyContainer;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.MountedResourceConfigProvider;
+import io.kroxylicious.kubernetes.operator.NameBuilder;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
@@ -90,7 +91,7 @@ public class ProxyDeploymentDependentResource
      * @return The {@code metadata.name} of the desired {@code Deployment}.
      */
     static String deploymentName(KafkaProxy primary) {
-        return ResourcesUtil.name(primary);
+        return NameBuilder.forResource(Deployment.class).appendNameOf(primary).toString();
     }
 
     @Override
