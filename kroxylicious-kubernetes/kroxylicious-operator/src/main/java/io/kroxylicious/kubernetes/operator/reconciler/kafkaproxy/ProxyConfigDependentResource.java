@@ -49,7 +49,10 @@ public class ProxyConfigDependentResource extends CRUDKubernetesDependentResourc
      * @return The {@code metadata.name} of the desired ConfigMap {@code Secret}.
      */
     static String configMapName(KafkaProxy primary) {
-        return NameBuilder.forResource(ConfigMap.class).appendNameOf(primary).append(PROXY_CONFIG_CONFIG_MAP_SUFFIX).toString();
+        return NameBuilder.forResource(ConfigMap.class)
+                .appendNameOf(primary)
+                .append(PROXY_CONFIG_CONFIG_MAP_SUFFIX)
+                .toString();
     }
 
     @Override

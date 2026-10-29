@@ -91,9 +91,7 @@ class NameBuilderTest {
 
         // Then
         assertThat(name)
-                .hasSizeLessThanOrEqualTo(20)
-                .startsWith("0")
-                .matches("^[a-z0-9]+-[a-z2-9]+$");
+                .isEqualTo("012345678-585f8d7fd7");
     }
 
     @Test
@@ -144,7 +142,7 @@ class NameBuilderTest {
         String name = NameBuilder.forRfc1035LabelName().append(tooLong).toString();
 
         // Then
-        assertThat(name).hasSizeLessThanOrEqualTo(63);
+        assertThat(name).hasSize(63);
     }
 
     @Test
@@ -180,7 +178,7 @@ class NameBuilderTest {
         String name = NameBuilder.forDnsSubdomainName().append(tooLong).toString();
 
         // Then
-        assertThat(name).hasSizeLessThanOrEqualTo(253);
+        assertThat(name).hasSize(253);
     }
 
     @Test
@@ -192,7 +190,7 @@ class NameBuilderTest {
         String name = NameBuilder.forResource(Service.class).append(tooLong).toString();
 
         // Then
-        assertThat(name).hasSizeLessThanOrEqualTo(63);
+        assertThat(name).hasSize(63);
     }
 
     @Test
@@ -204,7 +202,7 @@ class NameBuilderTest {
         String name = NameBuilder.forResource(Namespace.class).append(tooLong).toString();
 
         // Then
-        assertThat(name).hasSizeLessThanOrEqualTo(63);
+        assertThat(name).hasSize(63);
     }
 
     @Test
