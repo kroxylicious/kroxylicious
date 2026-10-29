@@ -11,6 +11,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -19,10 +21,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapVolumeSource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
 import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretVolumeSource;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
@@ -49,6 +53,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRoute;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TlsSubjectBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.ingresses.LoadBalancerIngressPointsBuilder;
@@ -57,6 +62,7 @@ import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
@@ -100,6 +106,8 @@ public final class VirtualKafkaClusterReconciler implements
     public static final String CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "configmapsTrustAnchorRef";
     static final String SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsTrustAnchorRef";
     static final String KUBERNETES_SERVICES_EVENT_SOURCE_NAME = "kubernetesServices";
+    static final String SECRETS_SUBJECT_BUILDER_EVENT_SOURCE_NAME = "secretsSubjectBuilder";
+    static final String CONFIG_MAPS_SUBJECT_BUILDER_EVENT_SOURCE_NAME = "configmapsSubjectBuilder";
     private static final String KAFKA_PROXY_INGRESS_KIND = getKind(KafkaProxyIngress.class);
     static final String KAFKA_PROXY_KIND = getKind(KafkaProxy.class);
     static final String VIRTUAL_KAFKA_CLUSTER_KIND = getKind(VirtualKafkaCluster.class);
@@ -108,17 +116,21 @@ public final class VirtualKafkaClusterReconciler implements
     private final VirtualKafkaClusterStatusFactory statusFactory;
     private final DependencyResolver resolver;
     private final SharedInformerManager sharedInformerManager;
+    private final SecureConfigInterpolator secureConfigInterpolator;
 
     /**
-     * Constructs the reconciler with the given clock, dependency resolver, and shared informer manager.
+     * Constructs the reconciler with the given clock, dependency resolver, shared informer manager, and interpolator.
      * @param clock the clock used for status timestamps
      * @param resolver the dependency resolver for custom resource references
      * @param sharedInformerManager the shared informer manager for watch coordination
+     * @param secureConfigInterpolator the interpolator for resolving tlsSubjectBuilder configTemplate expressions
      */
-    public VirtualKafkaClusterReconciler(Clock clock, DependencyResolver resolver, SharedInformerManager sharedInformerManager) {
+    public VirtualKafkaClusterReconciler(Clock clock, DependencyResolver resolver, SharedInformerManager sharedInformerManager,
+                                         SecureConfigInterpolator secureConfigInterpolator) {
         this.statusFactory = new VirtualKafkaClusterStatusFactory(clock);
         this.resolver = resolver;
         this.sharedInformerManager = sharedInformerManager;
+        this.secureConfigInterpolator = Objects.requireNonNull(secureConfigInterpolator);
     }
 
     /**
@@ -145,6 +157,7 @@ public final class VirtualKafkaClusterReconciler implements
                 clusterResolutionResult.allResolvedReferents().forEach(checksumGenerator::appendMetadata);
 
                 appendSecretsFromCertificateRefs(context, cluster, checksumGenerator);
+                appendSubjectBuilderRefs(context, cluster, checksumGenerator);
 
                 Annotations.annotateWithReferentChecksum(updatedCluster, checksumGenerator.encode());
                 reconciliationResult = UpdateControl.patchResourceAndStatus(updatedCluster);
@@ -222,6 +235,9 @@ public final class VirtualKafkaClusterReconciler implements
         VirtualKafkaCluster updatedVirtualCluster = checkIngressCertificateRefs(cluster, context);
         if (updatedVirtualCluster == null) {
             updatedVirtualCluster = checkIngressTrustAnchorRefs(cluster, context);
+        }
+        if (updatedVirtualCluster == null) {
+            updatedVirtualCluster = checkSubjectBuilderRefs(cluster, context);
         }
         return updatedVirtualCluster;
     }
@@ -445,6 +461,16 @@ public final class VirtualKafkaClusterReconciler implements
                         .withName(SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
                         .withSharedInformer(sharedInformerManager)
                         .withRelationship(Ref.toSecondaries(VirtualKafkaClusterReconciler::secretTrustAnchorRefs))
+                        .build(),
+                EventSourceBuilder.forSecondary(context, Secret.class)
+                        .withName(SECRETS_SUBJECT_BUILDER_EVENT_SOURCE_NAME)
+                        .withSharedInformer(sharedInformerManager)
+                        .withRelationship(Ref.toSecondaries(this::subjectBuilderSecretRefs))
+                        .build(),
+                EventSourceBuilder.forSecondary(context, ConfigMap.class)
+                        .withName(CONFIG_MAPS_SUBJECT_BUILDER_EVENT_SOURCE_NAME)
+                        .withSharedInformer(sharedInformerManager)
+                        .withRelationship(Ref.toSecondaries(this::subjectBuilderConfigMapRefs))
                         .build());
     }
 
@@ -493,6 +519,105 @@ public final class VirtualKafkaClusterReconciler implements
                 .filter(ResourcesUtil::isConfigMap)
                 .map(ref -> (LocalRef<ConfigMap>) (LocalRef<?>) ref)
                 .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    Collection<LocalRef<Secret>> subjectBuilderSecretRefs(VirtualKafkaCluster cluster) {
+        TlsSubjectBuilder tls = cluster.getSpec().getTlsSubjectBuilder();
+        if (tls == null || tls.getConfigTemplate() == null) {
+            return List.of();
+        }
+        var result = secureConfigInterpolator.interpolate(tls.getConfigTemplate().getAdditionalProperties());
+        return result.volumes().stream()
+                .flatMap(v -> Optional.ofNullable(v.getSecret())
+                        .map(SecretVolumeSource::getSecretName).stream())
+                .map(n -> (LocalRef<Secret>) (LocalRef<?>) new AnyLocalRefBuilder()
+                        .withGroup("").withKind("Secret").withName(n).build())
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    Collection<LocalRef<ConfigMap>> subjectBuilderConfigMapRefs(VirtualKafkaCluster cluster) {
+        TlsSubjectBuilder tls = cluster.getSpec().getTlsSubjectBuilder();
+        if (tls == null || tls.getConfigTemplate() == null) {
+            return List.of();
+        }
+        var result = secureConfigInterpolator.interpolate(tls.getConfigTemplate().getAdditionalProperties());
+        return result.volumes().stream()
+                .flatMap(v -> Optional.ofNullable(v.getConfigMap())
+                        .map(ConfigMapVolumeSource::getName).stream())
+                .map(n -> (LocalRef<ConfigMap>) (LocalRef<?>) new AnyLocalRefBuilder()
+                        .withGroup("").withKind("ConfigMap").withName(n).build())
+                .toList();
+    }
+
+    @Nullable
+    private VirtualKafkaCluster checkSubjectBuilderRefs(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
+        var referencedSecrets = subjectBuilderSecretRefs(cluster).stream()
+                .map(LocalRef::getName)
+                .collect(Collectors.toCollection(TreeSet::new));
+        var referencedConfigMaps = subjectBuilderConfigMapRefs(cluster).stream()
+                .map(LocalRef::getName)
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        if (referencedSecrets.isEmpty() && referencedConfigMaps.isEmpty()) {
+            return null;
+        }
+
+        var existingSecrets = referencedSecrets.isEmpty() ? Set.of()
+                : context.getSecondaryResourcesAsStream(Secret.class)
+                        .map(ResourcesUtil::name)
+                        .collect(Collectors.toSet());
+        var existingConfigMaps = referencedConfigMaps.isEmpty() ? Set.<String> of()
+                : context.getSecondaryResourcesAsStream(ConfigMap.class)
+                        .map(ResourcesUtil::name)
+                        .collect(Collectors.toSet());
+
+        if (existingSecrets.containsAll(referencedSecrets) && existingConfigMaps.containsAll(referencedConfigMaps)) {
+            return null;
+        }
+
+        var missingSecrets = new TreeSet<>(referencedSecrets);
+        missingSecrets.removeAll(existingSecrets);
+        var missingConfigMaps = new TreeSet<>(referencedConfigMaps);
+        missingConfigMaps.removeAll(existingConfigMaps);
+
+        String message = "Referenced";
+        if (!missingSecrets.isEmpty()) {
+            message += " Secrets [" + String.join(", ", missingSecrets) + "]";
+        }
+        if (!missingConfigMaps.isEmpty()) {
+            message += " ConfigMaps [" + String.join(", ", missingConfigMaps) + "]";
+        }
+        message += " not found";
+
+        return statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs,
+                Condition.REASON_INTERPOLATED_REFS_NOT_FOUND, message);
+    }
+
+    private void appendSubjectBuilderRefs(Context<VirtualKafkaCluster> context, VirtualKafkaCluster cluster,
+                                          @NonNull MetadataChecksumGenerator checksumGenerator) {
+        var secretNames = subjectBuilderSecretRefs(cluster).stream()
+                .map(LocalRef::getName)
+                .collect(Collectors.toSet());
+        var configMapNames = subjectBuilderConfigMapRefs(cluster).stream()
+                .map(LocalRef::getName)
+                .collect(Collectors.toSet());
+
+        if (secretNames.isEmpty() && configMapNames.isEmpty()) {
+            return;
+        }
+
+        if (!secretNames.isEmpty()) {
+            context.getSecondaryResourcesAsStream(Secret.class)
+                    .filter(s -> secretNames.contains(ResourcesUtil.name(s)))
+                    .forEach(checksumGenerator::appendMetadata);
+        }
+        if (!configMapNames.isEmpty()) {
+            context.getSecondaryResourcesAsStream(ConfigMap.class)
+                    .filter(cm -> configMapNames.contains(ResourcesUtil.name(cm)))
+                    .forEach(checksumGenerator::appendMetadata);
+        }
     }
 
     static void logIgnoredEvent(HasMetadata hasMetadata) {

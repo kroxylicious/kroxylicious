@@ -60,6 +60,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TlsSubjectBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.operator.DeploymentReadyCondition;
 import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
@@ -90,6 +91,7 @@ import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
@@ -222,7 +224,7 @@ public class KafkaProxyReconciler implements
 
         var clusterDefinitionFragments = buildClusterDefinitions(eligibleClusters);
         var virtualClusterFragments = eligibleClusters.stream()
-                .map(cluster -> buildVirtualCluster(cluster, model.networkingModel()))
+                .map(cluster -> buildVirtualCluster(cluster, model.networkingModel(), secureConfigInterpolator))
                 .toList();
 
         List<ClusterDefinition> clusterDefinitions = clusterDefinitionFragments.stream()
@@ -355,12 +357,34 @@ public class KafkaProxyReconciler implements
     }
 
     private static ConfigurationFragment<VirtualCluster> buildVirtualCluster(ClusterResolutionResult cluster,
-                                                                             ProxyNetworkingModel ingressModel) {
+                                                                             ProxyNetworkingModel ingressModel,
+                                                                             SecureConfigInterpolator secureConfigInterpolator) {
 
         ProxyNetworkingModel.ClusterNetworkingModel clusterNetworkingModel = ingressModel.clusterIngressModel(cluster.cluster()).orElseThrow();
         var gatewayFragments = ConfigurationFragment.reduce(clusterNetworkingModel.clusterIngressNetworkingModelResults().stream()
                 .map(ProxyNetworkingModel.ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
                 .map(KafkaProxyReconciler::buildVirtualClusterGateway).toList());
+
+        TlsSubjectBuilder tlsSubjectBuilder = cluster.cluster().getSpec().getTlsSubjectBuilder();
+        if (tlsSubjectBuilder != null) {
+            var configTemplateObj = tlsSubjectBuilder.getConfigTemplate();
+            Object configForInterpolation = (configTemplateObj != null) ? configTemplateObj.getAdditionalProperties() : Map.of();
+            SecureConfigInterpolator.InterpolationResult interpolationResult = secureConfigInterpolator.interpolate(configForInterpolation);
+            var subjectBuilderConfig = new TransportSubjectBuilderConfig(tlsSubjectBuilder.getType(), interpolationResult.config());
+            var subjectBuilderFragment = new ConfigurationFragment<>(subjectBuilderConfig, interpolationResult.volumes(), interpolationResult.mounts());
+            return ConfigurationFragment.combine(gatewayFragments, subjectBuilderFragment,
+                    (gateways, sbConfig) -> new VirtualCluster(
+                            name(cluster.cluster()),
+                            null,
+                            new RouteTarget(clusterDefinitionName(cluster), null),
+                            gateways,
+                            false,
+                            false,
+                            filterNamesForCluster(cluster),
+                            sbConfig,
+                            null,
+                            null));
+        }
 
         return gatewayFragments.map(gateways -> new VirtualCluster(
                 name(cluster.cluster()),
