@@ -10,6 +10,7 @@
 -Xep:ArrayRecordComponent:ERROR
 -Xep:BadImport:ERROR
 -Xep:BooleanLiteral:ERROR
+-Xep:BoxingComparator:ERROR
 -Xep:ByteBufferBackingArray:ERROR
 -Xep:CanonicalDuration:ERROR
 -Xep:DefaultCharset:ERROR
