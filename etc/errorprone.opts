@@ -6,6 +6,7 @@
 -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka)/.*
 
 # Keep the following in alphabetical order
+-Xep:AlmostJavadoc:ERROR
 -Xep:ArrayRecordComponent:ERROR
 -Xep:BadImport:ERROR
 -Xep:BooleanLiteral:ERROR
