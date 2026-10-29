@@ -13,6 +13,7 @@
 -Xep:BoxingComparator:ERROR
 -Xep:ByteBufferBackingArray:ERROR
 -Xep:CanonicalDuration:ERROR
+-Xep:ClassCanBeStatic:ERROR
 -Xep:DefaultCharset:ERROR
 -Xep:DistinctVarargsChecker:ERROR
 -Xep:EffectivelyPrivate:ERROR

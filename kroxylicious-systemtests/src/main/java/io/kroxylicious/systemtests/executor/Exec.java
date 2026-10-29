@@ -449,7 +449,7 @@ public class Exec {
     /**
      * Class represent async reader
      */
-    class StreamGobbler {
+    static class StreamGobbler {
         private final InputStream is;
         private final StringBuilder data = new StringBuilder();
 
