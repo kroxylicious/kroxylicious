@@ -26,10 +26,16 @@
 -Xep:ExposedPrivateType:ERROR
 -Xep:FutureReturnValueIgnored:ERROR
 -Xep:ImmutableEnumChecker:ERROR
+-Xep:InlineFormatString:ERROR
+-Xep:InlineMeInliner:ERROR
 -Xep:InlineMeSuggester:ERROR
+-Xep:InlineTrivialConstant:ERROR
+-Xep:InputStreamSlowMultibyteRead:ERROR
 -Xep:InvalidBlockTag:ERROR
 -Xep:InvalidInlineTag:ERROR
 -Xep:InvalidParam:ERROR
+-Xep:JavaTimeDefaultTimeZone:ERROR
+-Xep:JavaUtilDate:ERROR
 -Xep:JdkObsolete:ERROR
 -Xep:LoopOverCharArray:ERROR
 -Xep:MathAbsoluteNegative:ERROR
