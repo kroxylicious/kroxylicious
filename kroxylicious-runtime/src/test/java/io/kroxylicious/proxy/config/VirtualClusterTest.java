@@ -20,8 +20,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.event.Level;
 
-import com.google.common.base.Strings;
-
 import io.github.sambarker.logsquelcher.CapturedLogs;
 import io.github.sambarker.logsquelcher.LogSquelcherExtension;
 import io.github.sambarker.logsquelcher.LoggingEventAssert;
@@ -123,7 +121,7 @@ class VirtualClusterTest {
         return Stream.of(argumentSet("hyphen at start", "-cluster"),
                 argumentSet("hyphen at end", "cluster-"),
                 argumentSet("hyphen at start and end", "-cluster-"),
-                argumentSet("too long", Strings.repeat("a", 64)));
+                argumentSet("too long", "a".repeat(64)));
     }
 
     @ParameterizedTest
@@ -148,7 +146,7 @@ class VirtualClusterTest {
                 argumentSet("alphabetical only", "a"),
                 argumentSet("uppercase alphabetical only", "A"),
                 argumentSet("contains hyphen", "a-b"),
-                argumentSet("max length", Strings.repeat("a", 63)));
+                argumentSet("max length", "a".repeat(63)));
     }
 
     @ParameterizedTest

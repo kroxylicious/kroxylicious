@@ -1,0 +1,4 @@
+title: "fix: resolve several ErrorProne warnings: `InlineFormatString`, `InlineMeInliner`, `InlineTrivialConstant`, `InputStreamSlowMultibyteRead`, `JavaTimeDefaultTimeZone`, `JavaUtilDate` and `LoopOverCharArray`"
+type: fixed
+issues:
+  - 5245

@@ -631,6 +631,11 @@ class ConfigParserTest {
             public int read() throws IOException {
                 throw new IOException("I am the worst byte stream");
             }
+
+            @Override
+            public int read(byte[] b, int off, int len) throws IOException {
+                throw new IOException("I am the worst byte stream");
+            }
         };
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> configParser.parseConfiguration(mockInputStream));
         assertThat(exception.getMessage()).contains("Couldn't parse configuration");

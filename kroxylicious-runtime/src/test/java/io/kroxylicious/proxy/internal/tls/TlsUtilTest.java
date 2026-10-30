@@ -15,6 +15,7 @@ import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Instant;
 import java.util.Date;
 
 import javax.security.auth.x500.X500Principal;
@@ -210,8 +211,8 @@ class TlsUtilTest {
             PrivateKey privateKey = mockPrivateKey("TEST");
             X509Certificate cert = mock(X509Certificate.class);
             doThrow(new CertificateExpiredException("expired")).when(cert).checkValidity(any(Date.class));
-            when(cert.getNotBefore()).thenReturn(new Date(0));
-            when(cert.getNotAfter()).thenReturn(new Date(1));
+            when(cert.getNotBefore()).thenReturn(Date.from(Instant.EPOCH));
+            when(cert.getNotAfter()).thenReturn(Date.from(Instant.ofEpochMilli(1)));
 
             assertThatThrownBy(() -> TlsUtil.validateCertificateChain(privateKey, new X509Certificate[]{ cert }))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -262,8 +263,8 @@ class TlsUtilTest {
             X509Certificate leaf = mockCertificate("CN=leaf", "CN=issuer", "TEST");
             X509Certificate issuer = mockCertificate("CN=issuer", "CN=root", "TEST");
             doThrow(new CertificateExpiredException("expired")).when(issuer).checkValidity(any(Date.class));
-            when(issuer.getNotBefore()).thenReturn(new Date(0));
-            when(issuer.getNotAfter()).thenReturn(new Date(1));
+            when(issuer.getNotBefore()).thenReturn(Date.from(Instant.EPOCH));
+            when(issuer.getNotAfter()).thenReturn(Date.from(Instant.ofEpochMilli(1)));
 
             assertThatThrownBy(() -> TlsUtil.validateCertificateChain(privateKey, new X509Certificate[]{ leaf, issuer }))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -287,8 +288,8 @@ class TlsUtilTest {
         when(cert.getBasicConstraints()).thenReturn(-1);
         when(cert.getSubjectX500Principal()).thenReturn(new X500Principal(subjectName));
         when(cert.getIssuerX500Principal()).thenReturn(new X500Principal(issuerName));
-        when(cert.getNotBefore()).thenReturn(new Date(0));
-        when(cert.getNotAfter()).thenReturn(new Date(Long.MAX_VALUE));
+        when(cert.getNotBefore()).thenReturn(Date.from(Instant.EPOCH));
+        when(cert.getNotAfter()).thenReturn(Date.from(Instant.ofEpochMilli(Long.MAX_VALUE)));
         return cert;
     }
 
