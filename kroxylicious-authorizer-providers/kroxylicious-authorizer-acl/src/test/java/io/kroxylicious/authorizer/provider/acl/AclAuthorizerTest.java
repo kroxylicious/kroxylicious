@@ -277,12 +277,11 @@ class AclAuthorizerTest {
     }
 
     @Test
-    void builderOperationsCorrectlyAuthorizesWhenFirstEnumConstantHasAnonymousBody() {
+    void builderOperationsCorrectlyAuthorizesWhenEnumConstantsHaveAnonymousBodies() {
         // Given
-        // READ (ordinal 0) has an anonymous body, so READ.getClass() returns an anonymous subclass.
-        // EnumSet iterates by ordinal, so READ is always the first element. Without getDeclaringClass()
-        // the builder would key the rule under the anonymous subclass name, causing lookups for WRITE
-        // (a plain constant whose getClass() returns the real enum type) to silently fail.
+        // READ (ordinal 0) has an anonymous body, so without fixes both getClass() calls — in the
+        // builder and in Action.resourceTypeClass() — return anonymous subclasses, causing key
+        // mismatches in the rule tree and silently denying all operations.
         var authz = AclAuthorizer.builder()
                 .allow()
                 .subjectsHavingPrincipal(User.class)
@@ -295,10 +294,13 @@ class AclAuthorizerTest {
 
         // When
         AuthorizeResult result = getAuthorization(authz, bob, List.of(
+                new Action(FakeResourceWithAnonymousConstantBody.READ, "my-topic"),
                 new Action(FakeResourceWithAnonymousConstantBody.WRITE, "my-topic")));
 
         // Then
-        assertThat(result.allowed()).isEqualTo(List.of(new Action(FakeResourceWithAnonymousConstantBody.WRITE, "my-topic")));
+        assertThat(result.allowed()).isEqualTo(List.of(
+                new Action(FakeResourceWithAnonymousConstantBody.READ, "my-topic"),
+                new Action(FakeResourceWithAnonymousConstantBody.WRITE, "my-topic")));
         assertThat(result.denied()).isEmpty();
     }
 
