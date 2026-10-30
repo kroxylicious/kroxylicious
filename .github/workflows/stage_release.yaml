@@ -217,6 +217,8 @@ jobs:
             --arg websiteRepository "${{ github.event.inputs.website-repository }}" \
             --arg proxyAmd64Ref "${PROXY}:${SHA_TAG}-amd64" \
             --arg proxyArm64Ref "${PROXY}:${SHA_TAG}-arm64" \
+            --arg proxyPpc64leRef "${PROXY}:${SHA_TAG}-ppc64le" \
+            --arg proxyS390xRef "${PROXY}:${SHA_TAG}-s390x" \
             --arg proxyManifest "${PROXY}:${SHA_TAG}" \
             --arg proxyDigest "${PROXY_DIGEST}" \
             --arg operatorManifest "${OPERATOR}:${SHA_TAG}" \
@@ -236,7 +238,9 @@ jobs:
                   images: {
                     manifestImage: { ref: $proxyManifest, digest: $proxyDigest },
                     amd64: { ref: $proxyAmd64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist"] } },
-                    arm64: { ref: $proxyArm64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist", "aarch64"] } }
+                    arm64: { ref: $proxyArm64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist", "aarch64"] } },
+                    ppc64le: { ref: $proxyPpc64leRef, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist", "ppc64le"] } },
+                    s390x: { ref: $proxyS390xRef, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist", "s390x"] } }
                   }
                 },
                 operator: {
