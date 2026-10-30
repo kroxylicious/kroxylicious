@@ -276,6 +276,32 @@ class AclAuthorizerTest {
         }
     }
 
+    @Test
+    void builderOperationsCorrectlyAuthorizesWhenFirstEnumConstantHasAnonymousBody() {
+        // Given
+        // READ (ordinal 0) has an anonymous body, so READ.getClass() returns an anonymous subclass.
+        // EnumSet iterates by ordinal, so READ is always the first element. Without getDeclaringClass()
+        // the builder would key the rule under the anonymous subclass name, causing lookups for WRITE
+        // (a plain constant whose getClass() returns the real enum type) to silently fail.
+        var authz = AclAuthorizer.builder()
+                .allow()
+                .subjectsHavingPrincipal(User.class)
+                .withNameEqualTo("bob")
+                .operations(Set.of(FakeResourceWithAnonymousConstantBody.READ, FakeResourceWithAnonymousConstantBody.WRITE))
+                .onResourceWithNameEqualTo("my-topic")
+                .build();
+
+        Subject bob = new Subject(Set.of(new User("bob")));
+
+        // When
+        AuthorizeResult result = getAuthorization(authz, bob, List.of(
+                new Action(FakeResourceWithAnonymousConstantBody.WRITE, "my-topic")));
+
+        // Then
+        assertThat(result.allowed()).isEqualTo(List.of(new Action(FakeResourceWithAnonymousConstantBody.WRITE, "my-topic")));
+        assertThat(result.denied()).isEmpty();
+    }
+
     private static AuthorizeResult getAuthorization(AclAuthorizer authz, Subject alice, List<Action> op) {
         CompletionStage<AuthorizeResult> authorizationStage = authz.authorize(alice,
                 op);
@@ -387,6 +413,17 @@ class AclAuthorizerTest {
         CompletionStage<AuthorizeResult> authorize = authorizer.authorize(subject, List.of(new Action(resourceType, resourceName)));
         assertThat(authorize).isCompleted();
         return assertThat(authorize).succeedsWithin(Duration.ZERO).actual().decision(resourceType, resourceName);
+    }
+
+    private enum FakeResourceWithAnonymousConstantBody implements ResourceType<FakeResourceWithAnonymousConstantBody> {
+        READ {
+            @Override
+            public Set<FakeResourceWithAnonymousConstantBody> implies() {
+                return Set.of(DESCRIBE);
+            }
+        },
+        WRITE,
+        DESCRIBE;
     }
 
 }
