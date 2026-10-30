@@ -10,10 +10,12 @@ import java.io.File;
 import java.security.KeyStore;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -64,6 +66,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests focused on Kroxylicious ability to use TLS for both the upstream and downstream.
@@ -886,6 +889,98 @@ class TlsIT extends AbstractTlsIT {
                             .build())
                 .endVirtualCluster();
         // @formatter:on
+    }
+
+    @Test
+    void downstream_RotatedCertificateUsedForNewConnection() throws Exception {
+        // Given
+        var proxyKeystoreLocation = downstreamCertificateGenerator.getKeyStoreLocation();
+        var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
+        var proxyKeystorePasswordProvider = constructPasswordProvider(FilePassword.class, proxyKeystorePassword);
+
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .withNewTls()
+                                .withNewKeyStoreKey()
+                                    .withStoreFile(proxyKeystoreLocation)
+                                    .withStorePasswordProvider(proxyKeystorePasswordProvider)
+                                .endKeyStoreKey()
+                            .endTls()
+                            .build())
+                .endVirtualCluster();
+        // @formatter:on
+        var request = new Request(ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.latestVersion(), null, new ApiVersionsRequestData());
+        try (var tester = kroxyliciousTester(builder);
+                var existingClient = tester.simpleTestClient(PROXY_ADDRESS.toString(), true)) {
+            assertThat(existingClient.get(request)).succeedsWithin(Duration.ofSeconds(10));
+            assertThat(existingClient.getServerCertificateChain()).isNotEmpty();
+            final X509Certificate originalCertificate = existingClient.getServerCertificateChain().getFirst();
+            assertThat(originalCertificate.getSubjectX500Principal().getName()).contains("CN=localhost");
+
+            // When
+            final String rotatedOu = UUID.randomUUID().toString();
+            downstreamCertificateGenerator.generateSelfSignedCertificateEntry("test@kroxylicious.io", "localhost", rotatedOu, "kroxylicious.io", null, null, "US");
+
+            // Then
+            await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                try (var newClient = tester.simpleTestClient(PROXY_ADDRESS.toString(), true)) {
+                    assertThat(newClient.get(request)).succeedsWithin(Duration.ofSeconds(10));
+                    assertThat(newClient.getServerCertificateChain()).isNotEmpty();
+                    X509Certificate certificate = newClient.getServerCertificateChain().getFirst();
+                    assertThat(certificate.getSubjectX500Principal().getName()).contains("OU=" + rotatedOu);
+                    assertThat(certificate).isNotEqualTo(originalCertificate);
+                }
+            });
+
+            // the rotation only affects new connections, so the pre-rotation connection is still open and serving its original certificate
+            assertThat(existingClient.isOpen()).isTrue();
+            assertThat(existingClient.get(request)).succeedsWithin(Duration.ofSeconds(10));
+            assertThat(existingClient.getServerCertificateChain()).containsExactly(originalCertificate);
+        }
+    }
+
+    @Test
+    void downstream_EncryptedPemKeyPair() throws Exception {
+        // Given
+        var keyProvider = constructPasswordProvider(InlinePassword.class, "keypass");
+        var clusterDef = clusterDefinition(DEFAULT_CLUSTER_DEF_NAME, cluster);
+        // @formatter:off
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                            .withNewTls()
+                                .withNewKeyPairKey()
+                                    .withPrivateKeyFile(resourceOnFilesystem("tls/server_encrypted.key"))
+                                    .withCertificateFile(resourceOnFilesystem("tls/server.crt"))
+                                    .withKeyPasswordProvider(keyProvider)
+                                .endKeyPairKey()
+                            .endTls()
+                            .build())
+                .endVirtualCluster();
+        // @formatter:on
+        var request = new Request(ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.latestVersion(), null, new ApiVersionsRequestData());
+
+        // When / Then
+        try (var tester = kroxyliciousTester(builder);
+                var client = tester.simpleTestClient(PROXY_ADDRESS.toString(), true)) {
+            assertThat(client.get(request)).succeedsWithin(Duration.ofSeconds(10));
+            assertThat(client.getServerCertificateChain()).isNotEmpty();
+        }
+    }
+
+    private String resourceOnFilesystem(String resource) throws Exception {
+        var url = getClass().getResource(resource);
+        assertThat(url).as("test resource %s", resource).isNotNull();
+        return new File(url.toURI()).getAbsolutePath();
     }
 
     /**
