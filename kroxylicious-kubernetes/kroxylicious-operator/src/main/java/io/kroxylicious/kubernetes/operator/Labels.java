@@ -30,7 +30,7 @@ public class Labels {
         labels.put("app.kubernetes.io/managed-by", "kroxylicious-operator");
         labels.put("app.kubernetes.io/name", "kroxylicious");
         labels.put("app.kubernetes.io/component", "proxy");
-        labels.put("app.kubernetes.io/instance", ResourcesUtil.name(proxy));
+        labels.put("app.kubernetes.io/instance", NameBuilder.forRfc1123LabelName().appendNameOf(proxy).toString());
         return labels;
     }
 

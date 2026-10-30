@@ -82,6 +82,18 @@ class ProxyDeploymentDependentResourceTest {
     }
 
     @Test
+    void deploymentNameHashesWhenProxyNameExceedsLimit() {
+        // Given - Deployment names follow the 253-character DNS subdomain limit, not the 63-character label limit
+        KafkaProxy longNamedProxy = new KafkaProxyBuilder().withNewMetadata().withName("a".repeat(300)).endMetadata().build();
+
+        // When
+        String name = ProxyDeploymentDependentResource.deploymentName(longNamedProxy);
+
+        // Then
+        assertThat(name).hasSizeLessThanOrEqualTo(253);
+    }
+
+    @Test
     void shouldNotIncludeKafkaProxyInChecksum() {
         // Given
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();

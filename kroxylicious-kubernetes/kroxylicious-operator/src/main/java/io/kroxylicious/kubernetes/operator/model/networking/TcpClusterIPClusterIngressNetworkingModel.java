@@ -18,6 +18,7 @@ import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.openshift.api.model.RouteBuilder;
 
@@ -27,6 +28,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.NameBuilder;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
@@ -86,7 +88,12 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     public static String bootstrapServiceName(VirtualKafkaCluster cluster, String ingressName) {
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(ingressName);
-        return name(cluster) + "-" + ingressName + "-bootstrap";
+        return NameBuilder.forResource(Service.class)
+                .appendNameOf(cluster)
+                .append('-')
+                .append(ingressName)
+                .append("-bootstrap")
+                .toString();
     }
 
     @Override

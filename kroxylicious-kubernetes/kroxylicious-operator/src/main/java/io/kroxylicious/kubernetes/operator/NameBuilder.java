@@ -1,0 +1,148 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.kubernetes.operator;
+
+import java.util.Optional;
+
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Namespace;
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.Service;
+
+/**
+ * An unsynchronized builder (similar to {@link StringBuilder}) for Kubernetes names which
+ * honours the various length constraints imposed for different kinds.
+ * This does not validate the syntax of the names which get built.
+ */
+public class NameBuilder {
+
+    private final int maxLength;
+
+    private final StringBuilder buffer = new StringBuilder();
+
+    public NameBuilder(int maxLength) {
+        this.maxLength = maxLength;
+    }
+
+    /**
+     * Return a builder that's suitable for resources (Services, specifically)
+     * whose names must be RFC 1035 subdomain names (max length 63 characters).
+     * @return A builder for names of that type
+     */
+    public static NameBuilder forRfc1035LabelName() {
+        return new NameBuilder(63);
+    }
+
+    /**
+     * Return a builder that's suitable for resources
+     * whose names must be RFC 1123 subdomain names (max length 63 characters).
+     * @return A builder for names of that type
+     */
+    public static NameBuilder forRfc1123LabelName() {
+        return new NameBuilder(63);
+    }
+
+    /**
+     * Return a builder that's suitable for resources
+     * whose names must be DNS subdomain names (max length 253 characters).
+     * @return A builder for names of that type
+     */
+    public static NameBuilder forDnsSubdomainName() {
+        return new NameBuilder(253);
+    }
+
+    /**
+     * Return a builder that's suitable for a resource of the given type.
+     * @param resourceType The resource type
+     * @return A builder for names of that type
+     */
+    public static NameBuilder forResource(Class<? extends HasMetadata> resourceType) {
+        if (Service.class.isAssignableFrom(resourceType)) {
+            return forRfc1035LabelName();
+        }
+        else if (Namespace.class.isAssignableFrom(resourceType)
+                || Node.class.isAssignableFrom(resourceType)) {
+            return forRfc1123LabelName();
+        }
+        else {
+            return forDnsSubdomainName();
+        }
+    }
+
+    /**
+     * Append the given string
+     * @param part The string to append
+     * @return This builder
+     */
+    public NameBuilder append(String part) {
+        buffer.append(part);
+        return this;
+    }
+
+    /**
+     * Append the given character
+     * @param character The character to append
+     * @return This builder
+     */
+    public NameBuilder append(char character) {
+        buffer.append(character);
+        return this;
+    }
+
+    /**
+     * Append the {@code metadata.name} of the given resource.
+     * @param resource The resource
+     * @return This builder
+     */
+    public NameBuilder appendNameOf(HasMetadata resource) {
+        Optional.ofNullable(resource.getMetadata())
+                .map(ObjectMeta::getName)
+                .ifPresent(this::append);
+        return this;
+    }
+
+    /**
+     * Return the name that's been constructed from calls to {@code append()} methods.
+     * @return the name
+     */
+    @Override
+    public String toString() {
+        if (buffer.length() <= maxLength) {
+            return buffer.toString();
+        }
+        else {
+            String hash = hash(buffer);
+            buffer.setLength(maxLength - 1 - hash.length());
+            return buffer.append('-').append(hash).toString();
+        }
+    }
+
+    private static String hash(StringBuilder buffer) {
+        // This is loosely based on the Go code for ComputeHash() from: k8s.io/kubernetes/pkg/controller/controller_utils.go
+        int hash = buffer.toString().hashCode();
+        var s = Integer.toUnsignedString(hash);
+        return safeEncodeString(s);
+    }
+
+    static String safeEncodeString(String s) {
+        // This is loosely based on the Go code for SafeEncodeString() from: k8s.io/apimachinery/pkg/util/rand/rand.go
+        // SafeEncodeString encodes s using the same characters as rand.String. This reduces the chances of bad words and
+        // ensures that strings generated from hash functions appear consistent throughout the API.
+
+        // Note: The kubernetes algorithm means that `s` contains only the decimal digits 0-9
+        // which means that only chars from "456789bcdf" can ever be returned.
+        // We choose to follow k8s rather than aim for maximum encoding efficiency.
+        var alphanums = "bcdfghjklmnpqrstvwxz2456789";
+        char[] chars = new char[s.length()];
+        for (int i = 0; i < s.length(); i++) {
+            char b = s.charAt(i);
+            chars[i] = alphanums.charAt(b % alphanums.length());
+        }
+        return new String(chars, 0, s.length());
+    }
+}

@@ -16,8 +16,10 @@ import java.util.stream.Stream;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
+import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -27,6 +29,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRo
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.NameBuilder;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
@@ -195,7 +198,11 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     private String suffixedRouteName(String suffix) {
-        return name(cluster) + "-" + suffix;
+        return NameBuilder.forResource(Route.class)
+                .appendNameOf(cluster)
+                .append('-')
+                .append(suffix)
+                .toString();
     }
 
     private String bootstrapServiceName() {
@@ -212,7 +219,12 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     public static String bootstrapServiceName(VirtualKafkaCluster cluster, String ingressName) {
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(ingressName);
-        return name(cluster) + "-" + ingressName + "-service";
+        return NameBuilder.forResource(Service.class)
+                .appendNameOf(cluster)
+                .append('-')
+                .append(ingressName)
+                .append("-service")
+                .toString();
     }
 
 }

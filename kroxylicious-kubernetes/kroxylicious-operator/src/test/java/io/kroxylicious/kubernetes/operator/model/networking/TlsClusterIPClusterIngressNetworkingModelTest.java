@@ -89,6 +89,49 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
     public static final NodeIdRanges NODE_ID_RANGE = createNodeIdRange("a", 1L, 3L);
 
     @Test
+    void serviceNamesHashWhenCombinedNameExceedsLimit() {
+        // Given
+        String longClusterName = "a".repeat(40);
+        String longIngressName = "b".repeat(40);
+        VirtualKafkaCluster longNamedCluster = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                .withName(longClusterName)
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .addNewIngress()
+                .withNewIngressRef()
+                .withName(longIngressName)
+                .endIngressRef()
+                .withTls(TLS)
+                .endIngress()
+                .endSpec()
+                .build();
+        KafkaProxyIngress longNamedIngress = new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                .withName(longIngressName)
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .withNewClusterIP()
+                .withProtocol(Protocol.TLS)
+                .endClusterIP()
+                .endSpec()
+                .build();
+        ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, longNamedCluster, longNamedIngress,
+                List.of(createNodeIdRange("a", 1, 2)), TLS, 5);
+
+        // When
+        List<ServiceBuilder> serviceBuilders = instance.services().toList();
+
+        // Then
+        assertThat(serviceBuilders).isNotEmpty().allSatisfy(serviceBuild -> {
+            Service service = serviceBuild.build();
+            assertThat(service.getMetadata().getName()).hasSizeLessThanOrEqualTo(63);
+        });
+    }
+
+    @Test
     void createInstancesWithSharedSniPort() {
         // given
         List<NodeIdRanges> nodeIdRange = List.of(createNodeIdRange("a", 1L, 3L));

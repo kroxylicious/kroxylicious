@@ -33,4 +33,16 @@ class LabelsTest {
         assertThat(labels).containsExactlyEntriesOf(expected);
     }
 
+    @Test
+    void instanceLabelHashesWhenProxyNameExceedsLimit() {
+        // Given
+        KafkaProxy longNamedProxy = new KafkaProxyBuilder().withNewMetadata().withName("a".repeat(100)).endMetadata().build();
+
+        // When
+        Map<String, String> labels = Labels.standardLabels(longNamedProxy);
+
+        // Then
+        assertThat(labels.get("app.kubernetes.io/instance")).hasSizeLessThanOrEqualTo(63);
+    }
+
 }

@@ -27,6 +27,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.NameBuilder;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -132,7 +133,7 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
                 .collect(Collectors.toSet());
 
         ObjectMetaBuilder metadataBuilder = new ObjectMetaBuilder()
-                .withName(name(ingress))
+                .withName(NameBuilder.forResource(Service.class).appendNameOf(ingress).toString())
                 .withNamespace(namespace(primary))
                 .addToLabels(standardLabels(primary))
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
