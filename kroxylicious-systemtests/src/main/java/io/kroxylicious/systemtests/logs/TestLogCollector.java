@@ -8,7 +8,7 @@ package io.kroxylicious.systemtests.logs;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -101,7 +101,7 @@ public class TestLogCollector {
     @SuppressWarnings("TimeInStaticInitializer")
     private static final String CURRENT_DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")
             .withZone(ZoneId.of("GMT"))
-            .format(LocalDateTime.now());
+            .format(Instant.now());
     private final LogCollector logCollector;
     private static TestLogCollector instance;
 

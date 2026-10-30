@@ -24,7 +24,6 @@ public final class AllMessages {
 
     private static final String KAFKA_PACKAGE = "org.apache.kafka.common.message.";
     private static final String KROXYLICIOUS_PACKAGE = "io.kroxylicious.kafka.common.message.";
-    private static final String CLASS_NAME_FORMAT = "%s%s%sData";
 
     private AllMessages() {
     }
@@ -157,7 +156,7 @@ public final class AllMessages {
     }
 
     private static Class<?> loadClass(String packageName, String messageName, String direction) throws ClassNotFoundException {
-        String className = CLASS_NAME_FORMAT.formatted(packageName, messageName, direction);
+        String className = "%s%s%sData".formatted(packageName, messageName, direction);
         return Class.forName(className);
     }
 
