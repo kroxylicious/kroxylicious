@@ -20,7 +20,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.filter.encryption.config.AadSpec;
 import io.kroxylicious.filter.encryption.config.RecordField;
-import io.kroxylicious.filter.encryption.dek.CipherManager;
 import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
 import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.filter.encryption.dek.NullCipherManager;
@@ -44,13 +43,13 @@ import static org.mockito.Mockito.mock;
 /**
  * Tests that the serialization done by wrapper and parcel are what we'd expect,
  * that they can cope with the records and recordFields we expect
- * and that they can be combined in the expected way
+ * and that they can be combined together in the expected way
  */
 class SerializedFormTest {
 
     // TODO abstract resolver validates names and ids
 
-    /**
+    /*
      * wrapper_v2 = cipher_id
      * edek_length
      * edek
