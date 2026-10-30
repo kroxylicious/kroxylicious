@@ -15,10 +15,9 @@ FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1791895366@sha256:5be877a2a28
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1788166357@sha256:7fbeae18dc9476399f565e68255f602a3374ea8614ba3d14843565131a13ff93 AS builder
 
 ARG JAVA_VERSION=21
-ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER=kroxylicious
 ARG CONTAINER_USER_UID=185
-ENV ROOTFS=/mnt/rootfs
+ARG ROOTFS=/mnt/rootfs
 
 USER root
 
@@ -41,7 +40,7 @@ RUN microdnf install \
         -y \
         java-${JAVA_VERSION}-openjdk-headless \
         openssl \
-    && if [[ -n "${CONTAINER_USER}" && "${CONTAINER_USER}" != "root" ]] ; then groupadd --root ${ROOTFS} -r -g "${CONTAINER_USER_UID}" "${CONTAINER_USER}" && useradd --root ${ROOTFS} -m -r -u "${CONTAINER_USER_UID}" -g "${CONTAINER_USER}" "${CONTAINER_USER}"; fi \
+    && if [[ -n "${CONTAINER_USER}" && "${CONTAINER_USER}" != "root" ]] ; then groupadd --root ${ROOTFS} -r -g "${CONTAINER_USER_UID}" "${CONTAINER_USER}" && useradd --root ${ROOTFS} -M -r -u "${CONTAINER_USER_UID}" -g "${CONTAINER_USER}" "${CONTAINER_USER}"; fi \
     && microdnf \
         --installroot ${ROOTFS}\
         --noplugins \
@@ -54,7 +53,7 @@ RUN microdnf install \
 # Download Tini directly into the rootfs
 ARG TINI_DEST=${ROOTFS}/usr/bin/tini
 
-COPY --from=quay.io/kroxylicious/tini:0.19.0 /usr/bin/tini ${TINI_DEST}
+COPY --from=quay.io/kroxylicious/tini:0.19.0@sha256:c4558590888cde324d905711c82009c8b5d76cf33f0f39a2435c43cf3dcd2e13 /usr/bin/tini ${TINI_DEST}
 
 RUN chmod +x ${TINI_DEST}
 
@@ -67,7 +66,7 @@ ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER_UID=185
 ARG JAVA_VERSION=21
 
-ENV ROOTFS=/mnt/rootfs
+ARG ROOTFS=/mnt/rootfs
 ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
 COPY --from=builder ${ROOTFS} /
