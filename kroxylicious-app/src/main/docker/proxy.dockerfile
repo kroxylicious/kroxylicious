@@ -51,10 +51,9 @@ RUN microdnf install \
         clean all
 
 # Download Tini directly into the rootfs
-ARG TINI_VERSION=0.19.0
 ARG TINI_DEST=${ROOTFS}/usr/bin/tini
 
-COPY --from=quay.io/kroxylicious/tini:${TINI_VERSION} /usr/bin/tini ${TINI_DEST}
+COPY --from=quay.io/kroxylicious/tini:0.19.0 /usr/bin/tini ${TINI_DEST}
 
 RUN chmod +x ${TINI_DEST} \
     && mkdir -p ${ROOTFS}/opt/kroxylicious/classpath-plugins && chown ${CONTAINER_USER_UID}:${CONTAINER_USER_UID} ${ROOTFS}/opt/kroxylicious/classpath-plugins
