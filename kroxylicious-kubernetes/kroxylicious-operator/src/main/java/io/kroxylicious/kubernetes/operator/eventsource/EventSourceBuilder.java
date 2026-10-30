@@ -28,9 +28,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Fluent builder for registering a single JOSDK event source: the secondary {@link Class} literal, the event
- * source name, shared-vs-dedicated informer choice, and the reference-traversal relationship (declared via
- * {@link Ref}, or a bespoke mapper pair for relationships that aren't expressible as a same-namespace
- * {@link io.kroxylicious.kubernetes.api.common.LocalRef} lookup).
+ * source name, shared-vs-dedicated informer choice, and dependency, or a bespoke mapper pair for
+ * dependency relationships that aren't expressible via {@link ReferenceDependency}
+ * or {@link StaticDependency}.
  *
  * @param <P> the type of the primary resource
  * @param <S> the type of the secondary resource
@@ -66,9 +66,12 @@ public final class EventSourceBuilder<P extends HasMetadata, S extends HasMetada
     }
 
     /**
-     * Sets the event source name. Mandatory: several reconcilers register more than one event source for the
-     * same secondary class, and {@code context.getSecondaryResource(Class, name)} call sites depend on exact
-     * name strings, so there is no safe default to fall back to.
+     * Sets the event source name. Mandatory in general: several reconcilers register more than one event
+     * source for the same secondary class, and {@code context.getSecondaryResource(Class, name)} call sites
+     * depend on exact name strings, so there is usually no safe default to fall back to. The one exception is a
+     * builder obtained via {@link ReferenceDependency#eventSourceBuilder(io.javaoperatorsdk.operator.api.reconciler.EventSourceContext)},
+     * which supplies a default derived from the path's shape ({@link ReferenceDependency#eventSourceName()}); calling this
+     * method on such a builder overrides that default.
      *
      * @param name the event source name
      * @return this builder
@@ -91,23 +94,23 @@ public final class EventSourceBuilder<P extends HasMetadata, S extends HasMetada
     }
 
     /**
-     * Declares the relationship between primary and secondary, built via {@link Ref}. The only declarative path;
-     * mutually exclusive with {@link #withMappers(PrimaryToSecondaryMapper, SecondaryToPrimaryMapper)}.
+     * Declares the dependency relationship between primary and secondary. The only
+     * declarative path; mutually exclusive with {@link #withMappers(PrimaryToSecondaryMapper, SecondaryToPrimaryMapper)}.
      *
-     * @param relationship the relationship, as built by one of the {@link Ref} factories
+     * @param dependency the dependency relationship
      * @return this builder
      */
-    public EventSourceBuilder<P, S> withRelationship(Relationship<P, S> relationship) {
+    public EventSourceBuilder<P, S> withRelationship(Dependency<P, S> dependency) {
         requireMappersNotYetSet();
-        this.primaryToSecondaryMapper = relationship.primaryToSecondary(context, secondaryType);
-        this.secondaryToPrimaryMapper = relationship.secondaryToPrimary(context);
+        this.primaryToSecondaryMapper = dependency.primaryToSecondary(context, secondaryType);
+        this.secondaryToPrimaryMapper = dependency.secondaryToPrimary(context);
         return this;
     }
 
     /**
-     * Escape hatch for relationships not expressible via {@link Ref}: cross-namespace indexed lookups,
-     * owner-reference/derived-name correlation, interpolation-driven discovery, and similar bespoke logic.
-     * Mutually exclusive with {@link #withRelationship(Relationship)}.
+     * Escape hatch for relationships not expressible via {@link ReferenceDependency} or {@link StaticDependency}:
+     * cross-namespace indexed lookups, owner-reference/derived-name correlation, interpolation-driven discovery,
+     * and similar bespoke logic. Mutually exclusive with {@link #withRelationship(Dependency)}.
      *
      * @param primaryToSecondaryMapper the primary-to-secondary mapper
      * @param secondaryToPrimaryMapper the secondary-to-primary mapper
@@ -140,7 +143,7 @@ public final class EventSourceBuilder<P extends HasMetadata, S extends HasMetada
      * @return a dedicated {@link InformerEventSource}, or a {@link SharedInformerEventSource} if
      *     {@link #withSharedInformer(SharedInformerManager)} was called
      * @throws IllegalStateException if {@link #withName(String)} was not called, if neither
-     *     {@link #withRelationship(Relationship)} nor {@link #withMappers(PrimaryToSecondaryMapper, SecondaryToPrimaryMapper)}
+     *     {@link #withRelationship(Dependency)} nor {@link #withMappers(PrimaryToSecondaryMapper, SecondaryToPrimaryMapper)}
      *     was called, or if either was called more than once
      */
     public EventSource<S, P> build() {

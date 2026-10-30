@@ -20,7 +20,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_
 
 /**
  * Bespoke because the derived CA cert Secret name lives in the (possibly cross-namespace) Strimzi {@code Kafka}
- * resource's own namespace, which isn't expressible via {@code Ref}'s same-namespace lookups. Plugged into the
+ * resource's own namespace. Plugged into the
  * {@code KafkaService} reconciler's event sources via {@code EventSourceBuilder.withMappers(...)}.
  */
 class KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper implements PrimaryToSecondaryMapper<KafkaService> {

@@ -112,8 +112,7 @@ public class KafkaProtocolFilterReconciler implements
 
     /**
      * Builds a mapper from a filter to the resource IDs of the given type ({@code R}) that its interpolated
-     * {@code spec.configTemplate} references &mdash; a dynamic, interpolation-driven relationship that isn't
-     * expressible via {@link io.kroxylicious.kubernetes.operator.eventsource.Ref}.
+     * {@code spec.configTemplate} references.
      *
      * @param secondaryClass the Java type of resource reference (e.g. Secret, ConfigMap)
      * @param resourceNameExtractor extracts the referenced resource names from an interpolation result

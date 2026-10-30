@@ -33,12 +33,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Exercises {@link EventSourceBuilder} directly: validation, the choice between a dedicated and a shared
- * informer, the freshness guard applied automatically to status-bearing secondaries, and its
- * {@link EventSourceBuilder#withoutFreshStatus()} opt-out. {@link Ref}'s declarative factories are covered
- * separately by {@link RefTest}.
- */
 class EventSourceBuilderTest {
 
     private static final PrimaryToSecondaryMapper<VirtualKafkaCluster> NO_SECONDARIES = primary -> Set.of();
@@ -70,7 +64,8 @@ class EventSourceBuilderTest {
         EventSourceContext<VirtualKafkaCluster> context = mock();
         var builder = EventSourceBuilder.forSecondary(context, KafkaService.class)
                 .withName("services")
-                .withRelationship(Ref.toSecondary(cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef())));
+                .withRelationship(ReferenceDependency.each(VirtualKafkaCluster.class)
+                        .dependsOn(KafkaService.class, "kafkaService", cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef())));
 
         // When / Then
         assertThatThrownBy(() -> builder.withMappers(NO_SECONDARIES, NO_PRIMARIES)).isInstanceOf(IllegalStateException.class);
@@ -83,7 +78,8 @@ class EventSourceBuilderTest {
         var builder = EventSourceBuilder.forSecondary(context, KafkaService.class)
                 .withName("services")
                 .withMappers(NO_SECONDARIES, NO_PRIMARIES);
-        Relationship<VirtualKafkaCluster, KafkaService> secondary = Ref.toSecondary(cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef()));
+        Dependency<VirtualKafkaCluster, KafkaService> secondary = ReferenceDependency.each(VirtualKafkaCluster.class)
+                .dependsOn(KafkaService.class, "kafkaService", cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef()));
 
         // When / Then
         assertThatThrownBy(() -> builder.withRelationship(secondary))
