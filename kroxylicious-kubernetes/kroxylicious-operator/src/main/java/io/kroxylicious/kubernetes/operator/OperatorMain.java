@@ -151,7 +151,8 @@ public class OperatorMain {
                 effectiveNamespaces);
 
         operator.register(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR), controllerConfigurer.configurationOverrider());
-        operator.register(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create(), sharedInformerManager),
+        operator.register(
+                new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create(), sharedInformerManager, SecureConfigInterpolator.DEFAULT_INTERPOLATOR),
                 controllerConfigurer.configurationOverrider());
         operator.register(new KafkaProxyIngressReconciler(Clock.systemUTC()), controllerConfigurer.configurationOverrider());
         operator.register(new KafkaServiceReconciler(Clock.systemUTC(), sharedInformerManager), controllerConfigurer.configurationOverrider());

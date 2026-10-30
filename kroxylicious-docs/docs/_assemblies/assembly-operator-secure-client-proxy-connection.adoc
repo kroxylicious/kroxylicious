@@ -20,6 +20,8 @@ include::../_modules/configuring/con-configuring-tls-between-client-and-proxy.ad
 
 include::../_modules/configuring/con-virtualkafkacluster-mtls.adoc[leveloffset=+1]
 
+include::../_modules/configuring/con-virtualkafkacluster-tls-subject-builder.adoc[leveloffset=+1]
+
 include::../_modules/configuring/con-virtualkafkacluster-tls-protocol.adoc[leveloffset=+1]
 
 include::../_modules/configuring/con-virtualkafkacluster-tls-cipher.adoc[leveloffset=+1]

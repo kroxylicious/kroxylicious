@@ -1,0 +1,93 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-secure-client-proxy-connection.adoc
+
+[id='con-virtualkafkacluster-tls-subject-builder-{context}']
+= Configuring the TLS subject builder for client-to-proxy connections
+
+[role="_abstract"]
+When a Kafka client authenticates to the proxy using TLS client certificates, the proxy must construct a Kafka security principal (the authenticated subject) from the certificate.
+The `tlsSubjectBuilder` field on a `VirtualKafkaCluster` controls how the proxy builds this principal.
+
+If `tlsSubjectBuilder` is not specified, every TLS client is treated as anonymous.
+An anonymous client has no principals, and the built-in Kafka ACL authorizer denies anonymous access by default.
+
+NOTE: SASL-based identities are configured on the relevant SASL filter, not here.
+If both TLS client authentication and SASL authentication are in use, a successful SASL login replaces the TLS certificate-based subject.
+A failed SASL login results in the client being anonymous, regardless of its certificate.
+
+For information about the available subject builder plugins and their rule syntax, see the _Configuring the transport subject builder_ section of the Kroxylicious proxy documentation.
+
+NOTE: The built-in `DefaultTransportSubjectBuilderService` requires `configTemplate` to be present.
+Custom subject builder plugins may not require it.
+
+.Example `VirtualKafkaCluster` using `DefaultTransportSubjectBuilderService` to map a client TLS certificate CN to a Kafka user principal
+[source,yaml]
+----
+kind: VirtualKafkaCluster
+metadata:
+  # ...
+spec:
+  # ...
+  tlsSubjectBuilder:
+    type: DefaultTransportSubjectBuilderService
+    configTemplate:
+      addPrincipals:
+        - from: clientTlsSubject
+          map:
+            - replaceMatch: "/(?:.*,)?CN=([^,]+)(?:,.*)?/$1/"
+            - else: anonymous
+          principalFactory: io.kroxylicious.proxy.authentication.UserFactory
+----
+
+where:
+
+* `type` is the Java class name of the subject builder plugin implementation. This field is required when `tlsSubjectBuilder` is present.
+* `configTemplate` contains the subject builder's configuration.
+  Values in the configuration can reference Kubernetes `Secret` or `ConfigMap` resources using the `${secret:<name>:<key>}` and `${configmap:<name>:<key>}` interpolation syntax respectively.
+  The operator resolves these references to file paths mounted in the proxy container.
+
+The `replaceMatch` rule `/(?:.*,)?CN=([^,]+)(?:,.*)?/$1/` extracts the `CN` component of the certificate subject distinguished name (DN) wherever it appears in the RFC 2253 string and uses it as the Kafka username.
+For example, a certificate with DN `CN=myapp,O=example` produces Kafka user `User:myapp`.
+The `else: anonymous` clause means that if no rule matches, the client is treated as anonymous.
+
+[TIP]
+====
+To see the subject string that the proxy matches against, run the following command:
+
+[source,bash]
+----
+openssl x509 -in <cert-file> -noout -subject -nameopt RFC2253
+----
+
+The output is in RFC 2253 format, for example `CN=myapp,O=example`.
+Commas that are part of an attribute value appear escaped as `\,` rather than as a field separator.
+When the `-subj` argument to `openssl req` uses commas as field separators (for example, `/CN=myapp,O=example`), the comma is treated as part of the CN value, producing `CN=myapp\,O=example`.
+Use `/`-separated attributes to produce distinct RDNs (for example, `/O=example/CN=myapp`).
+====
+
+.Example `VirtualKafkaCluster` using `configTemplate` with a `Secret` reference
+[source,yaml]
+----
+kind: VirtualKafkaCluster
+metadata:
+  # ...
+spec:
+  # ...
+  tlsSubjectBuilder:
+    type: com.example.CustomSubjectBuilderService
+    configTemplate:
+      rulesFile: ${secret:my-rules-secret:rules.conf}
+----
+
+When `configTemplate` references a `Secret` or `ConfigMap` that does not exist, the operator sets the `ResolvedRefs` condition on the `VirtualKafkaCluster` to `False` and the proxy excludes the virtual cluster from its configuration until the referenced resources exist.
+
+When the referenced resources exist but their contents change, the operator rolls the proxy pods to pick up the updated configuration.

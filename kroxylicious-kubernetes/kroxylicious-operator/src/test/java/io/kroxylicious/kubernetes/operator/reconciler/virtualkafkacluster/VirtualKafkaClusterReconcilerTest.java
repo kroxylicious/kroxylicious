@@ -57,6 +57,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingress
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
@@ -176,6 +177,31 @@ class VirtualKafkaClusterReconcilerTest {
                 .addNewFilterRef()
                     .withName("my-filter")
                 .endFilterRef()
+            .endSpec()
+            .build();
+
+    public static final String SUBJECT_BUILDER_SECRET_NAME = "subject-builder-secret";
+    public static final String SUBJECT_BUILDER_CONFIGMAP_NAME = "subject-builder-configmap";
+
+    private static final VirtualKafkaCluster CLUSTER_WITH_SUBJECT_BUILDER_SECRET_REF = new VirtualKafkaClusterBuilder(CLUSTER_TLS_NO_FILTERS)
+            .editOrNewSpec()
+                .withNewTlsSubjectBuilder()
+                    .withType("DefaultTransportSubjectBuilderService")
+                    .withNewConfigTemplate()
+                        .addToAdditionalProperties("someRule", "${secret:" + SUBJECT_BUILDER_SECRET_NAME + ":rule.conf}")
+                    .endConfigTemplate()
+                .endTlsSubjectBuilder()
+            .endSpec()
+            .build();
+
+    private static final VirtualKafkaCluster CLUSTER_WITH_SUBJECT_BUILDER_CONFIGMAP_REF = new VirtualKafkaClusterBuilder(CLUSTER_TLS_NO_FILTERS)
+            .editOrNewSpec()
+                .withNewTlsSubjectBuilder()
+                    .withType("DefaultTransportSubjectBuilderService")
+                    .withNewConfigTemplate()
+                        .addToAdditionalProperties("someRule", "${configmap:" + SUBJECT_BUILDER_CONFIGMAP_NAME + ":rule.conf}")
+                    .endConfigTemplate()
+                .endTlsSubjectBuilder()
             .endSpec()
             .build();
 
@@ -377,7 +403,8 @@ class VirtualKafkaClusterReconcilerTest {
 
     @BeforeEach
     void setUp() {
-        virtualKafkaClusterReconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
+        virtualKafkaClusterReconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class),
+                SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
 
     }
 
@@ -757,7 +784,8 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class),
+                SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
 
         Context<VirtualKafkaCluster> context = mock();
 
@@ -779,7 +807,8 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetIngressStatusForLoadBalancerIngress() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class),
+                SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, LOADBALANCER_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP,
                 Set.of());
         mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
@@ -811,7 +840,8 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetIngressStatusForOpenShiftRouteIngress() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class),
+                SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, OPENSHIFT_ROUTE_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP,
                 Set.of());
         mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
@@ -840,7 +870,8 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldNotSetIngressStatusForLoadBalancerIngressWithNoStatus() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class),
+                SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, LOADBALANCER_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP,
                 Set.of());
         mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
@@ -871,7 +902,8 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetIngressStatusForClusterIPIngress() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class),
+                SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP,
                 Set.of());
 
@@ -900,7 +932,8 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldOmitIngressIfKubernetesServiceNotPresent() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class),
+                SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
 
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP,
                 Set.of());
@@ -1029,6 +1062,74 @@ class VirtualKafkaClusterReconcilerTest {
                                                        Context<? extends CustomResource<?, ?>> context,
                                                        Optional<ConfigMap> empty) {
         when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(empty);
+    }
+
+    @Test
+    void shouldSetResolvedRefsToFalseWhenSubjectBuilderSecretRefMissing() {
+        // Given
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS_WITH_TLS, SERVICE, null, Set.of());
+        mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.empty());
+
+        // When
+        var update = virtualKafkaClusterReconciler.reconcile(CLUSTER_WITH_SUBJECT_BUILDER_SECRET_REF, reconcilerContext);
+
+        // Then
+        assertThat(update).isNotNull();
+        VirtualKafkaClusterStatusAssert.assertThat(update.getResource().orElseThrow().getStatus())
+                .singleCondition()
+                .isResolvedRefsFalse(Condition.REASON_INTERPOLATED_REFS_NOT_FOUND, "Referenced Secrets [" + SUBJECT_BUILDER_SECRET_NAME + "] not found");
+    }
+
+    @Test
+    void shouldSetResolvedRefsToFalseWhenSubjectBuilderConfigMapRefMissing() {
+        // Given
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS_WITH_TLS, SERVICE, null, Set.of());
+        mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.empty());
+
+        // When
+        var update = virtualKafkaClusterReconciler.reconcile(CLUSTER_WITH_SUBJECT_BUILDER_CONFIGMAP_REF, reconcilerContext);
+
+        // Then
+        assertThat(update).isNotNull();
+        VirtualKafkaClusterStatusAssert.assertThat(update.getResource().orElseThrow().getStatus())
+                .singleCondition()
+                .isResolvedRefsFalse(Condition.REASON_INTERPOLATED_REFS_NOT_FOUND, "Referenced ConfigMaps [" + SUBJECT_BUILDER_CONFIGMAP_NAME + "] not found");
+    }
+
+    @Test
+    void shouldIncludeSubjectBuilderSecretInChecksum() {
+        // Given
+        ConfigMap proxyConfigMap = buildProxyConfigMapWithPatch(CLUSTER_WITH_SUBJECT_BUILDER_SECRET_REF);
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS_WITH_TLS, SERVICE, proxyConfigMap, Set.of());
+
+        Secret subjectBuilderSecret = new SecretBuilder()
+                .withNewMetadata()
+                .withName(SUBJECT_BUILDER_SECRET_NAME)
+                .withNamespace(NAMESPACE)
+                .withUid(UUID.randomUUID().toString())
+                .withGeneration(10L)
+                .endMetadata()
+                .build();
+
+        MetadataChecksumGenerator checksumGenerator = mock(MetadataChecksumGenerator.class);
+        when(checksumGenerator.encode()).thenReturn("==BaSe64");
+        when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.of(checksumGenerator));
+
+        when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
+        mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class)).thenAnswer(
+                invocation -> Stream.of(KUBE_TLS_CERT_SECRET, subjectBuilderSecret));
+        when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.empty());
+
+        // When
+        virtualKafkaClusterReconciler.reconcile(CLUSTER_WITH_SUBJECT_BUILDER_SECRET_REF, reconcilerContext);
+
+        // Then
+        verify(checksumGenerator).appendMetadata(subjectBuilderSecret);
     }
 
 }

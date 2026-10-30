@@ -232,6 +232,26 @@ spec:
                         maxLength: 253
                         minLength: 1
                         type: string
+                tlsSubjectBuilder:
+                  description: |
+                    Configures the subject builder for this virtual cluster. The subject builder
+                    constructs a Kafka security principal from the client's TLS certificate.
+                    SASL identities are configured on the SASL filters instead.
+                    When absent, every TLS client is anonymous.
+                  type: object
+                  required:
+                    - type
+                  properties:
+                    type:
+                      description: The Java class name of the subject builder plugin implementation.
+                      type: string
+                    configTemplate:
+                      description: |
+                        The subject builder's configuration, subject to config provider interpolation.
+                        Use ${secret:<name>:<key>} or ${configmap:<name>:<key>} references to refer to
+                        Secret or ConfigMap data.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
             status:
               type: object
               properties:
