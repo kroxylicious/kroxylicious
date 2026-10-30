@@ -6,13 +6,19 @@
 -XepExcludedPaths:.*/(target/generated-sources|io/kroxylicious/kafka)/.*
 
 # Keep the following in alphabetical order
+-Xep:AlmostJavadoc:ERROR
 -Xep:ArrayRecordComponent:ERROR
 -Xep:BadImport:ERROR
 -Xep:BooleanLiteral:ERROR
+-Xep:BoxingComparator:ERROR
 -Xep:ByteBufferBackingArray:ERROR
 -Xep:CanonicalDuration:ERROR
+-Xep:ClassCanBeStatic:ERROR
+-Xep:CollectionUndefinedEquality:ERROR
 -Xep:DefaultCharset:ERROR
+-Xep:DirectInvocationOnMock:ERROR
 -Xep:DistinctVarargsChecker:ERROR
+-Xep:DuplicateAssertion:ERROR
 -Xep:EffectivelyPrivate:ERROR
 -Xep:EmptyBlockTag:ERROR
 -Xep:EqualsGetClass:ERROR

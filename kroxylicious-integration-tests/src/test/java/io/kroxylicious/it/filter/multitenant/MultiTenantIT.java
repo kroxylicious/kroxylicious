@@ -93,8 +93,6 @@ class MultiTenantIT extends BaseMultiTenantIT {
             assertThat(topicMap).hasSize(2);
             assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
                     allOf(matches(TopicListing::name, TOPIC_1), matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
-            assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                    allOf(matches(TopicListing::name, TOPIC_1), matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
             assertThat(topicMap).hasEntrySatisfying(TOPIC_2, matches(TopicListing::name, TOPIC_2));
 
             // Delete by name
