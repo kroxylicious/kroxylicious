@@ -19,7 +19,7 @@ class ActionTest {
         // Given
         // READ has an anonymous body, so READ.getClass() returns an anonymous subclass rather than
         // ResourceTypeWithAnonymousConstantBody.class.
-        var action = new Action(ResourceTypeWithAnonymousConstantBody.READ, "my-resource");
+        var action = new Action(ResourceTypeWithAnonymousConstantBody.WITH_BODY, "my-resource");
 
         // When
         var resourceTypeClass = action.resourceTypeClass();
@@ -29,14 +29,14 @@ class ActionTest {
     }
 
     private enum ResourceTypeWithAnonymousConstantBody implements ResourceType<ResourceTypeWithAnonymousConstantBody> {
-        READ {
+        WITH_BODY {
             @Override
             public Set<ResourceTypeWithAnonymousConstantBody> implies() {
-                return Set.of(DESCRIBE);
+                return Set.of(OTHER);
             }
         },
-        WRITE,
-        DESCRIBE;
+        WITHOUT_BODY,
+        OTHER;
 
         @Override
         public Set<ResourceTypeWithAnonymousConstantBody> implies() {

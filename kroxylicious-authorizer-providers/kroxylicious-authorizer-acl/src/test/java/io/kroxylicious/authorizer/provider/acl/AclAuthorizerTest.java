@@ -286,7 +286,7 @@ class AclAuthorizerTest {
                 .allow()
                 .subjectsHavingPrincipal(User.class)
                 .withNameEqualTo("bob")
-                .operations(Set.of(FakeResourceWithAnonymousConstantBody.READ, FakeResourceWithAnonymousConstantBody.WRITE))
+                .operations(Set.of(FakeResourceWithAnonymousConstantBody.WITH_BODY, FakeResourceWithAnonymousConstantBody.WITHOUT_BODY))
                 .onResourceWithNameEqualTo("my-topic")
                 .build();
 
@@ -294,13 +294,13 @@ class AclAuthorizerTest {
 
         // When
         AuthorizeResult result = getAuthorization(authz, bob, List.of(
-                new Action(FakeResourceWithAnonymousConstantBody.READ, "my-topic"),
-                new Action(FakeResourceWithAnonymousConstantBody.WRITE, "my-topic")));
+                new Action(FakeResourceWithAnonymousConstantBody.WITH_BODY, "my-topic"),
+                new Action(FakeResourceWithAnonymousConstantBody.WITHOUT_BODY, "my-topic")));
 
         // Then
         assertThat(result.allowed()).isEqualTo(List.of(
-                new Action(FakeResourceWithAnonymousConstantBody.READ, "my-topic"),
-                new Action(FakeResourceWithAnonymousConstantBody.WRITE, "my-topic")));
+                new Action(FakeResourceWithAnonymousConstantBody.WITH_BODY, "my-topic"),
+                new Action(FakeResourceWithAnonymousConstantBody.WITHOUT_BODY, "my-topic")));
         assertThat(result.denied()).isEmpty();
     }
 
@@ -418,14 +418,14 @@ class AclAuthorizerTest {
     }
 
     private enum FakeResourceWithAnonymousConstantBody implements ResourceType<FakeResourceWithAnonymousConstantBody> {
-        READ {
+        WITH_BODY {
             @Override
             public Set<FakeResourceWithAnonymousConstantBody> implies() {
-                return Set.of(DESCRIBE);
+                return Set.of(OTHER);
             }
         },
-        WRITE,
-        DESCRIBE;
+        WITHOUT_BODY,
+        OTHER;
     }
 
 }
