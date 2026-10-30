@@ -276,6 +276,34 @@ class AclAuthorizerTest {
         }
     }
 
+    @Test
+    void builderOperationsCorrectlyAuthorizesWhenEnumConstantsHaveAnonymousBodies() {
+        // Given
+        // READ (ordinal 0) has an anonymous body, so without fixes both getClass() calls — in the
+        // builder and in Action.resourceTypeClass() — return anonymous subclasses, causing key
+        // mismatches in the rule tree and silently denying all operations.
+        var authz = AclAuthorizer.builder()
+                .allow()
+                .subjectsHavingPrincipal(User.class)
+                .withNameEqualTo("bob")
+                .operations(Set.of(FakeResourceWithAnonymousConstantBody.WITH_BODY, FakeResourceWithAnonymousConstantBody.WITHOUT_BODY))
+                .onResourceWithNameEqualTo("my-topic")
+                .build();
+
+        Subject bob = new Subject(Set.of(new User("bob")));
+
+        // When
+        AuthorizeResult result = getAuthorization(authz, bob, List.of(
+                new Action(FakeResourceWithAnonymousConstantBody.WITH_BODY, "my-topic"),
+                new Action(FakeResourceWithAnonymousConstantBody.WITHOUT_BODY, "my-topic")));
+
+        // Then
+        assertThat(result.allowed()).isEqualTo(List.of(
+                new Action(FakeResourceWithAnonymousConstantBody.WITH_BODY, "my-topic"),
+                new Action(FakeResourceWithAnonymousConstantBody.WITHOUT_BODY, "my-topic")));
+        assertThat(result.denied()).isEmpty();
+    }
+
     private static AuthorizeResult getAuthorization(AclAuthorizer authz, Subject alice, List<Action> op) {
         CompletionStage<AuthorizeResult> authorizationStage = authz.authorize(alice,
                 op);
@@ -387,6 +415,17 @@ class AclAuthorizerTest {
         CompletionStage<AuthorizeResult> authorize = authorizer.authorize(subject, List.of(new Action(resourceType, resourceName)));
         assertThat(authorize).isCompleted();
         return assertThat(authorize).succeedsWithin(Duration.ZERO).actual().decision(resourceType, resourceName);
+    }
+
+    private enum FakeResourceWithAnonymousConstantBody implements ResourceType<FakeResourceWithAnonymousConstantBody> {
+        WITH_BODY {
+            @Override
+            public Set<FakeResourceWithAnonymousConstantBody> implies() {
+                return Set.of(OTHER);
+            }
+        },
+        WITHOUT_BODY,
+        OTHER;
     }
 
 }
