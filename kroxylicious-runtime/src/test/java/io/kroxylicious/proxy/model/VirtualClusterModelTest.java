@@ -382,6 +382,20 @@ class VirtualClusterModelTest {
         assertThat(summary).contains("Denied Protocols").contains("TLSv1.1");
     }
 
+    @Test
+    void generateTlsSummaryIncludesAllowedNamedGroups() {
+        var tls = new Tls(null, null, null, null, null, new AllowDeny<>(List.of("X25519MLKEM768"), null));
+        var summary = VirtualClusterModel.generateTlsSummary(Optional.of(tls));
+        assertThat(summary).contains("Allowed Groups").contains("X25519MLKEM768");
+    }
+
+    @Test
+    void generateTlsSummaryIncludesDeniedNamedGroups() {
+        var tls = new Tls(null, null, null, null, null, new AllowDeny<>(null, Set.of("x25519")));
+        var summary = VirtualClusterModel.generateTlsSummary(Optional.of(tls));
+        assertThat(summary).contains("Denied Groups").contains("x25519");
+    }
+
     private static PluginFactoryRegistry pluginFactoryRegistry() {
         return new PluginFactoryRegistry() {
             @SuppressWarnings({ "rawtypes", "unchecked" })
