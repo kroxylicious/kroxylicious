@@ -14,8 +14,6 @@ FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1791895366@sha256:5be877a2a28
 #####
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1788166357@sha256:7fbeae18dc9476399f565e68255f602a3374ea8614ba3d14843565131a13ff93 AS builder
 
-ARG TARGETOS=linux
-ARG TARGETARCH
 ARG JAVA_VERSION=21
 ARG CONTAINER_USER=kroxylicious
 ARG CONTAINER_USER_UID=185
@@ -53,28 +51,12 @@ RUN microdnf install \
         clean all
 
 # Download Tini directly into the rootfs
-ARG TINI_VERSION=v0.19.0
-ARG TINI_SHA256_AMD64=93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c
-ARG TINI_SHA256_ARM64=07952557df20bfd2a95f9bef198b445e006171969499a1d361bd9e6f8e5e0e81
-ARG TINI_SHA256_PPC64LE=3f658420974768e40810001a038c29d003728c5fe86da211cff5059e48cfdfde
-ARG TINI_SHA256_S390X=931b70a182af879ca249ae9de87ef68423121b38d235c78997fafc680ceab32d
+ARG TINI_VERSION=0.19.0
 ARG TINI_DEST=${ROOTFS}/usr/bin/tini
 
-RUN set -ex; \
-    if [[ "${TARGETOS}/${TARGETARCH}" = "linux/ppc64le" ]]; then \
-        curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-ppc64le -o ${TINI_DEST}; \
-        echo "${TINI_SHA256_PPC64LE} *${TINI_DEST}" | sha256sum -c; \
-    elif [[ "${TARGETOS}/${TARGETARCH}" = "linux/arm64" ]]; then \
-        curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-arm64 -o ${TINI_DEST}; \
-        echo "${TINI_SHA256_ARM64} *${TINI_DEST}" | sha256sum -c; \
-    elif [[ "${TARGETOS}/${TARGETARCH}" = "linux/s390x" ]]; then \
-        curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-s390x -o ${TINI_DEST}; \
-        echo "${TINI_SHA256_S390X} *${TINI_DEST}" | sha256sum -c; \
-    else \
-        curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini -o ${TINI_DEST}; \
-        echo "${TINI_SHA256_AMD64} *${TINI_DEST}" | sha256sum -c; \
-    fi; \
-    chmod +x ${TINI_DEST}
+COPY --from=quay.io/kroxylicious/tini:${TINI_VERSION} /usr/bin/tini ${TINI_DEST}
+
+RUN chmod +x ${TINI_DEST}
 
 #####
 # Stage 3: Build the final container image on ubi9-micro base
