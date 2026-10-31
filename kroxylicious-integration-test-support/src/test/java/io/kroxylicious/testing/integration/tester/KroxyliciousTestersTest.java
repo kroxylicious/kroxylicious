@@ -47,6 +47,7 @@ import org.junit.jupiter.api.parallel.ResourceLock;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.client.KafkaClient;
@@ -494,6 +495,7 @@ class KroxyliciousTestersTest {
                 .succeedsWithin(Duration.ofSeconds(10));
     }
 
+    @VisibleForTesting
     static void removeShareGroup(Admin admin, String groupName) {
         // A failed first poll can leave no group to delete; preserve the consumption failure.
         var deletion = admin.deleteConsumerGroups(List.of(groupName)).all().toCompletionStage()
