@@ -1,0 +1,4 @@
+title: "build(deps): bump errorprone.version from 2.50.0 to 2.51.0"
+type: build
+merge_requests:
+  - 5254
