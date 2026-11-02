@@ -205,6 +205,18 @@ class VirtualKafkaClusterReconcilerTest {
             .endSpec()
             .build();
 
+    private static final VirtualKafkaCluster CLUSTER_WITH_SUBJECT_BUILDER_BOTH_REFS = new VirtualKafkaClusterBuilder(CLUSTER_TLS_NO_FILTERS)
+            .editOrNewSpec()
+                .withNewTlsSubjectBuilder()
+                    .withType("FooSubjectBuilderService")
+                    .withNewConfigTemplate()
+                        .addToAdditionalProperties("secretRule", "${secret:" + SUBJECT_BUILDER_SECRET_NAME + ":rule.conf}")
+                        .addToAdditionalProperties("cmRule", "${configmap:" + SUBJECT_BUILDER_CONFIGMAP_NAME + ":rule.conf}")
+                    .endConfigTemplate()
+                .endTlsSubjectBuilder()
+            .endSpec()
+            .build();
+
     public static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
                 .withName(PROXY_NAME)
@@ -1098,6 +1110,25 @@ class VirtualKafkaClusterReconcilerTest {
         VirtualKafkaClusterStatusAssert.assertThat(update.getResource().orElseThrow().getStatus())
                 .singleCondition()
                 .isResolvedRefsFalse(Condition.REASON_INTERPOLATED_REFS_NOT_FOUND, "Referenced ConfigMaps [" + SUBJECT_BUILDER_CONFIGMAP_NAME + "] not found");
+    }
+
+    @Test
+    void shouldSetResolvedRefsToFalseWhenSubjectBuilderSecretAndConfigMapRefsMissing() {
+        // Given
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS_WITH_TLS, SERVICE, null, Set.of());
+        mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.empty());
+
+        // When
+        var update = virtualKafkaClusterReconciler.reconcile(CLUSTER_WITH_SUBJECT_BUILDER_BOTH_REFS, reconcilerContext);
+
+        // Then
+        assertThat(update).isNotNull();
+        VirtualKafkaClusterStatusAssert.assertThat(update.getResource().orElseThrow().getStatus())
+                .singleCondition()
+                .isResolvedRefsFalse(Condition.REASON_INTERPOLATED_REFS_NOT_FOUND,
+                        "Referenced Secrets [" + SUBJECT_BUILDER_SECRET_NAME + "] and ConfigMaps [" + SUBJECT_BUILDER_CONFIGMAP_NAME + "] not found");
     }
 
     @Test

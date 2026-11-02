@@ -610,7 +610,7 @@ public final class VirtualKafkaClusterReconciler implements
             message += " Secrets [" + String.join(", ", missingSecrets) + "]";
         }
         if (!missingConfigMaps.isEmpty()) {
-            message += (!missingSecrets.isEmpty() ? " and" : "") + " ConfigMaps [" + String.join(", ", missingConfigMaps) + "]";
+            message += (missingSecrets.isEmpty() ? "" : " and") + " ConfigMaps [" + String.join(", ", missingConfigMaps) + "]";
         }
         message += " not found";
 
