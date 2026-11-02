@@ -156,7 +156,9 @@ class RouteClusterIngressNetworkingModelTest {
         // Then
         assertThat(routeBuilders).isNotEmpty().allSatisfy(routeBuild -> {
             Route route = routeBuild.build();
-            assertThat(route.getMetadata().getName()).hasSizeLessThanOrEqualTo(253);
+            // The route name doubles as spec.subdomain, which OpenShift's router treats as a single DNS label (no dots), so it's bound by the
+            // 63-character label limit rather than the 253-character limit generally available to a Route's metadata.name.
+            assertThat(route.getMetadata().getName()).hasSizeLessThanOrEqualTo(63);
         });
     }
 

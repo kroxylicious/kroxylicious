@@ -19,7 +19,6 @@ import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -209,7 +208,10 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     private String suffixedRouteName(String suffix) {
-        return NameBuilder.forResource(Route.class)
+        // This name is used as both the Route's metadata.name and its spec.subdomain (see createRoute()). The Route object's metadata.name is a DNS subdomain
+        // and so could be up to 253 characters, but since this value contains no dots, OpenShift's router treats it as a single DNS label when deriving the
+        // externally-visible hostname, so it must obey the 63-character label limit rather than NameBuilder.forResource(Route.class)'s more general one.
+        return NameBuilder.forRfc1123LabelName()
                 .appendNameOf(cluster)
                 .variableSuffix(suffix, MAX_ROUTE_SUFFIX_WIDTH)
                 .toString();
