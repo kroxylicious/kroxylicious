@@ -1,0 +1,38 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: minimal
+  namespace: proxy-ns
+  generation: 1
+spec:
+  infrastructure:
+    nodeSelector:
+      node-pool: "kafka-proxy"
+    tolerations:
+      - key: "node-pool"
+        operator: "Equal"
+        value: "kafka-proxy"
+        effect: "NoSchedule"
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: "kubernetes.io/arch"
+                  operator: "In"
+                  values:
+                    - "arm64"
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: "topology.kubernetes.io/zone"
+        whenUnsatisfiable: "ScheduleAnyway"
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/instance: "minimal"
