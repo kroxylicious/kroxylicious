@@ -67,7 +67,9 @@ jobs:
 
   operator-tests-microshift:
     name: Operator integration & system tests on MicroShift
-    runs-on: ubuntu-latest
+    # Pinned to ubuntu-24.04: crc-org/crc-github-action@v1.0.1 fails on ubuntu-26.04
+    # due to missing qemu-kvm package (replaced by qemu-system-x86 in newer Ubuntu)
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: preflight
     if: needs.preflight.outputs.pull-secret-check == 'true' && (contains(fromJSON('["workflow_dispatch", "push"]'), github.event_name) || github.event.workflow_run.conclusion == 'success')
