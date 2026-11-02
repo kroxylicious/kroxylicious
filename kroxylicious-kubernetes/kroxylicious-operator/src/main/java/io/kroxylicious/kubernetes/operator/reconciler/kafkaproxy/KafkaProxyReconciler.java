@@ -365,38 +365,34 @@ public class KafkaProxyReconciler implements
                 .map(ProxyNetworkingModel.ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
                 .map(KafkaProxyReconciler::buildVirtualClusterGateway).toList());
 
-        TlsSubjectBuilder tlsSubjectBuilder = cluster.cluster().getSpec().getTlsSubjectBuilder();
-        if (tlsSubjectBuilder != null) {
-            var configTemplateObj = tlsSubjectBuilder.getConfigTemplate();
-            Object configForInterpolation = (configTemplateObj != null) ? configTemplateObj.getAdditionalProperties() : Map.of();
-            SecureConfigInterpolator.InterpolationResult interpolationResult = secureConfigInterpolator.interpolate(configForInterpolation);
-            var subjectBuilderConfig = new TransportSubjectBuilderConfig(tlsSubjectBuilder.getType(), interpolationResult.config());
-            var subjectBuilderFragment = new ConfigurationFragment<>(subjectBuilderConfig, interpolationResult.volumes(), interpolationResult.mounts());
-            return ConfigurationFragment.combine(gatewayFragments, subjectBuilderFragment,
-                    (gateways, sbConfig) -> new VirtualCluster(
-                            name(cluster.cluster()),
-                            null,
-                            new RouteTarget(clusterDefinitionName(cluster), null),
-                            gateways,
-                            false,
-                            false,
-                            filterNamesForCluster(cluster),
-                            sbConfig,
-                            null,
-                            null));
-        }
+        return ConfigurationFragment.combine(gatewayFragments, buildSubjectBuilder(cluster.cluster(), secureConfigInterpolator),
+                (gateways, sbConfig) -> new VirtualCluster(
+                        name(cluster.cluster()),
+                        null,
+                        new RouteTarget(clusterDefinitionName(cluster), null),
+                        gateways,
+                        false,
+                        false,
+                        filterNamesForCluster(cluster),
+                        sbConfig.orElse(null),
+                        null,
+                        null));
+    }
 
-        return gatewayFragments.map(gateways -> new VirtualCluster(
-                name(cluster.cluster()),
-                null,
-                new RouteTarget(clusterDefinitionName(cluster), null),
-                gateways,
-                false,
-                false,
-                filterNamesForCluster(cluster),
-                null,
-                null,
-                null));
+    private static ConfigurationFragment<Optional<TransportSubjectBuilderConfig>> buildSubjectBuilder(
+                                                                                                      VirtualKafkaCluster cluster,
+                                                                                                      SecureConfigInterpolator secureConfigInterpolator) {
+        TlsSubjectBuilder tlsSubjectBuilder = cluster.getSpec().getTlsSubjectBuilder();
+        if (tlsSubjectBuilder == null) {
+            return ConfigurationFragment.empty();
+        }
+        var configTemplateObj = tlsSubjectBuilder.getConfigTemplate();
+        Object configForInterpolation = (configTemplateObj != null) ? configTemplateObj.getAdditionalProperties() : null;
+        SecureConfigInterpolator.InterpolationResult interpolationResult = secureConfigInterpolator.interpolate(configForInterpolation);
+        return new ConfigurationFragment<>(
+                Optional.of(new TransportSubjectBuilderConfig(tlsSubjectBuilder.getType(), interpolationResult.config())),
+                interpolationResult.volumes(),
+                interpolationResult.mounts());
     }
 
     /**
