@@ -156,6 +156,15 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.proxycontainer.Resources>
                             io.fabric8.kubernetes.api.model.ResourceRequirements
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.proxycontainer.Resources>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.Tolerations>
+                            io.fabric8.kubernetes.api.model.Toleration
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.Tolerations>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.Affinity>
+                            io.fabric8.kubernetes.api.model.Affinity
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.Affinity>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.TopologySpreadConstraints>
+                            io.fabric8.kubernetes.api.model.TopologySpreadConstraint
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.TopologySpreadConstraints>
 
                         <!-- Common types used across our own CRDs -->
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ProxyRef>

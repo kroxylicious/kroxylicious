@@ -1,0 +1,50 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: scheduling-proxy
+  namespace: proxy-ns
+spec:
+  infrastructure:
+    nodeSelector:
+      kubernetes.io/os: linux
+      node-pool: kafka-proxy
+    tolerations:
+      - key: node-pool
+        operator: Equal
+        value: kafka-proxy
+        effect: NoSchedule
+      - key: node.kubernetes.io/unreachable
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: 30
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: kubernetes.io/arch
+                  operator: In
+                  values: [ arm64, amd64 ]
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/instance: scheduling-proxy
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/instance: scheduling-proxy
+        matchLabelKeys: [ pod-template-hash ]

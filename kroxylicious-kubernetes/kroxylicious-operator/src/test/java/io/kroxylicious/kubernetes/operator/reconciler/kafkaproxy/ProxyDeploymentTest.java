@@ -18,11 +18,17 @@ import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.ClearEnvironmentVariable;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
 
+import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.Toleration;
+import io.fabric8.kubernetes.api.model.TolerationBuilder;
+import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
+import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.api.model.SecurityContextConstraints;
@@ -177,6 +183,64 @@ class ProxyDeploymentTest {
         assertThat(actual.getSpec().getTemplate().getSpec())
                 .extracting(PodSpec::getServiceAccountName, PodSpec::getServiceAccount)
                 .containsOnly("kroxylicious-proxy");
+    }
+
+    @Test
+    void shouldLeaveSchedulingUnsetByDefault() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
+
+        // Then
+        PodSpec podSpec = actual.getSpec().getTemplate().getSpec();
+        assertThat(podSpec.getNodeSelector()).isNullOrEmpty();
+        assertThat(podSpec.getTolerations()).isNullOrEmpty();
+        assertThat(podSpec.getAffinity()).isNull();
+        assertThat(podSpec.getTopologySpreadConstraints()).isNullOrEmpty();
+    }
+
+    @Test
+    void shouldCopyConfiguredSchedulingToPodTemplate() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+        Map<String, String> nodeSelector = Map.of("node-pool", "kafka-proxy");
+        Toleration toleration = new TolerationBuilder()
+                .withKey("node-pool").withOperator("Equal").withValue("kafka-proxy").withEffect("NoSchedule")
+                .build();
+        Affinity affinity = new AffinityBuilder()
+                .withNewNodeAffinity()
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addNewMatchExpression().withKey("kubernetes.io/arch").withOperator("In").withValues("arm64").endMatchExpression()
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endNodeAffinity()
+                .build();
+        TopologySpreadConstraint topologySpreadConstraint = new TopologySpreadConstraintBuilder()
+                .withMaxSkew(1).withTopologyKey("topology.kubernetes.io/zone").withWhenUnsatisfiable("ScheduleAnyway")
+                .withNewLabelSelector().withMatchLabels(ProxyDeploymentDependentResource.podLabels(kafkaProxy)).endLabelSelector()
+                .build();
+        KafkaProxy proxyWithScheduling = kafkaProxy.edit().editOrNewSpec()
+                .editOrNewInfrastructure()
+                .withNodeSelector(nodeSelector)
+                .withTolerations(toleration)
+                .withAffinity(affinity)
+                .withTopologySpreadConstraints(topologySpreadConstraint)
+                .endInfrastructure()
+                .endSpec()
+                .build();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(proxyWithScheduling, kubernetesContext);
+
+        // Then
+        PodSpec podSpec = actual.getSpec().getTemplate().getSpec();
+        assertThat(podSpec.getNodeSelector()).isEqualTo(nodeSelector);
+        assertThat(podSpec.getTolerations()).containsExactly(toleration);
+        assertThat(podSpec.getAffinity()).isEqualTo(affinity);
+        assertThat(podSpec.getTopologySpreadConstraints()).containsExactly(topologySpreadConstraint);
     }
 
     @Test
