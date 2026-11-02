@@ -809,7 +809,7 @@ public class VirtualClusterModel implements AutoCloseable {
                     var sslContext = configureTrustProvider(tlsConfiguration).apply(sslContextBuilder).build();
 
                     if (Objects.nonNull(tlsConfiguration.namedGroups())) {
-                        sslContext = new KafkaProxyDelegatingSslContext(sslContext, contextId).setNamedGroups(tlsConfiguration);
+                        sslContext = new KafkaProxyDelegatingSslContext(sslContext, contextId, tlsConfiguration.namedGroups());
                     }
 
                     return sslContext;

@@ -973,7 +973,7 @@ class TlsIT extends AbstractTlsIT {
 
     /**
      * A trust-all client TLS context that restricts the key exchange named groups the client offers in its ClientHello.
-     * Kafka exposes no native client configuration for named groups, so this lets a real handshake drive the proxy's
+     * At the time of writing, Kafka exposes no native client configuration for named groups, so this lets a real handshake drive the proxy's
      * server-side named group enforcement with a client of known capability.
      */
     private static SslContext clientSslContextOffering(String... namedGroups) {

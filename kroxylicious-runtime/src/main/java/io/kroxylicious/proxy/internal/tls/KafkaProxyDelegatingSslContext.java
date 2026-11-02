@@ -21,12 +21,9 @@ import org.slf4j.LoggerFactory;
 import io.netty.handler.ssl.DelegatingSslContext;
 import io.netty.handler.ssl.SslContext;
 
-import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A Netty SslContext can be created but not used immediately and this causes an issue when the context needs to exert control
@@ -38,28 +35,18 @@ public class KafkaProxyDelegatingSslContext extends DelegatingSslContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyDelegatingSslContext.class);
 
     private final String id;
-    @SuppressWarnings("java:S3077") // volatile reference: write-once/read-once, need visibility not atomicity
-    @Nullable
-    private volatile AllowDeny<String> namedGroupConfig = null;
+    private final AllowDeny<String> namedGroupConfig;
 
     /**
      * Create a new delegating SSL context.
      * @param ctx context to delegate to
      * @param id unique id for this delegate (primarily used in logging)
+     * @param namedGroupConfig named groups configuration to be applied to this context
      */
-    public KafkaProxyDelegatingSslContext(final SslContext ctx, final String id) {
+    public KafkaProxyDelegatingSslContext(final SslContext ctx, final String id, final AllowDeny<String> namedGroupConfig) {
         super(ctx);
         this.id = id;
-    }
-
-    /**
-     * Apply the named groups from the Tls configuration to any connections made through this context.
-     * @param tls tls configuration to use
-     * @return this
-     */
-    public KafkaProxyDelegatingSslContext setNamedGroups(final Tls tls) {
-        namedGroupConfig = tls.namedGroups();
-        return this;
+        this.namedGroupConfig = namedGroupConfig;
     }
 
     @Override
@@ -72,12 +59,12 @@ public class KafkaProxyDelegatingSslContext extends DelegatingSslContext {
                 final List<String> resolvedGroups = resolveNamedGroups(params, namedGroups);
                 LOGGER.atDebug()
                         .addKeyValue("id", id)
-                        .addKeyValue("namedGroups", resolvedGroups)
+                        .addKeyValue("resolvedNamedGroups", resolvedGroups)
                         .log("applying named groups to SSL engine");
                 if (resolvedGroups.isEmpty()) {
                     LOGGER.atWarn()
                             .addKeyValue("id", id)
-                            .log("All allowed named groups are denied, clients will be unable to connect to this endpoint");
+                            .log("All configured allowed named groups are also denied, leaving no active allowed groups. Clients will be unable to connect to this endpoint");
                 }
                 params.setNamedGroups(resolvedGroups.toArray(String[]::new));
             }
@@ -106,7 +93,7 @@ public class KafkaProxyDelegatingSslContext extends DelegatingSslContext {
         else {
             var defaults = params.getNamedGroups();
             if (defaults == null) {
-                throw new IllegalConfigurationException(
+                throw new IllegalStateException(
                         ("%s: 'namedGroups' specifies only a 'denied' list, but this JDK does not expose its default named groups, "
                                 + "so the denied groups cannot be applied. Specify an 'allowed' list instead. See %s for details.")
                                 .formatted(id,

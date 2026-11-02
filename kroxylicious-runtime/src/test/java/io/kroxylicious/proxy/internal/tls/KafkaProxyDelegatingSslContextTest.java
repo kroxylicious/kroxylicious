@@ -16,9 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import io.netty.handler.ssl.SslContext;
 
-import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
-import io.kroxylicious.proxy.config.tls.Tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -36,8 +34,7 @@ class KafkaProxyDelegatingSslContextTest {
 
     private static KafkaProxyDelegatingSslContext contextWithNamedGroups(final AllowDeny<String> namedGroups) {
         var delegate = mock(SslContext.class);
-        return new KafkaProxyDelegatingSslContext(delegate, CONTEXT_ID)
-                .setNamedGroups(new Tls(null, null, null, null, null, namedGroups));
+        return new KafkaProxyDelegatingSslContext(delegate, CONTEXT_ID, namedGroups);
     }
 
     private static SSLEngine engineReporting(final String... currentNamedGroups) {
@@ -148,7 +145,7 @@ class KafkaProxyDelegatingSslContextTest {
 
         // Then
         assertThat(throwable)
-                .isInstanceOf(IllegalConfigurationException.class)
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(CONTEXT_ID)
                 .hasMessageContaining("does not expose its default named groups");
     }

@@ -241,7 +241,7 @@ If neither list is specified, the virtual cluster uses the default named groups 
 When the client connects, it negotiates the most preferred mutually acceptable named group with the virtual cluster.
 If the two have no named groups in common, the connection fails.
 
-The names of the named groups are defined by {java-21-specs}/security/standard-names.html#named-groups[Java specification].
+The names of the named groups are defined by the {java-21-specs}/security/standard-names.html#named-groups[Java specification].
 
 .Example restricting named groups using an allow list
 
