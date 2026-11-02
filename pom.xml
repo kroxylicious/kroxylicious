@@ -103,7 +103,7 @@
         <json-unit-assertj.version>6.3.0</json-unit-assertj.version>
 
         <!-- Error Prone -->
-        <errorprone.version>2.50.0</errorprone.version>
+        <errorprone.version>2.51.0</errorprone.version>
         <errorprone.skip>false</errorprone.skip>
 
         <central.publishing.skip>false</central.publishing.skip>
