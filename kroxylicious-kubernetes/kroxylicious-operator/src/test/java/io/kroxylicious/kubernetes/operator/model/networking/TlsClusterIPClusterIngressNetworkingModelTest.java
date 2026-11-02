@@ -34,6 +34,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuil
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -129,6 +130,54 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
             Service service = serviceBuild.build();
             assertThat(service.getMetadata().getName()).hasSizeLessThanOrEqualTo(63);
         });
+    }
+
+    @Test
+    void nodeIdentificationStrategySharesHashedPrefixWithRealServiceNamesWhenCombinedNameExceedsLimit() {
+        // Given
+        String longClusterName = "a".repeat(40);
+        String longIngressName = "b".repeat(40);
+        VirtualKafkaCluster longNamedCluster = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                .withName(longClusterName)
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .addNewIngress()
+                .withNewIngressRef()
+                .withName(longIngressName)
+                .endIngressRef()
+                .withTls(TLS)
+                .endIngress()
+                .endSpec()
+                .build();
+        KafkaProxyIngress longNamedIngress = new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                .withName(longIngressName)
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .withNewClusterIP()
+                .withProtocol(Protocol.TLS)
+                .endClusterIP()
+                .endSpec()
+                .build();
+        int sharedSniPort = 5;
+        TlsClusterIPClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, longNamedCluster, longNamedIngress,
+                List.of(createNodeIdRange("a", 1, 2)), TLS, sharedSniPort);
+
+        List<Service> services = instance.services().map(ServiceBuilder::build).toList();
+        String bootstrapServiceName = services.get(0).getMetadata().getName();
+        String node1ServiceName = services.get(1).getMetadata().getName();
+
+        // When
+        SniHostIdentifiesNodeIdentificationStrategy sni = (SniHostIdentifiesNodeIdentificationStrategy) instance.nodeIdentificationStrategy();
+
+        // Then
+        assertThat(sni.getBootstrapAddress())
+                .isEqualTo(new HostPort(bootstrapServiceName + "." + NAMESPACE + ".svc.cluster.local", sharedSniPort).toString());
+        assertThat(sni.getAdvertisedBrokerAddressPattern().replace("$(nodeId)", "1"))
+                .isEqualTo(node1ServiceName + "." + NAMESPACE + ".svc.cluster.local:" + TlsClusterIPClusterIngressNetworkingModel.CLIENT_FACING_PORT);
     }
 
     @Test

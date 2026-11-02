@@ -59,6 +59,10 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     /** Port used for client-facing TLS connections. */
     public static final int CLIENT_FACING_PORT = 9292;
 
+    // Widest possible service-name suffix: a 10-digit node id, and comfortably covers the
+    // 9-character literals "bootstrap" and the "$(nodeId)" substitution token.
+    private static final int MAX_NODE_SUFFIX_WIDTH = 10;
+
     /** Validates that required parameters are non-null and nodeIdRanges is non-empty. */
     public TlsClusterIPClusterIngressNetworkingModel {
         Objects.requireNonNull(proxy);
@@ -101,8 +105,7 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                 .appendNameOf(cluster)
                 .separator()
                 .appendNameOf(ingress)
-                .separator()
-                .role(suffix)
+                .variableSuffix(suffix, MAX_NODE_SUFFIX_WIDTH)
                 .toString();
     }
 

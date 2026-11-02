@@ -82,6 +82,10 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     public static final int CLIENT_FACING_ROUTE_PORT = 443;
     public static final String UNRESOLVED_ROUTE_HOST_TOKEN = "$(unresolvedRouteHost)";
 
+    // Widest possible route-name suffix: a 10-digit node id, and comfortably covers the
+    // 9-character literals "bootstrap" and the "$(nodeId)" substitution token.
+    private static final int MAX_ROUTE_SUFFIX_WIDTH = 10;
+
     @Override
     public Stream<ServiceBuilder> services() {
         ObjectMetaBuilder metadataBuilder = baseMetadataBuilder().withName(bootstrapServiceName());
@@ -128,15 +132,15 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
                 .withNewSpec()
                     .withSubdomain(subdomain)
                     .withNewPort()
-                    .withNewTargetPort(sharedSniPort)
-                .endPort()
-                .withNewTls()
-                    .withTermination("passthrough")
-                .endTls()
-                .withNewTo()
-                    .withKind("Service")
-                    .withName(bootstrapServiceName())
-                .endTo()
+                        .withNewTargetPort(sharedSniPort)
+                    .endPort()
+                    .withNewTls()
+                        .withTermination("passthrough")
+                    .endTls()
+                    .withNewTo()
+                        .withKind("Service")
+                        .withName(bootstrapServiceName())
+                    .endTo()
                 .endSpec();
         // @formatter:on
     }
@@ -168,23 +172,18 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
 
     @Override
     public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
-        // The domain a generated route cannot be determined up-front because of Ingress Controller sharding. Instead, we initially use a temporary placeholder token.
-        // Once the route is created and assigned a hostname, we extract the domain from it and use that instead of the token upon reconciliation.
-        HostPort bootstrapAddress = new HostPort(NameBuilder.forResource(Route.class)
-                .placeholder("$(virtualClusterName)", 1)
-                .separator()
-                .role("bootstrap")
-                + "."
-                + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(UNRESOLVED_ROUTE_HOST_TOKEN),
+        // The domain of a generated route cannot be determined up-front because of Ingress Controller sharding. Instead, we initially use a temporary placeholder
+        // token. Once the route is created and assigned a hostname, we extract the domain from it and use that instead of the token upon reconciliation.
+        //
+        // The route name itself is already known here (unlike the domain), so it's built via the same suffixedRouteName() used for the real Route objects. That
+        // guarantees the bootstrap/node patterns below always agree with the real Route names, even once NameBuilder has to hash-truncate a long cluster name:
+        // suffixedRouteName() reserves a fixed width for its suffix and excludes it from the hash, so the hashed prefix is identical regardless of whether the
+        // suffix is "bootstrap", a real node id, or the literal "$(nodeId)" token used here.
+        HostPort bootstrapAddress = new HostPort(
+                suffixedRouteName("bootstrap") + "." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(UNRESOLVED_ROUTE_HOST_TOKEN),
                 sharedSniPort);
         HostPort advertisedBrokerAddressPattern = new HostPort(
-                NameBuilder.forResource(Route.class)
-                        .placeholder("$(virtualClusterName)", 1)
-                        .separator()
-                        .placeholder("$(nodeId)", 10)
-                        + "."
-                        + getDomain(RouteHostDetails.RouteFor.NODE).orElse(
-                                UNRESOLVED_ROUTE_HOST_TOKEN),
+                suffixedRouteName("$(nodeId)") + "." + getDomain(RouteHostDetails.RouteFor.NODE).orElse(UNRESOLVED_ROUTE_HOST_TOKEN),
                 CLIENT_FACING_ROUTE_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress.toString(),
                 advertisedBrokerAddressPattern.toString());
@@ -206,14 +205,13 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
      * @return bootstrap address
      */
     private String bootstrapServers() {
-        return ResourcesUtil.name(cluster) + "-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(UNRESOLVED_ROUTE_HOST_TOKEN) + ":" + 443;
+        return suffixedRouteName("bootstrap") + "." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(UNRESOLVED_ROUTE_HOST_TOKEN) + ":" + 443;
     }
 
     private String suffixedRouteName(String suffix) {
         return NameBuilder.forResource(Route.class)
                 .appendNameOf(cluster)
-                .separator()
-                .role(suffix)
+                .variableSuffix(suffix, MAX_ROUTE_SUFFIX_WIDTH)
                 .toString();
     }
 

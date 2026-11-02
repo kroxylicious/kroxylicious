@@ -15,6 +15,7 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class NameBuilderTest {
 
@@ -264,6 +265,56 @@ class NameBuilderTest {
                 .role("-bootstrap")) // 10 chars ( => 71 chars appended)
                 .hasToString(
                         "cluster-901234567890-ingress-9012345678901-bootstrap-654b48bb76");
+    }
+
+    @Test
+    void variableSuffixAppendsLiteralValueWithLeadingSeparatorWhenWithinBudget() {
+        // Given
+        NameBuilder builder = new NameBuilder(63).append("cluster").variableSuffix("bootstrap", 10);
+
+        // When
+        String name = builder.toString();
+
+        // Then
+        assertThat(name).isEqualTo("cluster-bootstrap");
+    }
+
+    @Test
+    void variableSuffixValueExceedingMaxWidthThrows() {
+        assertThatThrownBy(() -> new NameBuilder(63).append("cluster").variableSuffix("way-too-long-a-value", 5))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void variableSuffixCanOnlyBeAddedOnce() {
+        assertThatThrownBy(() -> new NameBuilder(63).append("cluster").variableSuffix("a", 10).variableSuffix("b", 10))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void cannotAppendFurtherPartsAfterVariableSuffix() {
+        assertThatThrownBy(() -> new NameBuilder(63).append("cluster").variableSuffix("a", 10).append("oops"))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void variableSuffixIsExcludedFromHashSoSiblingNamesShareAHashedPrefixWhenTruncated() {
+        // Given
+        String overlongClusterName = "a".repeat(60);
+
+        // When
+        String bootstrapName = NameBuilder.forRfc1035LabelName().append(overlongClusterName).variableSuffix("bootstrap", 10).toString();
+        String node7Name = NameBuilder.forRfc1035LabelName().append(overlongClusterName).variableSuffix("7", 10).toString();
+        String nodeIdTokenName = NameBuilder.forRfc1035LabelName().append(overlongClusterName).variableSuffix("$(nodeId)", 10).toString();
+
+        // Then
+        String bootstrapPrefix = bootstrapName.substring(0, bootstrapName.lastIndexOf('-'));
+        String node7Prefix = node7Name.substring(0, node7Name.lastIndexOf('-'));
+        String nodeIdTokenPrefix = nodeIdTokenName.substring(0, nodeIdTokenName.lastIndexOf('-'));
+        assertThat(bootstrapPrefix).isEqualTo(node7Prefix).isEqualTo(nodeIdTokenPrefix);
+        assertThat(bootstrapName).endsWith("-bootstrap");
+        assertThat(node7Name).endsWith("-7");
+        assertThat(nodeIdTokenName).endsWith("-$(nodeId)");
     }
 
 }

@@ -39,6 +39,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -160,6 +161,40 @@ class RouteClusterIngressNetworkingModelTest {
     }
 
     @Test
+    void nodeIdentificationStrategySharesHashedPrefixWithRealRouteNamesWhenClusterNameExceedsLimit() {
+        // Given
+        VirtualKafkaCluster longNamedCluster = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                .withName("a".repeat(250))
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .addNewIngress()
+                .withNewIngressRef()
+                .withName(INGRESS_NAME)
+                .endIngressRef()
+                .withTls(TLS)
+                .endIngress()
+                .endSpec()
+                .build();
+        int sharedSniPort = 5;
+        RouteClusterIngressNetworkingModel instance = new RouteClusterIngressNetworkingModel(PROXY, longNamedCluster, INGRESS, ROUTE, List.of(NODE_ID_RANGE), TLS,
+                sharedSniPort, List.of());
+
+        List<Route> routes = instance.routes().map(RouteBuilder::build).toList();
+        String bootstrapRouteName = routes.get(0).getMetadata().getName();
+        String node1RouteName = routes.get(1).getMetadata().getName();
+
+        // When
+        SniHostIdentifiesNodeIdentificationStrategy sni = (SniHostIdentifiesNodeIdentificationStrategy) instance.nodeIdentificationStrategy();
+
+        // Then
+        assertThat(sni.getBootstrapAddress()).isEqualTo(new HostPort(bootstrapRouteName + ".$(unresolvedRouteHost)", sharedSniPort).toString());
+        assertThat(sni.getAdvertisedBrokerAddressPattern().replace("$(nodeId)", "1"))
+                .isEqualTo(node1RouteName + ".$(unresolvedRouteHost):" + HTTPS_PORT);
+    }
+
+    @Test
     void gatewayConfigWithUnresolvedHost() {
         // given
         int sharedSniPort = 5;
@@ -182,8 +217,8 @@ class RouteClusterIngressNetworkingModelTest {
         assertThat(gateway.tls()).isNotNull();
         assertThat(gateway.sniHostIdentifiesNode()).isNotNull().satisfies(sni -> {
             assertThat(sni.getBootstrapAddress())
-                    .isEqualTo(new HostPort("$(virtualClusterName)-bootstrap.$(unresolvedRouteHost)", sharedSniPort).toString());
-            assertThat(sni.getAdvertisedBrokerAddressPattern()).isEqualTo("$(virtualClusterName)-$(nodeId).$(unresolvedRouteHost):" + HTTPS_PORT);
+                    .isEqualTo(new HostPort(CLUSTER_NAME + "-bootstrap.$(unresolvedRouteHost)", sharedSniPort).toString());
+            assertThat(sni.getAdvertisedBrokerAddressPattern()).isEqualTo(CLUSTER_NAME + "-$(nodeId).$(unresolvedRouteHost):" + HTTPS_PORT);
         });
     }
 
@@ -216,8 +251,8 @@ class RouteClusterIngressNetworkingModelTest {
         assertThat(gateway.tls()).isNotNull();
         assertThat(gateway.sniHostIdentifiesNode()).isNotNull().satisfies(sni -> {
             assertThat(sni.getBootstrapAddress())
-                    .isEqualTo(new HostPort("$(virtualClusterName)-bootstrap." + bootstrapHostWithoutSubdomain, sharedSniPort).toString());
-            assertThat(sni.getAdvertisedBrokerAddressPattern()).isEqualTo("$(virtualClusterName)-$(nodeId)." + nodeHostWithoutSubdomain + ":" + HTTPS_PORT);
+                    .isEqualTo(new HostPort(CLUSTER_NAME + "-bootstrap." + bootstrapHostWithoutSubdomain, sharedSniPort).toString());
+            assertThat(sni.getAdvertisedBrokerAddressPattern()).isEqualTo(CLUSTER_NAME + "-$(nodeId)." + nodeHostWithoutSubdomain + ":" + HTTPS_PORT);
         });
     }
 

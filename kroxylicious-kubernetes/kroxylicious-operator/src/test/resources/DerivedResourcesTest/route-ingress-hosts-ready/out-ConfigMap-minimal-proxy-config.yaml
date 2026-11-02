@@ -37,8 +37,8 @@ data:
       gateways:
       - name: "myopenshiftroute"
         sniHostIdentifiesNode:
-          bootstrapAddress: "$(virtualClusterName)-bootstrap.ingress.host:9291"
-          advertisedBrokerAddressPattern: "$(virtualClusterName)-$(nodeId).ingress.host:443"
+          bootstrapAddress: "one-bootstrap.ingress.host:9291"
+          advertisedBrokerAddressPattern: "one-$(nodeId).ingress.host:443"
         tls:
           key:
             privateKeyFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.key"
