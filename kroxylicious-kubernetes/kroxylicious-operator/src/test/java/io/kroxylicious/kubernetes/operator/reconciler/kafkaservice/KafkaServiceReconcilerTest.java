@@ -651,7 +651,7 @@ class KafkaServiceReconcilerTest {
     private static void mockGetConfigMap(
                                          Context<KafkaService> context,
                                          Optional<ConfigMap> empty) {
-        when(context.getSecondaryResource(ConfigMap.class, KafkaServiceReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(empty);
+        when(context.getSecondaryResource(ConfigMap.class, KafkaServiceReconciler.CONFIG_MAP_TRUST_ANCHOR_DEPENDENCY.eventSourceName())).thenReturn(empty);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -671,14 +671,14 @@ class KafkaServiceReconcilerTest {
     private static void mockGetSecret(
                                       Context<KafkaService> context,
                                       Optional<Secret> optional) {
-        when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRETS_EVENT_SOURCE_NAME)).thenReturn(optional);
+        when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRET_CERTIFICATES_DEPENDENCY.eventSourceName())).thenReturn(optional);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static void mockGetSecretTrustAnchorRef(
                                                     Context<KafkaService> context,
                                                     Optional<Secret> optional) {
-        when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(optional);
+        when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRET_TRUST_ANCHOR_REF.eventSourceName())).thenReturn(optional);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")

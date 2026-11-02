@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 
@@ -70,7 +71,14 @@ public class SharedInformerManager {
         return (SharedIndexInformer<R>) sharedInformers.computeIfAbsent(resourceClass, clazz -> {
             SharedIndexInformer<R> informer;
 
-            if (effectiveNamespaces.isEmpty()) {
+            if (!Namespaced.class.isAssignableFrom(resourceClass)) {
+                // Cluster scoped resource
+                LOGGER.atInfo()
+                        .addKeyValue("resourceType", clazz.getSimpleName())
+                        .log("Creating shared informer (cluster scoped)");
+                informer = client.resources(resourceClass).inform();
+            }
+            else if (effectiveNamespaces.isEmpty()) {
                 // Watch all namespaces
                 LOGGER.atInfo()
                         .addKeyValue("resourceType", clazz.getSimpleName())

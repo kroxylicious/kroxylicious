@@ -5,10 +5,10 @@
  */
 
 /**
- * A declarative DSL ({@link io.kroxylicious.kubernetes.operator.eventsource.Ref}) and fluent builder
+ * A path-composition DSL ({@link ReferenceDependency} and {@link StaticDependency}) and fluent builder
  * ({@link io.kroxylicious.kubernetes.operator.eventsource.EventSourceBuilder}) for registering JOSDK event
- * sources, covering both relationship directions a reconciler may need: a primary holding a reference to its
- * secondaries, or a secondary (possibly transitively) holding a reference back to its primary.
+ * sources, covering any reference chain a reconciler may need between its primary and a secondary, of any
+ * length and in either direction, regardless of which end of the chain holds which reference.
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)

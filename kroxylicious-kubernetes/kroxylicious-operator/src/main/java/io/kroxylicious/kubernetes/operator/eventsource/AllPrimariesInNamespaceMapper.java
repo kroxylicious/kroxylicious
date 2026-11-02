@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.eventsource;
 
 import java.util.Set;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,12 +22,14 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findAllKnownPrim
 /**
  * Maps any secondary resource event to all primaries of type {@code P} in the same namespace.
  * <p>
- * This is the safe fallback for the "secondary holds the reference" relationship family
- * ({@link Ref#toPrimary}/{@link Ref#toPrimaryVia}): the secondary does not identify a single primary in a way
- * that survives the reference being changed or removed (an update event only exposes the secondary's current
- * state), so every primary in its namespace is reconciled instead; reconciling an unrelated primary is a
- * harmless no-op. Because the mapper only ever <em>reads</em> the secondary, it is safe to view a single
- * instance as a mapper for any concrete secondary type via {@link #forSecondary()}.
+ * This is the safe fallback used by {@link ReferenceDependency} whenever a dependency isn't a pure forward
+ * chain (some hop needed {@link ReferenceDependency#dependsOnReferrer(Class, String, Function)}
+ * to reach the primary): the secondary does not identify a single primary in a way that survives the
+ * reference being changed or removed (an update event only exposes the secondary's current state),
+ * so every primary in its namespace is reconciled instead; reconciling an unrelated primary is a
+ * harmless no-op. Because the mapper only ever <em>reads</em> the secondary, it is safe to view a
+ * single instance as a mapper for any concrete secondary type via
+ * {@link #forSecondary()}.
  *
  * @param <P> the type of the primary resource
  */

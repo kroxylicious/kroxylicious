@@ -710,7 +710,7 @@ class VirtualKafkaClusterReconcilerTest {
 
         when(reconcilerContext.getSecondaryResources(KafkaProxy.class)).thenReturn(setOfOrEmpty(proxy));
         when(reconcilerContext.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(setOfOrEmpty(ingress));
-        when(reconcilerContext.getSecondaryResource(eq(KafkaProxyIngress.class), eq(VirtualKafkaClusterReconciler.INGRESSES_EVENT_SOURCE_NAME), any()))
+        when(reconcilerContext.getSecondaryResource(eq(KafkaProxyIngress.class), eq(VirtualKafkaClusterReconciler.INGRESSES_DEPENDENCY.eventSourceName()), any()))
                 .thenReturn(Optional.ofNullable(ingress));
         when(reconcilerContext.getSecondaryResources(KafkaService.class)).thenReturn(setOfOrEmpty(service));
         when(reconcilerContext.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.ofNullable(proxyConfigMap));
@@ -932,7 +932,8 @@ class VirtualKafkaClusterReconcilerTest {
         when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.of(checksumGenerator));
 
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
-        when(reconcilerContext.getSecondaryResource(Secret.class, "secrets")).thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.CERT_SECRETS_DEPENDENCY.eventSourceName()))
+                .thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
         when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
 
         // When
@@ -952,8 +953,10 @@ class VirtualKafkaClusterReconcilerTest {
         when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.of(checksumGenerator));
 
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
-        when(reconcilerContext.getSecondaryResource(Secret.class, "secrets")).thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
-        when(reconcilerContext.getSecondaryResource(ConfigMap.class, "configmapsTrustAnchorRef")).thenReturn(Optional.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
+        when(reconcilerContext.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.CERT_SECRETS_DEPENDENCY.eventSourceName()))
+                .thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.TRUST_CONFIG_MAPS.eventSourceName()))
+                .thenReturn(Optional.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
         when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
         when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
 
@@ -974,8 +977,10 @@ class VirtualKafkaClusterReconcilerTest {
         when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.of(checksumGenerator));
 
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
-        when(reconcilerContext.getSecondaryResource(Secret.class, "secrets")).thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
-        when(reconcilerContext.getSecondaryResource(Secret.class, "secretsTrustAnchorRef")).thenReturn(Optional.of(TRUST_ANCHOR_PEM_SECRET));
+        when(reconcilerContext.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.CERT_SECRETS_DEPENDENCY.eventSourceName()))
+                .thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.TRUST_SECRETS.eventSourceName()))
+                .thenReturn(Optional.of(TRUST_ANCHOR_PEM_SECRET));
 
         // using `thenAnswer` since this mock is called twice and if we use `thenReturn` it returns a closed stream secondary time
         when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class))
@@ -996,8 +1001,10 @@ class VirtualKafkaClusterReconcilerTest {
 
         when(reconcilerContext.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.of(proxyConfigMap));
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
-        when(reconcilerContext.getSecondaryResource(Secret.class, "secrets")).thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
-        when(reconcilerContext.getSecondaryResource(ConfigMap.class, "configmapsTrustAnchorRef")).thenReturn(Optional.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
+        when(reconcilerContext.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.CERT_SECRETS_DEPENDENCY.eventSourceName()))
+                .thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.TRUST_CONFIG_MAPS.eventSourceName()))
+                .thenReturn(Optional.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
         when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
         when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
 
@@ -1017,18 +1024,18 @@ class VirtualKafkaClusterReconcilerTest {
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static void mockGetSecret(Context<? extends CustomResource<?, ?>> context, Optional<Secret> optional) {
-        when(context.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.SECRETS_EVENT_SOURCE_NAME)).thenReturn(optional);
+        when(context.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.CERT_SECRETS_DEPENDENCY.eventSourceName())).thenReturn(optional);
     }
 
     private static void mockGetSecretTrustAnchorRef(Context<? extends CustomResource<?, ?>> context, Optional<Secret> optional) {
-        when(context.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(optional);
+        when(context.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.TRUST_SECRETS.eventSourceName())).thenReturn(optional);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static void mockGetConfigMapTrustAnchorRef(
                                                        Context<? extends CustomResource<?, ?>> context,
                                                        Optional<ConfigMap> empty) {
-        when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(empty);
+        when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.TRUST_CONFIG_MAPS.eventSourceName())).thenReturn(empty);
     }
 
 }

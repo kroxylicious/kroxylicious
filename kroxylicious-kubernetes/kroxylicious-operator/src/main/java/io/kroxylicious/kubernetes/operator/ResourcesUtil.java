@@ -419,7 +419,7 @@ public class ResourcesUtil {
      */
     public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findKnownPrimariesOf(EventSourceContext<P> context,
                                                                                                       R referent,
-                                                                                                      Function<P, Optional<LocalRef<R>>> refAccessor) {
+                                                                                                      Function<P, Optional<? extends LocalRef<R>>> refAccessor) {
         return filteredPrimaryIdsInSameNamespace(context, referent,
                 primary -> refAccessor.apply(primary).map(lr -> isReferent(lr, referent)).orElse(false));
     }
@@ -439,7 +439,7 @@ public class ResourcesUtil {
     public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findKnownPrimariesOf(EventSourceContext<P> context,
                                                                                                       OwnerReference referent,
                                                                                                       HasMetadata hasNamespace,
-                                                                                                      Function<P, Optional<LocalRef<R>>> refAccessor) {
+                                                                                                      Function<P, Optional<? extends LocalRef<R>>> refAccessor) {
         return filteredPrimaryIdsInSameNamespace(context, hasNamespace,
                 primary -> refAccessor.apply(primary)
                         .map(lr -> referent.getName().equals(lr.getName()) && referent.getKind().equals(lr.getKind()))
@@ -483,6 +483,20 @@ public class ResourcesUtil {
      */
     public static <P extends HasMetadata> Set<ResourceID> findAllKnownPrimariesInNamespace(EventSourceContext<P> context, HasMetadata referent) {
         return filteredPrimaryIdsInSameNamespace(context, referent, ignored -> true);
+    }
+
+    /**
+     * Returns the {@link ResourceID}s of all known primaries, across all namespaces, resolved from the
+     * controller's primary cache rather than issuing a live {@code list} against the API server. This is the
+     * cluster-wide counterpart to {@link #findAllKnownPrimariesInNamespace(EventSourceContext, HasMetadata)},
+     * useful for secondary&rarr;primary mappers where the secondary is itself cluster-scoped and so has no
+     * namespace to scope the search to (e.g. a singleton operator configuration resource).
+     * @param context The event source context
+     * @return The ids of all known primaries, across all namespaces.
+     * @param <P> The type of the primary
+     */
+    public static <P extends HasMetadata> Set<ResourceID> findAllKnownPrimaries(EventSourceContext<P> context) {
+        return context.getPrimaryCache().keys().collect(Collectors.toSet());
     }
 
     private static <P extends HasMetadata> Set<ResourceID> filteredPrimaryIdsInSameNamespace(EventSourceContext<P> context,

@@ -591,12 +591,12 @@ class ResourcesUtilTest {
         VirtualKafkaCluster vkc = new VirtualKafkaClusterBuilder().withNewSpec().withIngresses(List.of(ingress)).endSpec().build();
         @SuppressWarnings("unchecked")
         Context<VirtualKafkaCluster> reconcilerContext = mock(Context.class);
-        when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME))
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.TRUST_CONFIG_MAPS.eventSourceName()))
                 .thenReturn(Optional.ofNullable(targetedConfigMap));
 
         // When
         ResourceCheckResult<VirtualKafkaCluster> actual = ResourcesUtil.checkTrustAnchorRef(vkc, reconcilerContext,
-                VirtualKafkaClusterReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME, trustAnchorRef,
+                VirtualKafkaClusterReconciler.TRUST_CONFIG_MAPS.eventSourceName(), trustAnchorRef,
                 "spec.ingresses[].tls.trustAnchor", VirtualKafkaClusterReconciler.newStatusFactory(TEST_CLOCK));
 
         // Then
@@ -699,13 +699,13 @@ class ResourcesUtilTest {
         VirtualKafkaCluster vkc = new VirtualKafkaClusterBuilder().withNewSpec().withIngresses(List.of(ingress)).endSpec().build();
         @SuppressWarnings("unchecked")
         Context<VirtualKafkaCluster> reconcilerContext = mock(Context.class);
-        when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME))
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.TRUST_CONFIG_MAPS.eventSourceName()))
                 .thenReturn(Optional.ofNullable(
                         new ConfigMapBuilder().withNewMetadata().withName("configmap").endMetadata().withData(Map.of(key, "I'm a key honest")).build()));
 
         // When
         ResourceCheckResult<VirtualKafkaCluster> actual = ResourcesUtil.checkTrustAnchorRef(vkc, reconcilerContext,
-                VirtualKafkaClusterReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME, trustAnchorRef,
+                VirtualKafkaClusterReconciler.TRUST_CONFIG_MAPS.eventSourceName(), trustAnchorRef,
                 "spec.ingresses[].tls.trustAnchor", VirtualKafkaClusterReconciler.newStatusFactory(TEST_CLOCK));
 
         // Then

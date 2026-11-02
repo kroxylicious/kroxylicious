@@ -21,7 +21,7 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 /**
  * Bespoke because {@code strimziKafkaRef} may point at a {@code Kafka} resource in a different namespace, needing
- * a primary-cache indexer rather than a same-namespace {@code Ref} lookup. Plugged into the {@code KafkaService}
+ * a primary-cache indexer. Plugged into the {@code KafkaService}
  * reconciler's event sources via {@code EventSourceBuilder.withMappers(...)}.
  */
 class StrimziKafkaSecondaryToKafkaServicePrimaryMapper implements SecondaryToPrimaryMapper<Kafka> {

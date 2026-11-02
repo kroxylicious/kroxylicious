@@ -78,7 +78,7 @@ class KafkaProxyIngressReconcilerTest {
         // given
         var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
-        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.empty());
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_DEPENDENCY.eventSourceName())).thenReturn(Optional.empty());
 
         // when
         var update = reconciler.reconcile(INGRESS, context);
@@ -103,7 +103,7 @@ class KafkaProxyIngressReconcilerTest {
         // given
         var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
-        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_DEPENDENCY.eventSourceName())).thenReturn(Optional.of(PROXY));
 
         // when
         var update = reconciler.reconcile(INGRESS, context);
@@ -128,7 +128,7 @@ class KafkaProxyIngressReconcilerTest {
 
         var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
-        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_DEPENDENCY.eventSourceName())).thenReturn(Optional.of(PROXY));
 
         var ingress = INGRESS.edit()
                 .editOrNewSpec()
@@ -162,7 +162,7 @@ class KafkaProxyIngressReconcilerTest {
 
         var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
-        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_DEPENDENCY.eventSourceName())).thenReturn(Optional.of(PROXY));
 
         var ingress = INGRESS.edit()
                 .editOrNewSpec()
@@ -211,7 +211,7 @@ class KafkaProxyIngressReconcilerTest {
     void shouldNotPatchResourceWhenResolvedRefsFalse() throws Exception {
         // given
         var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
-        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.empty());
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_DEPENDENCY.eventSourceName())).thenReturn(Optional.empty());
 
         // when
         var update = reconciler.reconcile(INGRESS, context);

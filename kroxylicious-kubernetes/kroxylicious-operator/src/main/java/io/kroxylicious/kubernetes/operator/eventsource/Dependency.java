@@ -12,15 +12,9 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
 /**
- * Describes how a primary resource of type {@code P} and a secondary resource of type {@code S} are related,
- * regardless of which side holds the pointer. Built exclusively by the factory methods on {@link Ref}
- * ({@link Ref#toSecondary}, {@link Ref#toSecondaries}, {@link Ref#toPrimary}, {@link Ref#toPrimaryVia}) and
- * consumed by {@link EventSourceBuilder#withRelationship(Relationship)}.
  *
- * @param <P> the type of the primary resource
- * @param <S> the type of the secondary resource
  */
-public interface Relationship<P extends HasMetadata, S extends HasMetadata> {
+public interface Dependency<P extends HasMetadata, S extends HasMetadata> {
 
     /**
      * Returns the mapper that, given a primary, finds the secondaries related to it.
@@ -38,4 +32,9 @@ public interface Relationship<P extends HasMetadata, S extends HasMetadata> {
      * @return a mapper from secondary to related primary resource IDs
      */
     SecondaryToPrimaryMapper<S> secondaryToPrimary(EventSourceContext<P> context);
+
+    String eventSourceName();
+
+    EventSourceBuilder<P, S> eventSourceBuilder(EventSourceContext<P> context);
+
 }

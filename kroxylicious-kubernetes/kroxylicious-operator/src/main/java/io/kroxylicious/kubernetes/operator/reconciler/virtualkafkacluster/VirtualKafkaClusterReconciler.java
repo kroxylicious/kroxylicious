@@ -35,9 +35,12 @@ import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.IngressRef;
+import io.kroxylicious.kubernetes.api.common.KafkaServiceRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.Protocol;
+import io.kroxylicious.kubernetes.api.common.ProxyRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -61,7 +64,7 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.eventsource.EventSourceBuilder;
-import io.kroxylicious.kubernetes.operator.eventsource.Ref;
+import io.kroxylicious.kubernetes.operator.eventsource.ReferenceDependency;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
@@ -90,21 +93,37 @@ public final class VirtualKafkaClusterReconciler implements
         Reconciler<VirtualKafkaCluster> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconciler.class);
-    static final String PROXY_EVENT_SOURCE_NAME = "proxy";
-    static final String PROXY_CONFIG_STATE_SOURCE_NAME = "proxy-config-state";
-    static final String SERVICES_EVENT_SOURCE_NAME = "services";
-    static final String INGRESSES_EVENT_SOURCE_NAME = "ingresses";
-    static final String FILTERS_EVENT_SOURCE_NAME = "filters";
-    static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
-    /** Event source name for ConfigMap-based trust anchor references. */
-    public static final String CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "configmapsTrustAnchorRef";
-    static final String SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsTrustAnchorRef";
     static final String KUBERNETES_SERVICES_EVENT_SOURCE_NAME = "kubernetesServices";
     private static final String KAFKA_PROXY_INGRESS_KIND = getKind(KafkaProxyIngress.class);
     static final String KAFKA_PROXY_KIND = getKind(KafkaProxy.class);
     static final String VIRTUAL_KAFKA_CLUSTER_KIND = getKind(VirtualKafkaCluster.class);
     private static final String KAFKA_SERVICE_KIND = getKind(KafkaService.class);
     private static final String KAFKA_PROTOCOL_FILTER_KIND = getKind(KafkaProtocolFilter.class);
+
+    /** Every a primary depends on a {@code KafkaProxy} via {@code spec.proxyRef} */
+    static final ReferenceDependency<VirtualKafkaCluster, KafkaProxy> PROXY_DEPENDENCY = ReferenceDependency.each(VirtualKafkaCluster.class)
+            .dependsOn(KafkaProxy.class, "proxy", VirtualKafkaClusterReconciler::clusterToProxy);
+    /** Every a primary depends on the {@code ${spec.proxyRef.name}-config-state} {@code ConfigMap} containing the proxy configuration */
+    static final ReferenceDependency<VirtualKafkaCluster, ConfigMap> PROXY_CONFIG_DEPENDENCY = ReferenceDependency.each(VirtualKafkaCluster.class)
+            .dependsOn(ConfigMap.class, "proxyConfig", VirtualKafkaClusterReconciler::clusterToProxyConfigurationConfigMap);
+    /** Every a primary depends on a {@code KafkaService} via {@code spec.targetKafkaServiceRef} */
+    static final ReferenceDependency<VirtualKafkaCluster, KafkaService> KAFKA_SERVICE_DEPENDENCY = ReferenceDependency.each(VirtualKafkaCluster.class)
+            .dependsOn(KafkaService.class, "kafkaService", VirtualKafkaClusterReconciler::clusterToKafkaService);
+    /** Every a primary depends on {@code KafkaProxyIngresses} via {@code spec.ingresses.ingressRef} */
+    static final ReferenceDependency<VirtualKafkaCluster, KafkaProxyIngress> INGRESSES_DEPENDENCY = ReferenceDependency.each(VirtualKafkaCluster.class)
+            .dependsOnEach(KafkaProxyIngress.class, "ingresses", VirtualKafkaClusterReconciler::clusterToIngresses);
+    /** Every a primary depends on {@code KafkaProtocolFilters} via {@code spec.filterRefs} */
+    static final ReferenceDependency<VirtualKafkaCluster, KafkaProtocolFilter> FILTERS_DEPENDENCY = ReferenceDependency.each(VirtualKafkaCluster.class)
+            .dependsOnEach(KafkaProtocolFilter.class, "filters", VirtualKafkaClusterReconciler::clusterToProtocolFilters);
+    /** Every a primary may depend on a {@code Secret} containing a certificate via {@code spec.ingresses.tls.certificateRef} */
+    static final ReferenceDependency<VirtualKafkaCluster, Secret> CERT_SECRETS_DEPENDENCY = ReferenceDependency.each(VirtualKafkaCluster.class)
+            .dependsOnEach(Secret.class, "certSecrets", VirtualKafkaClusterReconciler::clusterToCertSecrets);
+    /** Every a primary may depend on a {@code ConfigMap} containing a trust store via {@code spec.ingresses.tls.trustAnchorRef} */
+    public static final ReferenceDependency<VirtualKafkaCluster, ConfigMap> TRUST_CONFIG_MAPS = ReferenceDependency.each(VirtualKafkaCluster.class)
+            .dependsOnEach(ConfigMap.class, "trustConfigMaps", VirtualKafkaClusterReconciler::clusterToTrustConfigMaps);
+    /** Every a primary may depend on a {@code Secret} containing a trust store via {@code spec.ingresses.tls.trustAnchorRef} */
+    static final ReferenceDependency<VirtualKafkaCluster, Secret> TRUST_SECRETS = ReferenceDependency.each(VirtualKafkaCluster.class)
+            .dependsOnEach(Secret.class, "trustSecrets", VirtualKafkaClusterReconciler::clusterToTrustSecrets);
     private final VirtualKafkaClusterStatusFactory statusFactory;
     private final DependencyResolver resolver;
     private final SharedInformerManager sharedInformerManager;
@@ -236,7 +255,7 @@ public final class VirtualKafkaClusterReconciler implements
             var certRefCheck = certRefs.stream()
                     .map(certRef -> {
                         var path = "spec.ingresses[].tls.certificateRef";
-                        return ResourcesUtil.checkCertRef(cluster, certRef, path, statusFactory, context, SECRETS_EVENT_SOURCE_NAME).resource();
+                        return ResourcesUtil.checkCertRef(cluster, certRef, path, statusFactory, context, CERT_SECRETS_DEPENDENCY.eventSourceName()).resource();
                     })
                     .filter(Objects::nonNull)
                     .findFirst();
@@ -259,8 +278,8 @@ public final class VirtualKafkaClusterReconciler implements
                     .map(trustAnchorRef -> {
                         var path = "spec.ingresses[].tls.trustAnchor";
                         String eventSourceName = isSecret(trustAnchorRef)
-                                ? SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME
-                                : CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME;
+                                ? TRUST_SECRETS.eventSourceName()
+                                : TRUST_CONFIG_MAPS.eventSourceName();
                         return ResourcesUtil.checkTrustAnchorRef(cluster, context, eventSourceName, trustAnchorRef, path,
                                 statusFactory).resource();
                     })
@@ -279,7 +298,7 @@ public final class VirtualKafkaClusterReconciler implements
 
         ResourceState resolvedRefsTrueResourceState = ResourceState.of(statusFactory.newTrueCondition(cluster, Condition.Type.ResolvedRefs));
         return context
-                .getSecondaryResource(ConfigMap.class, PROXY_CONFIG_STATE_SOURCE_NAME)
+                .getSecondaryResource(ConfigMap.class, PROXY_CONFIG_DEPENDENCY.eventSourceName())
                 .flatMap(cm -> Optional.ofNullable(cm.getData()))
                 .map(ProxyConfigStateData::new)
                 .flatMap(data -> data.getStatusPatchForCluster(name(cluster)))
@@ -401,62 +420,69 @@ public final class VirtualKafkaClusterReconciler implements
     @Override
     public List<EventSource<?, VirtualKafkaCluster>> prepareEventSources(EventSourceContext<VirtualKafkaCluster> context) {
         return List.of(
-                EventSourceBuilder.forSecondary(context, KafkaProxy.class)
-                        .withName(PROXY_EVENT_SOURCE_NAME)
-                        .withRelationship(Ref.toSecondary(cluster -> Optional.of(cluster.getSpec().getProxyRef())))
+                PROXY_DEPENDENCY
+                        .eventSourceBuilder(context)
                         // reconcile on every proxy change regardless of the proxy's own reconcile state
                         // (VKC consumes no reconciled proxy state, so a guard would add latency, and is not needed for correctness)
                         .withoutFreshStatus()
                         .build(),
-                EventSourceBuilder.forSecondary(context, ConfigMap.class)
-                        .withName(PROXY_CONFIG_STATE_SOURCE_NAME)
+                PROXY_CONFIG_DEPENDENCY
+                        .eventSourceBuilder(context)
                         .withSharedInformer(sharedInformerManager)
-                        .withRelationship(Ref.toSecondary(VirtualKafkaClusterReconciler::configStateRef))
                         .build(),
-                EventSourceBuilder.forSecondary(context, KafkaService.class)
-                        .withName(SERVICES_EVENT_SOURCE_NAME)
-                        .withRelationship(Ref.toSecondary(cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef())))
+                KAFKA_SERVICE_DEPENDENCY
+                        .eventSourceBuilder(context)
                         .build(),
-                EventSourceBuilder.forSecondary(context, KafkaProxyIngress.class)
-                        .withName(INGRESSES_EVENT_SOURCE_NAME)
-                        .withRelationship(Ref.toSecondaries(VirtualKafkaClusterReconciler::ingressRefs))
+                INGRESSES_DEPENDENCY
+                        .eventSourceBuilder(context)
                         .build(),
-                EventSourceBuilder.forSecondary(context, KafkaProtocolFilter.class)
-                        .withName(FILTERS_EVENT_SOURCE_NAME)
-                        .withRelationship(Ref.toSecondaries(cluster -> Optional.ofNullable(cluster.getSpec())
-                                .map(VirtualKafkaClusterSpec::getFilterRefs).orElse(List.of())))
+                FILTERS_DEPENDENCY
+                        .eventSourceBuilder(context)
                         .build(),
                 EventSourceBuilder.forSecondary(context, Service.class)
                         .withName(KUBERNETES_SERVICES_EVENT_SOURCE_NAME)
                         .withMappers(new VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapper(),
                                 new KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                         .build(),
-                EventSourceBuilder.forSecondary(context, Secret.class)
-                        .withName(SECRETS_EVENT_SOURCE_NAME)
+                CERT_SECRETS_DEPENDENCY
+                        .eventSourceBuilder(context)
                         .withSharedInformer(sharedInformerManager)
-                        .withRelationship(Ref.toSecondaries(VirtualKafkaClusterReconciler::certificateRefs))
                         .build(),
-                EventSourceBuilder.forSecondary(context, ConfigMap.class)
-                        .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+                TRUST_CONFIG_MAPS
+                        .eventSourceBuilder(context)
                         .withSharedInformer(sharedInformerManager)
-                        .withRelationship(Ref.toSecondaries(VirtualKafkaClusterReconciler::configMapTrustAnchorRefs))
                         .build(),
-                EventSourceBuilder.forSecondary(context, Secret.class)
-                        .withName(SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+                TRUST_SECRETS
+                        .eventSourceBuilder(context)
                         .withSharedInformer(sharedInformerManager)
-                        .withRelationship(Ref.toSecondaries(VirtualKafkaClusterReconciler::secretTrustAnchorRefs))
                         .build());
     }
 
+    @NonNull
+    private static Optional<ProxyRef> clusterToProxy(VirtualKafkaCluster cluster) {
+        return Optional.of(cluster.getSpec().getProxyRef());
+    }
+
+    @NonNull
+    private static List<FilterRef> clusterToProtocolFilters(VirtualKafkaCluster cluster) {
+        return Optional.ofNullable(cluster.getSpec())
+                .map(VirtualKafkaClusterSpec::getFilterRefs).orElse(List.of());
+    }
+
+    @NonNull
+    private static Optional<KafkaServiceRef> clusterToKafkaService(VirtualKafkaCluster cluster) {
+        return Optional.of(cluster.getSpec().getTargetKafkaServiceRef());
+    }
+
     @SuppressWarnings("unchecked")
-    private static Optional<LocalRef<ConfigMap>> configStateRef(VirtualKafkaCluster cluster) {
+    private static Optional<LocalRef<ConfigMap>> clusterToProxyConfigurationConfigMap(VirtualKafkaCluster cluster) {
         return Optional.of((LocalRef<ConfigMap>) (LocalRef<?>) new AnyLocalRefBuilder()
                 .withGroup("").withKind("ConfigMap")
                 .withName(cluster.getSpec().getProxyRef().getName() + CONFIG_STATE_CONFIG_MAP_SUFFIX)
                 .build());
     }
 
-    private static Collection<IngressRef> ingressRefs(VirtualKafkaCluster cluster) {
+    private static Collection<IngressRef> clusterToIngresses(VirtualKafkaCluster cluster) {
         return Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getIngresses)
                 .stream().flatMap(List::stream)
@@ -464,7 +490,7 @@ public final class VirtualKafkaClusterReconciler implements
     }
 
     @SuppressWarnings("unchecked")
-    private static Collection<LocalRef<Secret>> certificateRefs(VirtualKafkaCluster cluster) {
+    private static Collection<LocalRef<Secret>> clusterToCertSecrets(VirtualKafkaCluster cluster) {
         return cluster.getSpec().getIngresses().stream()
                 .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
                 .map(ingresses -> (LocalRef<Secret>) (LocalRef<?>) ingresses.getCertificateRef())
@@ -472,7 +498,7 @@ public final class VirtualKafkaClusterReconciler implements
     }
 
     @SuppressWarnings("unchecked")
-    private static Collection<LocalRef<Secret>> secretTrustAnchorRefs(VirtualKafkaCluster cluster) {
+    private static Collection<LocalRef<Secret>> clusterToTrustSecrets(VirtualKafkaCluster cluster) {
         return cluster.getSpec().getIngresses().stream()
                 .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
                 .map(Tls::getTrustAnchorRef)
@@ -484,7 +510,7 @@ public final class VirtualKafkaClusterReconciler implements
     }
 
     @SuppressWarnings("unchecked")
-    private static Collection<LocalRef<ConfigMap>> configMapTrustAnchorRefs(VirtualKafkaCluster cluster) {
+    private static Collection<LocalRef<ConfigMap>> clusterToTrustConfigMaps(VirtualKafkaCluster cluster) {
         return cluster.getSpec().getIngresses().stream()
                 .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
                 .map(Tls::getTrustAnchorRef)
@@ -522,7 +548,7 @@ public final class VirtualKafkaClusterReconciler implements
     @Nullable
     private VirtualKafkaCluster checkTlsConfigConsistency(Context<VirtualKafkaCluster> context, VirtualKafkaCluster cluster, Ingresses clusterIngress) {
         var ingressName = Objects.requireNonNull(clusterIngress.getIngressRef().getName());
-        var proxyIngressOpt = context.getSecondaryResource(KafkaProxyIngress.class, INGRESSES_EVENT_SOURCE_NAME, ingressName);
+        var proxyIngressOpt = context.getSecondaryResource(KafkaProxyIngress.class, INGRESSES_DEPENDENCY.eventSourceName(), ingressName);
 
         if (proxyIngressOpt.isPresent()) {
             KafkaProxyIngress proxyIngress = proxyIngressOpt.get();

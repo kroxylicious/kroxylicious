@@ -16,6 +16,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
+import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.IndexerResourceCache;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
@@ -43,6 +44,7 @@ class MapperTestSupport {
             Predicate<P> predicate = invocation.getArgument(1);
             return Stream.of(primaries).filter(predicate);
         });
+        when(primaryCache.keys()).thenAnswer(invocation -> Stream.of(primaries).map(ResourceID::fromResource));
         when(context.getPrimaryCache()).thenReturn(primaryCache);
     }
 
