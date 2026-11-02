@@ -1,0 +1,22 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KafkaProxy
+  apiVersion: kroxylicious.io/v1alpha1
+  metadata:
+    name: invalid-toleration-seconds
+    namespace: proxy-ns
+  spec:
+    infrastructure:
+      tolerations:
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: soon
+expectFailureMessageToContain: |-
+  spec.infrastructure.tolerations[0].tolerationSeconds
