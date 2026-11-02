@@ -24,7 +24,7 @@ class NameBuilderTest {
         NameBuilder builder = new NameBuilder(63);
 
         // When
-        String name = builder.append("foo").append('-').append("bar").toString();
+        String name = builder.append("foo").separator().append("bar").toString();
 
         // Then
         assertThat(name).isEqualTo("foo-bar");
@@ -91,7 +91,7 @@ class NameBuilderTest {
 
         // Then
         assertThat(name)
-                .isEqualTo("012345678-585f8d7fd7");
+                .isEqualTo("012345678-7d646898d6");
     }
 
     @Test
@@ -253,6 +253,17 @@ class NameBuilderTest {
 
         // Then
         assertThat(name).isEqualTo(tooLongForLabel);
+    }
+
+    @Test
+    void f() {
+        assertThat(NameBuilder.forRfc1035LabelName() // max 63 chars
+                .append("cluster-9012345678901234567890") // 30 chars
+                .separator() // 1 char
+                .append("ingress-9012345678901234567890") // 30 chars ( => 61 chars appended)
+                .role("-bootstrap")) // 10 chars ( => 71 chars appended)
+                .hasToString(
+                        "cluster-901234567890-ingress-9012345678901-bootstrap-654b48bb76");
     }
 
 }

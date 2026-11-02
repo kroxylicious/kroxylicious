@@ -99,10 +99,10 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     private String suffixedServiceName(String suffix) {
         return NameBuilder.forResource(Service.class)
                 .appendNameOf(cluster)
-                .append('-')
+                .separator()
                 .appendNameOf(ingress)
-                .append('-')
-                .append(suffix)
+                .separator()
+                .role(suffix)
                 .toString();
     }
 

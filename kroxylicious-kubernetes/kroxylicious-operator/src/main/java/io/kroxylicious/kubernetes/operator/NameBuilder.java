@@ -6,7 +6,14 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -21,9 +28,15 @@ import io.fabric8.kubernetes.api.model.Service;
  */
 public class NameBuilder {
 
+    private record Part(boolean truncatable, String value, int length) {
+        Part(boolean truncatable, String value) {
+            this(truncatable, value, value.length());
+        }
+    }
+
     private final int maxLength;
 
-    private final StringBuilder buffer = new StringBuilder();
+    private final List<Part> parts = new ArrayList<>(5);
 
     public NameBuilder(int maxLength) {
         this.maxLength = maxLength;
@@ -79,18 +92,38 @@ public class NameBuilder {
      * @param part The string to append
      * @return This builder
      */
-    public NameBuilder append(String part) {
-        buffer.append(part);
+    private NameBuilder append(boolean canTruncate, String part) {
+        parts.add(new Part(canTruncate, part));
         return this;
     }
 
     /**
-     * Append the given character
-     * @param character The character to append
+     * Append the given string
+     * @param part The string to append
      * @return This builder
      */
-    public NameBuilder append(char character) {
-        buffer.append(character);
+    public NameBuilder append(String part) {
+        append(true, part);
+        return this;
+    }
+
+    public NameBuilder separator() {
+        append(false, "-");
+        return this;
+    }
+
+    /**
+     * Append the given string
+     * @param part The string to append
+     * @return This builder
+     */
+    public NameBuilder role(String part) {
+        append(false, part);
+        return this;
+    }
+
+    public NameBuilder placeholder(String part, int maxLength) {
+        parts.add(new Part(false, part, maxLength));
         return this;
     }
 
@@ -112,19 +145,101 @@ public class NameBuilder {
      */
     @Override
     public String toString() {
-        if (buffer.length() <= maxLength) {
-            return buffer.toString();
+        // First pass: Optimistically assume the name will be short enough to not need truncation
+        // so naively append to sb, but compute `totalTruncatablesLength` in case
+        // we do need to truncate.
+        StringBuilder sb = new StringBuilder();
+        int totalTruncatablesLength = 0;
+        for (Part part : parts) {
+            sb.append(part.value());
+            if (part.truncatable()) {
+                totalTruncatablesLength += part.length();
+            }
+        }
+        if (sb.length() <= maxLength) {
+            // Optimism won
+            return sb.toString();
         }
         else {
-            String hash = hash(buffer);
-            buffer.setLength(maxLength - 1 - hash.length());
-            return buffer.append('-').append(hash).toString();
+            // Optimism failed
+            String hash = hash(parts);
+            int shortenTo = maxLength - (hash.length() + 1); // + 1 for the '-' separator
+            int shortenBy = sb.length() - shortenTo;
+
+            if (totalTruncatablesLength == 0) {
+                // Edge case: this can only happen if there were no truncatables, or they were all empty
+                sb.setLength(sb.length() - shortenBy);
+            }
+            else {
+                sb.setLength(0);
+                appendTruncatedTruncatableParts(shortenBy, totalTruncatablesLength, sb);
+            }
+            return sb.append('-').append(hash).toString();
         }
     }
 
-    private static String hash(StringBuilder buffer) {
+    private void appendTruncatedTruncatableParts(int shortenBy,
+                                                 int totalTruncatablesLength,
+                                                 StringBuilder sb) {
+
+        // We need to partly truncate the truncatable parts
+        // There can be > 1 truncatable part, so we truncate each part by its length-weighted share of the
+        // total truncation needed
+        record Shortening(int shortenBy, int remainder, int index) {}
+
+        List<Shortening> shortenings = new ArrayList<>(parts.size());
+        int unadjustedTotalShortening = 0;
+        for (int i = 0; i < parts.size(); i++) {
+            Part part = parts.get(i);
+            if (part.truncatable()) {
+                // TODO what if none of the parts is truncatable?
+                // Truncate each part by its length-weighted share of the total truncation needed
+                // TODO division by zero
+                int shortenByThisPart = (shortenBy * part.length()) / totalTruncatablesLength;
+                unadjustedTotalShortening += shortenByThisPart;
+                // We adjust for rounding by apportioning an extra character's truncation to those
+                // truncatable parts with the largest remainder.
+                int remainder = part.length() % totalTruncatablesLength;
+                shortenings.add(new Shortening(shortenByThisPart, remainder, i));
+            }
+            else {
+                // Don't allocate a Shortening for non-truncatable parts
+                shortenings.add(null);
+            }
+        }
+
+        int numAdjustments = shortenBy - unadjustedTotalShortening;
+        Set<Integer> indexWithLargeRemainder = shortenings.stream()
+                .filter(Objects::nonNull)
+                .sorted(Comparator.<Shortening, Integer> comparing(Shortening::remainder).reversed())
+                .limit(numAdjustments)
+                .map(Shortening::index)
+                .collect(Collectors.toSet());
+
+        // Re-compute the name, truncating each truncatable part by its fair share
+        Iterator<Shortening> iterator = shortenings.iterator();
+        for (int i = 0; i < parts.size(); i++) {
+            Part part = parts.get(i);
+            Shortening shortening = iterator.next();
+            String toAppend = part.value();
+            if (part.truncatable()) {
+                int end = toAppend.length() - shortening.shortenBy();
+                if (indexWithLargeRemainder.contains(i)) {
+                    end -= 1;
+                }
+                sb.append(toAppend, 0, end);
+            }
+            else {
+                sb.append(toAppend);
+            }
+        }
+    }
+
+    private static String hash(List<Part> parts) {
         // This is loosely based on the Go code for ComputeHash() from: k8s.io/kubernetes/pkg/controller/controller_utils.go
-        int hash = buffer.toString().hashCode();
+        Fnv1a32 fnv1a32 = new Fnv1a32();
+        parts.forEach(part -> fnv1a32.update(part.value));
+        int hash = fnv1a32.digest();
         var s = Integer.toUnsignedString(hash);
         return safeEncodeString(s);
     }
@@ -143,6 +258,27 @@ public class NameBuilder {
             char b = s.charAt(i);
             chars[i] = alphanums.charAt(b % alphanums.length());
         }
+
         return new String(chars, 0, s.length());
+    }
+
+    static class Fnv1a32 {
+
+        private int hash;
+
+        Fnv1a32() {
+            this.hash = 0x811c9dc5; // 32-bit FNV offset basis
+        }
+
+        public void update(CharSequence str) {
+            for (int i = 0; i < str.length(); i++) {
+                hash ^= (str.charAt(i) & 0xFF); // Mask to 8-bit ASCII
+                hash *= 0x01000193; // 32-bit FNV prime
+            }
+        }
+
+        public int digest() {
+            return hash;
+        }
     }
 }

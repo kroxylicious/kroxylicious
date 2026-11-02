@@ -90,9 +90,10 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
         Objects.requireNonNull(ingressName);
         return NameBuilder.forResource(Service.class)
                 .appendNameOf(cluster)
-                .append('-')
+                .separator()
                 .append(ingressName)
-                .append("-bootstrap")
+                .separator()
+                .role("bootstrap")
                 .toString();
     }
 

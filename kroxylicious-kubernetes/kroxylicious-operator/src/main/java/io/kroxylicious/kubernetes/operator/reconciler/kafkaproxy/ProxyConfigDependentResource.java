@@ -30,7 +30,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 @KubernetesDependent(useSSA = BooleanWithUndefined.TRUE)
 public class ProxyConfigDependentResource extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
     /** Suffix appended to the KafkaProxy name to form the ConfigMap name. */
-    public static final String PROXY_CONFIG_CONFIG_MAP_SUFFIX = "-proxy-config";
+    public static final String PROXY_CONFIG_CONFIG_MAP_SUFFIX = "proxy-config";
 
     /** The key within the ConfigMap data used to store the proxy configuration YAML. */
     public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
@@ -51,7 +51,8 @@ public class ProxyConfigDependentResource extends CRUDKubernetesDependentResourc
     static String configMapName(KafkaProxy primary) {
         return NameBuilder.forResource(ConfigMap.class)
                 .appendNameOf(primary)
-                .append(PROXY_CONFIG_CONFIG_MAP_SUFFIX)
+                .separator()
+                .role(PROXY_CONFIG_CONFIG_MAP_SUFFIX)
                 .toString();
     }
 

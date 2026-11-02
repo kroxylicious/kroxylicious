@@ -53,7 +53,7 @@ public class ProxyConfigStateDependentResource
     static String configMapName(KafkaProxy primary) {
         return NameBuilder.forResource(ConfigMap.class)
                 .appendNameOf(primary)
-                .append(CONFIG_STATE_CONFIG_MAP_SUFFIX)
+                .role(CONFIG_STATE_CONFIG_MAP_SUFFIX)
                 .toString();
     }
 
