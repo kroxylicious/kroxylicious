@@ -72,6 +72,7 @@ import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -521,13 +522,29 @@ public final class VirtualKafkaClusterReconciler implements
                 .toList();
     }
 
-    @SuppressWarnings("unchecked")
-    Collection<LocalRef<Secret>> subjectBuilderSecretRefs(VirtualKafkaCluster cluster) {
+    /**
+     * Gets the interpolation result for the cluster's TLS subject builder configuration.
+     *
+     * @param cluster the virtual kafka cluster
+     * @return the interpolation result, or null if no TLS subject builder is configured
+     */
+    @Nullable
+    private SecureConfigInterpolator.InterpolationResult getSubjectBuilderInterpolationResult(VirtualKafkaCluster cluster) {
         TlsSubjectBuilder tls = cluster.getSpec().getTlsSubjectBuilder();
         if (tls == null || tls.getConfigTemplate() == null) {
-            return List.of();
+            return null;
         }
-        var result = secureConfigInterpolator.interpolate(tls.getConfigTemplate().getAdditionalProperties());
+        return secureConfigInterpolator.interpolate(tls.getConfigTemplate().getAdditionalProperties());
+    }
+
+    @VisibleForTesting
+    Collection<LocalRef<Secret>> subjectBuilderSecretRefs(VirtualKafkaCluster cluster) {
+        var result = getSubjectBuilderInterpolationResult(cluster);
+        return result == null ? List.of() : subjectBuilderSecretRefs(result);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Collection<LocalRef<Secret>> subjectBuilderSecretRefs(SecureConfigInterpolator.InterpolationResult result) {
         return result.volumes().stream()
                 .flatMap(v -> Optional.ofNullable(v.getSecret())
                         .map(SecretVolumeSource::getSecretName).stream())
@@ -536,13 +553,14 @@ public final class VirtualKafkaClusterReconciler implements
                 .toList();
     }
 
-    @SuppressWarnings("unchecked")
+    @VisibleForTesting
     Collection<LocalRef<ConfigMap>> subjectBuilderConfigMapRefs(VirtualKafkaCluster cluster) {
-        TlsSubjectBuilder tls = cluster.getSpec().getTlsSubjectBuilder();
-        if (tls == null || tls.getConfigTemplate() == null) {
-            return List.of();
-        }
-        var result = secureConfigInterpolator.interpolate(tls.getConfigTemplate().getAdditionalProperties());
+        var result = getSubjectBuilderInterpolationResult(cluster);
+        return result == null ? List.of() : subjectBuilderConfigMapRefs(result);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Collection<LocalRef<ConfigMap>> subjectBuilderConfigMapRefs(SecureConfigInterpolator.InterpolationResult result) {
         return result.volumes().stream()
                 .flatMap(v -> Optional.ofNullable(v.getConfigMap())
                         .map(ConfigMapVolumeSource::getName).stream())
@@ -553,10 +571,15 @@ public final class VirtualKafkaClusterReconciler implements
 
     @Nullable
     private VirtualKafkaCluster checkSubjectBuilderRefs(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
-        var referencedSecrets = subjectBuilderSecretRefs(cluster).stream()
+        var interpolationResult = getSubjectBuilderInterpolationResult(cluster);
+        if (interpolationResult == null) {
+            return null;
+        }
+
+        var referencedSecrets = subjectBuilderSecretRefs(interpolationResult).stream()
                 .map(LocalRef::getName)
                 .collect(Collectors.toCollection(TreeSet::new));
-        var referencedConfigMaps = subjectBuilderConfigMapRefs(cluster).stream()
+        var referencedConfigMaps = subjectBuilderConfigMapRefs(interpolationResult).stream()
                 .map(LocalRef::getName)
                 .collect(Collectors.toCollection(TreeSet::new));
 
@@ -564,7 +587,7 @@ public final class VirtualKafkaClusterReconciler implements
             return null;
         }
 
-        var existingSecrets = referencedSecrets.isEmpty() ? Set.of()
+        var existingSecrets = referencedSecrets.isEmpty() ? Set.<String> of()
                 : context.getSecondaryResourcesAsStream(Secret.class)
                         .map(ResourcesUtil::name)
                         .collect(Collectors.toSet());
@@ -587,7 +610,7 @@ public final class VirtualKafkaClusterReconciler implements
             message += " Secrets [" + String.join(", ", missingSecrets) + "]";
         }
         if (!missingConfigMaps.isEmpty()) {
-            message += " ConfigMaps [" + String.join(", ", missingConfigMaps) + "]";
+            message += (!missingSecrets.isEmpty() ? " and" : "") + " ConfigMaps [" + String.join(", ", missingConfigMaps) + "]";
         }
         message += " not found";
 
@@ -596,11 +619,16 @@ public final class VirtualKafkaClusterReconciler implements
     }
 
     private void appendSubjectBuilderRefs(Context<VirtualKafkaCluster> context, VirtualKafkaCluster cluster,
-                                          @NonNull MetadataChecksumGenerator checksumGenerator) {
-        var secretNames = subjectBuilderSecretRefs(cluster).stream()
+                                          MetadataChecksumGenerator checksumGenerator) {
+        var interpolationResult = getSubjectBuilderInterpolationResult(cluster);
+        if (interpolationResult == null) {
+            return;
+        }
+
+        var secretNames = subjectBuilderSecretRefs(interpolationResult).stream()
                 .map(LocalRef::getName)
                 .collect(Collectors.toSet());
-        var configMapNames = subjectBuilderConfigMapRefs(cluster).stream()
+        var configMapNames = subjectBuilderConfigMapRefs(interpolationResult).stream()
                 .map(LocalRef::getName)
                 .collect(Collectors.toSet());
 
