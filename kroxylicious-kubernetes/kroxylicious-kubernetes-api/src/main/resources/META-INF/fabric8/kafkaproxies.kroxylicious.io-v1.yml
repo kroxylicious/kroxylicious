@@ -75,6 +75,11 @@ spec:
                       minLength: 1
                       maxLength: 253
                       pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$'
+                    # nodeSelector, tolerations, affinity and topologySpreadConstraints are copied from the Kubernetes v1.34
+                    # core/v1 OpenAPI v3 schema (PodSpec.nodeSelector, io.k8s.api.core.v1.Toleration, Affinity and
+                    # TopologySpreadConstraint), with `$ref`s inlined, `default` and `x-kubernetes-patch-*` removed, and
+                    # the top-level descriptions rewritten. They only check structure; the API server's pod validation
+                    # (for example, toleration operators) is applied when the operator writes the Deployment.
                     nodeSelector:
                       additionalProperties:
                         type: string
@@ -87,7 +92,7 @@ spec:
                     tolerations:
                       description: |
                         Tolerations for proxy pods, allowing them to be scheduled onto nodes with matching taints.
-                        Copied to the proxy pod template. If omitted, proxy pods tolerate no taints.
+                        Copied to the proxy pod template. If omitted, the operator sets no tolerations.
                         More info: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
                       items:
                         description: |

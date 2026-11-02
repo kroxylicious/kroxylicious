@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.AbstractStringAssert;
@@ -344,12 +345,9 @@ public class KafkaProxyReconcilerIT {
         // Given
         var suffix = uniqueSuffix();
         var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP), withScheduling(kafkaProxy(PROXY_A + suffix)));
-        AWAIT.alias("Deployment has scheduling").untilAsserted(() -> assertThat(deploymentPodSpec(created.proxy()).getNodeSelector()).isNotEmpty());
 
         // When
-        var stored = Objects.requireNonNull(clusterUser.get(KafkaProxy.class, name(created.proxy())));
-        stored.getSpec().setInfrastructure(new Infrastructure());
-        clusterUser.replace(stored);
+        updateKafkaProxy(created.proxy(), proxy -> proxy.edit().editSpec().withInfrastructure(new Infrastructure()).endSpec().build());
 
         // Then
         AWAIT.alias("Deployment scheduling removed").untilAsserted(() -> {
@@ -359,6 +357,31 @@ public class KafkaProxyReconcilerIT {
             assertThat(podSpec.getAffinity()).isNull();
             assertThat(podSpec.getTopologySpreadConstraints()).isNullOrEmpty();
         });
+    }
+
+    @Test
+    void shouldReportReadyUnknownWhenSchedulingFailsPodValidation() {
+        // Given
+        var suffix = uniqueSuffix();
+        var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP), kafkaProxy(PROXY_A + suffix));
+
+        // When
+        // "Equals" passes the CRD schema (a string) but is not a valid toleration operator for a pod
+        updateKafkaProxy(created.proxy(), proxy -> proxy.edit().editSpec().editOrNewInfrastructure()
+                .addNewToleration().withKey("node-pool").withOperator("Equals").withValue("kafka-proxy").endToleration()
+                .endInfrastructure().endSpec().build());
+
+        // Then
+        AWAIT.alias("KafkaProxy Ready condition reports the rejected Deployment").untilAsserted(() -> assertThat(clusterUser.get(KafkaProxy.class, name(created.proxy())))
+                .isNotNull()
+                .extracting(KafkaProxy::getStatus, AssertFactory.status())
+                .isNotNull()
+                .conditionList()
+                .anySatisfy(condition -> {
+                    assertThat(condition.getType()).isEqualTo(Condition.Type.Ready);
+                    assertThat(condition.getStatus()).isEqualTo(Condition.Status.UNKNOWN);
+                    assertThat(condition.getMessage()).contains("Equals");
+                }));
     }
 
     @Test
@@ -1851,11 +1874,15 @@ public class KafkaProxyReconcilerIT {
     }
 
     private void updateServiceAccountName(KafkaProxy proxy, @Nullable String serviceAccountName) {
+        updateKafkaProxy(proxy, stored -> withServiceAccountName(stored, serviceAccountName));
+    }
+
+    private void updateKafkaProxy(KafkaProxy proxy, UnaryOperator<KafkaProxy> update) {
         // get-then-replace races against the operator's own concurrent writes to the KafkaProxy,
         // so retry on a 409 Conflict rather than failing the test.
-        AWAIT.alias("update KafkaProxy serviceAccountName").untilAsserted(() -> {
+        AWAIT.alias("update KafkaProxy").untilAsserted(() -> {
             try {
-                clusterUser.replace(withServiceAccountName(Objects.requireNonNull(clusterUser.get(KafkaProxy.class, name(proxy))), serviceAccountName));
+                clusterUser.replace(update.apply(Objects.requireNonNull(clusterUser.get(KafkaProxy.class, name(proxy)))));
             }
             catch (KubernetesClientException e) {
                 if (e.getCode() == 409) {

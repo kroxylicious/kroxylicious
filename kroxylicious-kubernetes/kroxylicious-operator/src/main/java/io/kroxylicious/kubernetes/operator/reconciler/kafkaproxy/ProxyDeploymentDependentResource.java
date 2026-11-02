@@ -230,6 +230,8 @@ public class ProxyDeploymentDependentResource
                     // KafkaProxy would leave the alias behind and Kubernetes would restore serviceAccountName from it.
                     .withServiceAccountName(serviceAccountName)
                     .withServiceAccount(serviceAccountName)
+                    // Unset scheduling fields are empty rather than null: that matches the PodSpec defaults, and fabric8 omits
+                    // empty collections when serializing, so server-side apply releases the fields when they are removed.
                     .withNodeSelector(infrastructure.map(Infrastructure::getNodeSelector).orElse(Map.of()))
                     .withTolerations(infrastructure.map(Infrastructure::getTolerations).orElse(List.of()))
                     .withAffinity(infrastructure.map(Infrastructure::getAffinity).orElse(null))
