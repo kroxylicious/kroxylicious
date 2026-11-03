@@ -336,6 +336,7 @@ public class RouteDispatcher implements RouterDispatch {
 
     // --- Response correlation ---
 
+    @SuppressWarnings("CollectionUndefinedEquality") // pendingPromises is identity-based (IdentityHashMap)
     ResponseOutcome handleResponse(DecodedResponseFrame<?> frame, String sessionId) {
         PathElement routing = frame.routing();
         // Match on issuedAt (the route this OOB request was issued to), not the possibly-deeper

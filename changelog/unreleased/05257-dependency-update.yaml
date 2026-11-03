@@ -1,0 +1,4 @@
+title: "build(deps): bump io.micrometer:micrometer-bom from 1.17.1 to 1.17.2"
+type: build
+merge_requests:
+  - 5257

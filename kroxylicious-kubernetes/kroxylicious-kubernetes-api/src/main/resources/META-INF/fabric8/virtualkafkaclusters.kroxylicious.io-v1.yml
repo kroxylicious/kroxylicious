@@ -232,6 +232,23 @@ spec:
                         maxLength: 253
                         minLength: 1
                         type: string
+                tlsSubjectBuilder:
+                  description: |
+                    Configures the TLS subject builder for this virtual cluster. The subject builder builds the authenticated
+                    subject from the client's TLS certificate. The principals in the subject depend on the configured
+                    principal factory.
+                    SASL subject builders are configured on the SASL filters instead.
+                  type: object
+                  required:
+                    - type
+                  properties:
+                    type:
+                      description: The Java class name of the subject builder plugin implementation.
+                      type: string
+                    configTemplate:
+                      description: The subject builder's configuration.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
             status:
               type: object
               properties:

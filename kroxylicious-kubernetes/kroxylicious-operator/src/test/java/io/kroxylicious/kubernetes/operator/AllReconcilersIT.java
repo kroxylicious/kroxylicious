@@ -115,7 +115,8 @@ class AllReconcilersIT {
     @RegisterExtension
     static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
             .withReconciler(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
-            .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create(), sharedInformerManager))
+            .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create(), sharedInformerManager,
+                    SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
             .withReconciler(new KafkaProxyIngressReconciler(Clock.systemUTC()))
             .withReconciler(new KafkaServiceReconciler(Clock.systemUTC(), sharedInformerManager))
             .withReconciler(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR, sharedInformerManager))

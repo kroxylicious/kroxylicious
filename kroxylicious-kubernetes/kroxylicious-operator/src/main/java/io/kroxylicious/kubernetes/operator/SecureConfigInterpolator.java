@@ -70,7 +70,7 @@ public class SecureConfigInterpolator {
      * @param configTemplate the configuration template object (may contain nested maps, lists, and strings with placeholders)
      * @return the interpolation result containing the resolved config, required volumes, and volume mounts
      */
-    public InterpolationResult interpolate(Object configTemplate) {
+    public InterpolationResult interpolate(@Nullable Object configTemplate) {
         // use sets so that it doesn't matter is two providers require the same volume or mount (with exactly the same definition)
 
         var interpolated = interpolateValue(configTemplate);

@@ -51,10 +51,10 @@
         <jackson.version>2.22.4</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.4</junit.version>
-        <zstd-jni.version>1.5.7-24</zstd-jni.version>
+        <zstd-jni.version>1.5.7-25</zstd-jni.version>
         <kafka.version>4.3.2</kafka.version>
         <kafka.message-spec.version>4.3.2</kafka.message-spec.version>
-        <lz4-java.version>1.12.0</lz4-java.version>
+        <lz4-java.version>1.12.1</lz4-java.version>
         <snappy-java.version>1.1.10.12</snappy-java.version>
         <kroxy.extension.version>0.16.0</kroxy.extension.version>
         <log4j.version>2.26.1</log4j.version>
@@ -67,7 +67,7 @@
         <netty.kqueue.architecture>osx-x86_64</netty.kqueue.architecture>
         <assertj-core.version>3.27.7</assertj-core.version>
         <mockito.version>5.24.0</mockito.version>
-        <micrometer.version>1.17.1</micrometer.version>
+        <micrometer.version>1.17.2</micrometer.version>
         <slf4j.version>2.0.20</slf4j.version>
         <sundr-builder-annotations.version>0.400.1</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.10.5</spotbugs-annotations.version>
@@ -100,10 +100,10 @@
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
         <logsquelcher.version>0.2.2</logsquelcher.version>
         <async-profiler.version>4.6</async-profiler.version>
-        <json-unit-assertj.version>6.3.0</json-unit-assertj.version>
+        <json-unit-assertj.version>6.4.0</json-unit-assertj.version>
 
         <!-- Error Prone -->
-        <errorprone.version>2.50.0</errorprone.version>
+        <errorprone.version>2.51.0</errorprone.version>
         <errorprone.skip>false</errorprone.skip>
 
         <central.publishing.skip>false</central.publishing.skip>
@@ -852,7 +852,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.6.3</version>
+                    <version>3.7.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
