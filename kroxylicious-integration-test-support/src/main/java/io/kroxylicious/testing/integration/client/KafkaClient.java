@@ -51,15 +51,20 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
- * KafkaClient for testing.
+ * A minimal Kafka-protocol client for integration testing.
  * <p>
- * The kafka client closes its channel after it gets a response. A new
- * connection is bootstrapped on first call to `get`.
+ * Maintains a single persistent TCP connection to the target broker, established lazily
+ * on the first {@link #get(Request)} call and reused for the lifetime of the client.
+ * Multiple RPCs can be sent over the same connection in sequence.
  * </p>
  * <p>
- * The intention is that it should be used to fire a single RPC at a server
- * offering the Kafka protocol, read a response and inform the client of that
- * response. It currently translates the response to a normalised JsonObject.
+ * Use {@link #withProxyProtocol(String, int, HAProxyMessage)} or
+ * {@link #withProxyProtocol(String, int, HAProxyMessage, SslContext)} to obtain a client
+ * that sends a PROXY protocol preamble as plain bytes before any Kafka (or TLS) traffic.
+ * </p>
+ * <p>
+ * Must be closed via {@link #close()} when no longer needed to release the underlying
+ * Netty event-loop resources.
  * </p>
  */
 public final class KafkaClient implements AutoCloseable {
@@ -165,7 +170,7 @@ public final class KafkaClient implements AutoCloseable {
     public CompletableFuture<Response> get(Request request) {
         DecodedRequestFrame<?> decodedRequestFrame = toApiRequest(request);
 
-        return ensureChannel(correlationManager, kafkaClientHandler)
+        return ensureChannel(correlationManager)
                 .thenApply(KafkaClient::checkChannelOpen)
                 .thenCompose(u -> kafkaClientHandler.sendRequest(decodedRequestFrame))
                 .thenApply(KafkaClient::toResponse);
@@ -181,7 +186,7 @@ public final class KafkaClient implements AutoCloseable {
      * @return a future that will be completed with the response from the kafka broker (translated to JsonNode), or null if we sent a zero-ack produce request
      */
     public CompletableFuture<Response> get(RequestFrame frame) {
-        return ensureChannel(correlationManager, kafkaClientHandler)
+        return ensureChannel(correlationManager)
                 .thenApply(KafkaClient::checkChannelOpen)
                 .thenCompose(u -> kafkaClientHandler.sendRequest(frame))
                 .thenApply(KafkaClient::toResponse);
@@ -206,7 +211,7 @@ public final class KafkaClient implements AutoCloseable {
         }
     }
 
-    private CompletableFuture<Channel> ensureChannel(CorrelationManager correlationManager, KafkaClientHandler kafkaClientHandler) {
+    private CompletableFuture<Channel> ensureChannel(CorrelationManager correlationManager) {
         var candidate = new CompletableFuture<Channel>();
 
         if (connected.compareAndSet(null, candidate)) {
