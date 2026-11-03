@@ -200,39 +200,54 @@ public class NameBuilder {
             return sb.toString();
         }
         else {
-            // Optimism failed. The variable suffix (if any) is excluded from the hash and appended
-            // literally after it, so sibling names sharing the same preceding parts always hash
-            // and truncate identically regardless of which suffix value was passed.
-            List<Part> stableParts = hasVariableSuffix ? parts.subList(0, parts.size() - 1) : parts;
-            Part suffixPart = hasVariableSuffix ? parts.get(parts.size() - 1) : null;
-
-            String hash = hash(stableParts);
-            int reservedForSuffix = hasVariableSuffix ? suffixPart.length() : 0; // includes the suffix's own leading '-'
-            int shortenTo = maxLength - (hash.length() + 1) - reservedForSuffix; // + 1 for the '-' before the hash
-            int stableLength = stableParts.stream().mapToInt(Part::length).sum();
-            int shortenBy = stableLength - shortenTo;
-
-            StringBuilder result = new StringBuilder();
-            if (totalTruncatablesLength == 0) {
-                // Edge case: this can only happen if there were no truncatables, or they were all empty
-                String stableConcat = stableParts.stream().map(Part::value).collect(Collectors.joining());
-                result.append(stableConcat, 0, stableConcat.length() - shortenBy);
-            }
-            else {
-                appendTruncatedTruncatableParts(shortenBy, totalTruncatablesLength, result, stableParts);
-            }
-            result.append('-').append(hash);
-            if (hasVariableSuffix) {
-                result.append(suffixPart.value()); // already starts with '-'
-            }
-            return result.toString();
+            return toTruncatedString(totalTruncatablesLength);
         }
     }
 
-    private void appendTruncatedTruncatableParts(int shortenBy,
-                                                 int totalTruncatablesLength,
-                                                 StringBuilder sb,
-                                                 List<Part> partsToProcess) {
+    private String toTruncatedString(int totalTruncatablesLength) {
+        // Optimism failed. The variable suffix (if any) is excluded from the hash and appended
+        // literally after it, so sibling names sharing the same preceding parts always hash
+        // and truncate identically regardless of which suffix value was passed.
+
+        List<Part> stableParts;
+        Part suffixPart;
+        int reservedForSuffix;
+        if (hasVariableSuffix) {
+            stableParts = parts.subList(0, parts.size() - 1);
+            suffixPart = parts.getLast();
+            reservedForSuffix = suffixPart.length(); // includes the suffix's own leading '-'
+        }
+        else {
+            stableParts = parts;
+            suffixPart = null;
+            reservedForSuffix = 0;
+        }
+
+        String hash = hash(stableParts);
+
+        int shortenTo = maxLength - (hash.length() + 1) - reservedForSuffix; // + 1 for the '-' before the hash
+        int stableLength = stableParts.stream().mapToInt(Part::length).sum();
+        int shortenBy = stableLength - shortenTo;
+
+        StringBuilder result = appendTruncatedTruncatableParts(shortenBy, totalTruncatablesLength, stableParts);
+        result.append('-').append(hash);
+        if (hasVariableSuffix) {
+            result.append(Objects.requireNonNull(suffixPart).value()); // already starts with '-'
+        }
+        return result.toString();
+    }
+
+    private StringBuilder appendTruncatedTruncatableParts(int shortenBy,
+                                                          int totalTruncatablesLength,
+                                                          List<Part> partsToProcess) {
+
+        StringBuilder result = new StringBuilder();
+        if (totalTruncatablesLength == 0) {
+            // Edge case: this can only happen if there were no truncatables, or they were all empty
+            String stableConcat = partsToProcess.stream().map(Part::value).collect(Collectors.joining());
+            result.append(stableConcat, 0, stableConcat.length() - shortenBy);
+            return result;
+        }
 
         // We need to partly truncate the truncatable parts
         // There can be > 1 truncatable part, so we truncate each part by its length-weighted share of the
@@ -244,9 +259,6 @@ public class NameBuilder {
         for (int i = 0; i < partsToProcess.size(); i++) {
             Part part = partsToProcess.get(i);
             if (part.kind() == Kind.TRUNCATABLE) {
-                // TODO what if none of the parts is truncatable?
-                // Truncate each part by its length-weighted share of the total truncation needed
-                // TODO division by zero
                 int shortenByThisPart = (shortenBy * part.length()) / totalTruncatablesLength;
                 unadjustedTotalShortening += shortenByThisPart;
                 // We adjust for rounding by apportioning an extra character's truncation to those
@@ -279,12 +291,13 @@ public class NameBuilder {
                 if (indexWithLargeRemainder.contains(i)) {
                     end -= 1;
                 }
-                sb.append(toAppend, 0, end);
+                result.append(toAppend, 0, end);
             }
             else {
-                sb.append(toAppend);
+                result.append(toAppend);
             }
         }
+        return result;
     }
 
     private static String hash(List<Part> parts) {

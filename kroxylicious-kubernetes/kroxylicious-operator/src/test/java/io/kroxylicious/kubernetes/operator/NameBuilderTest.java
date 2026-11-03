@@ -281,19 +281,22 @@ class NameBuilderTest {
 
     @Test
     void variableSuffixValueExceedingMaxWidthThrows() {
-        assertThatThrownBy(() -> new NameBuilder(63).append("cluster").variableSuffix("way-too-long-a-value", 5))
+        NameBuilder nameBuilder = new NameBuilder(63).append("cluster");
+        assertThatThrownBy(() -> nameBuilder.variableSuffix("way-too-long-a-value", 5))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void variableSuffixCanOnlyBeAddedOnce() {
-        assertThatThrownBy(() -> new NameBuilder(63).append("cluster").variableSuffix("a", 10).variableSuffix("b", 10))
+        NameBuilder nameBuilder = new NameBuilder(63).append("cluster").variableSuffix("a", 10);
+        assertThatThrownBy(() -> nameBuilder.variableSuffix("b", 10))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void cannotAppendFurtherPartsAfterVariableSuffix() {
-        assertThatThrownBy(() -> new NameBuilder(63).append("cluster").variableSuffix("a", 10).append("oops"))
+        NameBuilder nameBuilder = new NameBuilder(63).append("cluster").variableSuffix("a", 10);
+        assertThatThrownBy(() -> nameBuilder.append("oops"))
                 .isInstanceOf(IllegalStateException.class);
     }
 
