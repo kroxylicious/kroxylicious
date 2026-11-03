@@ -22,3 +22,4 @@
 - Shubham Rawat(https://github.com/ShubhamRwt)
 - Peter Mendis(https://github.com/livespotty)
 - Rafael Reia(https://github.com/RafaelReia)
+- Aditya Thakur(https://github.com/AdityaThakur1998)
