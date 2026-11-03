@@ -76,7 +76,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * Runtime representation of a virtual cluster: its name, target Kafka cluster, gateways,
  * TLS configuration, and the components whose lifecycle is bound to this VC.
- *
+ * <br/>
  * <h2>Owned resources</h2>
  * The VCM owns and is responsible for closing two per-VC components directly:
  * <ul>
@@ -87,7 +87,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * For VCs that use dynamic routing, the {@link io.kroxylicious.proxy.internal.routing.DynamicRouting}
  * instance carries and owns the {@link io.kroxylicious.proxy.bootstrap.RouterChainFactory}; the VCM
  * closes it via the routing model.
- *
+ * <br/>
  * <h2>Lifecycle</h2>
  * The VCM is created when the VC is configured (or reconfigured via hot-reload), and closed
  * via {@link #close()} when the VC's lifecycle reaches {@code Stopped}. The
@@ -335,17 +335,6 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     public void addGateway(String name, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls, ProxyProtocolMode proxyProtocolMode) {
         gateways.put(name, new VirtualClusterGatewayModel(this, nodeIdentificationStrategy, tls, name, proxyProtocolMode));
-    }
-
-    /**
-     * Adds a gateway to this virtual cluster.
-     *
-     * @param name name of the gateway.
-     * @param nodeIdentificationStrategy strategy used by the gateway to identify the target node from an incoming connection.
-     * @param tls downstream TLS configuration for the gateway, or empty for plain connections.
-     */
-    public void addGateway(String name, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls) {
-        addGateway(name, nodeIdentificationStrategy, tls, ProxyProtocolMode.FORBIDDEN);
     }
 
     /**
