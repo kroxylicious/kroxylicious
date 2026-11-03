@@ -15,11 +15,12 @@
 
 [role="_abstract"]
 Monitor the operational status of the proxy and configure resource usage.
-This section explains how to check the status of the `KafkaProxyIngress` and `VirtualKafkaCluster` resources, and how to set CPU and memory requests and limits for the proxy container.
+This section explains how to check the status of the `KafkaProxyIngress` and `VirtualKafkaCluster` resources, how to set CPU and memory requests and limits for the proxy container, and how to control where proxy pods are scheduled.
 
 This section assumes you have a running Kroxylicious Proxy instance.
 
 include::../_modules/configuring/con-checking-virtualkafkacluster-status.adoc[leveloffset=+1]
 include::../_modules/configuring/con-checking-kafkaproxyingress-status.adoc[leveloffset=+1]
 include::../_modules/configuring/con-kafkaproxy-cpu-memory-allocation.adoc[leveloffset=+1]
+include::../_modules/configuring/con-kafkaproxy-scheduling.adoc[leveloffset=+1]
 include::../_modules/configuring/con-kafkaproxyingress-infrastructure-annotations.adoc[leveloffset=+1]

@@ -222,13 +222,20 @@ public class ProxyDeploymentDependentResource
         if (!isOpenShift) {
             specBuilder = specBuilder.editSecurityContext().withFsGroup(PROXY_IMAGE_GID).endSecurityContext();
         }
-        String serviceAccountName = infrastructure(primary).map(Infrastructure::getServiceAccountName).orElse(null);
+        Optional<Infrastructure> infrastructure = infrastructure(primary);
+        String serviceAccountName = infrastructure.map(Infrastructure::getServiceAccountName).orElse(null);
         return specBuilder
                     // Also set the deprecated serviceAccount alias, which Kubernetes keeps as a copy of serviceAccountName.
                     // Server-side apply only removes fields we set, so without this, removing the account from the
                     // KafkaProxy would leave the alias behind and Kubernetes would restore serviceAccountName from it.
                     .withServiceAccountName(serviceAccountName)
                     .withServiceAccount(serviceAccountName)
+                    // Unset scheduling fields are empty rather than null: that matches the PodSpec defaults, and fabric8 omits
+                    // empty collections when serializing, so server-side apply releases the fields when they are removed.
+                    .withNodeSelector(infrastructure.map(Infrastructure::getNodeSelector).orElse(Map.of()))
+                    .withTolerations(infrastructure.map(Infrastructure::getTolerations).orElse(List.of()))
+                    .withAffinity(infrastructure.map(Infrastructure::getAffinity).orElse(null))
+                    .withTopologySpreadConstraints(infrastructure.map(Infrastructure::getTopologySpreadConstraints).orElse(List.of()))
                     .withContainers(proxyContainer(primary, kafkaProxyContext, ingressModel, clusterResolutionResults))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)

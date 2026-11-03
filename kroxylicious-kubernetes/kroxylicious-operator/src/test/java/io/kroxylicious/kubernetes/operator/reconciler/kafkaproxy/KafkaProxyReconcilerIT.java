@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.AbstractStringAssert;
@@ -33,6 +34,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Container;
@@ -41,6 +43,7 @@ import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -86,6 +89,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatusBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
@@ -310,6 +314,74 @@ public class KafkaProxyReconcilerIT {
 
         // Then
         assertProxyPodServiceAccount(created.proxy(), missingServiceAccountName);
+    }
+
+    @Test
+    void shouldScheduleProxyPodsWithConfiguredScheduling() {
+        // Given
+        var suffix = uniqueSuffix();
+        var proxy = kafkaProxy(PROXY_A + suffix);
+
+        // When
+        var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP), withScheduling(proxy));
+
+        // Then
+        var expected = withScheduling(proxy).getSpec().getInfrastructure();
+        AWAIT.alias("Proxy pod scheduled with configured scheduling").untilAsserted(() -> assertThat(clusterUser.resources(Pod.class)
+                .withLabels(ProxyDeploymentDependentResource.podLabels(created.proxy()))
+                .list().getItems())
+                .filteredOn(pod -> pod.getMetadata().getDeletionTimestamp() == null)
+                .singleElement()
+                .satisfies(pod -> assertThat(pod.getSpec().getNodeName()).isNotNull())
+                .extracting(Pod::getSpec)
+                .returns(expected.getNodeSelector(), PodSpec::getNodeSelector)
+                .returns(expected.getAffinity(), PodSpec::getAffinity)
+                .returns(expected.getTopologySpreadConstraints(), PodSpec::getTopologySpreadConstraints)
+                .satisfies(podSpec -> assertThat(podSpec.getTolerations()).containsAll(expected.getTolerations())));
+    }
+
+    @Test
+    void shouldRemoveSchedulingFromDeploymentWhenConfigurationIsRemoved() {
+        // Given
+        var suffix = uniqueSuffix();
+        var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP), withScheduling(kafkaProxy(PROXY_A + suffix)));
+
+        // When
+        updateKafkaProxy(created.proxy(), proxy -> proxy.edit().editSpec().withInfrastructure(new Infrastructure()).endSpec().build());
+
+        // Then
+        AWAIT.alias("Deployment scheduling removed").untilAsserted(() -> {
+            PodSpec podSpec = deploymentPodSpec(created.proxy());
+            assertThat(podSpec.getNodeSelector()).isNullOrEmpty();
+            assertThat(podSpec.getTolerations()).isNullOrEmpty();
+            assertThat(podSpec.getAffinity()).isNull();
+            assertThat(podSpec.getTopologySpreadConstraints()).isNullOrEmpty();
+        });
+    }
+
+    @Test
+    void shouldReportReadyUnknownWhenSchedulingFailsPodValidation() {
+        // Given
+        var suffix = uniqueSuffix();
+        var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP), kafkaProxy(PROXY_A + suffix));
+
+        // When
+        // "Equals" passes the CRD schema (a string) but is not a valid toleration operator for a pod
+        updateKafkaProxy(created.proxy(), proxy -> proxy.edit().editSpec().editOrNewInfrastructure()
+                .addNewToleration().withKey("node-pool").withOperator("Equals").withValue("kafka-proxy").endToleration()
+                .endInfrastructure().endSpec().build());
+
+        // Then
+        AWAIT.alias("KafkaProxy Ready condition reports the rejected Deployment").untilAsserted(() -> assertThat(clusterUser.get(KafkaProxy.class, name(created.proxy())))
+                .isNotNull()
+                .extracting(KafkaProxy::getStatus, AssertFactory.status())
+                .isNotNull()
+                .conditionList()
+                .anySatisfy(condition -> {
+                    assertThat(condition.getType()).isEqualTo(Condition.Type.Ready);
+                    assertThat(condition.getStatus()).isEqualTo(Condition.Status.UNKNOWN);
+                    assertThat(condition.getMessage()).contains("Equals");
+                }));
     }
 
     @Test
@@ -1802,11 +1874,15 @@ public class KafkaProxyReconcilerIT {
     }
 
     private void updateServiceAccountName(KafkaProxy proxy, @Nullable String serviceAccountName) {
+        updateKafkaProxy(proxy, stored -> withServiceAccountName(stored, serviceAccountName));
+    }
+
+    private void updateKafkaProxy(KafkaProxy proxy, UnaryOperator<KafkaProxy> update) {
         // get-then-replace races against the operator's own concurrent writes to the KafkaProxy,
         // so retry on a 409 Conflict rather than failing the test.
-        AWAIT.alias("update KafkaProxy serviceAccountName").untilAsserted(() -> {
+        AWAIT.alias("update KafkaProxy").untilAsserted(() -> {
             try {
-                clusterUser.replace(withServiceAccountName(Objects.requireNonNull(clusterUser.get(KafkaProxy.class, name(proxy))), serviceAccountName));
+                clusterUser.replace(update.apply(Objects.requireNonNull(clusterUser.get(KafkaProxy.class, name(proxy)))));
             }
             catch (KubernetesClientException e) {
                 if (e.getCode() == 409) {
@@ -1845,6 +1921,42 @@ public class KafkaProxyReconcilerIT {
                 .singleElement()
                 .extracting(pod -> pod.getSpec().getServiceAccountName())
                 .isEqualTo(expectedServiceAccountName));
+    }
+
+    private PodSpec deploymentPodSpec(KafkaProxy proxy) {
+        var deployment = clusterUser.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
+        assertThat(deployment).isNotNull();
+        return deployment.getSpec().getTemplate().getSpec();
+    }
+
+    private static KafkaProxy withScheduling(KafkaProxy proxy) {
+        // Constraints every node can satisfy, so the proxy pod schedules on any test cluster
+        // @formatter:off
+        return proxy.edit().editOrNewSpec()
+                .editOrNewInfrastructure()
+                    .withNodeSelector(Map.of("kubernetes.io/os", "linux"))
+                    .addNewToleration()
+                        .withKey("example.com/dedicated").withOperator("Equal").withValue("kafka-proxy").withEffect("NoSchedule")
+                    .endToleration()
+                    .withAffinity(new AffinityBuilder()
+                        .withNewPodAntiAffinity()
+                            .addNewPreferredDuringSchedulingIgnoredDuringExecution()
+                                .withWeight(100)
+                                .withNewPodAffinityTerm()
+                                    .withTopologyKey("kubernetes.io/hostname")
+                                    .withNewLabelSelector().withMatchLabels(ProxyDeploymentDependentResource.podLabels(proxy)).endLabelSelector()
+                                .endPodAffinityTerm()
+                            .endPreferredDuringSchedulingIgnoredDuringExecution()
+                        .endPodAntiAffinity()
+                        .build())
+                    .addNewTopologySpreadConstraint()
+                        .withMaxSkew(1).withTopologyKey("kubernetes.io/hostname").withWhenUnsatisfiable("ScheduleAnyway")
+                        .withNewLabelSelector().withMatchLabels(ProxyDeploymentDependentResource.podLabels(proxy)).endLabelSelector()
+                    .endTopologySpreadConstraint()
+                .endInfrastructure()
+                .endSpec()
+                .build();
+        // @formatter:on
     }
 
     KafkaProxy kafkaProxy(String name) {

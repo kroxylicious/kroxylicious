@@ -1,0 +1,96 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-operate-proxy.adoc
+
+[id='con-kafkaproxy-scheduling-{context}']
+= Controlling where proxy pods are scheduled
+
+[role="_abstract"]
+By default, proxy pods have no scheduling constraints, so Kubernetes can place them on any schedulable node without taints.
+To control which nodes run the proxy, and how proxy pods are spread across nodes and zones, set scheduling fields in the `infrastructure` section of your `KafkaProxy` specification.
+
+The following fields are supported.
+Each field has the same schema and semantics as the field of the same name in the Kubernetes `PodSpec`, and the operator copies it unchanged to the proxy pod template:
+
+`nodeSelector`:: Node labels that a node must have to run proxy pods.
+`tolerations`:: Tolerations that allow proxy pods to run on nodes with matching taints, such as a dedicated node pool.
+`affinity`:: Node affinity, pod affinity, and pod anti-affinity rules.
+`topologySpreadConstraints`:: Rules for spreading proxy pods across topology domains, such as zones or nodes.
+
+.Example `KafkaProxy` configuration that runs the proxy on a dedicated, tainted node pool and spreads pods across zones
+[source,yaml]
+----
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  replicas: 3
+  infrastructure:
+    nodeSelector:
+      node-pool: kafka-proxy # <1>
+    tolerations:
+      - key: node-pool # <2>
+        operator: Equal
+        value: kafka-proxy
+        effect: NoSchedule
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution: # <3>
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: kroxylicious
+                  app.kubernetes.io/component: proxy
+                  app.kubernetes.io/instance: simple
+    topologySpreadConstraints:
+      - maxSkew: 1 # <4>
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: kroxylicious
+            app.kubernetes.io/component: proxy
+            app.kubernetes.io/instance: simple
+        matchLabelKeys:
+          - pod-template-hash
+----
+<1> Runs proxy pods only on nodes labeled `node-pool: kafka-proxy`.
+<2> Allows proxy pods onto those nodes despite a `node-pool=kafka-proxy:NoSchedule` taint.
+A toleration only permits scheduling onto tainted nodes; combine it with `nodeSelector` or node affinity to require those nodes.
+<3> Prefers placing each proxy pod on a different node.
+<4> Spreads proxy pods evenly across zones, without blocking scheduling when the spread cannot be met.
+`matchLabelKeys: [pod-template-hash]` counts only the pods of the current rollout, so pods that are being replaced do not skew the spread.
+
+Pod affinity, pod anti-affinity, and topology spread constraints select pods by label.
+To match the proxy pods of a `KafkaProxy`, use the labels that the operator sets on them: `app.kubernetes.io/name: kroxylicious`, `app.kubernetes.io/component: proxy`, and `app.kubernetes.io/instance` set to the name of the `KafkaProxy`.
+
+Changing any scheduling field replaces the proxy pods through a normal Deployment rollout.
+Removing a field removes it from the proxy pods.
+
+If no node satisfies the constraints, the replacement pods remain `Pending`.
+The rollout uses the default Kubernetes rolling update strategy, which can stop up to 25% of the existing proxy pods, rounded down, before their replacements are running.
+With fewer than four replicas, all existing proxy pods keep running; with four or more, the proxy can run with reduced capacity until the rollout progresses.
+To diagnose this, check the events of the `Pending` pods.
+
+The `KafkaProxy` schema checks only the structure of the scheduling fields.
+Values that Kubernetes rejects for pods, such as a toleration `operator` other than `Exists` or `Equal`, are reported when the operator updates the Deployment.
+In that case, the `Ready` condition of the `KafkaProxy` has status `Unknown` and a message from the Kubernetes API server, and the Deployment is not updated until you correct the value.
+
+[role="_additional-resources"]
+.Additional resources
+
+* https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/[Kubernetes documentation: Assigning Pods to Nodes^]
+* https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/[Kubernetes documentation: Taints and Tolerations^]
+* https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/[Kubernetes documentation: Pod Topology Spread Constraints^]
