@@ -24,6 +24,7 @@ public final class AllMessages {
 
     private static final String KAFKA_PACKAGE = "org.apache.kafka.common.message.";
     private static final String KROXYLICIOUS_PACKAGE = "io.kroxylicious.kafka.common.message.";
+    @SuppressWarnings("InlineFormatString") // the named constant documents the class name convention
     private static final String CLASS_NAME_FORMAT = "%s%s%sData";
 
     private AllMessages() {

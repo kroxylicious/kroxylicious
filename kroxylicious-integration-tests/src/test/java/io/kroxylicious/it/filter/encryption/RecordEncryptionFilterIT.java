@@ -60,8 +60,6 @@ import org.junit.jupiter.params.Parameter;
 import org.junit.jupiter.params.ParameterizedClass;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.google.common.base.Strings;
-
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.filter.encryption.RecordEncryption;
@@ -208,7 +206,7 @@ class RecordEncryptionFilterIT {
                 var producer = tester.producer(Map.of(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 2000000));
                 var consumer = tester.consumer()) {
 
-            String largerThanInitialEncryptionBuffer = Strings.repeat("a", RecordEncryptionConfig.RECORD_BUFFER_DEFAULT_INITIAL_BYTES + 1);
+            String largerThanInitialEncryptionBuffer = "a".repeat(RecordEncryptionConfig.RECORD_BUFFER_DEFAULT_INITIAL_BYTES + 1);
             producer.send(new ProducerRecord<>(topic.name(), largerThanInitialEncryptionBuffer)).get(5, TimeUnit.SECONDS);
 
             consumer.subscribe(List.of(topic.name()));

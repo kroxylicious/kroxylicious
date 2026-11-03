@@ -15,6 +15,7 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
@@ -197,7 +198,7 @@ public class TlsUtil {
         }
 
         X509Certificate leafCert = certChain[0];
-        Date now = new Date();
+        Date now = Date.from(Instant.now());
 
         // Validate leaf certificate dates
         try {
