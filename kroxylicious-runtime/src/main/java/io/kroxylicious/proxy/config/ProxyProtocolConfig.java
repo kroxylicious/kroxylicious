@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param mode the proxy protocol mode; must not be null
  * @see <a href="https://www.haproxy.org/download/3.3/doc/proxy-protocol.txt">PROXY protocol specification</a>
  */
-public record ProxyProtocolConfig(@JsonProperty(required = true)  ProxyProtocolMode mode) {
+public record ProxyProtocolConfig(@JsonProperty(required = true) ProxyProtocolMode mode) {
     /**
      * Per-gateway configuration for the HaProxy PROXY protocol.
      *
