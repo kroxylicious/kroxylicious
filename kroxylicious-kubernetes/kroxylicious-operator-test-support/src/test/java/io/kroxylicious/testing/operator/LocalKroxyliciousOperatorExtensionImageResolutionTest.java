@@ -131,6 +131,11 @@ class LocalKroxyliciousOperatorExtensionImageResolutionTest {
             public int read() throws IOException {
                 throw new IOException("disk error");
             }
+
+            @Override
+            public int read(byte[] b, int off, int len) throws IOException {
+                throw new IOException("disk error");
+            }
         };
 
         assertThatThrownBy(() -> LocalKroxyliciousOperatorExtension.resolveOperandImage(null, brokenSupplier))

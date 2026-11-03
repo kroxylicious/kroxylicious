@@ -1,0 +1,4 @@
+title: "fix: resolve several ErrorProne warnings: `AlmostJavadoc`, `BoxingComparator`, `ClassCanBeStatic`, `CollectionUndefinedEquality`, `DirectInvocationOnMock` and `DuplicateAssertion`"
+type: fixed
+issues:
+  - 5244

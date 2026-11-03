@@ -742,7 +742,7 @@ public abstract class AbstractTracingIT extends AuthzIT {
 
             List<TopicPartition> partitions = records.partitions().stream()
                     .sorted(Comparator.comparing(TopicPartition::topic)
-                            .thenComparing(TopicPartition::partition))
+                            .thenComparingInt(TopicPartition::partition))
                     .toList();
             var sb = new StringBuilder("ConsumerRecords{count=").append(records.count()).append(',');
             boolean firstPartition = true;

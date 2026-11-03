@@ -63,6 +63,7 @@ class ParcelTest {
 
     @ParameterizedTest
     @MethodSource
+    @SuppressWarnings("DirectInvocationOnMock") // mock is used as a recording delegate inside a lambda, verified below
     void shouldRoundTrip(Set<RecordField> fields, Record record) {
         var expectedValue = record.hasValue() ? record.value().duplicate() : null;
         Parcel parcel = ParcelVersionResolver.ALL.fromName(ParcelVersion.V1);
