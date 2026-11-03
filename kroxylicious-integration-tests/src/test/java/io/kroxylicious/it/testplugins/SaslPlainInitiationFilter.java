@@ -176,7 +176,7 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
         }
     }
 
-    private <T> CompletionStage<ResponseFilterResult> giveUp(FilterContext context, String message) {
+    private CompletionStage<ResponseFilterResult> giveUp(FilterContext context, String message) {
         LOGGER.error("{}. Disconnecting client.", message);
         if (!bufferedRequests.isEmpty()) {
             BufferedRequest bufferedRequest = bufferedRequests.get(0);

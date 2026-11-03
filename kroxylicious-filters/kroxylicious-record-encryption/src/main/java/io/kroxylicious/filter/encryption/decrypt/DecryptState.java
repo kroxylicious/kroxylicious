@@ -99,7 +99,7 @@ public final class DecryptState<E> {
     public String toString() {
         return "DecryptState[" +
                 "decryptionVersion=" + encryptionUsed + ", " +
-                "decryptor=" + decryptor + ']';
+                "decryptorSet=" + (decryptor != null) + ']';
     }
 
 }

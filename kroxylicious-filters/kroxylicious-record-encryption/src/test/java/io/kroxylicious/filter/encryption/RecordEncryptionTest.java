@@ -148,7 +148,7 @@ class RecordEncryptionTest {
         Map<String, Object> experimental = new HashMap<>();
         experimental.put("maxEncryptionsPerDek", null);
 
-        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, null, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED).dekManager();
+        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED).dekManager();
         assertThat(config.maxEncryptionsPerDek()).isEqualTo(5_000_000L);
     }
 

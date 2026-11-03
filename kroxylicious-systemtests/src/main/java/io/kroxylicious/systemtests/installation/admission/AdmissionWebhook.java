@@ -19,7 +19,6 @@ import io.fabric8.certmanager.api.model.v1.IssuerBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 
 import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.resources.operator.ManifestProvider;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -43,10 +42,8 @@ public class AdmissionWebhook {
 
     /**
      * Deploys the admission webhook from distribution manifests.
-     *
-     * @param certManager the cert-manager instance to use for certificate creation
      */
-    public void deploy(CertManager certManager) {
+    public void deploy() {
         if (isDeployed()) {
             LOGGER.warn("Skipping admission webhook deployment. It is already deployed!");
             deleteWebhook = false;
@@ -58,7 +55,7 @@ public class AdmissionWebhook {
         validateDistribution();
         applyCrd();
         applyInstallManifests();
-        createCertificateResources(certManager);
+        createCertificateResources();
         waitForWebhookReady();
 
         LOGGER.info("Admission webhook deployment complete");
@@ -113,7 +110,7 @@ public class AdmissionWebhook {
                 .forEach(resource -> ResourceManager.getInstance().createResourceWithoutWait(resource));
     }
 
-    private void createCertificateResources(CertManager certManager) {
+    private void createCertificateResources() {
         LOGGER.info("Creating cert-manager Issuer and Certificate for webhook TLS");
 
         var issuer = new IssuerBuilder()

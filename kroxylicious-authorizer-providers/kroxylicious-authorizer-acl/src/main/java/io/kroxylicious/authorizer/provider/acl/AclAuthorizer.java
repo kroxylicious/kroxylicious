@@ -372,7 +372,7 @@ public class AclAuthorizer implements Authorizer {
                                                                    Key<O> resourceMatcher,
                                                                    Set<O> operations) {
         var es = EnumSet.copyOf(operations);
-        for (var op : es) {
+        for (var op : operations) {
             es.addAll(op.implies());
         }
         ResourceGrants compute = allowPerPrincipal.addApply(principalMatcher,
