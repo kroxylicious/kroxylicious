@@ -455,9 +455,10 @@ class ConfigurationValidationTest {
                 new PortIdentifiesNodeIdentificationStrategy(
                         new HostPort("localhost", 9192), null, null, null),
                 null, Optional.empty(), new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
+        var gws = List.of(gwForbidden, gwRequired);
 
         // When / Then - validation fires in VirtualCluster constructor, before config() is called
-        assertThatThrownBy(() -> new VirtualCluster("vc1", CLUSTER_TARGET, List.of(gwForbidden, gwRequired), false, false, null))
+        assertThatThrownBy(() -> new VirtualCluster("vc1", CLUSTER_TARGET, gws, false, false, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining(
                         "Gateway 'gw-required' on port 9192 has proxyProtocol mode REQUIRED "
