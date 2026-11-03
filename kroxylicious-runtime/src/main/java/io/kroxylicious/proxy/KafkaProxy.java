@@ -349,14 +349,13 @@ public final class KafkaProxy implements AutoCloseable {
                     ConfigurationReloadOrchestrator.defaultDetectors());
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
-            var proxyProtocolMode = config.proxyProtocolMode();
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(pfr, true, endpointRegistry, endpointRegistry,
-                            proxyProtocolMode, apiVersionsService,
+                            apiVersionsService,
                             proxyNettySettings, virtualClusterRegistry));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(pfr, false, endpointRegistry, endpointRegistry,
-                            proxyProtocolMode, apiVersionsService,
+                            apiVersionsService,
                             proxyNettySettings, virtualClusterRegistry));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);

@@ -50,10 +50,12 @@ import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
+import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.Attribute;
 import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
@@ -64,10 +66,12 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.internal.net.BindingContext;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
@@ -118,6 +122,10 @@ class KafkaProxyInitializerTest {
     @Mock(strictness = Mock.Strictness.LENIENT)
     private ServerSocketChannel acceptingSocketChannel;
 
+    @SuppressWarnings("rawtypes")
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    private Attribute bindingContextAttribute;
+
     @Captor
     ArgumentCaptor<ChannelInboundHandlerAdapter> plainChannelResolverCaptor;
 
@@ -146,6 +154,9 @@ class KafkaProxyInitializerTest {
         when(channel.close()).thenReturn(closeFuture);
 
         when(acceptingSocketChannel.localAddress()).thenReturn(localhost);
+        // noinspection unchecked
+        when(acceptingSocketChannel.attr(EndpointRegistry.BINDING_CONTEXT)).thenReturn(bindingContextAttribute);
+        when(bindingContextAttribute.get()).thenReturn(new BindingContext(ProxyProtocolMode.FORBIDDEN));
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
     }
 
@@ -310,40 +321,31 @@ class KafkaProxyInitializerTest {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void shouldAddDetectionHandlerWhenProxyProtocolRequired(boolean tls) {
+    void shouldNotAddHaProxyDecoderWhenModeForbidden(boolean tls) {
         // Given
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, ProxyProtocolMode.REQUIRED, (endpoint, sniHostname) -> bindingStage);
+        when(bindingContextAttribute.get()).thenReturn(new BindingContext(ProxyProtocolMode.FORBIDDEN));
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline).addLast(eq("HaProxyProtocolDetectionHandler"), isA(HaProxyProtocolDetectionHandler.class));
+        verify(channelPipeline, never()).addLast(eq("HAProxyMessageDecoder"), any());
     }
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void shouldAddDetectionHandlerWhenProxyProtocolAllowed(boolean tls) {
+    void shouldAddHaProxyDecoderWhenModeRequired(boolean tls) {
         // Given
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, ProxyProtocolMode.ALLOWED, (endpoint, sniHostname) -> bindingStage);
+        when(bindingContextAttribute.get()).thenReturn(new BindingContext(ProxyProtocolMode.REQUIRED));
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline).addLast(eq("HaProxyProtocolDetectionHandler"), isA(HaProxyProtocolDetectionHandler.class));
-    }
-
-    @Test
-    void shouldNotAddDetectionHandlerWhenProxyProtocolDisabled() {
-        // Given
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, ProxyProtocolMode.DISABLED, (endpoint, sniHostname) -> bindingStage);
-
-        // When
-        kafkaProxyInitializer.initChannel(channel);
-
-        // Then
-        verify(channelPipeline, never()).addLast(eq("HaProxyProtocolDetectionHandler"), any());
+        verify(channelPipeline).addLast(eq("HAProxyMessageDecoder"), isA(HAProxyMessageDecoder.class));
+        verify(channelPipeline).addLast(eq("HAProxyMessageHandler"), isA(HAProxyMessageHandler.class));
     }
 
     @Test
@@ -479,8 +481,7 @@ class KafkaProxyInitializerTest {
         // given
         var vcc = mock(VirtualClusterRegistry.class);
         when(vcc.registerConnection(any(), any())).thenReturn(false);
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, ProxyProtocolMode.DISABLED,
-                (endpoint, sniHostname) -> bindingStage, vcc);
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage, vcc);
 
         // when
         kafkaProxyInitializer.initConnection(channel, endpointBinding, new KafkaSession(KafkaSessionState.ESTABLISHING));
@@ -508,7 +509,9 @@ class KafkaProxyInitializerTest {
     @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
-        return createKafkaProxyInitializer(tls, ProxyProtocolMode.DISABLED, bindingResolver);
+        var vcc = mock(VirtualClusterRegistry.class);
+        lenient().when(vcc.registerConnection(any(), any())).thenReturn(true);
+        return createKafkaProxyInitializer(tls, bindingResolver, vcc);
     }
 
     @Test
@@ -570,23 +573,12 @@ class KafkaProxyInitializerTest {
 
     @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
-                                                              ProxyProtocolMode proxyProtocolMode,
-                                                              EndpointBindingResolver bindingResolver) {
-        var vcc = mock(VirtualClusterRegistry.class);
-        lenient().when(vcc.registerConnection(any(), any())).thenReturn(true);
-        return createKafkaProxyInitializer(tls, proxyProtocolMode, bindingResolver, vcc);
-    }
-
-    @SuppressWarnings("DataFlowIssue")
-    private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
-                                                              ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver,
                                                               VirtualClusterRegistry vcc) {
         return new KafkaProxyInitializer(pfr,
                 tls,
                 bindingResolver,
                 mock(EndpointReconciler.class),
-                proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),
                 vcc);

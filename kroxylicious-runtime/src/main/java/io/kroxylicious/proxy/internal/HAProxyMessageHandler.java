@@ -1,0 +1,84 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.proxy.internal;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyProtocolException;
+
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
+
+import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+
+/**
+ * A channel handler that intercepts {@link HAProxyMessage} objects emitted by
+ * Netty's {@link io.netty.handler.codec.haproxy.HAProxyMessageDecoder} and
+ * stores the extracted context in the {@link KafkaSession}.
+ * <p>
+ * Any non-{@link HAProxyMessage} message (e.g. a TLS ClientHello that arrived in the same
+ * TCP segment as the PROXY header) is forwarded downstream unchanged. This allows
+ * {@link io.netty.handler.ssl.SniHandler} or the Kafka codec to receive those bytes
+ * without them passing through the decoder a second time.
+ * </p>
+ * <p>
+ * This handler removes itself from the pipeline after processing the PROXY message.
+ * </p>
+ */
+public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(HAProxyMessageHandler.class);
+
+    private final KafkaSession kafkaSession;
+
+    /**
+     * Creates a handler that stores decoded PROXY-protocol messages in the given session.
+     * @param kafkaSession the session in which the extracted {@link HaProxyContext} is stored
+     */
+    public HAProxyMessageHandler(KafkaSession kafkaSession) {
+        this.kafkaSession = kafkaSession;
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        if (msg instanceof HAProxyMessage haProxyMessage) {
+            try {
+                LOGGER.atDebug()
+                        .addKeyValue("sessionId", kafkaSession.sessionId())
+                        .addKeyValue("sourceAddress", haProxyMessage.sourceAddress())
+                        .addKeyValue("sourcePort", haProxyMessage.sourcePort())
+                        .addKeyValue("destinationAddress", haProxyMessage.destinationAddress())
+                        .addKeyValue("destinationPort", haProxyMessage.destinationPort())
+                        .log("Received HAProxy message");
+                kafkaSession.setHaProxyContext(HaProxyContext.from(haProxyMessage));
+            }
+            finally {
+                haProxyMessage.release();
+                ctx.pipeline().remove(this);
+            }
+        }
+        else {
+            ctx.fireChannelRead(msg);
+        }
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        if (cause instanceof HAProxyProtocolException) {
+            LOGGER.atWarn()
+                    .addKeyValue("channelId", ctx.channel().toString())
+                    .log("Connection rejected: PROXY protocol header required but client sent non-PROXY data. "
+                            + "Ensure the upstream load balancer is configured to send PROXY protocol headers.");
+            ctx.close().addListener(logFailure(LOGGER, "close after missing PROXY protocol header"));
+        }
+        else {
+            ctx.fireExceptionCaught(cause);
+        }
+    }
+}

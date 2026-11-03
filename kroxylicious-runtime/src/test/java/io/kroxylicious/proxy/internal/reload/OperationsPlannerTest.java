@@ -240,14 +240,14 @@ class OperationsPlannerTest {
     private static Configuration configWith(String... clusterNames) {
         var clusters = Arrays.stream(clusterNames).map(OperationsPlannerTest::vc).toList();
         return new Configuration(null, List.of(CLUSTER_DEFINITION), null, null, null, clusters, null, false,
-                Optional.empty(), null, null);
+                Optional.empty(), null);
     }
 
     private static VirtualCluster vc(String name) {
         var gateway = new VirtualClusterGateway("default",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
                 null,
-                Optional.empty());
+                Optional.empty(), null);
         return new VirtualCluster(name,
                 CLUSTER_TARGET,
                 List.of(gateway),

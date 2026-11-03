@@ -34,8 +34,6 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.ProxyProtocolConfig;
-import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
@@ -703,7 +701,6 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
-                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
@@ -725,7 +722,6 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
-                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'defaultFilters' references filters not defined in 'filterDefinitions': [missing]");
@@ -747,7 +743,6 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
-                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'virtualClusters.vc1.filters' references filters not defined in 'filterDefinitions': [missing]");
@@ -774,7 +769,6 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
-                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage(
@@ -803,7 +797,6 @@ class ConfigurationTest {
                 null,
                 false,
                 Optional.empty(),
-                null,
                 null);
 
         // When
@@ -819,50 +812,6 @@ class ConfigurationTest {
     }
 
     @Test
-    void proxyProtocolModeShouldReturnRequiredWhenRequired() {
-        Configuration configuration = new Configuration(null,
-                List.of(new ClusterDefinition("vc-cluster", "x:9092", null)),
-                null, null, null,
-                List.of(buildVirtualCluster("vc", null)),
-                null, false, Optional.empty(), null,
-                new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
-        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.REQUIRED);
-    }
-
-    @Test
-    void proxyProtocolModeShouldReturnAllowedWhenAllowed() {
-        Configuration configuration = new Configuration(null,
-                List.of(new ClusterDefinition("vc-cluster", "x:9092", null)),
-                null, null, null,
-                List.of(buildVirtualCluster("vc", null)),
-                null, false, Optional.empty(), null,
-                new ProxyProtocolConfig(ProxyProtocolMode.ALLOWED));
-        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.ALLOWED);
-    }
-
-    @Test
-    void proxyProtocolModeShouldReturnDisabledWhenDisabled() {
-        Configuration configuration = new Configuration(null,
-                List.of(new ClusterDefinition("vc-cluster", "x:9092", null)),
-                null, null, null,
-                List.of(buildVirtualCluster("vc", null)),
-                null, false, Optional.empty(), null,
-                new ProxyProtocolConfig(ProxyProtocolMode.DISABLED));
-        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
-    }
-
-    @Test
-    void proxyProtocolDefaultsToDisabledWhenNull() {
-        Configuration configuration = new Configuration(null,
-                List.of(new ClusterDefinition("vc-cluster", "x:9092", null)),
-                null, null, null,
-                List.of(buildVirtualCluster("vc", null)),
-                null, false, Optional.empty(), null,
-                null);
-        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
-    }
-
-    @Test
     void shouldAcceptNestedRouters() {
         // Given
         var cluster = new ClusterDefinition("some-cluster", "broker:9092", null);
@@ -872,7 +821,7 @@ class ConfigurationTest {
         var outerRouter = new RouterDefinition("outer-router", "SomeFactory", null, List.of(outerRoute));
         var gateway = new VirtualClusterGateway("gw",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
-                null, Optional.empty());
+                null, Optional.empty(), null);
         var vc = new VirtualCluster("vc1", null, new RouteTarget(null, "outer-router"),
                 List.of(gateway), false, false, null, null, null, null);
 
@@ -887,7 +836,6 @@ class ConfigurationTest {
                 null,
                 false,
                 Optional.empty(),
-                null,
                 null))
                 .doesNotThrowAnyException();
     }
@@ -902,7 +850,7 @@ class ConfigurationTest {
         var routerB = new RouterDefinition("router-b", "SomeFactory", null, List.of(routeToA));
         var gateway = new VirtualClusterGateway("gw",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
-                null, Optional.empty());
+                null, Optional.empty(), null);
         var vc = new VirtualCluster("vc1", null, new RouteTarget(null, "router-a"),
                 List.of(gateway), false, false, null, null, null, null);
 
@@ -917,7 +865,6 @@ class ConfigurationTest {
                 null,
                 false,
                 Optional.empty(),
-                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("cycle");
@@ -947,7 +894,7 @@ class ConfigurationTest {
                 List.of(new VirtualClusterGateway("mygateway",
                         new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
                         null,
-                        Optional.empty())),
+                        Optional.empty(), null)),
                 false, // logNetwork
                 false, // logFrames
                 filterNames,
