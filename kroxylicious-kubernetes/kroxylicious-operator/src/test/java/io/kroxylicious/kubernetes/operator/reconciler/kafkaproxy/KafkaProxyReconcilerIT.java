@@ -1118,8 +1118,8 @@ public class KafkaProxyReconcilerIT {
         int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 
         String ingressName = "openshiftroute" + suffix;
-        String routeBootstrap = "$(virtualClusterName)-bootstrap." + domain;
-        String routeBrokerAddressPattern = "$(virtualClusterName)-$(nodeId)." + domain;
+        String routeBootstrap = CLUSTER_BAR + suffix + "-bootstrap." + domain;
+        String routeBrokerAddressPattern = CLUSTER_BAR + suffix + "-$(nodeId)." + domain;
         KafkaProxyIngress openshiftRouteIngress = updateStatusObservedGeneration(
                 clusterUser.create(openshiftRouteIngress(ingressName, proxy)));
 
