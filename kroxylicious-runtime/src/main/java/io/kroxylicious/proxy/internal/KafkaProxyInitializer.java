@@ -261,8 +261,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         addHandlers(ch, binding, subjectBuilder, clientConnectionStateMachine);
     }
 
-    private void addHandlers(Channel ch, EndpointBinding binding, TransportSubjectBuilder subjectBuilder,
-                             ClientConnectionStateMachine clientConnectionStateMachine) {
+    private void addHandlers(Channel ch, EndpointBinding binding, TransportSubjectBuilder subjectBuilder, ClientConnectionStateMachine clientConnectionStateMachine) {
         var virtualCluster = binding.endpointGateway().virtualCluster();
         ChannelPipeline pipeline = ch.pipeline();
 

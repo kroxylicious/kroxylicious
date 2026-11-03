@@ -81,7 +81,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 /**
  * Runtime representation of a virtual cluster: its name, target Kafka cluster, gateways,
  * TLS configuration, and the components whose lifecycle is bound to this VC.
- *
+ * <br/>
  * <h2>Owned resources</h2>
  * The VCM owns and is responsible for closing two per-VC components directly:
  * <ul>
@@ -92,7 +92,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * For VCs that use dynamic routing, the {@link io.kroxylicious.proxy.internal.routing.DynamicRouting}
  * instance carries and owns the {@link io.kroxylicious.proxy.bootstrap.RouterChainFactory}; the VCM
  * closes it via the routing model.
- *
+ * <br/>
  * <h2>Lifecycle</h2>
  * The VCM is created when the VC is configured (or reconfigured via hot-reload), and closed
  * via {@link #close()} when the VC's lifecycle reaches {@code Stopped}. The

@@ -165,7 +165,8 @@ class KafkaProxyInitializerTest {
         VirtualClusterModel testCluster = new VirtualClusterModel("testCluster",
                 new DirectRouting("upstream", new TargetCluster("localhost:9090", tls)), logNetwork,
                 logFrames, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
-        testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
+        NodeIdentificationStrategy nodeIdentificationStrategy = mock(NodeIdentificationStrategy.class);
+        testCluster.addGateway("defaullt", nodeIdentificationStrategy, tls, ProxyProtocolMode.FORBIDDEN);
         return testCluster;
     }
 
@@ -585,7 +586,8 @@ class KafkaProxyInitializerTest {
         var routing = new DynamicRouting("test-router", Map.of("default", route), routerChainFactory);
         VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", routing, false, false, List.of(),
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
-        testCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
+        NodeIdentificationStrategy nodeIdentificationStrategy = mock(NodeIdentificationStrategy.class);
+        testCluster.addGateway("default", nodeIdentificationStrategy, Optional.empty(), ProxyProtocolMode.FORBIDDEN);
         return testCluster;
     }
 
