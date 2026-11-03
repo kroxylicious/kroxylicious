@@ -155,7 +155,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 bindingResolver.resolve(ch, null)
                         .handle((binding, t) -> {
                             if (t != null) {
-                                ctx.fireExceptionCaught(t);
+                                // No virtual cluster for this endpoint (for example, the virtual cluster is being
+                                // replaced by a reconfigure). Close the connection, as the TLS path does, so the client
+                                // reconnects at once instead of waiting for its request timeout on a connection that
+                                // will never be served.
+                                LOGGER.atWarn()
+                                        .addKeyValue("channel", ch)
+                                        .addKeyValue("error", t.getMessage())
+                                        .log("Exception resolving Virtual Cluster Binding, closing connection");
+                                clientToProxyErrorCounter.increment();
+                                ctx.close().addListener(logFailure(LOGGER, "close after binding resolution failure"));
                                 return null;
                             }
                             try {
