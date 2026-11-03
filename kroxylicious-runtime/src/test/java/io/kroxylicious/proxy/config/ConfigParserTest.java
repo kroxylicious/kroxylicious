@@ -1133,11 +1133,11 @@ class ConfigParserTest {
     @Test
     void shouldThrowWhenSerializingUnserializableObject() {
         var gateway = new VirtualClusterGateway("gw", new PortIdentifiesNodeIdentificationStrategy(HostPort.parse("localhost:9082"), null, null, null), null,
-                Optional.empty());
+                Optional.empty(), null);
         List<VirtualCluster> vcs = List.of(new VirtualCluster("demo", new RouteTarget("upstream", null), List.of(gateway), false, false, List.of()));
         List<ClusterDefinition> clusterDefinitions = List.of(new ClusterDefinition("upstream", "kafka:9092", null));
         var config = new Configuration(null, clusterDefinitions, List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))), List.of("foo"), null,
-                vcs, null, false, Optional.empty(), null, null);
+                vcs, null, false, Optional.empty(), null);
 
         ConfigParser cp = new ConfigParser();
         assertThatThrownBy(() -> {
@@ -1457,6 +1457,54 @@ class ConfigParserTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
                 .hasMessageContaining("Missing external type id property 'type'");
+    }
+
+    @Test
+    void proxyProtocolWithoutMode_failsAtStartup() {
+        // Given / When / Then
+        assertThatThrownBy(() -> configParser.parseConfiguration("""
+                clusterDefinitions:
+                  - name: my-cluster
+                    bootstrapServers: kafka1.example:1234
+                virtualClusters:
+                  - name: demo
+                    target:
+                      cluster: my-cluster
+                    gateways:
+                    - name: default
+                      proxyProtocol: {}
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .isInstanceOf(ValueInstantiationException.class)
+                .cause()
+                .hasMessageContaining("proxyProtocol.mode must be specified");
+    }
+
+    @Test
+    void globalProxyProtocolField_failsAtStartup() {
+        // Given / When / Then
+        assertThatThrownBy(() -> configParser.parseConfiguration("""
+                proxyProtocol:
+                  mode: required
+                clusterDefinitions:
+                  - name: my-cluster
+                    bootstrapServers: kafka1.example:1234
+                virtualClusters:
+                  - name: demo
+                    target:
+                      cluster: my-cluster
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .isInstanceOf(JsonMappingException.class)
+                .hasMessageContaining("proxyProtocol");
     }
 
     private record NonSerializableConfig(String id) {

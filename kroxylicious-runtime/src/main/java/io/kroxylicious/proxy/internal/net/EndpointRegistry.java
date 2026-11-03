@@ -96,6 +96,9 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     /** Channel attribute holding the map of virtual node id to endpoint binding attached to each acceptor channel. */
     protected static final AttributeKey<Map<ProxyNodeId, EndpointBinding>> CHANNEL_BINDINGS = AttributeKey.newInstance("channelBindings");
 
+    /** Channel attribute carrying per-port context read by {@code KafkaProxyInitializer} at {@code initChannel()} time. */
+    public static final AttributeKey<BindingContext> BINDING_CONTEXT = AttributeKey.newInstance("bindingContext");
+
     private record ReconciliationRecord(Map<Integer, HostPort> upstreamNodeMap, CompletionStage<Void> reconciliationStage) {
         private ReconciliationRecord {
             Objects.requireNonNull(upstreamNodeMap);
@@ -534,6 +537,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
             synchronized (lcr) {
                 var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                 bindings.setIfAbsent(new ConcurrentHashMap<>());
+                acceptorChannel.attr(BINDING_CONTEXT).set(new BindingContext(virtualCluster.proxyProtocolMode()));
 
                 var bindingMap = bindings.get();
 
