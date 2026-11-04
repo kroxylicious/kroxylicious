@@ -16,7 +16,9 @@
 #
 
 name: Lint GitHub Actions workflows
-on: [pull_request]
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
 
 jobs:
   actionlint:
