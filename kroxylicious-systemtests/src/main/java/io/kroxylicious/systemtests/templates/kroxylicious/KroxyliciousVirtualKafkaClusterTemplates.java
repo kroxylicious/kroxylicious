@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.templates.kroxylicious;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
@@ -67,6 +68,36 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
                 .editSpec()
                 .addAllToFilterRefs(getFilterRefs(filterNames))
                 .endSpec();
+    }
+
+    /**
+     * Virtual Kafka cluster CR with filters and a TLS subject builder that extracts
+     * the CN from the client certificate subject and maps it to a {@code User} principal.
+     * Combine this with {@code KroxyliciousBuilder.withDownstreamTls(tls)} to get mTLS
+     * with subject-based authorization.
+     *
+     * @param clusterName the cluster name
+     * @param ingressName the ingress name
+     * @param filterNames the filter names
+     * @return the virtual Kafka cluster builder
+     */
+    public static VirtualKafkaClusterBuilder virtualKafkaClusterWithTlsSubjectBuilder(String clusterName, String ingressName, List<String> filterNames) {
+        // @formatter:off
+        return virtualKafkaClusterWithFilterCR(clusterName, ingressName, filterNames)
+                .editSpec()
+                    .withNewTlsSubjectBuilder()
+                        .withType("DefaultTransportSubjectBuilderService")
+                        .withNewConfigTemplate()
+                            .addToAdditionalProperties("addPrincipals", List.of(Map.of(
+                                    "from", "clientTlsSubject",
+                                    "map", List.of(
+                                            Map.of("replaceMatch", "/(?:.*,)?CN=([^,]+)(?:,.*)?/$1/"),
+                                            Map.of("else", "anonymous")),
+                                    "principalFactory", "io.kroxylicious.proxy.authentication.UserFactory")))
+                        .endConfigTemplate()
+                    .endTlsSubjectBuilder()
+                .endSpec();
+        // @formatter:on
     }
 
     private static Collection<FilterRef> getFilterRefs(List<String> filterNames) {

@@ -62,30 +62,108 @@ public class CertManager {
         //@formatter:on
     }
 
+    /**
+     * Creates a CA Certificate (isCA=true) signed by the self-signed issuer.
+     * cert-manager creates a Secret named {@code caName} containing the CA cert and key.
+     *
+     * @param namespace the namespace
+     * @param caName name used for both the Certificate CR and its backing Secret
+     * @return the certificate builder
+     */
+    public CertificateBuilder caCertificate(String namespace, String caName) {
+        //@formatter:off
+        return certificate(namespace, caName, caName, SELF_SINGED_ISSUER_NAME, List.of(), "cert sign", "crl sign")
+                .editSpec()
+                    .withIsCA(true)
+                .endSpec();
+        //@formatter:on
+    }
+
+    /**
+     * Creates a CA Issuer backed by the named Secret (produced by {@link #caCertificate}).
+     *
+     * @param namespace the namespace
+     * @param caSecretName the Secret name created by {@link #caCertificate}
+     * @return the issuer builder
+     */
+    public IssuerBuilder caIssuer(String namespace, String caSecretName) {
+        //@formatter:off
+        return new IssuerBuilder()
+                .withNewMetadata()
+                    .withName(caSecretName + "-issuer")
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewCa()
+                        .withSecretName(caSecretName)
+                    .endCa()
+                .endSpec();
+        //@formatter:on
+    }
+
+    /**
+     * Creates a server Certificate (usages: server auth) signed by {@code SELF_SINGED_ISSUER_NAME}.
+     *
+     * @param namespace the namespace
+     * @param commonName the CN
+     * @param dnsNames additional SAN DNS names (the CN is prepended if absent)
+     * @return the certificate builder
+     */
     public CertificateBuilder certFor(String namespace, String commonName, String... dnsNames) {
+        return certForWithIssuer(namespace, SELF_SINGED_ISSUER_NAME, commonName, dnsNames);
+    }
+
+    /**
+     * Creates a server Certificate (usages: server auth) signed by the named Issuer.
+     * The resulting Secret is named "server-certificate".
+     *
+     * @param namespace the namespace
+     * @param issuerName the Issuer that signs this cert
+     * @param commonName the CN
+     * @param dnsNames additional SAN DNS names (the CN is prepended if absent)
+     * @return the certificate builder
+     */
+    public CertificateBuilder certForWithIssuer(String namespace, String issuerName, String commonName, String... dnsNames) {
         List<String> dnsAliases = new ArrayList<>(List.of(dnsNames));
         if (!dnsAliases.contains(commonName)) {
             dnsAliases.add(0, commonName);
         }
+        return certificate(namespace, "server-certificate", commonName, issuerName, dnsAliases, "server auth");
+    }
 
+    /**
+     * Creates a client Certificate (usages: client auth) signed by the named CA Issuer.
+     * The resulting Secret is named {@code commonName + "-cert"}.
+     *
+     * @param namespace the namespace
+     * @param caIssuerName the Issuer that signs this cert (created by {@link #caIssuer})
+     * @param commonName the CN, also used as the Secret name prefix
+     * @return the certificate builder
+     */
+    public CertificateBuilder clientCertFor(String namespace, String caIssuerName, String commonName) {
+        return certificate(namespace, commonName + "-cert", commonName, caIssuerName, List.of(), "client auth");
+    }
+
+    private CertificateBuilder certificate(String namespace, String name, String commonName,
+                                           String issuerName, List<String> dnsNames, String... usages) {
         //@formatter:off
         return new CertificateBuilder()
                 .withNewMetadata()
-                    .withName("server-certificate")
+                    .withName(name)
                     .withNamespace(namespace)
                 .endMetadata()
                 .withNewSpec()
                     .withCommonName(commonName)
-                    .withSecretName("server-certificate")
+                    .withSecretName(name)
                     .withNewPrivateKey()
                         .withAlgorithm("RSA")
                         .withEncoding("PKCS8")
                         .withSize(4096)
                     .endPrivateKey()
-                    .withDnsNames(dnsAliases)
-                    .withUsages("server auth")
+                    .withDnsNames(dnsNames)
+                    .withUsages(usages)
                     .withNewIssuerRef()
-                        .withName(SELF_SINGED_ISSUER_NAME)
+                        .withName(issuerName)
                         .withKind("Issuer")
                         .withGroup("cert-manager.io")
                     .endIssuerRef()
