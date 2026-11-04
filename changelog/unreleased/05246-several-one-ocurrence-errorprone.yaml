@@ -1,0 +1,4 @@
+title: "fix: resolve several ErrorProne warnings: `ModifiedButNotUsed`, `ModifyCollectionInEnhancedForLoop`, `ObjectEqualsForPrimitives`, `ObjectToString`, `StreamResourceLeak`, `UnusedTypeParameter` and `UnusedVariable`"
+type: fixed
+issues:
+  - 5246

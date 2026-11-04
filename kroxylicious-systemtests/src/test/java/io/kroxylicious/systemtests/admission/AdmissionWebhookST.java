@@ -71,7 +71,7 @@ class AdmissionWebhookST extends AbstractSystemTests {
 
         LOGGER.info("Deploying admission webhook from distribution");
         admissionWebhook = new AdmissionWebhook();
-        admissionWebhook.deploy(certManager);
+        admissionWebhook.deploy();
 
         LOGGER.info("Admission webhook setup complete");
     }

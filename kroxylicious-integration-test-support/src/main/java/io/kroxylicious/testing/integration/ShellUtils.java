@@ -107,9 +107,11 @@ public final class ShellUtils {
                     LOGGER.info(description);
                 }
                 assertThat(process.exitValue()).describedAs(argList + " should have 0 exit code").isZero();
-                var rtnValue = stdOutValidator.test(Files.lines(out));
-                rtnValue &= stdErrValidator.test(Files.lines(err));
-                return rtnValue;
+                try (var outLines = Files.lines(out); var errLines = Files.lines(err)) {
+                    var rtnValue = stdOutValidator.test(outLines);
+                    rtnValue &= stdErrValidator.test(errLines);
+                    return rtnValue;
+                }
             }
             else {
                 process.destroy();
