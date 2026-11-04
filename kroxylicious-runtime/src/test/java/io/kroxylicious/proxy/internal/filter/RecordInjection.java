@@ -15,7 +15,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Plugin(configType = RecordConfig.class)
-public class Record implements FilterFactory<RecordConfig, String> {
+public class RecordInjection implements FilterFactory<RecordConfig, String> {
     @Override
     public String initialize(FilterFactoryContext context, RecordConfig config) throws PluginConfigurationException {
         assertEquals("hello, world", config.str());

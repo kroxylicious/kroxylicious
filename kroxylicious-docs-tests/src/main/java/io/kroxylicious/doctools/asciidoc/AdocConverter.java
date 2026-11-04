@@ -39,16 +39,12 @@ public class AdocConverter extends StringConverter {
             transform = node.getNodeName();
         }
 
-        if (node instanceof Document document) {
-            return adocNodeConverter.convertDocumentNode(document);
-        }
-        else if (node instanceof Section section) {
-            return adocNodeConverter.convertSectionNode(section);
-        }
-        else if (node instanceof Block block) {
+        return switch (node) {
+            case Document document -> adocNodeConverter.convertDocumentNode(document);
+            case Section section -> adocNodeConverter.convertSectionNode(section);
             // Block要素は複数パターンが存在するので場合分けして処理する
             // open, listing, pass要素内 の テキスト（paragraph）は翻訳しない
-            return switch (transform) {
+            case Block block -> switch (transform) {
                 case "paragraph" -> {
                     if (node.getParent() != null
                             && node.getParent().getNodeName().matches("open|listing|pass")) {
@@ -70,28 +66,16 @@ public class AdocConverter extends StringConverter {
                         "---\n";
                 default -> adocNodeConverter.convertOther(transform, block);
             };
-        }
-        else if (node instanceof Table table) {
-            return adocNodeConverter.convertTableNode(table);
-        }
-        else if (node instanceof List list) {
-            return adocNodeConverter.convertlistNode(list);
-        }
-        else if (node instanceof DescriptionList descriptionList) {
-            return adocNodeConverter.convertDlistNode(descriptionList);
-        }
-        else if (node instanceof PhraseNode phraseNode) {
-            if (transform.equals("inline_anchor")) {
-                return adocNodeConverter.convertInlineAnchor(phraseNode);
-            }
-            else if (transform.equals("inline_callout")) {
-                return adocNodeConverter.convertInlineCallout(phraseNode);
-            }
-            else {
-                return adocNodeConverter.convertInlineBreakNode(phraseNode);
-            }
-        }
-        throw new IllegalStateException("Unknown node type (%s)  or transform (%s)".formatted(node.getClass().getName(), transform));
+            case Table table -> adocNodeConverter.convertTableNode(table);
+            case List list -> adocNodeConverter.convertlistNode(list);
+            case DescriptionList descriptionList -> adocNodeConverter.convertDlistNode(descriptionList);
+            case PhraseNode phraseNode -> switch (transform) {
+                case "inline_anchor" -> adocNodeConverter.convertInlineAnchor(phraseNode);
+                case "inline_callout" -> adocNodeConverter.convertInlineCallout(phraseNode);
+                default -> adocNodeConverter.convertInlineBreakNode(phraseNode);
+            };
+            default -> throw new IllegalStateException("Unknown node type (%s)  or transform (%s)".formatted(node.getClass().getName(), transform));
+        };
     }
 
 }

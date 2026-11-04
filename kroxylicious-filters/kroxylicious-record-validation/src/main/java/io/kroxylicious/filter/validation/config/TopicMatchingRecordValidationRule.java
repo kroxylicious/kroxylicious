@@ -62,7 +62,7 @@ public class TopicMatchingRecordValidationRule extends RecordValidationRule {
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), topicNames);
+        return 31 * super.hashCode() + Objects.hashCode(topicNames);
     }
 
     @Override

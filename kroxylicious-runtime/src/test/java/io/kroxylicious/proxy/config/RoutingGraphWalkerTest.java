@@ -17,6 +17,9 @@ import io.kroxylicious.proxy.service.HostPort;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RoutingGraphWalkerTest {
+
+    private record Visited(List<RouterDefinition> routers, List<ClusterDefinition> clusters) {}
+
     // -------------------------------------------------------------------------
     // walkClusterGraph — visitor is called for all node types
     // -------------------------------------------------------------------------
@@ -262,7 +265,6 @@ class RoutingGraphWalkerTest {
         var clusters = Map.of("cluster-a", cd);
 
         // When
-        record Visited(List<RouterDefinition> routers, List<ClusterDefinition> clusters) {}
         var result = RoutingGraphWalker.walkRouterGraph("r1", routers, clusters, () -> new RoutingGraphVisitor<Visited>() {
             final List<RouterDefinition> routersVisited = new ArrayList<>();
             final List<ClusterDefinition> clustersVisited = new ArrayList<>();
@@ -300,7 +302,6 @@ class RoutingGraphWalkerTest {
         var clusters = Map.of("cluster-deep", cd);
 
         // When
-        record Visited(List<RouterDefinition> routers, List<ClusterDefinition> clusters) {}
         var result = RoutingGraphWalker.walkRouterGraph("r1", routers, clusters, () -> new RoutingGraphVisitor<Visited>() {
             final List<RouterDefinition> routersVisited = new ArrayList<>();
             final List<ClusterDefinition> clustersVisited = new ArrayList<>();
@@ -337,7 +338,6 @@ class RoutingGraphWalkerTest {
         var cd = clusterDef("cluster-deep");
 
         // When
-        record Visited(List<RouterDefinition> routers, List<ClusterDefinition> clusters) {}
         var result = RoutingGraphWalker.walkRouterGraph("r1", routers, Map.of("cluster-deep", cd), () -> new RoutingGraphVisitor<Visited>() {
             final List<RouterDefinition> routersVisited = new ArrayList<>();
             final List<ClusterDefinition> clustersVisited = new ArrayList<>();
