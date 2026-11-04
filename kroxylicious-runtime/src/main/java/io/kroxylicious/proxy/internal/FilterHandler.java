@@ -216,6 +216,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     return handleDecodedResponse(decodedFrame, promise);
                 }
                 else {
+                    releaseDiscarded(decodedFrame);
                     return CompletableFuture.completedFuture(null);
                 }
             }).exceptionally(throwable -> null);
@@ -365,6 +366,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     return handleDecodedRequest(decodedFrame);
                 }
                 else {
+                    releaseDiscarded(decodedFrame);
                     return CompletableFuture.completedFuture(null);
                 }
             }).exceptionally(throwable -> null);
@@ -409,6 +411,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             log(DEBUG)
                     .addKeyValue("apiKey", decodedFrame.apiKey())
                     .log("Filter drops response");
+            releaseDiscarded(decodedFrame);
             return responseFilterResult;
         }
 
@@ -417,6 +420,9 @@ public class FilterHandler extends ChannelDuplexHandler {
             ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header()
                     : (ResponseHeaderData) Objects.requireNonNull(responseFilterResult.header());
             forwardResponse(decodedFrame, header, message, promise);
+        }
+        else {
+            releaseDiscarded(decodedFrame);
         }
 
         if (responseFilterResult.closeConnection()) {
@@ -431,6 +437,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             log(DEBUG)
                     .addKeyValue("apiKey", decodedFrame.apiKey())
                     .log("Filter drops request");
+            releaseDiscarded(decodedFrame);
             // When a request is dropped, trigger reading the next request to keep the channel active
             inboundChannel.read();
             return requestFilterResult;
@@ -444,6 +451,9 @@ public class FilterHandler extends ChannelDuplexHandler {
             else {
                 forwardRequest(decodedFrame, requestFilterResult);
             }
+        }
+        else {
+            releaseDiscarded(decodedFrame);
         }
 
         if (requestFilterResult.closeConnection()) {
@@ -464,7 +474,19 @@ public class FilterHandler extends ChannelDuplexHandler {
                             ? "filter ended exceptionally, closing connection"
                             : "filter ended exceptionally, closing connection, increase log level to DEBUG for stacktrace");
         }
+        releaseDiscarded(decodedFrame);
         closeConnection();
+    }
+
+    /**
+     * Releases a decoded frame that is discarded rather than passed on to the next handler, so that
+     * the buffers associated with it (for example by {@link FilterContext#createByteBufferOutputStream})
+     * are freed. A frame that is passed on is released by whichever handler finally consumes it.
+     */
+    private static void releaseDiscarded(DecodedFrame<?, ?> decodedFrame) {
+        if (decodedFrame.refCnt() > 0) {
+            decodedFrame.release();
+        }
     }
 
     private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
@@ -655,6 +677,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             log(DEBUG)
                     .addKeyValue("apiKey", decodedFrame.apiKey())
                     .log("Filter attempted to short-circuit respond to message with no response in Kafka Protocol, dropping response");
+            releaseDiscarded(decodedFrame);
         }
     }
 
