@@ -315,7 +315,9 @@ class FileWatcherTest {
             final var dataSymlinkTmp = tempDir.resolve("..data_tmp");
             Files.createSymbolicLink(dataSymlinkTmp, dataDirV2.getFileName());
             Files.move(dataSymlinkTmp, dataSymlink, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            Files.walk(dataDirV1).sorted(Comparator.reverseOrder()).forEach(FileWatcherTest::deleteQuietly);
+            try (var paths = Files.walk(dataDirV1)) {
+                paths.sorted(Comparator.reverseOrder()).forEach(FileWatcherTest::deleteQuietly);
+            }
 
             // Then
             Awaitility.await("file change should notify the registered listener")
