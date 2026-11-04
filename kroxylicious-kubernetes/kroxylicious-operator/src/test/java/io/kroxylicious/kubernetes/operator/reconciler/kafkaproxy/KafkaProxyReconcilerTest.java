@@ -52,7 +52,7 @@ import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
 import io.kroxylicious.testing.operator.assertj.AssertFactory;
 import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
@@ -427,7 +427,6 @@ class KafkaProxyReconcilerTest {
                 .isReadyTrue();
     }
 
-    @NonNull
     private static KafkaProxyReconciler newKafkaProxyReconciler(Clock reconciliationTime) {
         return new KafkaProxyReconciler(reconciliationTime, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
     }
@@ -629,6 +628,59 @@ class KafkaProxyReconcilerTest {
 
     private static KafkaProxyBuilder proxyBuilder(String name) {
         return new KafkaProxyBuilder().withNewMetadata().withName(name).endMetadata();
+    }
+
+    static Stream<Arguments> proxyProtocolConfigProvider() {
+        return Stream.of(
+                Arguments.of(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode.REQUIRED,
+                        io.kroxylicious.proxy.config.ProxyProtocolMode.REQUIRED),
+                Arguments.of(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode.FORBIDDEN,
+                        io.kroxylicious.proxy.config.ProxyProtocolMode.FORBIDDEN),
+                Arguments.of(null, null));
+    }
+
+    @ParameterizedTest
+    @MethodSource("proxyProtocolConfigProvider")
+    void buildVirtualClusterGatewayConvertsProxyProtocolModeCorrectly(
+                                                                      @Nullable io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode kubeMode,
+                                                                      @Nullable io.kroxylicious.proxy.config.ProxyProtocolMode runtimeMode) {
+        // Given
+        var lbBuilder = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancerBuilder()
+                .withBootstrapAddress("bootstrap.kafka")
+                .withAdvertisedBrokerAddressPattern("$(nodeId)-broker.kafka");
+        if (kubeMode != null) {
+            lbBuilder.withNewProxyProtocol().withMode(kubeMode).endProxyProtocol();
+        }
+        var loadBalancer = lbBuilder.build();
+
+        var ingress = new io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder()
+                .withNewMetadata().withName("test-ingress").withNamespace("test-ns").endMetadata()
+                .withNewSpec().withLoadBalancer(loadBalancer).endSpec()
+                .build();
+
+        var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder()
+                .withNewCertificateRef().withName("cert").endCertificateRef()
+                .build();
+
+        var cluster = new VirtualKafkaClusterBuilder()
+                .withNewMetadata().withName("test-cluster").withNamespace("test-ns").endMetadata()
+                .build();
+
+        var networkingModel = new io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel(
+                cluster, ingress, loadBalancer, tls, 9291);
+
+        // When
+        var result = KafkaProxyReconciler.buildVirtualClusterGateway(networkingModel);
+
+        // Then
+        var gateway = result.fragment();
+        if (runtimeMode != null) {
+            assertThat(gateway.proxyProtocol()).isNotNull();
+            assertThat(gateway.proxyProtocol().mode()).isEqualTo(runtimeMode);
+        }
+        else {
+            assertThat(gateway.proxyProtocol()).isNull();
+        }
     }
 
 }

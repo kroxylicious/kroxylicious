@@ -34,6 +34,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 
 /**
  * The ProxyNetworkingModel models the logical arrangement of client-facing resources, and backend plumbing
@@ -171,6 +172,18 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
         return Optional.of(serviceSpecBuilder.endSpec().build());
     }
 
+    /**
+     * Collects all distinct shared SNI ports required by any cluster in this proxy.
+     * Used to determine which SNI container ports should be exposed on the proxy pod.
+     *
+     * @return a set of required SNI port numbers
+     */
+    public Set<Integer> requiredSharedSniPorts() {
+        return clusterNetworkingModels.stream()
+                .flatMap(ClusterNetworkingModel::requiredSharedSniPorts)
+                .collect(Collectors.toSet());
+    }
+
     private static LoadBalancerClusterIngressNetworkingModel requireSameIngressModel(List<LoadBalancerClusterIngressNetworkingModel> ingressModels) {
         Set<String> ingressNames = ingressModels.stream()
                 .map(ingressModel -> name(ingressModel.ingress()))
@@ -240,6 +253,25 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
         public boolean anyIngressRequiresSharedSniPort() {
             return clusterIngressNetworkingModelResults.stream()
                     .anyMatch(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().requiresSharedSniContainerPort());
+        }
+
+        /**
+         * Collects the set of shared SNI ports required by ingresses in this cluster.
+         * @return a stream of required SNI port numbers
+         */
+        public Stream<Integer> requiredSharedSniPorts() {
+            return clusterIngressNetworkingModelResults.stream()
+                    .map(ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
+                    .filter(ClusterIngressNetworkingModel::requiresSharedSniContainerPort)
+                    .flatMap(model -> {
+                        if (model instanceof LoadBalancerClusterIngressNetworkingModel lbModel) {
+                            return Stream.of(lbModel.sharedSniPort());
+                        }
+                        else if (model instanceof TlsClusterIPClusterIngressNetworkingModel) {
+                            return Stream.of(SHARED_SNI_PORT);
+                        }
+                        return Stream.empty();
+                    });
         }
     }
 
