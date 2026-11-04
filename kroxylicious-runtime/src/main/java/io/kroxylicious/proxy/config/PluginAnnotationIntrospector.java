@@ -160,7 +160,7 @@ class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
 
         @Override
         public int hashCode() {
-            return Objects.hashCode(value());
+            return Objects.hash(value());
         }
     }
 }

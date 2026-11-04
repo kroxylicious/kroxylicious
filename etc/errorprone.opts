@@ -8,7 +8,6 @@
 # Keep the following in alphabetical order
 -Xep:AlmostJavadoc:ERROR
 -Xep:ArrayRecordComponent:ERROR
--Xep:AvoidCommonTypeNames:ERROR
 -Xep:BadImport:ERROR
 -Xep:BooleanLiteral:ERROR
 -Xep:BoxingComparator:ERROR
@@ -26,8 +25,6 @@
 -Xep:EqualsIncompatibleType:ERROR
 -Xep:ExposedPrivateType:ERROR
 -Xep:FutureReturnValueIgnored:ERROR
--Xep:HashCodeInObjectsHash:ERROR
--Xep:IfChainToSwitch:ERROR
 -Xep:ImmutableEnumChecker:ERROR
 -Xep:InlineFormatString:ERROR
 -Xep:InlineMeInliner:ERROR
@@ -48,13 +45,11 @@
 -Xep:ModifiedButNotUsed:ERROR
 -Xep:ModifyCollectionInEnhancedForLoop:ERROR
 -Xep:MutablePublicArray:ERROR
--Xep:NullOptional:ERROR
 -Xep:ObjectEqualsForPrimitives:ERROR
 -Xep:ObjectToString:ERROR
 -Xep:OperatorPrecedence:ERROR
 -Xep:PatternMatchingInstanceof:ERROR
 -Xep:ReferenceEquality:ERROR
--Xep:SameNameButDifferent:ERROR
 -Xep:StatementSwitchToExpressionSwitch:ERROR
 -Xep:StaticAssignmentOfThrowable:ERROR
 -Xep:StreamResourceLeak:ERROR

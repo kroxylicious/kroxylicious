@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -62,7 +63,7 @@ public record InMemoryEdek(
      */
     @Override
     public int hashCode() {
-        int result = Integer.hashCode(numAuthBits);
+        int result = Objects.hash(numAuthBits);
         result = 31 * result + Arrays.hashCode(iv);
         result = 31 * result + Arrays.hashCode(edek);
         return result;
