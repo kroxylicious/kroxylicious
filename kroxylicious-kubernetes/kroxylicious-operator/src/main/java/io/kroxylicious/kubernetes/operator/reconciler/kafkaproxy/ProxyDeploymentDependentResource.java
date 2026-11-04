@@ -312,10 +312,10 @@ public class ProxyDeploymentDependentResource
         // Add shared SNI ports (only those actually needed based on proxyProtocol configuration)
         var requiredSniPorts = ingressModel.requiredSharedSniPorts();
         if (requiredSniPorts.contains(SHARED_SNI_PORT)) {
-            containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PORT).withName("sni").endPort();
+            containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PORT).withName("shared-sni-port").endPort();
         }
         if (requiredSniPorts.contains(SHARED_SNI_PROXY_PROTOCOL_PORT)) {
-            containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PROXY_PROTOCOL_PORT).withName("sni-proxy-protocol").endPort();
+            containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PROXY_PROTOCOL_PORT).withName("shared-sni-proxy-protocol-port").endPort();
         }
         return containerBuilder.build();
     }

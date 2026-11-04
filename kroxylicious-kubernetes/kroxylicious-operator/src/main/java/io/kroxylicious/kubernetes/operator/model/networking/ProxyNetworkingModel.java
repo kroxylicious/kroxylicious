@@ -270,6 +270,9 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
                         else if (model instanceof TlsClusterIPClusterIngressNetworkingModel) {
                             return Stream.of(SHARED_SNI_PORT);
                         }
+                        else if (model instanceof RouteClusterIngressNetworkingModel) {
+                            return Stream.of(SHARED_SNI_PORT);
+                        }
                         return Stream.empty();
                     });
         }

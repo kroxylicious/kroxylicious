@@ -357,6 +357,12 @@ public class NetworkingPlanner {
         public boolean requiresSharedSniPort() {
             return true;
         }
+
+        @Override
+        public int getRequiredSniPort() {
+            // OpenShiftRoute does not support PROXY protocol, always uses regular SNI port
+            return SHARED_SNI_PORT;
+        }
     }
 
     private static void validateNotNull(@Nullable Object object, String message) {
