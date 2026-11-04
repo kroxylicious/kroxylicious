@@ -149,6 +149,22 @@ spec:
                           when NodePort access is not needed. Existing NodePorts are released when this field
                           transitions from unset or true to false. Note: setting externalTrafficPolicy to Local
                           still causes a healthCheckNodePort to be opened on every node regardless of this field."
+                    proxyProtocol:
+                      type: object
+                      description: |-
+                        PROXY protocol configuration for this loadBalancer ingress. Controls whether the proxy
+                        expects PROXY protocol headers from the upstream load balancer. When omitted, defaults
+                        to FORBIDDEN mode for security. IMPORTANT: Only enable REQUIRED mode when the upstream
+                        load balancer is trusted and configured to send PROXY headers. Accepting PROXY headers
+                        from untrusted sources allows clients to spoof their network location.
+                      properties:
+                        mode:
+                          type: string
+                          description: |-
+                            PROXY protocol enforcement mode. REQUIRED: connections must have valid PROXY v1/v2
+                            headers or are rejected. FORBIDDEN: PROXY headers not permitted; connections with
+                            headers are rejected. When proxyProtocol is omitted, FORBIDDEN is the default.
+                          enum: ["REQUIRED", "FORBIDDEN"]
                 openShiftRoute:
                   description: |-
                     specifies that this ingress is for access from outside the OpenShift cluster via OpenShift Routes.
