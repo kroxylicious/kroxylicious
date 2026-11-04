@@ -26,13 +26,13 @@ class ProxyConfigAssertTest {
     @Test
     void virtualClusterWhenNotContainedInConfig() {
         VirtualClusterGateway virtualClusterGateway = new VirtualClusterGateway("default",
-                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292), null, null, null), null, Optional.empty());
+                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292), null, null, null), null, Optional.empty(), null);
         ClusterDefinition clusterDef = new ClusterDefinition("cluster-target", "localhost:9092", null, null, null);
         RouteTarget target = new RouteTarget("cluster-target", null);
         VirtualCluster virtualCluster = new VirtualCluster("cluster", null, target,
                 List.of(virtualClusterGateway), false,
                 false, List.of(), null, null, null);
-        Configuration config = new Configuration(null, List.of(clusterDef), null, null, null, List.of(virtualCluster), List.of(), false, Optional.empty(), null, null);
+        Configuration config = new Configuration(null, List.of(clusterDef), null, null, null, List.of(virtualCluster), List.of(), false, Optional.empty(), null);
 
         Assertions.assertThatThrownBy(() -> {
             OperatorAssertions.assertThat(config).cluster("arbitrary");
@@ -42,14 +42,14 @@ class ProxyConfigAssertTest {
     @Test
     void virtualClusterWhenContainedInConfig() {
         VirtualClusterGateway virtualClusterGateway = new VirtualClusterGateway("default",
-                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292), null, null, null), null, Optional.empty());
+                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292), null, null, null), null, Optional.empty(), null);
         String clusterName = "cluster";
         ClusterDefinition clusterDef = new ClusterDefinition("cluster-target", "localhost:9092", null, null, null);
         RouteTarget target = new RouteTarget("cluster-target", null);
         VirtualCluster virtualCluster = new VirtualCluster(clusterName, null, target,
                 List.of(virtualClusterGateway), false,
                 false, List.of(), null, null, null);
-        Configuration config = new Configuration(null, List.of(clusterDef), null, null, null, List.of(virtualCluster), List.of(), false, Optional.empty(), null, null);
+        Configuration config = new Configuration(null, List.of(clusterDef), null, null, null, List.of(virtualCluster), List.of(), false, Optional.empty(), null);
 
         ProxyConfigAssert.ProxyConfigClusterAssert cluster = OperatorAssertions.assertThat(config).cluster(clusterName);
         Assertions.assertThat(cluster.actual()).isNotNull().isSameAs(virtualCluster);
@@ -58,7 +58,7 @@ class ProxyConfigAssertTest {
     @Test
     void virtualClusterWhenGatewayNotContainedInConfig() {
         VirtualClusterGateway virtualClusterGateway = new VirtualClusterGateway("default",
-                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292), null, null, null), null, Optional.empty());
+                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292), null, null, null), null, Optional.empty(), null);
         RouteTarget target = new RouteTarget("cluster-target", null);
         VirtualCluster virtualCluster = new VirtualCluster("cluster", null, target,
                 List.of(virtualClusterGateway), false,
@@ -73,7 +73,7 @@ class ProxyConfigAssertTest {
     void virtualClusterWhenGatewayContainedInConfig() {
         String gatewayName = "default";
         VirtualClusterGateway virtualClusterGateway = new VirtualClusterGateway(gatewayName,
-                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292), null, null, null), null, Optional.empty());
+                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292), null, null, null), null, Optional.empty(), null);
         RouteTarget target = new RouteTarget("cluster-target", null);
         VirtualCluster virtualCluster = new VirtualCluster("cluster", null, target,
                 List.of(virtualClusterGateway), false,
@@ -87,7 +87,7 @@ class ProxyConfigAssertTest {
     void portIdentifiesNodeGateway() {
         PortIdentifiesNodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292), null, null, null);
         VirtualClusterGateway virtualClusterGateway = new VirtualClusterGateway("default",
-                strategy, null, Optional.empty());
+                strategy, null, Optional.empty(), null);
         ProxyConfigAssert.ProxyConfigGatewayAssert gatewayAssert = new ProxyConfigAssert.ProxyConfigGatewayAssert(virtualClusterGateway);
         ProxyConfigAssert.ProxyConfigPortIdentifiesNodeGatewayAssert portIdentifiesNodeGatewayAssert = gatewayAssert.portIdentifiesNode();
         Assertions.assertThat(portIdentifiesNodeGatewayAssert.actual()).isNotNull().isSameAs(strategy);

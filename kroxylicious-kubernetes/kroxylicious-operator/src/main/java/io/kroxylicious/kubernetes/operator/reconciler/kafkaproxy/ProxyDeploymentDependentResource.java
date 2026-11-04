@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,8 +71,10 @@ public class ProxyDeploymentDependentResource
     private static final String MANAGEMENT_PORT_NAME = "management";
     /** Starting port number used when allocating per-broker proxy ports. */
     public static final int PROXY_PORT_START = 9292;
-    /** Port number used for the shared SNI listener that multiplexes TLS connections by hostname. */
+    /** Port number used for the shared SNI listener (FORBIDDEN proxy protocol mode) that multiplexes TLS connections by hostname. */
     public static final int SHARED_SNI_PORT = 9291;
+    /** Port number used for the shared SNI listener (REQUIRED proxy protocol mode) that multiplexes TLS connections by hostname and expects PROXY headers. */
+    public static final int SHARED_SNI_PROXY_PROTOCOL_PORT = 9290;
 
     private final String kroxyliciousImage = getOperandImage();
     /** Environment variable name that, when set, overrides the default Kroxylicious operand container image. */
@@ -302,16 +303,19 @@ public class ProxyDeploymentDependentResource
                 .endPort();
         // @formatter:on
         // broker ports
-        AtomicBoolean anyIngressRequiresSharedSniPort = new AtomicBoolean(false);
         clusterResolutionResults.forEach(resolutionResult -> {
             if (!kafkaProxyContext.isBroken(resolutionResult.cluster())) {
                 ProxyNetworkingModel.ClusterNetworkingModel clusterNetworkingModel = ingressModel.clusterIngressModel(resolutionResult.cluster()).orElseThrow();
                 clusterNetworkingModel.registerProxyContainerPorts(containerBuilder::addToPorts);
-                anyIngressRequiresSharedSniPort.compareAndExchange(false, clusterNetworkingModel.anyIngressRequiresSharedSniPort());
             }
         });
-        if (anyIngressRequiresSharedSniPort.get()) {
+        // Add shared SNI ports (only those actually needed based on proxyProtocol configuration)
+        var requiredSniPorts = ingressModel.requiredSharedSniPorts();
+        if (requiredSniPorts.contains(SHARED_SNI_PORT)) {
             containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PORT).withName("shared-sni-port").endPort();
+        }
+        if (requiredSniPorts.contains(SHARED_SNI_PROXY_PROTOCOL_PORT)) {
+            containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PROXY_PROTOCOL_PORT).withName("shared-sni-proxy-protocol-port").endPort();
         }
         return containerBuilder.build();
     }

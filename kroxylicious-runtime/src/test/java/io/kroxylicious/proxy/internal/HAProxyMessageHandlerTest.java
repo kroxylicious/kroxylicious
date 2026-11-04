@@ -10,10 +10,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
@@ -24,25 +25,15 @@ import io.kroxylicious.proxy.internal.net.HaProxyContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class HaProxyMessageHandlerTest {
-
-    private static HAProxyMessage newHAProxyMessage() {
-        return new HAProxyMessage(
-                HAProxyProtocolVersion.V2,
-                HAProxyCommand.PROXY,
-                HAProxyProxiedProtocol.TCP4,
-                "192.168.1.100",
-                "10.0.0.1",
-                54321,
-                9092);
-    }
+@MockitoSettings(strictness = Strictness.LENIENT)
+class HAProxyMessageHandlerTest {
 
     @Mock
     private KafkaSession kafkaSession;
@@ -51,76 +42,79 @@ class HaProxyMessageHandlerTest {
     private ChannelHandlerContext ctx;
 
     @Mock
-    private Channel channel;
+    private ChannelPipeline pipeline;
 
-    private HaProxyMessageHandler handler;
+    @Mock
+    private DecodedRequestFrame<?> kafkaFrame;
+
+    private HAProxyMessageHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new HaProxyMessageHandler(kafkaSession);
+        handler = new HAProxyMessageHandler(kafkaSession);
+        when(ctx.pipeline()).thenReturn(pipeline);
+    }
+
+    private static HAProxyMessage haProxyMessage() {
+        return new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
+                HAProxyProxiedProtocol.TCP4, "192.168.1.100", "10.0.0.1", 54321, 9092);
     }
 
     @Test
     void shouldStoreHaProxyContextInSession() throws Exception {
-        // Given
-        when(ctx.channel()).thenReturn(channel);
-
         // When
-        handler.channelRead(ctx, newHAProxyMessage());
+        handler.channelRead(ctx, haProxyMessage());
 
-        // Then - context is stored in kafka session
+        // Then
+        verify(kafkaSession).sessionId(); // called by debug log
         verify(kafkaSession).setHaProxyContext(any(HaProxyContext.class));
         verifyNoMoreInteractions(kafkaSession);
     }
 
     @Test
-    void shouldTriggerReadAfterProcessingHaProxyMessage() throws Exception {
-        // Given
-        when(ctx.channel()).thenReturn(channel);
-
+    void shouldRemoveSelfFromPipelineAfterProcessing() throws Exception {
         // When
-        handler.channelRead(ctx, newHAProxyMessage());
+        handler.channelRead(ctx, haProxyMessage());
 
-        // Then - channel.read() should be called to consume next message when autoread is disabled
-        verify(channel).read();
+        // Then
+        verify(pipeline).remove(handler);
     }
 
     @Test
-    void shouldReleaseHaProxyMessageAfterProcessing() {
+    void shouldNotPropagateHaProxyMessageDownPipeline() throws Exception {
+        // When
+        handler.channelRead(ctx, haProxyMessage());
+
+        // Then - HAProxyMessage must not be passed to downstream Kafka handlers
+        verify(ctx, never()).fireChannelRead(any(HAProxyMessage.class));
+    }
+
+    @Test
+    void shouldReleaseHAProxyMessageAfterProcessing() throws Exception {
         // Given
-        HAProxyMessage message = newHAProxyMessage();
-        assertThat(message.refCnt()).isEqualTo(1);
-        EmbeddedChannel embeddedChannel = new EmbeddedChannel(handler);
+        var haProxyMessage = haProxyMessage();
 
         // When
-        embeddedChannel.writeInbound(message);
+        handler.channelRead(ctx, haProxyMessage);
 
-        // Then - SimpleChannelInboundHandler must release the ref-counted message
-        assertThat(message.refCnt()).isZero();
-        assertThat((Object) embeddedChannel.readInbound()).isNull();
-        verify(kafkaSession).setHaProxyContext(any(HaProxyContext.class));
-        embeddedChannel.finishAndReleaseAll();
+        // Then
+        assertThat(haProxyMessage.refCnt()).isZero();
     }
 
     @Test
     void shouldPassThroughNonHAProxyMessages() throws Exception {
-        // Given
-        DecodedRequestFrame<?> kafkaFrame = mock(DecodedRequestFrame.class);
-
         // When
         handler.channelRead(ctx, kafkaFrame);
 
         // Then
-        // Should NOT interact with session for non-HaProxy messages
         verifyNoInteractions(kafkaSession);
-        // Should propagate to next handler
         verify(ctx).fireChannelRead(kafkaFrame);
     }
 
     @Test
     void shouldPassThroughOtherObjectTypes() throws Exception {
         // Given
-        Object someOtherMessage = new Object();
+        var someOtherMessage = new Object();
 
         // When
         handler.channelRead(ctx, someOtherMessage);

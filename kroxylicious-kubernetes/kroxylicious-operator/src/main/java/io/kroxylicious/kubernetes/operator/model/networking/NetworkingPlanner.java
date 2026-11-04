@@ -38,6 +38,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.PROXY_PORT_START;
 import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
+import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.SHARED_SNI_PROXY_PROTOCOL_PORT;
 
 /**
  * NetworkingPlanner is responsible for:
@@ -102,7 +103,7 @@ public class NetworkingPlanner {
                 lastIdentifyingPort = identifyingPorts.addAndGet(toAllocate) - 1;
             }
             if (networkingDefinition.requiresSharedSniPort()) {
-                sharedSniPort = SHARED_SNI_PORT;
+                sharedSniPort = networkingDefinition.getRequiredSniPort();
             }
             ClusterIngressNetworkingModel networkingModel = networkingDefinition.createNetworkingModel(firstIdentifyingPort, lastIdentifyingPort, sharedSniPort);
             return new ClusterIngressNetworkingModelResult(networkingModel, exception);
@@ -227,6 +228,17 @@ public class NetworkingPlanner {
         default boolean requiresSharedSniPort() {
             return false;
         }
+
+        /**
+         * Determines which shared SNI port this ingress requires.
+         * Only called when {@link #requiresSharedSniPort()} returns true.
+         *
+         * @return the port number for the shared SNI port
+         * @throws UnsupportedOperationException if this ingress does not require a shared SNI port
+         */
+        default int getRequiredSniPort() {
+            throw new UnsupportedOperationException("getRequiredSniPort() must be overridden for ingresses that require shared SNI port");
+        }
     }
 
     private record TcpClusterIPClusterIngressNetworkingDefinition(
@@ -275,6 +287,12 @@ public class NetworkingPlanner {
         public boolean requiresSharedSniPort() {
             return true;
         }
+
+        @Override
+        public int getRequiredSniPort() {
+            // TLS ClusterIP always uses the regular SNI port (no PROXY protocol support)
+            return SHARED_SNI_PORT;
+        }
     }
 
     private record LoadBalancerClusterIngressNetworkingDefinition(
@@ -296,6 +314,24 @@ public class NetworkingPlanner {
         @Override
         public boolean requiresSharedSniPort() {
             return true;
+        }
+
+        /**
+         * Determines which shared SNI port this LoadBalancer ingress requires based on its proxyProtocol configuration.
+         *
+         * @return the port number for the appropriate SNI port type
+         */
+        @Override
+        public int getRequiredSniPort() {
+            var proxyProtocol = loadBalancer.getProxyProtocol();
+            if (proxyProtocol != null && proxyProtocol.getMode() != null) {
+                return switch (proxyProtocol.getMode()) {
+                    case REQUIRED -> SHARED_SNI_PROXY_PROTOCOL_PORT;
+                    case FORBIDDEN -> SHARED_SNI_PORT;
+                };
+            }
+            // Default to FORBIDDEN mode (regular SNI port)
+            return SHARED_SNI_PORT;
         }
     }
 
@@ -320,6 +356,12 @@ public class NetworkingPlanner {
         @Override
         public boolean requiresSharedSniPort() {
             return true;
+        }
+
+        @Override
+        public int getRequiredSniPort() {
+            // OpenShiftRoute does not support PROXY protocol, always uses regular SNI port
+            return SHARED_SNI_PORT;
         }
     }
 

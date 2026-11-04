@@ -28,8 +28,6 @@ import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.ProxyProtocolConfig;
-import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
@@ -824,23 +822,21 @@ class ConfigurationReloadOrchestratorTest {
     }
 
     private static Configuration configWith(VirtualCluster... clusters) {
-        return new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(clusters), null, false, Optional.empty(), null, null);
+        return new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(clusters), null, false, Optional.empty(), null);
     }
 
     private static Configuration withDifferentUseIoUring(Configuration base) {
         return new Configuration(base.management(), base.clusterDefinitions(), base.filterDefinitions(), base.defaultFilters(),
                 base.routerDefinitions(), base.virtualClusters(), base.micrometer(),
                 !base.useIoUring(),
-                base.development(), base.network(),
-                // also vary proxyProtocol just to make the diff non-empty even if useIoUring matches
-                new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
+                base.development(), base.network());
     }
 
     private static VirtualCluster vc(String name) {
         var gateway = new VirtualClusterGateway("default",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
                 null,
-                Optional.empty());
+                Optional.empty(), null);
         return new VirtualCluster(name,
                 CLUSTER_TARGET,
                 List.of(gateway),

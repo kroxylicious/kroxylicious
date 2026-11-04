@@ -486,9 +486,9 @@ class KafkaProxyFrontendHandlerTest {
     private void initialiseInboundChannel(ClientConnectionStateMachine clientConnectionStateMachine, KafkaProxyFrontendHandler handler) {
         final ChannelPipeline pipeline = inboundChannel.pipeline();
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
-            // Add HaProxyMessageHandler before the frontend handler to intercept HAProxyMessage
+            // Add HAProxyMessageHandler before the frontend handler to intercept HAProxyMessage
             // and prevent it from reaching FilterHandlers (which only expect Kafka protocol messages)
-            pipeline.addLast(new HaProxyMessageHandler(clientConnectionStateMachine.kafkaSession()));
+            pipeline.addLast(new HAProxyMessageHandler(clientConnectionStateMachine.kafkaSession()));
             pipeline.addLast(handler);
             pipeline.addLast(new FilterChainCompletionHandler(clientConnectionStateMachine));
         }

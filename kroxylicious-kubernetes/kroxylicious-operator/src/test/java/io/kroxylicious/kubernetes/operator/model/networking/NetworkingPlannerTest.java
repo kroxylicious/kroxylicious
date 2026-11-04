@@ -8,9 +8,13 @@ package io.kroxylicious.kubernetes.operator.model.networking;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.kubernetes.api.common.Protocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -23,6 +27,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancerBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
@@ -33,6 +38,8 @@ import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.IngressResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -468,6 +475,126 @@ class NetworkingPlannerTest {
 
             });
         });
+    }
+
+    static Stream<Arguments> loadBalancerProxyProtocolModeProvider() {
+        return Stream.of(
+                Arguments.of(ProxyProtocol.Mode.REQUIRED, 9290),
+                Arguments.of(ProxyProtocol.Mode.FORBIDDEN, 9291),
+                Arguments.of(null, 9291));
+    }
+
+    @ParameterizedTest
+    @MethodSource("loadBalancerProxyProtocolModeProvider")
+    void loadBalancerProxyProtocolModeUsesCorrectPort(@Nullable ProxyProtocol.Mode mode,
+                                                      int expectedPort) {
+        // Given
+        LoadBalancerBuilder lbBuilder = new LoadBalancerBuilder()
+                .withBootstrapAddress("bootstrap.kafka")
+                .withAdvertisedBrokerAddressPattern("$(nodeId)-broker.kafka");
+        if (mode != null) {
+            lbBuilder.withNewProxyProtocol().withMode(mode).endProxyProtocol();
+        }
+        LoadBalancer loadBalancer = lbBuilder.build();
+        String ingressName = "lb-" + (mode != null ? mode.name().toLowerCase() : "default");
+        KafkaProxyIngress ingress = createLoadBalancerIngress(ingressName, loadBalancer);
+        Ingresses ingresses = new IngressesBuilder().withTls(TLS).withNewIngressRef().withName(ingressName).endIngressRef().build();
+        VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, ingresses);
+        ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
+                List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
+                List.of(new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, ingress),
+                        ResolutionResult.resolved(ingress, PROXY), ingresses)));
+
+        // When
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)), ROUTE_HOST_DETAILS);
+
+        // Then
+        assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
+            assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
+                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
+                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, ingress, loadBalancer, TLS, expectedPort));
+            });
+        });
+        assertThat(networkingModel.requiredSharedSniPorts()).containsExactly(expectedPort);
+    }
+
+    @Test
+    void multipleLoadBalancersWithDifferentProxyProtocolModesUseDifferentPorts() {
+        // Given
+        LoadBalancer lbRequired = new LoadBalancerBuilder()
+                .withBootstrapAddress("required.kafka")
+                .withAdvertisedBrokerAddressPattern("$(nodeId)-required.kafka")
+                .withNewProxyProtocol()
+                .withMode(ProxyProtocol.Mode.REQUIRED)
+                .endProxyProtocol()
+                .build();
+        KafkaProxyIngress ingressRequired = createLoadBalancerIngress("lb-required", lbRequired);
+        Ingresses ingressesRequired = new IngressesBuilder().withTls(TLS).withNewIngressRef().withName("lb-required").endIngressRef().build();
+
+        LoadBalancer lbForbidden = new LoadBalancerBuilder()
+                .withBootstrapAddress("forbidden.kafka")
+                .withAdvertisedBrokerAddressPattern("$(nodeId)-forbidden.kafka")
+                .withNewProxyProtocol()
+                .withMode(ProxyProtocol.Mode.FORBIDDEN)
+                .endProxyProtocol()
+                .build();
+        KafkaProxyIngress ingressForbidden = createLoadBalancerIngress("lb-forbidden", lbForbidden);
+        Ingresses ingressesForbidden = new IngressesBuilder().withTls(TLS_2).withNewIngressRef().withName("lb-forbidden").endIngressRef().build();
+
+        VirtualKafkaCluster cluster1 = clusterWithIngress(CLUSTER_NAME, ingressesRequired);
+        VirtualKafkaCluster cluster2 = clusterWithIngress(CLUSTER_NAME_2, ingressesForbidden);
+
+        ClusterResolutionResult clusterResult1 = new ClusterResolutionResult(cluster1, ResolutionResult.resolved(cluster1, PROXY),
+                List.of(), ResolutionResult.resolved(cluster1, KAFKA_SERVICE),
+                List.of(new IngressResolutionResult(ResolutionResult.resolved(cluster1, ingressRequired),
+                        ResolutionResult.resolved(ingressRequired, PROXY), ingressesRequired)));
+
+        ClusterResolutionResult clusterResult2 = new ClusterResolutionResult(cluster2, ResolutionResult.resolved(cluster2, PROXY),
+                List.of(), ResolutionResult.resolved(cluster2, KAFKA_SERVICE),
+                List.of(new IngressResolutionResult(ResolutionResult.resolved(cluster2, ingressForbidden),
+                        ResolutionResult.resolved(ingressForbidden, PROXY), ingressesForbidden)));
+
+        // When
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResult1, clusterResult2)),
+                ROUTE_HOST_DETAILS);
+
+        // Then
+        assertThat(networkingModel.requiredSharedSniPorts()).containsExactlyInAnyOrder(9290, 9291);
+        assertThat(networkingModel.clusterIngressModel(cluster1)).isPresent().get().satisfies(cluster1Model -> {
+            assertThat(cluster1Model.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
+                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
+                        new LoadBalancerClusterIngressNetworkingModel(cluster1, ingressRequired, lbRequired, TLS, 9290));
+            });
+        });
+        assertThat(networkingModel.clusterIngressModel(cluster2)).isPresent().get().satisfies(cluster2Model -> {
+            assertThat(cluster2Model.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
+                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
+                        new LoadBalancerClusterIngressNetworkingModel(cluster2, ingressForbidden, lbForbidden, TLS_2, 9291));
+            });
+        });
+    }
+
+    @Test
+    void tlsClusterIpAlwaysUses9291Port() {
+        // Given
+        VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, TLS_CLUSTER_IP_CLUSTER_INGRESSES);
+        ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
+                List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
+                List.of(new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, TLS_CLUSTER_IP_INGRESS),
+                        ResolutionResult.resolved(TLS_CLUSTER_IP_INGRESS, PROXY), TLS_CLUSTER_IP_CLUSTER_INGRESSES)));
+
+        // When
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)), ROUTE_HOST_DETAILS);
+
+        // Then
+        assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
+            assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
+                assertThat(model.clusterIngressNetworkingModel())
+                        .isEqualTo(new TlsClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, TLS_CLUSTER_IP_INGRESS,
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS, 9291));
+            });
+        });
+        assertThat(networkingModel.requiredSharedSniPorts()).containsExactly(9291);
     }
 
 }

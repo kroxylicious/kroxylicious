@@ -556,14 +556,14 @@ class RoutingGraphChangeDetectorTest {
     private static VirtualClusterGateway gateway() {
         return new VirtualClusterGateway("default",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
-                null, Optional.empty());
+                null, Optional.empty(), null);
     }
 
     private static Configuration config(@Nullable List<ClusterDefinition> clusterDefs,
                                         @Nullable List<RouterDefinition> routerDefs,
                                         VirtualCluster... clusters) {
         return new Configuration(null, clusterDefs, null, null, routerDefs, List.of(clusters), null, false,
-                Optional.empty(), null, null);
+                Optional.empty(), null);
     }
 
     private static Configuration configWithFilters(@Nullable List<ClusterDefinition> clusterDefs,
@@ -571,17 +571,17 @@ class RoutingGraphChangeDetectorTest {
                                                    @Nullable List<NamedFilterDefinition> filterDefs,
                                                    VirtualCluster... clusters) {
         return new Configuration(null, clusterDefs, filterDefs, null, routerDefs, List.of(clusters), null, false,
-                Optional.empty(), null, null);
+                Optional.empty(), null);
     }
 
     private static Configuration configWithClusterDefs(List<ClusterDefinition> clusterDefs, VirtualCluster... clusters) {
         return new Configuration(null, clusterDefs, null, null, null, List.of(clusters), null, false,
-                Optional.empty(), null, null);
+                Optional.empty(), null);
     }
 
     private static Configuration configWithNoRoutersOrClusterDefs(VirtualCluster... clusters) {
         return new Configuration(null, null, null, null, null, List.of(clusters), null, false,
-                Optional.empty(), null, null);
+                Optional.empty(), null);
     }
 
     private static ClusterDefinition clusterDef(String name) {
