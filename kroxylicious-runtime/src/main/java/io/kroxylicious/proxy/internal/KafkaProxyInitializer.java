@@ -162,7 +162,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                 LOGGER.atWarn()
                                         .addKeyValue("channel", ch)
                                         .addKeyValue("error", t.getMessage())
-                                        .log("Exception resolving Virtual Cluster Binding, closing connection");
+                                        .setCause(LOGGER.isDebugEnabled() ? t : null)
+                                        .log(LOGGER.isDebugEnabled()
+                                                ? "Exception resolving Virtual Cluster Binding, closing connection"
+                                                : "Exception resolving Virtual Cluster Binding, closing connection. Increase log level to DEBUG for stacktrace");
                                 clientToProxyErrorCounter.increment();
                                 ctx.close().addListener(logFailure(LOGGER, "close after binding resolution failure"));
                                 return null;
