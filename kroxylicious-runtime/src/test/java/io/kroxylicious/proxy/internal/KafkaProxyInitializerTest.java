@@ -425,6 +425,24 @@ class KafkaProxyInitializerTest {
     }
 
     @Test
+    void resolverFailureClosesPlainChannel() {
+        // Given
+        var embeddedChannel = new EmbeddedChannel(acceptingSocketChannel, DefaultChannelId.newInstance(), true, false);
+        var endpointBindingResolver = mock(EndpointBindingResolver.class);
+        when(endpointBindingResolver.resolve(any(), isNull()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("No channel bindings found")));
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, endpointBindingResolver);
+        kafkaProxyInitializer.initChannel(embeddedChannel);
+
+        // When
+        embeddedChannel.pipeline().fireChannelActive();
+
+        // Then
+        assertThat(embeddedChannel.isOpen())
+                .isFalse();
+    }
+
+    @Test
     void shouldLogAFailedSSLContextInInitialiseTlsChannel(final CapturedLogs logs) {
         // Given
         var embeddedChannel = new EmbeddedChannel(acceptingSocketChannel, DefaultChannelId.newInstance(), true, false);

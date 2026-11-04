@@ -1,0 +1,4 @@
+title: "fix(runtime): close plain client connections whose virtual cluster binding cannot be resolved"
+type: fixed
+issues:
+  - 5267
