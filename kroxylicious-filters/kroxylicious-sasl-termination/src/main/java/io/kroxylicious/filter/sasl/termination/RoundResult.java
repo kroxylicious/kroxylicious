@@ -201,7 +201,7 @@ sealed interface RoundResult
 
         @Override
         public int hashCode() {
-            int result = Objects.hash(exception);
+            int result = Objects.hashCode(exception);
             result = 31 * result + Arrays.hashCode(responseBytes);
             return result;
         }

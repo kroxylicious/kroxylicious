@@ -129,7 +129,7 @@ public class UseClusterDefinitions extends Recipe {
 
     @Override
     public int hashCode() {
-        return Objects.hash(filePattern);
+        return Objects.hashCode(filePattern);
     }
 
     /**
