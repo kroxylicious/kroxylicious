@@ -1478,9 +1478,7 @@ class ConfigParserTest {
                 """))
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
-                .isInstanceOf(ValueInstantiationException.class)
-                .cause()
-                .hasMessageContaining("proxyProtocol.mode must be specified");
+                .hasMessageContaining("Missing required creator property 'mode'");
     }
 
     @Test
