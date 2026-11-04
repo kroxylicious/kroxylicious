@@ -72,31 +72,35 @@ public final class PemParser {
 
             JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
 
-            return switch (object) {
-                case PEMKeyPair pemKeyPair -> converter.getKeyPair(pemKeyPair).getPrivate();
-                case PrivateKeyInfo privateKeyInfo -> converter.getPrivateKey(privateKeyInfo);
-                case PKCS8EncryptedPrivateKeyInfo encryptedInfo -> {
-                    if (password == null) {
-                        throw new IOException("Encrypted private key requires a password");
-                    }
-                    PrivateKeyInfo decrypted = encryptedInfo.decryptPrivateKeyInfo(
-                            new JceOpenSSLPKCS8DecryptorProviderBuilder()
-                                    .setProvider(new BouncyCastleProvider())
-                                    .build(password));
-                    yield converter.getPrivateKey(decrypted);
+            if (object instanceof PEMKeyPair pemKeyPair) {
+                return converter.getKeyPair(pemKeyPair).getPrivate();
+            }
+            else if (object instanceof PrivateKeyInfo privateKeyInfo) {
+                return converter.getPrivateKey(privateKeyInfo);
+            }
+            else if (object instanceof PKCS8EncryptedPrivateKeyInfo encryptedInfo) {
+                if (password == null) {
+                    throw new IOException("Encrypted private key requires a password");
                 }
-                case PEMEncryptedKeyPair encryptedKeyPair -> {
-                    if (password == null) {
-                        throw new IOException("Encrypted private key requires a password");
-                    }
-                    PEMKeyPair decrypted = encryptedKeyPair.decryptKeyPair(
-                            new JcePEMDecryptorProviderBuilder()
-                                    .setProvider(new BouncyCastleProvider())
-                                    .build(password));
-                    yield converter.getKeyPair(decrypted).getPrivate();
+                PrivateKeyInfo decrypted = encryptedInfo.decryptPrivateKeyInfo(
+                        new JceOpenSSLPKCS8DecryptorProviderBuilder()
+                                .setProvider(new BouncyCastleProvider())
+                                .build(password));
+                return converter.getPrivateKey(decrypted);
+            }
+            else if (object instanceof PEMEncryptedKeyPair encryptedKeyPair) {
+                if (password == null) {
+                    throw new IOException("Encrypted private key requires a password");
                 }
-                default -> throw new IOException("Unexpected PEM object type: " + object.getClass().getName());
-            };
+                PEMKeyPair decrypted = encryptedKeyPair.decryptKeyPair(
+                        new JcePEMDecryptorProviderBuilder()
+                                .setProvider(new BouncyCastleProvider())
+                                .build(password));
+                return converter.getKeyPair(decrypted).getPrivate();
+            }
+            else {
+                throw new IOException("Unexpected PEM object type: " + object.getClass().getName());
+            }
         }
         catch (IOException e) {
             throw e;

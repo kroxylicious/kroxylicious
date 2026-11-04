@@ -1088,7 +1088,7 @@ class ConfigParserTest {
                         """
                                 filterDefinitions:
                                 - name: record
-                                  type: RecordInjection
+                                  type: Record
                                   config:
                                     str: hello, world
                                 defaultFilters:

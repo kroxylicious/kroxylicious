@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -70,7 +69,7 @@ class RouteDispatcherTest {
     }
 
     private static RouteDescriptor clusterRoute(String name, int id) {
-        return new RouteDescriptor(name, id, new TargetCluster("broker:9092", Optional.empty()), null, List.of());
+        return new RouteDescriptor(name, id, new TargetCluster("broker:9092", null), null, List.of());
     }
 
     private static RouteDescriptor routerRoute(String name, int id, String routerName) {
