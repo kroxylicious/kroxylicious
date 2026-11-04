@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -99,20 +98,19 @@ public class FileWatcher implements AutoCloseable {
     /**
      * Register to receive notifications when the contents of a file is changed, or it is replaced.
      *
-     * @param path path to the file. The path must include the parent directory but does not have to be an absolute path.
+     * @param path path to the file. The path does not have to be absolute; a relative path is resolved against the
+     *             current working directory, so a bare filename is watched in the current working directory.
      * @param listener the handler to notify of a change
      * @return this watcher
      */
-    @SuppressFBWarnings("NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE") // FindBugs does not recognise that path.getParent() is already checked for null before it is used
+    @SuppressFBWarnings("NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE") // FindBugs does not recognise that the absolute path always has a parent
     public FileWatcher register(final Path path, final NotificationHandler listener) {
         if (path.toFile().isDirectory()) {
             throw new IllegalArgumentException("Watcher requires a file, a directory was specified " + path);
         }
 
-        if (Objects.isNull(path.getParent())) {
-            throw new IllegalArgumentException("Watched files require a parent directory, only a filename was supplied " + path);
-        }
-
+        // Resolve to an absolute path so that a bare filename is watched relative to the current working directory,
+        // preserving the behaviour of configurations that supply a relative path.
         final Path key = path.toAbsolutePath();
         // CopyOnWriteArrayList: register() runs on the caller's thread whilst the watcher thread iterates the same
         // list to notify handlers, so the handler list must tolerate concurrent mutation and traversal
@@ -120,7 +118,7 @@ public class FileWatcher implements AutoCloseable {
         watcher.add(listener);
 
         // register the directory to watch only if it's not already being watched
-        final var pathToRegister = path.getParent().toAbsolutePath();
+        final var pathToRegister = key.getParent();
         if (watchedDirectories.add(pathToRegister) && service.isPresent()) {
             try {
                 pathToRegister.register(service.get(), ENTRY_MODIFY, ENTRY_CREATE); // have to watch the parent dir for create events to detect symlink swaps in K8s as well as direct file content

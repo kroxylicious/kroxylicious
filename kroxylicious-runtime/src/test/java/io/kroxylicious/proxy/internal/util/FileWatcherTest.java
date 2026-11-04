@@ -377,11 +377,30 @@ class FileWatcherTest {
     }
 
     @Test
-    void parentlessFilesCannotBeRegistered() {
+    void bareFilenameWatchedRelativeToWorkingDirectory() throws IOException {
+        // Given
+        // A bare filename has no parent, so it is resolved against the process working directory. Java cannot
+        // redirect this to a @TempDir (NIO caches the working directory at startup), so the file is created in the
+        // working directory and removed in the finally block, with deleteOnExit as a backstop for abnormal exits.
+        final Path bareFile = Path.of("file-watcher-" + UUID.randomUUID() + ".txt");
+        bareFile.toFile().deleteOnExit();
+        Files.writeString(bareFile, "Some text", StandardOpenOption.CREATE);
+        final var notificationReceived = new AtomicBoolean(false);
+
         try (var watcher = new FileWatcher()) {
-            final Path path = Path.of("justafilename.txt"); // create path here to ensure only the register call can throw an exception
-            assertThatThrownBy(() -> watcher.register(path, () -> {
-            })).isInstanceOf(IllegalArgumentException.class);
+            watcher.register(bareFile, () -> notificationReceived.set(true));
+            watcher.start();
+
+            // When
+            Files.writeString(bareFile, "Updated value", StandardOpenOption.TRUNCATE_EXISTING);
+
+            // Then
+            Awaitility.await("bare-filename file change should notify the registered listener")
+                    .atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(notificationReceived.get()).isTrue());
+        }
+        finally {
+            Files.deleteIfExists(bareFile);
         }
     }
 
