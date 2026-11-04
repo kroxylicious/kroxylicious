@@ -1,0 +1,4 @@
+title: "fix(runtime): reject routers whose routes share a target cluster unless the router opts in"
+type: fixed
+issues:
+  - 5043
