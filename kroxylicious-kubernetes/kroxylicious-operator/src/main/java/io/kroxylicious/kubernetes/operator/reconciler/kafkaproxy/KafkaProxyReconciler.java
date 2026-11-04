@@ -454,6 +454,7 @@ public class KafkaProxyReconciler implements
      * @param gateway the cluster ingress networking model
      * @return ProxyProtocolConfig if the ingress has proxy protocol configured, null otherwise (defaults to FORBIDDEN)
      */
+    @Nullable
     private static ProxyProtocolConfig buildProxyProtocolConfig(ClusterIngressNetworkingModel gateway) {
         if (gateway instanceof LoadBalancerClusterIngressNetworkingModel lbModel) {
             var proxyProtocol = lbModel.loadBalancer().getProxyProtocol();
