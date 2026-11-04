@@ -1,0 +1,4 @@
+title: "fix: resolve ErrorProne warnings: `AvoidCommonTypeNames`, `HashCodeInObjectsHash`, `IfChainToSwitch`, `NullOptional` and `SameNameButDifferent`"
+type: fixed
+issues:
+  - 5272
