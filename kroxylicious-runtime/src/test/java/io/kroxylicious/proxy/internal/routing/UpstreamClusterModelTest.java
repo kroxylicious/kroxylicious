@@ -5,12 +5,15 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.proxy.bootstrap.BootstrapServerSelector;
 import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
@@ -20,11 +23,13 @@ import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.internal.tls.KafkaProxyDelegatingSslContext;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -233,6 +238,27 @@ class UpstreamClusterModelTest {
         assertThatThrownBy(() -> UpstreamClusterModel.build(cluster, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");
+    }
+
+    @Test
+    void buildAppliesNamedGroupsToUpstreamSslContext() {
+        // Given
+        var namedGroups = new AllowDeny<String>(List.of("X25519MLKEM768"), null);
+        var cluster = new TargetCluster("broker:9092", Optional.of(new Tls(null, null, null, null, null, namedGroups)));
+
+        // When
+        var model = UpstreamClusterModel.build(cluster, null);
+
+        // Then
+        assertThat(model.upstreamSslContext()).get().isInstanceOf(KafkaProxyDelegatingSslContext.class);
+        var engine = model.upstreamSslContext().orElseThrow().newEngine(ByteBufAllocator.DEFAULT);
+        try {
+            // only the hybrid ML-KEM group is offered, with no classical fallback, so a classical-only broker cannot negotiate
+            assertThat(engine.getSSLParameters().getNamedGroups()).containsExactly("X25519MLKEM768");
+        }
+        finally {
+            ReferenceCountUtil.release(engine);
+        }
     }
 
     // close()
