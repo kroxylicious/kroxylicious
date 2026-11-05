@@ -132,7 +132,7 @@ jobs:
 
       - name: 'Build Kroxylicious Operand Container Images'
         run: |
-          eval $(crc podman-env --root)
+          eval "$(crc podman-env --root)"
 
           GIT_HASH="$(git rev-parse HEAD)"
           KROXYLICIOUS_VERSION="$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)"
@@ -154,7 +154,7 @@ jobs:
 
       - name: Run operator integration tests
         run: |
-          eval $(crc podman-env --root)
+          eval "$(crc podman-env --root)"
 
           mvn --batch-mode \
             --projects :kroxylicious-operator \
