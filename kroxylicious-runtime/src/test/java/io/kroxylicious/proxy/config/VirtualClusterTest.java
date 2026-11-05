@@ -303,7 +303,7 @@ class VirtualClusterTest {
     }
 
     @Test
-    void sameAsReturnsFalseWhenGatewayProxyProtocolModeChanges() {
+    void virtualClustersWithGatewaysDifferingOnlyInProxyModeAreNotSame() {
         // Given
         var gw1 = new VirtualClusterGateway("gw", portIdentifiesNode1, null, Optional.empty(),
                 new ProxyProtocolConfig(ProxyProtocolMode.FORBIDDEN));

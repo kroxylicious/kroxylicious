@@ -537,9 +537,8 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
             synchronized (lcr) {
                 var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                 bindings.setIfAbsent(new ConcurrentHashMap<>());
-                acceptorChannel.attr(BINDING_CONTEXT).set(new BindingContext(virtualCluster.proxyProtocolMode()));
-
                 var bindingMap = bindings.get();
+                acceptorChannel.attr(BINDING_CONTEXT).set(new BindingContext(virtualCluster.proxyProtocolMode()));
 
                 // a channel not requiring SNI cannot disambiguate connections beyond the port they
                 // arrived on, so at most one gateway may ever occupy it.

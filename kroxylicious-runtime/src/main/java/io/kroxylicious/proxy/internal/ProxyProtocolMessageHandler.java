@@ -76,7 +76,7 @@ public class ProxyProtocolMessageHandler extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         if (cause instanceof HAProxyProtocolException) {
             LOGGER.atWarn()
-                    .addKeyValue("channelId", ctx.channel().toString())
+                    .addKeyValue("sessionId", kafkaSession.sessionId())
                     .log("Connection rejected: PROXY protocol header required but client sent non-PROXY data. "
                             + "Ensure the upstream load balancer is configured to send PROXY protocol headers.");
             ctx.close().addListener(logFailure(LOGGER, "close after missing PROXY protocol header"));
