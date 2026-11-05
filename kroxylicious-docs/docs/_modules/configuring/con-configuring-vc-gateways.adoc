@@ -24,6 +24,8 @@ The gateway uses SNI (Server Name Indication) to identify the target broker for 
 
 IMPORTANT: You must make sure that the gateway's bootstrap address and generated broker addresses are resolvable and routable by the Kafka Client. You must also make sure firewall rules permit traffic to required port numbers.
 
+For information about accepting PROXY protocol headers when a gateway is deployed behind a PROXY protocol-capable load balancer, see xref:con-configuring-proxy-protocol-{context}[Configuring PROXY protocol on a gateway].
+
 == Port Identifies Node
 
 In the Port Identifies Node scheme, the virtual cluster opens a separate port for each proxied broker in addition to
