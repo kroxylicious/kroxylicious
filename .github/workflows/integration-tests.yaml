@@ -82,7 +82,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          GIT_HASH="$(git rev-parse HEAD)"
           KROXYLICIOUS_IMAGE="$(mvn --quiet --projects :kroxylicious-app --activate-profiles dist help:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
 
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_OUTPUT"
@@ -111,7 +110,7 @@ jobs:
           MODULE=$(echo "$FIRST_SPEC" | cut -d: -f1)
 
           # Remove "module:" prefix from all tests
-          TEST_LIST=$(echo "$CHUNK" | sed "s|${MODULE}:||g")
+          TEST_LIST="${CHUNK//${MODULE}:/}"
 
           echo "module=$MODULE" >> "$GITHUB_OUTPUT"
           echo "tests=$TEST_LIST" >> "$GITHUB_OUTPUT"

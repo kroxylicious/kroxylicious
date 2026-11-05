@@ -72,6 +72,7 @@ jobs:
             | tr -d ' ' \
             | tr '[:upper:]' '[:lower:]' \
             | paste -sd ',')
+          # shellcheck disable=SC2001 -- backreference (&) not supported by ${//}
           TEST_CLIENTS="[$(echo "$client_types" | sed 's/[^,]*/"&"/g')]"
           echo "test_clients=$TEST_CLIENTS" >> "$GITHUB_OUTPUT"
       - name: 'Set kafka client'
