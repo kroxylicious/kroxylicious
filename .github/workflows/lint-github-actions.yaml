@@ -33,7 +33,8 @@ jobs:
         with:
           matcher: true  # optional
           cache: true  # optional
-          files: ".github/workflows/*.yml, .github/workflows/*.yaml, .github/actions/**/*.yml"  # optional, example on how to grab all .yml and .yaml files from the test directory
+          files: ".github/workflows/*.yml, .github/workflows/*.yaml"
+          # .github/actions/**/*.yml shall be excluded as they are composite and not jobs.
 #      - uses: reviewdog/action-actionlint@d290e336d5a743810aef4404f757dc862276d2ae # v1.73.4
 #      - name: Check workflow files
 #        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667

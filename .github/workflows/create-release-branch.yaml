@@ -65,8 +65,8 @@ jobs:
       - name: 'Stop workflow if user is not a release-engineer'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         run: |
-          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
-          exit -1
+          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
+          exit 1
 
       - name: 'Compute branch name and development version'
         env:
@@ -105,10 +105,10 @@ jobs:
           git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
 
       - name: 'Cache Maven packages'
-        uses: $/.github/actions/common/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
 
       - name: 'Set up Java'
-        uses: $/.github/actions/common/setup-java
+        uses: ./.github/actions/common/setup-java
         with:
           javaVersion: '21'
           javaDistro: 'temurin'

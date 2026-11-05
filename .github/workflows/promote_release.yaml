@@ -91,7 +91,8 @@ jobs:
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         run: |
           gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
-          exit -1
+          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
+          exit 1
 
       - name: 'Get run id of stage release workflow'
         env:
@@ -320,7 +321,7 @@ jobs:
 
       - name: 'Set up Java'
         if: ${{ inputs.command == 'promote-release' }}
-        uses: $/.github/actions/common/setup-java
+        uses: ./.github/actions/common/setup-java
         with:
           javaVersion: '21'
           javaDistro: 'temurin'
