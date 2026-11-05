@@ -18,7 +18,7 @@ name: Run Pull-Requests Tests
 
 on:
   pull_request:
-    types: [ opened, synchronize, reopened, labeled ]
+    types: [ opened, synchronize, reopened ]
     branches:
       - "main"
       - 'release/**'
