@@ -127,6 +127,8 @@ jobs:
       - name: 'Summary (skipped)'
         if: steps.version.outputs.is_snapshot != 'true'
         run: |
-          echo "## SNAPSHOT Publish Skipped" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Version \`${{ steps.version.outputs.PROJECT_VERSION }}\` does not end with \`-SNAPSHOT\`, nothing to publish." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## SNAPSHOT Publish Skipped"
+            echo ""
+            echo "Version \`${{ steps.version.outputs.PROJECT_VERSION }}\` does not end with \`-SNAPSHOT\`, nothing to publish."
+          } >> "$GITHUB_STEP_SUMMARY"

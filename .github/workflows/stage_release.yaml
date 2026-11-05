@@ -191,9 +191,11 @@ jobs:
           OPERATOR="${REGISTRY}/${ORG}/${{ vars.OPERATOR_IMAGE_NAME }}"
           ADMISSION="${REGISTRY}/${ORG}/${{ vars.ADMISSION_IMAGE_NAME }}"
 
-          echo "PROXY_DIGEST=$(skopeo inspect "docker://${PROXY}:${SHA_TAG}" | jq -r '.Digest')"         >> "$GITHUB_ENV"
-          echo "OPERATOR_DIGEST=$(skopeo inspect "docker://${OPERATOR}:${SHA_TAG}" | jq -r '.Digest')"   >> "$GITHUB_ENV"
-          echo "ADMISSION_DIGEST=$(skopeo inspect "docker://${ADMISSION}:${SHA_TAG}" | jq -r '.Digest')" >> "$GITHUB_ENV"
+          {
+            echo "PROXY_DIGEST=$(skopeo inspect "docker://${PROXY}:${SHA_TAG}" | jq -r '.Digest')"
+            echo "OPERATOR_DIGEST=$(skopeo inspect "docker://${OPERATOR}:${SHA_TAG}" | jq -r '.Digest')"
+            echo "ADMISSION_DIGEST=$(skopeo inspect "docker://${ADMISSION}:${SHA_TAG}" | jq -r '.Digest')"
+          } >> "$GITHUB_ENV"
 
       - name: 'Build release state'
         run: |
