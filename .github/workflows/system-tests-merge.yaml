@@ -45,7 +45,8 @@ jobs:
             | tr -d ' ' \
             | tr '[:upper:]' '[:lower:]' \
             | paste -sd ',')
-          # shellcheck disable=SC2001 -- backreference (&) not supported by ${//}
+          # backreference (&) not supported by ${//}
+          # shellcheck disable=SC2001
           TEST_CLIENTS="[$(echo "$client_types" | sed 's/[^,]*/"&"/g')]"
           echo "test_clients=$TEST_CLIENTS" >> "$GITHUB_OUTPUT"
 

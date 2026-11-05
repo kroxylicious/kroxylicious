@@ -180,14 +180,16 @@ jobs:
 
       - name: 'Get heads'
         run: |
-          # Get PR's ref.
-          echo "PR_REF=$(git rev-list -n 1 origin/${PR_BRANCH})" >> $GITHUB_ENV
-
-          # Get main's current head
-          echo "PR_BASE_HEAD=$(git rev-list -n 1 origin/${PR_BASE_BRANCH} )" >> $GITHUB_ENV
-
-          # Get PR's view of where main ought to be.  This is two commits behind PR's head.
-          echo "PR_BASE_REF=$(git rev-list -n 1 origin/${PR_BRANCH}^^)" >> $GITHUB_ENV
+          {
+            # Get PR's ref.
+            echo "PR_REF=$(git rev-list -n 1 origin/${PR_BRANCH})"
+  
+            # Get main's current head
+            echo "PR_BASE_HEAD=$(git rev-list -n 1 origin/${PR_BASE_BRANCH} )"
+  
+            # Get PR's view of where main ought to be.  This is two commits behind PR's head.
+            echo "PR_BASE_REF=$(git rev-list -n 1 origin/${PR_BRANCH}^^)"
+          } >> $GITHUB_ENV
 
       - name: 'Check for PR/main divergence'
         if: ${{ inputs.command == 'promote-release' }}
