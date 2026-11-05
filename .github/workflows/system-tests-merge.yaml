@@ -82,7 +82,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          FAILED_JSON=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+          FAILED_JSON=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
             --jq '.jobs[] | select(.conclusion=="failure") | {name: .name, url: .html_url}')
           if [ -z "$FAILED_JSON" ]; then
             echo "All jobs passed!" >> "$GITHUB_STEP_SUMMARY"
