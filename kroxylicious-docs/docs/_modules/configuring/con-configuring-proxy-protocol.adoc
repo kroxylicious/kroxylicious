@@ -7,56 +7,174 @@
 :_mod-docs-content-type: CONCEPT
 
 [id='con-configuring-proxy-protocol-{context}']
-= Configuring HAProxy PROXY protocol
+= Configuring PROXY protocol on a gateway
 
 [role="_abstract"]
-When Kroxylicious is deployed behind a load balancer that uses the https://www.haproxy.org/download/3.3/doc/proxy-protocol.txt[HAProxy PROXY protocol], you can configure PROXY protocol handling so that the original client connection metadata (source address, destination address, ports) is preserved.
+When a virtual cluster gateway is deployed behind a load balancer that uses the https://www.haproxy.org/download/3.3/doc/proxy-protocol.txt[HAProxy PROXY protocol], you can configure the gateway to accept PROXY protocol headers so that the original client connection metadata (source address, destination address, and ports) is preserved.
+
+PROXY protocol handling is configured per gateway, using the `proxyProtocol` property of a gateway in the `virtualClusters[].gateways[]` list.
+A single Kroxylicious instance can serve one gateway through a PROXY protocol-capable load balancer while another gateway accepts direct client connections.
 
 Both PROXY protocol v1 (text) and v2 (binary, including TLV extensions) are supported.
 
-== Proxy protocol modes
+== PROXY protocol modes
 
-The `proxyProtocol.mode` property controls how Kroxylicious handles incoming connections:
+The `proxyProtocol.mode` property controls how a gateway handles incoming connections.
+Two modes are supported:
 
-`required`:: Every incoming connection *must* begin with a PROXY protocol header.
-Connections without a valid header are rejected immediately with a warning log.
-Use this when Kroxylicious is always behind a PROXY protocol-capable load balancer.
+`required`:: Every incoming connection to the gateway *must* begin with a valid PROXY protocol header.
+Kroxylicious decodes the header, records the original client connection metadata, and then processes the remainder of the connection as Kafka protocol traffic.
+Connections that do not begin with a PROXY protocol header are rejected and a warning is logged.
+Use this mode when all traffic to the gateway arrives through a PROXY protocol-capable load balancer.
 
-`allowed`:: Kroxylicious inspects the first bytes of each connection and automatically detects whether a PROXY protocol header is present.
-If detected, the header is decoded and the original client address is extracted.
-If not, the bytes are passed through to the Kafka protocol decoder.
-Use this when the same listener may receive both proxied and direct connections.
+`forbidden`:: PROXY protocol headers are not permitted on the gateway.
+No PROXY protocol decoder is installed, and all bytes are treated as Kafka protocol data.
+If a client sends a PROXY protocol header, the Kafka protocol decoder raises a protocol error and the connection is closed.
+Use this mode when clients connect to the gateway directly, or through a load balancer that does not send PROXY protocol headers.
 
-`disabled`:: No PROXY protocol handling (default).
-All bytes are treated as Kafka protocol data.
+If the `proxyProtocol` block is omitted from a gateway, the effective mode is `forbidden`.
+You only need to add a `proxyProtocol` block to the gateways that sit behind a PROXY protocol-capable load balancer.
 
-.Configuration fragment with PROXY protocol in required mode
+NOTE: If you include a `proxyProtocol` block, you must specify the `mode` property. An empty `proxyProtocol: {}` block is a configuration error.
+
+== Enabling PROXY protocol on a gateway
+
+To enable PROXY protocol on a gateway, add a `proxyProtocol` block with `mode: required` to that gateway.
+
+.Example configuration with PROXY protocol required on a gateway
 [source,yaml]
 ----
-proxyProtocol:
-  mode: required
+# ...
+virtualClusters:
+  - name: my-cluster-proxy
+    target:
+      cluster: my-cluster
+    gateways:
+    - name: loadbalanced
+      portIdentifiesNode:
+        bootstrapAddress: localhost:9192
+        advertisedBrokerAddressPattern: my-cluster-proxy.example.com
+      proxyProtocol:
+        mode: required
+    # ...
+# ...
 ----
+where:
 
-.Configuration fragment with PROXY protocol in allowed mode
+* `proxyProtocol` configures PROXY protocol handling for the gateway.
+** `mode` is the PROXY protocol mode (`required` or `forbidden`).
+   Required when the `proxyProtocol` block is present.
+
+With the example configuration above, the gateway listens on port 9192 and the broker ports that follow it.
+The load balancer in front of the gateway must prepend a PROXY protocol header to every connection it forwards to these ports.
+Kroxylicious reads the header to learn the original client address, and then handles the connection as usual.
+
+PROXY protocol can be combined with either node identification scheme and with downstream TLS.
+When the gateway uses TLS, the load balancer must send the PROXY protocol header before the TLS handshake begins, which is the standard PROXY protocol behavior.
+Kroxylicious decodes the header first and then performs the TLS handshake.
+
+.Example configuration with PROXY protocol required on a TLS gateway using SNI Host Identifies Node
 [source,yaml]
 ----
-proxyProtocol:
-  mode: allowed
+# ...
+virtualClusters:
+  - name: my-cluster-proxy
+    target:
+      cluster: my-cluster
+    gateways:
+    - name: loadbalanced
+      sniHostIdentifiesNode:
+        bootstrapAddress: mycluster.example.com:9192
+        advertisedBrokerAddressPattern: mybroker-$(nodeId).mycluster.example.com
+      tls:
+        key: ...
+      proxyProtocol:
+        mode: required
+    # ...
+# ...
 ----
+
+== Gateways sharing a port
+
+PROXY protocol handling is applied when a connection is accepted on a port, before Kroxylicious knows which gateway the connection is for.
+Consequently, all gateways that share a port must use the same PROXY protocol mode.
+This applies to gateways using the SNI Host Identifies Node scheme that share a single port, whether they belong to the same virtual cluster or to different virtual clusters.
+
+If two gateways on the same port use different modes, Kroxylicious rejects the configuration at startup with an error similar to the following:
+
+[source]
+----
+Gateway 'direct' in virtual cluster 'other-cluster-proxy' on port 9192 has proxyProtocol mode FORBIDDEN but gateway 'loadbalanced' in virtual cluster 'my-cluster-proxy' on the same port uses REQUIRED. All gateways sharing a port must use the same proxyProtocol mode.
+----
+
+Remember that a gateway with no `proxyProtocol` block uses the `forbidden` mode.
+If you enable PROXY protocol on one gateway that shares a port with others, you must either add `proxyProtocol.mode: required` to every gateway on that port, or rewrite your configuration to use separate ports for the gateways which do not use the PROXY protocol.
+
+.Example configuration with two gateways sharing a port
+[source,yaml]
+----
+# ...
+virtualClusters:
+  - name: my-cluster-proxy
+    target:
+      cluster: my-cluster
+    gateways:
+    - name: loadbalanced
+      sniHostIdentifiesNode:
+        bootstrapAddress: mycluster.example.com:9192
+        advertisedBrokerAddressPattern: mybroker-$(nodeId).mycluster.example.com
+      tls:
+        key: ...
+      proxyProtocol:
+        mode: required
+  - name: other-cluster-proxy
+    target:
+      cluster: other-cluster
+    gateways:
+    - name: loadbalanced
+      sniHostIdentifiesNode:
+        bootstrapAddress: othercluster.example.com:9192
+        advertisedBrokerAddressPattern: mybroker-$(nodeId).othercluster.example.com
+      tls:
+        key: ...
+      proxyProtocol:
+        mode: required
+# ...
+----
+
+Gateways on different ports are independent and can use different modes.
+
+== Configuring the upstream load balancer
+
+When a gateway uses `required` mode, the load balancer in front of it must be configured to send PROXY protocol headers on every connection it forwards to the gateway's bootstrap and broker ports.
+The configuration depends on the load balancer:
+
+* HAProxy sends PROXY protocol headers when the `send-proxy` (v1) or `send-proxy-v2` (v2) option is set on the backend server.
+* Cloud provider load balancers, such as AWS Network Load Balancer, typically expose PROXY protocol v2 as a target group or listener attribute.
+* On Kubernetes, the way PROXY protocol is enabled for a `LoadBalancer` service is specific to the cloud provider and is usually controlled through service annotations.
+
+The load balancer must operate at layer 4 (TCP) and forward the connection without terminating TLS, so that Kroxylicious receives the PROXY protocol header followed by the client's own Kafka or TLS traffic.
 
 [IMPORTANT]
 ====
-When `mode` is set to `required`, all incoming connections must include a PROXY protocol header.
-If a client connects directly without going through a PROXY protocol-capable load balancer, the connection will be rejected and Kroxylicious will log a warning:
-
-`Connection rejected — expected PROXY protocol header but received non-PROXY data.
-Ensure the upstream load balancer is configured to send PROXY protocol headers,
-or set proxyProtocol mode to 'allowed' or 'disabled'.`
+When `mode` is set to `required`, every connection to the gateway must include a PROXY protocol header, including health check connections.
+If the load balancer performs TCP health checks without sending a PROXY protocol header, those connections are rejected and the warning below is logged.
+Configure the load balancer to send PROXY protocol headers on health check connections too, or use a health check mechanism that does not connect to the gateway ports.
 ====
 
 [IMPORTANT]
 ====
-When `mode` is set to `allowed`, any client that can connect directly to Kroxylicious (bypassing the load balancer) can send a PROXY protocol header with a spoofed source address.
-Only use `allowed` mode when your network topology guarantees that untrusted clients cannot reach the proxy port directly, or when source address spoofing is an acceptable risk.
-If all connections come through a PROXY protocol-capable load balancer, prefer `required` mode instead.
+When `mode` is set to `required`, a client that connects directly to the gateway without going through the load balancer has its connection rejected, and Kroxylicious logs a warning:
+
+`Connection rejected: PROXY protocol header required but client sent non-PROXY data.
+Ensure the upstream load balancer is configured to send PROXY protocol headers.`
+
+If you see this warning, check that all traffic for the gateway is routed through a load balancer that is configured to send PROXY protocol headers.
+====
+
+[IMPORTANT]
+====
+Kroxylicious trusts the client address contained in the PROXY protocol header.
+Any client that can reach a `required` mode gateway directly, bypassing the load balancer, can send a PROXY protocol header carrying a spoofed source address.
+Use network controls, such as firewall rules or security groups, to ensure that only the load balancer can connect to the ports of a gateway that uses `required` mode.
 ====
