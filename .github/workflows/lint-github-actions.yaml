@@ -22,6 +22,10 @@ on:
     paths:
       - .github/workflows/**
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   actionlint:
     runs-on: ubuntu-latest
@@ -36,14 +40,3 @@ jobs:
           files: ".github/workflows/*.yml, .github/workflows/*.yaml"
           # .github/actions/**/*.yml shall be excluded as they are composite and not jobs.
           flags: "-ignore SC2086"
-
-      - name: actionlint Summary
-        if: failure()
-        run: |
-          echo "Used actionlint version ${{ steps.actionlint.outputs.version-semver }}"
-          echo "Used actionlint release ${{ steps.actionlint.outputs.version-tag }}"
-          echo "actionlint ended with ${{ steps.actionlint.outputs.exit-code }} exit code"
-          echo "actionlint ended because '${{ steps.actionlint.outputs.exit-message }}'"
-          echo "actionlint found ${{ steps.actionlint.outputs.total-errors }} errors"
-          echo "actionlint checked ${{ steps.actionlint.outputs.total-files }} files"
-          echo "actionlint cache used: ${{ steps.actionlint.outputs.cache-hit }}"
