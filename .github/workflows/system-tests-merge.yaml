@@ -58,7 +58,7 @@ jobs:
     with:
       kafkaClient: ${{ matrix.tests }}
       excludedGroups: 'externalKafkaClients,operator'
-      testFortanixKMS: "true"
+      testFortanixKMS: 'true'
     strategy:
       fail-fast: false
       matrix:
