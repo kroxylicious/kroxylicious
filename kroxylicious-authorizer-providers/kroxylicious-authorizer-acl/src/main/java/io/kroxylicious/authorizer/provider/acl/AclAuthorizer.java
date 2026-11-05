@@ -309,7 +309,7 @@ public class AclAuthorizer implements Authorizer {
             return new ResourceBuilder<>(builder,
                     isAllowRule,
                     this.principalMatchers,
-                    (Class) operations.iterator().next().getClass(),
+                    (Class) operations.iterator().next().getDeclaringClass(),
                     os);
         }
 
@@ -325,7 +325,7 @@ public class AclAuthorizer implements Authorizer {
          * Constructs a Builder.
          */
         public Builder() {
-            // explicit ctor needed for javadoc
+            // explicit ctor needed for Javadoc
         }
 
         /**
