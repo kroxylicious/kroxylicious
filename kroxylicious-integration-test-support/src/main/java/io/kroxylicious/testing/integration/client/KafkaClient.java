@@ -266,6 +266,7 @@ public final class KafkaClient implements AutoCloseable {
             sslHandler = sslContext.newHandler(ch.alloc(), host, port);
             p.addLast(sslHandler);
         }
+        p.addLast(certificateHandler);
         wireReadySignal(proxyPhaseFuture, candidate, ch, sslHandler);
         p.addLast(new KafkaRequestEncoder(correlationManager));
         p.addLast(new KafkaResponseDecoder(correlationManager));
