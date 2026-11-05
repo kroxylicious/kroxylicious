@@ -83,8 +83,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           GIT_HASH="$(git rev-parse HEAD)"
-          KROXYLICIOUS_VERSION="$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)"
-          KROXYLICIOUS_IMAGE="quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}"
+          KROXYLICIOUS_IMAGE="$(mvn --quiet --projects :kroxylicious-app --activate-profiles dist help:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
 
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_OUTPUT"
 
@@ -182,7 +181,7 @@ jobs:
           minikube image load /tmp/kroxylicious-operand/kroxylicious-proxy.img.tar.gz
 
           # Verify load succeeded (minikube image load exits 0 even on failure - see operator-maven.yaml:69-71)
-          minikube image ls | grep --fixed-strings ${KROXYLICIOUS_IMAGE}
+          minikube image ls | grep --fixed-strings "${KROXYLICIOUS_IMAGE}"
 
           # Set environment variable for tests
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
