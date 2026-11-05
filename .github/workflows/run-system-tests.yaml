@@ -35,9 +35,9 @@ on:
         type: string
       testFortanixKMS:
         description: "Run Fortanix KMS tests"
-        default: 'false'
+        default: false
         required: false
-        type: string
+        type: boolean
       skipSystemTestRun:
         description: "Skip system tests run"
         required: false
