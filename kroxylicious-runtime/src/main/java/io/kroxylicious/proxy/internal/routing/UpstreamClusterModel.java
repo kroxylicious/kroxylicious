@@ -24,7 +24,9 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.internal.tls.KafkaProxyDelegatingSslContext;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
+import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -143,7 +145,26 @@ public record UpstreamClusterModel(
                         .ifPresent(to -> {
                             throw new IllegalConfigurationException("Cannot apply trust options " + to + " to upstream (client) TLS.)");
                         });
-                return VirtualClusterModel.configureTrustProvider(targetClusterTls).apply(sslContextBuilder).build();
+
+                var contextId = "Upstream cluster with bootstrap servers '%s'".formatted(targetCluster.bootstrapServers());
+                if (Objects.nonNull(targetClusterTls.namedGroups())) {
+                    // validate before building the context, so a misconfiguration fails fast rather than after the cost of building
+                    try {
+                        targetClusterTls.validateNamedGroups();
+                    }
+                    catch (IllegalStateException e) {
+                        throw new IllegalConfigurationException(
+                                "%s: %s See %s for details.".formatted(contextId, e.getMessage(),
+                                        StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)));
+                    }
+                }
+                var sslCtx = VirtualClusterModel.configureTrustProvider(targetClusterTls).apply(sslContextBuilder).build();
+
+                if (Objects.nonNull(targetClusterTls.namedGroups())) {
+                    sslCtx = new KafkaProxyDelegatingSslContext(sslCtx, contextId, targetClusterTls.namedGroups());
+                }
+
+                return sslCtx;
             }
             catch (SSLException e) {
                 throw new UncheckedIOException(e);

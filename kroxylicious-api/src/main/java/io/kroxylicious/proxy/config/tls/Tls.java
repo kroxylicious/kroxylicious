@@ -55,7 +55,13 @@ public record Tls(@Nullable KeyProvider key,
      * @param trust specifies a trust provider used by this peer to determine whether to trust the peer.
      * @param cipherSuites specifies allowed and denied cipher suites
      * @param protocols specifies allowed and denied tls protocols
+     *
+     * @deprecated Use {@link #Tls(KeyProvider, TrustProvider, AllowDeny<String>, AllowDeny<String>, TlsCredentialSupplierConfig, AllowDeny<String>)}
+     *              passing nulls for equivalent behaviour.
      */
+    @Deprecated(since = "0.25.0", forRemoval = true)
+    // Inlining would only push the canonical constructor's extra null arguments onto callers; this constructor is due for removal instead.
+    @SuppressWarnings("InlineMeSuggester")
     public Tls(@Nullable KeyProvider key,
                @Nullable TrustProvider trust,
                @Nullable AllowDeny<String> cipherSuites,
@@ -75,7 +81,13 @@ public record Tls(@Nullable KeyProvider key,
      * @param cipherSuites specifies allowed and denied cipher suites
      * @param protocols specifies allowed and denied tls protocols
      * @param credentialSupplier specifies a dynamic TLS credential supplier for per-client certificate selection
+     *
+     * @deprecated Use {@link #Tls(KeyProvider, TrustProvider, AllowDeny<String>, AllowDeny<String>, TlsCredentialSupplierConfig, AllowDeny<String>)}
+     *              passing null for equivalent behaviour.
      */
+    @Deprecated(since = "0.25.0", forRemoval = true)
+    // Inlining would only push the canonical constructor's extra null argument onto callers; this constructor is due for removal instead.
+    @SuppressWarnings("InlineMeSuggester")
     public Tls(@Nullable KeyProvider key,
                @Nullable TrustProvider trust,
                @Nullable AllowDeny<String> cipherSuites,
