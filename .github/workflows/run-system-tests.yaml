@@ -194,9 +194,9 @@ jobs:
           mvn --batch-mode \
             --activate-profiles 'systemtest,!qa' \
             -Derrorprone.skip=true \
-            "$TESTS_OPT" \
-            "$EXCLUDED_GROUPS_OPT" \
-            "$GROUPS_OPT" \
+            $TESTS_OPT \
+            $EXCLUDED_GROUPS_OPT \
+            $GROUPS_OPT \
             verify
 
       - name: Archive JUnit test results

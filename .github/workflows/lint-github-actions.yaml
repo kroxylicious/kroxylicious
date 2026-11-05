@@ -19,6 +19,8 @@ name: Lint GitHub Actions workflows
 on:
   pull_request:
     types: [ opened, synchronize, reopened ]
+    paths:
+      - .github/workflows/**
 
 jobs:
   actionlint:
@@ -28,15 +30,21 @@ jobs:
         with:
           fetch-depth: 0
       - name: actionlint
-        id: actionlint  #optional, id required only when outputs are used in the workflow steps later
+        id: actionLint
         uses: raven-actions/actionlint@v2
         with:
-          matcher: true  # optional
-          cache: true  # optional
           files: ".github/workflows/*.yml, .github/workflows/*.yaml"
           # .github/actions/**/*.yml shall be excluded as they are composite and not jobs.
-#      - uses: reviewdog/action-actionlint@d290e336d5a743810aef4404f757dc862276d2ae # v1.73.4
-#      - name: Check workflow files
-#        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
-#        with:
-#          args: -color
+          flags: "-ignore SC2086"
+
+      - name: actionlint Summary
+        if: ${{ steps.actionlint.outputs.exit-code != 0 }}  # example usage, do echo only when actionlint action failed
+        run: |
+          echo "Used actionlint version ${{ steps.actionlint.outputs.version-semver }}"
+          echo "Used actionlint release ${{ steps.actionlint.outputs.version-tag }}"
+          echo "actionlint ended with ${{ steps.actionlint.outputs.exit-code }} exit code"
+          echo "actionlint ended because '${{ steps.actionlint.outputs.exit-message }}'"
+          echo "actionlint found ${{ steps.actionlint.outputs.total-errors }} errors"
+          echo "actionlint checked ${{ steps.actionlint.outputs.total-files }} files"
+          echo "actionlint cache used: ${{ steps.actionlint.outputs.cache-hit }}"
+          exit ${{ steps.actionlint.outputs.exit-code }}
