@@ -19,7 +19,7 @@ name: Promote Release
 # This workflow is dispatched by robot-command-dispatcher in response to a promote-release
 # (or drop-release command).
 #
-# It will release the staged maven artefacts, and merge the release PR.
+# It will release the staged maven artifacts, and merge the release PR.
 #
 # It requires the following:
 # inputs:
@@ -212,7 +212,7 @@ jobs:
               /repos/${{ github.repository }}/commits/${PR_REF}/check-runs \
               | jq --exit-status -r '[.check_runs[] | select( .status != "completed" or ( .conclusion != "success" and .conclusion != "skipped"))] | length')
 
-          if [[ ${UNFINISHED_OR_ERRORED} > 0 ]]; then
+          if [[ ${UNFINISHED_OR_ERRORED} -gt 0 ]]; then
             gh pr comment --body "${UNFINISHED_OR_ERRORED} build check(s) have not completed successfully. If they are still running, you can ask me to promote-release again once they are finished." ${{ inputs.release-pr-issue-number }}
             exit 1
           fi
