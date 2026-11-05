@@ -43,6 +43,7 @@ import io.netty.handler.codec.haproxy.HAProxyMessageEncoder;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;

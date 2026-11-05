@@ -19,24 +19,28 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
  * from the Netty {@link HAProxyMessage} so that the reference-counted
  * message can be released immediately after extraction.
  * </p>
+ * <p>
+ * Named {@code ProxyProtocol*} rather than {@code HaProxy*} because "HA" is vendor branding
+ * (HAProxy software); the protocol itself is called the PROXY Protocol.
+ * </p>
  *
  * @param sourceAddress      the original client address reported by the load-balancer
  * @param destinationAddress the destination address the client connected to
  * @param sourcePort         the original client port
  * @param destinationPort    the destination port
- * @param tlvs               HaProxy v2 TLV extensions keyed by type name, values are {@code byte[]}
+ * @param tlvs               PROXY protocol v2 TLV extensions keyed by type name, values are {@code byte[]}
  */
-public record HaProxyContext(
-                             String sourceAddress,
-                             String destinationAddress,
-                             int sourcePort,
-                             int destinationPort,
-                             Map<String, byte[]> tlvs) {
+public record ProxyProtocolContext(
+                                   String sourceAddress,
+                                   String destinationAddress,
+                                   int sourcePort,
+                                   int destinationPort,
+                                   Map<String, byte[]> tlvs) {
 
     /**
      * Compact constructor that deep-copies and wraps the TLV map to ensure immutability.
      */
-    public HaProxyContext {
+    public ProxyProtocolContext {
         tlvs = tlvs.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(
                         Map.Entry::getKey,
@@ -57,7 +61,7 @@ public record HaProxyContext(
     }
 
     /**
-     * Creates an {@link HaProxyContext} from a Netty {@link HAProxyMessage}.
+     * Creates a {@link ProxyProtocolContext} from a Netty {@link HAProxyMessage}.
      * <p>
      * TLV content is deep-copied so the returned context is safe to use
      * after the message is released.
@@ -66,13 +70,13 @@ public record HaProxyContext(
      * @param msg the decoded proxy message
      * @return an immutable context snapshot
      */
-    public static HaProxyContext from(HAProxyMessage msg) {
+    public static ProxyProtocolContext from(HAProxyMessage msg) {
         Map<String, byte[]> tlvs = msg.tlvs().stream()
                 .collect(
                         Collectors.toMap(
                                 t -> t.type().name(),
                                 t -> ByteBufUtil.getBytes(t.content())));
-        return new HaProxyContext(
+        return new ProxyProtocolContext(
                 msg.sourceAddress(),
                 msg.destinationAddress(),
                 msg.sourcePort(),

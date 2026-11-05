@@ -137,7 +137,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         if (mode == ProxyProtocolMode.REQUIRED) {
             LOGGER.atDebug().log("Adding static PROXY protocol decoder (mode=required)");
             ch.pipeline().addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
-            ch.pipeline().addLast("HAProxyMessageHandler", new HAProxyMessageHandler(kafkaSession));
+            ch.pipeline().addLast("ProxyProtocolMessageHandler", new ProxyProtocolMessageHandler(kafkaSession));
         }
 
         if (tls) {

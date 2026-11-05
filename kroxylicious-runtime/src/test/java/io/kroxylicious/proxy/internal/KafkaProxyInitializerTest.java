@@ -346,7 +346,7 @@ class KafkaProxyInitializerTest {
 
         // Then
         verify(channelPipeline).addLast(eq("HAProxyMessageDecoder"), isA(HAProxyMessageDecoder.class));
-        verify(channelPipeline).addLast(eq("HAProxyMessageHandler"), isA(HAProxyMessageHandler.class));
+        verify(channelPipeline).addLast(eq("ProxyProtocolMessageHandler"), isA(ProxyProtocolMessageHandler.class));
     }
 
     @Test

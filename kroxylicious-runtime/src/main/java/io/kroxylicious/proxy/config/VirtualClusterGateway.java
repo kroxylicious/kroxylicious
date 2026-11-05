@@ -23,7 +23,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param portIdentifiesNode network config
  * @param sniHostIdentifiesNode network config
  * @param tls tls settings
- * @param proxyProtocol per-gateway PROXY protocol configuration; {@code null} means {@link ProxyProtocolMode#FORBIDDEN}
+ * @param proxyProtocol per-gateway PROXY protocol configuration. When absent (omitted from YAML or {@code null}),
+ *                      the effective mode is {@link ProxyProtocolMode#FORBIDDEN}: PROXY headers are not expected
+ *                      and any client that sends one will receive a protocol error.
  */
 public record VirtualClusterGateway(@JsonProperty(required = true) String name,
                                     @Nullable @JsonProperty(required = false) PortIdentifiesNodeIdentificationStrategy portIdentifiesNode,

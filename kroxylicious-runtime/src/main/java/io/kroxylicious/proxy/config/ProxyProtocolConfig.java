@@ -11,7 +11,7 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Per-gateway configuration for the HaProxy PROXY protocol.
+ * Per-gateway configuration for the PROXY protocol.
  * <p>
  * Supports two modes via the {@code mode} property:
  * <ul>
@@ -26,7 +26,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public record ProxyProtocolConfig(@JsonProperty(required = true) ProxyProtocolMode mode) {
     /**
-     * Per-gateway configuration for the HaProxy PROXY protocol.
+     * Per-gateway configuration for the PROXY protocol.
      *
      * @param mode the proxy protocol mode; must not be null
      */

@@ -9,13 +9,8 @@ package io.kroxylicious.proxy.config;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Controls how Kroxylicious handles HaProxy PROXY protocol headers on incoming connections.
- * <p>
- * This mode is configured per gateway under
- * {@code virtualClusters[*].gateways[*].proxyProtocol.mode}.
- * When no {@code proxyProtocol} block is present on a gateway, the effective mode is
- * {@link #FORBIDDEN}.
- * </p>
+ * Controls how Kroxylicious handles PROXY protocol headers on incoming connections.
+ * Configured per gateway under {@code virtualClusters[*].gateways[*].proxyProtocol.mode}.
  *
  * @see <a href="https://www.haproxy.org/download/3.3/doc/proxy-protocol.txt">PROXY protocol specification</a>
  */
@@ -29,8 +24,7 @@ public enum ProxyProtocolMode {
     REQUIRED,
 
     /**
-     * PROXY protocol headers are not permitted. This is the default when no
-     * {@code proxyProtocol} block is configured on a gateway.
+     * PROXY protocol headers are not permitted.
      * <p>
      * No PROXY-protocol decoder is installed in the pipeline. If a client sends a PROXY
      * header, the raw bytes reach the Kafka frame decoder, which raises a protocol error

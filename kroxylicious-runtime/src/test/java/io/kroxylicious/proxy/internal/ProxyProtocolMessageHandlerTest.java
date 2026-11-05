@@ -21,7 +21,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.internal.net.ProxyProtocolContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,7 +33,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-class HAProxyMessageHandlerTest {
+class ProxyProtocolMessageHandlerTest {
 
     @Mock
     private KafkaSession kafkaSession;
@@ -47,11 +47,11 @@ class HAProxyMessageHandlerTest {
     @Mock
     private DecodedRequestFrame<?> kafkaFrame;
 
-    private HAProxyMessageHandler handler;
+    private ProxyProtocolMessageHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new HAProxyMessageHandler(kafkaSession);
+        handler = new ProxyProtocolMessageHandler(kafkaSession);
         when(ctx.pipeline()).thenReturn(pipeline);
     }
 
@@ -61,13 +61,13 @@ class HAProxyMessageHandlerTest {
     }
 
     @Test
-    void shouldStoreHaProxyContextInSession() throws Exception {
+    void shouldStoreProxyProtocolContextInSession() throws Exception {
         // When
         handler.channelRead(ctx, haProxyMessage());
 
         // Then
         verify(kafkaSession).sessionId(); // called by debug log
-        verify(kafkaSession).setHaProxyContext(any(HaProxyContext.class));
+        verify(kafkaSession).setProxyProtocolContext(any(ProxyProtocolContext.class));
         verifyNoMoreInteractions(kafkaSession);
     }
 
@@ -81,7 +81,7 @@ class HAProxyMessageHandlerTest {
     }
 
     @Test
-    void shouldNotPropagateHaProxyMessageDownPipeline() throws Exception {
+    void shouldNotPropagateHAProxyMessageDownPipeline() throws Exception {
         // When
         handler.channelRead(ctx, haProxyMessage());
 

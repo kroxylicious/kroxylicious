@@ -13,7 +13,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolException;
 
-import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.internal.net.ProxyProtocolContext;
 
 import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
 
@@ -30,18 +30,22 @@ import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
  * <p>
  * This handler removes itself from the pipeline after processing the PROXY message.
  * </p>
+ * <p>
+ * Named {@code ProxyProtocol*} rather than {@code HAProxy*} because "HA" is vendor branding
+ * (HAProxy software); the protocol itself is called the PROXY Protocol.
+ * </p>
  */
-public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
+public class ProxyProtocolMessageHandler extends ChannelInboundHandlerAdapter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(HAProxyMessageHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyProtocolMessageHandler.class);
 
     private final KafkaSession kafkaSession;
 
     /**
      * Creates a handler that stores decoded PROXY-protocol messages in the given session.
-     * @param kafkaSession the session in which the extracted {@link HaProxyContext} is stored
+     * @param kafkaSession the session in which the extracted {@link ProxyProtocolContext} is stored
      */
-    public HAProxyMessageHandler(KafkaSession kafkaSession) {
+    public ProxyProtocolMessageHandler(KafkaSession kafkaSession) {
         this.kafkaSession = kafkaSession;
     }
 
@@ -55,8 +59,8 @@ public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
                         .addKeyValue("sourcePort", haProxyMessage.sourcePort())
                         .addKeyValue("destinationAddress", haProxyMessage.destinationAddress())
                         .addKeyValue("destinationPort", haProxyMessage.destinationPort())
-                        .log("Received HAProxy message");
-                kafkaSession.setHaProxyContext(HaProxyContext.from(haProxyMessage));
+                        .log("Received PROXY protocol message");
+                kafkaSession.setProxyProtocolContext(ProxyProtocolContext.from(haProxyMessage));
             }
             finally {
                 haProxyMessage.release();
