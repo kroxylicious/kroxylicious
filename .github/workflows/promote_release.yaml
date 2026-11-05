@@ -91,7 +91,6 @@ jobs:
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         run: |
           gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
-          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
           exit 1
 
       - name: 'Get run id of stage release workflow'
@@ -150,7 +149,7 @@ jobs:
           PR_APPROVAL="$(gh pr view ${{ inputs.release-pr-issue-number}} --json reviewDecision | jq -r .reviewDecision)"
           if [[ "$PR_APPROVAL" != "APPROVED" ]]; then
             gh issue comment  ${{ github.event.issue.number }} --body "PR is not Approved! You must approve the release PR before promoting it"
-            exit -1
+            exit 1
           fi
           echo "PR is Approved, Continuing promotion."
 
@@ -167,7 +166,7 @@ jobs:
         run: |
           if [[ ! "${PR_BRANCH}" =~ ^release-work- ]]; then
             gh issue comment  ${{ github.event.issue.number }} --body "This PR's branch name (${PR_BRANCH}) is not in the expected form."
-            exit -1
+            exit 1
           fi
 
       - name: 'Validate release version from the release state'
@@ -176,7 +175,7 @@ jobs:
         run: |
           if [[ ! "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
             gh issue comment ${{ github.event.issue.number }} --body "The release version '${RELEASE_VERSION}' from RELEASE_STATE.json is not in the expected form."
-            exit -1
+            exit 1
           fi
 
       - name: 'Get heads'
