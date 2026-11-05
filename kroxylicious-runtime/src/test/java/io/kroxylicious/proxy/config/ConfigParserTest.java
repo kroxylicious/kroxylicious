@@ -1478,9 +1478,8 @@ class ConfigParserTest {
                 """))
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
-                .isInstanceOf(ValueInstantiationException.class)
-                .cause()
-                .hasMessageContaining("proxyProtocol.mode must be specified");
+                .isInstanceOf(JsonMappingException.class)
+                .hasMessageContaining("'mode'");
     }
 
     @Test
