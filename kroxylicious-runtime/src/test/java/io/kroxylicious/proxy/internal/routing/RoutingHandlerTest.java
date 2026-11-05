@@ -109,7 +109,7 @@ class RoutingHandlerTest {
     private RoutingHandler topLevelHandlerWithRoute(String routeName) {
         when(ccsm.sessionId()).thenReturn(SESSION_ID);
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
-        var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", null), null, List.of());
+        var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of());
         var dispatcher = RouteDispatcher.forTopLevel(Map.of(routeName, rd), new IdentityNodeIdMapping(routeName), new HashMap<>(), ccsm);
         return RoutingHandler.topLevel(dispatcher, router, Map.of(), ccsm, null);
     }
@@ -121,7 +121,7 @@ class RoutingHandlerTest {
     // ======================== Nested helpers ========================
 
     private static RouteDescriptor clusterRoute(String name, int id) {
-        return new RouteDescriptor(name, id, new TargetCluster("broker:9092", null), null, List.of());
+        return new RouteDescriptor(name, id, new TargetCluster("broker:9092", Optional.empty()), null, List.of());
     }
 
     private RoutingHandler nestedHandler(Map<String, RouteDescriptor> nestedRoutes) {
@@ -636,7 +636,7 @@ class RoutingHandlerTest {
         // Given
         when(ccsm.sessionId()).thenReturn(SESSION_ID);
         when(ccsm.internalCorrelationIdAllocator()).thenReturn(new CorrelationIdAllocator(Integer.MIN_VALUE, 0));
-        var rd = new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of());
+        var rd = new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of());
         var dispatcher = RouteDispatcher.forTopLevel(Map.of(DEFAULT_ROUTE, rd), new IdentityNodeIdMapping(DEFAULT_ROUTE), new HashMap<>(), ccsm);
         var handler = RoutingHandler.topLevel(dispatcher, router, Map.of(), ccsm, null);
         channel = channelWithTerminal(handler);

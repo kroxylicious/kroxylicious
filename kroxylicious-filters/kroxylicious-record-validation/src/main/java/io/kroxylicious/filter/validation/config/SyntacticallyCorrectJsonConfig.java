@@ -6,8 +6,6 @@
 
 package io.kroxylicious.filter.validation.config;
 
-import java.util.Objects;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -52,7 +50,7 @@ public class SyntacticallyCorrectJsonConfig {
 
     @Override
     public int hashCode() {
-        return Objects.hash(validateObjectKeysUnique);
+        return Boolean.hashCode(validateObjectKeysUnique);
     }
 
     @Override
