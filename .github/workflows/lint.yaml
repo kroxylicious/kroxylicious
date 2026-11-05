@@ -39,7 +39,7 @@ jobs:
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test "${KROXYLICIOUS_SLACK_WEBHOOK}" && echo true)" >> "$GITHUB_ENV"
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
       - name: 'Check out repository'
         if: github.event_name != 'merge_group'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -69,12 +69,12 @@ jobs:
           # Run japicmp here so API compatibility breaks are caught on PRs, not just in the merge queue.
           # Skip it only when the reference release is not yet published (nothing to compare against).
           REFERENCE_RELEASE=$(mvn --batch-mode --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
-          REFERENCE_RELEASE_UNPUBLISHED=$(mvn --batch-mode --quiet dependency:get -Dartifact="io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom" 1>/dev/null && echo false || echo true)
+          REFERENCE_RELEASE_UNPUBLISHED=$(mvn --batch-mode --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)
           mvn --batch-mode \
             --activate-profiles build-the-world,ci,qa \
             --threads 1.5C \
             -DskipTests \
-            -Djapicmp.skip="${REFERENCE_RELEASE_UNPUBLISHED}" \
+            -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} \
             verify
       - name: 'Validate POM metadata for Central Portal'
         if: github.event_name != 'merge_group'

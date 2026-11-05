@@ -41,12 +41,12 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          echo "SONAR_TOKEN_SET=$(test "${SONAR_TOKEN}" && echo true)" >> "$GITHUB_ENV"
+          echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> "$GITHUB_ENV"
       - name: 'Test for Slack secret'
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test "${KROXYLICIOUS_SLACK_WEBHOOK}" && echo true)" >> "$GITHUB_ENV"
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

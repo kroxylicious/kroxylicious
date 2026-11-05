@@ -48,12 +48,12 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          echo "SONAR_TOKEN_SET=$(test "${SONAR_TOKEN}" && echo true)" >> "$GITHUB_ENV"
+          echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> "$GITHUB_ENV"
       - name: 'Test for Slack secret'
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test "${KROXYLICIOUS_SLACK_WEBHOOK}" && echo true)" >> "$GITHUB_ENV"
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -176,7 +176,7 @@ jobs:
           REFERENCE_RELEASE=$(mvn --quiet --projects kroxylicious-api help:evaluate \
             -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
           mvn --quiet dependency:get \
-            -Dartifact="io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom" \
+            -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom \
             1>/dev/null \
             && echo "reference_release_unpublished=false" >> "$GITHUB_OUTPUT" \
             || echo "reference_release_unpublished=true" >> "$GITHUB_OUTPUT"
@@ -204,7 +204,7 @@ jobs:
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test "${KROXYLICIOUS_SLACK_WEBHOOK}" && echo true)" >> "$GITHUB_ENV"
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
       - name: Slack Notification on Failure
         if: env.SLACK_WEBHOOK_SET == 'true'
         uses: ./.github/actions/common/slack-notification
