@@ -49,10 +49,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param useIoUring true to use iouring
  * @param development Development options
  * @param network Controls aspects of network configuration for the proxy.
- * @param proxyProtocol PROXY protocol configuration.
  */
 @JsonPropertyOrder({ "management", "clusterDefinitions", "filterDefinitions", "defaultFilters", "routerDefinitions", "virtualClusters", "micrometer", "useIoUring",
-        "development", "network", "proxyProtocol" })
+        "development", "network" })
 @SuppressWarnings("removal") // targetCluster() scheduled for removal
 public record Configuration(
                             @Nullable ManagementConfiguration management,
@@ -64,8 +63,7 @@ public record Configuration(
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
-                            @Nullable NetworkDefinition network,
-                            @Nullable ProxyProtocolConfig proxyProtocol) {
+                            @Nullable NetworkDefinition network) {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
@@ -104,6 +102,8 @@ public record Configuration(
         if (filterDefinitions != null) {
             checkAllNamedFilterAreUsed(filterDefinitions, virtualClusters, defaultFilters, routerDefinitions);
         }
+
+        validateProxyProtocolPortConsistency(virtualClusters);
     }
 
     /**
@@ -408,7 +408,7 @@ public record Configuration(
             try {
                 var nodeIdentificationStrategy = gateway.buildNodeIdentificationStrategy(virtualClusterModel.getClusterName());
                 var tls = gateway.tls();
-                virtualClusterModel.addGateway(gateway.name(), nodeIdentificationStrategy, tls);
+                virtualClusterModel.addGateway(gateway.name(), nodeIdentificationStrategy, tls, gateway.proxyProtocolMode());
             }
             catch (SniHostIdentifiesNodeIdentificationStrategy.UnresolvedHostException e) {
                 LOGGER.atWarn()
@@ -437,15 +437,6 @@ public record Configuration(
     }
 
     /**
-     * The effective PROXY protocol mode.
-     *
-     * @return the configured mode, or {@link ProxyProtocolMode#DISABLED} if no PROXY protocol configuration was given
-     */
-    public ProxyProtocolMode proxyProtocolMode() {
-        return proxyProtocol != null ? proxyProtocol.mode() : ProxyProtocolMode.DISABLED;
-    }
-
-    /**
      * Builds the runtime {@link VirtualClusterModel} for every virtual cluster in this configuration.
      *
      * @param pfr registry used to resolve plugin (e.g. filter and router) implementations
@@ -464,6 +455,30 @@ public record Configuration(
                             filterDefinitionsByName, routersByName, clustersByName, pfr);
                 })
                 .toList();
+    }
+
+    private static void validateProxyProtocolPortConsistency(List<VirtualCluster> virtualClusters) {
+        Map<Integer, ProxyProtocolMode> portModes = new HashMap<>();
+        Map<Integer, String> portGatewayDescriptions = new HashMap<>();
+        for (VirtualCluster vc : virtualClusters) {
+            for (VirtualClusterGateway gw : vc.gateways()) {
+                int port = gw.bootstrapPort();
+                if (port == 0) {
+                    continue; // OS-assigned ports are always unique, no conflict possible
+                }
+                ProxyProtocolMode mode = gw.proxyProtocolMode();
+                String description = "gateway '%s' in virtual cluster '%s'".formatted(gw.name(), vc.name());
+                ProxyProtocolMode existing = portModes.put(port, mode);
+                String existingDescription = portGatewayDescriptions.put(port, description);
+                if (existing != null && existing != mode) {
+                    throw new IllegalConfigurationException(
+                            ("Gateway '%s' in virtual cluster '%s' on port %d has proxyProtocol mode %s "
+                                    + "but %s on the same port uses %s. "
+                                    + "All gateways sharing a port must use the same proxyProtocol mode.")
+                                    .formatted(gw.name(), vc.name(), port, mode, existingDescription, existing));
+                }
+            }
+        }
     }
 
     /**

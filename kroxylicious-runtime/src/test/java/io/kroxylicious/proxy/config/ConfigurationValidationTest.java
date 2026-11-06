@@ -25,6 +25,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -44,12 +45,12 @@ class ConfigurationValidationTest {
     private static VirtualClusterGateway simpleGateway(String name) {
         return new VirtualClusterGateway(name,
                 new PortIdentifiesNodeIdentificationStrategy(
-                        new io.kroxylicious.proxy.service.HostPort("localhost", 9192), null, null, null),
-                null, Optional.empty());
+                        new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty(), null);
     }
 
     private static Configuration config(List<VirtualCluster> vcs) {
-        return new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, vcs, null, false, Optional.empty(), null, null);
+        return new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, vcs, null, false, Optional.empty(), null);
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -123,7 +124,7 @@ class ConfigurationValidationTest {
                 new ClusterDefinition("dup", "broker2:9092", null));
 
         assertThatThrownBy(() -> new Configuration(null, clusters, null, null, null,
-                List.of(SIMPLE_VC), null, false, Optional.empty(), null, null))
+                List.of(SIMPLE_VC), null, false, Optional.empty(), null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("duplicate names")
                 .hasMessageContaining("dup");
@@ -150,7 +151,7 @@ class ConfigurationValidationTest {
         var clusterDefinitions = List.of(CLUSTER_DEFINITION, routerTarget);
         var vcs = List.of(SIMPLE_VC);
         assertThatThrownBy(() -> new Configuration(null, clusterDefinitions, null, null, routers,
-                vcs, null, false, Optional.empty(), null, null))
+                vcs, null, false, Optional.empty(), null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("duplicate names")
                 .hasMessageContaining("dup");
@@ -177,7 +178,7 @@ class ConfigurationValidationTest {
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
         assertThatCode(() -> new Configuration(null, List.of(cluster), null, null, null,
-                List.of(vcWithNamedTarget), null, false, Optional.empty(), null, null))
+                List.of(vcWithNamedTarget), null, false, Optional.empty(), null))
                 .doesNotThrowAnyException();
     }
 
@@ -200,7 +201,7 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "myrouter"),
                 List.of(simpleGateway("gateway")), false, false, null, null, null, null);
         var config = new Configuration(null, List.of(cluster), null, null, List.of(router),
-                List.of(virtualCluster), null, false, Optional.empty(), null, null);
+                List.of(virtualCluster), null, false, Optional.empty(), null);
         List<VirtualClusterModel> virtualClusterModels = config.virtualClusterModel(noOpRouterPfr());
         assertThat(virtualClusterModels).hasSize(1).singleElement().satisfies(vm -> {
             assertThat(vm.routing()).isInstanceOf(DynamicRouting.class);
@@ -217,7 +218,7 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "myrouter"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
         var config = new Configuration(null, List.of(cluster), null, null, List.of(router),
-                List.of(vc), null, false, Optional.empty(), null, null);
+                List.of(vc), null, false, Optional.empty(), null);
 
         var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
@@ -240,7 +241,7 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "myrouter"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
         var config = new Configuration(null, List.of(c1, c2), null, null, List.of(router),
-                List.of(vc), null, false, Optional.empty(), null, null);
+                List.of(vc), null, false, Optional.empty(), null);
 
         var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
@@ -260,7 +261,7 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "myrouter"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
         var config = new Configuration(null, List.of(c1, c2), null, null, List.of(router),
-                List.of(vc), null, false, Optional.empty(), null, null);
+                List.of(vc), null, false, Optional.empty(), null);
 
         var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
@@ -277,7 +278,7 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "myrouter"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
         var config = new Configuration(null, List.of(cluster), filterDefs, null, List.of(router),
-                List.of(vc), null, false, Optional.empty(), null, null);
+                List.of(vc), null, false, Optional.empty(), null);
 
         var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
@@ -305,14 +306,14 @@ class ConfigurationValidationTest {
     @Test
     void getMicrometerReturnsConfiguredValue() {
         var micrometer = List.of(new MicrometerDefinition("JmxMeterRegistry", null));
-        var config = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(SIMPLE_VC), micrometer, false, Optional.empty(), null, null);
+        var config = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(SIMPLE_VC), micrometer, false, Optional.empty(), null);
 
         assertThat(config.getMicrometer()).isEqualTo(micrometer);
     }
 
     @Test
     void isUseIoUringReturnsConfiguredValue() {
-        var config = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(SIMPLE_VC), null, true, Optional.empty(), null, null);
+        var config = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(SIMPLE_VC), null, true, Optional.empty(), null);
 
         assertThat(config.isUseIoUring()).isTrue();
     }
@@ -330,7 +331,7 @@ class ConfigurationValidationTest {
         var empty = Optional.<Map<String, Object>> empty();
 
         assertThatThrownBy(() -> new Configuration(null, clusterDefinitions, filterDefs, null, routers,
-                vcs, null, false, empty, null, null))
+                vcs, null, false, empty, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("references filters not defined")
                 .hasMessageContaining("undefined-filter");
@@ -344,7 +345,7 @@ class ConfigurationValidationTest {
         var router = new RouterDefinition("myrouter", "Type", null, List.of(route));
 
         assertThatCode(() -> new Configuration(null, List.of(CLUSTER_DEFINITION, cluster), filterDefs, null, List.of(router),
-                List.of(SIMPLE_VC), null, false, Optional.empty(), null, null))
+                List.of(SIMPLE_VC), null, false, Optional.empty(), null))
                 .doesNotThrowAnyException();
     }
 
@@ -357,7 +358,7 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "myrouter"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
         var config = new Configuration(null, List.of(cluster), null, null, List.of(router),
-                List.of(vc), null, false, Optional.empty(), null, null);
+                List.of(vc), null, false, Optional.empty(), null);
 
         var model = config.virtualClusterModel(noOpRouterPfr(), "demo");
 
@@ -386,7 +387,7 @@ class ConfigurationValidationTest {
         // When / Then
         var vcs = List.of(vc);
         assertThatThrownBy(() -> new Configuration(null, null, null, null, null,
-                vcs, null, false, Optional.empty(), null, null))
+                vcs, null, false, Optional.empty(), null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("demo")
                 .hasMessageContaining("missingRouter");
@@ -407,7 +408,7 @@ class ConfigurationValidationTest {
         var routers = List.of(router);
         var vcs = List.of(vc);
         assertThatThrownBy(() -> new Configuration(null, clusters, null, null, routers,
-                vcs, null, false, Optional.empty(), null, null))
+                vcs, null, false, Optional.empty(), null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("demo")
                 .hasMessageContaining("nonExistentRouter");
@@ -415,14 +416,97 @@ class ConfigurationValidationTest {
 
     @Test
     void shouldRejectNoVirtualClusters() {
-        assertThatThrownBy(() -> new Configuration(null, null, null, null, null, List.of(), null, false, Optional.empty(), null, null))
+        assertThatThrownBy(() -> new Configuration(null, null, null, null, null, List.of(), null, false, Optional.empty(), null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("At least one virtual cluster");
     }
 
     @Test
+    void shouldRejectGatewaysSharingPortWithDifferingProxyProtocolModes() {
+        // Given
+        var gwForbidden = new VirtualClusterGateway("gw-forbidden",
+                new PortIdentifiesNodeIdentificationStrategy(
+                        new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty(), null); // null → FORBIDDEN
+        var gwRequired = new VirtualClusterGateway("gw-required",
+                new PortIdentifiesNodeIdentificationStrategy(
+                        new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty(), new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
+        var vc1 = new VirtualCluster("vc1", CLUSTER_TARGET, List.of(gwForbidden), false, false, null);
+        var vc2 = new VirtualCluster("vc2", CLUSTER_TARGET, List.of(gwRequired), false, false, null);
+        var vcs = List.of(vc1, vc2);
+
+        // When / Then
+        assertThatThrownBy(() -> config(vcs))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining(
+                        "Gateway 'gw-required' in virtual cluster 'vc2' on port 9192 has proxyProtocol mode REQUIRED "
+                                + "but gateway 'gw-forbidden' in virtual cluster 'vc1' on the same port uses FORBIDDEN");
+    }
+
+    @Test
+    void shouldRejectGatewaysInSameVirtualClusterSharingPortWithDifferingProxyProtocolModes() {
+        // Given
+        var gwForbidden = new VirtualClusterGateway("gw-forbidden",
+                new PortIdentifiesNodeIdentificationStrategy(
+                        new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty(), null); // null → FORBIDDEN
+        var gwRequired = new VirtualClusterGateway("gw-required",
+                new PortIdentifiesNodeIdentificationStrategy(
+                        new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty(), new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
+        var gws = List.of(gwForbidden, gwRequired);
+
+        // When / Then - validation fires in VirtualCluster constructor, before config() is called
+        assertThatThrownBy(() -> new VirtualCluster("vc1", CLUSTER_TARGET, gws, false, false, null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining(
+                        "Gateway 'gw-required' on port 9192 has proxyProtocol mode REQUIRED "
+                                + "but gateway 'gw-forbidden' on the same port uses FORBIDDEN. "
+                                + "All gateways in virtual cluster 'vc1' sharing a port must use the same proxyProtocol mode");
+    }
+
+    @Test
+    void shouldAllowGatewaysOnPortZeroWithDifferingProxyProtocolModes() {
+        // Given
+        var gwForbidden = new VirtualClusterGateway("gw-forbidden",
+                new PortIdentifiesNodeIdentificationStrategy(
+                        new HostPort("localhost", 0), null, null, null),
+                null, Optional.empty(), null); // null → FORBIDDEN
+        var gwRequired = new VirtualClusterGateway("gw-required",
+                new PortIdentifiesNodeIdentificationStrategy(
+                        new HostPort("localhost", 0), null, null, null),
+                null, Optional.empty(), new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
+        var vc1 = new VirtualCluster("vc1", CLUSTER_TARGET, List.of(gwForbidden), false, false, null);
+        var vc2 = new VirtualCluster("vc2", CLUSTER_TARGET, List.of(gwRequired), false, false, null);
+
+        // When / Then - port 0 gateways always receive their own unique OS-assigned port, so mode conflicts cannot occur
+        assertThatCode(() -> config(List.of(vc1, vc2)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void shouldAcceptGatewaysSharingPortWithSameProxyProtocolMode() {
+        // Given
+        var gw1 = new VirtualClusterGateway("gw1",
+                new PortIdentifiesNodeIdentificationStrategy(
+                        new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty(), new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
+        var gw2 = new VirtualClusterGateway("gw2",
+                new PortIdentifiesNodeIdentificationStrategy(
+                        new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty(), new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
+        var vc1 = new VirtualCluster("vc1", CLUSTER_TARGET, List.of(gw1), false, false, null);
+        var vc2 = new VirtualCluster("vc2", CLUSTER_TARGET, List.of(gw2), false, false, null);
+
+        // When / Then
+        assertThatCode(() -> config(List.of(vc1, vc2)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void shouldRejectNullVirtualClusters() {
-        assertThatThrownBy(() -> new Configuration(null, null, null, null, null, null, null, false, Optional.empty(), null, null))
+        assertThatThrownBy(() -> new Configuration(null, null, null, null, null, null, null, false, Optional.empty(), null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("At least one virtual cluster");
     }
@@ -447,7 +531,7 @@ class ConfigurationValidationTest {
 
         var vcs = List.of(vc);
         assertThatThrownBy(() -> new Configuration(null, null, null, null, null,
-                vcs, null, false, Optional.empty(), null, null))
+                vcs, null, false, Optional.empty(), null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("unknown router")
                 .hasMessageContaining("nonexistent-router");
@@ -463,7 +547,7 @@ class ConfigurationValidationTest {
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
         assertThatCode(() -> new Configuration(null, List.of(cluster), null, null, List.of(router),
-                List.of(vc), null, false, Optional.empty(), null, null))
+                List.of(vc), null, false, Optional.empty(), null))
                 .doesNotThrowAnyException();
     }
 
@@ -481,7 +565,7 @@ class ConfigurationValidationTest {
 
         // When
         var config = new Configuration(null, List.of(cluster), null, null, List.of(outerRouter, innerRouter),
-                List.of(vc), null, false, Optional.empty(), null, null);
+                List.of(vc), null, false, Optional.empty(), null);
         var dr = (DynamicRouting) config.virtualClusterModel(noOpRouterPfr()).get(0).routing();
 
         // Then
@@ -508,7 +592,7 @@ class ConfigurationValidationTest {
 
         // When
         var config = new Configuration(null, List.of(c1, c2), null, null, List.of(router, innerRouter),
-                List.of(vc), null, false, Optional.empty(), null, null);
+                List.of(vc), null, false, Optional.empty(), null);
         var dr = (DynamicRouting) config.virtualClusterModel(noOpRouterPfr()).get(0).routing();
 
         // Then

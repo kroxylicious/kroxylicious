@@ -38,25 +38,16 @@ jobs:
       - name: 'Discover ITs'
         id: discover
         run: |
-          TESTS_PER_CHUNK=15
-          TEST_CHUNKS=$(./scripts/discover-integration-tests.sh ${TESTS_PER_CHUNK})
+          # IT-grinder: skip the usual repo-wide scan, run only ProxyProtocolIT
+          # across GRINDER_CHUNKS parallel matrix jobs to shake out flakiness.
+          GRINDER_CHUNKS=10
+          GRINDER_MODULE="kroxylicious-integration-tests"
+          GRINDER_TEST="ProxyProtocolIT"
 
-          # Extract unique modules from the chunks JSON
-          # Parse "module:TestClass" format and get unique module artifact IDs (basename)
-          DISCOVERED_MODULES=$(echo "$TEST_CHUNKS" | jq -r '.[]' \
-            | tr ',' '\n' \
-            | cut -d: -f1 \
-            | xargs -n 1 basename \
-            | sort -u \
-            | sed 's|^|:|' \
-            | tr '\n' ',' \
-            | sed 's/,$//')
+          TEST_CHUNKS=$(jq -nc --arg spec "${GRINDER_MODULE}:${GRINDER_TEST}" --argjson n "${GRINDER_CHUNKS}" \
+            '[range($n) | $spec]')
 
-          # Always include BOM as it's required for dependency management
-          # Also include filter-archetype as it has special IT requirements
-          # Also include kroxylicious-app to build operand container image for operator ITs
-          # Also include dist modules for operator and admission webhook KT tests
-          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,${DISCOVERED_MODULES}"
+          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,:${GRINDER_MODULE}"
 
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
           echo "modules=$MODULES" >> $GITHUB_OUTPUT

@@ -418,7 +418,7 @@ class RouterChainFactoryTest {
     private static VirtualCluster testVc(String name, String router) {
         var gateway = new VirtualClusterGateway("gw",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
-                null, Optional.empty());
+                null, Optional.empty(), null);
         return new VirtualCluster(name, null, new RouteTarget(null, router),
                 List.of(gateway), false, false, null, null, null, null);
     }

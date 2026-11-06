@@ -13,6 +13,7 @@ import java.util.function.Function;
 
 import io.netty.handler.ssl.SslContext;
 
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -122,6 +123,14 @@ public interface EndpointGateway {
      * @return name
      */
     String name();
+
+    /**
+     * The PROXY protocol enforcement mode configured for this gateway.
+     *
+     * @return proxy protocol mode; {@link ProxyProtocolMode#FORBIDDEN} when no {@code proxyProtocol}
+     *         block is configured on the gateway
+     */
+    ProxyProtocolMode proxyProtocolMode();
 
     /**
      * The binding specification describing what sockets this gateway needs.

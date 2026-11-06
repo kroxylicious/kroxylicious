@@ -384,7 +384,11 @@ class TlsIT extends AbstractTlsIT {
             assertThat(response)
                     .failsWithin(Duration.ofSeconds(5))
                     .withThrowableThat()
-                    .withMessageContaining("channel closed before response received!");
+                    .havingCause()
+                    .extracting(Throwable::getSuppressed, InstanceOfAssertFactories.array(Throwable[].class))
+                    .singleElement()
+                    .asInstanceOf(InstanceOfAssertFactories.THROWABLE)
+                    .hasMessageContaining("Connection closed while SSL/TLS handshake was in progress");
         }
     }
 
