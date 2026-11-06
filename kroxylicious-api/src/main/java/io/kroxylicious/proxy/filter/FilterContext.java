@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import java.net.SocketAddress;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
@@ -18,6 +19,7 @@ import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -31,6 +33,57 @@ public interface FilterContext {
      * @return A description of this channel (typically used for logging).
      */
     String channelDescriptor();
+
+    /**
+     * The client's address for this connection: the source address from a supported PROXY protocol
+     * header, otherwise the immediate transport peer (which, with no intermediary, is the client
+     * itself).
+     * <p>
+     * For the TCP connections currently supported by Kroxylicious, the returned value is an
+     * {@link java.net.InetSocketAddress}, including the IP address and port.
+     * <p>
+     * The value is stable for the life of the connection, so a filter may cache it.
+     * <p>
+     * <strong>This address is not authenticated by Kroxylicious.</strong> When it is derived from a
+     * PROXY protocol header (see {@link #clientProxyProtocolContext()}), an untrusted client can forge
+     * it if it can connect directly to the listener and send a syntactically valid header. Treat such an
+     * address as untrusted, including for authorization or audit decisions, unless the immediate peer is a
+     * trusted PROXY protocol sender and untrusted clients cannot reach the listener directly; Kroxylicious
+     * cannot verify this. {@link #peerAddress()}, the remote address of the connection itself, cannot be
+     * forged this way.
+     * <p>
+     * <strong>Do not call {@code getHostName()} or {@code getCanonicalHostName()}</strong> on the
+     * returned address (or on its {@link java.net.InetAddress}): for a literal IP either may trigger a
+     * blocking reverse-DNS lookup on the event-loop thread, which filters must never do. Read the IP via
+     * {@link java.net.InetSocketAddress#getAddress()} and the port via
+     * {@link java.net.InetSocketAddress#getPort()}; when a string is needed, use
+     * {@link java.net.InetSocketAddress#getHostString()} or {@link java.net.InetAddress#getHostAddress()}
+     * (the safe equivalents of {@code getHostName()}).
+     * @return the client's address
+     */
+    SocketAddress clientAddress();
+
+    /**
+     * The immediate transport peer's address for this connection. This is simply the remote
+     * address of the client-facing connection; it does not distinguish whether that
+     * peer is the actual client or an intermediary (e.g. a load balancer). For the
+     * client's address prefer {@link #clientAddress()}.
+     * <p>
+     * For the TCP connections currently supported by Kroxylicious, the returned value is an
+     * {@link java.net.InetSocketAddress}, including the IP address and port. The value is cacheable
+     * for the life of the connection, and the {@code getHostName()} caveat on {@link #clientAddress()}
+     * applies to this address too.
+     * @return the immediate transport peer's address
+     */
+    SocketAddress peerAddress();
+
+    /**
+     * The PROXY protocol context for this connection. When present,
+     * {@link ClientProxyProtocolContext#sourceAddress()} is the value returned by {@link #clientAddress()}.
+     * @return the PROXY protocol context when a PROXY command carrying a TCP4 or TCP6 proxied protocol
+     * was received; otherwise empty (including when PROXY protocol support is disabled)
+     */
+    Optional<ClientProxyProtocolContext> clientProxyProtocolContext();
 
     /**
      * An id which uniquely identifies the connection with the client in both time and space.

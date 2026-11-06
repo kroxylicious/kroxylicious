@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -60,6 +62,7 @@ import static org.mockito.Mockito.when;
  */
 public abstract class FilterHarness {
     public static final String TEST_CLIENT = "test-client";
+    public static final InetSocketAddress TEST_PEER_ADDRESS = new InetSocketAddress("192.0.2.1", 12345);
     public static final List<HostPort> TARGET_CLUSTER_BOOTSTRAP = List.of(HostPort.parse("targetCluster:9091"));
     protected EmbeddedChannel channel;
     protected EmbeddedChannel inboundChannel;
@@ -95,7 +98,12 @@ public abstract class FilterHarness {
         var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", new DirectRouting("upstream", targetCluster), false,
                 false, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
         testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
-        inboundChannel = new EmbeddedChannel();
+        inboundChannel = new EmbeddedChannel() {
+            @Override
+            protected SocketAddress remoteAddress0() {
+                return TEST_PEER_ADDRESS;
+            }
+        };
         var channelProcessors = Stream.<ChannelHandler> of(new CorrelationIdIssuer(), new InternalRequestTracker());
 
         var endpointBinding = mock(EndpointBinding.class);

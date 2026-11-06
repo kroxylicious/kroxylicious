@@ -30,6 +30,8 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContextBuilder;
 
@@ -381,7 +383,7 @@ class KafkaProxyFrontendHandlerTest {
             // Simulate PROXY header arriving before channelActive (as in real pipeline).
             // Store context in KafkaSession so CCSM picks it up during onClientActive.
             clientConnectionStateMachine.kafkaSession().setHaProxyContext(
-                    new HaProxyContext("1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT, java.util.Map.of()));
+                    new HaProxyContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4, "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT, java.util.Map.of()));
         }
 
         var handler = handler(dp, clientConnectionStateMachine);

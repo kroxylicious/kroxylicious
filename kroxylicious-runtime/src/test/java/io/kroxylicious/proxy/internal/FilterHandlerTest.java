@@ -5,11 +5,16 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +43,8 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.kafka.common.message.ApiMessageType;
@@ -76,6 +83,8 @@ import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1431,6 +1440,99 @@ class FilterHandlerTest extends FilterHarness {
                         "mechanism", "unknown",
                         "outcome", "failure")
                 .counter().count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void peerAddressIsInboundChannelRemoteAddress() {
+        // Given
+        var observed = new AtomicReference<SocketAddress>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            observed.set(context.peerAddress());
+            return context.requestFilterResultBuilder().forward(header, request).completed();
+        };
+        buildChannel(filter);
+
+        // When
+        writeRequest(new ApiVersionsRequestData());
+        channel.readInbound();
+
+        // Then
+        assertThat(observed).hasValue(TEST_PEER_ADDRESS);
+    }
+
+    @Test
+    void clientAddressIsProxySourceAddressWithTcp4ProxyHeader() throws Exception {
+        // Given
+        var observedContext = new AtomicReference<Optional<ClientProxyProtocolContext>>();
+        var observedClient = new AtomicReference<SocketAddress>();
+        var observedPeer = new AtomicReference<SocketAddress>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            observedContext.set(context.clientProxyProtocolContext());
+            observedClient.set(context.clientAddress());
+            observedPeer.set(context.peerAddress());
+            return context.requestFilterResultBuilder().forward(header, request).completed();
+        };
+        buildChannel(filter);
+        clientConnectionStateMachine.kafkaSession().setHaProxyContext(
+                new HaProxyContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4, "192.168.1.100", "10.0.0.1", 54321, 9092, Map.of()));
+        var expectedSource = new InetSocketAddress(InetAddress.getByName("192.168.1.100"), 54321);
+        var expectedDestination = new InetSocketAddress(InetAddress.getByName("10.0.0.1"), 9092);
+
+        // When
+        writeRequest(new ApiVersionsRequestData());
+        channel.readInbound();
+
+        // Then
+        assertThat(observedContext.get()).hasValueSatisfying(proxyProtocol -> {
+            assertThat(proxyProtocol.sourceAddress()).isEqualTo(expectedSource);
+            assertThat(proxyProtocol.destinationAddress()).isEqualTo(expectedDestination);
+        });
+        assertThat(observedClient).hasValue(expectedSource);
+        assertThat(observedPeer).hasValue(TEST_PEER_ADDRESS);
+    }
+
+    @Test
+    void clientAddressIsPeerAddressWithoutProxyHeader() {
+        // Given
+        var observedContext = new AtomicReference<Optional<ClientProxyProtocolContext>>();
+        var observedClient = new AtomicReference<SocketAddress>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            observedContext.set(context.clientProxyProtocolContext());
+            observedClient.set(context.clientAddress());
+            return context.requestFilterResultBuilder().forward(header, request).completed();
+        };
+        buildChannel(filter);
+
+        // When
+        writeRequest(new ApiVersionsRequestData());
+        channel.readInbound();
+
+        // Then
+        assertThat(observedContext.get()).isEmpty();
+        assertThat(observedClient).hasValue(TEST_PEER_ADDRESS);
+    }
+
+    @Test
+    void clientAddressIsPeerAddressWithUnixStreamProxyHeader() {
+        // Given
+        var observedContext = new AtomicReference<Optional<ClientProxyProtocolContext>>();
+        var observedClient = new AtomicReference<SocketAddress>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            observedContext.set(context.clientProxyProtocolContext());
+            observedClient.set(context.clientAddress());
+            return context.requestFilterResultBuilder().forward(header, request).completed();
+        };
+        buildChannel(filter);
+        clientConnectionStateMachine.kafkaSession().setHaProxyContext(
+                new HaProxyContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.UNIX_STREAM, "/run/haproxy/src.sock", "/run/haproxy/dst.sock", 0, 0, Map.of()));
+
+        // When
+        writeRequest(new ApiVersionsRequestData());
+        channel.readInbound();
+
+        // Then
+        assertThat(observedContext.get()).isEmpty();
+        assertThat(observedClient).hasValue(TEST_PEER_ADDRESS);
     }
 
     @Test

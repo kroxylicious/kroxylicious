@@ -40,6 +40,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultChannelId;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.ScheduledFuture;
 
@@ -91,7 +93,8 @@ import static org.mockito.Mockito.withSettings;
 class ClientConnectionStateMachineTest {
 
     private static final HostPort BROKER_ADDRESS = new HostPort("localhost", 9092);
-    private static final HaProxyContext HA_PROXY_CONTEXT = new HaProxyContext("1.1.1.1", "2.2.2.2", 46421, 9092, java.util.Map.of());
+    private static final HaProxyContext HA_PROXY_CONTEXT = new HaProxyContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4, "1.1.1.1", "2.2.2.2", 46421,
+            9092, java.util.Map.of());
     private static final Offset<Double> CLOSE_ENOUGH = Offset.offset(0.00005);
     private static final String CLUSTER_NAME = "virtualClusterA";
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
