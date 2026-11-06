@@ -7,6 +7,7 @@
 package io.kroxylicious.authorizer.provider.acl;
 
 import java.util.TreeMap;
+import java.util.function.BiConsumer;
 import java.util.function.UnaryOperator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -43,6 +44,11 @@ class TypeNameMap<T, V> {
             return null;
         }
         throw new IllegalArgumentException("Unknown lookupable: " + lookupable);
+    }
+
+    /** Calls the action for every key and value, in key order. */
+    public void forEach(BiConsumer<OrderedKey<T>, V> action) {
+        map.forEach(action);
     }
 
 }
