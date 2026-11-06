@@ -34,10 +34,10 @@ virtualClusters:
     gateways:
     - name: ...
       # ...
+      proxyProtocol:
+        mode: forbidden
     subjectBuilder:
       # ...
-proxyProtocol: # <10>
-  mode: disabled
 
 # ...
 ----
@@ -57,5 +57,6 @@ where:
 ** (Required) A `name` that identifies the virtual cluster. Must be unique within the list.
 ** `target.cluster` names the `clusterDefinitions` entry that the virtual cluster (`my-cluster-proxy`) proxies.
 ** `gateways` defines the gateways configuration for this virtual cluster.
+*** `proxyProtocol` (Optional) configures PROXY protocol handling for the gateway when it is deployed behind a PROXY protocol-capable load balancer.
+    When omitted, the gateway does not accept PROXY protocol headers.
 ** `subjectBuilder` (Optional) defines the transport subject builder configuration.
-** `proxyProtocol` (Optional) Enable HAProxy PROXY protocol decoding when deployed behind a PROXY protocol-capable load balancer.
