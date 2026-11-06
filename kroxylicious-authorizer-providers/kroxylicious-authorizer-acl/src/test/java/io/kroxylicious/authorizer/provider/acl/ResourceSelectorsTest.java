@@ -38,6 +38,7 @@ class ResourceSelectorsTest {
             deny User with name = "bob" to * Topic with name = "team-a-secret";
             deny User with name = "carol" to READ Topic with name matching /orders-9.*/;
             deny User with name = "dan" to * Topic with name *;
+            deny anonymous User to READ Topic with name = "public-secret";
             allow User with name = "bob" to WRITE Topic with name like "team-a-*";
             allow User with name = "alice" to READ Topic with name in {"x", "y"};
             allow User with name = "carol" to READ Topic with name matching /orders-[0-9]+/;
@@ -45,6 +46,7 @@ class ResourceSelectorsTest {
             allow User with name * to DESCRIBE Topic with name *;
             allow ServiceAccount with name = "svc" to {READ, WRITE} Topic with name like "svc-*";
             allow User with name = "alice" to CONNECT Cluster with name = "c1";
+            allow anonymous User to READ Topic with name like "public-*";
             otherwise deny;
             """;
 
@@ -58,11 +60,12 @@ class ResourceSelectorsTest {
             subject(new User("temp-joe")),
             subject(new User("temp")),
             subject(new User("mallory"), new ServiceAccount("svc")),
-            subject(new User("svc")));
+            subject(new User("svc")),
+            Subject.anonymous());
 
     private static final List<String> NAMES = List.of(
             "team-a-secret", "team-a-public", "team-a-", "team-a", "team-b-x", "x", "y", "z", "orders-1", "orders-9",
-            "orders-91", "orders-x", "scratch-1", "scratch", "svc-1", "svc", "c1", "c2", "");
+            "orders-91", "orders-x", "scratch-1", "scratch", "svc-1", "svc", "c1", "c2", "public-a", "public-secret", "");
 
     private static Subject subject(Principal... principals) {
         return new Subject(Set.of(principals));

@@ -426,6 +426,11 @@ public class AclAuthorizer implements Authorizer {
 
     private static final List<Principal> ANONYMOUS_PRINCIPALS = List.of(new AnonymousPrincipal(""));
 
+    /** An anonymous subject is matched by the rules for anonymous subjects only. */
+    private static Collection<? extends Principal> principalsOf(Identity subject) {
+        return subject.principals().isEmpty() ? ANONYMOUS_PRINCIPALS : subject.principals();
+    }
+
     private static @Nullable Decision authorizeInternal(
                                                         TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
                                                         Identity subject,
@@ -433,9 +438,7 @@ public class AclAuthorizer implements Authorizer {
                                                         Decision whenFound,
                                                         @Nullable Decision whenNotFound) {
         assert whenFound != whenNotFound;
-        // An anonymous subject is matched by the rules for anonymous subjects only
-        Collection<? extends Principal> principals = subject.principals().isEmpty() ? ANONYMOUS_PRINCIPALS : subject.principals();
-        for (var p : principals) {
+        for (var p : principalsOf(subject)) {
             for (var matcher : principalMatchers(p)) {
                 var grant = allowPerPrincipal.matchingOperations(matcher);
                 if (grant != null) {
@@ -571,7 +574,7 @@ public class AclAuthorizer implements Authorizer {
 
     /** Whether a rule's principal matcher selects one of the subject's principals. */
     private static boolean appliesTo(OrderedKey<Principal> principalMatcher, Identity subject) {
-        for (var principal : subject.principals()) {
+        for (var principal : principalsOf(subject)) {
             if (!principalMatcher.type().equals(principal.getClass())) {
                 continue;
             }
