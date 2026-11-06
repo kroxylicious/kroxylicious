@@ -44,7 +44,7 @@ jobs:
           GRINDER_MODULE="kroxylicious-integration-tests"
           GRINDER_TEST="ProxyProtocolIT"
 
-          TEST_CHUNKS=$(jq -n --arg spec "${GRINDER_MODULE}:${GRINDER_TEST}" --argjson n "${GRINDER_CHUNKS}" \
+          TEST_CHUNKS=$(jq -nc --arg spec "${GRINDER_MODULE}:${GRINDER_TEST}" --argjson n "${GRINDER_CHUNKS}" \
             '[range($n) | $spec]')
 
           MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,:${GRINDER_MODULE}"
