@@ -68,7 +68,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         var fileName = config.aclFile();
         try {
             var stream = CharStreams.fromPath(Path.of(fileName));
-            this.aclAuthorizer = parse(stream);
+            this.aclAuthorizer = parse(stream, AclAuthorizerService.class.getClassLoader());
         }
         catch (java.io.IOException e) {
             throw new UncheckedIOException(e);
@@ -102,7 +102,29 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
     }
 
+    /**
+     * Builds an {@link AclAuthorizer} from ACL rules, resolving the principal and resource type
+     * classes the rules import with the given class loader.
+     *
+     * <p>Use this when the classes named by the rules are not visible to this module's own class
+     * loader, or are visible as different copies: for example in application servers, plugin systems,
+     * or frameworks whose dev and test modes load application classes in a child class loader.
+     * {@link #initialize(AclAuthorizerConfig)} resolves them with this module's class loader.</p>
+     *
+     * @param rules the ACL rules, in the same format as an ACL rules file.
+     * @param classLoader the class loader used to resolve the classes the rules import.
+     * @return the authorizer.
+     * @throws InvalidRulesFileException if the rules are not valid.
+     */
+    public static AclAuthorizer parse(String rules, ClassLoader classLoader) {
+        return parse(CharStreams.fromString(rules), Objects.requireNonNull(classLoader));
+    }
+
     static <O extends Enum<O> & ResourceType<O>> AclAuthorizer parse(CharStream stream) {
+        return parse(stream, AclAuthorizerService.class.getClassLoader());
+    }
+
+    static <O extends Enum<O> & ResourceType<O>> AclAuthorizer parse(CharStream stream, ClassLoader classLoader) {
         int maxErrorsToReports = 100;
         ParseErrorListener parseErrorListener = new ParseErrorListener(maxErrorsToReports);
 
@@ -117,7 +139,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         var builder = AclAuthorizer.builder();
 
         ParseTreeWalker walker = new ParseTreeWalker();
-        BuildingListener buildingListener = new BuildingListener(builder, maxErrorsToReports);
+        BuildingListener buildingListener = new BuildingListener(builder, maxErrorsToReports, classLoader);
         walker.walk(buildingListener, tree);
         buildingListener.maybeThrow();
 
@@ -172,6 +194,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         private final AclAuthorizer.Builder authorizerBuilder;
         private final int maxErrorsToReport;
         private final List<String> errorMessages;
+        private final ClassLoader classLoader;
         private int numErrors;
         private boolean allOps;
         Map<String, String> localToQualifiedByDefault;
@@ -182,8 +205,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         private @Nullable AclAuthorizer.OperationsBuilder operationsBuilder;
         private @Nullable AclAuthorizer.ResourceBuilder<? extends Enum> resourceBuilder;
 
-        BuildingListener(AclAuthorizer.Builder authorizerBuilder, int maxErrorsToReport) {
+        BuildingListener(AclAuthorizer.Builder authorizerBuilder, int maxErrorsToReport, ClassLoader classLoader) {
             this.authorizerBuilder = authorizerBuilder;
+            this.classLoader = classLoader;
             this.maxErrorsToReport = maxErrorsToReport;
             this.errorMessages = new ArrayList<>(maxErrorsToReport);
             this.localToQualifiedByDefault = Map.of("User", "io.kroxylicious.proxy.authentication.User");
@@ -324,7 +348,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                 return null;
             }
             try {
-                Class<?> c = Class.forName(qualifiedClassName);
+                Class<?> c = Class.forName(qualifiedClassName, true, classLoader);
                 if (!cls.isAssignableFrom(c)) {
                     reportError(identToken,
                             "%s class '%s' is not a subclass of %s.".formatted(desc, localClassName, cls));
