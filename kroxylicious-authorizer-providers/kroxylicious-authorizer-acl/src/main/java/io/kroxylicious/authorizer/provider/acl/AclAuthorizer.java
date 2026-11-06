@@ -521,6 +521,72 @@ public class AclAuthorizer implements Authorizer {
         return CompletableFuture.completedStage(new AuthorizeResult(subject, allowedActions, deniedActions));
     }
 
+    /**
+     * Returns the resource names this authorizer allows the subject to perform the operation on,
+     * as the name selectors of the allow and deny rules that apply. For every resource name,
+     * {@link ResourceSelectors#allows(String)} agrees with {@link #authorize}.
+     *
+     * @param subject the subject.
+     * @param operation the operation.
+     * @return the selectors.
+     */
+    public ResourceSelectors resourceSelectors(Identity subject, ResourceType<?> operation) {
+        return new ResourceSelectors(selectors(allowPerPrincipal, subject, operation),
+                selectors(denyPerPrincipal, subject, operation));
+    }
+
+    private static ResourceNameSelectors selectors(TypeNameMap<Principal, ResourceGrants> rules,
+                                                   Identity subject,
+                                                   ResourceType<?> operation) {
+        Class<?> resourceType = ((Enum<?>) operation).getDeclaringClass();
+        boolean[] anyName = { false };
+        Set<String> names = new HashSet<>();
+        Set<String> prefixes = new HashSet<>();
+        Set<String> patterns = new HashSet<>();
+        rules.forEach((principalMatcher, grants) -> {
+            if (!appliesTo(principalMatcher, subject)) {
+                return;
+            }
+            if (grants.nameMatches() != null) {
+                grants.nameMatches().forEach((resourceMatcher, operations) -> {
+                    if (resourceMatcher.type().equals(resourceType) && operations.contains(operation)) {
+                        switch (resourceMatcher) {
+                            case ResourceMatcherAnyOfType<?> any -> anyName[0] = true;
+                            case ResourceMatcherNameEquals<?> equals -> names.add(equals.operand());
+                            case ResourceMatcherNameStarts<?> starts -> prefixes.add(starts.prefix());
+                        }
+                    }
+                });
+            }
+            if (grants.patternMatches() != null) {
+                grants.patternMatches().forEach((resourceMatcher, operations) -> {
+                    if (resourceMatcher.type().equals(resourceType) && operations.contains(operation)) {
+                        patterns.add(resourceMatcher.pattern().pattern());
+                    }
+                });
+            }
+        });
+        return new ResourceNameSelectors(anyName[0], names, prefixes, patterns);
+    }
+
+    /** Whether a rule's principal matcher selects one of the subject's principals. */
+    private static boolean appliesTo(OrderedKey<Principal> principalMatcher, Identity subject) {
+        for (var principal : subject.principals()) {
+            if (!principalMatcher.type().equals(principal.getClass())) {
+                continue;
+            }
+            boolean matches = switch (principalMatcher) {
+                case ResourceMatcherAnyOfType<?> any -> true;
+                case ResourceMatcherNameEquals<?> equals -> equals.operand().equals(principal.name());
+                case ResourceMatcherNameStarts<?> starts -> principal.name().startsWith(starts.prefix());
+            };
+            if (matches) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public Optional<Set<Class<? extends ResourceType<?>>>> supportedResourceTypes() {
         return Optional.of(Set.copyOf(usedResourceTypes));
