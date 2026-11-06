@@ -1,0 +1,4 @@
+title: "fix AclAuthorizer incorrectly using getClass() instead of getDeclaringClass() on enum constants"
+type: fixed
+merge_requests:
+  - 5248

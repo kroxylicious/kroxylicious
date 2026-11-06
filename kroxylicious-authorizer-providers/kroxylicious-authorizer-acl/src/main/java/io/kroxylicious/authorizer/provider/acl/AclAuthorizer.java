@@ -309,7 +309,7 @@ public class AclAuthorizer implements Authorizer {
             return new ResourceBuilder<>(builder,
                     isAllowRule,
                     this.principalMatchers,
-                    (Class) operations.iterator().next().getClass(),
+                    (Class) operations.iterator().next().getDeclaringClass(),
                     os);
         }
 
@@ -325,7 +325,7 @@ public class AclAuthorizer implements Authorizer {
          * Constructs a Builder.
          */
         public Builder() {
-            // explicit ctor needed for javadoc
+            // explicit ctor needed for Javadoc
         }
 
         /**
@@ -372,7 +372,7 @@ public class AclAuthorizer implements Authorizer {
                                                                    Key<O> resourceMatcher,
                                                                    Set<O> operations) {
         var es = EnumSet.copyOf(operations);
-        for (var op : es) {
+        for (var op : operations) {
             es.addAll(op.implies());
         }
         ResourceGrants compute = allowPerPrincipal.addApply(principalMatcher,

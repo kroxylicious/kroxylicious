@@ -50,6 +50,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -157,7 +159,8 @@ final class PemUtils {
      * PKCS#8 format is: SEQUENCE { version, algorithm, privateKey }
      * where privateKey is the PKCS#1 RSAPrivateKey wrapped as an OCTET STRING.
      */
-    private static byte[] convertPKCS1ToPKCS8(byte[] pkcs1Bytes) throws IOException {
+    @VisibleForTesting
+    static byte[] convertPKCS1ToPKCS8(byte[] pkcs1Bytes) throws IOException {
         // PKCS#8 wrapper for RSA:
         // SEQUENCE {
         // INTEGER 0 (version)
@@ -166,13 +169,31 @@ final class PemUtils {
         // }
 
         int pkcs1Length = pkcs1Bytes.length;
-        int totalLength = pkcs1Length + 22; // Fixed overhead for RSA wrapper
+        // Overhead is 19 fixed bytes (3 version INTEGER + 15 rsaEncryption SEQUENCE + 1 OCTET STRING tag)
+        // plus the OCTET STRING length field, which is 1, 2, or 3 bytes depending on pkcs1Length.
+        int octetStringLengthFieldSize;
+        if (pkcs1Length < 128) {
+            octetStringLengthFieldSize = 1;
+        }
+        else {
+            if (pkcs1Length < 256) {
+                octetStringLengthFieldSize = 2;
+            }
+            else {
+                octetStringLengthFieldSize = 3;
+            }
+        }
+        int totalLength = pkcs1Length + 19 + octetStringLengthFieldSize;
 
         ByteArrayOutputStream out = new ByteArrayOutputStream(totalLength + 4);
 
         // Outer SEQUENCE tag and length
         out.write(0x30); // SEQUENCE tag
         if (totalLength < 128) {
+            out.write(totalLength);
+        }
+        else if (totalLength < 256) {
+            out.write(0x81); // Long form: 1 length byte
             out.write(totalLength);
         }
         else {
@@ -293,6 +314,11 @@ final class PemUtils {
             throw new IOException(
                     "could not find a PKCS #8 private key in input stream " +
                             "(see https://netty.io/wiki/sslcontextbuilder-and-private-key.html for more information)");
+        }
+
+        if (m.group(0).contains("BEGIN ENCRYPTED PRIVATE KEY")) {
+            throw new IOException(
+                    "Encrypted private keys are not supported by this PEM parser. Use a keystore format (JKS/PKCS12) for encrypted keys, or convert to unencrypted PKCS#8: openssl pkcs8 -topk8 -nocrypt -in encrypted.pem -out unencrypted.pem");
         }
 
         m.usePattern(BODY);

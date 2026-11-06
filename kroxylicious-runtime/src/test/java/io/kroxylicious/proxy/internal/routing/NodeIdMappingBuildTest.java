@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class NodeIdMappingBuildTest {
 
     private static RouteDescriptor clusterRoute(String name, int id) {
-        return new RouteDescriptor(name, id, new TargetCluster("broker:9092", null), null, List.of());
+        return new RouteDescriptor(name, id, new TargetCluster("broker:9092", Optional.empty()), null, List.of());
     }
 
     @Test

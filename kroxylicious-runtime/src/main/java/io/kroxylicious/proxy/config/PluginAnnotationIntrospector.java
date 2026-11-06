@@ -86,7 +86,7 @@ class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
             return Objects.equals(use(), that.use())
                     && Objects.equals(include(), that.include())
                     && Objects.equals(defaultImpl(), that.defaultImpl())
-                    && Objects.equals(visible(), that.visible())
+                    && visible() == that.visible()
                     && Objects.equals(requireTypeIdForSubtypes(), that.requireTypeIdForSubtypes())
                     && Objects.equals(property(), that.property());
         }
@@ -160,7 +160,7 @@ class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
 
         @Override
         public int hashCode() {
-            return Objects.hash(value());
+            return Objects.hashCode(value());
         }
     }
 }

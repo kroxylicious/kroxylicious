@@ -60,36 +60,36 @@ public interface VersionInfo {
 
     private static VersionInfo getVersionInfo(String resourceName) {
 
-        try (var resource = Info.class.getClassLoader().getResourceAsStream(resourceName)) {
+        try (var resource = DefaultVersionInfo.class.getClassLoader().getResourceAsStream(resourceName)) {
             if (resource != null) {
                 Properties properties = new Properties();
                 properties.load(resource);
-                String version = properties.getProperty("kroxylicious.version", Info.UNKNOWN);
-                String commitId = properties.getProperty("git.commit.id", Info.UNKNOWN);
-                return new Info(version, commitId);
+                String version = properties.getProperty("kroxylicious.version", DefaultVersionInfo.UNKNOWN);
+                String commitId = properties.getProperty("git.commit.id", DefaultVersionInfo.UNKNOWN);
+                return new DefaultVersionInfo(version, commitId);
             }
         }
         catch (IOException e) {
-            var logger = LoggerFactory.getLogger(Info.class);
+            var logger = LoggerFactory.getLogger(DefaultVersionInfo.class);
             logger.atWarn()
                     .setCause(e)
                     .log("Failed to retrieve version information (ignored)");
         }
-        return Info.UNKNOWN_VERSION_INFO;
+        return DefaultVersionInfo.UNKNOWN_VERSION_INFO;
     }
 
     /**
      * Default {@link VersionInfo} implementation backed by values read from a version metadata
      * properties resource, falling back to {@code unknown} values when unavailable.
      */
-    final class Info implements VersionInfo {
+    final class DefaultVersionInfo implements VersionInfo {
         private static final String UNKNOWN = "unknown";
 
-        private static final Info UNKNOWN_VERSION_INFO = new Info(UNKNOWN, UNKNOWN);
+        private static final DefaultVersionInfo UNKNOWN_VERSION_INFO = new DefaultVersionInfo(UNKNOWN, UNKNOWN);
         private final String version;
         private final String commitId;
 
-        private Info(String version, String commitId) {
+        private DefaultVersionInfo(String version, String commitId) {
             this.version = Objects.requireNonNull(version);
             this.commitId = Objects.requireNonNull(commitId);
         }

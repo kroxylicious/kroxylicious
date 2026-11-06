@@ -34,7 +34,7 @@ public record Action(
      */
     @SuppressWarnings({ "rawtypes", "unchecked", "java:S1452" })
     public Class<? extends ResourceType<?>> resourceTypeClass() {
-        return (Class) operation.getClass();
+        return (Class) ((Enum<?>) operation).getDeclaringClass();
     }
 
     @Override
