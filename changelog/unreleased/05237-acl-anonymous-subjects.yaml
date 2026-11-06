@@ -1,0 +1,4 @@
+title: "feat(authorizer-acl): support 'anonymous User' in ACL rules files, for clients that have not authenticated"
+type: added
+issues:
+  - 5237
