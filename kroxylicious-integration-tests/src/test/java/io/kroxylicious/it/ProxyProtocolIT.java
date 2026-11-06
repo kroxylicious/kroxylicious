@@ -5,14 +5,17 @@
  */
 package io.kroxylicious.it;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -54,27 +57,36 @@ class ProxyProtocolIT {
 
     private static final CertificateGenerator.Keys TLS_KEYS = CertificateGenerator.generate();
 
+    /** Grinder repeat count — see IT-grinder workflow. */
+    private static final int REPEAT_COUNT = 10;
+
+    private record MessageFactory(String name, Supplier<HAProxyMessage> factory) {}
+
+    private static final List<MessageFactory> MESSAGE_FACTORIES = List.of(
+            new MessageFactory("v1-proxy-tcp4",
+                    () -> new HAProxyMessage(V1, PROXY, TCP4, "192.168.1.100", "127.0.0.1", 54321, 9092)),
+            new MessageFactory("v1-proxy-tcp6",
+                    () -> new HAProxyMessage(V1, PROXY, TCP6, "2001:db8::1", "2001:db8::2", 54321, 9092)),
+            new MessageFactory("v2-proxy-tcp4",
+                    () -> new HAProxyMessage(V2, PROXY, TCP4, "192.168.1.100", "127.0.0.1", 54321, 9092)),
+            new MessageFactory("v2-proxy-tcp6",
+                    () -> new HAProxyMessage(V2, PROXY, TCP6, "::1", "::1", 54321, 9092)),
+            // LOCAL command is used for health-check / loopback traffic. It is still a valid
+            // PROXY v2 frame: REQUIRED mode must accept it, FORBIDDEN mode must reject it.
+            // Netty's public HAProxyMessage constructor does not support AF_UNSPEC addresses,
+            // so we use TCP4+localhost which produces a valid LOCAL-command frame on the wire.
+            new MessageFactory("v2-local",
+                    () -> new HAProxyMessage(V2, LOCAL, TCP4, "127.0.0.1", "127.0.0.1", 0, 0)));
+
     /**
-     * PROXY messages to exercise in "with header" tests. Each call produces a fresh stream
-     * of new HAProxyMessage instances — HAProxyMessage is ref-counted and the encoder releases
-     * it after writing, so instances must not be shared across test invocations.
+     * PROXY messages to exercise in "with header" tests, each repeated {@link #REPEAT_COUNT} times.
+     * HAProxyMessage is ref-counted and the encoder releases it after writing, so a fresh instance
+     * is created per repetition rather than shared across invocations.
      */
     static Stream<Arguments> proxyMessages() {
-        return Stream.of(
-                Arguments.argumentSet("v1-proxy-tcp4",
-                        new HAProxyMessage(V1, PROXY, TCP4, "192.168.1.100", "127.0.0.1", 54321, 9092)),
-                Arguments.argumentSet("v1-proxy-tcp6",
-                        new HAProxyMessage(V1, PROXY, TCP6, "2001:db8::1", "2001:db8::2", 54321, 9092)),
-                Arguments.argumentSet("v2-proxy-tcp4",
-                        new HAProxyMessage(V2, PROXY, TCP4, "192.168.1.100", "127.0.0.1", 54321, 9092)),
-                Arguments.argumentSet("v2-proxy-tcp6",
-                        new HAProxyMessage(V2, PROXY, TCP6, "::1", "::1", 54321, 9092)),
-                // LOCAL command is used for health-check / loopback traffic. It is still a valid
-                // PROXY v2 frame: REQUIRED mode must accept it, FORBIDDEN mode must reject it.
-                // Netty's public HAProxyMessage constructor does not support AF_UNSPEC addresses,
-                // so we use TCP4+localhost which produces a valid LOCAL-command frame on the wire.
-                Arguments.argumentSet("v2-local",
-                        new HAProxyMessage(V2, LOCAL, TCP4, "127.0.0.1", "127.0.0.1", 0, 0)));
+        return IntStream.range(0, REPEAT_COUNT).boxed()
+                .flatMap(repeat -> MESSAGE_FACTORIES.stream()
+                        .map(f -> Arguments.argumentSet(f.name() + "-rep" + repeat, f.factory().get())));
     }
 
     // ---- plain channel ----
@@ -99,7 +111,7 @@ class ProxyProtocolIT {
         }
     }
 
-    @Test
+    @RepeatedTest(REPEAT_COUNT)
     void requiredMode_plainChannel_withoutProxyHeader_rejects() {
         // Given
         try (var tester = mockKafkaKroxyliciousTester(bootstrap -> plainConfig(bootstrap, ProxyProtocolMode.REQUIRED));
@@ -113,7 +125,7 @@ class ProxyProtocolIT {
         }
     }
 
-    @Test
+    @RepeatedTest(REPEAT_COUNT)
     void forbiddenMode_plainChannel_withoutProxyHeader_succeeds() {
         // Given
         try (var tester = mockKafkaKroxyliciousTester(bootstrap -> plainConfig(bootstrap, ProxyProtocolMode.FORBIDDEN));
@@ -170,7 +182,7 @@ class ProxyProtocolIT {
         }
     }
 
-    @Test
+    @RepeatedTest(REPEAT_COUNT)
     void requiredMode_tlsChannel_withoutProxyHeader_rejects() {
         // Given
         try (var tester = mockKafkaKroxyliciousTester(bootstrap -> tlsConfig(bootstrap, ProxyProtocolMode.REQUIRED));
@@ -184,7 +196,7 @@ class ProxyProtocolIT {
         }
     }
 
-    @Test
+    @RepeatedTest(REPEAT_COUNT)
     void forbiddenMode_tlsChannel_withoutProxyHeader_succeeds() {
         // Given
         try (var tester = mockKafkaKroxyliciousTester(bootstrap -> tlsConfig(bootstrap, ProxyProtocolMode.FORBIDDEN));
