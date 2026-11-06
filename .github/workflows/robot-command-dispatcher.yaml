@@ -51,19 +51,20 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use <code>&commat;kroxylicious-robot</code>. The user must be a member of release-engineers)"
-          exit -1
+          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
+          exit 1
 
       - name: 'Extract command from comment'
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           COMMAND=$(echo "${COMMENT_BODY}" | awk '/^@kroxylicious-robot/ {print $2}')
-          echo "COMMAND=${COMMAND}" >> $GITHUB_ENV
+          echo "COMMAND=${COMMAND}" >> "$GITHUB_ENV"
           case "${COMMAND}" in
             promote-release | drop-release)
               ;;
             *)
-              echo "UNRECOGNIZED=true" >> $GITHUB_ENV
+              echo "UNRECOGNIZED=true" >> "$GITHUB_ENV"
               ;;
           esac
 
@@ -74,7 +75,7 @@ jobs:
   dispatch-release-or-drop:
     needs: process-command
     if: ${{ needs.process-command.outputs.command == 'drop-release' || needs.process-command.outputs.command == 'promote-release' }}
-    uses: $/.github/workflows/promote_release.yaml
+    uses: ./.github/workflows/promote_release.yaml
     with:
       command: ${{ needs.process-command.outputs.command }}
       release-pr-issue-number: ${{ github.event.issue.number }}

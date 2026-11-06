@@ -104,10 +104,10 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Setup Java
-        uses: $/.github/actions/common/setup-java
+        uses: ./.github/actions/common/setup-java
 
       - name: 'Cache Maven packages'
-        uses: $/.github/actions/common/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
 
       - name: Determine Build Configuration
         id: build_configuration
@@ -120,34 +120,40 @@ jobs:
           fi
 
           POMS_VERSION=$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)
-          echo "release_version=${POMS_VERSION}" >> $GITHUB_OUTPUT
-          echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
-          echo "output_tarballs=${{ inputs.output-tarballs }}" >> $GITHUB_OUTPUT
+          {
+            echo "release_version=${POMS_VERSION}"
+            echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "output_tarballs=${{ inputs.output-tarballs }}"
+          } >> "$GITHUB_OUTPUT"
           SHA_TAG="commit-${GITHUB_SHA}"
 
           if [[ "${{ inputs.output-tarballs }}" == "true" ]]; then
             # Tarball mode: amd64-only, no push, use Maven image names for compatibility
             # with system-test tooling that verifies image names via Maven properties.
-            echo "push_images=false" >> $GITHUB_OUTPUT
-            echo "multi_arch=false" >> $GITHUB_OUTPUT
-            echo "proxy_amd64_tag=quay.io/kroxylicious/proxy:${POMS_VERSION}" >> $GITHUB_OUTPUT
-            echo "proxy_arm64_tag=" >> $GITHUB_OUTPUT
-            echo "proxy_final_tags=" >> $GITHUB_OUTPUT
-            echo "operator_platforms=linux/amd64" >> $GITHUB_OUTPUT
-            echo "operator_tags=quay.io/kroxylicious/operator:${POMS_VERSION}" >> $GITHUB_OUTPUT
-            echo "admission_platforms=linux/amd64" >> $GITHUB_OUTPUT
-            echo "admission_tags=quay.io/kroxylicious/webhook:${POMS_VERSION}" >> $GITHUB_OUTPUT
+            {
+              echo "push_images=false"
+              echo "multi_arch=false"
+              echo "proxy_amd64_tag=quay.io/kroxylicious/proxy:${POMS_VERSION}"
+              echo "proxy_arm64_tag="
+              echo "proxy_final_tags="
+              echo "operator_platforms=linux/amd64"
+              echo "operator_tags=quay.io/kroxylicious/operator:${POMS_VERSION}"
+              echo "admission_platforms=linux/amd64"
+              echo "admission_tags=quay.io/kroxylicious/webhook:${POMS_VERSION}"
+            } >> "$GITHUB_OUTPUT"
           elif [[ "${{ inputs.push-images }}" != "true" || "${{ vars.REGISTRY_SERVER }}" == "" ]]; then
             # No-push mode: amd64-only validation build (CI PRs or forks without registry vars).
-            echo "push_images=false" >> $GITHUB_OUTPUT
-            echo "multi_arch=false" >> $GITHUB_OUTPUT
-            echo "proxy_amd64_tag=kroxylicious-proxy:${SHA_TAG}" >> $GITHUB_OUTPUT
-            echo "proxy_arm64_tag=" >> $GITHUB_OUTPUT
-            echo "proxy_final_tags=" >> $GITHUB_OUTPUT
-            echo "operator_platforms=linux/amd64" >> $GITHUB_OUTPUT
-            echo "operator_tags=kroxylicious-operator:${SHA_TAG}" >> $GITHUB_OUTPUT
-            echo "admission_platforms=linux/amd64" >> $GITHUB_OUTPUT
-            echo "admission_tags=kroxylicious-admission:${SHA_TAG}" >> $GITHUB_OUTPUT
+            {
+              echo "push_images=false"
+              echo "multi_arch=false"
+              echo "proxy_amd64_tag=kroxylicious-proxy:${SHA_TAG}"
+              echo "proxy_arm64_tag="
+              echo "proxy_final_tags="
+              echo "operator_platforms=linux/amd64"
+              echo "operator_tags=kroxylicious-operator:${SHA_TAG}"
+              echo "admission_platforms=linux/amd64"
+              echo "admission_tags=kroxylicious-admission:${SHA_TAG}"
+            } >> "$GITHUB_OUTPUT"
           else
             PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
             OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
@@ -155,10 +161,12 @@ jobs:
 
             # Per-arch intermediate tags are pushed individually then merged into the
             # final manifest list.
-            echo "push_images=true" >> $GITHUB_OUTPUT
-            echo "multi_arch=${{ inputs.multi-arch }}" >> $GITHUB_OUTPUT
-            echo "proxy_amd64_tag=${PROXY_IMAGE}:${SHA_TAG}-amd64" >> $GITHUB_OUTPUT
-            echo "proxy_arm64_tag=${PROXY_IMAGE}:${SHA_TAG}-arm64" >> $GITHUB_OUTPUT
+            {
+              echo "push_images=true"
+              echo "multi_arch=${{ inputs.multi-arch }}"
+              echo "proxy_amd64_tag=${PROXY_IMAGE}:${SHA_TAG}-amd64"
+              echo "proxy_arm64_tag=${PROXY_IMAGE}:${SHA_TAG}-arm64"
+            } >> "$GITHUB_OUTPUT"
 
             # All builds get a commit SHA tag. Callers may also pass arbitrary
             # additional-tags (e.g. maven.yaml adds the POM version on pushes
@@ -180,11 +188,13 @@ jobs:
               ADMISSION_TAGS="${ADMISSION_TAGS:+${ADMISSION_TAGS},}${ADMISSION_IMAGE}:${suffix}"
             done
 
-            echo "proxy_final_tags=${PROXY_FINAL_TAGS}" >> $GITHUB_OUTPUT
-            echo "operator_platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-            echo "operator_tags=${OPERATOR_TAGS}" >> $GITHUB_OUTPUT
-            echo "admission_platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-            echo "admission_tags=${ADMISSION_TAGS}" >> $GITHUB_OUTPUT
+            {
+              echo "proxy_final_tags=${PROXY_FINAL_TAGS}"
+              echo "operator_platforms=linux/amd64,linux/arm64"
+              echo "operator_tags=${OPERATOR_TAGS}"
+              echo "admission_platforms=linux/amd64,linux/arm64"
+              echo "admission_tags=${ADMISSION_TAGS}"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       # Install (not just package) so the per-arch dist steps can resolve local
@@ -419,14 +429,6 @@ jobs:
               "${{ steps.build_configuration.outputs.proxy_amd64_tag }}" \
               "${{ steps.build_configuration.outputs.proxy_arm64_tag }}"
           done
-
-      - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: $/.github/actions/common/slack-notification
-        with:
-          name: kroxylicious-proxy
-          path: /tmp/kroxylicious-proxy.img.tar.gz
-          retention-days: 1
 
       - name: Archive proxy image tarball
         if: steps.build_configuration.outputs.output_tarballs == 'true'

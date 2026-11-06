@@ -48,12 +48,12 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> $GITHUB_ENV
+          echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> "$GITHUB_ENV"
       - name: 'Test for Slack secret'
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -61,17 +61,17 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
       - name: Setup Java
-        uses: $/.github/actions/common/setup-java
+        uses: ./.github/actions/common/setup-java
         with:
           javaVersion: ${{ matrix.java.version }}
           javaDistro: ${{ matrix.java.distro }}
       - name: Setup Minikube
-        uses: $/.github/actions/common/setup-minikube
+        uses: ./.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Cache Maven packages'
         id: cache-maven
-        uses: $/.github/actions/common/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
         with:
           read-only: 'false'
       - name: 'Warm Maven dependency cache'
@@ -142,7 +142,7 @@ jobs:
             -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: $/.github/actions/common/slack-notification
+        uses: ./.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
@@ -164,9 +164,9 @@ jobs:
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Setup Java
-        uses: $/.github/actions/common/setup-java
+        uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: $/.github/actions/common/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Determine project version'
         id: version
         run: echo "version=$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
@@ -183,7 +183,7 @@ jobs:
 
   build_container_images:
     needs: compute_pom_version
-    uses: $/.github/workflows/build-kroxylicious-container-images.yaml
+    uses: ./.github/workflows/build-kroxylicious-container-images.yaml
     with:
       push-images: ${{ github.event_name == 'push' }}
       multi-arch: ${{ github.event_name == 'push' }}
@@ -204,10 +204,10 @@ jobs:
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
       - name: Slack Notification on Failure
         if: env.SLACK_WEBHOOK_SET == 'true'
-        uses: $/.github/actions/common/slack-notification
+        uses: ./.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'

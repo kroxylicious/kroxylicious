@@ -22,10 +22,9 @@ on:
 jobs:
   # First we run the tests that are independent of the KAFKA_CLIENT selected
   run_external_kafka_client_and_operator_system_tests:
-    uses: $/.github/workflows/run-system-tests.yaml
+    uses: ./.github/workflows/run-system-tests.yaml
     with:
       groups: 'externalKafkaClients,operator'
-      skipSystemTestRun: ${{ needs.changes.outputs.systemtest == 'false' }}
 
   discover_system_test_clients:
     runs-on: ubuntu-latest
@@ -46,13 +45,15 @@ jobs:
             | tr -d ' ' \
             | tr '[:upper:]' '[:lower:]' \
             | paste -sd ',')
+          # backreference (&) not supported by ${//}
+          # shellcheck disable=SC2001
           TEST_CLIENTS="[$(echo "$client_types" | sed 's/[^,]*/"&"/g')]"
-          echo "test_clients=$TEST_CLIENTS" >> $GITHUB_OUTPUT
+          echo "test_clients=$TEST_CLIENTS" >> "$GITHUB_OUTPUT"
 
   # Then we run the tests that with the KAFKA_CLIENT selected
   run_system_tests:
     needs: [discover_system_test_clients]
-    uses: $/.github/workflows/run-system-tests.yaml
+    uses: ./.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
       KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
@@ -78,7 +79,7 @@ jobs:
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
       - name: 'Check all matrix builds'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -86,18 +87,18 @@ jobs:
           FAILED_JSON=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
             --jq '.jobs[] | select(.conclusion=="failure") | {name: .name, url: .html_url}')
           if [ -z "$FAILED_JSON" ]; then
-            echo "All jobs passed!" >> $GITHUB_STEP_SUMMARY
+            echo "All jobs passed!" >> "$GITHUB_STEP_SUMMARY"
             echo "No failures detected."
             exit 0
           fi
-          echo "Failed Matrix Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "Failed Matrix Jobs" >> "$GITHUB_STEP_SUMMARY"
           echo "The following instances failed:"
-          echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> $GITHUB_STEP_SUMMARY
+          echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> "$GITHUB_STEP_SUMMARY"
           echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
           exit 1
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: $/.github/actions/common/slack-notification
+        uses: ./.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'

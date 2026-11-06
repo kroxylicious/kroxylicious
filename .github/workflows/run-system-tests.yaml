@@ -35,14 +35,14 @@ on:
         type: string
       testFortanixKMS:
         description: "Run Fortanix KMS tests"
-        default: 'false'
+        default: false
         required: false
-        type: string
+        type: boolean
       skipSystemTestRun:
         description: "Skip system tests run"
         required: false
-        default: 'false'
-        type: string
+        default: false
+        type: boolean
   workflow_call:
     inputs: *workflow-inputs
     secrets:
@@ -53,7 +53,7 @@ on:
 
 jobs:
   discover_system_test_chunks:
-    if: ${{ inputs.skipSystemTestRun == 'false'}}
+    if: ${{ inputs.skipSystemTestRun == false }}
     runs-on: ubuntu-latest
     outputs:
       test_chunks: ${{ steps.discover.outputs.test_chunks }}
@@ -71,11 +71,11 @@ jobs:
         id: discover
         run: |
           TEST_CHUNKS="[$(find . -type f -name "*ST.java" -exec basename {} .java \; | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
-          echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
+          echo "test_chunks=$TEST_CHUNKS" >> "$GITHUB_OUTPUT"
 
   run_system_tests:
     needs: [discover_system_test_chunks]
-    if: ${{ inputs.skipSystemTestRun == 'false'}}
+    if: ${{ inputs.skipSystemTestRun == false }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -94,15 +94,15 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
       - name: Setup Java
-        uses: $/.github/actions/common/setup-java
+        uses: ./.github/actions/common/setup-java
       - name: Setup Minikube
-        uses: $/.github/actions/common/setup-minikube
+        uses: ./.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Set up Docker Buildx'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
       - name: 'Cache Maven packages'
-        uses: $/.github/actions/common/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Download Kroxylicious Maven artifacts'
         uses: dawidd6/action-download-artifact@eab87c9830c39eff17e5a6eadb20bfb4bc880477
         with:
@@ -135,7 +135,7 @@ jobs:
         run: |
           IMAGE=$(mvn --quiet --batch-mode help:evaluate \
             -Dexpression=strimzi.test.clients.base.image -DforceStdout)
-          echo "name=$IMAGE" >> $GITHUB_OUTPUT
+          echo "name=$IMAGE" >> "$GITHUB_OUTPUT"
       - name: 'Cache strimzi test-clients base image'
         id: cache-base-image
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -169,10 +169,9 @@ jobs:
           KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects :kroxylicious-app --activate-profiles dist help:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
           KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects :kroxylicious-operator --activate-profiles dist help:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"
           KROXYLICIOUS_OAUTH_TEST_CLIENTS_IMAGE="$(mvn --quiet --projects :kroxylicious-test-images help:evaluate -Dexpression=io.kroxylicious.oauth.test.clients.image.name -DforceStdout)"
-          KROXYLICIOUS_VERSION="$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)"
-          minikube image ls | grep --fixed-strings ${KROXYLICIOUS_PROXY_IMAGE}
-          minikube image ls | grep --fixed-strings ${KROXYLICIOUS_OPERATOR_IMAGE}
-          minikube image ls | grep --fixed-strings ${KROXYLICIOUS_OAUTH_TEST_CLIENTS_IMAGE}
+          minikube image ls | grep --fixed-strings "${KROXYLICIOUS_PROXY_IMAGE}"
+          minikube image ls | grep --fixed-strings "${KROXYLICIOUS_OPERATOR_IMAGE}"
+          minikube image ls | grep --fixed-strings "${KROXYLICIOUS_OAUTH_TEST_CLIENTS_IMAGE}"
 
       - name: 'Run system tests'
         id: run_system_tests
@@ -237,12 +236,12 @@ jobs:
           FAILED_JSON=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
             --jq '.jobs[] | select(.conclusion=="failure") | {name: .name, url: .html_url}')
           if [ -z "$FAILED_JSON" ]; then
-            echo "All jobs passed!" >> $GITHUB_STEP_SUMMARY
+            echo "All jobs passed!" >> "$GITHUB_STEP_SUMMARY"
             echo "No failures detected."
             exit 0
           fi
-          echo "Failed Matrix Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "Failed Matrix Jobs" >> "$GITHUB_STEP_SUMMARY"
           echo "The following instances failed:"
-          echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> $GITHUB_STEP_SUMMARY
+          echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> "$GITHUB_STEP_SUMMARY"
           echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
           exit 1

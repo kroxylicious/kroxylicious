@@ -39,7 +39,7 @@ jobs:
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
       - name: 'Check out repository'
         if: github.event_name != 'merge_group'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -53,10 +53,10 @@ jobs:
           ./scripts/update-latest-docs-release-test.sh
       - name: Setup Java
         if: github.event_name != 'merge_group'
-        uses: $/.github/actions/common/setup-java
+        uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
         if: github.event_name != 'merge_group'
-        uses: $/.github/actions/common/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Compile and lint the project'
         if: github.event_name != 'merge_group'
         env:

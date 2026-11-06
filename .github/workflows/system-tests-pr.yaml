@@ -72,15 +72,17 @@ jobs:
             | tr -d ' ' \
             | tr '[:upper:]' '[:lower:]' \
             | paste -sd ',')
+          # backreference (&) not supported by ${//}
+          # shellcheck disable=SC2001
           TEST_CLIENTS="[$(echo "$client_types" | sed 's/[^,]*/"&"/g')]"
-          echo "test_clients=$TEST_CLIENTS" >> $GITHUB_OUTPUT
+          echo "test_clients=$TEST_CLIENTS" >> "$GITHUB_OUTPUT"
       - name: 'Set kafka client'
         id: kafkaClient
         env:
           KAFKA_CLIENTS: ${{ steps.discover.outputs.test_clients }}
           LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
         run: |
-          PR_LABELS=$(echo ${LABELS[@]} | sed 's/\n//g; s/ //g')
+          PR_LABELS=$(echo "${LABELS[@]}" | sed 's/\n//g; s/ //g')
           KAFKA_CLIENT=$(echo "${PR_LABELS},${KAFKA_CLIENTS}" | sed 's/,/\n/g; s/\[//g; s/\]//g; s/test\/system-test\///g' | sort | uniq -d | tr -d '"')
           KAFKA_CLIENT=$([[ -z $KAFKA_CLIENT ]] && echo 'strimzi_test_client' || echo $KAFKA_CLIENT)
           echo "kafka_client=$KAFKA_CLIENT" >> "$GITHUB_OUTPUT"
@@ -89,7 +91,7 @@ jobs:
   run_system_tests:
     needs: [changes,set_variables]
     if: always()
-    uses: $/.github/workflows/run-system-tests.yaml
+    uses: ./.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
       KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}

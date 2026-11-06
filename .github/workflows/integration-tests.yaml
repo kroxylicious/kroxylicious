@@ -39,7 +39,7 @@ jobs:
         id: discover
         run: |
           TESTS_PER_CHUNK=15
-          TEST_CHUNKS=$(./scripts/discover-integration-tests.sh ${TESTS_PER_CHUNK})
+          TEST_CHUNKS=$(./scripts/discover-integration-tests.sh "${TESTS_PER_CHUNK}")
 
           # Extract unique modules from the chunks JSON
           # Parse "module:TestClass" format and get unique module artifact IDs (basename)
@@ -58,15 +58,15 @@ jobs:
           # Also include dist modules for operator and admission webhook KT tests
           MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,${DISCOVERED_MODULES}"
 
-          echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
-          echo "modules=$MODULES" >> $GITHUB_OUTPUT
+          echo "test_chunks=$TEST_CHUNKS" >> "$GITHUB_OUTPUT"
+          echo "modules=$MODULES" >> "$GITHUB_OUTPUT"
           echo "Discovered modules: $MODULES"
           echo "Discovered $(echo "$TEST_CHUNKS" | jq -r 'length') test chunks"
 
   get_kroxylicious_image:
     runs-on: ubuntu-latest
     outputs:
-      kroxylicious_image: ${{ steps.get_kroxylicious_image.outputs.KROXYLICIOUS_IMAGE }}
+      kroxylicious_image: ${{ steps.build_image.outputs.KROXYLICIOUS_IMAGE }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
@@ -82,9 +82,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          GIT_HASH="$(git rev-parse HEAD)"
-          KROXYLICIOUS_VERSION="$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)"
-          KROXYLICIOUS_IMAGE="quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}"
+          KROXYLICIOUS_IMAGE="$(mvn --quiet --projects :kroxylicious-app --activate-profiles dist help:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
 
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_OUTPUT"
 
@@ -112,10 +110,10 @@ jobs:
           MODULE=$(echo "$FIRST_SPEC" | cut -d: -f1)
 
           # Remove "module:" prefix from all tests
-          TEST_LIST=$(echo "$CHUNK" | sed "s|${MODULE}:||g")
+          TEST_LIST="${CHUNK//${MODULE}:/}"
 
-          echo "module=$MODULE" >> $GITHUB_OUTPUT
-          echo "tests=$TEST_LIST" >> $GITHUB_OUTPUT
+          echo "module=$MODULE" >> "$GITHUB_OUTPUT"
+          echo "tests=$TEST_LIST" >> "$GITHUB_OUTPUT"
 
       - name: Log tests to run
         run: echo "Running tests '${{ steps.parse.outputs.tests }}' in module '${{ steps.parse.outputs.module }}'"
@@ -124,9 +122,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: $/.github/actions/common/setup-java
+        uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: $/.github/actions/common/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Download Kroxylicious Maven artifacts'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
@@ -163,7 +161,7 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
       - name: Setup Minikube
         if: steps.check_k8s.outputs.needs_minikube == 'true'
-        uses: $/.github/actions/common/setup-minikube
+        uses: ./.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: Download Operand Image Artifact
@@ -176,7 +174,7 @@ jobs:
       - name: Load Operand Image in Minikube
         if: steps.check_k8s.outputs.needs_minikube == 'true'
         env:
-          KROXYLICIOUS_IMAGE: ${{ needs.build_artifacts.outputs.kroxylicious_image }}
+          KROXYLICIOUS_IMAGE: ${{ needs.get_kroxylicious_image.outputs.kroxylicious_image }}
         run: |
           # Load image into Minikube
           minikube image load /tmp/kroxylicious-operand/kroxylicious-proxy.img.tar.gz
@@ -245,9 +243,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: $/.github/actions/common/setup-java
+        uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: $/.github/actions/common/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Download Kroxylicious Maven artifacts'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
@@ -280,12 +278,12 @@ jobs:
           FAILED_JSON=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
             --jq '.jobs[] | select(.conclusion=="failure") | {name: .name, url: .html_url}')
           if [ -z "$FAILED_JSON" ]; then
-            echo "All jobs passed!" >> $GITHUB_STEP_SUMMARY
+            echo "All jobs passed!" >> "$GITHUB_STEP_SUMMARY"
             echo "No failures detected."
             exit 0
           fi
-          echo "Failed Matrix Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "Failed Matrix Jobs" >> "$GITHUB_STEP_SUMMARY"
           echo "The following instances failed:"
-          echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> $GITHUB_STEP_SUMMARY
+          echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> "$GITHUB_STEP_SUMMARY"
           echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
           exit 1

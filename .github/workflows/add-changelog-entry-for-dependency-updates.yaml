@@ -50,10 +50,10 @@ jobs:
           TRIGGERING_ACTOR: ${{ github.actor }}
         run: |
           if [[ -n "${KROXYLICIOUS_CHANGELOG_TOKEN}" ]]; then
-            echo "CHANGELOG_TOKEN_SET=true" >> $GITHUB_ENV
+            echo "CHANGELOG_TOKEN_SET=true" >> "$GITHUB_ENV"
             exit 0
           fi
-          echo "CHANGELOG_TOKEN_SET=false" >> $GITHUB_ENV
+          echo "CHANGELOG_TOKEN_SET=false" >> "$GITHUB_ENV"
           if [[ "${TRIGGERING_ACTOR}" == "dependabot[bot]" ]]; then
             SECRET_STORE="Dependabot secrets (Settings > Secrets and variables > Dependabot)"
           else
@@ -79,12 +79,12 @@ jobs:
           #   changelog/create — always create, even for test-only deps
           if echo "${PR_LABELS}" | jq -e 'contains(["changelog/skip"])' > /dev/null; then
             echo "Skipping changelog entry: 'changelog/skip' label is set."
-            echo "SKIP_ENTRY=true" >> $GITHUB_ENV
+            echo "SKIP_ENTRY=true" >> "$GITHUB_ENV"
             exit 0
           fi
           if echo "${PR_LABELS}" | jq -e 'contains(["changelog/create"])' > /dev/null; then
             echo "Creating changelog entry: 'changelog/create' label is set."
-            echo "SKIP_ENTRY=false" >> $GITHUB_ENV
+            echo "SKIP_ENTRY=false" >> "$GITHUB_ENV"
             exit 0
           fi
 
@@ -94,18 +94,18 @@ jobs:
           #   Property form:  "bump lowkey.version from X to Y"
           PACKAGE=$(echo "${PR_TITLE}" | grep -oP 'bump \K\S+(?= from)' || true)
           if [[ -z "${PACKAGE}" ]]; then
-            echo "SKIP_ENTRY=false" >> $GITHUB_ENV
+            echo "SKIP_ENTRY=false" >> "$GITHUB_ENV"
             exit 0
           fi
           if [[ "${PACKAGE}" == *"/"* ]]; then
             echo "Skipping changelog entry: ${PACKAGE} is a GitHub Actions version update."
-            echo "SKIP_ENTRY=true" >> $GITHUB_ENV
+            echo "SKIP_ENTRY=true" >> "$GITHUB_ENV"
             exit 0
           fi
           if python3 .github/scripts/is-user-facing-dependency.py "${PACKAGE}"; then
-            echo "SKIP_ENTRY=false" >> $GITHUB_ENV
+            echo "SKIP_ENTRY=false" >> "$GITHUB_ENV"
           else
-            echo "SKIP_ENTRY=true" >> $GITHUB_ENV
+            echo "SKIP_ENTRY=true" >> "$GITHUB_ENV"
           fi
 
       - name: 'Remove logchange entry if changelog/skip label was added'

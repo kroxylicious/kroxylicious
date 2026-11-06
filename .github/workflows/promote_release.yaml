@@ -19,7 +19,7 @@ name: Promote Release
 # This workflow is dispatched by robot-command-dispatcher in response to a promote-release
 # (or drop-release command).
 #
-# It will release the staged maven artefacts, and merge the release PR.
+# It will release the staged maven artifacts, and merge the release PR.
 #
 # It requires the following:
 # inputs:
@@ -91,7 +91,7 @@ jobs:
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         run: |
           gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
-          exit -1
+          exit 1
 
       - name: 'Get run id of stage release workflow'
         env:
@@ -149,7 +149,7 @@ jobs:
           PR_APPROVAL="$(gh pr view ${{ inputs.release-pr-issue-number}} --json reviewDecision | jq -r .reviewDecision)"
           if [[ "$PR_APPROVAL" != "APPROVED" ]]; then
             gh issue comment  ${{ github.event.issue.number }} --body "PR is not Approved! You must approve the release PR before promoting it"
-            exit -1
+            exit 1
           fi
           echo "PR is Approved, Continuing promotion."
 
@@ -166,7 +166,7 @@ jobs:
         run: |
           if [[ ! "${PR_BRANCH}" =~ ^release-work- ]]; then
             gh issue comment  ${{ github.event.issue.number }} --body "This PR's branch name (${PR_BRANCH}) is not in the expected form."
-            exit -1
+            exit 1
           fi
 
       - name: 'Validate release version from the release state'
@@ -175,19 +175,21 @@ jobs:
         run: |
           if [[ ! "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
             gh issue comment ${{ github.event.issue.number }} --body "The release version '${RELEASE_VERSION}' from RELEASE_STATE.json is not in the expected form."
-            exit -1
+            exit 1
           fi
 
       - name: 'Get heads'
         run: |
-          # Get PR's ref.
-          echo "PR_REF=$(git rev-list -n 1 origin/${PR_BRANCH})" >> $GITHUB_ENV
-
-          # Get main's current head
-          echo "PR_BASE_HEAD=$(git rev-list -n 1 origin/${PR_BASE_BRANCH} )" >> $GITHUB_ENV
-
-          # Get PR's view of where main ought to be.  This is two commits behind PR's head.
-          echo "PR_BASE_REF=$(git rev-list -n 1 origin/${PR_BRANCH}^^)" >> $GITHUB_ENV
+          {
+            # Get PR's ref.
+            echo "PR_REF=$(git rev-list -n 1 origin/${PR_BRANCH})"
+  
+            # Get main's current head
+            echo "PR_BASE_HEAD=$(git rev-list -n 1 origin/${PR_BASE_BRANCH} )"
+  
+            # Get PR's view of where main ought to be.  This is two commits behind PR's head.
+            echo "PR_BASE_REF=$(git rev-list -n 1 origin/${PR_BRANCH}^^)"
+          } >> $GITHUB_ENV
 
       - name: 'Check for PR/main divergence'
         if: ${{ inputs.command == 'promote-release' }}
@@ -211,7 +213,7 @@ jobs:
               /repos/${{ github.repository }}/commits/${PR_REF}/check-runs \
               | jq --exit-status -r '[.check_runs[] | select( .status != "completed" or ( .conclusion != "success" and .conclusion != "skipped"))] | length')
 
-          if [[ ${UNFINISHED_OR_ERRORED} > 0 ]]; then
+          if [[ ${UNFINISHED_OR_ERRORED} -gt 0 ]]; then
             gh pr comment --body "${UNFINISHED_OR_ERRORED} build check(s) have not completed successfully. If they are still running, you can ask me to promote-release again once they are finished." ${{ inputs.release-pr-issue-number }}
             exit 1
           fi
@@ -320,7 +322,7 @@ jobs:
 
       - name: 'Set up Java'
         if: ${{ inputs.command == 'promote-release' }}
-        uses: $/.github/actions/common/setup-java
+        uses: ./.github/actions/common/setup-java
         with:
           javaVersion: '21'
           javaDistro: 'temurin'

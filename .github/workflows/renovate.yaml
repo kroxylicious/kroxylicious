@@ -41,8 +41,8 @@ jobs:
           EFFECTIVE_TOKEN: "${{ secrets.KROXYLICIOUS_GITHUB_READWRITE_TOKEN || secrets.GITHUB_TOKEN }}"
           KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET: "${{secrets.KROXYLICIOUS_GITHUB_READWRITE_TOKEN  && 'true' || 'false' }}"
         run: |
-          echo "EFFECTIVE_TOKEN=${EFFECTIVE_TOKEN}" >> $GITHUB_ENV
-          echo "KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET=${KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET}" >> $GITHUB_ENV
+          echo "EFFECTIVE_TOKEN=${EFFECTIVE_TOKEN}" >> "$GITHUB_ENV"
+          echo "KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET=${KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET}" >> "$GITHUB_ENV"
       - name: "Set actor from Kroxylicious secret"
         if: env.KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET == 'true'
         run: |
@@ -54,11 +54,11 @@ jobs:
           TOKEN_ACTOR=$(echo ${WHOAMI} | jq -r .name)
           TOKEN_ACTOR_LOGIN=$(echo ${WHOAMI} | jq -r .login)
           TOKEN_ACTOR_ID=$(echo ${WHOAMI} | jq -r .id)
-          echo "RENOVATE_GIT_AUTHOR=${TOKEN_ACTOR} <${TOKEN_ACTOR_ID}+${TOKEN_ACTOR_LOGIN}@users.noreply.github.com>" >> $GITHUB_ENV
+          echo "RENOVATE_GIT_AUTHOR=${TOKEN_ACTOR} <${TOKEN_ACTOR_ID}+${TOKEN_ACTOR_LOGIN}@users.noreply.github.com>" >> "$GITHUB_ENV"
       - name: "Set actor from Github token"
         if: env.KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET != 'true'
         run: |
-          echo "RENOVATE_GIT_AUTHOR=${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>" >> $GITHUB_ENV
+          echo "RENOVATE_GIT_AUTHOR=${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>" >> "$GITHUB_ENV"
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Setup node

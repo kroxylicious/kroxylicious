@@ -22,15 +22,15 @@ on:
 
 jobs:
   build_artifacts:
-    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
+    uses: ./.github/workflows/build-kroxylicious-artifacts.yaml
 
   integration_tests:
     needs: build_artifacts
-    uses: $/.github/workflows/integration-tests.yaml
+    uses: ./.github/workflows/integration-tests.yaml
 
   documentation_tests:
     needs: build_artifacts
-    uses: $/.github/workflows/documentation-tests.yml
+    uses: ./.github/workflows/documentation-tests.yml
 
   # JOB to run change detection to decide whether run the system tests
   changes_for_system_tests:
@@ -68,4 +68,4 @@ jobs:
   system_tests:
     needs: [build_artifacts,changes_for_system_tests]
     if: ${{ needs.changes_for_system_tests.outputs.systemtest == 'true' }}
-    uses: $/.github/workflows/system-tests-merge.yaml
+    uses: ./.github/workflows/system-tests-merge.yaml
