@@ -68,3 +68,9 @@ Configuration:
          AppenderRef:
            - ref: Console
 
+      -  name: io.kroxylicious.proxy.internal.ClientConnectionStateMachine
+         additivity: false
+         level: DEBUG
+         AppenderRef:
+           - ref: Console
+
