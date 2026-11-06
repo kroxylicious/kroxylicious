@@ -42,6 +42,7 @@ import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
@@ -119,6 +120,23 @@ class MultiTenantIT extends BaseMultiTenantIT {
                 var topicMap = describeTopicsResult.allTopicNames().get();
                 assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
                         allOf(matches(TopicDescription::name, TOPIC_1), matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
+            });
+        }
+    }
+
+    @Test
+    void describeTopicConfigs(KafkaCluster cluster) {
+        var config = getConfig(cluster, this.certificateGenerator);
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
+            createTopics(admin, NEW_TOPIC_1);
+
+            var resource = new ConfigResource(ConfigResource.Type.TOPIC, TOPIC_1);
+            await().atMost(Duration.ofSeconds(5)).ignoreExceptions().untilAsserted(() -> {
+                var describeConfigsResult = admin.describeConfigs(List.of(resource));
+                var configs = describeConfigsResult.all().get();
+                assertThat(configs).containsKey(resource);
+                assertThat(configs.get(resource).entries()).isNotEmpty();
             });
         }
     }

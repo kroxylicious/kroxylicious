@@ -60,7 +60,7 @@ public record RequestResponseTestDef(String testName, ApiMessageType apiKey, Req
     @SuppressFBWarnings("URLCONNECTION_SSRF_FD") // this is not production code
     private static JsonNode[] readTestResource(ResourceInfo resourceInfo) {
         var url = resourceInfo.url();
-        var sourceFilename = Optional.of(Path.of(url.getPath()).getFileName()).map(Path::getFileName).orElseThrow();
+        var sourceFilename = Optional.ofNullable(Path.of(resourceInfo.getResourceName()).getFileName()).orElseThrow();
         try (var is = url.openStream()) {
             var jsonNodes = MAPPER.reader().readValue(is, JsonNode[].class);
             for (int i = 0; i < jsonNodes.length; i++) {
