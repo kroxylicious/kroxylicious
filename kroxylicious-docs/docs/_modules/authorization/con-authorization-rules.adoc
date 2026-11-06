@@ -155,9 +155,12 @@ The following resource predicates are supported:
 
 | `MATCHING`
 | Regular expression match
-| `name matching "a+"`
+| `name matching /a+/`
 
 |===
+
+In a `matching` regular expression, write `\/` for a slash and `\\` for a backslash.
+Any other backslash is kept as part of the regular expression, so `/orders\.v1/` matches only `orders.v1`.
 
 == Operations
 

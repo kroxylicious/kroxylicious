@@ -167,7 +167,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
     }
 
-    private static class BuildingListener extends AclRulesBaseListener implements ErrorCollector {
+    static class BuildingListener extends AclRulesBaseListener implements ErrorCollector {
 
         private final AclAuthorizer.Builder authorizerBuilder;
         private final int maxErrorsToReport;
@@ -230,7 +230,30 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
 
         private String unquoteRegex(TerminalNode string) {
-            return unquote(unwrapDelims(string));
+            return unquoteRegex(unwrapDelims(string));
+        }
+
+        /**
+         * Removes the lexer's escapes from a regex literal: {@code \/} is a slash and {@code \\} a
+         * backslash. Any other backslash is kept, because it belongs to the regular expression:
+         * {@code \.} stays an escaped dot, and {@code \d} a digit class. Removing it would silently
+         * make the pattern broader than written.
+         */
+        static String unquoteRegex(String sansDelims) {
+            var regex = new StringBuilder(sansDelims.length());
+            for (int i = 0; i < sansDelims.length(); i++) {
+                char ch = sansDelims.charAt(i);
+                if (ch == '\\' && i + 1 < sansDelims.length()) {
+                    char next = sansDelims.charAt(i + 1);
+                    if (next == '/' || next == '\\') {
+                        regex.append(next);
+                        i++;
+                        continue;
+                    }
+                }
+                regex.append(ch);
+            }
+            return regex.toString();
         }
 
         private void maybeThrow() {

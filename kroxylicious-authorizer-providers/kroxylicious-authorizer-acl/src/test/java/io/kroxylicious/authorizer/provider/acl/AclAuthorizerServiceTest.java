@@ -180,7 +180,7 @@ class AclAuthorizerServiceTest {
                         """
                                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
-                                allow User with name = "Alice" to READ Topic with name matching /**/;
+                                allow User with name = "Alice" to READ Topic with name matching /*a/;
 
                                 otherwise deny;""",
                         """
@@ -672,6 +672,59 @@ class AclAuthorizerServiceTest {
                 .isEqualTo(Decision.ALLOW);
         assertThat(decision(authz, new User("Bob"), FakeTopicResource.READ, "\\"))
                 .isEqualTo(Decision.ALLOW);
+    }
+
+    /**
+     * A backslash that is not a lexer escape ({@code \\/} or {@code \\\\}) belongs to the regex, and
+     * is kept: dropping it would make the pattern broader than written.
+     */
+    @Test
+    void regexEscapesOtherThanSlashAndBackslashAreKept() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                allow User with name = "Alice" to READ Topic with name matching /orders\\.v1/;
+                allow User with name = "Bob" to READ Topic with name matching /a\\d+/;
+                allow User with name = "Carol" to READ Topic with name matching /x\\/y/;
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "orders.v1")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "ordersXv1")).isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new User("Bob"), FakeTopicResource.READ, "a12")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Bob"), FakeTopicResource.READ, "ad")).isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new User("Carol"), FakeTopicResource.READ, "x/y")).isEqualTo(Decision.ALLOW);
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void unquoteRegex(String literal, String regex) {
+        assertThat(AclAuthorizerService.BuildingListener.unquoteRegex(literal)).isEqualTo(regex);
+    }
+
+    static List<Arguments> unquoteRegex() {
+        return List.of(
+                Arguments.of("abc", "abc"),
+                Arguments.of("a\\/b", "a/b"),
+                Arguments.of("a\\\\b", "a\\b"),
+                Arguments.of("a\\.b", "a\\.b"),
+                Arguments.of("\\d+", "\\d+"),
+                Arguments.of("\\\\\\/", "\\/"),
+                Arguments.of("trailing\\", "trailing\\"));
+    }
+
+    @Test
+    void blockCommentsAreComments() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                /* Rules for team A */
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+                /*
+                 * Alice reads foo
+                 */
+                allow User with name = "Alice" to READ Topic with name = "foo"; /* trailing */
+                // a line comment
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.ALLOW);
     }
 
     @Test
