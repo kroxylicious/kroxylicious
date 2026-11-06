@@ -7,6 +7,7 @@
 package io.kroxylicious.authorizer.provider.acl;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -161,6 +162,14 @@ public class AclAuthorizer implements Authorizer {
         public PrincipalSelectorBuilder subjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
             return new PrincipalSelectorBuilder(builder, allow,
                     userPrincipalClass);
+        }
+
+        /**
+         * Selects anonymous subjects, which have no principals.
+         * @return the next stage in the fluent builder.
+         */
+        public OperationsBuilder anonymousSubjects() {
+            return new OperationsBuilder(builder, allow, Set.of(ANONYMOUS));
         }
     }
 
@@ -406,6 +415,22 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
+    /**
+     * Stands for the absence of principals, so that rules for anonymous subjects are held with the
+     * others. It is not visible outside this class, so no subject can hold it.
+     */
+    private record AnonymousPrincipal(String name) implements Principal {}
+
+    @SuppressWarnings("unchecked")
+    private static final OrderedKey<Principal> ANONYMOUS = (OrderedKey<Principal>) (OrderedKey<?>) new ResourceMatcherAnyOfType<>(AnonymousPrincipal.class);
+
+    private static final List<Principal> ANONYMOUS_PRINCIPALS = List.of(new AnonymousPrincipal(""));
+
+    /** An anonymous subject is matched by the rules for anonymous subjects only. */
+    private static Collection<? extends Principal> principalsOf(Identity subject) {
+        return subject.principals().isEmpty() ? ANONYMOUS_PRINCIPALS : subject.principals();
+    }
+
     private static @Nullable Decision authorizeInternal(
                                                         TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
                                                         Identity subject,
@@ -413,7 +438,7 @@ public class AclAuthorizer implements Authorizer {
                                                         Decision whenFound,
                                                         @Nullable Decision whenNotFound) {
         assert whenFound != whenNotFound;
-        for (var p : subject.principals()) {
+        for (var p : principalsOf(subject)) {
             for (var matcher : principalMatchers(p)) {
                 var grant = allowPerPrincipal.matchingOperations(matcher);
                 if (grant != null) {
@@ -497,6 +522,72 @@ public class AclAuthorizer implements Authorizer {
             }
         }
         return CompletableFuture.completedStage(new AuthorizeResult(subject, allowedActions, deniedActions));
+    }
+
+    /**
+     * Returns the resource names this authorizer allows the subject to perform the operation on,
+     * as the name selectors of the allow and deny rules that apply. For every resource name,
+     * {@link ResourceSelectors#allows(String)} agrees with {@link #authorize}.
+     *
+     * @param subject the subject.
+     * @param operation the operation.
+     * @return the selectors.
+     */
+    public ResourceSelectors resourceSelectors(Identity subject, ResourceType<?> operation) {
+        return new ResourceSelectors(selectors(allowPerPrincipal, subject, operation),
+                selectors(denyPerPrincipal, subject, operation));
+    }
+
+    private static ResourceNameSelectors selectors(TypeNameMap<Principal, ResourceGrants> rules,
+                                                   Identity subject,
+                                                   ResourceType<?> operation) {
+        Class<?> resourceType = ((Enum<?>) operation).getDeclaringClass();
+        boolean[] anyName = { false };
+        Set<String> names = new HashSet<>();
+        Set<String> prefixes = new HashSet<>();
+        Set<String> patterns = new HashSet<>();
+        rules.forEach((principalMatcher, grants) -> {
+            if (!appliesTo(principalMatcher, subject)) {
+                return;
+            }
+            if (grants.nameMatches() != null) {
+                grants.nameMatches().forEach((resourceMatcher, operations) -> {
+                    if (resourceMatcher.type().equals(resourceType) && operations.contains(operation)) {
+                        switch (resourceMatcher) {
+                            case ResourceMatcherAnyOfType<?> any -> anyName[0] = true;
+                            case ResourceMatcherNameEquals<?> equals -> names.add(equals.operand());
+                            case ResourceMatcherNameStarts<?> starts -> prefixes.add(starts.prefix());
+                        }
+                    }
+                });
+            }
+            if (grants.patternMatches() != null) {
+                grants.patternMatches().forEach((resourceMatcher, operations) -> {
+                    if (resourceMatcher.type().equals(resourceType) && operations.contains(operation)) {
+                        patterns.add(resourceMatcher.pattern().pattern());
+                    }
+                });
+            }
+        });
+        return new ResourceNameSelectors(anyName[0], names, prefixes, patterns);
+    }
+
+    /** Whether a rule's principal matcher selects one of the subject's principals. */
+    private static boolean appliesTo(OrderedKey<Principal> principalMatcher, Identity subject) {
+        for (var principal : principalsOf(subject)) {
+            if (!principalMatcher.type().equals(principal.getClass())) {
+                continue;
+            }
+            boolean matches = switch (principalMatcher) {
+                case ResourceMatcherAnyOfType<?> any -> true;
+                case ResourceMatcherNameEquals<?> equals -> equals.operand().equals(principal.name());
+                case ResourceMatcherNameStarts<?> starts -> principal.name().startsWith(starts.prefix());
+            };
+            if (matches) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
