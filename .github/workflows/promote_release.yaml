@@ -311,7 +311,7 @@ jobs:
           }
 
           # .manifestImage.ref selects only the multi-arch manifest list for each entity.
-          # Per-arch intermediate images (proxy amd64/arm64) are staging artifacts only
+          # Per-arch intermediate images (proxy amd64/arm64/ppc64le/s390x) are staging artifacts only
           # and are not published with a release tag.
           MANIFEST_IMAGE_SELECTOR='.stagedArtifacts[].images.manifestImage.ref'
           while IFS= read -r manifest; do

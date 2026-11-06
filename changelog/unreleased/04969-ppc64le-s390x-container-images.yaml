@@ -1,0 +1,4 @@
+title: "build: publish proxy, operator and admission webhook container images for linux/ppc64le and linux/s390x (the proxy uses the NIO transport on these architectures)"
+type: added
+issues:
+  - 4969
