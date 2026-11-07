@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.sasl.termination;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -52,6 +53,8 @@ class OauthBearerStateMachine implements MechanismStateMachine {
 
     private final OAuthBearerValidatorCallbackHandler callbackHandler;
     private final int maxAuthBytes;
+    @Nullable
+    private final String virtualClusterName;
 
     @Nullable
     private SaslServer saslServer;
@@ -63,8 +66,20 @@ class OauthBearerStateMachine implements MechanismStateMachine {
      * @param maxAuthBytes maximum auth payload size in bytes
      */
     OauthBearerStateMachine(OAuthBearerValidatorCallbackHandler callbackHandler, int maxAuthBytes) {
+        this(callbackHandler, maxAuthBytes, null);
+    }
+
+    /**
+     * Create an OAUTHBEARER state machine with virtual cluster context.
+     *
+     * @param callbackHandler the configured callback handler for JWT validation
+     * @param maxAuthBytes maximum auth payload size in bytes
+     * @param virtualClusterName virtual cluster name
+     */
+    OauthBearerStateMachine(OAuthBearerValidatorCallbackHandler callbackHandler, int maxAuthBytes, @Nullable String virtualClusterName) {
         this.callbackHandler = Objects.requireNonNull(callbackHandler);
         this.maxAuthBytes = maxAuthBytes;
+        this.virtualClusterName = virtualClusterName;
     }
 
     @Override
@@ -82,6 +97,7 @@ class OauthBearerStateMachine implements MechanismStateMachine {
 
     @Override
     public CompletionStage<RoundResult> evaluateRound(byte[] authBytes) {
+        long startNanos = System.nanoTime();
         try {
             if (saslServer == null) {
                 saslServer = Sasl.createSaslServer(
@@ -95,6 +111,7 @@ class OauthBearerStateMachine implements MechanismStateMachine {
                         callbackHandler);
 
                 if (saslServer == null) {
+                    recordValidationDuration("failure", System.nanoTime() - startNanos);
                     return CompletableFuture.completedFuture(
                             RoundResult.failure(new byte[0],
                                     new SaslException("Failed to create OAUTHBEARER SASL server")));
@@ -104,6 +121,7 @@ class OauthBearerStateMachine implements MechanismStateMachine {
             byte[] response = saslServer.evaluateResponse(authBytes);
 
             if (saslServer.isComplete()) {
+                recordValidationDuration("success", System.nanoTime() - startNanos);
                 String authorizationId = saslServer.getAuthorizationID();
                 Instant sessionExpiry = extractTokenExpiry();
                 return CompletableFuture.completedFuture(
@@ -113,18 +131,30 @@ class OauthBearerStateMachine implements MechanismStateMachine {
                                 sessionExpiry));
             }
             else {
+                recordValidationDuration("success", System.nanoTime() - startNanos);
                 return CompletableFuture.completedFuture(
                         RoundResult.challenge(
                                 response != null ? response : new byte[0]));
             }
         }
         catch (Exception e) {
+            recordValidationDuration("failure", System.nanoTime() - startNanos);
             LOGGER.atDebug()
                     .setCause(e)
                     .addKeyValue("error", e.getMessage())
                     .log("OAUTHBEARER authentication failed");
             return CompletableFuture.completedFuture(
                     RoundResult.failure(new byte[0], e));
+        }
+    }
+
+    private void recordValidationDuration(String outcome, long durationNanos) {
+        if (virtualClusterName != null) {
+            SaslTerminationFilter.recordOauthValidationDuration(
+                    OAUTHBEARER_MECHANISM,
+                    virtualClusterName,
+                    outcome,
+                    Duration.ofNanos(durationNanos));
         }
     }
 

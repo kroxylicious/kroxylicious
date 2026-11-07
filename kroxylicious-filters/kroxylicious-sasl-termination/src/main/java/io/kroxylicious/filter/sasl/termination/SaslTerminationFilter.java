@@ -82,9 +82,13 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
 
     static final String AUTH_DURATION_METRIC = "kroxylicious_filter_sasl_termination_auth_duration_seconds";
+    static final String SCRAM_LOOKUP_DURATION_METRIC = "kroxylicious_filter_sasl_termination_scram_credential_lookup_seconds";
+    static final String OAUTHBEARER_VALIDATION_DURATION_METRIC = "kroxylicious_filter_sasl_termination_oauthbearer_token_validation_seconds";
+    static final String SUBJECT_BUILDING_DURATION_METRIC = "kroxylicious_filter_sasl_termination_subject_building_seconds";
     static final String SESSION_EXPIRED_METRIC = "kroxylicious_filter_sasl_termination_session_expired_total";
-    private static final String MECHANISM_TAG = "mechanism";
+    static final String MECHANISM_TAG = "mechanism";
     static final String VIRTUAL_CLUSTER_TAG = "virtual_cluster";
+    static final String OUTCOME_TAG = "outcome";
 
     private static final Set<Short> FILTERED_API_KEYS = Set.of(
             ApiKeys.CREATE_DELEGATION_TOKEN.id,
@@ -177,7 +181,7 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
             return rejectHandshakeReauthMechanismChange(filterContext, authenticated, mechanism);
         }
 
-        MechanismStateMachine stateMachine = createStateMachine(mechanism);
+        MechanismStateMachine stateMachine = createStateMachine(mechanism, filterContext.getVirtualClusterName());
         if (stateMachine == null) {
             return rejectHandshakeUnsupportedMechanism(filterContext, mechanism);
         }
@@ -254,21 +258,21 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
     }
 
     @Nullable
-    private MechanismStateMachine createStateMachine(String mechanism) {
+    private MechanismStateMachine createStateMachine(String mechanism, String virtualClusterName) {
         if (!context.supportedMechanisms().contains(mechanism)) {
             return null;
         }
         return switch (mechanism) {
             case OauthBearerMechanismConfig.MECHANISM_NAME -> new OauthBearerStateMachine(Objects.requireNonNull(context.oauthCallbackHandler()),
-                    context.oauthMaxAuthBytes());
+                    context.oauthMaxAuthBytes(), virtualClusterName);
             case ScramMechanismConfig.MECHANISM_NAME_SCRAM_SHA_256 -> new ScramStateMachine(ScramMechanism.SCRAM_SHA_256,
                     context.scramCredentialStores().get(ScramMechanism.SCRAM_SHA_256),
                     context.scramPhantomIterations().get(ScramMechanism.SCRAM_SHA_256),
-                    executorService);
+                    executorService, virtualClusterName);
             case ScramMechanismConfig.MECHANISM_NAME_SCRAM_SHA_512 -> new ScramStateMachine(ScramMechanism.SCRAM_SHA_512,
                     context.scramCredentialStores().get(ScramMechanism.SCRAM_SHA_512),
                     context.scramPhantomIterations().get(ScramMechanism.SCRAM_SHA_512),
-                    executorService);
+                    executorService, virtualClusterName);
             default -> throw new IllegalStateException("No state machine for configured mechanism: " + mechanism);
         };
     }
@@ -374,7 +378,16 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
 
         stateMachine.dispose();
 
+        long subjectStartNanos = System.nanoTime();
         return subjectBuilder.buildSaslSubject(new SubjectContext(filterContext, mechanism, authorizationId))
+                .whenComplete((subject, throwable) -> {
+                    long durationNanos = System.nanoTime() - subjectStartNanos;
+                    if (state instanceof State.RequiringAuthenticate reqAuth) {
+                        reqAuth.addSubjectBuildingDuration(durationNanos);
+                    }
+                    String outcome = (throwable == null) ? "success" : "failure";
+                    recordSubjectBuildingDuration(mechanism, filterContext.getVirtualClusterName(), outcome, Duration.ofNanos(durationNanos));
+                })
                 .thenCompose(subject -> completeSubjectBuild(filterContext, stateMachine,
                         success,
                         subject,
@@ -428,8 +441,8 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
                                                                         boolean reauthentication,
                                                                         @Nullable Instant sessionExpiry) {
         if (state instanceof State.RequiringAuthenticate authenticating) {
-            recordAuthDuration(mechanism, filterContext.getVirtualClusterName(),
-                    Duration.ofNanos(authenticating.accumulatedAuthWorkNanos()));
+            recordAuthDuration(mechanism, filterContext.getVirtualClusterName(), "success",
+                    Duration.ofNanos(authenticating.totalAuthWorkNanos()));
             state = authenticating.nextStateSuccess(success.authorizationId(), mechanism, sessionExpiry);
         }
 
@@ -518,8 +531,8 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
         if (state instanceof State.RequiringAuthenticate authenticating) {
             String mechanism = stateMachine.mechanismName();
             String virtualClusterName = filterContext.getVirtualClusterName();
-            Duration authDuration = Duration.ofNanos(authenticating.accumulatedAuthWorkNanos());
-            recordAuthDuration(mechanism, virtualClusterName, authDuration);
+            Duration authDuration = Duration.ofNanos(authenticating.totalAuthWorkNanos());
+            recordAuthDuration(mechanism, virtualClusterName, "failure", authDuration);
             state = authenticating.nextStateFailure(exception.getMessage());
         }
 
@@ -637,14 +650,55 @@ class SaslTerminationFilter implements RequestFilter, ApiVersionsResponseFilter 
 
     private static void recordAuthDuration(String mechanism,
                                            String virtualClusterName,
+                                           String outcome,
                                            Duration authDuration) {
         Timer.builder(AUTH_DURATION_METRIC)
                 .description(
-                        "Authentication latency, exclusive of the configured fixed timing delay. Measures the real work: credential store lookup, token validation, SCRAM rounds.")
+                        "Authentication latency, exclusive of the configured fixed timing delay. Measures the real work: credential store lookup, token validation, SCRAM rounds, and subject building.")
                 .tag(MECHANISM_TAG, mechanism)
                 .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
+                .tag(OUTCOME_TAG, outcome)
                 .register(Metrics.globalRegistry)
                 .record(authDuration);
+    }
+
+    static void recordSubjectBuildingDuration(String mechanism,
+                                              String virtualClusterName,
+                                              String outcome,
+                                              Duration duration) {
+        Timer.builder(SUBJECT_BUILDING_DURATION_METRIC)
+                .description("Latency of the asynchronous subject building operation.")
+                .tag(MECHANISM_TAG, mechanism)
+                .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
+                .tag(OUTCOME_TAG, outcome)
+                .register(Metrics.globalRegistry)
+                .record(duration);
+    }
+
+    static void recordScramLookupDuration(String mechanism,
+                                          String virtualClusterName,
+                                          String outcome,
+                                          Duration duration) {
+        Timer.builder(SCRAM_LOOKUP_DURATION_METRIC)
+                .description("Latency of the asynchronous SCRAM credential lookup operation.")
+                .tag(MECHANISM_TAG, mechanism)
+                .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
+                .tag(OUTCOME_TAG, outcome)
+                .register(Metrics.globalRegistry)
+                .record(duration);
+    }
+
+    static void recordOauthValidationDuration(String mechanism,
+                                              String virtualClusterName,
+                                              String outcome,
+                                              Duration duration) {
+        Timer.builder(OAUTHBEARER_VALIDATION_DURATION_METRIC)
+                .description("Latency of the OAUTHBEARER token validation operation.")
+                .tag(MECHANISM_TAG, mechanism)
+                .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
+                .tag(OUTCOME_TAG, outcome)
+                .register(Metrics.globalRegistry)
+                .record(duration);
     }
 
     private static boolean isUnsupportedApiVersion(ApiKeys apiKey, short apiVersion) {

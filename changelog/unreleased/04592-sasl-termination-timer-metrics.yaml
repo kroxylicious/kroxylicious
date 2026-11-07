@@ -1,0 +1,4 @@
+title: "fix: add granular timer metrics for SASL termination"
+type: fixed
+issues:
+  - 4592
