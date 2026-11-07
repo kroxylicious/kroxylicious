@@ -1,0 +1,10 @@
+title: "move PROXY protocol configuration from global to per-gateway"
+type: changed
+important_notes: "Breaking change: the `proxyProtocol` configuration block has moved from
+  the top-level proxy configuration to the individual `virtualClusters[].gateways[]`
+  level. The `allowed` (auto-detect) mode has been removed and the `disabled` mode has
+  been replaced by `forbidden`, which is now the default. Update your configuration by
+  moving the `proxyProtocol` block inside each gateway that requires it, replacing any
+  `disabled` mode with `forbidden`."
+merge_requests:
+  - 5263

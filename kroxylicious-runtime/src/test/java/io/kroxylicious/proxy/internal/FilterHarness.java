@@ -31,6 +31,7 @@ import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.config.CacheConfiguration;
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -94,7 +95,8 @@ public abstract class FilterHarness {
         final TargetCluster targetCluster = new TargetCluster(TARGET_CLUSTER_BOOTSTRAP.get(0).toString(), Optional.empty());
         var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", new DirectRouting("upstream", targetCluster), false,
                 false, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
-        testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
+        NodeIdentificationStrategy nodeIdentificationStrategy = mock(NodeIdentificationStrategy.class);
+        testVirtualCluster.addGateway("default", nodeIdentificationStrategy, Optional.empty(), ProxyProtocolMode.FORBIDDEN);
         inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new CorrelationIdIssuer(), new InternalRequestTracker());
 

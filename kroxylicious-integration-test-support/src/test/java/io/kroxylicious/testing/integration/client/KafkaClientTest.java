@@ -19,6 +19,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -36,6 +37,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
@@ -128,6 +133,80 @@ class KafkaClientTest {
             CompletableFuture<Response> future = kafkaClient.get(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
             // fails to decode v0 response because client expects v3
             assertThat(future).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("non-nullable field apiKeys was serialized as null");
+        }
+    }
+
+    @Test
+    void shouldSendProxyHeaderToServer() {
+        // Given
+        var serverResponse = new ResponsePayload(ApiKeys.API_VERSIONS, (short) 0, new ApiVersionsResponseData());
+        try (var mockServer = MockServer.startOnRandomPort(serverResponse).acceptProxyProtocol()) {
+            var proxyMessage = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+                    "192.168.1.100", "127.0.0.1", 54321, mockServer.port());
+
+            // When
+            try (var kafkaClient = KafkaClient.withProxyProtocol("localhost", mockServer.port(), proxyMessage)) {
+                var future = kafkaClient.get(new Request(ApiKeys.API_VERSIONS, (short) 0, "client", new ApiVersionsRequestData()));
+
+                // Then
+                assertThat(future).succeedsWithin(10, TimeUnit.SECONDS);
+                assertThat(mockServer.getReceivedProxyHeader())
+                        .isNotNull()
+                        .satisfies(h -> {
+                            assertThat(h.sourceAddress()).isEqualTo("192.168.1.100");
+                            assertThat(h.sourcePort()).isEqualTo(54321);
+                        });
+            }
+        }
+    }
+
+    @Test
+    void shouldCompleteExceptionallyWhenProxyProtocolConnectionRefused() {
+        // Given
+        int closedPort;
+        try (var mockServer = MockServer.startOnRandomPort()) {
+            closedPort = mockServer.port();
+        }
+
+        // When
+        var proxyMessage = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+                "192.168.1.100", "127.0.0.1", 54321, closedPort);
+        try (var kafkaClient = KafkaClient.withProxyProtocol("localhost", closedPort, proxyMessage)) {
+            var future = kafkaClient.get(new Request(ApiKeys.API_VERSIONS, (short) 0, "client", new ApiVersionsRequestData()));
+
+            // Then - must complete exceptionally (not merely time out) and must do so quickly
+            assertThat(future)
+                    .failsWithin(5, TimeUnit.SECONDS)
+                    .withThrowableThat()
+                    .isInstanceOf(ExecutionException.class);
+        }
+    }
+
+    @Test
+    void shouldCompleteExceptionallyWhenProxyProtocolTlsHandshakeFails() throws Exception {
+        // Given
+        var file = new File(downstreamCertificateGenerator.getKeyStoreLocation());
+        var serverSslContext = SslContextBuilder
+                .forServer(keyManagerFactory(file, downstreamCertificateGenerator.getKeyStoreType(), downstreamCertificateGenerator.getPassword()))
+                .build();
+
+        var noTrustClientSslContext = SslContextBuilder.forClient().build();
+
+        var serverResponse = new ResponsePayload(ApiKeys.API_VERSIONS, (short) 0, new ApiVersionsResponseData());
+
+        // When
+        try (var mockServer = MockServer.startOnRandomPort(serverResponse, serverSslContext).acceptProxyProtocol()) {
+            var proxyMessage = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+                    "192.168.1.100", "127.0.0.1", 54321, mockServer.port());
+            try (var kafkaClient = KafkaClient.withProxyProtocol("localhost", mockServer.port(), proxyMessage, noTrustClientSslContext)) {
+                var future = kafkaClient.get(new Request(ApiKeys.API_VERSIONS, (short) 0, "client", new ApiVersionsRequestData()));
+
+                // Then - must complete exceptionally (not merely time out) and must do so quickly
+                assertThat(future)
+                        .failsWithin(5, TimeUnit.SECONDS)
+                        .withThrowableThat()
+                        .isInstanceOf(ExecutionException.class);
+            }
         }
     }
 

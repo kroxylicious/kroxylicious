@@ -262,8 +262,7 @@ public class KafkaProxyReconciler implements
                         false,
                         // micrometer
                         Optional.empty(),
-                        NetworkDefinitionBuilder.build(proxy),
-                        null),
+                        NetworkDefinitionBuilder.build(proxy)),
                 allVolumes,
                 allMounts);
     }
@@ -438,7 +437,8 @@ public class KafkaProxyReconciler implements
         return new ConfigurationFragment<>(new VirtualClusterGateway(name(gateway.ingress()),
                 portIdentifiesNode,
                 sniHostIdentifiesNode,
-                tlsConfigFragment.fragment()), volumes, mounts);
+                tlsConfigFragment.fragment(),
+                null), volumes, mounts);
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTlsFragment(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls ingressTls) {
