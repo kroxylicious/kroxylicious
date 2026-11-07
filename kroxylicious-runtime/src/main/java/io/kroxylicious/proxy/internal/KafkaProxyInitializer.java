@@ -6,7 +6,9 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -29,6 +31,7 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
@@ -152,40 +155,66 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private void initPlainChannel(Channel ch, KafkaSession kafkaSession) {
         ch.pipeline().addLast("plainResolver", new ChannelInboundHandlerAdapter() {
+            // Buffer channelRead events that arrive before initConnection completes. This covers
+            // two cases: bytes from subsequent TCP segments that arrive before binding resolves
+            // (timing race), and leftover bytes fired synchronously by HAProxyMessageDecoder's
+            // ByteToMessageDecoder.handlerRemoved when it removes itself after decoding the
+            // PROXY frame. The list is only accessed on the event loop thread.
+            private final List<Object> pending = new ArrayList<>();
+
             @SuppressWarnings("java:S1181")
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
-
                 bindingResolver.resolve(ch, null)
                         .handle((binding, t) -> {
-                            if (t != null) {
-                                // No virtual cluster for this endpoint (for example, the virtual cluster is being
-                                // replaced by a reconfigure). Close the connection, as the TLS path does, so the client
-                                // reconnects at once instead of waiting for its request timeout on a connection that
-                                // will never be served.
-                                LOGGER.atWarn()
-                                        .addKeyValue("channel", ch)
-                                        .addKeyValue("error", t.getMessage())
-                                        .setCause(LOGGER.isDebugEnabled() ? t : null)
-                                        .log(LOGGER.isDebugEnabled()
-                                                ? "Exception resolving Virtual Cluster Binding, closing connection"
-                                                : "Exception resolving Virtual Cluster Binding, closing connection. Increase log level to DEBUG for stacktrace");
-                                clientToProxyErrorCounter.increment();
-                                ctx.close().addListener(logFailure(LOGGER, "close after binding resolution failure"));
-                                return null;
-                            }
-                            try {
-                                KafkaProxyInitializer.this.initConnection(ch, binding, kafkaSession);
-                                ctx.fireChannelActive();
-                            }
-                            catch (Throwable t1) {
-                                ctx.fireExceptionCaught(t1);
-                            }
-                            finally {
-                                ch.pipeline().remove(this);
-                            }
+                            ch.eventLoop().execute(() -> {
+                                if (t != null) {
+                                    // No virtual cluster for this endpoint (for example, the virtual cluster is being
+                                    // replaced by a reconfigure). Close the connection, as the TLS path does, so the client
+                                    // reconnects at once instead of waiting for its request timeout on a connection that
+                                    // will never be served.
+                                    LOGGER.atWarn()
+                                            .addKeyValue("channel", ch)
+                                            .addKeyValue("error", t.getMessage())
+                                            .setCause(LOGGER.isDebugEnabled() ? t : null)
+                                            .log(LOGGER.isDebugEnabled()
+                                                    ? "Exception resolving Virtual Cluster Binding, closing connection"
+                                                    : "Exception resolving Virtual Cluster Binding, closing connection. Increase log level to DEBUG for stacktrace");
+                                    clientToProxyErrorCounter.increment();
+                                    ctx.close().addListener(logFailure(LOGGER, "close after binding resolution failure"));
+                                    return;
+                                }
+                                try {
+                                    KafkaProxyInitializer.this.initConnection(ch, binding, kafkaSession);
+                                    ctx.fireChannelActive();
+                                    for (Object msg : pending) {
+                                        ctx.fireChannelRead(msg);
+                                    }
+                                    if (!pending.isEmpty()) {
+                                        ctx.fireChannelReadComplete();
+                                    }
+                                    pending.clear();
+                                }
+                                catch (Throwable t1) {
+                                    ctx.fireExceptionCaught(t1);
+                                }
+                                finally {
+                                    ch.pipeline().remove(this);
+                                }
+                            });
                             return null;
                         });
+            }
+
+            @Override
+            public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                pending.add(msg);
+            }
+
+            @Override
+            public void handlerRemoved(ChannelHandlerContext ctx) {
+                // Release any messages that were buffered but never replayed (error/close path).
+                pending.forEach(ReferenceCountUtil::release);
             }
         });
     }

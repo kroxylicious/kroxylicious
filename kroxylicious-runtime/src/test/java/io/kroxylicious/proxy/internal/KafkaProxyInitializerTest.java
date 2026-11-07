@@ -90,6 +90,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
@@ -147,6 +148,10 @@ class KafkaProxyInitializerTest {
         when(channel.parent()).thenReturn(acceptingSocketChannel);
         when(channel.pipeline()).thenReturn(channelPipeline);
         when(channel.eventLoop()).thenReturn(eventLoop);
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Runnable.class).run();
+            return null;
+        }).when(eventLoop).execute(any(Runnable.class));
         when(channel.localAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 9099));
         ChannelFuture channelCloseFuture = mock(ChannelFuture.class);
         ChannelFuture closeFuture = mock(ChannelFuture.class);
@@ -250,6 +255,75 @@ class KafkaProxyInitializerTest {
 
         // Then
         verify(channelPipeline).remove(plainChannelResolverCaptor.getValue());
+    }
+
+    @Test
+    void shouldBufferAndReplayChannelReadEventsReceivedWhilePlainBindingPending() throws Exception {
+        // Given
+        var pendingBinding = new CompletableFuture<EndpointBinding>();
+        var bindingResolver = mock(EndpointBindingResolver.class);
+        when(bindingResolver.resolve(any(Channel.class), isNull())).thenReturn(pendingBinding);
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
+        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
+        kafkaProxyInitializer.initChannel(channel);
+
+        var ctx = mock(ChannelHandlerContext.class);
+        var resolver = plainChannelResolverCaptor.getValue();
+        resolver.channelActive(ctx);
+
+        var msg1 = new Object();
+        var msg2 = new Object();
+        resolver.channelRead(ctx, msg1);
+        resolver.channelRead(ctx, msg2);
+
+        // When
+        pendingBinding.complete(endpointBinding);
+
+        // Then
+        var order = inOrder(ctx);
+        order.verify(ctx).fireChannelRead(msg1);
+        order.verify(ctx).fireChannelRead(msg2);
+        verify(ctx).fireChannelReadComplete();
+    }
+
+    @Test
+    void shouldNotFireChannelReadCompleteWhenNothingBufferedOnPlainChannelBindingComplete() throws Exception {
+        // Given
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
+        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
+        kafkaProxyInitializer.initChannel(channel);
+
+        var ctx = mock(ChannelHandlerContext.class);
+
+        // When
+        plainChannelResolverCaptor.getValue().channelActive(ctx);
+
+        // Then
+        verify(ctx, never()).fireChannelReadComplete();
+    }
+
+    @Test
+    void shouldReleasePendingMessagesWhenPlainResolverHandlerRemoved() throws Exception {
+        // Given
+        var pendingBinding = new CompletableFuture<EndpointBinding>();
+        var bindingResolver = mock(EndpointBindingResolver.class);
+        when(bindingResolver.resolve(any(Channel.class), isNull())).thenReturn(pendingBinding);
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
+        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
+        kafkaProxyInitializer.initChannel(channel);
+
+        var ctx = mock(ChannelHandlerContext.class);
+        var resolver = plainChannelResolverCaptor.getValue();
+        resolver.channelActive(ctx);
+
+        var buf = Unpooled.buffer(4).writeInt(42);
+        resolver.channelRead(ctx, buf);
+
+        // When
+        resolver.handlerRemoved(ctx);
+
+        // Then
+        assertThat(buf.refCnt()).isZero();
     }
 
     @ParameterizedTest
