@@ -1,0 +1,4 @@
+title: "build(deps): bump apicurio-registry.version from 3.3.3 to 3.3.4"
+type: build
+merge_requests:
+  - 5302
