@@ -6,7 +6,10 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.EnumSet;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -25,12 +28,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @see <a href="https://www.haproxy.org/download/3.3/doc/proxy-protocol.txt">PROXY protocol specification</a>
  */
 public record ProxyProtocolConfig(@JsonProperty(required = true) ProxyProtocolMode mode) {
+
+    private static final String ALL_NAMES_LOWERED = EnumSet.allOf(ProxyProtocolMode.class).stream()
+            .map(m -> m.name().toLowerCase(Locale.ROOT))
+            .collect(Collectors.joining(", "));
+
     /**
      * Per-gateway configuration for the PROXY protocol.
      *
      * @param mode the proxy protocol mode; must not be null
      */
     public ProxyProtocolConfig {
-        Objects.requireNonNull(mode, "proxyProtocol.mode must be specified");
+        Objects.requireNonNull(mode, "proxyProtocol.mode must be specified; set it to one of: [%s]".formatted(ALL_NAMES_LOWERED));
     }
 }
