@@ -91,7 +91,7 @@ class ClientConnectionStateMachineEndToEndTest {
     public static final int CLUSTER_PORT = 9092;
     public static final HostPort CLUSTER_HOST_PORT = new HostPort(CLUSTER_HOST, CLUSTER_PORT);
 
-    public static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+    public static final HAProxyMessage PROXY_PROTOCOL_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             "1.1.1.1", "2.2.2.2", 46421, 9092);
     public static final String CLIENT_SOFTWARE_NAME = "my-kafka-lib";
     public static final String CLIENT_SOFTWARE_VERSION = "1.0.0";
@@ -222,16 +222,16 @@ class ClientConnectionStateMachineEndToEndTest {
     @MethodSource("booleanXbooleanXapiKey")
     void clientActiveToConnecting(
                                   boolean sni,
-                                  boolean haProxy,
+                                  boolean proxyProtocol,
                                   ApiKeys firstMessage) {
         // Given
         // Keeps the statemachine from automatically progressing so we can assert intermediate state
         activateOutboundChannelAutomatically = false;
         var clientConnectionStateMachine = buildHandlerInClientActiveState(sni);
 
-        if (haProxy) {
+        if (proxyProtocol) {
             clientConnectionStateMachine.forceState(
-                    new ClientConnectionState.HaProxy(),
+                    new ClientConnectionState.ProxyProtocol(),
                     handler,
                     java.util.Map.of(),
                     TEST_SESSION, false);
@@ -258,7 +258,7 @@ class ClientConnectionStateMachineEndToEndTest {
         assertThat(clientConnectionStateMachine.clientSoftwareVersion())
                 .isEqualTo(firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null);
 
-        if (haProxy) {
+        if (proxyProtocol) {
             // forceState with transportSubjectReady=false prevents unblockClient from firing
             assertThat(inboundChannel.config().isAutoRead()).isFalse();
             assertThat(handler.bufferedMsgs)
@@ -289,7 +289,7 @@ class ClientConnectionStateMachineEndToEndTest {
     @MethodSource("booleanXbooleanXapiKey")
     void plainServerChannelActivationInConnecting(
                                                   boolean sni,
-                                                  boolean haProxy,
+                                                  boolean proxyProtocol,
                                                   ApiKeys firstMessage) {
         // Given
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
@@ -312,7 +312,7 @@ class ClientConnectionStateMachineEndToEndTest {
     @MethodSource("booleanXbooleanXapiKeyXserverException")
     void plainServerChannelActivationThenException(
                                                    boolean sni,
-                                                   boolean haProxy,
+                                                   boolean proxyProtocol,
                                                    ApiKeys firstMessage,
                                                    Throwable serverException) {
         // Given
@@ -339,7 +339,7 @@ class ClientConnectionStateMachineEndToEndTest {
     @MethodSource("booleanXbooleanXapiKey")
     void plainServerChannelActivationThenInactive(
                                                   boolean sni,
-                                                  boolean haProxy,
+                                                  boolean proxyProtocol,
                                                   ApiKeys firstMessage) {
         // Given
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
@@ -357,7 +357,7 @@ class ClientConnectionStateMachineEndToEndTest {
     @MethodSource("booleanXbooleanXapiKey")
     void tlsServerChannelActivationInConnecting(
                                                 boolean sni,
-                                                boolean haProxy,
+                                                boolean proxyProtocol,
                                                 ApiKeys firstMessage) {
         // Given
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
@@ -379,7 +379,7 @@ class ClientConnectionStateMachineEndToEndTest {
     @MethodSource("booleanXbooleanXapiKey")
     void tlsHandshakeFail(
                           boolean sni,
-                          boolean haProxy,
+                          boolean proxyProtocol,
                           ApiKeys firstMessage) {
         // Given
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
@@ -402,7 +402,7 @@ class ClientConnectionStateMachineEndToEndTest {
     @MethodSource("booleanXbooleanXapiKey")
     void tlsHandshakeSuccess(
                              boolean sni,
-                             boolean haProxy,
+                             boolean proxyProtocol,
                              ApiKeys firstMessage) {
         // Given
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
@@ -753,7 +753,7 @@ class ClientConnectionStateMachineEndToEndTest {
      * Integration test to verify handler ordering in the complete pipeline after filters are installed.
      *
      * Critical ordering requirements:
-     * - HaProxyMessageHandler (if present) must come before FilterHandler instances
+     * - ProxyProtocolMessageHandler (if present) must come before FilterHandler instances
      * - FilterHandler instances must come before KafkaProxyFrontendHandler
      *
      * This ensures:
@@ -774,17 +774,17 @@ class ClientConnectionStateMachineEndToEndTest {
         List<String> handlerNames = pipeline.names();
 
         // Find positions of critical handlers
-        int haProxyHandlerIndex = handlerNames.indexOf("HaProxyMessageHandler");
+        int proxyProtocolHandlerIndex = handlerNames.indexOf("ProxyProtocolMessageHandler");
         int frontendHandlerIndex = findHandlerIndex(handlerNames, handler);
 
         // Find first filter handler (they're named "filter-N-FilterName")
         int firstFilterIndex = findFirstFilterHandler(handlerNames);
 
         // Assert ordering if handlers exist
-        if (haProxyHandlerIndex >= 0 && firstFilterIndex >= 0) {
-            assertThat(haProxyHandlerIndex)
-                    .as("HaProxyMessageHandler (at index %d) must come before first filter (at index %d) in pipeline: %s",
-                            haProxyHandlerIndex, firstFilterIndex, handlerNames)
+        if (proxyProtocolHandlerIndex >= 0 && firstFilterIndex >= 0) {
+            assertThat(proxyProtocolHandlerIndex)
+                    .as("ProxyProtocolMessageHandler (at index %d) must come before first filter (at index %d) in pipeline: %s",
+                            proxyProtocolHandlerIndex, firstFilterIndex, handlerNames)
                     .isLessThan(firstFilterIndex);
         }
 

@@ -60,7 +60,6 @@ class ConfigurationDeprecatedVirtualClusterTargetClusterCompatibilityTest {
                 null,
                 false,
                 development,
-                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'virtualClusters.vc1.filters' references filters not defined in 'filterDefinitions': [missing]");
@@ -72,7 +71,7 @@ class ConfigurationDeprecatedVirtualClusterTargetClusterCompatibilityTest {
         List<VirtualClusterGateway> gateways = List.of(new VirtualClusterGateway("mygateway",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
                 null,
-                Optional.empty()));
+                Optional.empty(), null));
 
         TargetCluster targetCluster = new TargetCluster("kafka.example:1234", Optional.empty());
 
