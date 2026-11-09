@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
@@ -757,5 +758,72 @@ class AclAuthorizerServiceTest {
                 .isEqualTo(Decision.ALLOW);
         assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "bar"))
                 .isEqualTo(Decision.ALLOW);
+    }
+
+    /**
+     * A child-first class loader holding its own copy of {@link FakeTopicResource}, as a host with
+     * several class loaders (an application server, a plugin system, a framework's dev mode) would.
+     * The {@link ResourceType} interface itself is shared with the parent.
+     */
+    private static final class HostClassLoader extends ClassLoader {
+        private static final String COPIED = FakeTopicResource.class.getName();
+
+        HostClassLoader() {
+            super(AclAuthorizerServiceTest.class.getClassLoader());
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            if (!name.equals(COPIED)) {
+                return super.loadClass(name, resolve);
+            }
+            synchronized (getClassLoadingLock(name)) {
+                Class<?> loaded = findLoadedClass(name);
+                if (loaded != null) {
+                    return loaded;
+                }
+                try (var in = getParent().getResourceAsStream(name.replace('.', '/') + ".class")) {
+                    byte[] bytes = Objects.requireNonNull(in).readAllBytes();
+                    return defineClass(name, bytes, 0, bytes.length);
+                }
+                catch (IOException e) {
+                    throw new ClassNotFoundException(name, e);
+                }
+            }
+        }
+    }
+
+    private static final String HOST_RULES = """
+            from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+            allow User with name = "Alice" to READ Topic with name = "foo";
+            otherwise deny;""";
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private static ResourceType<?> hostRead(ClassLoader host) throws ClassNotFoundException {
+        Class enumClass = host.loadClass(FakeTopicResource.class.getName());
+        return (ResourceType<?>) Enum.valueOf(enumClass, "READ");
+    }
+
+    @Test
+    void importedClassesAreResolvedWithTheGivenClassLoader() throws Exception {
+        var host = new HostClassLoader();
+        ResourceType<?> hostRead = hostRead(host);
+        assertThat(hostRead.getClass()).isNotEqualTo(FakeTopicResource.class);
+
+        var authz = AclAuthorizerService.parse(HOST_RULES, host);
+
+        // The rule is for the host's copy of the class, not this module's
+        assertThat(decision(authz, new User("Alice"), hostRead, "foo")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.DENY);
+        assertThat(authz.supportedResourceTypes()).hasValueSatisfying(types -> assertThat(types).containsExactly(
+                (Class) hostRead.getClass()));
+    }
+
+    @Test
+    void importedClassesAreResolvedWithThisModulesClassLoaderByDefault() throws Exception {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString(HOST_RULES));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), hostRead(new HostClassLoader()), "foo")).isEqualTo(Decision.DENY);
     }
 }
