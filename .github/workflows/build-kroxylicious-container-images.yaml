@@ -168,7 +168,7 @@ jobs:
                   runs_on: .value["runs-on"],
                   dist_profile: .value["dist-profile"],
                   qemu: .value.qemu,
-                  native_check: .value["native-check"] } ]
+                  target_netty_classifier: .value["target-netty-classifier"] } ]
           ' "${ARCH_MATRIX_FILE}")
 
           PLATFORMS=$(jq -rn --argjson arches "${ARCHES}" '[$arches[] | "linux/\(.)"] | join(",")')
@@ -408,16 +408,15 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-${{ matrix.arch }}
 
       # Guards against a stale target/ leaving another architecture's native binaries
-      # in the assembly. native_check names the Netty classifier this image must
-      # contain; "none" means the architecture has no Netty natives at all, in which
-      # case only the absence of foreign ones is asserted.
+      # in the assembly. An architecture Netty publishes no natives for has no
+      # classifier, and only the absence of other architectures' is asserted.
 
       - name: Verify ${{ matrix.arch }} proxy image native libraries
         if: needs.prepare.outputs.output_tarballs != 'true'
         env:
           IMAGE_TAG: ${{ steps.tag.outputs.tag }}
           ARCH: ${{ matrix.arch }}
-          NATIVE_CHECK: ${{ matrix.native_check }}
+          TARGET_NETTY_CLASSIFIER: ${{ matrix.target_netty_classifier }}
         run: |
           echo "Verifying native libs in ${IMAGE_TAG}..."
           _CONTAINER_ID=$(docker create --platform "linux/${ARCH}" "${IMAGE_TAG}")
@@ -425,21 +424,21 @@ jobs:
           docker cp "${_CONTAINER_ID}:/opt/kroxylicious/libs/native/netty/." "${_NATIVE_DIR}/" || true
           docker rm "${_CONTAINER_ID}" > /dev/null
 
-          _ALL_CLASSIFIERS=$(jq -r '[.[]["native-check"] | select(. != "none")] | unique | join(" ")' "${ARCH_MATRIX_FILE}")
+          _ALL_CLASSIFIERS=$(jq -r '[.[]["target-netty-classifier"] | values] | unique | join(" ")' "${ARCH_MATRIX_FILE}")
           _FAILED=0
 
-          if [[ "${NATIVE_CHECK}" != "none" ]]; then
-            _EXPECTED_COUNT=$(find "${_NATIVE_DIR}" -name "*${NATIVE_CHECK}*" | wc -l | tr -d ' ')
+          if [[ -n "${TARGET_NETTY_CLASSIFIER}" ]]; then
+            _EXPECTED_COUNT=$(find "${_NATIVE_DIR}" -name "*${TARGET_NETTY_CLASSIFIER}*" | wc -l | tr -d ' ')
             if [[ "${_EXPECTED_COUNT}" -eq 0 ]]; then
-              echo "::error::${ARCH} proxy image contains no ${NATIVE_CHECK} Netty native libs"
+              echo "::error::${ARCH} proxy image contains no ${TARGET_NETTY_CLASSIFIER} Netty native libs"
               _FAILED=1
             else
-              echo "${ARCH} proxy image has ${_EXPECTED_COUNT} ${NATIVE_CHECK} native lib(s)."
+              echo "${ARCH} proxy image has ${_EXPECTED_COUNT} ${TARGET_NETTY_CLASSIFIER} native lib(s)."
             fi
           fi
 
           for _CLASSIFIER in ${_ALL_CLASSIFIERS}; do
-            [[ "${_CLASSIFIER}" == "${NATIVE_CHECK}" ]] && continue
+            [[ "${_CLASSIFIER}" == "${TARGET_NETTY_CLASSIFIER}" ]] && continue
             _FOREIGN_COUNT=$(find "${_NATIVE_DIR}" -name "*${_CLASSIFIER}*" | wc -l | tr -d ' ')
             if [[ "${_FOREIGN_COUNT}" -ne 0 ]]; then
               echo "::error::${ARCH} proxy image contains ${_FOREIGN_COUNT} ${_CLASSIFIER} native lib(s) belonging to another architecture"
