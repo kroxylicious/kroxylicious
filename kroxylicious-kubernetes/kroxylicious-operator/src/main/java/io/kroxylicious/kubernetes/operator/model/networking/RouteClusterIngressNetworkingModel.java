@@ -185,6 +185,11 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
         return true;
     }
 
+    @Override
+    public Optional<Integer> sharedSniContainerPort() {
+        return Optional.of(sharedSniPort);
+    }
+
     /**
      * Returns the bootstrap address.
      * Note that the public facing port is always 443, regardless of any port used by the service.

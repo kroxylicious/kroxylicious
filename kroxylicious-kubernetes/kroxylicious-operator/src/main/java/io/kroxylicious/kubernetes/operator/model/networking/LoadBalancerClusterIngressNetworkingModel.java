@@ -86,6 +86,11 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
     }
 
     @Override
+    public Optional<Integer> sharedSniContainerPort() {
+        return Optional.of(sharedSniPort);
+    }
+
+    @Override
     public Stream<Integer> requiredClientFacingPorts() {
         return Stream.of(DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
     }

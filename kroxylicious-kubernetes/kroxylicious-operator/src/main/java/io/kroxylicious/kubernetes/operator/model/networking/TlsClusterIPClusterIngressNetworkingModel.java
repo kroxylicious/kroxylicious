@@ -135,6 +135,11 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
         return true;
     }
 
+    @Override
+    public Optional<Integer> sharedSniContainerPort() {
+        return Optional.of(sharedSniPort);
+    }
+
     private String bootstrapServers() {
         return new HostPort(getCrossNamespaceServiceAddress(), CLIENT_FACING_PORT).toString();
     }

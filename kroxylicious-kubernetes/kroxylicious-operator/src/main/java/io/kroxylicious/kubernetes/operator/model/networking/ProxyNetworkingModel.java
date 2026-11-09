@@ -34,7 +34,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
-import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 
 /**
  * The ProxyNetworkingModel models the logical arrangement of client-facing resources, and backend plumbing
@@ -262,19 +261,7 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
         public Stream<Integer> requiredSharedSniPorts() {
             return clusterIngressNetworkingModelResults.stream()
                     .map(ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
-                    .filter(ClusterIngressNetworkingModel::requiresSharedSniContainerPort)
-                    .flatMap(model -> {
-                        if (model instanceof LoadBalancerClusterIngressNetworkingModel lbModel) {
-                            return Stream.of(lbModel.sharedSniPort());
-                        }
-                        else if (model instanceof TlsClusterIPClusterIngressNetworkingModel) {
-                            return Stream.of(SHARED_SNI_PORT);
-                        }
-                        else if (model instanceof RouteClusterIngressNetworkingModel) {
-                            return Stream.of(SHARED_SNI_PORT);
-                        }
-                        return Stream.empty();
-                    });
+                    .flatMap(model -> model.sharedSniContainerPort().stream());
         }
     }
 

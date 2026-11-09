@@ -88,6 +88,14 @@ public interface ClusterIngressNetworkingModel {
     }
 
     /**
+     * The shared SNI container port used by this model, if any.
+     * @return the port number, or empty if this model does not use a shared SNI port
+     */
+    default Optional<Integer> sharedSniContainerPort() {
+        return Optional.empty();
+    }
+
+    /**
      * Describes the requirements this model has for a shared laod balancer service, if any
      * @return optional completed with the requirements if this model requires ingress via the shared LoadBalancer Service, else empty
      */
