@@ -53,21 +53,10 @@ class OauthBearerStateMachine implements MechanismStateMachine {
 
     private final OAuthBearerValidatorCallbackHandler callbackHandler;
     private final int maxAuthBytes;
-    @Nullable
     private final String virtualClusterName;
 
     @Nullable
     private SaslServer saslServer;
-
-    /**
-     * Create an OAUTHBEARER state machine.
-     *
-     * @param callbackHandler the configured callback handler for JWT validation
-     * @param maxAuthBytes maximum auth payload size in bytes
-     */
-    OauthBearerStateMachine(OAuthBearerValidatorCallbackHandler callbackHandler, int maxAuthBytes) {
-        this(callbackHandler, maxAuthBytes, null);
-    }
 
     /**
      * Create an OAUTHBEARER state machine with virtual cluster context.
@@ -76,10 +65,10 @@ class OauthBearerStateMachine implements MechanismStateMachine {
      * @param maxAuthBytes maximum auth payload size in bytes
      * @param virtualClusterName virtual cluster name
      */
-    OauthBearerStateMachine(OAuthBearerValidatorCallbackHandler callbackHandler, int maxAuthBytes, @Nullable String virtualClusterName) {
+    OauthBearerStateMachine(OAuthBearerValidatorCallbackHandler callbackHandler, int maxAuthBytes, String virtualClusterName) {
         this.callbackHandler = Objects.requireNonNull(callbackHandler);
         this.maxAuthBytes = maxAuthBytes;
-        this.virtualClusterName = virtualClusterName;
+        this.virtualClusterName = Objects.requireNonNull(virtualClusterName);
     }
 
     @Override
@@ -131,7 +120,6 @@ class OauthBearerStateMachine implements MechanismStateMachine {
                                 sessionExpiry));
             }
             else {
-                recordValidationDuration("success", System.nanoTime() - startNanos);
                 return CompletableFuture.completedFuture(
                         RoundResult.challenge(
                                 response != null ? response : new byte[0]));
@@ -149,13 +137,11 @@ class OauthBearerStateMachine implements MechanismStateMachine {
     }
 
     private void recordValidationDuration(String outcome, long durationNanos) {
-        if (virtualClusterName != null) {
-            SaslTerminationFilter.recordOauthValidationDuration(
-                    OAUTHBEARER_MECHANISM,
-                    virtualClusterName,
-                    outcome,
-                    Duration.ofNanos(durationNanos));
-        }
+        SaslTerminationFilter.recordOauthValidationDuration(
+                OAUTHBEARER_MECHANISM,
+                virtualClusterName,
+                outcome,
+                Duration.ofNanos(durationNanos));
     }
 
     @Nullable

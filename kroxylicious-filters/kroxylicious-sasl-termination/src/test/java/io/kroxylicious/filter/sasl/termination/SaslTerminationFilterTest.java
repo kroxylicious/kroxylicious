@@ -935,6 +935,7 @@ class SaslTerminationFilterTest {
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
         when(filterContext.sessionId()).thenReturn("test-session");
+        when(filterContext.getVirtualClusterName()).thenReturn(TEST_VIRTUAL_CLUSTER);
         when(builder.shortCircuitResponse(captor.capture())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
 
@@ -1004,6 +1005,7 @@ class SaslTerminationFilterTest {
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
         when(filterContext.sessionId()).thenReturn("test-session");
+        when(filterContext.getVirtualClusterName()).thenReturn(TEST_VIRTUAL_CLUSTER);
         when(builder.errorResponse(any(), any(), errorsCaptor.capture(), messageCaptor.capture())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
 
