@@ -570,7 +570,7 @@ image tags, OCI platform strings and labels. The value records everything CI nee
 | `runs-on`      | The GitHub Actions runner label to build on - either a native runner or an `ubuntu-latest` runner using emulation.       |
 | `dist-profile` | The Maven profiles to activate when building the distribution, which select the architecture's native binaries. The `arm64` entry uses the `aarch64` profile because that is what Maven and Netty call the classifier. |
 | `qemu`         | Whether the build needs QEMU emulation, i.e. there is no native runner for this architecture.                            |
-| `native-check` | The Netty native classifier the built image must contain, as it appears in the library filenames (`x86_64`, `aarch_64`), or `none` where Netty publishes no natives for the architecture. Whatever the value, the image is also checked to contain no classifier belonging to another architecture. |
+| `target-netty-classifier` | What Netty calls this architecture in its native library filenames (`x86_64`, `aarch_64`), or `null` where Netty publishes no natives for it. The built image is checked to contain its own target's classifier and no other target's, so a `null` entry still asserts that nothing foreign leaked in. |
 
 Adding an architecture is a matter of adding an entry here and setting `enabled` once the Maven profile selecting its
 native binaries exists; nothing in the workflows names architectures individually.
