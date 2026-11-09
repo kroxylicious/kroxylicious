@@ -33,9 +33,9 @@ Configuration:
          AppenderRef:
            - ref: Console
 
-      -  name: io.kroxylicious.proxy
+      -  name: io.kroxylicious
          additivity: false
-         level: WARN
+         level: DEBUG
          AppenderRef:
            - ref: Console
 
