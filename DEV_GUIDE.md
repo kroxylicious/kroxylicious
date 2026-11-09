@@ -593,8 +593,10 @@ unrecognised, including when other labels did match, so a pull request labelled 
 fails instead of quietly building amd64. Label matching is exact, so `platform/AMD64` and `platform/arm` are both
 errors.
 
-Builds triggered by anything other than a pull request - pushes to `main`, merge queue runs and release staging -
-always build every enabled architecture in the registry, so no labelling is needed there.
+Which architectures a build covers follows whether it publishes. Pushes to `main` and release staging build every
+enabled architecture in the registry, because those produce the images users consume. Merge queue runs build the
+defaults, like an unlabelled pull request: they are a check that the queued changes build together, not a publishing
+step, so they stay cheap.
 
 The `platform/<arch>` labels are a general-purpose convention rather than a CI-only one; the same labels are used on
 issues to record which architecture a bug affects.
