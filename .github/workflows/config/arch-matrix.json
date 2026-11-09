@@ -1,5 +1,6 @@
 {
   "amd64": {
+    "enabled": true,
     "default": true,
     "runs-on": "ubuntu-latest",
     "dist-profile": "dist,!qa",
@@ -7,6 +8,7 @@
     "native-check": "x86_64"
   },
   "arm64": {
+    "enabled": true,
     "default": false,
     "runs-on": "ubuntu-latest",
     "dist-profile": "dist,aarch64,!qa",
@@ -14,6 +16,7 @@
     "native-check": "aarch_64"
   },
   "ppc64le": {
+    "enabled": false,
     "default": false,
     "runs-on": "ubuntu-24.04-ppc64le",
     "dist-profile": "dist,ppc64le,!qa",
@@ -21,6 +24,7 @@
     "native-check": "none"
   },
   "s390x": {
+    "enabled": false,
     "default": false,
     "runs-on": "ubuntu-24.04-s390x",
     "dist-profile": "dist,s390x,!qa",
