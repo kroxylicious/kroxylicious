@@ -516,6 +516,78 @@ jobs:
               "${SOURCE_TAGS[@]}"
           done
 
+      # Checked in both directions: every architecture we built is referenced by
+      # the manifest, and the manifest references nothing else. A manifest that
+      # silently lost an architecture, or kept a stale one from an earlier run,
+      # looks healthy until a user pulls it on that architecture.
+      #
+      # Buildx attaches a provenance attestation to every build, so even a
+      # single-platform push is an index of {image, attestation} and it is those
+      # children that imagetools copies into the final list. Comparison is
+      # therefore at the child level, and every inspect uses --raw: resolving an
+      # index without it picks the child matching the runner's own architecture,
+      # which fails outright for any architecture the runner isn't.
+
+      - name: Verify proxy multi-arch manifest matches published per-arch images
+        env:
+          PROXY_FINAL_TAGS: ${{ needs.prepare.outputs.proxy_final_tags }}
+          PROXY_IMAGE: ${{ needs.prepare.outputs.proxy_image }}
+          ARCHES: ${{ needs.prepare.outputs.arches }}
+        run: |
+          # architecture -> source tag this manifest is expected to reference
+          ARCH_TAGS=$(jq -rn --argjson arches "${ARCHES}" \
+            --arg image "${PROXY_IMAGE}" --arg sha "${GITHUB_SHA}" \
+            '$arches[] | "\(.) \($image):commit-\($sha)-\(.)"')
+
+          FAILED=0
+          for FINAL_TAG in $(echo "${PROXY_FINAL_TAGS}" | tr ',' ' '); do
+            MANIFEST_JSON=$(skopeo inspect --raw "docker://${FINAL_TAG}") \
+              || { echo "::error::Could not inspect manifest ${FINAL_TAG}"; FAILED=1; continue; }
+
+            EXPECTED_DIGESTS=""
+            while read -r ARCH SRC; do
+              [[ -z "${SRC}" ]] && continue
+              if ! SRC_RAW=$(skopeo inspect --raw "docker://${SRC}" 2>&1); then
+                echo "::error::${FINAL_TAG}: expected linux/${ARCH} image ${SRC} could not be inspected: ${SRC_RAW}"
+                FAILED=1
+                continue
+              fi
+              if jq -e 'has("manifests")' > /dev/null <<< "${SRC_RAW}"; then
+                SRC_DIGEST=$(jq -r --arg a "${ARCH}" \
+                  '[.manifests[] | select(.platform.os == "linux" and .platform.architecture == $a) | .digest] | first // empty' \
+                  <<< "${SRC_RAW}")
+              else
+                # No attestations configured: the tag is the image manifest itself.
+                SRC_DIGEST=$(skopeo inspect --format '{{.Digest}}' "docker://${SRC}")
+              fi
+              if [[ -z "${SRC_DIGEST}" ]]; then
+                echo "::error::${FINAL_TAG}: ${SRC} publishes no linux/${ARCH} image manifest"
+                FAILED=1
+                continue
+              fi
+              if ! jq -e --arg d "${SRC_DIGEST}" 'any(.manifests[]; .digest == $d)' > /dev/null <<< "${MANIFEST_JSON}"; then
+                echo "::error::${FINAL_TAG}: manifest does not reference linux/${ARCH} (${SRC}, digest ${SRC_DIGEST})"
+                FAILED=1
+              fi
+              EXPECTED_DIGESTS="${EXPECTED_DIGESTS}${SRC_DIGEST}"$'\n'
+            done <<< "${ARCH_TAGS}"
+
+            # Reverse direction: anything the manifest references that we didn't
+            # expect. An attestation is expected exactly when the image it
+            # describes is, so it is judged by its subject rather than itself.
+            while read -r DIGEST PLATFORM SUBJECT; do
+              [[ -z "${DIGEST}" ]] && continue
+              CANDIDATE="${DIGEST}"
+              if [[ "${PLATFORM}" == "unknown/unknown" && -n "${SUBJECT}" ]]; then
+                CANDIDATE="${SUBJECT}"
+              fi
+              grep -qxF "${CANDIDATE}" <<< "${EXPECTED_DIGESTS}" \
+                || { echo "::error::${FINAL_TAG}: manifest references unexpected ${PLATFORM} (digest ${DIGEST})"; FAILED=1; }
+            done < <(jq -r '.manifests[] | "\(.digest) \(.platform.os)/\(.platform.architecture) \(.annotations["vnd.docker.reference.digest"] // "")"' <<< "${MANIFEST_JSON}")
+          done
+
+          exit "${FAILED}"
+
   other-images:
     needs: prepare
     runs-on: ubuntu-latest
