@@ -58,10 +58,6 @@ on:
         description: 'JSON array of architectures to build, e.g. ["amd64","arm64"]. Values are keys of .github/workflows/config/arch-matrix.json. Empty selects the registry defaults.'
         type: string
         default: ''
-      multi-arch:
-        description: 'Deprecated, pass arches instead. Builds linux/amd64 and linux/arm64 proxy images.'
-        type: boolean
-        default: false
       additional-tags:
         description: 'Extra comma-separated image tags alongside the commit-SHA tag (e.g. "0.23.0-SNAPSHOT"). Leave empty for SHA-only.'
         type: string
@@ -83,10 +79,6 @@ on:
         description: 'JSON array of architectures to build, e.g. ["amd64","arm64"]. Empty selects the registry defaults.'
         required: false
         default: ''
-      multi-arch:
-        description: 'Deprecated, pass arches instead. Builds linux/amd64 and linux/arm64 proxy images.'
-        type: boolean
-        default: false
       additional-tags:
         description: 'Extra comma-separated image tags alongside the commit-SHA tag (e.g. "0.23.0-SNAPSHOT"). Leave empty for SHA-only.'
         required: false
@@ -138,7 +130,6 @@ jobs:
         id: arches
         env:
           ARCHES_INPUT: ${{ inputs.arches }}
-          MULTI_ARCH: ${{ inputs.multi-arch }}
           OUTPUT_TARBALLS: ${{ inputs.output-tarballs }}
         run: |
           if [[ "${OUTPUT_TARBALLS}" == "true" ]]; then
@@ -146,8 +137,6 @@ jobs:
             ARCHES='["amd64"]'
           elif [[ -n "${ARCHES_INPUT}" ]]; then
             ARCHES="${ARCHES_INPUT}"
-          elif [[ "${MULTI_ARCH}" == "true" ]]; then
-            ARCHES='["amd64","arm64"]'
           else
             ARCHES=$(jq -c '[to_entries[] | select(.value.enabled and .value.default) | .key]' "${ARCH_MATRIX_FILE}")
           fi
