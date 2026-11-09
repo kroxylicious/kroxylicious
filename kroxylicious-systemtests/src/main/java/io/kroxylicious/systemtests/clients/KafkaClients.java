@@ -34,6 +34,20 @@ public class KafkaClients {
     }
 
     /**
+     * Returns {@code true} when {@link #getKafkaClient()} would return the Strimzi test client.
+     * Use this to guard tests that require features only available in the Strimzi test client
+     * (for example, TLS client certificate env vars).
+     *
+     * @return true if the configured Kafka client is the Strimzi test client
+     */
+    public static boolean isStrimziTestClient() {
+        return switch (Enum.valueOf(KafkaClientType.class, Environment.KAFKA_CLIENT.toUpperCase(Locale.ROOT))) {
+            case KAF, KCAT, PYTHON_TEST_CLIENT -> false;
+            default -> true;
+        };
+    }
+
+    /**
      * Kaf client.
      *
      * @return the kaf client

@@ -12,10 +12,13 @@ import java.util.Map;
 
 import org.apache.kafka.common.record.CompressionType;
 
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.KafkaClients;
+import io.kroxylicious.systemtests.clients.StrimziTestClient;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
@@ -191,6 +194,67 @@ public class KroxyliciousSteps {
     public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout,
                                                        Map<String, String> additionalConfig, @NonNull String consumerGroup) {
         return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig, consumerGroup);
+    }
+
+    /**
+     * Returns env vars that configure the Strimzi test client to authenticate with TLS client certificates
+     * stored in the named cert-manager Secret (keys: {@code ca.crt}, {@code tls.crt}, {@code tls.key}).
+     * Setting {@code CA_CRT} also switches the client to SSL mode automatically.
+     *
+     * @param secretName the cert-manager Secret containing the client certificate
+     * @return three EnvVars: CA_CRT, USER_CRT, USER_KEY
+     */
+    public static List<EnvVar> clientTlsEnvVars(String secretName) {
+        return List.of(
+                secretKeyRefEnvVar("CA_CRT", secretName, "ca.crt"),
+                secretKeyRefEnvVar("USER_CRT", secretName, "tls.crt"),
+                secretKeyRefEnvVar("USER_KEY", secretName, "tls.key"));
+    }
+
+    private static EnvVar secretKeyRefEnvVar(String envVarName, String secretName, String secretKey) {
+        return new EnvVarBuilder()
+                .withName(envVarName)
+                .withNewValueFrom()
+                .withNewSecretKeyRef()
+                .withName(secretName)
+                .withKey(secretKey)
+                .endSecretKeyRef()
+                .endValueFrom()
+                .build();
+    }
+
+    /**
+     * Produce messages via the Strimzi test client with TLS client certificate env vars.
+     *
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param numberOfMessages the number of messages
+     * @param extraEnvVars additional env vars injected into the Job (e.g. from {@link #clientTlsEnvVars})
+     * @return the exec result
+     */
+    public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages,
+                                             List<EnvVar> extraEnvVars) {
+        return ((StrimziTestClient) KafkaClients.strimziTestClient().inNamespace(namespace))
+                .produceMessages(topicName, bootstrap, message, null, numberOfMessages, Map.of(), Map.of(), extraEnvVars);
+    }
+
+    /**
+     * Consume messages via the Strimzi test client with TLS client certificate env vars.
+     *
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numberOfMessages the number of messages
+     * @param timeout the timeout
+     * @param extraEnvVars additional env vars injected into the Job (e.g. from {@link #clientTlsEnvVars})
+     * @return the list of ConsumerRecords
+     */
+    public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout,
+                                                       List<EnvVar> extraEnvVars) {
+        return ((StrimziTestClient) KafkaClients.strimziTestClient().inNamespace(namespace))
+                .consumeMessages(topicName, bootstrap, numberOfMessages, timeout, Map.of(), Constants.CONSUMER_GROUP_NAME, Map.of(), extraEnvVars);
     }
 
     /**
