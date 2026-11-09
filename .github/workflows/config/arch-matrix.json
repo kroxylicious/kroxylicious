@@ -10,9 +10,9 @@
   "arm64": {
     "enabled": true,
     "default": false,
-    "runs-on": "ubuntu-latest",
+    "runs-on": "ubuntu-24.04-arm",
     "dist-profile": "dist,aarch64,!qa",
-    "qemu": true,
+    "qemu": false,
     "native-check": "aarch_64"
   },
   "ppc64le": {
