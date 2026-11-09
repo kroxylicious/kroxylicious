@@ -149,7 +149,7 @@ jobs:
           elif [[ "${MULTI_ARCH}" == "true" ]]; then
             ARCHES='["amd64","arm64"]'
           else
-            ARCHES=$(jq -c '[to_entries[] | select(.value.default) | .key]' "${ARCH_MATRIX_FILE}")
+            ARCHES=$(jq -c '[to_entries[] | select(.value.enabled and .value.default) | .key]' "${ARCH_MATRIX_FILE}")
           fi
 
           UNKNOWN=$(jq -r --argjson arches "${ARCHES}" '
@@ -159,6 +159,16 @@ jobs:
           ' "${ARCH_MATRIX_FILE}")
           if [[ -n "${UNKNOWN}" ]]; then
             echo "::error::Unknown architecture(s): ${UNKNOWN}. Valid: $(jq -r 'keys | join(", ")' "${ARCH_MATRIX_FILE}")"
+            exit 1
+          fi
+
+          DISABLED=$(jq -r --argjson arches "${ARCHES}" '
+            . as $registry
+            | [$arches[] | select(. as $a | $registry[$a].enabled | not)]
+            | join(", ")
+          ' "${ARCH_MATRIX_FILE}")
+          if [[ -n "${DISABLED}" ]]; then
+            echo "::error::Architecture(s) present in the registry but not yet buildable: ${DISABLED}"
             exit 1
           fi
 

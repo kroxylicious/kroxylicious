@@ -565,13 +565,15 @@ image tags, OCI platform strings and labels. The value records everything CI nee
 
 | Field          | Meaning                                                                                                                 |
 |----------------|-------------------------------------------------------------------------------------------------------------------------|
+| `enabled`      | Whether the architecture can be built at all. An entry describes an architecture we intend to support; it is only selectable once the Maven profile and runners it needs exist. Asking for a disabled architecture is an error rather than a silent skip. |
 | `default`      | Build this architecture on pull requests that do not request architectures by label, see below.                        |
 | `runs-on`      | The GitHub Actions runner label to build on - either a native runner or an `ubuntu-latest` runner using emulation.       |
 | `dist-profile` | The Maven profiles to activate when building the distribution, which select the architecture's native binaries. The `arm64` entry uses the `aarch64` profile because that is what Maven and Netty call the classifier. |
 | `qemu`         | Whether the build needs QEMU emulation, i.e. there is no native runner for this architecture.                            |
 | `native-check` | The Netty native classifier the built image must contain, as it appears in the library filenames (`x86_64`, `aarch_64`), or `none` where Netty publishes no natives for the architecture. Whatever the value, the image is also checked to contain no classifier belonging to another architecture. |
 
-Adding an architecture is a matter of adding an entry here; nothing in the workflows names architectures individually.
+Adding an architecture is a matter of adding an entry here and setting `enabled` once the Maven profile selecting its
+native binaries exists; nothing in the workflows names architectures individually.
 
 #### Requesting architectures on a pull request
 
@@ -592,7 +594,7 @@ fails instead of quietly building amd64. Label matching is exact, so `platform/A
 errors.
 
 Builds triggered by anything other than a pull request - pushes to `main`, merge queue runs and release staging -
-always build every architecture in the registry, so no labelling is needed there.
+always build every enabled architecture in the registry, so no labelling is needed there.
 
 The `platform/<arch>` labels are a general-purpose convention rather than a CI-only one; the same labels are used on
 issues to record which architecture a bug affects.
