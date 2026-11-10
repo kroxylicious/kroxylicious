@@ -213,6 +213,10 @@ jobs:
             # publish nothing, so they stay as cheap as a default pull request.
             ARCHES="${DEFAULTS}"
           else
+            # What a label is allowed to ask for: gated architectures are in the
+            # registry so the shape is ready for them, but cannot be built yet.
+            ENABLED_ARCHES=$(jq -r '[to_entries[] | select(.value.enabled) | .key] | join(", ")' "${ARCH_MATRIX_FILE}")
+
             UNKNOWN=$(jq -r --argjson labels "${LABELS}" '
               . as $registry
               | [$labels[] | select(startswith("platform/")) | ltrimstr("platform/")]
@@ -220,7 +224,21 @@ jobs:
               | join(", ")
             ' "${ARCH_MATRIX_FILE}")
             if [[ -n "${UNKNOWN}" ]]; then
-              echo "::error::Unknown platform label(s): ${UNKNOWN}. Valid: $(jq -r 'keys | join(", ")' "${ARCH_MATRIX_FILE}")"
+              echo "::error::Unknown platform label(s): ${UNKNOWN}. Enabled architectures: ${ENABLED_ARCHES}"
+              exit 1
+            fi
+
+            # Rejected here rather than left to prepare, so that one mistake is
+            # reported once, in the job the reader is already looking at.
+            GATED=$(jq -r --argjson labels "${LABELS}" '
+              [ to_entries[]
+                | select(.value.enabled | not)
+                | select(.key as $k | $labels | index("platform/" + $k))
+                | .key ]
+              | join(", ")
+            ' "${ARCH_MATRIX_FILE}")
+            if [[ -n "${GATED}" ]]; then
+              echo "::error::Platform label(s) for architectures that are not yet buildable: ${GATED}. Enabled architectures: ${ENABLED_ARCHES}"
               exit 1
             fi
 
