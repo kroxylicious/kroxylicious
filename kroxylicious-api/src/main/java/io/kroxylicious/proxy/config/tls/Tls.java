@@ -61,7 +61,8 @@ public record Tls(@Nullable KeyProvider key,
      */
     @Deprecated(since = "0.25.0", forRemoval = true)
     // Inlining would only push the canonical constructor's extra null arguments onto callers; this constructor is due for removal instead.
-    @SuppressWarnings("InlineMeSuggester")
+    // java:S1133 - removal will be tracked by a follow-up issue to convert existing callers to the canonical constructor.
+    @SuppressWarnings({ "InlineMeSuggester", "java:S1133" })
     public Tls(@Nullable KeyProvider key,
                @Nullable TrustProvider trust,
                @Nullable AllowDeny<String> cipherSuites,
@@ -87,7 +88,8 @@ public record Tls(@Nullable KeyProvider key,
      */
     @Deprecated(since = "0.25.0", forRemoval = true)
     // Inlining would only push the canonical constructor's extra null argument onto callers; this constructor is due for removal instead.
-    @SuppressWarnings("InlineMeSuggester")
+    // java:S1133 - removal will be tracked by a follow-up issue to convert existing callers to the canonical constructor.
+    @SuppressWarnings({ "InlineMeSuggester", "java:S1133" })
     public Tls(@Nullable KeyProvider key,
                @Nullable TrustProvider trust,
                @Nullable AllowDeny<String> cipherSuites,

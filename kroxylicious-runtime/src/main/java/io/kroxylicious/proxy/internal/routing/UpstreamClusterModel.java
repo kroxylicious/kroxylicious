@@ -149,14 +149,7 @@ public record UpstreamClusterModel(
                 var contextId = "Upstream cluster with bootstrap servers '%s'".formatted(targetCluster.bootstrapServers());
                 if (Objects.nonNull(targetClusterTls.namedGroups())) {
                     // validate before building the context, so a misconfiguration fails fast rather than after the cost of building
-                    try {
-                        targetClusterTls.validateNamedGroups();
-                    }
-                    catch (IllegalStateException e) {
-                        throw new IllegalConfigurationException(
-                                "%s: %s See %s for details.".formatted(contextId, e.getMessage(),
-                                        StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)));
-                    }
+                    validateNamedGroups(targetClusterTls, contextId);
                 }
                 var sslCtx = VirtualClusterModel.configureTrustProvider(targetClusterTls).apply(sslContextBuilder).build();
 
@@ -177,6 +170,17 @@ public record UpstreamClusterModel(
                         .orElse(TlsCredentialSupplierManager.unconfigured())
                 : TlsCredentialSupplierManager.unconfigured();
         return new UpstreamClusterModel(targetCluster, sslContext, mgr);
+    }
+
+    private static void validateNamedGroups(Tls targetClusterTls, String contextId) {
+        try {
+            targetClusterTls.validateNamedGroups();
+        }
+        catch (IllegalStateException e) {
+            throw new IllegalConfigurationException(
+                    "%s: %s See %s for details.".formatted(contextId, e.getMessage(),
+                            StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)));
+        }
     }
 
     @Override

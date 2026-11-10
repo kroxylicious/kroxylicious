@@ -5,9 +5,13 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 
 import org.junit.jupiter.api.Test;
 
@@ -41,12 +45,14 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class UpstreamClusterModelTest {
 
     private static final TargetCluster PLAINTEXT_CLUSTER = new TargetCluster("broker:9092", Optional.empty());
-    private static final Tls TLS_NO_CREDENTIAL_SUPPLIER = new Tls(null, null, null, null, null);
+    private static final Tls TLS_NO_CREDENTIAL_SUPPLIER = new Tls(null, null, null, null, null, null);
 
     @Plugin(configType = Void.class)
     static class StubSupplierFactory implements ServerTlsCredentialSupplierFactory<Void, Void> {
@@ -201,7 +207,7 @@ class UpstreamClusterModelTest {
     @Test
     void usesDynamicTlsCredentialsReturnsTrueWhenCredentialSupplierConfigured() {
         var supplierConfig = new TlsCredentialSupplierConfig("StubSupplierFactory", null);
-        var tls = new Tls(null, null, null, null, supplierConfig);
+        var tls = new Tls(null, null, null, null, supplierConfig, null);
         var cluster = new TargetCluster("broker:9092", Optional.of(tls));
         var model = new UpstreamClusterModel(cluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured());
         assertThat(model.usesDynamicTlsCredentials()).isTrue();
@@ -219,7 +225,7 @@ class UpstreamClusterModelTest {
     @Test
     void buildCreatesModelWithConfiguredManagerWhenCredentialSupplierPresent() {
         var supplierConfig = new TlsCredentialSupplierConfig("StubSupplierFactory", null);
-        var cluster = new TargetCluster("broker:9092", Optional.of(new Tls(null, null, null, null, supplierConfig)));
+        var cluster = new TargetCluster("broker:9092", Optional.of(new Tls(null, null, null, null, supplierConfig, null)));
 
         var model = UpstreamClusterModel.build(cluster, stubPfr());
 
@@ -232,7 +238,7 @@ class UpstreamClusterModelTest {
         var client = TlsTestConstants.getResourceLocationOnFilesystem("client.jks");
         var downstreamTls = new Tls(null,
                 new TrustStore(client, new InlinePassword("storepass"), null, new ServerOptions(TlsClientAuth.REQUIRED)),
-                null, null, null);
+                null, null, null, null);
         var cluster = new TargetCluster("bootstrap:9092", Optional.of(downstreamTls));
 
         assertThatThrownBy(() -> UpstreamClusterModel.build(cluster, null))
@@ -258,6 +264,30 @@ class UpstreamClusterModelTest {
         }
         finally {
             ReferenceCountUtil.release(engine);
+        }
+    }
+
+    @Test
+    void buildWrapsNamedGroupsValidationFailureAsIllegalConfigurationException() {
+        // Given
+        var namedGroups = new AllowDeny<>(null, Set.of("x25519"));
+        var cluster = new TargetCluster("broker:9092", Optional.of(new Tls(null, null, null, null, null, namedGroups)));
+        var sslParameters = mock(SSLParameters.class);
+        when(sslParameters.getNamedGroups()).thenReturn(null);
+        when(sslParameters.getProtocols()).thenReturn(new String[0]);
+        when(sslParameters.getCipherSuites()).thenReturn(new String[0]);
+        var sslContext = mock(SSLContext.class);
+        when(sslContext.getDefaultSSLParameters()).thenReturn(sslParameters);
+        when(sslContext.getSupportedSSLParameters()).thenReturn(sslParameters);
+
+        try (var mocked = mockStatic(SSLContext.class)) {
+            mocked.when(SSLContext::getDefault).thenReturn(sslContext);
+
+            // When/Then
+            assertThatThrownBy(() -> UpstreamClusterModel.build(cluster, null))
+                    .isInstanceOf(IllegalConfigurationException.class)
+                    .hasMessageContaining("Upstream cluster with bootstrap servers 'broker:9092'")
+                    .hasMessageContaining("does not expose its default named groups");
         }
     }
 
