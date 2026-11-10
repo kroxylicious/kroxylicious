@@ -46,10 +46,16 @@ import io.kroxylicious.kubernetes.operator.InvalidResourceException;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancerBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder;
 import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
+import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.model.networking.SharedSniContainerPort;
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.testing.operator.assertj.AssertFactory;
 import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 
@@ -633,11 +639,11 @@ class KafkaProxyReconcilerTest {
 
     static Stream<Arguments> proxyProtocolConfigProvider() {
         return Stream.of(
-                Arguments.of(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode.REQUIRED,
-                        io.kroxylicious.proxy.config.ProxyProtocolMode.REQUIRED,
+                Arguments.of(ProxyProtocol.Mode.REQUIRED,
+                        ProxyProtocolMode.REQUIRED,
                         new SharedSniContainerPort(9290, "shared-sni-proxy-protocol-port")),
-                Arguments.of(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode.FORBIDDEN,
-                        io.kroxylicious.proxy.config.ProxyProtocolMode.FORBIDDEN,
+                Arguments.of(ProxyProtocol.Mode.FORBIDDEN,
+                        ProxyProtocolMode.FORBIDDEN,
                         new SharedSniContainerPort(9291, "shared-sni-port")),
                 Arguments.of(null, null,
                         new SharedSniContainerPort(9291, "shared-sni-port")));
@@ -646,11 +652,11 @@ class KafkaProxyReconcilerTest {
     @ParameterizedTest
     @MethodSource("proxyProtocolConfigProvider")
     void buildVirtualClusterGatewayConvertsProxyProtocolModeCorrectly(
-                                                                      @Nullable io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode kubeMode,
-                                                                      @Nullable io.kroxylicious.proxy.config.ProxyProtocolMode runtimeMode,
+                                                                      @Nullable ProxyProtocol.Mode kubeMode,
+                                                                      @Nullable ProxyProtocolMode runtimeMode,
                                                                       SharedSniContainerPort sharedSniPort) {
         // Given
-        var lbBuilder = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancerBuilder()
+        var lbBuilder = new LoadBalancerBuilder()
                 .withBootstrapAddress("bootstrap.kafka")
                 .withAdvertisedBrokerAddressPattern("$(nodeId)-broker.kafka");
         if (kubeMode != null) {
@@ -658,12 +664,12 @@ class KafkaProxyReconcilerTest {
         }
         var loadBalancer = lbBuilder.build();
 
-        var ingress = new io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder()
+        var ingress = new KafkaProxyIngressBuilder()
                 .withNewMetadata().withName("test-ingress").withNamespace("test-ns").endMetadata()
                 .withNewSpec().withLoadBalancer(loadBalancer).endSpec()
                 .build();
 
-        var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder()
+        var tls = new TlsBuilder()
                 .withNewCertificateRef().withName("cert").endCertificateRef()
                 .build();
 
@@ -671,7 +677,7 @@ class KafkaProxyReconcilerTest {
                 .withNewMetadata().withName("test-cluster").withNamespace("test-ns").endMetadata()
                 .build();
 
-        var networkingModel = new io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel(
+        var networkingModel = new LoadBalancerClusterIngressNetworkingModel(
                 cluster, ingress, loadBalancer, tls, sharedSniPort);
 
         // When
