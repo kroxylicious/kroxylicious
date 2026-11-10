@@ -236,8 +236,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         /**
          * Removes the lexer's escapes from a regex literal: {@code \/} is a slash and {@code \\} a
          * backslash. Any other backslash is kept, because it belongs to the regular expression:
-         * {@code \.} stays an escaped dot, and {@code \d} a digit class. Removing it would silently
-         * make the pattern broader than written.
+         * {@code \.} stays an escaped dot, and {@code \d} a digit class.
          */
         static String unquoteRegex(String sansDelims) {
             var regex = new StringBuilder(sansDelims.length());

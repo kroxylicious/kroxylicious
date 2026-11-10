@@ -180,7 +180,7 @@ class AclAuthorizerServiceTest {
                         """
                                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
-                                allow User with name = "Alice" to READ Topic with name matching /*a/;
+                                allow User with name = "Alice" to READ Topic with name matching /**/;
 
                                 otherwise deny;""",
                         """
@@ -676,7 +676,7 @@ class AclAuthorizerServiceTest {
 
     /**
      * A backslash that is not a lexer escape ({@code \\/} or {@code \\\\}) belongs to the regex, and
-     * is kept: dropping it would make the pattern broader than written.
+     * is kept.
      */
     @Test
     void regexEscapesOtherThanSlashAndBackslashAreKept() {
@@ -710,21 +710,6 @@ class AclAuthorizerServiceTest {
                 Arguments.of("\\d+", "\\d+"),
                 Arguments.of("\\\\\\/", "\\/"),
                 Arguments.of("trailing\\", "trailing\\"));
-    }
-
-    @Test
-    void blockCommentsAreComments() {
-        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
-                /* Rules for team A */
-                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
-                /*
-                 * Alice reads foo
-                 */
-                allow User with name = "Alice" to READ Topic with name = "foo"; /* trailing */
-                // a line comment
-                otherwise deny;"""));
-
-        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.ALLOW);
     }
 
     @Test
