@@ -50,7 +50,8 @@ RUN microdnf install \
         --setopt=varsdir=/etc/dnf \
         clean all
 
-# Download Tini directly into the rootfs
+# Copy Tini into the rootfs from our own image, which is a manifest list, so the
+# binary matches whichever platform this image is being built for.
 ARG TINI_DEST=${ROOTFS}/usr/bin/tini
 
 COPY --from=quay.io/kroxylicious/tini:0.19.0@sha256:c4558590888cde324d905711c82009c8b5d76cf33f0f39a2435c43cf3dcd2e13 /usr/bin/tini ${TINI_DEST}
