@@ -39,7 +39,7 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
                                                         KafkaProxyIngress ingress,
                                                         LoadBalancer loadBalancer,
                                                         Tls tls,
-                                                        int sharedSniPort)
+                                                        SharedSniContainerPort sharedSniPort)
         implements ClusterIngressNetworkingModel, SharedLoadBalancerServiceRequirements {
 
     /**
@@ -50,6 +50,7 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
         Objects.requireNonNull(ingress);
         Objects.requireNonNull(loadBalancer);
         Objects.requireNonNull(tls);
+        Objects.requireNonNull(sharedSniPort);
     }
 
     public static final int DEFAULT_CLIENT_FACING_LOADBALANCER_PORT = 9083;
@@ -71,7 +72,7 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
 
     @Override
     public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
-        String bootstrapAddress = HostPort.asString(loadBalancer.getBootstrapAddress(), sharedSniPort);
+        String bootstrapAddress = HostPort.asString(loadBalancer.getBootstrapAddress(), sharedSniPort.containerPort());
         String advertisedBrokerAddressPattern = HostPort.asString(loadBalancer.getAdvertisedBrokerAddressPattern(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress, advertisedBrokerAddressPattern);
     }
@@ -92,7 +93,7 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
     }
 
     @Override
-    public Optional<Integer> sharedSniContainerPort() {
+    public Optional<SharedSniContainerPort> sharedSniContainerPort() {
         return Optional.of(sharedSniPort);
     }
 
@@ -116,7 +117,7 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
 
     @Override
     public int sharedSniTargetPort() {
-        return sharedSniPort;
+        return sharedSniPort.containerPort();
     }
 
     @Override

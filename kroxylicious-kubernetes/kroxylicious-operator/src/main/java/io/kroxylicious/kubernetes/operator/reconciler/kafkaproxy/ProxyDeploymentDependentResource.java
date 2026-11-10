@@ -69,12 +69,6 @@ public class ProxyDeploymentDependentResource
     public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigDependentResource.CONFIG_YAML_KEY;
     private static final int MANAGEMENT_PORT = 9190;
     private static final String MANAGEMENT_PORT_NAME = "management";
-    /** Starting port number used when allocating per-broker proxy ports. */
-    public static final int PROXY_PORT_START = 9292;
-    /** Port number used for the shared SNI listener (FORBIDDEN proxy protocol mode) that multiplexes TLS connections by hostname. */
-    public static final int SHARED_SNI_PORT = 9291;
-    /** Port number used for the shared SNI listener (REQUIRED proxy protocol mode) that multiplexes TLS connections by hostname and expects PROXY headers. */
-    public static final int SHARED_SNI_PROXY_PROTOCOL_PORT = 9290;
 
     private final String kroxyliciousImage = getOperandImage();
     /** Environment variable name that, when set, overrides the default Kroxylicious operand container image. */
@@ -310,12 +304,8 @@ public class ProxyDeploymentDependentResource
             }
         });
         // Add shared SNI ports (only those actually needed based on proxyProtocol configuration, only for non-broken clusters)
-        var requiredSniPorts = ingressModel.requiredSharedSniPorts(cluster -> !kafkaProxyContext.isBroken(cluster));
-        if (requiredSniPorts.contains(SHARED_SNI_PORT)) {
-            containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PORT).withName("shared-sni-port").endPort();
-        }
-        if (requiredSniPorts.contains(SHARED_SNI_PROXY_PROTOCOL_PORT)) {
-            containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PROXY_PROTOCOL_PORT).withName("shared-sni-proxy-protocol-port").endPort();
+        for (var sniPort : ingressModel.requiredSharedSniPorts(cluster -> !kafkaProxyContext.isBroken(cluster))) {
+            containerBuilder.addNewPort().withContainerPort(sniPort.containerPort()).withName(sniPort.portName()).endPort();
         }
         return containerBuilder.build();
     }

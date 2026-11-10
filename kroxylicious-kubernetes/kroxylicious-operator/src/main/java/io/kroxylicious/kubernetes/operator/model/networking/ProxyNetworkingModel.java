@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.model.networking;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -172,17 +173,19 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
     }
 
     /**
-     * Collects all distinct shared SNI ports required by any non-broken cluster in this proxy.
-     * Used to determine which SNI container ports should be exposed on the proxy pod.
+     * Collects all distinct shared SNI ports required by any non-broken cluster in this proxy,
+     * ordered by port number to ensure a stable pod spec across reconciliations.
      *
      * @param clusterHasValidNetworking predicate selecting the clusters to include
-     * @return a set of required SNI port numbers
+     * @return a list of required SNI container ports, sorted by port number ascending
      */
-    public Set<Integer> requiredSharedSniPorts(Predicate<VirtualKafkaCluster> clusterHasValidNetworking) {
+    public List<SharedSniContainerPort> requiredSharedSniPorts(Predicate<VirtualKafkaCluster> clusterHasValidNetworking) {
         return clusterNetworkingModels.stream()
                 .filter(cnm -> clusterHasValidNetworking.test(cnm.cluster()))
                 .flatMap(ClusterNetworkingModel::requiredSharedSniPorts)
-                .collect(Collectors.toSet());
+                .distinct()
+                .sorted(Comparator.comparingInt(SharedSniContainerPort::containerPort))
+                .toList();
     }
 
     private static LoadBalancerClusterIngressNetworkingModel requireSameIngressModel(List<LoadBalancerClusterIngressNetworkingModel> ingressModels) {
@@ -248,10 +251,10 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
         }
 
         /**
-         * Collects the set of shared SNI ports required by ingresses in this cluster.
-         * @return a stream of required SNI port numbers
+         * Collects the shared SNI ports required by ingresses in this cluster.
+         * @return a stream of required SNI container ports
          */
-        public Stream<Integer> requiredSharedSniPorts() {
+        public Stream<SharedSniContainerPort> requiredSharedSniPorts() {
             return clusterIngressNetworkingModelResults.stream()
                     .map(ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
                     .flatMap(model -> model.sharedSniContainerPort().stream());

@@ -91,9 +91,9 @@ public interface ClusterIngressNetworkingModel {
 
     /**
      * The shared SNI container port used by this model, if any.
-     * @return the port number, or empty if this model does not use a shared SNI port
+     * @return the shared SNI container port spec, or empty if this model does not use a shared SNI port
      */
-    default Optional<Integer> sharedSniContainerPort() {
+    default Optional<SharedSniContainerPort> sharedSniContainerPort() {
         return Optional.empty();
     }
 

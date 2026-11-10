@@ -49,6 +49,7 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
+import io.kroxylicious.kubernetes.operator.model.networking.SharedSniContainerPort;
 import io.kroxylicious.testing.operator.assertj.AssertFactory;
 import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 
@@ -634,12 +635,12 @@ class KafkaProxyReconcilerTest {
         return Stream.of(
                 Arguments.of(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode.REQUIRED,
                         io.kroxylicious.proxy.config.ProxyProtocolMode.REQUIRED,
-                        ProxyDeploymentDependentResource.SHARED_SNI_PROXY_PROTOCOL_PORT),
+                        new SharedSniContainerPort(9290, "shared-sni-proxy-protocol-port")),
                 Arguments.of(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode.FORBIDDEN,
                         io.kroxylicious.proxy.config.ProxyProtocolMode.FORBIDDEN,
-                        ProxyDeploymentDependentResource.SHARED_SNI_PORT),
+                        new SharedSniContainerPort(9291, "shared-sni-port")),
                 Arguments.of(null, null,
-                        ProxyDeploymentDependentResource.SHARED_SNI_PORT));
+                        new SharedSniContainerPort(9291, "shared-sni-port")));
     }
 
     @ParameterizedTest
@@ -647,7 +648,7 @@ class KafkaProxyReconcilerTest {
     void buildVirtualClusterGatewayConvertsProxyProtocolModeCorrectly(
                                                                       @Nullable io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode kubeMode,
                                                                       @Nullable io.kroxylicious.proxy.config.ProxyProtocolMode runtimeMode,
-                                                                      int sharedSniPort) {
+                                                                      SharedSniContainerPort sharedSniPort) {
         // Given
         var lbBuilder = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancerBuilder()
                 .withBootstrapAddress("bootstrap.kafka")

@@ -57,10 +57,10 @@ spec:
           ports:
             - containerPort: 9190
               name: "management"
-            - containerPort: 9291
-              name: "shared-sni-port"
             - containerPort: 9290
               name: "shared-sni-proxy-protocol-port"
+            - containerPort: 9291
+              name: "shared-sni-port"
           readinessProbe:
             failureThreshold: 3
             httpGet:

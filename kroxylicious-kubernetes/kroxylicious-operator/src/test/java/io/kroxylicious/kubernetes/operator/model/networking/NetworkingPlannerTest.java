@@ -44,6 +44,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class NetworkingPlannerTest {
+    private static final SharedSniContainerPort PLAIN_SNI_PORT = new SharedSniContainerPort(9291, "shared-sni-port");
+    private static final SharedSniContainerPort PROXY_PROTOCOL_SNI_PORT = new SharedSniContainerPort(9290, "shared-sni-proxy-protocol-port");
+
     private static final String PROXY_NAME = "my-proxy";
     private static final String CLUSTER_IP_INGRESS_NAME = "my-cluster-ip-ingress";
     private static final String TLS_CLUSTER_IP_INGRESS_NAME = "my-tls-cluster-ip-ingress";
@@ -233,7 +236,7 @@ class NetworkingPlannerTest {
                 assertThat(model.exception()).isNull();
                 assertThat(model.clusterIngressNetworkingModel())
                         .isEqualTo(new TlsClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, TLS_CLUSTER_IP_INGRESS,
-                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS, 9291));
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS, PLAIN_SNI_PORT));
             });
         });
     }
@@ -258,13 +261,13 @@ class NetworkingPlannerTest {
                 assertThat(model.exception()).isNull();
                 assertThat(model.clusterIngressNetworkingModel())
                         .isEqualTo(new TlsClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, TLS_CLUSTER_IP_INGRESS,
-                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS, 9291));
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS, PLAIN_SNI_PORT));
             });
             listAssert.element(1).satisfies(model -> {
                 assertThat(model.exception()).isNull();
                 assertThat(model.clusterIngressNetworkingModel())
                         .isEqualTo(new TlsClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, TLS_CLUSTER_IP_2_INGRESS,
-                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS_2, 9291));
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS_2, PLAIN_SNI_PORT));
             });
         });
     }
@@ -285,7 +288,7 @@ class NetworkingPlannerTest {
             assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
                 assertThat(model.exception()).isNull();
                 assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
-                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS, LOAD_BALANCER, TLS, 9291));
+                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS, LOAD_BALANCER, TLS, PLAIN_SNI_PORT));
             });
         });
     }
@@ -315,7 +318,7 @@ class NetworkingPlannerTest {
             listAssert.element(1).satisfies(model -> {
                 assertThat(model.exception()).isNull();
                 assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
-                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS, LOAD_BALANCER, TLS, 9291));
+                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS, LOAD_BALANCER, TLS, PLAIN_SNI_PORT));
             });
 
         });
@@ -340,12 +343,12 @@ class NetworkingPlannerTest {
             listAssert.element(0).satisfies(model -> {
                 assertThat(model.exception()).isNull();
                 assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
-                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS, LOAD_BALANCER, TLS, 9291));
+                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS, LOAD_BALANCER, TLS, PLAIN_SNI_PORT));
             });
             listAssert.element(1).satisfies(model -> {
                 assertThat(model.exception()).isNull();
                 assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
-                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS_2, LOAD_BALANCER_2, TLS_2, 9291));
+                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS_2, LOAD_BALANCER_2, TLS_2, PLAIN_SNI_PORT));
             });
         });
     }
@@ -373,7 +376,7 @@ class NetworkingPlannerTest {
             assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
                 assertThat(model.exception()).isNull();
                 assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
-                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS, LOAD_BALANCER, TLS, 9291));
+                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS, LOAD_BALANCER, TLS, PLAIN_SNI_PORT));
 
             });
         });
@@ -383,7 +386,7 @@ class NetworkingPlannerTest {
             assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
                 assertThat(model.exception()).isNull();
                 assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
-                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster2, LOAD_BALANCER_INGRESS_2, LOAD_BALANCER_2, TLS_2, 9291));
+                        new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster2, LOAD_BALANCER_INGRESS_2, LOAD_BALANCER_2, TLS_2, PLAIN_SNI_PORT));
 
             });
         });
@@ -479,9 +482,9 @@ class NetworkingPlannerTest {
 
     static Stream<Arguments> loadBalancerProxyProtocolModeProvider() {
         return Stream.of(
-                Arguments.of(ProxyProtocol.Mode.REQUIRED, 9290),
-                Arguments.of(ProxyProtocol.Mode.FORBIDDEN, 9291),
-                Arguments.of(null, 9291));
+                Arguments.of(ProxyProtocol.Mode.REQUIRED, PROXY_PROTOCOL_SNI_PORT),
+                Arguments.of(ProxyProtocol.Mode.FORBIDDEN, PLAIN_SNI_PORT),
+                Arguments.of(null, PLAIN_SNI_PORT));
     }
 
     @Test
@@ -507,13 +510,13 @@ class NetworkingPlannerTest {
         ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)), ROUTE_HOST_DETAILS);
 
         // Then
-        assertThat(networkingModel.requiredSharedSniPorts(cluster -> true)).containsExactly(9291);
+        assertThat(networkingModel.requiredSharedSniPorts(cluster -> true)).containsExactly(PLAIN_SNI_PORT);
     }
 
     @ParameterizedTest
     @MethodSource("loadBalancerProxyProtocolModeProvider")
     void loadBalancerProxyProtocolModeUsesCorrectPort(@Nullable ProxyProtocol.Mode mode,
-                                                      int expectedPort) {
+                                                      SharedSniContainerPort expectedPort) {
         // Given
         LoadBalancerBuilder lbBuilder = new LoadBalancerBuilder()
                 .withBootstrapAddress("bootstrap.kafka")
@@ -585,17 +588,17 @@ class NetworkingPlannerTest {
                 ROUTE_HOST_DETAILS);
 
         // Then
-        assertThat(networkingModel.requiredSharedSniPorts(cluster -> true)).containsExactlyInAnyOrder(9290, 9291);
+        assertThat(networkingModel.requiredSharedSniPorts(cluster -> true)).containsExactly(PROXY_PROTOCOL_SNI_PORT, PLAIN_SNI_PORT);
         assertThat(networkingModel.clusterIngressModel(cluster1)).isPresent().get().satisfies(cluster1Model -> {
             assertThat(cluster1Model.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
                 assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
-                        new LoadBalancerClusterIngressNetworkingModel(cluster1, ingressRequired, lbRequired, TLS, 9290));
+                        new LoadBalancerClusterIngressNetworkingModel(cluster1, ingressRequired, lbRequired, TLS, PROXY_PROTOCOL_SNI_PORT));
             });
         });
         assertThat(networkingModel.clusterIngressModel(cluster2)).isPresent().get().satisfies(cluster2Model -> {
             assertThat(cluster2Model.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
                 assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
-                        new LoadBalancerClusterIngressNetworkingModel(cluster2, ingressForbidden, lbForbidden, TLS_2, 9291));
+                        new LoadBalancerClusterIngressNetworkingModel(cluster2, ingressForbidden, lbForbidden, TLS_2, PLAIN_SNI_PORT));
             });
         });
     }
@@ -617,10 +620,10 @@ class NetworkingPlannerTest {
             assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
                 assertThat(model.clusterIngressNetworkingModel())
                         .isEqualTo(new TlsClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, TLS_CLUSTER_IP_INGRESS,
-                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS, 9291));
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS, PLAIN_SNI_PORT));
             });
         });
-        assertThat(networkingModel.requiredSharedSniPorts(cluster -> true)).containsExactly(9291);
+        assertThat(networkingModel.requiredSharedSniPorts(cluster -> true)).containsExactly(PLAIN_SNI_PORT);
     }
 
     @Test
@@ -656,7 +659,7 @@ class NetworkingPlannerTest {
                 ROUTE_HOST_DETAILS);
 
         // When / Then
-        assertThat(networkingModel.requiredSharedSniPorts(cluster -> cluster.equals(healthyCluster))).containsExactly(9290);
+        assertThat(networkingModel.requiredSharedSniPorts(cluster -> cluster.equals(healthyCluster))).containsExactly(PROXY_PROTOCOL_SNI_PORT);
     }
 
 }

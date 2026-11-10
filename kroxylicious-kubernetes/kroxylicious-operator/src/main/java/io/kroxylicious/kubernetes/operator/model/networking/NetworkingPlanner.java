@@ -36,9 +36,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
-import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.PROXY_PORT_START;
-import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
-import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.SHARED_SNI_PROXY_PROTOCOL_PORT;
 
 /**
  * NetworkingPlanner is responsible for:
@@ -55,6 +52,12 @@ public class NetworkingPlanner {
     }
 
     private static final List<NodeIdRanges> DEFAULT_NODE_ID_RANGES = List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build());
+
+    static final int PROXY_PORT_START = 9292;
+    private static final int SHARED_SNI_PORT = 9291;
+    private static final String SHARED_SNI_PORT_NAME = "shared-sni-port";
+    private static final int SHARED_SNI_PROXY_PROTOCOL_PORT = 9290;
+    private static final String SHARED_SNI_PROXY_PROTOCOL_PORT_NAME = "shared-sni-proxy-protocol-port";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkingPlanner.class);
 
@@ -90,7 +93,7 @@ public class NetworkingPlanner {
             @Nullable
             Integer lastIdentifyingPort = null;
             @Nullable
-            Integer sharedSniPort = null;
+            SharedSniContainerPort sharedSniContainerPort = null;
             @Nullable
             IngressConflictException exception = null;
             if (toAllocate != 0) {
@@ -103,11 +106,11 @@ public class NetworkingPlanner {
                 lastIdentifyingPort = identifyingPorts.addAndGet(toAllocate) - 1;
             }
             if (networkingDefinition.usesSharedSniPort()) {
-                sharedSniPort = networkingDefinition.usesProxyProtocol()
-                        ? SHARED_SNI_PROXY_PROTOCOL_PORT
-                        : SHARED_SNI_PORT;
+                sharedSniContainerPort = networkingDefinition.usesProxyProtocol()
+                        ? new SharedSniContainerPort(SHARED_SNI_PROXY_PROTOCOL_PORT, SHARED_SNI_PROXY_PROTOCOL_PORT_NAME)
+                        : new SharedSniContainerPort(SHARED_SNI_PORT, SHARED_SNI_PORT_NAME);
             }
-            ClusterIngressNetworkingModel networkingModel = networkingDefinition.createNetworkingModel(firstIdentifyingPort, lastIdentifyingPort, sharedSniPort);
+            ClusterIngressNetworkingModel networkingModel = networkingDefinition.createNetworkingModel(firstIdentifyingPort, lastIdentifyingPort, sharedSniContainerPort);
             return new ClusterIngressNetworkingModelResult(networkingModel, exception);
         }).toList();
         return new ClusterNetworkingModel(clusterResolutionResult.cluster(), ingressResults);
@@ -215,7 +218,7 @@ public class NetworkingPlanner {
          */
         ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
                                                             @Nullable Integer lastIdentifyingPort,
-                                                            @Nullable Integer sharedSniPort);
+                                                            @Nullable SharedSniContainerPort sharedSniContainerPort);
 
         /**
          * Some Ingress strategies require a set of ports in the proxy pod to be unique and exclusive so that the Proxy
@@ -247,7 +250,7 @@ public class NetworkingPlanner {
         @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
         public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
                                                                    @Nullable Integer lastIdentifyingPort,
-                                                                   @Nullable Integer sharedSniPort) {
+                                                                   @Nullable SharedSniContainerPort sharedSniContainerPort) {
             validateNotNull(firstIdentifyingPort, "firstIdentifyingPort must be non null for ClusterIP ingress");
             validateNotNull(lastIdentifyingPort, "lastIdentifyingPort must be non null for ClusterIP ingress");
             return new TcpClusterIPClusterIngressNetworkingModel(primary, cluster, ingress, nodeIdRanges, firstIdentifyingPort, lastIdentifyingPort);
@@ -272,10 +275,10 @@ public class NetworkingPlanner {
         @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
         public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
                                                                    @Nullable Integer lastIdentifyingPort,
-                                                                   @Nullable Integer sharedSniPort) {
-            validateNotNull(sharedSniPort, "sharedSniPort must be non null for TLS ClusterIP ingress");
+                                                                   @Nullable SharedSniContainerPort sharedSniContainerPort) {
+            validateNotNull(sharedSniContainerPort, "sharedSniContainerPort must be non null for TLS ClusterIP ingress");
             validateNotNull(tls, "tls must be non null for TLS ClusterIP ingress");
-            return new TlsClusterIPClusterIngressNetworkingModel(primary, cluster, ingress, nodeIdRanges, tls, sharedSniPort);
+            return new TlsClusterIPClusterIngressNetworkingModel(primary, cluster, ingress, nodeIdRanges, tls, sharedSniContainerPort);
         }
 
         @Override
@@ -295,9 +298,9 @@ public class NetworkingPlanner {
         @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
         public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
                                                                    @Nullable Integer lastIdentifyingPort,
-                                                                   @Nullable Integer sharedSniPort) {
-            validateNotNull(sharedSniPort, "sharedSniPort must be non null for LoadBalancer ingress");
-            return new LoadBalancerClusterIngressNetworkingModel(cluster, ingress, loadBalancer, tls, sharedSniPort);
+                                                                   @Nullable SharedSniContainerPort sharedSniContainerPort) {
+            validateNotNull(sharedSniContainerPort, "sharedSniContainerPort must be non null for LoadBalancer ingress");
+            return new LoadBalancerClusterIngressNetworkingModel(cluster, ingress, loadBalancer, tls, sharedSniContainerPort);
         }
 
         @Override
@@ -331,9 +334,9 @@ public class NetworkingPlanner {
         @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
         public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
                                                                    @Nullable Integer lastIdentifyingPort,
-                                                                   @Nullable Integer sharedSniPort) {
-            validateNotNull(sharedSniPort, "sharedSniPort must be non null for OpenShiftRoute ingress");
-            return new RouteClusterIngressNetworkingModel(primary, cluster, ingress, openShiftRoute, nodeIdRanges, tls, sharedSniPort, routeHostDetails);
+                                                                   @Nullable SharedSniContainerPort sharedSniContainerPort) {
+            validateNotNull(sharedSniContainerPort, "sharedSniContainerPort must be non null for OpenShiftRoute ingress");
+            return new RouteClusterIngressNetworkingModel(primary, cluster, ingress, openShiftRoute, nodeIdRanges, tls, sharedSniContainerPort, routeHostDetails);
         }
 
         @Override
