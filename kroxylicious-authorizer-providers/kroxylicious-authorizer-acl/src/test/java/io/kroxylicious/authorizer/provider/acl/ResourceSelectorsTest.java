@@ -30,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@link AclAuthorizer#resourceSelectors} must select exactly the names {@link AclAuthorizer#authorize}
  * allows, for every subject, operation and name.
  */
+@SuppressWarnings("removal") // Principal, Subject scheduled for removal
 class ResourceSelectorsTest {
 
     private static final String RULES = """
