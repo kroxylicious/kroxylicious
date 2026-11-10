@@ -310,14 +310,13 @@ public class NetworkingPlanner {
 
         @Override
         public boolean usesProxyProtocol() {
-            var proxyProtocol = loadBalancer.getProxyProtocol();
-            if (proxyProtocol == null || proxyProtocol.getMode() == null) {
-                return false;
-            }
-            return switch (proxyProtocol.getMode()) {
-                case REQUIRED -> true;
-                case FORBIDDEN -> false;
-            };
+            return Optional.ofNullable(loadBalancer.getProxyProtocol())
+                    .map(pp -> pp.getMode())
+                    .map(mode -> switch (mode) {
+                        case REQUIRED -> true;
+                        case FORBIDDEN -> false;
+                    })
+                    .orElse(false);
         }
     }
 
