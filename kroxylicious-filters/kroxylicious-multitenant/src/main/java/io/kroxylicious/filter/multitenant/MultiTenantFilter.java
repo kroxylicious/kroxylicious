@@ -420,8 +420,11 @@ class MultiTenantFilter
     public CompletionStage<RequestFilterResult> onDescribeConfigsRequest(short apiVersion, RequestHeaderData header, DescribeConfigsRequestData request,
                                                                          FilterContext context) {
         request.resources().forEach(resource -> {
-            if (resource.resourceType() == ConfigResource.Type.TOPIC.id() || resource.resourceType() == ConfigResource.Type.GROUP.id()) {
-                applyTenantPrefix(context, resource::resourceName, resource::setResourceName, false);
+            switch (ConfigResource.Type.forId(resource.resourceType())) {
+                case TOPIC, GROUP -> applyTenantPrefix(context, resource::resourceName, resource::setResourceName, false);
+                default -> {
+                    // broker, broker_logger, client_metrics, unknown do not require tenant prefixing
+                }
             }
         });
         return context.forwardRequest(header, request);
@@ -430,11 +433,11 @@ class MultiTenantFilter
     @Override
     public CompletionStage<ResponseFilterResult> onDescribeConfigsResponse(short apiVersion, ResponseHeaderData header, DescribeConfigsResponseData response,
                                                                            FilterContext context) {
-        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         response.results().forEach(result -> {
-            if (result.resourceType() == ConfigResource.Type.TOPIC.id() || result.resourceType() == ConfigResource.Type.GROUP.id()) {
-                if (result.resourceName() != null && result.resourceName().startsWith(tenantPrefix)) {
-                    removeTenantPrefix(context, result::resourceName, result::setResourceName, false);
+            switch (ConfigResource.Type.forId(result.resourceType())) {
+                case TOPIC, GROUP -> removeTenantPrefix(context, result::resourceName, result::setResourceName, false);
+                default -> {
+                    // broker, broker_logger, client_metrics, unknown do not require tenant prefixing
                 }
             }
         });
