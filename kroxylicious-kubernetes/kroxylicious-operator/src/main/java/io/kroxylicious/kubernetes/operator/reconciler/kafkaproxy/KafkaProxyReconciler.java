@@ -78,7 +78,6 @@ import io.kroxylicious.kubernetes.operator.eventsource.Relationship;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.networking.ClusterIngressNetworkingModel;
-import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxyingress.IsOpenshiftRouteSupportedActivationCondition;
 import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
@@ -90,7 +89,6 @@ import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.ProxyProtocolConfig;
-import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -447,28 +445,9 @@ public class KafkaProxyReconciler implements
                 proxyProtocolConfig), volumes, mounts);
     }
 
-    /**
-     * Builds the ProxyProtocolConfig for a gateway based on its networking model.
-     * Only LoadBalancer ingresses support PROXY protocol configuration.
-     *
-     * @param gateway the cluster ingress networking model
-     * @return ProxyProtocolConfig if the ingress has proxy protocol configured, null otherwise (defaults to FORBIDDEN)
-     */
     @Nullable
     private static ProxyProtocolConfig buildProxyProtocolConfig(ClusterIngressNetworkingModel gateway) {
-        if (gateway instanceof LoadBalancerClusterIngressNetworkingModel lbModel) {
-            var proxyProtocol = lbModel.loadBalancer().getProxyProtocol();
-            if (proxyProtocol != null && proxyProtocol.getMode() != null) {
-                // Convert Kubernetes API enum to runtime enum
-                ProxyProtocolMode runtimeMode = switch (proxyProtocol.getMode()) {
-                    case REQUIRED -> ProxyProtocolMode.REQUIRED;
-                    case FORBIDDEN -> ProxyProtocolMode.FORBIDDEN;
-                };
-                return new ProxyProtocolConfig(runtimeMode);
-            }
-        }
-        // ClusterIP and OpenShiftRoute don't support PROXY protocol, return null (defaults to FORBIDDEN)
-        return null;
+        return gateway.proxyProtocolMode().map(ProxyProtocolConfig::new).orElse(null);
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTlsFragment(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls ingressTls) {

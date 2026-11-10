@@ -18,6 +18,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 
 /**
  * Represents the client-facing resources, and backend plumbing required to enable a client to
@@ -78,6 +79,15 @@ public interface ClusterIngressNetworkingModel {
      * @return an optional containing the TLS configuration, or empty if not available
      */
     Optional<Tls> downstreamTls();
+
+    /**
+     * The runtime proxy protocol mode configured for this ingress, if any.
+     * Only LoadBalancer ingresses support PROXY protocol; all others return empty.
+     * @return the runtime mode, or empty if proxy protocol is not configured
+     */
+    default Optional<ProxyProtocolMode> proxyProtocolMode() {
+        return Optional.empty();
+    }
 
     /**
      * The shared SNI container port used by this model, if any.
