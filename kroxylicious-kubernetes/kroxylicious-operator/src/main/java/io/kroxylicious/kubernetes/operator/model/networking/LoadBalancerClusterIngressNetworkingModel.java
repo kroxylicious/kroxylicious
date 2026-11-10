@@ -83,14 +83,12 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
 
     @Override
     public Optional<ProxyProtocolMode> proxyProtocolMode() {
-        var pp = loadBalancer.getProxyProtocol();
-        if (pp == null || pp.getMode() == null) {
-            return Optional.empty();
-        }
-        return Optional.of(switch (pp.getMode()) {
-            case REQUIRED -> ProxyProtocolMode.REQUIRED;
-            case FORBIDDEN -> ProxyProtocolMode.FORBIDDEN;
-        });
+        return Optional.ofNullable(loadBalancer.getProxyProtocol())
+                .map(pp -> pp.getMode())
+                .map(mode -> switch (mode) {
+                    case REQUIRED -> ProxyProtocolMode.REQUIRED;
+                    case FORBIDDEN -> ProxyProtocolMode.FORBIDDEN;
+                });
     }
 
     @Override
