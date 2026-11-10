@@ -494,7 +494,6 @@ class NetworkingPlannerTest {
                 .withBootstrapAddress("bootstrap.kafka")
                 .withAdvertisedBrokerAddressPattern("$(nodeId)-broker.kafka")
                 .withNewProxyProtocol()
-                // mode intentionally omitted — valid Kubernetes API state: proxyProtocol: {}
                 .endProxyProtocol()
                 .build();
         String ingressName = "lb-no-mode";
