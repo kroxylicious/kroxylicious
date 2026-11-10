@@ -265,11 +265,13 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
     }
 
     @Test
-    void requiresSharedSniContainerPort() {
+    void sharedSniContainerPort() {
+        // Given
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
                 List.of(createNodeIdRange("a", 1, 3)), TLS, 5);
 
-        assertThat(instance.requiresSharedSniContainerPort()).isTrue();
+        // When / Then
+        assertThat(instance.sharedSniContainerPort()).contains(5);
     }
 
     @Test

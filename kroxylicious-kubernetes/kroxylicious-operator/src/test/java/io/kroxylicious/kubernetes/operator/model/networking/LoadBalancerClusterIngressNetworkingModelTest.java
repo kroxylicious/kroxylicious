@@ -141,15 +141,12 @@ class LoadBalancerClusterIngressNetworkingModelTest {
 
     @Test
     void requestsSharedSniPort() {
-        // given
+        // Given
         LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS,
                 9093);
 
-        // when
-        boolean requiresSharedSniPort = model.requiresSharedSniContainerPort();
-
-        // then
-        assertThat(requiresSharedSniPort).isTrue();
+        // When / Then
+        assertThat(model.sharedSniContainerPort()).contains(9093);
     }
 
     @Test

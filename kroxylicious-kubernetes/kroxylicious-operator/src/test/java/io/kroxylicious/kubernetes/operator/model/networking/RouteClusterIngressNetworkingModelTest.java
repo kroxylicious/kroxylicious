@@ -389,11 +389,13 @@ class RouteClusterIngressNetworkingModelTest {
     }
 
     @Test
-    void requiresSharedSniContainerPort() {
+    void sharedSniContainerPort() {
+        // Given
         ClusterIngressNetworkingModel instance = new RouteClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, ROUTE, List.of(NODE_ID_RANGE), TLS, 5,
                 List.of());
 
-        assertThat(instance.requiresSharedSniContainerPort()).isTrue();
+        // When / Then
+        assertThat(instance.sharedSniContainerPort()).contains(5);
     }
 
     @Test

@@ -98,14 +98,6 @@ public interface ClusterIngressNetworkingModel {
     }
 
     /**
-     * Whether this cluster ingress requires a shared SNI port in the proxy container.
-     * @return true if this cluster ingress requires a shared SNI port in the proxy container to be provided
-     */
-    default boolean requiresSharedSniContainerPort() {
-        return sharedSniContainerPort().isPresent();
-    }
-
-    /**
      * Describes the requirements this model has for a shared laod balancer service, if any
      * @return optional completed with the requirements if this model requires ingress via the shared LoadBalancer Service, else empty
      */
