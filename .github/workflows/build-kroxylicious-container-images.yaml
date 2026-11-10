@@ -18,17 +18,20 @@
 # Kroxylicious container images.
 #
 # Proxy images are built as a 3-phase process:
-#   1. prepare    — compile and install all module JARs once, and resolve which
-#                   architectures to build from .github/workflows/config/arch-matrix.json
-#   2. build-arch — one matrixed job per architecture: dist packaging with that
-#                   architecture's Maven profiles, image build, native lib verification
-#   3. manifest   — merge the per-arch images into a multi-arch manifest list
+#   1. prepare                — compile and install all module JARs once, and resolve
+#                               which architectures to build from
+#                               .github/workflows/config/arch-matrix.json
+#   2. build-arch             — one matrixed job per architecture: dist packaging with
+#                               that architecture's Maven profiles, image build, native
+#                               lib verification
+#   3. publish-proxy-manifest — merge the per-arch images into a multi-arch manifest
+#                               list, and verify it references exactly those images
 #
 # No step names an architecture: everything comes from the registry, so adding one
 # is an entry in that file. See DEV_GUIDE.md "Container image architectures".
 #
-# The operator and admission webhook have no architecture-specific native JARs,
-# so a single multi-platform Docker Buildx build covers every platform.
+# The operator and admission webhook have no architecture-specific native JARs, so
+# build-operator-images covers every platform in a single multi-platform Buildx build.
 #
 # Callers:
 #   - maven.yaml          — CI validation (PR) and snapshot image pushes (main/release branches)
@@ -462,7 +465,7 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  manifest:
+  publish-proxy-manifest:
     needs: [ prepare, build-arch ]
     if: needs.prepare.outputs.push_images == 'true'
     runs-on: ubuntu-latest
@@ -576,7 +579,7 @@ jobs:
 
           exit "${FAILED}"
 
-  other-images:
+  build-operator-images:
     needs: prepare
     runs-on: ubuntu-latest
     steps:
