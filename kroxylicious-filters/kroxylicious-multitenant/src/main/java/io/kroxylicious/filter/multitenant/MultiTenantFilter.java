@@ -13,6 +13,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.internals.Topic;
 
 import io.kroxylicious.filter.multitenant.config.MultiTenantConfig;
@@ -26,6 +27,8 @@ import io.kroxylicious.kafka.common.message.CreateTopicsRequestData;
 import io.kroxylicious.kafka.common.message.CreateTopicsResponseData;
 import io.kroxylicious.kafka.common.message.DeleteTopicsRequestData;
 import io.kroxylicious.kafka.common.message.DeleteTopicsResponseData;
+import io.kroxylicious.kafka.common.message.DescribeConfigsRequestData;
+import io.kroxylicious.kafka.common.message.DescribeConfigsResponseData;
 import io.kroxylicious.kafka.common.message.DescribeGroupsRequestData;
 import io.kroxylicious.kafka.common.message.DescribeGroupsResponseData;
 import io.kroxylicious.kafka.common.message.DescribeTransactionsRequestData;
@@ -72,6 +75,8 @@ import io.kroxylicious.proxy.filter.CreateTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsResponseFilter;
+import io.kroxylicious.proxy.filter.DescribeConfigsRequestFilter;
+import io.kroxylicious.proxy.filter.DescribeConfigsResponseFilter;
 import io.kroxylicious.proxy.filter.DescribeGroupsRequestFilter;
 import io.kroxylicious.proxy.filter.DescribeGroupsResponseFilter;
 import io.kroxylicious.proxy.filter.DescribeTransactionsRequestFilter;
@@ -142,6 +147,7 @@ class MultiTenantFilter
         LeaveGroupRequestFilter,
         HeartbeatRequestFilter,
         DescribeGroupsRequestFilter, DescribeGroupsResponseFilter,
+        DescribeConfigsRequestFilter, DescribeConfigsResponseFilter,
         InitProducerIdRequestFilter,
         ListTransactionsResponseFilter,
         DescribeTransactionsRequestFilter, DescribeTransactionsResponseFilter,
@@ -407,6 +413,34 @@ class MultiTenantFilter
     public CompletionStage<ResponseFilterResult> onDescribeGroupsResponse(short apiVersion, ResponseHeaderData header, DescribeGroupsResponseData response,
                                                                           FilterContext context) {
         response.groups().forEach(group -> removeTenantPrefix(context, group::groupId, group::setGroupId, false));
+        return context.forwardResponse(header, response);
+    }
+
+    @Override
+    public CompletionStage<RequestFilterResult> onDescribeConfigsRequest(short apiVersion, RequestHeaderData header, DescribeConfigsRequestData request,
+                                                                         FilterContext context) {
+        request.resources().forEach(resource -> {
+            switch (ConfigResource.Type.forId(resource.resourceType())) {
+                case TOPIC, GROUP -> applyTenantPrefix(context, resource::resourceName, resource::setResourceName, false);
+                default -> {
+                    // broker, broker_logger, client_metrics, unknown do not require tenant prefixing
+                }
+            }
+        });
+        return context.forwardRequest(header, request);
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onDescribeConfigsResponse(short apiVersion, ResponseHeaderData header, DescribeConfigsResponseData response,
+                                                                           FilterContext context) {
+        response.results().forEach(result -> {
+            switch (ConfigResource.Type.forId(result.resourceType())) {
+                case TOPIC, GROUP -> removeTenantPrefix(context, result::resourceName, result::setResourceName, false);
+                default -> {
+                    // broker, broker_logger, client_metrics, unknown do not require tenant prefixing
+                }
+            }
+        });
         return context.forwardResponse(header, response);
     }
 

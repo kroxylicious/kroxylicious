@@ -1,0 +1,4 @@
+title: "fix: translate topic and group resources in DescribeConfigs"
+type: fixed
+issues:
+  - 5198
