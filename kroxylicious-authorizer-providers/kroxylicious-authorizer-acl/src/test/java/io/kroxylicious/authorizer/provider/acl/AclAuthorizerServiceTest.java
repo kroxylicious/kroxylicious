@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -700,6 +701,20 @@ class AclAuthorizerServiceTest {
 
         assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "aaa")).isEqualTo(Decision.ALLOW);
         assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void unclosedBlockCommentIsAnError() {
+        var input = CharStreams.fromString("""
+                /* unclosed comment
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+                allow User with name = "Alice" to READ Topic with name = "foo";
+                otherwise deny;""");
+        assertThatThrownBy(() -> AclAuthorizerService.parse(input))
+                .isExactlyInstanceOf(InvalidRulesFileException.class)
+                .asInstanceOf(InstanceOfAssertFactories.throwable(InvalidRulesFileException.class))
+                .extracting(InvalidRulesFileException::errors, InstanceOfAssertFactories.STRING)
+                .contains("1:0: token recognition error");
     }
 
     @Test
