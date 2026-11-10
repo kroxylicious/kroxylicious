@@ -155,7 +155,7 @@ The following resource predicates are supported:
 
 | `MATCHING`
 | Regular expression match
-| `name matching "a+"`
+| `name matching /a+/`
 
 |===
 

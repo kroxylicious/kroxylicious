@@ -180,7 +180,7 @@ class AclAuthorizerServiceTest {
                         """
                                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
-                                allow User with name = "Alice" to READ Topic with name matching /**/;
+                                allow User with name = "Alice" to READ Topic with name matching /*a/;
 
                                 otherwise deny;""",
                         """
@@ -672,6 +672,21 @@ class AclAuthorizerServiceTest {
                 .isEqualTo(Decision.ALLOW);
         assertThat(decision(authz, new User("Bob"), FakeTopicResource.READ, "\\"))
                 .isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void blockCommentsAreComments() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                /* Rules for team A */
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+                /*
+                 * Alice reads foo
+                 */
+                allow User with name = "Alice" to READ Topic with name = "foo"; /* trailing */
+                // a line comment
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.ALLOW);
     }
 
     @Test
