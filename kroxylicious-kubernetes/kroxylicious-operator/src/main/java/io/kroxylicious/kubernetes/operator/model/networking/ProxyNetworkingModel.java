@@ -172,13 +172,15 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
     }
 
     /**
-     * Collects all distinct shared SNI ports required by any cluster in this proxy.
+     * Collects all distinct shared SNI ports required by any non-broken cluster in this proxy.
      * Used to determine which SNI container ports should be exposed on the proxy pod.
      *
+     * @param clusterHasValidNetworking predicate selecting the clusters to include
      * @return a set of required SNI port numbers
      */
-    public Set<Integer> requiredSharedSniPorts() {
+    public Set<Integer> requiredSharedSniPorts(Predicate<VirtualKafkaCluster> clusterHasValidNetworking) {
         return clusterNetworkingModels.stream()
+                .filter(cnm -> clusterHasValidNetworking.test(cnm.cluster()))
                 .flatMap(ClusterNetworkingModel::requiredSharedSniPorts)
                 .collect(Collectors.toSet());
     }
@@ -243,15 +245,6 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
          */
         public void registerProxyContainerPorts(Consumer<ContainerPort> portConsumer) {
             clusterIngressNetworkingModelResults.forEach(result -> result.proxyContainerPorts().forEach(portConsumer));
-        }
-
-        /**
-         * Determines whether any ingress in this cluster requires a shared SNI container port.
-         * @return true if at least one ingress requires a shared SNI container port
-         */
-        public boolean anyIngressRequiresSharedSniPort() {
-            return clusterIngressNetworkingModelResults.stream()
-                    .anyMatch(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().requiresSharedSniContainerPort());
         }
 
         /**

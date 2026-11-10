@@ -80,19 +80,19 @@ public interface ClusterIngressNetworkingModel {
     Optional<Tls> downstreamTls();
 
     /**
-     * Whether this cluster ingress requires a shared SNI port in the proxy container.
-     * @return true if this cluster ingress requires a shared SNI port in the proxy container to be provided
-     */
-    default boolean requiresSharedSniContainerPort() {
-        return false;
-    }
-
-    /**
      * The shared SNI container port used by this model, if any.
      * @return the port number, or empty if this model does not use a shared SNI port
      */
     default Optional<Integer> sharedSniContainerPort() {
         return Optional.empty();
+    }
+
+    /**
+     * Whether this cluster ingress requires a shared SNI port in the proxy container.
+     * @return true if this cluster ingress requires a shared SNI port in the proxy container to be provided
+     */
+    default boolean requiresSharedSniContainerPort() {
+        return sharedSniContainerPort().isPresent();
     }
 
     /**

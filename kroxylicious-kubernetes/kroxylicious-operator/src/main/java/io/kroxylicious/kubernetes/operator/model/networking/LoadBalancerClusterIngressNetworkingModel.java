@@ -81,11 +81,6 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
     }
 
     @Override
-    public boolean requiresSharedSniContainerPort() {
-        return true;
-    }
-
-    @Override
     public Optional<Integer> sharedSniContainerPort() {
         return Optional.of(sharedSniPort);
     }

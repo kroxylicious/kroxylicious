@@ -633,17 +633,21 @@ class KafkaProxyReconcilerTest {
     static Stream<Arguments> proxyProtocolConfigProvider() {
         return Stream.of(
                 Arguments.of(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode.REQUIRED,
-                        io.kroxylicious.proxy.config.ProxyProtocolMode.REQUIRED),
+                        io.kroxylicious.proxy.config.ProxyProtocolMode.REQUIRED,
+                        ProxyDeploymentDependentResource.SHARED_SNI_PROXY_PROTOCOL_PORT),
                 Arguments.of(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode.FORBIDDEN,
-                        io.kroxylicious.proxy.config.ProxyProtocolMode.FORBIDDEN),
-                Arguments.of(null, null));
+                        io.kroxylicious.proxy.config.ProxyProtocolMode.FORBIDDEN,
+                        ProxyDeploymentDependentResource.SHARED_SNI_PORT),
+                Arguments.of(null, null,
+                        ProxyDeploymentDependentResource.SHARED_SNI_PORT));
     }
 
     @ParameterizedTest
     @MethodSource("proxyProtocolConfigProvider")
     void buildVirtualClusterGatewayConvertsProxyProtocolModeCorrectly(
                                                                       @Nullable io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol.Mode kubeMode,
-                                                                      @Nullable io.kroxylicious.proxy.config.ProxyProtocolMode runtimeMode) {
+                                                                      @Nullable io.kroxylicious.proxy.config.ProxyProtocolMode runtimeMode,
+                                                                      int sharedSniPort) {
         // Given
         var lbBuilder = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancerBuilder()
                 .withBootstrapAddress("bootstrap.kafka")
@@ -667,7 +671,7 @@ class KafkaProxyReconcilerTest {
                 .build();
 
         var networkingModel = new io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel(
-                cluster, ingress, loadBalancer, tls, 9291);
+                cluster, ingress, loadBalancer, tls, sharedSniPort);
 
         // When
         var result = KafkaProxyReconciler.buildVirtualClusterGateway(networkingModel);

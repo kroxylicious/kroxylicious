@@ -309,8 +309,8 @@ public class ProxyDeploymentDependentResource
                 clusterNetworkingModel.registerProxyContainerPorts(containerBuilder::addToPorts);
             }
         });
-        // Add shared SNI ports (only those actually needed based on proxyProtocol configuration)
-        var requiredSniPorts = ingressModel.requiredSharedSniPorts();
+        // Add shared SNI ports (only those actually needed based on proxyProtocol configuration, only for non-broken clusters)
+        var requiredSniPorts = ingressModel.requiredSharedSniPorts(cluster -> !kafkaProxyContext.isBroken(cluster));
         if (requiredSniPorts.contains(SHARED_SNI_PORT)) {
             containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PORT).withName("shared-sni-port").endPort();
         }
