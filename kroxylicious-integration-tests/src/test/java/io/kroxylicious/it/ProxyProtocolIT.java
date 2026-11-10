@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.it;
 
+import java.net.InetSocketAddress;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -21,6 +22,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
+import io.kroxylicious.it.testplugins.ClientAddressRecordingFilter;
+import io.kroxylicious.it.testplugins.ClientAddressRecordingFilterFactory;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.service.HostPort;
@@ -28,6 +31,7 @@ import io.kroxylicious.testing.certificate.CertificateGenerator;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.client.KafkaClient;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 
 import static io.kroxylicious.testing.integration.client.KafkaClient.TRUST_ALL_CLIENT_SSL_CONTEXT;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
@@ -43,6 +47,7 @@ import static io.netty.handler.codec.haproxy.HAProxyProtocolVersion.V2;
 import static io.netty.handler.codec.haproxy.HAProxyProxiedProtocol.TCP4;
 import static io.netty.handler.codec.haproxy.HAProxyProxiedProtocol.TCP6;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /**
  * Integration tests for per-gateway HAProxy PROXY protocol support.
@@ -75,6 +80,18 @@ class ProxyProtocolIT {
                 // so we use TCP4+localhost which produces a valid LOCAL-command frame on the wire.
                 Arguments.argumentSet("v2-local",
                         new HAProxyMessage(V2, LOCAL, TCP4, "127.0.0.1", "127.0.0.1", 0, 0)));
+    }
+
+    /**
+     * A subset of {@link #proxyMessages()} carrying a real source address (PROXY command, TCP4/TCP6),
+     * for asserting the exposed client address. Each call yields fresh HAProxyMessage instances.
+     */
+    static Stream<Arguments> addressBearingProxyMessages() {
+        return Stream.of(
+                Arguments.argumentSet("v2-proxy-tcp4",
+                        new HAProxyMessage(V2, PROXY, TCP4, "192.168.1.100", "127.0.0.1", 54321, 9092)),
+                Arguments.argumentSet("v2-proxy-tcp6",
+                        new HAProxyMessage(V2, PROXY, TCP6, "2001:db8::1", "2001:db8::2", 54321, 9092)));
     }
 
     // ---- plain channel ----
@@ -144,6 +161,75 @@ class ProxyProtocolIT {
                 // Then
                 assertThat(response).failsWithin(5, TimeUnit.SECONDS);
             }
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("addressBearingProxyMessages")
+    void requiredMode_plainChannel_exposesProxySourceAsClientAddress(HAProxyMessage msg) {
+        // Given
+        String recorderId = "required-with-header";
+        ClientAddressRecordingFilter.reset(recorderId);
+        var recordingFilter = new NamedFilterDefinitionBuilder("client-address-recorder",
+                ClientAddressRecordingFilterFactory.class.getName())
+                .withConfig("recorderId", recorderId)
+                .build();
+        var expectedProxySource = new InetSocketAddress(msg.sourceAddress(), msg.sourcePort());
+        var expectedProxyDestination = new InetSocketAddress(msg.destinationAddress(), msg.destinationPort());
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> plainConfig(bootstrap, ProxyProtocolMode.REQUIRED)
+                .addToFilterDefinitions(recordingFilter)
+                .addToDefaultFilters(recordingFilter.name()))) {
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS,
+                    ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsResponseData()));
+            var bootstrap = HostPort.parse(tester.getBootstrapAddress());
+
+            // When
+            try (var client = KafkaClient.withProxyProtocol(bootstrap.host(), bootstrap.port(), msg)) {
+                assertThat(client.get(apiVersionsRequest())).succeedsWithin(5, TimeUnit.SECONDS);
+            }
+            tester.assertAllMockInteractionsInvoked();
+
+            // Then
+            var observation = ClientAddressRecordingFilter.observationFor(recorderId);
+            assertThat(observation).isNotNull();
+            assertThat(observation.clientAddress()).isEqualTo(expectedProxySource);
+            assertThat(observation.peerAddress())
+                    .asInstanceOf(type(InetSocketAddress.class))
+                    .matches(peer -> peer.getAddress().isLoopbackAddress(), "immediate peer is the local test client (loopback)");
+            assertThat(observation.clientProxyProtocolContext())
+                    .isNotNull()
+                    .satisfies(c -> {
+                        assertThat(c.sourceAddress()).isEqualTo(expectedProxySource);
+                        assertThat(c.destinationAddress()).isEqualTo(expectedProxyDestination);
+                    });
+        }
+    }
+
+    @Test
+    void forbiddenMode_plainChannel_exposesPeerAsClientAddress() {
+        // Given
+        String recorderId = "forbidden-without-header";
+        ClientAddressRecordingFilter.reset(recorderId);
+        var recordingFilter = new NamedFilterDefinitionBuilder("client-address-recorder",
+                ClientAddressRecordingFilterFactory.class.getName())
+                .withConfig("recorderId", recorderId)
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> plainConfig(bootstrap, ProxyProtocolMode.FORBIDDEN)
+                .addToFilterDefinitions(recordingFilter)
+                .addToDefaultFilters(recordingFilter.name()));
+                var client = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS,
+                    ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsResponseData()));
+
+            // When
+            assertThat(client.get(apiVersionsRequest())).succeedsWithin(5, TimeUnit.SECONDS);
+            tester.assertAllMockInteractionsInvoked();
+
+            // Then
+            var observation = ClientAddressRecordingFilter.observationFor(recorderId);
+            assertThat(observation).isNotNull();
+            assertThat(observation.clientAddress()).isEqualTo(observation.peerAddress());
+            assertThat(observation.clientProxyProtocolContext()).isNull();
         }
     }
 

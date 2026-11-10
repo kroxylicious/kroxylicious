@@ -6,9 +6,17 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.net.InetSocketAddress;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
+
+import io.kroxylicious.proxy.internal.net.ProxyProtocolContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -130,5 +138,36 @@ class KafkaSessionTest {
         // When
         // Then
         assertThat(a).doesNotHaveSameHashCodeAs(b);
+    }
+
+    @Test
+    void shouldHaveNoProxyProtocolContextInitially() {
+        // Given
+        KafkaSession kafkaSession = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+
+        // When
+        // Then
+        assertThat(kafkaSession.proxyProtocolContext()).isNull();
+        assertThat(kafkaSession.clientProxyProtocolContext()).isEmpty();
+    }
+
+    @Test
+    void shouldHaveProxyProtocolContextOnceSet() {
+        // Given
+        KafkaSession kafkaSession = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+        var proxyProtocolContext = new ProxyProtocolContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+                "192.0.2.1", "192.0.2.2", 12345, 9092, Map.of());
+        var expectedSource = new InetSocketAddress("192.0.2.1", 12345);
+        var expectedDestination = new InetSocketAddress("192.0.2.2", 9092);
+
+        // When
+        kafkaSession.setProxyProtocolContext(proxyProtocolContext);
+
+        // Then
+        assertThat(kafkaSession.proxyProtocolContext()).isEqualTo(proxyProtocolContext);
+        assertThat(kafkaSession.clientProxyProtocolContext()).hasValueSatisfying(context -> {
+            assertThat(context.sourceAddress()).isEqualTo(expectedSource);
+            assertThat(context.destinationAddress()).isEqualTo(expectedDestination);
+        });
     }
 }
