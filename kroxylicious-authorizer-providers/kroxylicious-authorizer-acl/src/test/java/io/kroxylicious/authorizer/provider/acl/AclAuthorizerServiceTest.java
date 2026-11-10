@@ -690,6 +690,19 @@ class AclAuthorizerServiceTest {
     }
 
     @Test
+    void blockCommentCoexistsWithRegexEndingStarSlash() {
+        // /a*/ ends with */ — verify the non-greedy COMMENT rule does not absorb the closing / of the regex token
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                /* Rules for team A */
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+                allow User with name = "Alice" to READ Topic with name matching /a*/;
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "aaa")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.DENY);
+    }
+
+    @Test
     void testLikeQuoting() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 from io.kroxylicious.proxy.authentication import User as User;
