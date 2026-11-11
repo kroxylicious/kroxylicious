@@ -44,8 +44,8 @@ public class RemoveCompressionTypeLevelValidatorRecipe extends BaseVendoringReci
         @Override
         @SuppressWarnings({ "java:S2638", "NullableProblems" }) // OpenRewrite visitor pattern: null return deletes the node; parent class not jspecify-annotated
         public J.@Nullable MethodDeclaration visitMethodDeclaration(
-                J.MethodDeclaration methodDeclaration,
-                ExecutionContext ctx) {
+                                                                    J.MethodDeclaration methodDeclaration,
+                                                                    ExecutionContext ctx) {
 
             if ("levelValidator".equals(methodDeclaration.getSimpleName())) {
                 return null;
@@ -55,8 +55,8 @@ public class RemoveCompressionTypeLevelValidatorRecipe extends BaseVendoringReci
 
         @Override
         public J.CompilationUnit visitCompilationUnit(
-                J.CompilationUnit cu,
-                ExecutionContext ctx) {
+                                                      J.CompilationUnit cu,
+                                                      ExecutionContext ctx) {
             J.CompilationUnit c = (J.CompilationUnit) super.visitCompilationUnit(cu, ctx);
             doAfterVisit(new RemoveUnusedImports().getVisitor());
             return c;
