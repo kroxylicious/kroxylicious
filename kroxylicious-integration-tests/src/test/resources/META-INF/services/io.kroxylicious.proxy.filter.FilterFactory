@@ -21,3 +21,4 @@ io.kroxylicious.it.testplugins.ProduceCountingFilterFactory
 io.kroxylicious.it.testplugins.ResponseCountingFilterFactory
 io.kroxylicious.it.testplugins.CorrelationIdCollectingFilterFactory
 io.kroxylicious.it.testplugins.BufferAllocatingDropFilterFactory
+io.kroxylicious.it.testplugins.ClientAddressRecordingFilterFactory

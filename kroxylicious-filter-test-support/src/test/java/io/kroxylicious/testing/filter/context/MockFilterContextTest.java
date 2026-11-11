@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.testing.filter.context;
 
+import java.net.InetSocketAddress;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.List;
@@ -117,6 +118,9 @@ class MockFilterContextTest {
 
         // when / then
         assertThat(context.channelDescriptor()).isEqualTo("channelDescriptor");
+        assertThat(context.peerAddress()).isSameAs(MockFilterContext.DEFAULT_PEER_ADDRESS);
+        assertThat(context.clientAddress()).isSameAs(MockFilterContext.DEFAULT_PEER_ADDRESS);
+        assertThat(context.clientProxyProtocolContext()).isEmpty();
         assertThat(context.sessionId()).isEqualTo("sessionId");
         assertThat(context.sniHostname()).isEqualTo("sniHostname");
         assertThat(context.getVirtualClusterName()).isEqualTo("virtualCluster");
@@ -133,6 +137,34 @@ class MockFilterContextTest {
 
         // when / then
         assertThat(context.channelDescriptor()).isEqualTo(newChannelDescriptor);
+    }
+
+    @Test
+    void shouldReturnOverriddenPeerAddress() {
+        // given
+        InetSocketAddress peerAddress = new InetSocketAddress("192.0.2.10", 12345);
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).withPeerAddress(peerAddress).build();
+
+        // when / then
+        assertThat(context.peerAddress()).isSameAs(peerAddress);
+        assertThat(context.clientAddress()).isSameAs(peerAddress);
+    }
+
+    @Test
+    void shouldReturnOverriddenClientProxyProtocolContextDetails() {
+        // given
+        InetSocketAddress source = new InetSocketAddress("192.0.2.10", 54321);
+        InetSocketAddress destination = new InetSocketAddress("198.51.100.5", 9092);
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE)
+                .withClientProxyProtocolContext(source, destination)
+                .build();
+
+        // when / then
+        assertThat(context.clientProxyProtocolContext()).hasValueSatisfying(proxyProtocol -> {
+            assertThat(proxyProtocol.sourceAddress()).isSameAs(source);
+            assertThat(proxyProtocol.destinationAddress()).isSameAs(destination);
+        });
+        assertThat(context.clientAddress()).isSameAs(source);
     }
 
     @Test

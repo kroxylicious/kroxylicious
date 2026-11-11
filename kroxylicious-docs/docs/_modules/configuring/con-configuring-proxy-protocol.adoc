@@ -178,3 +178,11 @@ Kroxylicious trusts the client address contained in the PROXY protocol header.
 Any client that can reach a `required` mode gateway directly, bypassing the load balancer, can send a PROXY protocol header carrying a spoofed source address.
 Use network controls, such as firewall rules or security groups, to ensure that only the load balancer can connect to the ports of a gateway that uses `required` mode.
 ====
+
+[IMPORTANT]
+====
+Filters can read the client address through the `FilterContext` accessors `clientAddress()` and `clientProxyProtocolContext()`.
+Because `required` mode does not authenticate the sender of a PROXY protocol header (see above), these accessors return a value that a client able to reach the gateway directly can spoof.
+Treat the client address as trustworthy only where network controls guarantee that the immediate peer is always the trusted load balancer.
+Filters that make authorization or audit decisions based on it rely on that guarantee. Where it does not hold, use the `peerAddress()` accessor, which returns the address of the immediate peer and cannot be spoofed this way.
+====

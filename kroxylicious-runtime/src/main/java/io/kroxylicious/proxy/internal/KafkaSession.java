@@ -7,9 +7,11 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 import io.kroxylicious.proxy.internal.net.ProxyProtocolContext;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -30,6 +32,12 @@ public class KafkaSession {
      */
     @Nullable
     private ProxyProtocolContext proxyProtocolContext;
+
+    /**
+     * The public view of {@link #proxyProtocolContext}, derived once in {@link #setProxyProtocolContext} so that
+     * per-request reads neither re-parse addresses nor allocate an {@link Optional}.
+     */
+    private Optional<ClientProxyProtocolContext> clientProxyProtocolContext = Optional.empty();
 
     /**
      * Creates a session with a randomly generated session ID.
@@ -83,6 +91,7 @@ public class KafkaSession {
      */
     public void setProxyProtocolContext(ProxyProtocolContext context) {
         proxyProtocolContext = context;
+        clientProxyProtocolContext = context.toClientProxyProtocolContext();
     }
 
     /**
@@ -92,6 +101,14 @@ public class KafkaSession {
     @Nullable
     public ProxyProtocolContext proxyProtocolContext() {
         return proxyProtocolContext;
+    }
+
+    /**
+     * Returns the public PROXY protocol context for this session.
+     * @return the context, or empty if no PROXY protocol header carrying a supported TCP4 or TCP6 endpoint was received
+     */
+    public Optional<ClientProxyProtocolContext> clientProxyProtocolContext() {
+        return clientProxyProtocolContext;
     }
 
     @Override

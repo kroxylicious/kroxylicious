@@ -54,6 +54,7 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
@@ -882,6 +883,15 @@ public class ClientConnectionStateMachine {
      */
     public Optional<ClientTlsContext> clientTlsContext() {
         return clientSubjectManager.clientTlsContext();
+    }
+
+    /**
+     * Returns the PROXY protocol context of the downstream client connection, if a PROXY protocol
+     * header carrying a supported TCP4 or TCP6 endpoint was received.
+     * @return the client PROXY protocol context, or empty if no such header was received
+     */
+    public Optional<ClientProxyProtocolContext> clientProxyProtocolContext() {
+        return kafkaSession.clientProxyProtocolContext();
     }
 
     /**
