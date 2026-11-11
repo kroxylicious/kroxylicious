@@ -904,7 +904,7 @@ class TlsIT extends AbstractTlsIT {
      * that aspect unset.
      */
     private ConfigurationBuilder upstreamTlsBuilder(@Nullable AllowDeny<String> cipherSuites, @Nullable AllowDeny<String> namedGroups,
-                                                     @Nullable AllowDeny<String> protocols) {
+                                                    @Nullable AllowDeny<String> protocols) {
         var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         var brokerTrustPasswordProvider = constructPasswordProvider(InlinePassword.class, brokerTruststorePassword);
