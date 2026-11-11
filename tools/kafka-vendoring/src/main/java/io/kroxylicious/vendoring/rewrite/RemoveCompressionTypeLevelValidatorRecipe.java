@@ -7,6 +7,7 @@
 package io.kroxylicious.vendoring.rewrite;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.FindSourceFiles;
 import org.openrewrite.Preconditions;
@@ -16,7 +17,6 @@ import org.openrewrite.java.RemoveUnusedImports;
 import org.openrewrite.java.tree.J;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Removes the levelValidator() method from Kafka's CompressionType enum.
@@ -43,7 +43,8 @@ public class RemoveCompressionTypeLevelValidatorRecipe extends BaseVendoringReci
     private static class LevelValidatorVisitor extends JavaVisitor<ExecutionContext> {
 
         @Override
-        public @Nullable J.MethodDeclaration visitMethodDeclaration(
+        @SuppressWarnings("java:S6355") // OpenRewrite visitor pattern: null return deletes the node; parent class not jspecify-annotated
+        public J.@Nullable MethodDeclaration visitMethodDeclaration(
                                                                     @NonNull J.MethodDeclaration methodDeclaration,
                                                                     @NonNull ExecutionContext ctx) {
 
