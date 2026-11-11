@@ -7,7 +7,6 @@
 package io.kroxylicious.router.subject;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -60,8 +59,8 @@ class SubjectRoutingHandlerTest {
     private static final RequestHeaderData HEADER = new RequestHeaderData();
     private static final MetadataRequestData REQUEST = new MetadataRequestData();
     private static final List<SubjectRouter.CompiledRule> RULES = List.of(
-            new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), null, "team-a"),
-            new SubjectRouter.CompiledRule(Map.of(User.class, "CN=carol"), null, "team-b"));
+            new SubjectRouter.CompiledRule(List.of(requirement(User.class, "CN=alice")), null, "team-a"),
+            new SubjectRouter.CompiledRule(List.of(requirement(User.class, "CN=carol")), null, "team-b"));
 
     @Mock
     private RouterContext ctx;
@@ -130,6 +129,10 @@ class SubjectRoutingHandlerTest {
 
     private SubjectRoutingHandler newHandler(List<SubjectRouter.CompiledRule> rules, @Nullable String defaultRoute) {
         return new SubjectRoutingHandler(rules, defaultRoute, Set.of("team-a", "team-b"), "vc1", "subj-router");
+    }
+
+    private static SubjectRouter.CompiledPrincipalRequirement requirement(Class<? extends io.kroxylicious.proxy.authentication.Principal> type, String name) {
+        return new SubjectRouter.CompiledPrincipalRequirement(type, name);
     }
 
     @Test
@@ -381,8 +384,8 @@ class SubjectRoutingHandlerTest {
     void firstMatchingRuleWinsWhenMultipleRulesCouldApply() {
         // Given: a broader alice-only rule declared before a narrower alice+other-principal rule
         List<SubjectRouter.CompiledRule> rules = List.of(
-                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), null, "team-a"),
-                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), null, "team-b"));
+                new SubjectRouter.CompiledRule(List.of(requirement(User.class, "CN=alice")), null, "team-a"),
+                new SubjectRouter.CompiledRule(List.of(requirement(User.class, "CN=alice")), null, "team-b"));
         Subject subject = new Subject(Set.of(new User("CN=alice")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
         VirtualNode node = mock(VirtualNode.class);
@@ -405,8 +408,47 @@ class SubjectRoutingHandlerTest {
     void ruleRequiringMultiplePrincipalTypesNeedsAllToMatch() {
         // Given
         List<SubjectRouter.CompiledRule> rules = List.of(
-                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice", OtherPrincipal.class, "x"), null, "team-a"));
+                new SubjectRouter.CompiledRule(List.of(requirement(User.class, "CN=alice"), requirement(OtherPrincipal.class, "x")), null, "team-a"));
         Subject subject = new Subject(Set.of(new User("CN=alice")));
+        when(ctx.authenticatedSubject()).thenReturn(subject);
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
+
+        // When
+        newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+
+        // Then
+        verify(ctx, never()).anyNode(any());
+    }
+
+    @Test
+    void ruleRequiringTwoPrincipalsOfTheSameNonSingularTypeMatchesWhenSubjectCarriesBoth() {
+        // Given: a rule needing both a "developer" and a "team-a" Role, expressible only as a list
+        List<SubjectRouter.CompiledRule> rules = List.of(
+                new SubjectRouter.CompiledRule(List.of(requirement(Role.class, "developer"), requirement(Role.class, "team-a")), null, "team-a"));
+        Subject subject = new Subject(Set.of(new User("CN=alice"), new Role("developer"), new Role("team-a")));
+        when(ctx.authenticatedSubject()).thenReturn(subject);
+        VirtualNode node = mock(VirtualNode.class);
+        when(ctx.anyNode("team-a")).thenReturn(node);
+        MetadataResponseData upstreamResponse = new MetadataResponseData();
+        when(ctx.sendRequest(node, HEADER, REQUEST)).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
+        RouterResponse routerResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
+
+        // When
+        RouterResponse result = newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+                .toCompletableFuture().join();
+
+        // Then
+        assertThat(result).isSameAs(routerResponse);
+        verify(ctx).sendRequest(node, HEADER, REQUEST);
+    }
+
+    @Test
+    void ruleRequiringTwoPrincipalsOfTheSameNonSingularTypeRejectedWhenOnlyOnePresent() {
+        // Given: subject carries only one of the two required Role values
+        List<SubjectRouter.CompiledRule> rules = List.of(
+                new SubjectRouter.CompiledRule(List.of(requirement(Role.class, "developer"), requirement(Role.class, "team-a")), null, "team-a"));
+        Subject subject = new Subject(Set.of(new User("CN=alice"), new Role("developer")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
         when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
@@ -421,7 +463,7 @@ class SubjectRoutingHandlerTest {
     void clientIdOnlyRuleMatchesAnonymousConnection() {
         // Given
         RequestHeaderData header = new RequestHeaderData().setClientId("demo-app");
-        List<SubjectRouter.CompiledRule> rules = List.of(new SubjectRouter.CompiledRule(Map.of(), "demo-app", "team-a"));
+        List<SubjectRouter.CompiledRule> rules = List.of(new SubjectRouter.CompiledRule(List.of(), "demo-app", "team-a"));
         when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
         VirtualNode node = mock(VirtualNode.class);
         when(ctx.anyNode("team-a")).thenReturn(node);
@@ -443,7 +485,7 @@ class SubjectRoutingHandlerTest {
     void clientIdOnlyRuleSkipsApiVersionsFanOut() {
         // Given
         RequestHeaderData header = new RequestHeaderData().setClientId("demo-app");
-        List<SubjectRouter.CompiledRule> rules = List.of(new SubjectRouter.CompiledRule(Map.of(), "demo-app", "team-a"));
+        List<SubjectRouter.CompiledRule> rules = List.of(new SubjectRouter.CompiledRule(List.of(), "demo-app", "team-a"));
         when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
         VirtualNode node = mock(VirtualNode.class);
         when(ctx.anyNode("team-a")).thenReturn(node);
@@ -467,7 +509,7 @@ class SubjectRoutingHandlerTest {
         // Given: subject satisfies hasPrincipals but pinned client.id does not match hasClientId
         RequestHeaderData header = new RequestHeaderData().setClientId("other-app");
         List<SubjectRouter.CompiledRule> rules = List.of(
-                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), "alice-app", "team-a"));
+                new SubjectRouter.CompiledRule(List.of(requirement(User.class, "CN=alice")), "alice-app", "team-a"));
         Subject subject = new Subject(Set.of(new User("CN=alice")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
         when(ctx.respondWithError(header, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
@@ -500,7 +542,7 @@ class SubjectRoutingHandlerTest {
     void clientIdIsPinnedFromFirstRequestAndNotReReadLater() {
         // Given: the first request's client.id matches a rule and pins the route
         RequestHeaderData firstHeader = new RequestHeaderData().setClientId("demo-app");
-        List<SubjectRouter.CompiledRule> rules = List.of(new SubjectRouter.CompiledRule(Map.of(), "demo-app", "team-a"));
+        List<SubjectRouter.CompiledRule> rules = List.of(new SubjectRouter.CompiledRule(List.of(), "demo-app", "team-a"));
         when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
         VirtualNode node = mock(VirtualNode.class);
         when(ctx.anyNode("team-a")).thenReturn(node);
@@ -523,4 +565,9 @@ class SubjectRoutingHandlerTest {
 
     @io.kroxylicious.identity.SingularPrincipal
     private record OtherPrincipal(String name) implements io.kroxylicious.proxy.authentication.Principal {}
+
+    /**
+     * A non-singular principal type: a subject may carry more than one.
+     */
+    private record Role(String name) implements io.kroxylicious.proxy.authentication.Principal {}
 }

@@ -210,8 +210,10 @@ class SubjectRouterIT {
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
 
         var ruleMatch = new SubjectRouter.RuleMatch(
-                List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), principalNameOf(aliceCertGenerator)), null, "route-a"),
-                        new SubjectRouter.Rule(Map.of(User.class.getName(), principalNameOf(carolCertGenerator)), null, "route-b")),
+                List.of(new SubjectRouter.Rule(List.of(new SubjectRouter.PrincipalRequirement(User.class.getName(), principalNameOf(aliceCertGenerator))), null,
+                        "route-a"),
+                        new SubjectRouter.Rule(List.of(new SubjectRouter.PrincipalRequirement(User.class.getName(), principalNameOf(carolCertGenerator))), null,
+                                "route-b")),
                 null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
                 new SubjectRouter.Config(ruleMatch), List.of(routeA, routeB));
@@ -323,7 +325,8 @@ class SubjectRouterIT {
         var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
         var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
-        var ruleMatch = new SubjectRouter.RuleMatch(List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), "CN=alice"), null, "route-a")), null);
+        var ruleMatch = new SubjectRouter.RuleMatch(
+                List.of(new SubjectRouter.Rule(List.of(new SubjectRouter.PrincipalRequirement(User.class.getName(), "CN=alice")), null, "route-a")), null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
                 new SubjectRouter.Config(ruleMatch), List.of(routeA, routeB));
         var vc = new VirtualClusterBuilder()
@@ -396,7 +399,8 @@ class SubjectRouterIT {
         var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
         var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
-        var ruleMatch = new SubjectRouter.RuleMatch(List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), username), null, "route-a")), null);
+        var ruleMatch = new SubjectRouter.RuleMatch(
+                List.of(new SubjectRouter.Rule(List.of(new SubjectRouter.PrincipalRequirement(User.class.getName(), username)), null, "route-a")), null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
                 new SubjectRouter.Config(ruleMatch), List.of(routeA, routeB));
         var vc = new VirtualClusterBuilder()
